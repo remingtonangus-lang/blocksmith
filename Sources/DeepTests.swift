@@ -10,6 +10,7 @@ enum DeepTests {
         seam(game, check)
         sites(check)
         war(game, check)
+        AshColumns.check(game, check)                            // P509
         DeepExpansionTests.run(game, check)
     }
 
@@ -92,6 +93,7 @@ enum DeepTests {
         // The Marshal: barrages, his guard, and his fall.
         let marshal = unit("ash_marshal^180", dz: 14)
         marshal.soldierBrain.ashTimer = 0                       // his first barrage before he closes within 5 blocks
+        marshal.notice = 1                                       // (P508 stealth: he has already marked the player)
         var marked = false
         // Held 14 blocks off (he charges; a barrage needs him to see you from beyond 5 blocks, and a run where he closed
         // before his first look made the check flaky).

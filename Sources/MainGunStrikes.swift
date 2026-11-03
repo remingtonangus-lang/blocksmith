@@ -69,6 +69,7 @@ enum MainGunStrikes {
                     brokenCount += 1
                     g.bases.note("\(key) broken by the Tidebreaker (\(r.strikes ?? 0) hits, \(r.lost ?? 0) lost)")
                     g.achieve("citadel_broken")
+                    FactionRaids.owe("base:" + key, .steelhold, chance: FactionRaids.baseChance, clock: g.clock)   // P508
                     line = "The citadel is broken: \(r.lost ?? 0) of its garrison down. No more reinforcements, and its walls stay down"
                 } else if r.broken != true {
                     line += " (hit \(r.strikes ?? 0) of \(breakStrikes) to break it)"

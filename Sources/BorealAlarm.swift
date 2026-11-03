@@ -51,6 +51,11 @@ extension Game {
             for n in b.noises where n.hostile && !n.byMob && BorealStation.insideSite(site, n.pos) { trigger = n.pos }
             // A soldier of the station who can see a player inside it.
             let players = (0..<max(1, coop.seatCount)).map { coop.seatPlayer($0, self).pos }
+            // P508: while the station's radar dish stands it knows where a player inside it is.
+            if survival, trigger == nil, let p = players.first(where: { BorealStation.insideSite(site, $0) }),
+               BorealBeacon.standing(self, cx: site.cx, cz: site.cz), !(st.ops[key]?.cleared ?? false) {
+                trigger = p
+            }
             if survival, trigger == nil, let p = players.first(where: { BorealStation.insideSite(site, $0) }) {
                 if mobs.mobs.contains(where: { $0.kind.steelhold && $0.kind != .deckGun && $0.health > 0 && $0.aggro
                                                && ($0.brain?.sees ?? false) && BorealStation.insideSite(site, $0.pos) }) { trigger = p }
@@ -118,5 +123,34 @@ extension Game {
             }
             st.sites[key] = site
         }
+    }
+}
+
+// P508 (Remington, Nov 1 16:26: "make it so boreal station knows where you are at all times... until you destroy their
+// beacon"): the radar mast's dish in the north-east yard is the station's beacon. While it stands, the station knows
+// where a player inside its fence or bunker is (the alarm sounds and the garrison comes for him) and its guns lay on him
+// by radar; shot down (under half the dish and its platform left), they have to find him.
+enum BorealBeacon {
+    static var counts: [String: (n0: Int, n: Int, at: Double)] = [:]
+    static var downTold: Set<String> = []
+    static func standing(_ g: Game, cx: Int, cz: Int) -> Bool {
+        let key = "boreal:\(cx),\(cz)"
+        guard let site = g.bases.boreal.sites[key] else { return true }
+        if let c = counts[key], g.clock - c.at < 1 { return c.n * 2 >= c.n0 }
+        let x0 = cx + 18, z0 = cz - 18, w = g.world
+        guard w.isLoaded(x0, z0) else { return true }
+        var n = 0
+        for y in (site.S + 15)...(site.S + 28) { for z in (z0 - 6)...(z0 + 6) { for x in (x0 - 6)...(x0 + 6) {
+            let b = w.block(x, y, z)
+            if b != AIR && !SmoothTerrain.natural[Int(b)] && !Blocks.isLiquid(b) { n += 1 }
+        } } }
+        let n0 = max(counts[key]?.n0 ?? 0, n)
+        counts[key] = (n0, n, g.clock)
+        let up = n0 < 20 || n * 2 >= n0
+        if !up && !downTold.contains(key) {
+            downTold.insert(key)
+            g.onToast?("The station's radar is down: they have lost track of you")
+        }
+        return up
     }
 }

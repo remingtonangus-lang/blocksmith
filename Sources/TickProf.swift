@@ -13,7 +13,13 @@ enum TickProf {
     // rebuilt every few frames). BS_P283=0 turns them off, so questcheck --perfscenes can measure what they save.
     static let lighter = ProcessInfo.processInfo.environment["BS_P283"] != "0"
 
-    @inline(__always) static func begin() { count = 0; last = CFAbsoluteTimeGetCurrent() }
+    private static var start = 0.0
+    private(set) static var tick = 0             // ticks begun (a frame's shared budgets reset on a new one)
+    private(set) static var prevTotal = 0.0      // seconds from the last tick's begin to its last mark
+    @inline(__always) static func begin() {
+        if start > 0 { prevTotal = last - start }
+        count = 0; last = CFAbsoluteTimeGetCurrent(); start = last; tick &+= 1
+    }
 
     // The time since the previous mark (or begin) is charged to `name`.
     @inline(__always) static func mark(_ name: StaticString) {
@@ -21,6 +27,9 @@ enum TickProf {
         if count < cap { names[count] = name; times[count] = t - last; count += 1 }
         last = t
     }
+
+    // The stage under way (the last one marked: what runs now is charged to the next mark).
+    static var after: String { count > 0 ? "after " + names[count - 1].description : "tick start" }
 
     // The slowest stage of the tick just run: (name, ms).
     static func top() -> (StaticString, Double) {

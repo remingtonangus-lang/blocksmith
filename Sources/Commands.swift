@@ -8,17 +8,20 @@ final class CommandMenu: Menu {
     var line = ""
     var historyPos = -1
     var logScroll = 0                      // P355: wrapped log lines scrolled back from the newest (wheel / right stick)
-    static let buttons = ["Run", "Day", "Night", "Clear Sky", "Rain", "Survival", "Creative", "Keyboard"]
+    // P510 (Nov 1 20:32, "combine shortcuts into commands"): the last, wide button opens the Go To list (the pause
+    // menu's old Shortcuts page: teleports to the nearest place of a kind), and Back there comes back here.
+    static let buttons = ["Run", "Day", "Night", "Clear Sky", "Rain", "Survival", "Creative", "Keyboard", "Go To a Place..."]
     static let suggestBase = 100           // suggestion buttons under the input line
 
     init(game: Game, prefill: String = "") {
         line = prefill
         super.init("Commands", game: game)
         showInventoryLabel = false
-        width = 280; height = 176
+        width = 280; height = 195
         for i in CommandMenu.buttons.indices {
+            let wide = i == 8
             let b = MenuSlot(8 + (i % 4) * 67, 136 + (i / 4) * 19, nil, 0, .button(i))
-            b.w = 63; b.h = 16
+            b.w = wide ? 264 : 63; b.h = 16
             slots.append(b)
         }
         for k in 0..<3 {                       // three chips wide enough for names like pillager_outpost
@@ -58,6 +61,11 @@ final class CommandMenu: Menu {
         case 5: game.command("/gamemode survival")
         case 6: game.command("/gamemode creative")
         case 7: game.openMenu(KeyboardMenu(game: game, target: self)); return
+        case 8:
+            let pm = PauseMenu(game: game)
+            pm.page = .shortcuts; pm.fromCommands = true; pm.build()
+            game.openMenu(pm)
+            return
         default: break
         }
         game.sfx(.click, 0.4)
@@ -131,9 +139,11 @@ extension Game {
         ("trail_ruins", "Trail Ruins"), ("desert_well", "Desert Well"), ("fossil", "Fossil"),
         ("fortress", "Brand Chapterhouse"), ("bastion", "Searwing Roost"), ("end_city", "Hollow Spire"),
         ("military_base", "Capital Citadel"), ("capital_city", "Capital City"), ("great_ruin", "Ancient Spire"), ("boreal_station", "Boreal Station"),
-        ("brimstone_keep", "Brimstone Keep"),
+        ("brimstone_keep", "Brimstone Keep"), (HellWorks.kind, "Hell Works"),
         // Vessel encounters (ShipVessels.swift / CapitalShips.swift), found by region rather than as structures.
-        ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"), ("carriage", "Siege Carriage")]
+        ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Meridian Frigate"), ("carriage", "Siege Carriage"),
+        // P504: a Greywall Command base (a structure), and a train on its line (where its timetable has it now).
+        ("greywall_base", "Greywall Base"), ("train", "Train")]
 
     // P474 (Oct 26 19:30-19:31, after /locate in creative: "What are the trail ruins? I don't even know what trail
     // ruins are"; "What the sealed armory is"; at the Sealed Armoury's spot, "Sunken dreadnought, huh?... Nothing"):
@@ -162,10 +172,13 @@ extension Game {
         "military_base": "a Capital citadel, the enemy's walled base, with guns, soldiers and an armoury",
         "capital_city": "a Capital city, walled, with avenues, guns and a garrison",
         "great_ruin": "a colossal ruined stone tower; a stair inside climbs to a chest at the top",
-        "boreal_station": "a Capital post on the ice, manned, its vehicles parked in the yard",
+        "boreal_station": "a Meridian Navy post on the ice, manned by its marines, its vehicles parked in the yard",
         "brimstone_keep": "a walled castle over the lava sea in the Deep's hell band, holding the Sunderite Ore",
-        "warfrigate": "a Greywall warship under sail", "crawler": "a Capital land ship on its patrol",
-        "frigate": "a Meridian frigate on patrol", "carriage": "a Capital siege carriage on the move"]
+        HellWorks.kind: "the Brand Order's works in hell (a distillery, a gaol or a Brimsalt quarry), the only place to find Brimsalt and Tech Salvage",
+        "warfrigate": "a Greywall warship under sail", "crawler": "a Greywall land ship on its patrol",
+        "frigate": "a Meridian frigate on patrol", "carriage": "a Capital siege carriage on the move",
+        "greywall_base": "a Greywall Command base: walls, gun towers, a garrison and a vault",
+        "train": "a train running its line between the towns' stations"]
 
     static func snake(_ s: String) -> String {
         var out = ""
@@ -390,7 +403,10 @@ extension Game {
             return ["Gave \(v) experience points to Player"]
         // P355: every kind under one shortcut only (the Capital Citadel was listed by both /bases and /citadels).
         case "ending": return endingCommand(a)                 // P438 (AshEnding.swift)
-        case "bases": return locateAll(["boreal_station"])
+        // P504 (Nov 1 09:33, Remington: "I want 'rare' and 'bases' to show the nearest anything regardless of if it's
+        // nearby or not including capital citadels and cities, or a crawler, a train or frigate"): every kind of base
+        // and war machine, the nearest of each however far.
+        case "bases": return locateAll(["military_base", "capital_city", "boreal_station", "greywall_base", "crawler", "frigate", "warfrigate", "carriage", "train"])
         case "cities": return locateAll(["capital_city"])
         case "citadels": return locateAll(["military_base"])
         case "frigates": return locateAll(["frigate", "warfrigate"])
@@ -400,6 +416,10 @@ extension Game {
             guard a.count >= 2 else { return ["Usage: /locate <structure>   Shortcuts: /bases /citadels /frigates /villages /rare"] }
             let n = Game.norm(a[1])
             guard let entry = Game.structureNames.first(where: { $0.0 == n || Game.norm($0.1) == n }) else { return ["Unknown structure \(a[1])"] }
+            if entry.0 == "train" {
+                guard let t = trainTarget() else { return ["Could not find a railway with a train running in this world"] }
+                return ["Train: \(t.0.x) ~ \(t.0.z) (\(Int(t.1)) blocks, on the \(t.2))"]
+            }
             if ["warfrigate", "crawler", "frigate", "carriage"].contains(entry.0) {
                 // The nearest one out (its live position when it is rolling), else its encounter region's home.
                 guard let b = vesselTarget(entry.0) else {
@@ -412,15 +432,18 @@ extension Game {
             // doesn't hold is looked up in the others (the surface, the Deep and its hell band, the Emberdeep, the Hollow),
             // with the dimension named; x and z are the same in every dimension.
             var found: (StructureStart, String)?
-            if let sc = world.gen.structures, let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z)) { found = (s, "") }
-            if found == nil {
-                for d in Dim.allCases where d != dim.dim {
-                    guard let sc = Game.otherGen(d, seed: world.seed).structures,
-                          let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z)) else { continue }
-                    found = (s, " in " + Game.dimName(d)); break
+            // (P504: near first, then out to 40 regions: the nearest however far, not only one close by.)
+            for reach in [6, 40] where found == nil {
+                if let sc = world.gen.structures, let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z), maxRegions: reach) { found = (s, "") }
+                if found == nil {
+                    for d in Dim.allCases where d != dim.dim {
+                        guard let sc = Game.otherGen(d, seed: world.seed).structures,
+                              let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z), maxRegions: reach) else { continue }
+                        found = (s, " in " + Game.dimName(d)); break
+                    }
                 }
             }
-            guard let (s, whereIn) = found else { return ["Could not find a \(entry.1) nearby"] }
+            guard let (s, whereIn) = found else { return ["There is no \(entry.1) in this world"] }
             let dx = Float(s.anchor.x) - player.pos.x, dz = Float(s.anchor.z) - player.pos.z
             // P474: how deep it lies (a place under the ground or the sea shows nothing where he stands), it goes on
             // his map, and what it is.

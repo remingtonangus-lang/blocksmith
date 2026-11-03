@@ -13,14 +13,14 @@ import simd
 //             lands near you (never inside a base, never at sea)
 // Crossing a line says so in a toast.
 enum FactionRep {
-    static let tracked: [Faction] = [.steelhold, .greywall, .meridian, .stormwarden, .ironback]
+    static let tracked: [Faction] = [.steelhold, .greywall, .meridian, .stormwarden]      // (P504: the Ironback Legion is Greywall's)
     static let start: Float = -30
     static let allyAt: Float = 30, huntedAt: Float = -60
     static let hunterEvery: Double = 7200              // P215: was 480 (eight minutes); P231: two hours
     static var rep: [Int: Float] = [:]
     static var nextHunters: Double = 0
 
-    static func of(_ f: Faction) -> Float { rep[f.rawValue] ?? start }
+    static func of(_ f: Faction) -> Float { rep[f.side.rawValue] ?? start }
     static func label(_ v: Float) -> String { v >= allyAt ? "an ally" : (v <= huntedAt ? "hunted" : (v > 0 ? "tolerated" : "wary of you")) }
 
     static func encode() -> String {
@@ -38,7 +38,8 @@ enum FactionRep {
 
 extension Game {
     // A change of standing, with a toast when it crosses a line.
-    func changeRep(_ f: Faction, _ d: Float) {
+    func changeRep(_ f0: Faction, _ d: Float) {
+        let f = f0.side
         guard FactionRep.tracked.contains(f), d != 0 else { return }
         let old = FactionRep.of(f), now = max(-100, min(100, old + d))
         FactionRep.rep[f.rawValue] = now

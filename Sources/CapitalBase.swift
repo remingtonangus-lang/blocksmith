@@ -316,7 +316,7 @@ enum CapitalBase {
         for y in (P1 - 4)...P1 { put(0, y, 20, ladder) }
         put(0, P1 + 1, 20, AIR)
         for (dx, dz) in [(-4, 12), (4, 12)] { w.chest(X(dx), P1 - 4, Z(dz), loot: "steelhold_vault", seed: rng.next(), facing: 1) }
-        w.chest(X(-4), P1 - 4, Z(18), loot: "steelhold_command", seed: rng.next(), facing: 0)
+        w.chest(X(-4), P1 - 4, Z(18), loot: "steelhold_charge", seed: rng.next(), facing: 0)      // (P504: its one Ember Charge)
         w.safe(X(4), P1 - 4, Z(18), seed: safeSeed &+ 1, facing: 0)                    // P248 (BaseSafes.swift)
         w.fill(X(-5), P1 - 2, Z(15), X(5), P1 - 2, Z(15), L)
 
@@ -403,10 +403,22 @@ enum CapitalBase {
                 put(sx * 36, P1 + 32, 3, C)
                 put(sx * 36, P1 + 32, 2, g("oak_chair[south]", AIR))
                 w.mob("soldier_trooper:operator^180", V3(Float(X(sx * 36)) + 0.5, Float(P1 + 32), Float(Z(2)) + 0.5))
-                // P503 (16:20:47, at the top of this tower: "there should be an elevator"): a Lift Pad in every floor
-                // and the roof garden, one over another (Lift.swift: a jump rides up, a crouch down).
-                let lift = g("lift_pad", grey)
-                for y in [P1] + Array(stride(from: P1 + 7, through: P1 + 31, by: 6)) + [P1 + 38] { put(sx * 36 - 3, y, 0, lift) }
+                // P503 (16:20:47, at the top of this tower: "there should be an elevator"), rebuilt (FAILURES.md 2): a
+                // lift with a car, from the plaza to every floor up to the gun room (Elevators.swift). Its car, two by
+                // two, stands south of the tower's middle (x -3...-2, z 2...3), doors north toward the room, clear of the
+                // plaza and walkway doors (z -1...1), the ladder, the gun room's console and its chest.
+                let landings = [P1] + Array(stride(from: P1 + 7, through: P1 + 31, by: 6))      // (the ladder on to the garden)
+                Elevators.build(foot0: IVec3(X(sx * 36 - 3), 0, Z(2)), u: IVec3(1, 0, 0), n: IVec3(0, 0, 1), landings: landings, depth: 2, wall: grey) { x, y, z, b in
+                    if let b { w.set(x, y, z, b); return b }
+                    return w.get(x, y, z)
+                }
+                // P510: each storey below the gun room its own room (TowerRooms.swift).
+                for (i, kind) in TowerRooms.Kind.allCases.enumerated() {
+                    TowerRooms.furnish(kind, i == 0 ? P1 + 1 : P1 + 2 + 6 * i) { x, y, z, b in
+                        if let b { w.set(X(sx * 36 + x), y, Z(z), b); return b }
+                        return w.get(X(sx * 36 + x), y, Z(z))
+                    }
+                }
             }
             // The ladder carries on through the roof onto the garden.
             put(sx * 36, P1 + 37, -4, ladder + 1); put(sx * 36, P1 + 38, -4, ladder + 1); put(sx * 36, P1 + 38, -5, white)

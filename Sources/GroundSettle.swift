@@ -103,16 +103,26 @@ enum GroundSettle {
 
     // A fill that passed 1,500 cells: carried on (to 24,000 cells, 40 out). Nil: held by the world; else the cells of a
     // loose piece, which falls in lots.
+    private static let bigMarks = CellMarks(radius: bigReach + 1)       // (store review: GroundCollapse's CellMarks)
+    // The cells a held fill went through (bigPiece returned nil): one piece with what holds it, so GroundCollapse skips
+    // the seeds among them. (Store review, build 96's crawler soak: "ground collapse" up to 8.3 ms of a frame; a
+    // rut's every ground seed in natural ground ran its own further fill to the 40-cell reach, the same piece each time.)
+    static var lastHeld: [IVec3] = []
     static func bigPiece(_ w: World, from s: IVec3, around p: IVec3) -> [IVec3]? {
-        var seen: Set<IVec3> = [s]
+        let seen = bigMarks
+        seen.reset(around: p)
+        _ = seen.insert(s)
         var stack = [s], cells: [IVec3] = []
         while let c = stack.popLast() {
             cells.append(c)
             if abs(c.x - p.x) >= bigReach || abs(c.y - p.y) >= bigReach || abs(c.z - p.z) >= bigReach || c.y <= 1
-                || cells.count > bigCells || !w.isLoaded(c.x, c.z) { return nil }
+                || cells.count > bigCells || !w.isLoaded(c.x, c.z) {
+                lastHeld.removeAll(keepingCapacity: true); lastHeld += cells; lastHeld += stack
+                return nil
+            }
             for e in World.allDirs {
                 let n = c + e
-                if !seen.contains(n) && w.isGround(n) { seen.insert(n); stack.append(n) }
+                if w.isGround(n) && seen.insert(n) { stack.append(n) }
             }
         }
         return cells
@@ -132,6 +142,7 @@ enum GroundSettle {
         return b == AIR || Blocks.isLiquid(b) || !Blocks.collide[i] || CapitalBase.isLeaf(b) || Blocks.hardness[i] < 0
     }
 
+    private static let objDone = CellSet(capacity: 4096), objSeen = CellSet(capacity: 1024)
     static func objects(_ g: Game, _ p: IVec3, _ r: Int) {
         let w = g.world
         let R = r + 2
@@ -143,10 +154,14 @@ enum GroundSettle {
             w.gravityQueue.append(q)                         // plants pop, sand and gravel fall (Game.gravityTick)
             if !fallSkip[Int(b)] && !w.solidAt(x, y - 1, z) { bases.append(q) }
         } } }
-        var done = Set<IVec3>()
+        // (store review: the kept cell sets, as the border flood, instead of hashed Set<IVec3>s merged per base)
+        let done = objDone, seen = objSeen
+        done.removeAll()
+        var seenList: [IVec3] = []
         for s in bases where !done.contains(s) {
             // The built piece standing here (6-connected solid built blocks, leaves aside), and whether anything holds it.
-            var seen: Set<IVec3> = [s]
+            seen.removeAll(); seen.insert(s)
+            seenList.removeAll(keepingCapacity: true); seenList.append(s)
             var stack = [s], cells: [IVec3] = []
             var held = false
             while let c = stack.popLast() {
@@ -157,13 +172,13 @@ enum GroundSettle {
                     if seen.contains(n) { continue }
                     guard w.isLoaded(n.x, n.z) else { held = true; break }
                     let b = w.builtBlock(n.x, n.y, n.z)
-                    if !fallSkip[Int(b)] { seen.insert(n); stack.append(n); continue }
+                    if !fallSkip[Int(b)] { seen.insert(n); seenList.append(n); stack.append(n); continue }
                     // Something holding it: ground (below or beside), or the world's floor.
                     if e.y <= 0 && (w.groundAt(n.x, n.y, n.z) || n.y <= 0) { held = true; break }
                 }
                 if held { break }
             }
-            done.formUnion(seen)
+            for q in seenList { done.insert(q) }
             if held { continue }
             let logs = cells.filter { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
             if logs.count >= 3, let foot = logs.min(by: { $0.y < $1.y }) {
@@ -187,44 +202,88 @@ enum GroundSettle {
 
     // After a chunk is installed: each chunk here and round it whose small side-reaching pieces wait for their
     // neighbours (Chunk.borderSeeds) is checked once all eight neighbours exist.
+    // Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak, callgrind): run inside each chunk's install
+    // on the frame thread, the flood fills (up to 400 cells a seed, in hashed sets) were the largest part of the
+    // hand-over (single installs of 8 ms in the Ash Vault battle and the jungle walk). With `spread` on (the headset,
+    // QuestApp; questcheck --framesoak) the chunks are queued and `borderStep` works through them within a slice of each
+    // frame: a generation leftover goes a few frames later instead of the frame rate dipping as land comes in.
+    static var spread = false, stepSeconds = 0.0008
+    private static var queued: [ChunkKey] = []
+    private static var queuedSet = Set<ChunkKey>()
+    private static weak var queuedWorld: World?
+    static func borderStep(_ w: World) {
+        guard spread, !queued.isEmpty else { return }
+        if queuedWorld !== w { queued.removeAll(); queuedSet.removeAll(); queuedWorld = w; return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var i = 0
+        while i < queued.count && CFAbsoluteTimeGetCurrent() - t0 < stepSeconds {
+            let k = queued[i]; i += 1
+            queuedSet.remove(k)
+            borderCheckNow(w, k)
+        }
+        queued.removeFirst(i)
+    }
     static func borderCheck(_ w: World, around k: ChunkKey) {
         guard w.fieldTerrain, borderCheck else { return }
+        if spread {
+            if queuedWorld !== w { queued.removeAll(); queuedSet.removeAll(); queuedWorld = w }
+            for dz in -1...1 { for dx in -1...1 {
+                let kk = ChunkKey(x: k.x + dx, z: k.z + dz)
+                guard let c = w.chunks[kk], !c.borderSeeds.isEmpty, !c.hollow, queuedSet.insert(kk).inserted else { continue }
+                queued.append(kk)
+            } }
+            return
+        }
+        for dz in -1...1 { for dx in -1...1 { borderCheckNow(w, ChunkKey(x: k.x + dx, z: k.z + dz)) } }
+    }
+    private static let borderDone = CellSet(capacity: 8192), borderSeen = CellSet(capacity: 1024)
+    // One chunk's waiting seeds, if all eight neighbours are in.
+    private static func borderCheckNow(_ w: World, _ kk: ChunkKey) {
         // P488: generation's own leftovers, not an edit: the sections round what is taken out mesh in the queue's order
         // (P446). Marked as edits, every chunk installed beside a loose piece sent its neighbours' sections ahead of
         // the queue: flying at 60 b/s, a fifth of all meshing was these, the chunks under him re-meshed again and again.
         let was = World.backgroundEdits
         World.backgroundEdits = true
         defer { World.backgroundEdits = was }
-        for dz in -1...1 { for dx in -1...1 {
-            let kk = ChunkKey(x: k.x + dx, z: k.z + dz)
-            guard let c = w.chunks[kk], !c.borderSeeds.isEmpty, !c.hollow else { continue }
+        do {
+            guard let c = w.chunks[kk], !c.borderSeeds.isEmpty, !c.hollow else { return }
             var ready = true
             for ez in -1...1 { for ex in -1...1 where w.chunks[ChunkKey(x: kk.x + ex, z: kk.z + ez)] == nil { ready = false } }
-            guard ready else { continue }
+            guard ready else { return }
             let seeds = c.borderSeeds
             c.borderSeeds = []
-            var done = Set<IVec3>()
+            // (store review, callgrind of the battle soak: still 12M instructions a chunk, most of it hashing cells into
+            // Set<IVec3> and merging them; open-addressed cell sets kept between calls, frame thread only)
+            let done = borderDone, seen = borderSeen
+            done.removeAll()
+            var seenList: [IVec3] = []
             for i in seeds {
                 let s = IVec3(kk.x * CS + i & 15, i / CSQ, kk.z * CS + (i >> 4) & 15)
                 guard !done.contains(s), w.isGround(s) else { continue }
-                var seen: Set<IVec3> = [s]
+                seen.removeAll(); seen.insert(s)
+                seenList.removeAll(keepingCapacity: true); seenList.append(s)
                 var stack = [s], cells: [IVec3] = []
                 var held = false
-                while let q = stack.popLast() {
+                // (store review, callgrind of the soak: each seed filled its 400 cells into hashed sets, 1.8M instructions
+                // a chunk, the whole 0.8 ms budget of every frame while land came in; ground that reaches ground an
+                // earlier seed found held is held too, and those were most of them)
+                flood: while let q = stack.popLast() {
                     cells.append(q)
                     if q.y <= 1 || cells.count >= 400 { held = true; break }
                     guard let cq = w.chunkAt(q.x, q.z), !cq.hollow else { held = true; break }
                     for e in World.allDirs {
                         let n = q + e
-                        if !seen.contains(n) && w.isGround(n) { seen.insert(n); stack.append(n) }
+                        if seen.contains(n) || !w.isGround(n) { continue }
+                        if done.contains(n) { held = true; break flood }        // (a loose piece's cells went: ground no more)
+                        seen.insert(n); seenList.append(n); stack.append(n)
                     }
                 }
-                done.formUnion(seen)
+                for q in seenList { done.insert(q) }
                 if held { continue }
                 w.fieldRemove(cells)
                 borderDrops += cells.count
             }
-        } }
+        }
     }
 }
 

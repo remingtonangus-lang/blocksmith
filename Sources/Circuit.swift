@@ -160,6 +160,13 @@ final class Circuit {
         if Circuit.kind(old) == .rail && k != .rail { railPowered.remove(p) }
         settledWires.remove(p)
         if condLevel[p] != nil && Circuit.kind(new) != Circuit.kind(old) { condLevel[p] = nil }
+        // P505 (the circuit zoo): a part broken and another placed in its cell starts fresh. A comparator put where a
+        // lit one stood gave out the old one's reading until its first tick (a 2-tick flash of whatever it drove); a
+        // dispenser, door or bulb inherited the old one's "already powered" edge; a torch the old one's burnout record.
+        if Circuit.kind(new) != Circuit.kind(old) {
+            if Circuit.kind(new) != .comparator { comparatorOut[p] = nil }
+            edge.remove(p); burn[p] = nil
+        }
         if Circuit.kind(new) != .lectern { lecternOn.remove(p) }
     }
 
@@ -667,8 +674,10 @@ final class Circuit {
             let lit = s == 0 || (s >= 2 && s < 6)
             guard lit == powered else { return }
             // Burnout (reference): 8 turn-offs within 60 ticks leave the torch off for a while. Only turn-offs count
-            // (every toggle did, so a 6-tick clock burnt out here and not there).
-            var hist = (burn[p] ?? []).filter { now - $0 < 60 }
+            // (every toggle did, so a 6-tick clock burnt out here and not there). P505 (the circuit zoo: a torch with a
+            // 1-tick repeater, an 8-tick clock, never burnt out): a turn-off exactly 60 ticks old still counts, as in the
+            // reference, so the relight 4 ticks after the eighth turn-off still sees eight and the torch stays out.
+            var hist = (burn[p] ?? []).filter { now - $0 <= 60 }
             if lit { hist.append(now) }
             burn[p] = hist
             if hist.count >= 8 && !lit { schedule(p, 160); return }

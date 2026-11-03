@@ -13,6 +13,8 @@ enum ShipTuning {
     static let propThrust: Float = 120          // per powered propeller at full throttle
     static let planeAccel: Float = 11            // P435: a flight-model plane's propellers give it at least this acceleration (b/s^2; g is 12)
     static let paddleThrust: Float = 18         // the helm alone moves a small boat slowly
+    static let wadeAccel: Float = 2.4           // P510: a wheeled hull afloat drives on its wheels as paddles (b/s^2)
+    static let wadeTop: Float = 6               // ... up to this pace through the water (b/s)
     static let wheelAccel: Float = 7            // drive per wheel: its share of the weight times this (b/s^2)
     static let perEngine = 4                    // propellers / wheels one engine drives
     static let hullRadius: Float = 0.45
@@ -148,6 +150,7 @@ extension ShipManager {
             SeaStorms.tick(game, dt)                   // H9: storm sea state, crest spray (SeaStorms.swift)
         }
         if encounters, let game { encounterTick(dt, game: game) }
+        TickProf.mark("ships.encounters")
         if let game { capitalTick(dt, game: game) }
         TickProf.mark("ships.capital")
         if list.isEmpty { return }
@@ -162,7 +165,7 @@ extension ShipManager {
             // A rider standing on the world's ground (stepped off the ramp's foot, walked out from under a hull) has left
             // the deck. A mob's velocity is relative to its deck while it rides: the deck's own is added back when it
             // leaves and taken out when it boards (troops walking off a moving crawler stopped dead).
-            for m in game.mobs.mobs where game.riding !== m && m.health > 0 {
+            for m in game.mobs.mobs where game.riding !== m && m.health > 0 && !TrainHulls.bound(m) {
                 // (In the air it stays aboard only over the hull or at one of its ladders: off the ramp's foot it
                 // falls in the world, onto the world's exact ground.)
                 if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d,
@@ -250,6 +253,7 @@ extension ShipManager {
             steps += 1
         }
         if steps == 4 { accum = 0 }
+        TrainHulls.follow(self, dt, game)                          // FAILURES 3: the trains' bodies go with their cars
         TickProf.mark("ships.physics")
         updateShells(dt, game: game)
         meltTick(dt, game: game)                                   // P461: hulls in lava (ShipMelt.swift)
@@ -272,7 +276,7 @@ extension ShipManager {
         // Mobs a moving hull ran into are shoved aside (or lifted onto it when they are near its top).
         if let game {
             // (crews on deck are carried, not shoved)
-            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !mobRiders.contains(where: { $0.0 === m }) {
+            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !TrainHulls.bound(m) && !mobRiders.contains(where: { $0.0 === m }) {
                 let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
                 guard let s = list.first(where: { mx.x > $0.worldMin.x && mn.x < $0.worldMax.x && mx.y > $0.worldMin.y && mn.y < $0.worldMax.y
                     && mx.z > $0.worldMin.z && mn.z < $0.worldMax.z }), overlaps(mn, mx) else { continue }
@@ -405,13 +409,13 @@ extension ShipManager {
         var reader = ShipBlockReader(world)
         for s in list where s.parent == nil {
             // Frozen while asleep (far from the player, or the ground under it isn't loaded).
-            if s.asleep { s.vel = .zero; s.angVel = .zero; continue }
+            if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; continue }    // (P507: a built gun stands)
             if s.kinematic { continue }                // velocity and turn rate come from its AI
             integrateForces(s, h, &reader)
         }
         // Contacts: terrain and ship-ship (a sleeping ship can still be run into). Kinematic ships take none, and other
         // ships don't push against them (their AI holds them on course).
-        for s in list where s.parent == nil && !s.kinematic {
+        for s in list where s.parent == nil && !s.kinematic && !s.emplacement {
             contactScratch.removeAll(keepingCapacity: true)
             if !s.asleep { terrainContacts(s, &reader, &contactScratch) }
             for o in list where o !== s && o.id < s.id && o.parent == nil && !o.kinematic && !(s.asleep && o.asleep) {
@@ -425,7 +429,7 @@ extension ShipManager {
             if !contactScratch.isEmpty { solve(s, &contactScratch, h) }
         }
         for s in list where s.parent == nil {
-            if s.asleep { continue }
+            if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; continue }   // (P507: a built gun stands)
             // NaN quarantine (a degenerate contact or AI steer): a non-finite velocity is dropped, and a non-finite pose
             // goes back to the last good one. NaN reached Int(floor()) in the hull's world bounds and failed the ship save.
             let vOK: Bool = s.vel.x.isFinite && s.vel.y.isFinite && s.vel.z.isFinite
@@ -518,7 +522,8 @@ extension ShipManager {
         let fwdW = s.dirToWorld(s.fwd)
         let props = s.props.count, wheels = s.wheels.count
         // Drive units: each propeller, and wheels by the square root of their cells (big wheels are made of many).
-        let drives = props + (wheels > 0 ? Int(ceil(sqrtf(Float(wheels)))) : 0)
+        // (P505, the vehicle zoo: a rotor is a drive too: a helicopter with no tail propeller had no power, so no lift.)
+        let drives = props + s.rotors.count + (wheels > 0 ? Int(ceil(sqrtf(Float(wheels)))) : 0)
         let power: Float = s.engines > 0 && drives > 0 && s.flakHits < 1 ? min(1, Float(s.engines * ShipTuning.perEngine) / Float(drives)) : 0
         let aircraft = s.wings.count >= 4 && s.balloons == 0
         let piloted = s.piloted
@@ -532,7 +537,10 @@ extension ShipManager {
             // a fixed-wing aircraft built of blocks weighs a tonne a block (the fighter 214 t), and 120 per propeller
             // gave it half a block a second per second: 10 b/s at the end of a strip. A flight-model plane's propellers
             // now give it at least 11 b/s^2 between them (off the ground in about 6 s, near 60 b/s flat out).
-            let each = s.flight?.kind == .plane ? max(ShipTuning.propThrust, s.mass * ShipTuning.planeAccel / Float(max(1, props))) : ShipTuning.propThrust
+            // P507 (the vehicle zoo: a 271 t airship on one propeller made 2 blocks in 4 s): a balloon ship's propellers
+            // give it at least 1.2 b/s^2 between them, as a plane's do theirs (its weight hangs on the gas, not the props).
+            let each = s.flight?.kind == .plane ? max(ShipTuning.propThrust, s.mass * ShipTuning.planeAccel / Float(max(1, props)))
+                : (s.balloons > 0 ? max(ShipTuning.propThrust, s.mass * 1.2 / Float(max(1, props))) : ShipTuning.propThrust)
             for (p, d) in s.props {
                 var at = p
                 at.y = s.com.y
@@ -625,6 +633,7 @@ extension ShipManager {
             let tank = s.name == AshCommandeer.tankName
             let topSpeed: Float = car ? (AshCommandeer.hullTop(s) ?? 16) : 16 * max(1, min(2.2, Float(s.engines * 120) / Float(max(1, s.blockCount))))
             if s.id == ShipManager.probeId { ShipManager.probeWheels.removeAll() }
+            var touching = 0
             for p in s.wheels {
                 let wp = s.toWorld(p)
                 let x = Int(floor(wp.x)), z = Int(floor(wp.z))
@@ -655,6 +664,7 @@ extension ShipManager {
                 let fn = max(0, k * min(comp, car ? 1.0 : 0.6) - c * v.y)
                 if fn <= 0 { continue }
                 s.grounded = true
+                touching += 1
                 let grip = 0.9 * fn
                 // (P449: a tank's tracks skid as it pivots: they grip against the hull's own drift and roll, not its turn)
                 let vs = simd_dot(tank ? s.vel : v, side), vf = simd_dot(tank ? s.vel : v, fh)
@@ -675,6 +685,19 @@ extension ShipManager {
                 apply(V3(0, fn, 0), at: wp)
                 apply(side * lat + fh * long, at: V3(wp.x, (wp.y + ground) * 0.5, wp.z))
             }
+            // P510 (Nov 1 20:29-20:30, the Ironback Crawler at a beach: "For some reason it can't move... Maybe it's 'cause
+            // I'm trying to go in water... It should be able to go into water no problem"; 20:51: "the crawler doesn't like
+            // water but moves great elsewhere"): afloat or wading, the wheels found no ground within reach of the axles and
+            // the helm's paddle (a rowing boat's push) moved a 77-block hull nowhere. A wheeled hull in the water drives on
+            // its wheels as paddles, by the share of them off the bottom: it fords a river, swims a lake at a few blocks a
+            // second and climbs out the far bank on the wheels that reach ground again.
+            if piloted && s.throttleEase != 0 && power > 0 && sub > 0 && s.flight == nil {
+                let off: Float = 1 - Float(touching) / Float(max(1, wheels))
+                let vf = simd_dot(s.vel, fh)
+                let fade = s.throttleEase * vf > 0 ? max(0, 1 - abs(vf) / ShipTuning.wadeTop) : 1
+                F += fh * (s.throttleEase * s.mass * ShipTuning.wadeAccel * power * fade * off)
+                s.wading = off > 0
+            } else { s.wading = false }
             // P464 (Oct 25 19:33, the Ashguard Sidecar: "Still doesn't really drive like a truck. Kinda drifts"): a small
             // car's tyres don't slide sideways the way the clamped grip let its light hull do through a turn: on the
             // ground the sideways part of its motion dies away in about a fifth of a second, so it goes where it points.
@@ -715,11 +738,17 @@ extension ShipManager {
         if s.flight != nil { err = .zero }                  // flown by its flight model, nothing holds it upright
         let felled = s.name == Felling.name                 // P298: a felled tree topples and rolls freely
         if felled { err = .zero }
-        let kr: Float = s.balloons > 0 ? 8 : (aircraft ? 5 : (s.grounded ? 1.5 : (sub > 0 ? 1.2 : 2)))
+        // P504 (Nov 1 08:02:13 and 08:04:32, the Ashguard sidecars: "they're upside down"; "Thing's fairly unstable. The
+        // right side isn't holding it up like a tricycle would"): a small car (the sidecar, his Army Truck) is held
+        // upright hard, as its wide track and low weight would hold a real one, and one on its back rolls over onto its
+        // wheels (the cross product of an upturned hull's up and the sky's is nil: it rolls about its keel).
+        let smallCar = s.blockCount < 40 && !s.wheels.isEmpty && !felled && s.flight == nil && !aircraft
+        if smallCar && simd_dot(up, desiredUp) < 0.2 && simd_length(err) < 0.5 { err = fwdW * (simd_length(err) < 0.05 ? 1 : simd_dot(err, fwdW) >= 0 ? 1 : -1) }
+        let kr: Float = s.balloons > 0 ? 8 : (aircraft ? 5 : (smallCar ? 14 : (s.grounded ? 1.5 : (sub > 0 ? 1.2 : 2))))
         let wHoriz = s.angVel - up * simd_dot(s.angVel, up)
         let damped: V3 = s.flight != nil ? .zero : (felled ? s.angVel * (s.contacts > 0 ? 0.4 : 0.05)
                                                     : (aircraft ? fwdW * simd_dot(wHoriz, fwdW) : wHoriz))
-        let kd: Float = iAvg * (s.balloons > 0 ? 3 : 1.2)
+        let kd: Float = iAvg * (s.balloons > 0 ? 3 : (smallCar ? 5 : 1.2))
         T += err * (kr * iAvg) - damped * kd
         if aircraft && piloted && s.flight == nil {
             let right = simd_normalize(simd_cross(fwdW, up))

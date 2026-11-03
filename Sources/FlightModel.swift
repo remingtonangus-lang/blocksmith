@@ -174,7 +174,9 @@ final class FlightModel {
         let tiltR: V3 = right * (cx * 0.14)
         let n = simd_normalize(up + tiltF + tiltR)
         F += n * thrust
-        T += simd_cross(hub - s.pos, n * thrust)
+        // (the disc's tilt turns the thrust, not the hull: the stability augmentation below sets the attitude. Its lever
+        // at the hub as well rolled a light, short-cabined craft past what the augmentation holds, zoo 078 on its side)
+        T += simd_cross(hub - s.pos, up * thrust)
         // Hub moment (stiff rotor) under an attitude-command stability augmentation: the cyclic asks for a tilt (full
         // stick 0.4 rad nose down / wing down), the rotor moment drives the hull to it and rate damping holds it there
         // (stick centred: level). A rate command would keep tipping the hull while the stick is held.
@@ -184,9 +186,15 @@ final class FlightModel {
         let eP: Float = -askP - nose, eR: Float = wing + askR
         let w = s.angVel
         let wPitch: Float = simd_dot(w, right), wRoll: Float = simd_dot(w, fw), wYaw: Float = simd_dot(w, up)
-        let kP: Float = I.x * 4 * auth, kR: Float = I.z * 4 * auth
-        let pitchT: Float = eP * kP - wPitch * I.x * 2.6 * rpm
-        let rollT: Float = eR * kR - wRoll * I.z * 2.6 * rpm
+        // P507 (vehicle zoo 078, a helicopter on its side after a sideways stick): the gains scale by the hull's inertia
+        // about its own pitch and roll axes (they took the ship-space x and z inertias, right only for a hull whose
+        // nose points along z; one pointing along x had its long-boom roll driven with the pitch's far bigger gain).
+        let rl = s.rot.inverse.act(right), fl = s.rot.inverse.act(fw)
+        let iPitch: Float = I.x * rl.x * rl.x + I.y * rl.y * rl.y + I.z * rl.z * rl.z
+        let iRoll: Float = I.x * fl.x * fl.x + I.y * fl.y * fl.y + I.z * fl.z * fl.z
+        let kP: Float = iPitch * 4 * auth, kR: Float = iRoll * 4 * auth
+        let pitchT: Float = eP * kP - wPitch * iPitch * 2.6 * rpm
+        let rollT: Float = eR * kR - wRoll * iRoll * 2.6 * rpm
         T += right * pitchT
         T += fw * rollT
         // Rotor reaction torque, the tail rotor's answer and the pedals, yaw damping.

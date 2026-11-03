@@ -37,12 +37,15 @@ extension TownTests {
         check(Blocks.def(Blocks.id("enchanting_table")).display == "Upgrade Bench" && Items.def(id("enchanted_book")).display == "Upgrade Kit",
               "upgrades: the enchanting table is the Upgrade Bench, enchanted books are Upgrade Kits")
 
-        // Costs: experience levels plus the item's material and the part's.
+        // Costs (P508: no experience): Tech Salvage plus the item's material and the part's.
         let c1 = Upgrades.cost(id("iron_sword"), .sharpness, level: 1), c3 = Upgrades.cost(id("iron_sword"), .sharpness, level: 3)
-        check(c1.xp == 2 && c3.xp == 4 && c1.items.contains { $0.0 == id("iron_ingot") && $0.1 == 1 } && c1.items.contains { $0.0 == id("flint") && $0.1 == 1 }
+        let salv = id(TechSalvage.key)
+        func salvage(_ c: Upgrades.Cost) -> Int { c.items.first { $0.0 == salv }?.1 ?? 0 }
+        check(c1.xp == 0 && salvage(c1) == 1 && salvage(c3) == 2 && c1.items.contains { $0.0 == id("iron_ingot") && $0.1 == 1 } && c1.items.contains { $0.0 == id("flint") && $0.1 == 1 }
               && c3.items.contains { $0.0 == id("iron_ingot") && $0.1 == 3 },
-              "upgrades: Honed Edge I on an iron sword costs \(c1.xp) levels + \(Upgrades.costText(c1)); III costs \(c3.xp) + \(Upgrades.costText(c3))")
-        check(Upgrades.cost(id("iron_sword"), .mending, level: 1).xp == 5, "upgrades: an advanced part (Field Kit) costs 3 levels more")
+              "upgrades: Honed Edge I on an iron sword costs \(Upgrades.costText(c1)); III costs \(Upgrades.costText(c3)) (no levels: \(c1.xp))")
+        let kit = Upgrades.cost(id("iron_sword"), .mending, level: 1)
+        check(kit.xp == 0 && salvage(kit) >= 3, "upgrades: an advanced part (Field Kit) costs more salvage (\(Upgrades.costText(kit)))")
 
         // Fitting in survival: charges, refuses, conflicts, maximum.
         clear()
@@ -51,13 +54,12 @@ extension TownTests {
         g.inventory.main[0] = ItemStack(id("iron_sword"), 1)
         g.inventory.main[1] = ItemStack(id("iron_ingot"), 20)
         g.inventory.main[2] = ItemStack(id("flint"), 20)
-        g.xpLevel = 1
         let poor = Upgrades.fit(g, g.inventory.main, 0, .sharpness)
-        g.xpLevel = 10
+        g.inventory.main[3] = ItemStack(salv, 5)
         let ok = Upgrades.fit(g, g.inventory.main, 0, .sharpness)
-        check(!poor.1 && ok.1 && Enchant.level(.sharpness, g.inventory.main[0]) == 1 && g.xpLevel == 8
+        check(!poor.1 && ok.1 && Enchant.level(.sharpness, g.inventory.main[0]) == 1 && g.inventory.main.countOf(salv) == 4
               && g.inventory.main.countOf(id("iron_ingot")) == 19 && g.inventory.main.countOf(id("flint")) == 19,
-              "upgrades: \"\(poor.0)\" then \"\(ok.0)\" (10 -> \(g.xpLevel) levels, 20 -> 19 iron and flint)")
+              "upgrades: \"\(poor.0)\" then \"\(ok.0)\" (5 -> \(g.inventory.main.countOf(salv)) salvage, 20 -> 19 iron and flint)")
         let clash = Upgrades.fit(g, g.inventory.main, 0, .smite)
         check(!clash.1 && Enchant.level(.smite, g.inventory.main[0]) == 0, "upgrades: one edge treatment at a time: \"\(clash.0)\"")
         g.survival = false
@@ -71,7 +73,7 @@ extension TownTests {
         g.inventory.armor[1] = ItemStack(id("iron_chestplate"), 1)
         g.inventory.main[0] = ItemStack(id("iron_ingot"), 10)
         g.inventory.main[1] = ItemStack(id("white_wool"), 10)
-        g.xpLevel = 10
+        g.inventory.main[2] = ItemStack(id(TechSalvage.key), 10)
         let m = UpgradeBenchMenu(game: g)
         let rows = m.rows
         let protRow = Upgrades.tree(id("iron_chestplate")).firstIndex(of: .protection).map { $0 + 1 } ?? -1

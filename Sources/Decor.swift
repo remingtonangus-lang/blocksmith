@@ -148,6 +148,9 @@ extension Game {
     }
 
     func openSignEditor(_ p: IVec3) {
+        // P507 (Nov 1 12:34:02 at a border post, its sign opening to be rewritten: "How do I pay money to this thing?"):
+        // a border post's sign is the customs desk. Used, it settles the duty owed there (or says there's none).
+        if let posted = world.blockEntities[p], posted.kind == .sign, posted.lines.first == "BORDER POST" { Countries.payAtDesk(self, sign: posted); return }
         let be = world.entity(p, .sign)
         world.blockEntities[p] = be
         openMenu(SignMenu(game: self, entity: be))

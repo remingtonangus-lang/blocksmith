@@ -352,29 +352,40 @@ enum TownVoice {
     static func decode(_ key: UInt64) -> (rate: Int, pcm: [Float])? {
         guard let e = clip(key) else { return nil }
         lock.lock(); let d = data; lock.unlock()
-        let b0 = d.startIndex + e.offset
-        var pred = Int32(Int16(bitPattern: UInt16(d[b0]) | UInt16(d[b0 + 1]) << 8))
-        var idx = Int32(min(88, Int(d[b0 + 2])))
-        var out = [Float](repeating: 0, count: e.samples)
-        out[0] = Float(pred) / 32768
-        var n = 1
-        var byte = b0 + 4
-        let end = b0 + e.bytes
-        while n < e.samples && byte < end {
-            let b = d[byte]
-            for code in [Int32(b & 15), Int32(b >> 4)] where n < e.samples {
-                let step = stepTable[Int(idx)]
-                var diff = step >> 3
-                if code & 4 != 0 { diff += step }
-                if code & 2 != 0 { diff += step >> 1 }
-                if code & 1 != 0 { diff += step >> 2 }
-                pred += code & 8 != 0 ? -diff : diff
-                pred = max(-32768, min(32767, pred))
-                idx = max(0, min(88, idx + indexTable[Int(code)]))
-                out[n] = Float(pred) / 32768
-                n += 1
+        // (Store review, the town soak: a greeting's take decoded on the frame thread was a 45 ms frame, a two-element
+        // array made for every byte of it; the nibbles straight from the bytes now.)
+        var out = [Float](repeating: 0, count: max(1, e.samples))
+        guard e.offset >= 0, e.bytes >= 4, e.offset + e.bytes <= d.count else { return (e.rate, out) }
+        let stT = stepTable, ixT = indexTable
+        d.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            let src = raw.bindMemory(to: UInt8.self)
+            let b0 = e.offset
+            var pred = Int32(Int16(bitPattern: UInt16(src[b0]) | UInt16(src[b0 + 1]) << 8))
+            var idx = Int32(min(88, Int(src[b0 + 2])))
+            out.withUnsafeMutableBufferPointer { o in
+                o[0] = Float(pred) / 32768
+                var n = 1
+                var byte = b0 + 4
+                let end = b0 + e.bytes, count = e.samples
+                @inline(__always) func step(_ code: Int32) {
+                    let st = stT[Int(idx)]
+                    var diff = st >> 3
+                    if code & 4 != 0 { diff += st }
+                    if code & 2 != 0 { diff += st >> 1 }
+                    if code & 1 != 0 { diff += st >> 2 }
+                    pred += code & 8 != 0 ? -diff : diff
+                    pred = max(-32768, min(32767, pred))
+                    idx = max(0, min(88, idx + ixT[Int(code)]))
+                    o[n] = Float(pred) / 32768
+                    n += 1
+                }
+                while n < count && byte < end {
+                    let b = src[byte]
+                    step(Int32(b & 15))
+                    if n < count { step(Int32(b >> 4)) }
+                    byte += 1
+                }
             }
-            byte += 1
         }
         return (e.rate, out)
     }

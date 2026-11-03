@@ -101,10 +101,24 @@ extension World {
                 raw[(lx + 1) + (lz + 1) * N + (ly + 1) * NN] = v
             }
         } }
+        // (Store review, callgrind of the rocket craters: this upsampling was 44% of a blast's ground carving, every
+        // sample reading its eight cells. The eight cells round each corner are looked at once: where they are all
+        // wholly inside or outside, so are the eight samples between them, as upsample gives.)
+        let U = 17, UU = U * U, mixed: Int16 = 0x7FFF
+        var uni = [Int16](repeating: mixed, count: U * UU)
+        for by in -1...15 { for bz in -1...15 { for bx in -1...15 {
+            let r0 = raw[(bx + 1) + (bz + 1) * N + (by + 1) * NN]
+            guard r0 == FieldTerrain.inside || r0 == FieldTerrain.outside else { continue }
+            var same = true
+            for k in 1..<8 where raw[(bx + 1 + (k & 1)) + (bz + 1 + (k >> 2)) * N + (by + 1 + ((k >> 1) & 1)) * NN] != r0 { same = false; break }
+            if same { uni[(bx + 1) + (bz + 1) * U + (by + 1) * UU] = Int16(r0) }
+        } } }
         var f = [Int8](repeating: 0, count: FineField.count)
         for fy in 0..<32 { for fz in 0..<32 { for fx in 0..<32 {
             // Cell centres at local n + 0.5: the sample at (f + 0.5) / 2 lies between cells (f - 1) / 2 and that + 1.
             let bx = (fx - 1) >> 1, by = (fy - 1) >> 1, bz = (fz - 1) >> 1
+            let u = uni[(bx + 1) + (bz + 1) * U + (by + 1) * UU]
+            if u != mixed { f[FineField.index(fx, fy, fz)] = Int8(u); continue }
             let t = SIMD3<Float>(fx & 1 == 0 ? 0.75 : 0.25, fy & 1 == 0 ? 0.75 : 0.25, fz & 1 == 0 ? 0.75 : 0.25)
             var v = SIMD8<Float>()
             var same = true
@@ -118,6 +132,30 @@ extension World {
         } } }
         c.blocks.fine[sy] = f
         return true
+    }
+
+    // Store review (build 97's crawler soak: a wheel's rut cut was 2-3 ms of one frame, most of it the fine samples of
+    // each new ground section the ball reached, made at once): the sections a carve at `ctr` will reach are made ahead,
+    // at most one a call. True while one was made now (the carve waits a frame); false once all of them have theirs.
+    func prefetchFine(_ ctr: V3, radius r: Float) -> Bool {
+        guard FineField.enabled, fieldTerrain else { return false }
+        let reach = r + 1.0
+        let s0 = max(0, Int(floor(ctr.y - reach)) >> 4), s1 = min(NSEC - 1, max(0, Int(floor(ctr.y + reach))) >> 4)
+        guard s0 <= s1 else { return false }
+        for cz in floorDiv(Int(floor(ctr.z - reach)), CS)...floorDiv(Int(floor(ctr.z + reach)), CS) {
+            for cx in floorDiv(Int(floor(ctr.x - reach)), CS)...floorDiv(Int(floor(ctr.x + reach)), CS) {
+                guard let c0 = chunks[ChunkKey(x: cx, z: cz)], c0.blocks.isField else { continue }
+                for sy in s0...s1 where c0.blocks.fine[sy] == nil {
+                    let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0
+                    guard c.blocks.isField, ensureFine(c, sy) else { continue }
+                    World.finePrefetched.removeAll { $0.c == nil }
+                    if World.finePrefetched.count > 64 { World.finePrefetched.removeFirst(World.finePrefetched.count - 64) }  // (never carved: let go)
+                    World.finePrefetched.append(FinePrefetch(c: c, sy: sy, version: c.sections[sy].version))
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     // fieldSphere's fine part: the same sphere on the fine samples of the sections it reaches (given them first, from
@@ -169,7 +207,12 @@ extension World {
                 guard let c0 = chunks[ChunkKey(x: cx, z: cz)] else { continue }
                 let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0
                 guard c.blocks.isField else { continue }
-                for sy in s0...s1 { out.append((c, sy, ensureFine(c, sy))) }
+                for sy in s0...s1 {
+                    // (made ahead by prefetchFine and still untouched: as fresh as one made now, so a sphere that leaves
+                    // it as it was doesn't keep it)
+                    let ahead = !World.finePrefetched.isEmpty && World.takePrefetched(c, sy)
+                    out.append((c, sy, ensureFine(c, sy) || ahead))
+                }
             }
         }
         return out
@@ -352,5 +395,19 @@ extension Mesher {
             }
         }
         sc.smValid = false
+    }
+}
+
+// A section prefetchFine made: the chunk itself (weak: an ObjectIdentifier outlives its chunk and comes back for the
+// next one made at that address) and the section's version then. It counts as fresh only while both still hold: any
+// edit since (a placed block's ensureFine, another carve) bumps the version, and a fresh section a sphere leaves as it
+// was is let go, which would throw that edit's fine ground away.
+struct FinePrefetch { weak var c: Chunk?; let sy: Int; let version: Int }
+extension World {
+    static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
+    static func takePrefetched(_ c: Chunk, _ sy: Int) -> Bool {
+        guard let i = finePrefetched.firstIndex(where: { $0.c === c && $0.sy == sy }) else { return false }
+        let p = finePrefetched.remove(at: i)
+        return p.version == c.sections[sy].version
     }
 }

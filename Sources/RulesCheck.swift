@@ -79,12 +79,18 @@ enum RulesCheck {
             check(spread > 0, "grass spreads onto lit dirt (\(spread) of 8)")
         }
 
-        // Experience dropped 3 blocks away drifts to the player and is collected.
+        // P508: no experience. A deed's experience leaves no orbs and no levels; a worn mending kit nearby takes it as repair.
         do {
-            let lvl0 = g.xpLevel, pts0 = g.xpPoints
-            g.addXPOrbs(30, at: g.player.pos + V3(3, 0.5, 0))
-            for _ in 0..<200 { g.xpOrbTick(0.05) }
-            check((g.xpLevel > lvl0 || g.xpPoints > pts0) && g.xpOrbs.isEmpty, "dropped experience drifts to the player and is collected")
+            let lvl0 = g.xpLevel, pts0 = g.xpPoints, keep = g.inventory.armor[1]
+            var plate = ItemStack(Items.id("iron_chestplate"), 1)
+            plate.ench = Enchant.pack([(.mending, 1)]); plate.damage = 40
+            g.inventory.armor[1] = plate
+            g.addXPOrbs(10, at: g.player.pos + V3(3, 0.5, 0))
+            for _ in 0..<20 { g.xpOrbTick(0.05) }
+            let mended = 40 - g.inventory.armor[1].damage
+            g.inventory.armor[1] = keep
+            check(g.xpLevel == lvl0 && g.xpPoints == pts0 && g.xpOrbs.isEmpty && mended == 20,
+                  "no experience: no orbs, no levels (\(g.xpLevel - lvl0), \(g.xpPoints - pts0)); a mending kit worn by the deed took \(mended) of 20")
         }
 
         // A worn carved pumpkin survives a hit (durability 0: it vanished on the first one).

@@ -22,6 +22,7 @@ enum Depots {
 
     // Where a base's compound lies (x0...x1, z0...z1), if it has one.
     struct Site { let x0: Int, x1: Int, z0: Int, z1: Int, S: Int, side: Int, fuel: Bool, baseKey: String }
+    static let shutter = "roller_shutter"
 
     static func type(_ gen: WorldGen) -> StructureType {
         StructureType(name: kind, spacing: Greywall.spacing, separation: Greywall.separation, salt: 77310557, reach: 10) { [unowned gen] seed, cx0, cz0 in
@@ -74,7 +75,7 @@ enum Depots {
         let lamp = g("corner_lamp", panel), door = g("bulkhead_door", g("iron_door")), crate = g("ammo_crate", steel)
         let drum = g("ash_drum", g("barrel")), box = g("ash_crate", crate), bags = g("ash_sandbags", g("gravel"))
         let ladder = g("ladder"), slab = g("bunker_concrete_slab", con), steelSlab = g("steel_plating_slab", steel)
-        let fuel = g("fuel", AIR)
+        let fuel = g("fuel", AIR), shutterB = g(Depots.shutter, steel), hoist = g(ShipShells.hoistKey, crate)
         let tank = g("depot_tank", g("white_concrete")), band = g("depot_tank_band", g("red_concrete")), tanker = g("depot_tanker", dark)
         let pipeX = g("depot_pipe_x", g("iron_bars")), pipeZ = g("depot_pipe_z", g("iron_bars")), pipeY = g("depot_pipe_y", g("iron_bars"))
         let pallet = g("spruce_slab", g("oak_slab")), pump = g("fuel_pump", steel), railB = g("rail", AIR)
@@ -199,6 +200,7 @@ enum Depots {
             for b in stride(from: 9, through: 33, by: 8) { put(34, 8, b, panel) }
             // Pumps by the road for his vehicles.
             for b in [27, 29] { put(rb + 1, 1, b, pump) }
+            put(rb + 1, 1, 31, hoist)                                        // P508: a shell hoist to rearm at
             // Fuel drums on pallets.
             for (a0, b0) in [(23, 3), (23, 10)] {
                 for a in a0...(a0 + 3) { for b in b0...(b0 + 3) {
@@ -225,6 +227,15 @@ enum Depots {
 
         // MARK: The ammo depot
         func ammoDepot() {
+            // The magazines' garage doors: upright, their inside toward the vault (a falling), and the stone buttons that
+            // work them (state f + 4: on a wall, f the way it faces).
+            let inward = IVec3(X(12) - X(13), 0, 0)
+            let doorUp = Blocks.has(Depots.shutter) ? GarageDoors.upright(inward) : steel
+            func button(away: Bool) -> BlockID? {
+                guard Blocks.has("stone_button") else { return nil }
+                let wallDir = away ? X(13) - X(14) : X(13) - X(12)        // from the button to the wall it is on
+                return Blocks.id("stone_button") + BlockID((wallDir < 0 ? 3 : 2) + 4)
+            }
             // Three earth-covered magazines along the base's side of the road: an arched concrete vault, buried,
             // its headwall facing the road with a steel door.
             for mb in [8, 22, 36] {
@@ -250,12 +261,15 @@ enum Depots {
                     let off = abs(b - mb)
                     let hh = off <= 4 ? 7 : 7 - (off - 4) * 2
                     for y in 1...hh { put(13, y, b, off <= 4 && y == hh ? slab : con) }
-                    if off <= 1 { put(13, 1, b, AIR); put(13, 2, b, AIR); put(13, 3, b, steel) }
+                    // FAILURES.md 1, rebuilt: a garage door five wide and four high, a vehicle's way in (GarageDoors.swift);
+                    // it swings up and in to lie under the vault's crown (a = 12...9 at y 5, kept clear below).
+                    if off <= 2 { for y in 1...4 { put(13, y, b, shutterB == steel ? steel : doorUp) } }
                 }
-                for b in (mb - 1)...(mb + 1) { put(14, 0, b, con) }
-                put(13, 1, mb, door + BlockID(2)); put(13, 2, mb, door + BlockID(2 + 8))
-                put(13, 1, mb - 1, steel); put(13, 2, mb - 1, steel); put(13, 1, mb + 1, steel); put(13, 2, mb + 1, steel)
-                put(14, 5, mb, lamp); put(13, 4, mb - 2, hazard); put(13, 4, mb + 2, hazard)
+                for b in (mb - 2)...(mb + 2) { put(14, 0, b, con) }
+                put(14, 6, mb, lamp); put(13, 4, mb - 3, hazard); put(13, 4, mb + 3, hazard)
+                // Its buttons, outside on the headwall and inside on the wall beside the door.
+                if let bt = button(away: true) { put(14, 2, mb - 3, bt) }
+                if let bt = button(away: false) { put(12, 2, mb - 3, bt) }
                 // Inside: crates of rounds down both walls, two chests at the back, a light in the crown.
                 for a in 4...11 { for b in [mb - 3, mb + 3] {
                     put(a, 1, b, a % 3 == 0 ? box : crate)
@@ -263,7 +277,7 @@ enum Depots {
                 } }
                 w.chest(X(3), S + 1, Z(mb - 1), loot: "depot_ammo", seed: rng.next(), facing: s.side > 0 ? 3 : 2)
                 w.chest(X(3), S + 1, Z(mb + 1), loot: "depot_ammo", seed: rng.next(), facing: s.side > 0 ? 3 : 2)
-                put(7, 5, mb, panel); put(10, 5, mb, panel)
+                put(5, 5, mb, panel); put(8, 4, mb - 3, panel); put(8, 4, mb + 3, panel)
             }
             // The open shed: steel posts, a steel roof, pallets of crates under it.
             let sa0 = 24, sa1 = 36, sb0 = 26, sb1 = 38
@@ -280,6 +294,8 @@ enum Depots {
                 } }
             } }
             put(30, 4, 32, panel)
+            // P508: shell hoists at the shed's open side, where a war vessel of his rearms (ShipShells.rearm).
+            put(25, 1, sb0 + 1, hoist); put(25, 1, sb1 - 1, hoist)
             // Pallets of crates in the open, walled with sandbags.
             for (a0, b0) in [(24, 12), (31, 12)] {
                 for a in (a0 - 1)...(a0 + 5) { for b in (b0 - 1)...(b0 + 8) where a == a0 - 1 || a == a0 + 5 || b == b0 - 1 || b == b0 + 8 {
@@ -400,6 +416,21 @@ extension BlockRegistry {
             d.tex = [tex]; d.hardness = 5; d.tool = .pickaxe; d.requiresTool = true; d.sound = .metal
             add(d)
         }
+        // P507 (Nov 1 12:33:06 at an ammo depot's magazines: "There should be like garage doors here"), rebuilt Nov 2
+        // (FAILURES.md 1): the Garage Door. Its cells in one opening are one panel that swings up and in as a whole
+        // (GarageDoors.swift); the key stays "roller_shutter" (saves), and the old full cell and rolled strip stay states.
+        if !has(Depots.shutter) {
+            var d = BlockDef(Depots.shutter, "Garage Door")
+            d.tex = ["roller_shutter"]; d.render = .model; d.layer = .cutout; d.opaque = false; d.skyStop = true
+            d.boxes = [Box(0, 0, 0, 16, 16, 16)]; d.hardness = 6; d.resistance = 12; d.tool = .pickaxe; d.requiresTool = true; d.sound = .metal
+            d.group = Depots.shutter
+            add(d)
+            var o = d
+            o.name = Depots.shutter + "[open]"; o.hidden = true; o.skyStop = false
+            o.boxes = [Box(0, 13, 0, 16, 16, 16)]
+            add(o)
+            GarageDoors.register(self, base: d)                // (the upright and stowed panel: GarageDoors.swift)
+        }
         // Pipes, along x, along z and upright: a galvanised pipe six sixteenths thick through the middle.
         for (n, b) in [("depot_pipe_x", Box(0, 5, 5, 16, 11, 11)), ("depot_pipe_z", Box(5, 5, 0, 11, 11, 16)), ("depot_pipe_y", Box(5, 0, 5, 11, 16, 11))] where !has(n) {
             var d = BlockDef(n, "Pipe")
@@ -433,6 +464,11 @@ extension TextureGen {
         p["depot_tanker"] = { x, y in
             if y == 0 { return hex(0x1E2124) }
             return hex(0x3A3F44, (0.94 + 0.05 * r(x / 3, y / 2, 4694)) * (1 - Float(y) * 0.008))
+        }
+        // A roller shutter's slats: ribbed grey steel, a dark seam every fourth row.
+        p["roller_shutter"] = { x, y in
+            if y % 4 == 3 { return hex(0x4A5056) }
+            return hex(y % 4 == 0 ? 0x9AA2A8 : 0x80888E, 0.95 + 0.05 * r(x / 4, y, 4696))
         }
         p["depot_pipe"] = { x, y in
             if y % 8 == 0 { return hex(0x6F7880) }

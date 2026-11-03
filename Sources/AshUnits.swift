@@ -96,6 +96,10 @@ extension Mob {
         var grey = false, corsair = false, marauder = false
         if n.hasSuffix("@marauder") { marauder = true; n = n.dropLast(9) }   // P366 (b): a watchtower camp's gunmen
         if n.hasSuffix("@grey") { grey = true; n = n.dropLast(5) }
+        // P504 (Nov 1 09:33, Remington: "Boreal station and frigate are their own troops"): a Boreal Station's garrison is
+        // the Meridian Navy's (olive fatigues, gunmetal plate, amber visors; its heavies Aegis Marines in shield plate).
+        var meridian = false
+        if n.hasSuffix("@meridian") { meridian = true; n = n.dropLast(9) }
         if n.hasSuffix("@corsair") { corsair = true; n = n.dropLast(8) }   // T15: a corsair camp's crew (Pirates.swift)       // a Greywall Command base's troops (Greywall.swift)
         var tag = ""
         if let i = n.firstIndex(of: ":") { tag = String(n[n.index(after: i)...]); n = n[..<i] }
@@ -104,6 +108,7 @@ extension Mob {
         m.persistent = true
         if ash { m.ashSetup() }
         if grey { m.greySetup() }
+        if meridian { m.faction = Faction.meridian.rawValue }
         if corsair { Corsairs.dress(m) }
         if marauder { Marauders.dress(m); m.persistent = false; m.home = p }
         m.leash = leash
@@ -125,8 +130,9 @@ extension Mob {
         return m
     }
 
-    // P460: one of a Boreal Station's own vehicles: the Capital's, in winter white with its blue band (ashVehicleParts),
-    // crewed by Capital soldiers. Kept through a save by its faction (MobSave).
+    // P460: one of a Boreal Station's own vehicles, in winter white with its blue band (ashVehicleParts), crewed by the
+    // station's own (P504: the Meridian Navy's). Kept through a save by its faction field, the Capital's as the station's
+    // vehicles always were (MobSave): that marks them Boreal.
     var boreal: Bool { kind.ashVehicle && faction == Faction.steelhold.rawValue }
     func borealSetup() {
         faction = Faction.steelhold.rawValue

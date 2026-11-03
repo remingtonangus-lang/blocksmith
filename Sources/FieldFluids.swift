@@ -15,7 +15,7 @@ import Foundation
 // Only small bodies (64 cells or fewer, not reaching the chunk's side) are taken out; lakes, the sea and lava seas
 // keep their water and have their rims raised where a rim joins ground.
 extension FieldTerrain {
-    static var perchedDropped = 0, rimsRaised = 0           // (harness tallies, cells; not thread-exact)
+    static var perchedDropped = 0, rimsRaised = 0, poolsSunk = 0           // (harness tallies, cells; not thread-exact)
     static let rim: Int8 = 12
 
     // Harness (questcheck --poollog): each body taken out, at its first cell, with the rule that took it.
@@ -97,6 +97,43 @@ extension FieldTerrain {
             // under a low cave roof opens to the cave on a side and stays.
             var held = !floats && !overDrop && !(roofed * 2 >= tops && openSides == 0)
             if !big && held { for (j, _) in fix where !joins(j) { held = false; break } }
+            // P504 (store media, Nov 1, the cave room at 228 45 528: a lone lava cell on a smooth floor drawn as a flat orange
+            // sheet three blocks across with a stepped edge): a pool lying on the floor rather than in it (most of its sides
+            // lower than its level, every cell on one layer over thick ground) is sunk a cell into the floor.
+            // Raised rims round a lone cell are bumps with the floor low between them, and the fluid's net, which runs
+            // its level two cells out over ground lower than it, drew the level over those gaps as a sheet three blocks
+            // across standing on the floor. Sunk, its level lies under the floor's surface all round, inside the ground
+            // there, which hides it: the pool is the floor's own hollow, the way the generator's lakes are drawn.
+            if !big && held {
+                let y0 = comp[0] / CSQ
+                var sides = 0, low = 0                                   // (its sides, and those under its level)
+                for i in comp { around(i) { m in
+                    guard m / CSQ == i / CSQ, !liquid(b[m]) else { return }
+                    sides += 1; if !collide[Int(b[m])] && fd[m] < rim { low += 1 }
+                } }
+                var sink = low * 2 > sides && y0 >= 2
+                if sink { for i in comp where i / CSQ != y0 || fd[i - CSQ] <= 8 || liquid(b[i - CSQ]) || collide[Int(b[i - CSQ])] || !solid(i - 2 * CSQ) { sink = false; break } }
+                if sink {
+                    for i in comp {
+                        let j = i - CSQ
+                        b[j] = b[i]; fd[j] = -16; b[i] = AIR
+                        let x = j & 15, z = (j >> 4) & 15
+                        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] where x + dx >= 0 && x + dx <= 15 && z + dz >= 0 && z + dz <= 15 {
+                            let m = j + dx + dz * CS
+                            guard !liquid(b[m]), !collide[Int(b[m])], fd[m] < rim else { continue }
+                            if fm[m] == 0 {                                    // (the hollow's side: the floor's rock)
+                                var count: [UInt8: Int] = [:]
+                                around(m) { k in if fd[k] > 0 && fm[k] != 0 { count[fm[k], default: 0] += 1 } }
+                                guard let best = count.max(by: { $0.value < $1.value || $0.value == $1.value && $0.key > $1.key })?.key else { continue }
+                                fm[m] = best
+                            }
+                            fd[m] = rim; rimsRaised += 1
+                        }
+                    }
+                    poolsSunk += 1
+                    continue
+                }
+            }
             if !big && !held, poolLog != nil {
                 let i = comp[0], why = floats ? "floats" : overDrop ? "over a drop" : roofed * 2 >= tops && openSides == 0 ? "crack" : "no join"
                 poolLock.lock()
@@ -128,7 +165,10 @@ extension FieldTerrain {
                 // open. A rim raised there walled a cave's mouth off from the lake; now the lake spills into it (its
                 // edge cells are springs, World.springs) and runs down as a lavafall. Lips with ground in them are
                 // still raised (the sheet standing over thin ground, 15:56).
-                if lava && side && fd[j] <= 0 { continue }
+                // P504 (store media, Nov 1: a small lava pool on a smooth cave floor "sits as a flat orange sheet with a
+                // stepped edge sticking out of the floor"): only a lava lake's sides stay open; a small pool's are raised
+                // as rims, so the ground holds it and its block sides don't stand over the floor.
+                if lava && big && side && fd[j] <= 0 { continue }
                 if fd[j] <= 0 || fm[j] == 0 {
                     // The rock beside it (the commonest material among its neighbours).
                     var count: [UInt8: Int] = [:]

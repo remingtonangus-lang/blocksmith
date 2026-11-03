@@ -345,18 +345,21 @@ enum DeepGapTests {
             // The two riflemen the harder-than-the-surface rule compares: three seeds each, averaged (one seed's hit luck
             // swung the ratio from 1.2 to 1.6 between runs). P503: nine (with three, which of them drew the Kessel moved
             // the Ashguard's per-round share from 1.3 to 1.1 and the Capital's from 0.5 to 0.6 between two builds).
+            // The bosses get a long fight: the Marshal, and the Keep Castellan (P505: his parries and shield blocks, a
+            // third of the round's damage at power 1.8, held him at 56-57 s of the 60 for a week; one build's seed went over).
+            let boss = name.hasPrefix("The Ash Marshal") || name.hasPrefix("Keep Castellan")
             let seeds = name.hasPrefix("Capital rifleman") || name.hasPrefix("Ashguard Rifleman") ? 9 : 1
             var runs: [(Float?, Float?)] = []
             var rounds = 0, dealt = 0
             for k in 0..<seeds {
                 Rand.seed(0xBA1A_0000 + UInt64(i) + UInt64(k) * 0x100)
-                runs.append(duel(g, make, gun: gun, ammo: ammo, dist: dist, limit: name.hasPrefix("The Ash Marshal") ? 180 : 60))   // the boss: a long fight
+                runs.append(duel(g, make, gun: gun, ammo: ammo, dist: dist, limit: boss ? 180 : 60))
                 rounds += lastRounds; dealt += lastDealt
             }
             func mean(_ xs: [Float?]) -> Float? { xs.contains { $0 == nil } ? nil : xs.compactMap { $0 }.reduce(0, +) / Float(xs.count) }
             let (a, b) = (mean(runs.map { $0.0 }), mean(runs.map { $0.1 }))
             report.append(Duel(name: name, toKillPlayer: a, playerKills: b, weapon: Items.def(Items.id(gun)).display, rounds: Float(rounds) / Float(seeds), dealt: Float(dealt) / Float(seeds)))
-            print("deep balance: \(name): kills full-gear player in \(a.map { String(format: "%.1f s", $0) } ?? "> 60 s"); player kills it in \(b.map { String(format: "%.1f s", $0) } ?? (name.hasPrefix("The Ash Marshal") ? "> 180 s" : "> 60 s")) (\(Items.def(Items.id(gun)).display))")
+            print("deep balance: \(name): kills full-gear player in \(a.map { String(format: "%.1f s", $0) } ?? "> 60 s"); player kills it in \(b.map { String(format: "%.1f s", $0) } ?? (boss ? "> 180 s" : "> 60 s")) (\(Items.def(Items.id(gun)).display))")
         }
         func r(_ n: String) -> Duel? { report.first { $0.name.hasPrefix(n) } }
         let cap = r("Capital rifleman"), rifle = r("Ashguard Rifleman"), tankR = r("Cinder Tank (rifle)"), tankL = r("Cinder Tank (launcher)")

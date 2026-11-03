@@ -178,7 +178,7 @@ enum FrigateCheck {
             var up = fwd; up.jump = true
             let y0 = s.pos.y
             fly(up, 2)
-            fly(fwd, 3)
+            fly(fwd, 1)                                      // (P504: at 400 km/h three seconds more reached the sky's ceiling)
             let b = bow()
             let pitchDeg = asinf(b.y) * 180 / .pi
             let velAlong = simd_dot(simd_normalize(s.vel + V3(0, 1e-6, 0)), b)

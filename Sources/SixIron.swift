@@ -18,8 +18,11 @@ import simd
 // peaceful). A raised shield still blocks a round (and wears for it).
 enum SixIron {
     static let reach: Float = 22                 // blocks: deadly at range
-    static let aimTime: Float = 0.65             // seconds from the telegraph to the shot
-    static let cooldown: Float = 1.1             // seconds between a shot and the next telegraph
+    // P511 (Nov 2 08:38:54-08:39:03, in Duskium: "the sheriffs... need to do more damage, be more aggressive. It's too
+    // easy to take a village captive"): a quicker draw and quicker shots (0.65 and 1.1 s before), and titanium and up
+    // takes real hits (below).
+    static let aimTime: Float = 0.5              // seconds from the telegraph to the shot
+    static let cooldown: Float = 0.8             // seconds between a shot and the next telegraph
     static let reloadTime: Float = 2.4
     static let rounds = 6
     static let lethal = 999                      // "one shot": past every reduction (only a totem saves you)
@@ -52,7 +55,7 @@ enum SixIron {
     //                      through you... Two shots to kill you on normal"); easy 7 (3 shots), hard one shot
     //   iron (1.0):        8   -> 3 shots
     //   steel (~2.0):      1   -> chip damage (P459: steel near titanium)
-    //   titanium (~2.3):   1   -> 20 shots (chip damage)
+    //   titanium (~2.3):   3   -> 7 shots (P511: it was 1, chip damage)
     static func damage(score: Float, difficulty: Int) -> Int {
         guard difficulty > 0 else { return 0 }
         switch tier(score) {
@@ -63,7 +66,10 @@ enum SixIron {
             let m: Float = difficulty == 1 ? 0.65 : difficulty == 3 ? 1.35 : 1
             return max(2, Int((base * m).rounded()))
         case .hard:
-            return difficulty == 3 ? 2 : 1
+            // P511: a hit in titanium or Duskium hurts (it was a scratch, 1 on normal: twenty rounds to drop him, so a
+            // town's sheriff and deputies were no threat at all): 3 on normal (seven rounds, a reload and a bit), 2 on
+            // easy, 4 on hard.
+            return difficulty == 1 ? 2 : difficulty == 3 ? 4 : 3
         }
     }
 
@@ -86,7 +92,12 @@ enum SixIron {
     // MARK: The duel (Mob.townDefend, a sheriff fighting the player)
 
     // Returns the walk speed while engaged.
+    // P511 (Nov 2 12:13, "Sheriffs barely did anything on hard difficulty"): the level's row reaches the duel as it does
+    // every other gun (it never did): on Hard he draws, shoots and walks quicker (pace, speed), shoots straighter (aim)
+    // and comes from further (sight); from Hard up there is no warning round, the line comes with a real one.
+    static func row(_ g: Game) -> Difficulty.Row { Difficulty.rows[Difficulty.clamp(g.diffLevel)] }
     static func duel(_ m: Mob, _ dt: Float, _ g: Game) -> Float {
+        let lv = row(g)
         let target = g.player.pos
         let dist = simd_length(V2(target.x - m.pos.x, target.z - m.pos.z))
         m.face(target)
@@ -98,7 +109,7 @@ enum SixIron {
             m.town.reload -= dt
             if m.town.reload <= 0 { m.town.fired = 0 }
             m.moving = dist > reach * 0.7
-            return m.moving ? m.spec.speed * 1.2 : 0
+            return m.moving ? m.spec.speed * 1.2 * lv.speed : 0
         }
         if m.town.aim > 0 {
             m.town.aim -= dt
@@ -109,24 +120,25 @@ enum SixIron {
         // Closes to a comfortable range, then holds (he comes for a player sniping from further off, up to `chase`).
         m.moving = dist > reach * 0.6
         let chest = g.player.pos + V3(0, (g.player.eye.y - g.player.pos.y) * 0.72, 0)
-        if m.attackCooldown <= 0 && dist < reach && abs(target.y - m.pos.y) < 20 && g.world.clearShot(muzzle(m), chest) {
-            m.town.aim = aimTime
+        if m.attackCooldown <= 0 && dist < reach * lv.sight && abs(target.y - m.pos.y) < 20 && g.world.clearShot(muzzle(m), chest) {
+            m.town.aim = aimTime / max(0.4, lv.pace)
             // He leads a moving target most of the way (75-100% of where your run takes you in the aim time): running
             // steadily one way gets you hit, changing direction or stopping in the window makes him miss.
             var v = g.player.vel; v.y = 0
-            m.town.aimAt = chest + v * aimTime * Rand.float(in: 0.75...1.0)
+            m.town.aimAt = chest + v * m.town.aim * Rand.float(in: 0.75...1.0)
             m.moving = false
             g.sfx(.gunReload(WeaponAudio.sidearmSlot), 0.55, at: m.eye)                             // the hammer click
             telegraphs += 1
             return 0
         }
-        return m.moving ? m.spec.speed * 1.35 : 0
+        return m.moving ? m.spec.speed * 1.35 * lv.speed : 0
     }
 
     static func muzzle(_ m: Mob) -> V3 { m.eye + m.forward * 0.5 + V3(0, -0.2, 0) }
 
     static func fire(_ m: Mob, _ g: Game) {
-        m.attackCooldown = cooldown
+        let lv = row(g)
+        m.attackCooldown = cooldown / max(0.4, lv.pace)
         m.town.swing = 0.3                                                   // the recoil kick (TownsfolkModel)
         m.town.fired += 1
         if m.town.fired >= rounds { m.town.reload = reloadTime; g.sfx(.gunReload(WeaponAudio.sidearmSlot), 0.7, at: m.eye) }
@@ -136,19 +148,21 @@ enum SixIron {
         shots += 1
         var aim = m.town.aimAt
         if !m.town.warned {
-            // The warning shot: a round over your head.
+            // The warning shot: a round over your head (Hard and up: the words, and the round meant).
             m.town.warned = true
-            aim.y += 1.6
+            let real = g.difficulty >= 3
+            if !real { aim.y += 1.6 }
             g.sfx(.bulletWhizz, 0.9, at: g.player.eye)
             Townsfolk.townLastLine = -100
-            Townsfolk.say(g, m, ["That's your warning.", "Next one won't miss.", "Hands where I can see 'em!"][Int(m.villager?.look ?? 0) % 3])
+            let lines = real ? ["No more warnings.", "Draw, outlaw.", "Not in my town."] : ["That's your warning.", "Next one won't miss.", "Hands where I can see 'em!"]
+            Townsfolk.say(g, m, lines[Int(m.villager?.look ?? 0) % 3])
             warnings += 1
-            return
+            if !real { return }
         }
         let to = aim - o
         let len = simd_length(to)
         guard len > 0.01 else { return }
-        let spread = 0.006 + 0.0009 * len                                   // radians: tight up close, looser far off
+        let spread = (0.006 + 0.0009 * len) * lv.aim                        // radians: tight up close, looser far off
         var d = to / len + V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)) * spread
         d = simd_normalize(d)
         let reachLen = len + 3
@@ -191,7 +205,9 @@ extension Game {
             absorption = 0
             if !useTotem() { die("was shot by \(who)") }
         } else {
+            sixIronRound = true
             damage(amount, "was shot by \(who)", bypassArmor: true, type: .projectile, attacker: m)
+            sixIronRound = false
         }
         bulletHit = false
         // Armour still takes the round's wear (the ordinary formula, skipped above, is where it would have).

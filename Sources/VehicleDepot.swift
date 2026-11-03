@@ -22,7 +22,15 @@ enum VehicleDepot {
 
     // MARK: Fuel
 
-    static func usesFuel(_ s: Ship) -> Bool { s.parent == nil && !s.wheels.isEmpty && s.role == nil && !s.kinematic }
+    // P507 (Nov 1 12:08:31-35, at a captured crawler's helm: "fuel tank for all the vehicles too. Everything needs to be
+    // able to run out of fuel"): every vehicle of his with an engine of any kind burns fuel, not only the wheeled ones:
+    // boats, aircraft, airships and helicopters he built, and the Capital and Ash craft he has taken (the dropship keeps
+    // its own tank, CapitalState.dropFuel). Dry, an aircraft comes down under what thrust the fumes give.
+    static func usesFuel(_ s: Ship) -> Bool {
+        guard s.parent == nil, s.role != "dropship", !Felling.isFelled(s), s.name != Game.toppledName else { return false }
+        guard s.role == nil ? !s.kinematic : s.captured else { return false }
+        return !s.wheels.isEmpty || !s.props.isEmpty || !s.rotors.isEmpty || s.engines > 0
+    }
 
     static func level(_ s: Ship) -> Float { TownLaw.state.vehicleFuel?["\(s.root.id)"] ?? 1 }
     static func setLevel(_ s: Ship, _ v: Float) {
@@ -40,7 +48,10 @@ enum VehicleDepot {
         if f > 0 { f -= abs(s.throttle) * dt / burnSeconds; setLevel(s, f) }
         if f <= 0 {
             s.throttle = max(-fumes, min(fumes, s.throttle))
-            if !dry.contains(s.id) { dry.insert(s.id); g.onToast?("Out of fuel: the \(s.name) crawls on fumes") }
+            // (an aircraft has no lift to climb on: it settles, a helicopter's rotor at nine tenths of a hover)
+            s.climb = min(s.climb, -0.35)
+            if let fm = s.flight, fm.kind == .heli { fm.collective = min(fm.collective, 0.9 / FlightModel.heliTmax) }
+            if !dry.contains(s.id) { dry.insert(s.id); g.onToast?(s.wheels.isEmpty ? "Out of fuel: the \(s.name) runs on fumes" : "Out of fuel: the \(s.name) crawls on fumes") }
         } else if f < low && !warned.contains(s.id) {
             warned.insert(s.id)
             g.onToast?("Fuel low on the \(s.name)")
@@ -298,6 +309,7 @@ extension VehicleDepot {
     static func recipes() -> [Recipe?] {
         [Recipes.shapeless(["bucket", "cauldron", "iron_ingot", "iron_ingot"], pumpKey),
          Recipes.shapeless(["bucket", "iron_ingot", "coal", "coal"], canKey),
-         Recipes.shapeless([bucketKey, "iron_ingot"], canKey)]          // P478: a can filled from a bucket of fuel (the bucket back)
+         Recipes.shapeless([bucketKey, "iron_ingot"], canKey),          // P478: a can filled from a bucket of fuel (the bucket back)
+         Recipes.shapeless(["iron_ingot", "iron_ingot", "iron_ingot", "iron_bars"], Depots.shutter, 3)]   // P507: a garage's roller shutter
     }
 }

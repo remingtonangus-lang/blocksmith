@@ -131,7 +131,7 @@ enum AshVaultGapTests {
             for (pos, be) in patch.entities where be.kind == .sign && be.lines.first == "Ashguard Rail" && !counted.contains(pos) {
                 counted.insert(pos); boards += 1
             }
-            carts += patch.mobs.filter { $0.0 == "minecart" && AshWar.railShape(Int(floor($0.1.x)), Int(floor($0.1.z))) != nil }
+            carts += patch.mobs.filter { $0.0.hasPrefix("minecart") && AshWar.railShape(Int(floor($0.1.x)), Int(floor($0.1.z))) != nil }
                 .filter { m in AshWar.halts.contains { $0.run == i && abs((r.alongX ? Int(floor(m.1.x)) : Int(floor(m.1.z))) - ($0.from + $0.dir * AshWar.haltLength / 2)) == 0 } }.count
         }
         check(laid == cells && powered >= cells / 20 - 6 && bed == cells && clear >= cells - 4 && boards == AshWar.halts.count && carts == AshWar.halts.count

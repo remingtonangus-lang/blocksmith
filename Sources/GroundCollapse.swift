@@ -14,15 +14,58 @@ import simd
 // .dropFloaters, run as each chunk's field is made). P380 (GroundSettle.swift): thin overhangs break off, objects that
 // lost their support settle or fall, small floating pieces across chunk borders go, and a fill past 1,500 cells
 // carries on to tell a truly loose big piece (it falls in large lots) from one the world holds.
+// Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak naval: "ground collapse" 7-11 ms of a frame after
+// shells landed on a shore): the fills marked their cells in hashed sets, tens of thousands of inserts a check (the
+// further fill runs to its 40-cell reach in natural ground). CellMarks is a box of stamps round the check's centre,
+// reused: marking and asking cost an index each, and nothing is cleared between fills (a new stamp is taken).
+final class CellMarks {
+    let side: Int
+    private var stamp: [UInt32]
+    private var gen: UInt32 = 0
+    private var origin = IVec3(0, 0, 0)
+    init(radius r: Int) { side = 2 * r + 3; stamp = [UInt32](repeating: 0, count: side * side * side) }
+    func reset(around p: IVec3) {
+        origin = IVec3(p.x - side / 2, p.y - side / 2, p.z - side / 2)
+        gen &+= 1
+        if gen == 0 { for i in stamp.indices { stamp[i] = 0 }; gen = 1 }
+    }
+    @inline(__always) private func index(_ c: IVec3) -> Int {
+        let x = c.x - origin.x, y = c.y - origin.y, z = c.z - origin.z
+        guard x >= 0, y >= 0, z >= 0, x < side, y < side, z < side else { return -1 }
+        return (y * side + z) * side + x
+    }
+    // Marks the cell; false if it was marked already (or lies outside the box, which a fill never reaches).
+    @inline(__always) func insert(_ c: IVec3) -> Bool {
+        let i = index(c)
+        guard i >= 0, stamp[i] != gen else { return false }
+        stamp[i] = gen
+        return true
+    }
+    @inline(__always) func contains(_ c: IVec3) -> Bool { let i = index(c); return i >= 0 && stamp[i] == gen }
+}
+
 enum GroundCollapse {
     static let reach = 12
     static let maxCells = 1500
+    private static let seenMarks = CellMarks(radius: reach + 1), doneMarks = CellMarks(radius: reach + 1)
+
+    // Store review (crawler soak, build 103): a check is 1-2.6 ms, and it came on frames already heavy with the drive and
+    // the soldiers (ticks of 9-11 ms). It draws on the carving allowance (CraterJob.allowance): a frame with under
+    // `wantSeconds` left waits, at most `maxWait` frames in a row, so the ground still comes down within a few frames.
+    static var wantSeconds = 0.0012, maxWait = 6
+    private static var waited = 0
 
     static func tick(_ g: Game) {
         let w = g.world
-        guard w.fieldTerrain, let (p, r) = w.collapseQueue.popLast() else { return }
+        guard w.fieldTerrain, !w.collapseQueue.isEmpty else { return }
+        if waited < maxWait && !World.deterministic && !Rand.deterministic && CraterJob.allowance() < wantSeconds { waited += 1; return }
+        waited = 0
+        let began = CFAbsoluteTimeGetCurrent()
+        defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - began) }
+        guard let (p, r) = w.collapseQueue.popLast() else { return }
         if w.collapseQueue.count > 64 { w.collapseQueue.removeFirst(w.collapseQueue.count - 64) }
-        var done = Set<IVec3>()
+        let done = doneMarks, seen = seenMarks
+        done.reset(around: p)
         // Seeds: the ground left round the hole (every ground cell within the carve's radius and a cell).
         var seeds: [IVec3] = []
         for dy in -r...r { for dz in -r...r { for dx in -r...r {
@@ -30,9 +73,12 @@ enum GroundCollapse {
             if w.isGround(s) { seeds.append(s) }
         } } }
         var dropped = false
+        var seenList: [IVec3] = []
         for s in seeds {
             guard !done.contains(s) else { continue }
-            var seen: Set<IVec3> = [s]
+            seen.reset(around: p)
+            _ = seen.insert(s)
+            seenList.removeAll(keepingCapacity: true); seenList.append(s)
             var stack = [s], cells: [IVec3] = []
             var held = false, big = false
             while let c = stack.popLast() {
@@ -42,16 +88,18 @@ enum GroundCollapse {
                 if c.y <= 1 || !w.isLoaded(c.x, c.z) { held = true; break }
                 for e in World.allDirs {
                     let n = c + e
-                    if !seen.contains(n) && w.isGround(n) { seen.insert(n); stack.append(n) }
+                    if !seen.contains(n) && w.isGround(n) { _ = seen.insert(n); seenList.append(n); stack.append(n) }
                 }
             }
-            done.formUnion(seen)
+            for c in seenList { _ = done.insert(c) }
             if big {
                 // P380 (4): past 1,500 cells (or the box) the fill carries on; a piece that closes is truly loose and
                 // falls in lots, a small one whole.
                 if let all = GroundSettle.bigPiece(w, from: s, around: p) {
-                    done.formUnion(all); dropped = true
+                    for c in all { _ = done.insert(c) }; dropped = true
                     if all.count > maxCells { GroundSettle.dropBig(g, all) } else { drop(g, all) }
+                } else {
+                    for c in GroundSettle.lastHeld { _ = done.insert(c) }      // (held: the seeds in it are too)
                 }
                 continue
             }

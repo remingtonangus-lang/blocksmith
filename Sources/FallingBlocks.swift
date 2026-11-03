@@ -29,10 +29,19 @@ extension Game {
             world.gravityQueue.removeFirst(Game.gravityChecksPerTick)
         }
         defer { world.gravityScratch = q }
-        for p in q {
+        // (Store review, crawler soak build 102: 1500 checks took 2.4 ms of a frame behind the crawler's ruts and
+        // shells, a plant popped or a fire put out at each. The checks stop at `gravitySeconds`; the cells left go back
+        // to the queue's front for the next tick.)
+        let deadline = World.deterministic || Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + Game.gravitySeconds
+        for (k, p) in q.enumerated() {
+            if k & 15 == 15 && CFAbsoluteTimeGetCurrent() > deadline {
+                world.gravityQueue.insert(contentsOf: q[k...], at: 0)
+                break
+            }
             if !world.activeHere(p) { world.park(falling: p); continue }   // P376
             FarTicks.note(world, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
+            if world.fireCheck(p) { continue }            // P504: fire with nothing under it goes out
             // P462 (Oct 25 16:58, on a beach: "when I break a sand block, it's like an existing block form of it spawns
             // and drops, which is wrong"): in a field world only built blocks fall; the drawn ground's sand and gravel
             // hold where they are (thin overhangs break off as ground: GroundSettle), so a dug beach no longer drops
@@ -53,6 +62,7 @@ extension Game {
     }
 
     static let gravityChecksPerTick = 1500
+    static var gravitySeconds = 0.0008
 
     // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs
     // for every cell the gravity queue holds, thousands a tick while water flows (bench fluids: worst tick 31 ms).

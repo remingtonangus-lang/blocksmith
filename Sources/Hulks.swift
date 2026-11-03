@@ -44,6 +44,7 @@ enum Hulks {
         for m in mobs {
             m.hulkT += dt
             let r = max(0.5, min(3.5, m.halfW)), h = max(0.8, min(3.5, m.height))
+            settle(m, r, dt, g)
             if m.hulkT < smokeTime && Rand.float(in: 0..<1) < dt * 5 * (1 - m.hulkT / smokeTime) {
                 g.particles.smoke(at: m.pos + V3(Rand.float(in: -r...r) * 0.6, h * Rand.float(in: 0.6...1.0), Rand.float(in: -r...r) * 0.6), dark: true)
             }
@@ -51,6 +52,42 @@ enum Hulks {
             if dx * dx + dz * dz < 32 * 32 {
                 g.world.bodyBoxes.append((V3(m.pos.x - r, m.pos.y, m.pos.z - r), V3(m.pos.x + r, m.pos.y + h, m.pos.z + r)))
             }
+        }
+    }
+
+    // P510 (Nov 1 20:42:59, a Greywall gun shot to a wreck off its station roof: "this shouldn't be floating here"):
+    // a hulk stayed at the height it died, over the hole the blasts made under it. It stands on the blocks under its
+    // middle and its four corners (inside its width); with none it falls as anything does (and lands with a thud
+    // and dust), onto the ground or into water's floor.
+    static func settle(_ m: Mob, _ r: Float, _ dt: Float, _ g: Game) {
+        let w = g.world
+        guard w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) else { return }
+        let k = r * 0.7
+        let feet: [(Float, Float)] = [(0, 0), (k, k), (-k, k), (k, -k), (-k, -k)]
+        func standsAt(_ y: Float) -> Int? {
+            let by = Int(floor(y))
+            for (dx, dz) in feet where Blocks.collide[Int(w.block(Int(floor(m.pos.x + dx)), by, Int(floor(m.pos.z + dz))))] { return by }
+            return nil
+        }
+        if m.vel.y == 0 && standsAt(m.pos.y - 0.05) != nil { return }
+        m.vel.y = max(-40, m.vel.y - 25 * dt)
+        var fall = -m.vel.y * dt
+        while fall > 0 {
+            let step = min(fall, 0.45)
+            fall -= step
+            if let by = standsAt(m.pos.y - step) {
+                let hit = -m.vel.y
+                m.pos.y = Float(by + 1)
+                m.vel.y = 0
+                if hit > 6 {
+                    let under = IVec3(Int(floor(m.pos.x)), by, Int(floor(m.pos.z)))
+                    g.particles.blockBreak(w.block(under.x, under.y, under.z), at: under)
+                    g.sfx(.breakBlock(.stone), 1, at: m.pos)
+                }
+                return
+            }
+            m.pos.y -= step
+            if m.pos.y < 1 { m.pos.y = 1; m.vel.y = 0; return }
         }
     }
 

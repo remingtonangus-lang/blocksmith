@@ -285,6 +285,20 @@ enum FieldTerrain {
                             || lx > 0 && owned(i - 1) || lx < CS - 1 && owned(i + 1)
                             || lz > 0 && owned(i - CS) || lz < CS - 1 && owned(i + CS) { d = min(d, 0.5) }
                     }
+                    // P508 (the store trailer's Boreal Station gate: a dark slit under the yard's edge; white specks at the
+                    // foot of walls and wells): ground beside a block a structure built that stands on its floor came up
+                    // a little short of that floor (the generator's slope), so a sliver opened under the block's bottom
+                    // edge. The ground cell under such a block, the ground cells beside that one, and the open cells over
+                    // those now put the surface at the block's floor (or above it, banked against the block's side).
+                    func kept(_ j: Int) -> Bool { built[j] != 0 && fd[j] <= 0 && World.restsOnFloor[Int(b[j])] }
+                    if s && y < CH - 1 {
+                        let a = i + CSQ
+                        if kept(a) || lx > 0 && kept(a - 1) || lx < CS - 1 && kept(a + 1)
+                            || lz > 0 && kept(a - CS) || lz < CS - 1 && kept(a + CS) { d = max(d, 0.5) }
+                    } else if !s && y > 0 && fd[i - CSQ] > 0 && built[i] == 0 {
+                        if lx > 0 && kept(i - 1) || lx < CS - 1 && kept(i + 1)
+                            || lz > 0 && kept(i - CS) || lz < CS - 1 && kept(i + CS) { d = max(d, -0.5) }
+                    }
                 }
                 fd[i] = q(d)
             } } }
@@ -500,11 +514,18 @@ extension World {
         let reach = Int(ceil(r + 1.5))
         let cxI = Int(floor(ctr.x)), cyI = Int(floor(ctr.y)), czI = Int(floor(ctr.z))
         var touched: [(Chunk, Int)] = []
+        // (store review, callgrind of the rocket craters: a dictionary lookup per cell was a fifth of a blast's carve; the
+        // chunk is looked up when the row crosses into another)
+        var lkx = Int.min, lkz = Int.min
+        var lc: Chunk?
         for y in stride(from: max(0, cyI - reach), through: min(CH - 1, cyI + reach), by: 1) {
             for z in (czI - reach)...(czI + reach) {
                 for x in (cxI - reach)...(cxI + reach) {
-                    guard let c0 = chunkAt(x, z) else { continue }
-                    let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0          // P376 (a shell refilled; its cached meshes stale)
+                    if x >> 4 != lkx || z >> 4 != lkz {
+                        lkx = x >> 4; lkz = z >> 4
+                        lc = chunkAt(x, z).map { c0 in c0.hollow || !c0.cacheDropped ? editing(c0) : c0 }   // P376 (a shell refilled; its cached meshes stale)
+                    }
+                    guard let c = lc else { continue }
                     guard c.blocks.isField else { continue }
                     let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
                     let dist = simd_length(p - ctr)

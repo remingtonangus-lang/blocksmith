@@ -164,6 +164,17 @@ extension BlockRegistry {
             Box(3, 4, 0, 13, 12, 16, tex: tyre), Box(3, 0, 4, 13, 16, 12, tex: tyre), Box(3, 2, 2, 13, 14, 14, tex: tyre),
             Box(2, 6, 6, 14, 10, 10, tex: metal),
         ])
+        // P507 (Nov 1 12:40:10, a traders' camp's covered wagon on log stumps: "This is supposed to be a carriage. Make
+        // it an actual carriage"): a cart wheel, wooden, spoked, iron-hubbed; to a vehicle's physics a wheel like any.
+        var cart = BlockDef("cart_wheel", "Cart Wheel")
+        cart.tex = ["spruce_planks"]; cart.render = .model; cart.opaque = false; cart.hardness = 1; cart.tool = .axe; cart.sound = .wood
+        let rim = t6("spruce_planks"), spoke = t6("stripped_spruce_log"), hub = t6("ship_metal")
+        facing4(cart, [
+            Box(6, 0, 4, 10, 2, 12, tex: rim), Box(6, 14, 4, 10, 16, 12, tex: rim), Box(6, 4, 0, 10, 12, 2, tex: rim), Box(6, 4, 14, 10, 12, 16, tex: rim),
+            Box(6, 2, 2, 10, 4, 4, tex: rim), Box(6, 2, 12, 10, 4, 14, tex: rim), Box(6, 12, 2, 10, 14, 4, tex: rim), Box(6, 12, 12, 10, 14, 14, tex: rim),
+            Box(7, 2, 7, 9, 14, 9, tex: spoke), Box(7, 7, 2, 9, 9, 14, tex: spoke),
+            Box(4, 6, 6, 12, 10, 10, tex: hub),
+        ])
         // P477 (Oct 27 19:27, the Works' tank: "This thing's tracks go in circles as if they were a wheel"): a track
         // link, a wheel to the physics (it carries and drives the hull) that is drawn with the hull, not spun. A run of
         // them makes a tank's track; the cleats show on every face.
@@ -324,6 +335,7 @@ extension Recipes {
         r.append(shaped(["SSS", "S S"], ["S": "steel_ingot"], "gun_barrel_medium", 2))
         r.append(shaped(["SSS", "S S", "SSS"], ["S": "steel_ingot"], "gun_barrel_large", 1))
         r.append(shapeless(["ship_wheel", "iron_ingot", "iron_ingot"], "ship_track", 4))
+        r.append(shaped([" S ", "SIS", " S "], ["S": "stick", "I": "iron_nugget"], "cart_wheel", 2))
         // P459 (Oct 25 16:10, "Do we have like barrels and stuff? ... If I wanna make like a plane or something"): the
         // Capital's aircraft parts can be made: four steel ingots make four sheets of light white airframe, three
         // sheets make three airfoils, and a black dye turns one into the Ashguard's dark fighter airfoil.

@@ -184,7 +184,11 @@ extension Game {
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
         guard let c = world.chunks[ChunkKey(x: pcx + k % side - r, z: pcz + k / side - r)] else { return }
         let ice = Blocks.id("ice"), snow: BlockID = Blocks.has("snow") ? Blocks.id("snow") : ice
-        for lz in 0..<CS { for lx in 0..<CS {
+        // (store review, frame soak: a snowed-over chunk melting all at once was 256 block changes in one frame, a 4.5 ms
+        // tick; at most 24 a sweep, and a chunk with more left is swept again next time)
+        var changed = 0
+        defer { if changed >= 24 { Seasons.sweepIndex -= 1 } }
+        for lz in 0..<CS { for lx in 0..<CS where changed < 24 {
             let x = c.cx * CS + lx, z = c.cz * CS + lz
             let y = Int(c.height[lx + lz * CS])
             guard y > 0 && y < CH - 1 else { continue }
@@ -193,9 +197,9 @@ extension Game {
             guard top == ice || top == snow || capped else { continue }
             let biome = world.gen.column(x, z).biome
             guard Rand.float(in: 0..<1) < p, seasonalCover(x, y, z, top, biome) else { continue }
-            if capped { world.setBlockAsync(x, y + 1, z, AIR) }
-            else if top == snow { world.setBlockAsync(x, y, z, AIR) }
-            else if world.builtBlock(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER); Seasons.swept += 1 }
+            if capped { world.setBlockAsync(x, y + 1, z, AIR); changed += 1 }
+            else if top == snow { world.setBlockAsync(x, y, z, AIR); changed += 1 }
+            else if world.builtBlock(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER); Seasons.swept += 1; changed += 1 }
         } }
     }
 }

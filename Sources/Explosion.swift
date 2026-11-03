@@ -13,10 +13,14 @@ enum Explosion {
     // P476: obsidian-grade armour (Armour.grade) shrugs off every other blast but a heavy gun's shell and the main gun
     // count it as Armour.breach: a few plates bitten off where steel would open a hole.
     static func capped(_ id: BlockID, _ r0: Float, _ cap: Float) -> Float {
+        // P504 (Nov 1 07:52:13-07:52:21, flying a dropship's guns at his frigate: "guns break through armor as if it's
+        // not armor at all... The only reason the armor matters is when someone tries to break through with a pickaxe"):
+        // armour plate (a frigate's skins, a base's plate) stands to a blast as plain steel does; it mines like obsidian.
+        // (P507: and no breach makes it less: his rockets' and steered guns' cap leaves armour at steel's.)
+        if Armour.isGrade(id) { return Armour.blast }
         guard cap.isFinite else { return r0 }
         if r0 <= 12 { return min(cap, r0) }
         if r0 <= 600 && Blocks.hardness[Int(id)] >= 0 { return min(r0, cap * 3) }
-        if Armour.isGrade(id) { return Armour.breach }
         return r0
     }
 
@@ -82,10 +86,11 @@ enum Explosion {
         // was flying: rays along the shot reach further, those back toward the gun less, so a plunging shot leaves a
         // slanted bowl and a flat one a gouge running on from where it struck.
         let shot: V3? = along.flatMap { simd_length($0) > 1e-3 ? simd_normalize($0) : nil }
-        // No friendly fire: the Capital's own shells (bases.quiet) leave its citadels' blocks and its troops alone.
+        // No friendly fire on troops: the Capital's own shells (bases.quiet) leave its troops alone. (P510, Nov 1 20:16-20:22:
+        // "no damage happens... to the building around my naval gun", "The capital guns don't do any damage to the capital
+        // blocks, which isn't right. They should do damage": a shell breaks what it hits, its own side's walls too.)
         let own = g.bases.quiet
         let lying = g.drops.items.count                    // (what this blast spills itself is thrown, not burnt: P452)
-        let breakBlocks = breakBlocks && !(own && g.bases.inAnyBase(c))
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
         w.ships.blast(at: c, power: power, game: g, resistCap: resistCap)          // ship blocks (ShipCombat.swift)
         Explosion.lap("ships")
@@ -183,6 +188,18 @@ enum Explosion {
         w.batchShape = false
         Explosion.lap("removal \(destroyed.count)")
         for b in destroyed { w.scheduleFluid(around: b) }
+        // P507 (Nov 1 12:20:36, "shooting one of the fuel pylons should cause the thing to explode"): a blast lights the fuel
+        // in its reach (a holed storage tank, a pool, a drum's spill); the fire runs on through the rest (World.igniteFuel).
+        if FUEL != AIR {
+            let fr = Int(ceilf(power * 1.2)), ci = IVec3(Int(floorf(c.x)), Int(floorf(c.y)), Int(floorf(c.z)))
+            var lit = 0
+            for dy in -fr...fr { for dz in -fr...fr { for dx in -fr...fr where lit < 24 && dx * dx + dy * dy + dz * dz <= fr * fr {
+                let q = IVec3(ci.x + dx, ci.y + dy, ci.z + dz)
+                guard q.y > 0 && q.y < CH, Blocks.fluidKind[Int(w.builtBlock(q.x, q.y, q.z))] == 3 else { continue }
+                w.igniteFuel(q); lit += 1
+            } } }
+        }
+        Explosion.lap("fluids, fuel")
         // P503: what stood over the hole is weighed (StructureTip): a top shot out from under it tips and falls.
         if !destroyed.isEmpty {
             let far = destroyed.reduce(Float(1)) { max($0, simd_length(V3(Float($1.x), Float($1.y), Float($1.z)) + 0.5 - c)) }
@@ -197,7 +214,34 @@ enum Explosion {
             if let shot {                                       // (the bowl leans and runs on along the shot)
                 balls = [(c + shot * (r * 0.3), r * 0.9), (c + shot * (r * 0.95), r * 0.6)]
             }
-            for (at, rr) in balls { w.carve(at: at, radius: rr, mode: .shape) }
+            // P507 (Nov 1 12:14:11-12:14:44, in his rocket crater: "I can't place blocks down in this crater... That's a bug",
+            // "a lot of my clicks are just getting ignored"): the bowl only moved the surface, so the ground cells inside
+            // it the rays happened to miss stayed whole blocks under a dot of drawn rock (the boulders in the bowl): the
+            // aim went past them to the bowl's face and the block went into one of them, which refused it without a sound.
+            // The ground inside the bowl goes with it (its valuable blocks drop, as the broken ones do).
+            var carved = Set<IVec3>()
+            for (at, rr) in balls {
+                w.carve(at: at, radius: rr, mode: .dig) { p, b in
+                    carved.insert(p)
+                    for s in Explosion.blastDrops(b) { g.drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
+                }
+            }
+            Explosion.lap("bowl")
+            // P508 (questcheck craterplace: 3 to 6 a crater, as the rays fell): round the bowls' edge the field drew some
+            // ground cells as a dot of rock (their middle barely inside it), each a block the eye sees past and a click
+            // refuses; they open as the bowl did.
+            var dots: [IVec3] = []
+            for (at, rr) in balls {
+                let R = Int(ceil(rr + 1.5)), ax = Int(floor(at.x)), ay = Int(floor(at.y)), az = Int(floor(at.z))
+                for y in (ay - R)...(ay + R) { for z in (az - R)...(az + R) { for x in (ax - R)...(ax + R) {
+                    let q = IVec3(x, y, z), mid = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                    guard !carved.contains(q), simd_length(mid - at) < rr + 1.5, w.groundAt(x, y, z),
+                          Blocks.hardness[Int(w.block(x, y, z))] >= 0, w.fieldDensity(at: mid) < 0.12 else { continue }
+                    carved.insert(q); dots.append(q)
+                } } }
+            }
+            Explosion.lap("rim scan")
+            for q in dots { w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true) }
             // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
             // surface in to a block and a half past its radius)
             for b in opened {
@@ -207,7 +251,7 @@ enum Explosion {
         } else {
             for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
         }
-        Explosion.lap("fluids, carve")
+        Explosion.lap("rim, opened")
         // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
         if Settings.shared.chipping {
             var bits = 0
@@ -385,6 +429,29 @@ final class CraterJob {
     private var rim: [IVec3] = []
     private(set) var done = false
     static let blocksPerFrame = 250
+    static var frameSeconds = 0.0016           // (about 2.7 ms of the headset's frame; see step)
+    // Store review (citadel soak, build 94): each bowl and each naval breach opening took its own `frameSeconds` a
+    // frame (the breaches in the arms stage, the bowls in the shockwaves: up to 9.8 ms of one tick), on top of 3-5 ms
+    // of soldiers. Every crater job now draws on one allowance a frame: `frameSeconds`, less what the rest of the last
+    // tick took past `tickTarget` (host seconds; about 9.4 ms of the headset's 13.9), never under `floorSeconds`. A
+    // frame heavy with soldiers carves less; the bowl opens over a few more frames.
+    // (Only inside the game's tick, Game.tickSeat: a check driving the shockwaves or breaches itself, frame after frame
+    // with no tick, gets `frameSeconds` a call as before; the shared allowance never came back for it.)
+    static var tickTarget = 0.0055, floorSeconds = 0.0004
+    static var inTick = false
+    private static var allowTick = -1, allow = 0.0, used = 0.0, usedPrev = 0.0
+    static func allowance() -> Double {
+        guard inTick else { return frameSeconds }
+        if allowTick != TickProf.tick {
+            allowTick = TickProf.tick
+            usedPrev = used; used = 0
+            let rest = max(0, TickProf.prevTotal - usedPrev)
+            allow = max(floorSeconds, min(frameSeconds, tickTarget - rest))
+        }
+        return allow - used
+    }
+    // Other ground carving drawing on the same allowance (the crawler's ruts).
+    static func spend(_ seconds: Double) { if inTick { _ = allowance(); used += seconds } }
     static var initCost = ""                 // (MainGunTests)
     static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
@@ -434,6 +501,11 @@ final class CraterJob {
         // P502: a breach burst wholly over the world's top (a deck gun's shell timed out in the sky) or under it, or at
         // a point that isn't one, has nothing to carve, scorch or wait for.
         guard World.reachesWorld(center, max(r * 1.5, Float(depth)) + 4) else { done = true; CraterJob.outside &+= 1; return true }
+        // (the frame's shared carving: none left, it waits a frame; the harness's whole-crater calls are untimed)
+        let timed = blocks != .max
+        if timed && CraterJob.allowance() <= 0 { return false }
+        let began = CFAbsoluteTimeGetCurrent()
+        defer { if timed && CraterJob.inTick { CraterJob.used += CFAbsoluteTimeGetCurrent() - began } }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         // (Oct 31: a far strike) The bowl and its scorch reach shell chunks round the impact (ChunkShells: blocks
         // dropped past the active distance): they come back on the workers first and the bowl opens under the dust
@@ -472,7 +544,16 @@ final class CraterJob {
         w.circuitQuiet = circuitsNear == false
         defer { w.circuitQuiet = quiet0 }
         var budget = blocks
+        // Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak citadel: a main gun's bowl in a citadel's
+        // walls cost 20-37 ms of tick a frame for 4 s, each of the 250 blocks a frame tipping, lighting and remeshing what
+        // was built on it): a frame's carving also stops at `frameSeconds` of work (checked every 8 blocks), so the
+        // bowl opens over more frames instead of the frame rate falling under the dust. (The harness's whole-crater
+        // calls, blocks .max, are untimed.)
+        let deadline = blocks == .max ? Double.infinity : CFAbsoluteTimeGetCurrent() + max(0, CraterJob.allowance() - (CFAbsoluteTimeGetCurrent() - began))
+        var sinceCheck = 0
         while next < offsets.count && budget > 0 && removed < cap {
+            sinceCheck += 1
+            if sinceCheck >= 8 { sinceCheck = 0; if CFAbsoluteTimeGetCurrent() > deadline { break } }
             let o = offsets[next]
             next += 1
             let dx = Int(o.x), dy = Int(o.y), dz = Int(o.z)
@@ -519,6 +600,9 @@ final class CraterJob {
         // of drawn ground standing in the bowl; the bowl is carved out of the field as a whole too, one ball a frame
         // down its axis (as a plain blast's bowl is: Explosion.explode).
         if carved && bowlNext < 6 && (w.fieldTerrain || w.keepsField) {
+            // (Store review, build 96's citadel soak: the ball ran after the frame's carving had already used the
+            // allowance, 6.7 ms of one frame; it waits for the next frame's now, with the blocks all taken by then.)
+            if timed && CFAbsoluteTimeGetCurrent() > deadline { return done }
             let t = Float(bowlNext) * Float(depth) / 6
             let k = t / Float(max(1, depth))
             let rr = 0.85 * r * sqrtf(max(0.05, 1 - k * k))
@@ -527,7 +611,7 @@ final class CraterJob {
             bowlNext += 1
             return done
         }
-        if carved && budget > 0 { scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
+        if carved && budget > 0 && CFAbsoluteTimeGetCurrent() < deadline { scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
         return done
     }
     private var bowlNext = 0
@@ -557,7 +641,7 @@ final class CraterJob {
         }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
-        let coarse = Blocks.id("coarse_dirt"), fire = Blocks.id("fire"), snowLayer = Blocks.has("snow") ? Blocks.id("snow") : AIR
+        let coarse = Blocks.id("coarse_dirt"), snowLayer = Blocks.has("snow") ? Blocks.id("snow") : AIR
         let grass = Blocks.id("grass_block"), podzol = Blocks.id("podzol"), dirt = Blocks.id("dirt")
         var n = columns
         while n > 0 && scorchNext < cols.count {
@@ -602,7 +686,7 @@ final class CraterJob {
             }
             if to != AIR && to != top { w.setBlockAsync(x, y, z, to); scorched += 1 }
             if h > r * 0.7 && hashf(x, y, z, 917) < 0.05 * fade && w.isAir(x, y + 1, z) && to != magma {
-                w.setBlockAsync(x, y + 1, z, fire)
+                w.lightFire(IVec3(x, y + 1, z))
             }
         }
         if scorchNext >= cols.count { done = true }

@@ -93,6 +93,10 @@ enum Structure {
         }
     }
     static let member: [Bool] = table.map { $0 != nil }
+    static let grows: [Bool] = (0..<Blocks.count).map { i in
+        ["bamboo", "bamboo_sapling", "sugar_cane", "cactus", "kelp", "kelp_plant"].contains(Blocks.key(Blocks.groupBase[i]))
+    }
+    static var skippedGround = 0                            // (harness: dug ground touching no building, no check queued)
     // A docked vessel (a piece with a helm) is the ships' business: it is put back as blocks where it docked, in the
     // water or the air, and lifts off again (Ships.swift); never checked.
     static let helm: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasPrefix("ship_helm") }
@@ -143,6 +147,7 @@ enum Structure {
     }
     static var checks = 0, fallen = 0, worstMs: Double = 0, totalMs: Double = 0, crushed = 0      // (harness tallies)
     static var tally: [String: Int]? = nil      // (harness: what queued the checks, old -> new)
+    static let snowLoad = ProcessInfo.processInfo.environment["BS_SNOWLOAD"] == "1"     // (P508 before/after: snow queues checks)
 
     // Is the cell ground or something a structure stands on (not part of one)?
     @inline(__always) static func anchor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -161,10 +166,33 @@ enum Structure {
         if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
         return m
     }
+    // (the same two through a chunk cursor: the fills below, CellSet.swift)
+    @inline(__always) static func part(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Mat? {
+        let b = k.built(x, y, z)
+        guard b != AIR, let m = table[Int(b)] else { return nil }
+        if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
+        return m
+    }
+    @inline(__always) static func anchor(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        if y <= 0 { return true }
+        if k.ground(x, y, z) { return true }
+        let b = k.built(x, y, z)
+        if b == AIR { return false }
+        if Blocks.isLiquid(b) { return true }
+        if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }
+        return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)])
+    }
 
     // (the fill's index of each cell near the check, a box `gridR` round it, reused: a dictionary costs ten times as much)
-    static let gridR = 32, gridW = 2 * gridR + 1
-    static var grid = [Int32](repeating: -1, count: gridW * gridW * gridW)
+    static let gridR = 44, gridW = 2 * gridR + 1                // (P510: StructureTip's towers reach 42 up)
+    // (Store review, callgrind of the citadel soak: as an array each read and write of it went through the global's
+    // lazy start and a uniqueness check, 14 million calls in 134 checks; a buffer allocated once, read through a local)
+    static let grid: UnsafeMutablePointer<Int32> = {
+        let n = gridW * gridW * gridW
+        let b = UnsafeMutablePointer<Int32>.allocate(capacity: n)
+        b.initialize(repeating: -1, count: n)
+        return b
+    }()
 
     // The piece of built blocks at or beside p, and what of it falls. limit/out bound the fill (past them: held).
     // P416 (Oct 23, "mining in the base 22 fps", "the doors drop it to 6-12"): the bound was 4,096 blocks 24 out; in a
@@ -174,6 +202,9 @@ enum Structure {
     static func analyse(_ w: World, at p: IVec3, limit: Int = 1536, out: Int = 16, collect: Bool = false) -> Result {
         var res = Result()
         let useGrid = out < gridR
+        // (the tables as locals: each use of a global in the fill's loops went through its lazy start)
+        let grid = Structure.grid, nbrs = Structure.nbrs, stepCost = Structure.stepCost, backCost = Structure.backCost
+        let helm = Structure.helm, allDirs = World.allDirs, weakStep = Structure.weakStep
         var dict: [IVec3: Int] = [:]
         var cells: [IVec3] = [], mats: [Mat] = []
         @inline(__always) func slot(_ q: IVec3) -> Int { (q.x - p.x + gridR) + (q.y - p.y + gridR) * gridW + (q.z - p.z + gridR) * gridW * gridW }
@@ -189,9 +220,10 @@ enum Structure {
             cells.append(q); mats.append(m)
         }
         defer { if useGrid { for q in cells { grid[slot(q)] = -1 } } }
+        var cur = ChunkCursor(w)
         for d in [IVec3(0, 0, 0)] + nbrs {
             let q = p + d
-            if find(q) == nil, let m = part(w, q.x, q.y, q.z) { add(q, m) }
+            if find(q) == nil, let m = part(&cur, q.x, q.y, q.z) { add(q, m) }
         }
         // Breadth first, nearest blocks first; where the fill stops (more than `limit` blocks, or `out` away) the blocks it
         // didn't get past are taken as held: a big building's far walls stand, so the check is of what's near the change.
@@ -203,8 +235,8 @@ enum Structure {
             for d in nbrs {
                 let q = c + d
                 if find(q) != nil { continue }
-                guard w.isLoaded(q.x, q.z) else { if collect { res.all = cells }; return res }
-                if let m = part(w, q.x, q.y, q.z) { add(q, m) }
+                guard cur.loaded(q.x, q.z) else { if collect { res.all = cells }; return res }
+                if let m = part(&cur, q.x, q.y, q.z) { add(q, m) }
             }
         }
         guard !cells.isEmpty else { return res }
@@ -218,9 +250,9 @@ enum Structure {
         var nb = [Int32](repeating: -1, count: n * K)
         for i in 0..<n {
             let c = cells[i]
-            if helm[Int(w.builtBlock(c.x, c.y, c.z))] { res.cells = 0; return res }
+            if helm[Int(cur.built(c.x, c.y, c.z))] { res.cells = 0; return res }
             if i >= head { root[i] = true }
-            else { for d in World.allDirs where anchor(w, c.x + d.x, c.y + d.y, c.z + d.z) { root[i] = true; break } }
+            else { for d in allDirs where anchor(&cur, c.x + d.x, c.y + d.y, c.z + d.z) { root[i] = true; break } }
             for k in 0..<K { if let j = find(c + nbrs[k]) { nb[i * K + k] = Int32(j) } }
         }
         // What a joint holds against a face joint: along an edge `edgeJoint` sideways, `slopeJoint` on a slope.
@@ -449,25 +481,30 @@ enum Structure {
     // When it stopped, each piece beside the change is followed whole (up to `limit` blocks, faces and edges): one that
     // nothing holds (no block of it on the ground, bedrock or water) is returned to fall as one body. The fill ends at the
     // first block on the ground, so a standing building costs only the way to its nearest footing.
+    private static let looseSeen = CellSet(capacity: 8192), looseHeld = CellSet(capacity: 8192)
     static func loose(_ w: World, near p: IVec3, limit: Int = 24_000) -> [IVec3]? {
-        var held = Set<IVec3>()
+        let held = looseHeld, seen = looseSeen
+        held.removeAll()
+        var cur = ChunkCursor(w)
         for d in [IVec3(0, 0, 0)] + nbrs {
             let s0 = p + d
-            guard !held.contains(s0), part(w, s0.x, s0.y, s0.z) != nil else { continue }
-            var seen: Set<IVec3> = [s0]
+            guard !held.contains(s0), part(&cur, s0.x, s0.y, s0.z) != nil else { continue }
+            seen.removeAll(); seen.insert(s0)
             var comp = [s0], h = 0, anchored = false
             fill: while h < comp.count {
                 let c = comp[h]; h += 1
-                if helm[Int(w.builtBlock(c.x, c.y, c.z))] { anchored = true; break }
-                for e in World.allDirs where anchor(w, c.x + e.x, c.y + e.y, c.z + e.z) { anchored = true; break fill }
+                if helm[Int(cur.built(c.x, c.y, c.z))] { anchored = true; break }
+                for e in World.allDirs where anchor(&cur, c.x + e.x, c.y + e.y, c.z + e.z) { anchored = true; break fill }
                 for e in nbrs {
                     let q = c + e
                     if seen.contains(q) { continue }
-                    guard w.isLoaded(q.x, q.z), comp.count < limit else { anchored = true; break fill }
-                    if part(w, q.x, q.y, q.z) != nil { seen.insert(q); comp.append(q) }
+                    guard cur.loaded(q.x, q.z), comp.count < limit else { anchored = true; break fill }
+                    // (a piece that reaches one an earlier side found held is held: it is the same piece)
+                    if held.contains(q) { anchored = true; break fill }
+                    if part(&cur, q.x, q.y, q.z) != nil { seen.insert(q); comp.append(q) }
                 }
             }
-            if anchored { held.formUnion(seen); continue }
+            if anchored { for q in comp { held.insert(q) }; continue }
             return comp
         }
         return nil
@@ -572,6 +609,24 @@ extension World {
         // block world both are ground under a building, in a Polygons world neither is part of one.
         // (a garden's soil for soil carries the same)
         if SmoothTerrain.natural[Int(old)] && (SmoothTerrain.natural[Int(new)] || Blocks.isLiquid(new)) { return }
+        // P508 (Nov 1 15:50, digging by Boreal Station, fps 44 while it snowed): snow settling out of the sky (air to a
+        // snow layer) or melting off (a layer to air) carries nothing: each one queued a check of the station's piece.
+        // (Store review, the jungle soak: bamboo shooting up queued 335 checks in 30 s. A plant growing into air
+        // carries nothing.)
+        if old == AIR && Structure.grows[Int(new)] { return }
+        let sl = BlockID(SmoothTerrain.snowLayer)
+        if ((old == AIR && new == sl) || (old == sl && new == AIR)) && !Structure.snowLoad { return }
+        // P510 (his dirt freeze by Boreal Station, measured: 34 of 42 checks queued by dug dirt, 3 ms each on the host,
+        // the worst 9-12): ground or a loose natural block dug out of the way holds up something only when a building's
+        // block touches it. With none of its six neighbours a built structural block, there is nothing to check.
+        if SmoothTerrain.natural[Int(old)] && new == AIR {
+            var touches = false
+            for (dx, dy, dz) in [(0, 1, 0), (1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, -1, 0)] {
+                let b = Int(block(x + dx, y + dy, z + dz))
+                if Structure.member[b] && !SmoothTerrain.natural[b] { touches = true; break }
+            }
+            if !touches { Structure.skippedGround += 1; return }
+        }
         let key = IVec3(floorDiv(x, 4), floorDiv(y, 4), floorDiv(z, 4))
         if Structure.tally != nil { Structure.tally![Blocks.key(old) + " -> " + Blocks.key(new), default: 0] += 1 }
         if loadQueued.insert(key).inserted { loadQueue.append(IVec3(x, y, z)) }

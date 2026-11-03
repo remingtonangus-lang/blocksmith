@@ -309,25 +309,34 @@ enum HudExtras {
 
     // Per frame from Game.tick (also while a menu is open).
     static func tick(_ g: Game) {
+        // (store review: each part timed, questcheck --framesoak: one of these took 77 ms of a frame flying new taiga)
+        TickProf.mark("input")
         g.toastQueueTick()                                           // Q2c-console-12
         Goals.tick(g)
         Feedback.tick(g)
         Narrator.shared.tick(g)
         BugNotes.shared.tick(g)
+        TickProf.mark("hud: goals, notes")
         MapCache.shared.tick(g)
+        TickProf.mark("hud: map cache")
         g.liberationTick()                                           // O1: outlaw camps freed
         g.repHuntersTick()                                           // O3: hunters for a hunted player
         g.factionRaidsTick()                                         // O5: raids on your places
+        TickProf.mark("hud: liberation, hunters, raids")
         Director.frame(g)                                            // P266: the Director's post-game events
         g.baseSpecialtyTick()                                        // P242: specialty bases
         g.trophiesTick()                                             // O6: trophy room and museum
         g.weatherWarTick()                                           // O7: weather that matters
         Wrecks.hintTick(g)                                           // P144: wreck and mast hints
+        TickProf.mark("hud: director, bases, trophies, wrecks")
         MapFog.shared.tick(g)                     // A5 (MapFog.swift)
+        TickProf.mark("hud: map fog")
         TownLaw.tick(g)
+        TickProf.mark("hud: town law")
         Hunting.tick(g)
         Countries.tick(g)
         ContextPrompts.tick(g)
+        TickProf.mark("hud: hunting, countries, prompts")
     }
     private static var counterN = -1, counterLost = false, counterText = ""
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).

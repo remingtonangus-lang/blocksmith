@@ -76,7 +76,29 @@ extension EmberGen {
                             past = top + tall + 3
                         }
                     }
-                    else if drift >= 2 && h % 211 == 0 && x > 1 && x < 14 && z > 1 && z < 14 {
+                    // P504: an onyxstone boulder half sunk in a hollow, an ember bed (a smouldering patch with ghost
+                    // fire at its heart) or a litter of bones on the ash.
+                    else if drift == 0 && h % 263 == 0 && x > 1 && x < 14 && z > 1 && z < 14 {
+                        let r = 1 + Int(h >> 10) % 2
+                        for dz in -r...r { for dx in -r...r { for dy in 0...r where dx * dx + dz * dz + dy * dy * 2 <= r * r + 1 {
+                            if at(x + dx, top + dy, z + dz) == AIR || dy == 0 { set(x + dx, top + dy, z + dz, (h >> UInt32(12 + (dx + dz + dy) & 7)) & 3 == 0 ? soulSoil : blackstone) }
+                        } } }
+                        past = top + r + 2
+                    }
+                    else if drift == 0 && h % 307 == 0 && x > 1 && x < 14 && z > 1 && z < 14 {
+                        for dz in -1...1 { for dx in -1...1 where (h >> UInt32(9 + (dx + 1) * 3 + dz + 1)) & 1 == 1 || (dx == 0 && dz == 0) {
+                            if at(x + dx, top, z + dz) == soulSand || at(x + dx, top, z + dz) == soulSoil { set(x + dx, top, z + dz, magma) }
+                        } }
+                        if at(x, top + 1, z) == AIR { set(x, top, z, soulSoil); set(x, top + 1, z, ghostFire) }
+                    }
+                    else if h % 199 == 0 && x > 0 && x < 15 && z > 0 && z < 15 {
+                        let bone = Blocks.id("bone_block")
+                        set(x, top + 1, z, bone)
+                        let d = [(1, 0), (-1, 0), (0, 1), (0, -1)][Int(h >> 11) % 4]
+                        if (h >> 13) & 1 == 1 && at(x + d.0, top + 1, z + d.1) == AIR && at(x + d.0, top, z + d.1) != AIR { set(x + d.0, top + 1, z + d.1, bone) }
+                        past = top + 3
+                    }
+                    else if drift >= 2 && (h % 211 == 0 || (h % 97 == 0 && grove(wx, wz))) && x > 1 && x < 14 && z > 1 && z < 14 {
                         let tall = 3 + Int(h >> 9) % 3
                         var free = true
                         for dy in 1...(tall + 1) where at(x, top + dy, z) != AIR { free = false; break }
@@ -113,10 +135,15 @@ extension EmberGen {
             }
         } }
         // P336: the Ash Dunes' dead: now and then the half-buried skeleton of something huge across the chunk.
+        // P504 (Nov 1 08:06, "This gray biome still looks too plain, not enough stuff in it. Too many giant skeletons"):
+        // one chunk in twenty-four (it was one in six: one every 40 blocks across the dunes); in their place the dunes
+        // hold the ruins of an older people's colonnades, onyxstone boulders, ember beds, bone litter and snag groves.
         let ch = hash3(cx, 0x336, cz, s32 ^ 0xB0E)
-        if ch % 6 == 0 && biome(bx + 8, bz + 8) == .soulSandValley && biome(bx + 3, bz + 3) == .soulSandValley
-            && biome(bx + 12, bz + 12) == .soulSandValley {
+        let dunes = biome(bx + 8, bz + 8) == .soulSandValley && biome(bx + 3, bz + 3) == .soulSandValley && biome(bx + 12, bz + 12) == .soulSandValley
+        if dunes && ch % 24 == 0 {
             beastBones(ch, at: at, set: set)
+        } else if dunes && (ch >> 5) % 7 == 0 {
+            ashRuin(ch, at: at, set: set)
         }
         // P342 (b): no lumenstone spikes hang from the roof any more (the glowstone look); hell has a sky (HellSky.swift).
     }
@@ -139,6 +166,69 @@ extension EmberGen {
             }
         }
         if at(sx, y + tall + 1, sz) == AIR { set(sx, y + tall + 1, sz, crystal) }
+    }
+
+    // P504: snags stand in groves: a slow noise over the dunes picks the stands of dead wood.
+    func grove(_ x: Int, _ z: Int) -> Bool { deco.noise2(Float(x) / 70 - 31, Float(z) / 70 + 13) > 0.28 }
+
+    // P504: the ruin of a colonnade half drowned in the ash, across the chunk along x or z: a row of square pillars of
+    // dark brick standing to different heights (one with its capital), a low wall between some of them, a fallen drum
+    // lying in the ash beside the row, a broken paving floor showing through the drift, and a ghost-fire brazier.
+    func ashRuin(_ ch: UInt32, at: (Int, Int, Int) -> BlockID, set: (Int, Int, Int, BlockID) -> Void) {
+        func id(_ n: String, _ f: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : f }
+        let brick = id("polished_blackstone_bricks", Blocks.id("blackstone")), cracked = id("cracked_polished_blackstone_bricks", brick)
+        let cap = id("chiseled_polished_blackstone", brick), pave = id("nether_bricks", brick)
+        let soulSand = Blocks.id("soul_sand"), soulSoil = Blocks.id("soul_soil"), ghostFire = Blocks.id("soul_fire")
+        let alongX = ch & 256 != 0
+        func xz(_ a: Int, _ b: Int) -> (Int, Int) { alongX ? (a, b) : (b, a) }
+        // The ash floor of a column (the first drift top over the lava sea), or -1.
+        func floor(_ a: Int, _ b: Int) -> Int {
+            let (x, z) = xz(a, b)
+            for y in (EmberGen.lavaLevel + 1)..<(height - 14) {
+                let g = at(x, y, z)
+                if (g == soulSand || g == soulSoil) && at(x, y + 1, z) == AIR { return y }
+            }
+            return -1
+        }
+        func put(_ a: Int, _ b: Int, _ y: Int, _ blk: BlockID) {
+            let (x, z) = xz(a, b)
+            if x >= 0 && x < CS && z >= 0 && z < CS { set(x, y, z, blk) }
+        }
+        let mid = floor(8, 8)
+        guard mid > 0 else { return }
+        // Paving under the drift, showing in patches along the row.
+        for a in 2...13 { for b in 6...10 where hash3(a, b, Int(ch & 0xFFF), 0x504) % 5 < 2 {
+            let f = floor(a, b)
+            if f > 0 && abs(f - mid) <= 2 { put(a, b, f, pave) }
+        } }
+        // The pillars (every third block along the row, both sides of the aisle), heights 1-7, the tallest capped.
+        var tallest = (0, 0, 0)
+        for (k, a) in [3, 6, 9, 12].enumerated() { for b in [6, 10] {
+            let f = floor(a, b)
+            guard f > 0 && abs(f - mid) <= 3 else { continue }
+            let hgt = 1 + Int((ch >> UInt32(k * 3 + (b == 6 ? 0 : 12))) % 7)
+            for dy in 1...hgt { put(a, b, f + dy, (ch >> UInt32(dy + k)) % 4 == 0 ? cracked : brick) }
+            if hgt > tallest.2 { tallest = (a, b, hgt) }
+        } }
+        let ft = tallest.2 >= 4 ? floor(tallest.0, tallest.1) : -1
+        if ft > 0 { put(tallest.0, tallest.1, ft + tallest.2 + 1, cap) }
+        // A low wall between two of the pillars on one side, crumbling to nothing at one end.
+        let wb = ch & 512 != 0 ? 6 : 10
+        for a in 4...8 {
+            let f = floor(a, wb)
+            guard f > 0 && abs(f - mid) <= 3 else { continue }
+            let hgt = a <= 6 ? 2 : (a == 7 ? 1 : 0)
+            if hgt > 0 { for dy in 1...hgt { put(a, wb, f + dy, a == 7 ? cracked : brick) } }
+        }
+        // A fallen drum lying across the aisle's far side, three blocks long, half in the ash.
+        let fb = wb == 6 ? 12 : 4
+        for a in 7...9 {
+            let f = floor(a, fb)
+            if f > 0 && abs(f - mid) <= 3 { put(a, fb, f + 1, a == 8 ? cracked : brick) }
+        }
+        // A brazier at the row's head: a brick foot with ghost fire on it.
+        let f0 = floor(2, 8)
+        if f0 > 0 && abs(f0 - mid) <= 2 { put(2, 8, f0 + 1, cap); put(2, 8, f0 + 2, ghostFire) }
     }
 
     // P336: a great beast's skeleton half sunk in the ash, across the chunk along x or z: a spine of bone over the

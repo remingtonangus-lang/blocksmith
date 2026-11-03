@@ -88,7 +88,9 @@ enum Difficulty {
     // enemy takes half again what it does on Normal to bring down, on Very Hard twice (Row.foes); a soldier's
     // dies-like-a-man floor (Ballistics.impactMob) stretches the same way: two rifle rounds to the body on Normal, three
     // on Hard, four on Very Hard. A round to the head still drops him on every level.
-    static func tough(_ m: Mob) -> Float { (m.troop == 3 ? toughBase(m) * 2 : toughBase(m)) * foes(m) }
+    // P504 (Nov 1 08:00:09, a Greywall watch room's Hannibal heavy: "the Hannibal troops need to be twice as tough"):
+    // twice again: four times what a hit does to a plain man, on top of the plate.
+    static func tough(_ m: Mob) -> Float { (m.troop == 3 ? toughBase(m) * 4 : toughBase(m)) * foes(m) }
     static func foes(_ m: Mob) -> Float { m.kind.hostile || Soldier.rank(m.kind) != nil ? row.foes : 1 }
     private static func toughBase(_ m: Mob) -> Float {
         let t = m.vary.tough

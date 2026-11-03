@@ -186,6 +186,7 @@ extension Game {
     // The noise bus: guns, cannon, turrets and explosions report here; citadels within hearing react.
     func baseNoise(at p: V3, kind: NoiseKind, power: Float = 1, hostile: Bool = true, byMob: Bool = false) {
         horseHears(at: p, kind: kind, power: power)        // a ridden horse spooks (HorseFeel.swift)
+        if !byMob && hostile && (kind == .gunshot || kind == .explosion) { Stealth.heard(self, at: p, power: power) }   // P508
         monstersHear(at: p, kind: kind, power: power)      // D15: monsters come to look (MonsterHearing.swift)
         let b = bases
         if b.noises.count < 48 { b.noises.append(BaseNoise(pos: p, kind: kind, power: power, hostile: hostile && !b.quiet, byMob: byMob)) }
@@ -371,7 +372,7 @@ extension Game {
         b.emptySince[r.key] = since
         guard clock - since >= 10 else { return }
         r.cleared = true
-        FactionRaids.owe("base:" + r.key, .steelhold, chance: 1.0 / 8, clock: clock)        // P236
+        FactionRaids.owe("base:" + r.key, .steelhold, chance: FactionRaids.baseChance, clock: clock)        // P236
         r.patrol = nil; b.patrols[r.key] = nil; b.dropRoute(r.key)
         b.note("\(r.key) cleared")
         if simd_length(player.pos - r.centre) < 140 { onToast?("The citadel is cleared") }

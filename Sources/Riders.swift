@@ -15,6 +15,7 @@ enum Riders {
     static let murderBounty = 6000
     static var forceRoad: (Roads.Seg, Float)?       // the host check's road and spot
     static var along: ClosedRange<Float> = 50...80  // how far along the road from the player a rider turns up
+    static var why = ""                             // why the last send turned up no rider (for the host check's log)
 
     // The traveller (not their horse, which carries posse 5 too while ridden).
     static func isRider(_ m: Mob) -> Bool { m.kind == .villager && (m.posse == riding || m.posse == robbed) }
@@ -77,12 +78,12 @@ enum Riders {
         let t = max(0, min(1, t0 + (ahead ? 1 : -1) * Rand.float(in: along) / len))
         let at2 = Roads.point(s, t)
         let x = Int(floor(at2.x)), z = Int(floor(at2.y))
-        guard g.world.isLoaded(x, z) else { return nil }
+        guard g.world.isLoaded(x, z) else { why = "unloaded at \(x),\(z)"; return nil }
         let y = g.world.topY(x, z) + 1
-        guard !Blocks.isLiquid(g.world.builtBlock(x, y - 1, z)) else { return nil }
+        guard !Blocks.isLiquid(g.world.builtBlock(x, y - 1, z)) else { why = "liquid at \(x),\(y - 1),\(z)"; return nil }
         let at = g.world.freeSpawn(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
         let horse = Mob(.horse, at: at)
-        if horse.collides(horse.pos, g.world) { return nil }
+        if horse.collides(horse.pos, g.world) { why = "horse in \(Blocks.key(g.world.builtBlock(x, y, z))) at \(x),\(y),\(z) (spawn y \(at.y))"; return nil }
         horse.saddled = true
         horse.posse = riding
         if Rand.float(in: 0..<1) < Stagecoach.chance { horse.coach = Rand.float(in: 0..<1) < 0.6 ? 1 : 2; horse.saddled = false }   // D4
@@ -176,7 +177,8 @@ enum Riders {
         var placed = 0
         // (Level with him or with the ground under him: a man up on a horse's back, a roof or a jump is still in reach.)
         let feet = Float(w.topY(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.z))) + 1)
-        for k in 0..<30 where placed < 3 {
+        // (20 tries out of his sight, then 30 anywhere: in open country nearly every spot sees him, and 10 left too few)
+        for k in 0..<50 where placed < 3 {
             let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 26...34)
             let x = Int(floor(g.player.pos.x + sinf(a) * r)), z = Int(floor(g.player.pos.z + cosf(a) * r))
             guard w.isLoaded(x, z) else { continue }

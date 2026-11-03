@@ -740,7 +740,7 @@ extension ShipTest {
                      crawler.blockCount, (t1 - t0) * 1000, frigate.blockCount, frigate.grid.sx, frigate.grid.sy, frigate.grid.sz, (t2 - t1) * 1000))
         check(frigate.blockCount > 60_000, "the frigate is full size (\(frigate.blockCount) blocks, \(frigate.grid.sz) long)")
         check(w.ships.turrets(of: frigate).count == 16, "the frigate carries 16 turrets (\(w.ships.turrets(of: frigate).count))")
-        check(w.ships.turrets(of: crawler).count == 6, "the crawler carries 6 turrets (\(w.ships.turrets(of: crawler).count))")
+        check(w.ships.turrets(of: crawler).count == 7, "the crawler carries 7 turrets (\(w.ships.turrets(of: crawler).count))")
         check(frigate.helm != nil && crawler.helm != nil, "both have a helm")
         check(frigate.engines > 100 && crawler.engines > 100, "drive engines aboard (frigate \(frigate.engines), crawler \(crawler.engines))")
         g.difficulty = 0

@@ -23,6 +23,7 @@ final class Game {
     var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
     var lastHurtAmount = 0
     var bulletHit = false             // gun rounds ignore the hurt cooldown (each round lands)
+    var sixIronRound = false          // P511: a lawman's round: Protection enchantments soften it by a third at most
     var levelScaled = false           // P358: hurtPlayer already took the level's share (Game.damage doesn't again)
     var levelSecond: Double = -10, levelTaken = 0    // P358: the easy levels' per-second limit (Difficulty.Row.rate)
     private(set) var inventory = PlayerInventory()
@@ -835,7 +836,7 @@ final class Game {
     // P282 (a) (Oct 14 19:36, "I can still hold the gun while I'm driving a vehicle"): every seat with controls counts,
     // the helm of any ship or vehicle and a manned deck gun alike (its trigger is the gun's, not the rifle's). A saddle,
     // a rowboat, a cart or a coach seat keeps a weapon in the free hand (mountedOneHand).
-    var handsOnControls: Bool { world.ships.pilot != nil || Turrets.shared.manned != nil || AshSeat.shared.vehicle != nil }
+    var handsOnControls: Bool { world.ships.pilot != nil || Turrets.shared.manned != nil || AshSeat.shared.vehicle != nil || TrainGun.shared.car != nil }
     // P282 (b): mounted (horse, rowboat, pig, minecart, a coach seat) one hand holds the reins, paddle or rail: the
     // weapon in the other hand still fires, but there is no second hand for a rifle brace or a second revolver.
     var mountedOneHand: Bool { riding != nil && !handsOnControls }
@@ -1036,8 +1037,13 @@ final class Game {
     func tickSeat(_ rawDt: Double) {
         let dt = min(rawDt, 0.05)
         let seat = coop.current
+        let craters0 = CraterJob.inTick                  // (the frame's shared carving allowance: CraterJob.allowance)
+        CraterJob.inTick = true
+        defer { CraterJob.inTick = craters0 }
         if seat == 0 {
             TickProf.begin()
+            StructureCache.noteFrameThread()
+            SoldierRig.muzzleTick &+= 1
             clock += dt
             world.extraCenter = coop.active ? coop.otherPlayerPos(self) : nil
             // P487 (his dropship and frigate flights: "I had to literally fly into the void in order to get things to
@@ -1222,6 +1228,7 @@ final class Game {
 
         seatedEatTick(p, fdt)                                            // P435: eating at the controls of a vehicle
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
+        if TrainGun.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }     // P510
         if AshSeat.shared.tick(self, p, q, mi, dt: fdt) { updateFov(Float(dt)); advance(dt); return }      // P344
         if ChairSeat.shared.tick(self, mi) { updateFov(Float(dt)); advance(dt); return }                     // P370 (b)
         let before = player.pos
@@ -1319,6 +1326,8 @@ final class Game {
         if useNow && !(target.map { isInteractive($0.hit) } ?? false) && factionGearUse() { return }
         // Deck guns: use one to take its controls (VehicleControls.swift).
         if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
+            // P507: a gun worked from a computer is taken at the computer (Mob.consoleGun).
+            if hit.0.consoleGun(self) { placeRefused("gun from its computer"); return }
             // P194: a gun with its gunner at the breech is his until he is dealt with.
             if survival, hit.0.deckGunCrewed(self) {
                 onToast?(hit.0.factionValue == .greywall ? "The tower's lookout holds this gun" : "The gunner holds this gun")
@@ -1343,6 +1352,9 @@ final class Game {
         // a gun in hand doesn't stop him taking an Ashguard tank, half-track, truck or field gun either.
         if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(vrAim?.origin ?? player.eye, vrAim?.dir ?? player.look, maxDist: 4.5),
            AshCommandeer.takeable(hit.0.kind), ashCommandeer(hit.0) { mining = nil; return }
+        // FAILURES 3 (Nov 2 08:41:46, a carbine in hand: "I can't seem to drive the train now"): ...nor taking an engine's cab.
+        if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(vrAim?.origin ?? player.eye, vrAim?.dir ?? player.look, maxDist: 4.5),
+           Trains.isCar(hit.0) && Trains.isEngine(hit.0), Trains.use(self, hit.0) { mining = nil; return }
         // P74 (Oct 12 playtest, 09:22): a gun in hand still opens a door, a chest or a lever within arm's reach; the
         // gun's aim took the use press first, so nothing could be opened with a gun out.
         if useNow && heldGun != nil && !(input.shift || p.b), let t = target,
@@ -1792,11 +1804,16 @@ final class Game {
         if useNow && placeBoat() { return }
         if useNow && useFreePiece(sneak: input.shift || p.b) { swing = 1; return }      // P338 step 8 (FreeBuild)
         guard let t = target else { if useNow { placeIntoLava() }; return }
+        // P507 (Nov 1 12:29:31, "grass in the way shouldn't stop me from opening a chest"): a plant between him and a chest,
+        // table or furnace doesn't take the click: what it stands in front of opens.
+        if useNow && !(input.shift || p.b) && !isInteractive(t.hit), let past = pastPlants(t, reach: 6), isInteractive(past.hit) {
+            openBlock(past.hit); swing = 1; return
+        }
         if useNow && !isInteractive(t.hit) && placeIntoLava(before: t.hit) { return }
         if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && ashBaseUse(t.hit) { swing = 1; return }                    // P318
-        if useNow && !(input.shift || p.b) && (stationGunUse(t.hit) || baseConsoleUse(t.hit) || radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net (P422: or does its own job)
+        if useNow && !(input.shift || p.b) && (stationGunUse(t.hit) || builtGunUse(t.hit) || baseConsoleUse(t.hit) || radioUse(t.hit) || consoleUse(t.hit)) { swing = 1; return }      // C6: a base's console opens its radio net (P422: or does its own job)
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
             return
@@ -1835,10 +1852,15 @@ final class Game {
                 return
             }
         }
-        let at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
+        var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
+        // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
+        // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
+        // (a cell drawn small, a slope's corner): the block goes in the last open cell the aim crossed before the ground.
+        if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))], let open = openCellBefore(t) { at = open }
         let existing = world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
+            else if useNow { placeRefused("Something is in the way") }                        // (P507: never a silent click)
             return
         }
         var id = blockItem
@@ -2086,6 +2108,40 @@ final class Game {
     }
 
     // Exact point where the look ray meets the targeted face.
+    // P507: what the aim meets past the grass, flowers and other plants in front of it (nil: only plants, or the target
+    // isn't one).
+    func pastPlants(_ t: (hit: IVec3, normal: IVec3), reach: Float) -> (hit: IVec3, normal: IVec3)? {
+        let o = player.eye, d = player.look
+        let aimed = world.fieldHit                                       // (the aim's own ground hit stays the aim's)
+        defer { world.fieldHit = aimed }
+        var cur = t
+        for _ in 0..<3 {
+            let b = world.block(cur.hit.x, cur.hit.y, cur.hit.z)
+            guard b != AIR, Blocks.replaceable[Int(b)], !Blocks.isLiquid(b) else { return cur.hit == t.hit ? nil : cur }
+            // Out the far side of the plant's cell, then on.
+            let mn = V3(Float(cur.hit.x), Float(cur.hit.y), Float(cur.hit.z))
+            var exit: Float = .greatestFiniteMagnitude
+            for a in 0..<3 where abs(d[a]) > 1e-6 { exit = min(exit, ((d[a] > 0 ? mn[a] + 1 : mn[a]) - o[a]) / d[a]) }
+            guard exit < reach else { return nil }
+            guard let n = world.raycast(o + d * (exit + 0.01), d, maxDist: reach - exit) else { return nil }
+            cur = n
+        }
+        return nil
+    }
+
+    // P507: the last cell along the aim before the target's hit point that a block can go in (not the target's own).
+    func openCellBefore(_ t: (hit: IVec3, normal: IVec3)) -> IVec3? {
+        let o = player.eye, d = player.look
+        var s = simd_length(hitPoint(t) - o) - 0.04
+        while s > 0.4 {
+            let q = o + d * s
+            let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+            if c != t.hit && c.y >= 0 && c.y < CH && Blocks.replaceable[Int(world.block(c.x, c.y, c.z))] { return c }
+            s -= 0.08
+        }
+        return nil
+    }
+
     func hitPoint(_ t: (hit: IVec3, normal: IVec3)) -> V3 {
         let o = player.eye, d = player.look
         if let fh = world.fieldHit, fh.cell == t.hit, simd_length(o + d * fh.t - fh.at) < 0.05 { return fh.at }    // (PG2 rewrite)
@@ -2108,12 +2164,12 @@ final class Game {
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
         if shape == "gate" { return true }
-        return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == WeaponPrinter.key || k == GunsmithBench.key || k == VehicleDepot.pumpKey || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
+        return k == "crafting_table" || k == "command_console" || k == VehicleWorks.key || k == WeaponPrinter.key || k == GunsmithBench.key || k == VehicleDepot.pumpKey || k == ShipShells.hoistKey || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
-            || k == BaseSafes.block || k == BaseMaterials.crate || ChairSeat.seatTop(k) != nil
+            || k == BaseSafes.block || k == BaseMaterials.crate || ChairSeat.seatTop(k) != nil || k == Depots.shutter || Elevators.usable(k)
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -2152,8 +2208,26 @@ final class Game {
         let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
         if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) {
             if BaseSecurity.refuse(self, p) { return }                  // D35: a locked bulkhead
-            toggleOpenable(p); return
+            // P508 (Nov 1 15:53:30 at a Boreal Station's double bulkhead: "Doors are still having trouble opening and
+            // closing"): one use opened one leaf of a pair, the other stayed in the way. The leaf beside it (the same
+            // door, facing the same way, shut or open as this one was) swings with it.
+            let b0 = world.block(p.x, p.y, p.z)
+            var partner: IVec3?
+            if Blocks.shape[Int(b0)] == "door" {
+                let base = Blocks.groupBase[Int(b0)], st = Int(b0 - base)
+                for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                    let q = p + d, nb = world.block(q.x, q.y, q.z)
+                    guard Blocks.groupBase[Int(nb)] == base else { continue }
+                    let ns = Int(nb - base)
+                    if ns & 3 == st & 3 && ns & 4 == st & 4 && ns & 8 == st & 8 { partner = q; break }
+                }
+            }
+            toggleOpenable(p)
+            if let q = partner { toggleOpenable(q) }
+            return
         }
+        if k == Depots.shutter { GarageDoors.use(self, p); return }        // FAILURES.md 1: the whole door swings (GarageDoors.swift)
+        if Elevators.usable(k) && Elevators.use(self, p) { return }      // FAILURES.md 2: call the lift, or pick a floor (Elevators.swift)
         switch k {
         case "cave_vines": pickLumenPods(p)
         case "crafting_table": openMenu(CraftingBookMenu(game: self))      // the recipe book first; the grid is a button away
@@ -2218,6 +2292,7 @@ final class Game {
         case GunsmithBench.key: openMenu(GunsmithBenchMenu(game: self))           // D31 (GunsmithBench.swift)
         case VehicleWorks.key: VehicleWorks.use(self, p)                            // P54 (VehicleWorks.swift)
         case VehicleDepot.pumpKey: VehicleDepot.pump(self, p)                         // D44 (VehicleDepot.swift)
+        case ShipShells.hoistKey: ShipShells.rearm(self, at: p)                      // P508: a rearming point on land
         case "stonecutter": openMenu(StonecutterMenu(game: self))
         case "grindstone": openMenu(GrindstoneMenu(game: self))
         case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Void Chest"))
@@ -2568,6 +2643,7 @@ final class Game {
         if dim.dim == .deep { wardenDied(m) }
         if m.kind.hellOwn { hellDied(m) }
         if m.kind == .deckGun { gunWrecked(m) }                // P459: a gun destroyed comes apart
+        Rout.died(self, m)                                     // P511: four in five of a garrison dead: the rest run
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
         if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
         if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
@@ -2771,6 +2847,7 @@ final class Game {
             n -= fix / 2
             if n <= 0 { sfx(.xp, 0.5); return }
         }
+        guard Game.xpOn else { return }                  // P508: no experience bar (TechSalvage.swift)
         xpPoints += n
         var leveled = false
         while xpPoints >= Game.xpToNext(xpLevel) { xpPoints -= Game.xpToNext(xpLevel); xpLevel += 1; leveled = true }
@@ -2954,7 +3031,9 @@ final class Game {
         let res = effects.level(.resistance)
         if res > 0 { dmg *= max(0, 1 - 0.2 * Float(res)) }
         if type != .void && type != .starve {
-            let epf = Enchant.protection(inventory.armor, type)
+            // P511 ("Sheriffs barely did anything on hard"): in Duskium with Protection IV all over, the enchantments took
+            // 80% off a six-iron round the armour table had already set: a round a scratch. They take a third at most.
+            let epf = min(Enchant.protection(inventory.armor, type), sixIronRound ? 8 : 20)
             dmg *= 1 - Float(epf) * 0.04
         }
         if absorption > 0 {
@@ -3285,14 +3364,21 @@ final class Game {
         FlightCrew.tick(self)                                  // seated aircraft crews (Aircraft.swift)
         vehicleGunnersTick(Float(dt))                          // P478: his people at his vehicle's guns (VehicleGunners.swift)
         aircraftCrashTick(Float(dt))                           // P294: crashes and rotor strikes (AircraftCrash.swift)
-        fellingTick(Float(dt))                                 // P298: felled trees and a carried trunk (Felling.swift)
         TickProf.mark("flight crews")
+        fellingTick(Float(dt))                                 // P298: felled trees and a carried trunk (Felling.swift)
+        TickProf.mark("felling")
+        GarageDoors.tick(self, Float(dt))                      // garage doors swinging (GarageDoors.swift)
+        Elevators.tick(self, Float(dt))                        // lift cars riding their shafts (Elevators.swift)
+        TickProf.mark("doors and lifts")
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load
-        StructureTip.tick(self)                                // P503: a piece shot out from under it tips
-        settleStrayPieces()                                    // P448
         TickProf.mark("structure load")
+        StructureTip.tick(self)                                // P503: a piece shot out from under it tips
+        TickProf.mark("structure tip")
+        if Int(clock * 0.5) != Int((clock - Double(dt)) * 0.5) { packStims() }    // P504: no golden apples, every 2 s
+        settleStrayPieces()                                    // P448
+        TickProf.mark("stray pieces")
         mobs.update(Float(dt), game: self)
         TickProf.mark("mobs")
         drops.update(Float(dt), game: self)
@@ -3393,6 +3479,10 @@ final class Game {
             Reckoning.tick(self, rt)
             GarrisonTown.tick(self, rt)
             TickProf.mark("reckoning+garrison")
+            if player.pos.x.isFinite && player.pos.z.isFinite {                    // (planned on a worker: StructureCache.prefetch)
+                world.gen.structures?.prefetch(x: Int(floor(player.pos.x)), z: Int(floor(player.pos.z)))
+            }
+            TickProf.mark("structure prefetch")
             FarTicks.roll(clock: clock)             // P376: the stats line's "far ticking" count
             world.unparkActive()
             Trains.tick(self)                       // C1: trains near the player built and taken away

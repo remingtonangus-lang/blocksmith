@@ -65,7 +65,7 @@ extension MainGunTests {
             return squad.filter { $0.health <= 0 }.count
         }
         MainGunStrikes.reports.removeAll()                       // (the list keeps the last 32: a full list never grows)
-        w.ships.pendingCraters.removeAll()                       // (earlier off-world hits dug as their ground loads: their own waves)
+        w.ships.pendingCraters.removeAll(); w.ships.pendingAlong.removeAll()                       // (earlier off-world hits dug as their ground loads: their own waves)
         let reports0 = MainGunStrikes.reports.count
         let dead1 = strike(1)
         g.basesTick(1.1)                                           // the citadel hears the blast

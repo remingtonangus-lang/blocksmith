@@ -125,7 +125,9 @@ enum QuestSettings {
     // Q2c-console-60: how far hits and blasts push him (1 full, 0.4 reduced, 0 off); Reduced matches the Moderate preset.
     static var knockback: Float { get { float("quest.knockback", 0.4) } set { store(newValue, "quest.knockback") } }
     // Q2c-console-49: the menu panel's and the floating HUD's size (x their default width, at the same distance).
-    static var menuScale: Float { get { float("quest.menuScale", 1) } set { store(newValue, "quest.menuScale") } }
+    // P511 (Nov 2 08:22, "make the menu a little bigger, you know, each individual button bigger"): Large (1.15) is the
+    // first size; a stored size he picked himself stays.
+    static var menuScale: Float { get { float("quest.menuScale", 1.15) } set { store(newValue, "quest.menuScale") } }
     static var hudScale: Float { get { float("quest.hudScale", 1) } set { store(newValue, "quest.hudScale") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { store(newValue, "quest.foveation") } }
     // P381 step 9: Application SpaceWarp (the game draws 36 frames a second, the headset makes every other one).

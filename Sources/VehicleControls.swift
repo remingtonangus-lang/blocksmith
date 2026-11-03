@@ -120,6 +120,9 @@ enum VehicleControls {
         let rt = PadMap.glyph(.rt).s, lt = PadMap.glyph(.lt).s, ls = Glyph.ls.s, b = PadMap.glyph(.b).s
         let climb = PadMap.glyph(.rb).s + PadMap.glyph(.lb).s
         if kind(s) == .vtol { return [ls + " Fly / Strafe", Glyph.rs.s + " Turn / Climb", rt + " Fire", b + " Leave"] }
+        if armed(g, s) && g.world.ships.gunState(s) != nil {          // P508: both triggers charge the Tidebreaker
+            return [ls + " Throttle / Steer", rt + " Guns", rt + lt + " " + MainGun.name, climb + " Pitch", b + " Leave"]
+        }
         if armed(g, s) { return [ls + " Throttle / Steer", rt + " Fire", climb + (kind(s) == .warship ? " Pitch" : " Climb"), b + " Leave"] }
         switch kind(s) {
         case .boat, .land: return [rt + " Throttle", lt + " Reverse", ls + " Steer", b + " Leave"]
@@ -237,7 +240,7 @@ final class Turrets {
         while dyaw < -.pi { dyaw += 2 * .pi }
         let turn: Float = 1.8 * dt
         if GunParts.canTurn(m) { m.yaw += max(-turn, min(turn, dyaw)) }              // P372: a broken mount holds it
-        g.player.pitch = max(-0.17, min(0.9, g.player.pitch))
+        g.player.pitch = max(HeavyTurret.pitchLow(m), min(0.9, g.player.pitch))          // (P504: down onto the wall's foot)
         b.pitch += max(-1.2 * dt, min(1.2 * dt, g.player.pitch - b.pitch))
         // Stand on the gunhouse roof ahead of the cupola, over the breeches: the eye is above the barrels with a clear
         // view forward (behind the breech put it inside the 5.5 m armoured box, so nothing was visible: Quest round 3).

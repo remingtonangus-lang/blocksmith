@@ -97,6 +97,9 @@ enum Mesher {
     static let shoreRing2: [(Int, Int)] = [(2, 0), (-2, 0), (0, 2), (0, -2), (2, 1), (2, -1), (-2, 1), (-2, -1),
                                             (1, 2), (-1, 2), (1, -2), (-1, -2), (2, 2), (2, -2), (-2, 2), (-2, -2)]
 
+    // P508: built cubes on the field's ground get a foot down into it (BS_FEET=0 leaves them off: before/after renders).
+    static let blockFeet = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
+
     // Faces +X,-X,+Y,-Y,+Z,-Z; corners BL,BR,TR,TL counter-clockwise seen from outside.
     static let cornerTable: [Int] = [
         1,0,1, 1,0,0, 1,1,0, 1,1,1,
@@ -598,7 +601,16 @@ enum Mesher {
         // Realistic world (built blocks): face f drawn 1/16 short of each edge it shares with another exposed side `ex`,
         // the 45-degree strip across each such edge (drawn by the lower-numbered face) and a corner triangle where three
         // exposed sides meet (drawn by the lowest). Strips carry a tilted normal (u = 31, projected texture).
-        func bevelFace(f: Int, ex: Int, bx16: Int, by16: Int, bz16: Int, layer: Int, tint: Int, flat: Int, flip: Bool, isTrans: Bool) {
+        // P507 (Nov 1 12:28:28 at a Capital wall: "those little corners here where you can see through into the void"):
+        // a chamfered edge that ends against a block it doesn't run on into (a pillar beside a wall's top) left the end
+        // of its notch open, a 1/16 triangle onto the neighbour's culled face: `runsOn(d, f, g)` says whether the
+        // neighbour across side d carries the same chamfer on; where it doesn't, the notch's end is closed.
+        // P508 (the trailer, Nov 1: "thin sky-coloured lines along the step edges" of a village's stepped gable): two
+        // blocks meeting only along an edge (one step of a gable over the next) both chamfered it, leaving a slit through
+        // a one-block wall; `cham(f, g)` says whether the edge between exposed sides f and g is chamfered (not where a
+        // block stands diagonally across it), and a strip's end meets a plain edge mitred.
+        func bevelFace(f: Int, ex: Int, bx16: Int, by16: Int, bz16: Int, layer: Int, tint: Int, flat: Int, flip: Bool, isTrans: Bool,
+                       runsOn: (Int, Int, Int) -> Bool, cham: (Int, Int) -> Bool) {
             let a = f >> 1, sa = f & 1 == 0 ? 1 : -1, pa = sa > 0 ? 16 : 0
             let base = SIMD3<Int>(bx16, by16, bz16)
             kindNow = MeshKind.bevel
@@ -614,21 +626,22 @@ enum Mesher {
                 let ci = (f * 4 + c) * 3
                 var q = SIMD3<Int>(CT[ci] * 16, CT[ci + 1] * 16, CT[ci + 2] * 16)
                 for t in [(a + 1) % 3, (a + 2) % 3] {
-                    if q[t] == 0 && ex & (1 << (t * 2 + 1)) != 0 { q[t] = 1 }
-                    if q[t] == 16 && ex & (1 << (t * 2)) != 0 { q[t] = 15 }
+                    if q[t] == 0 && cham(f, t * 2 + 1) { q[t] = 1 }
+                    if q[t] == 16 && cham(f, t * 2) { q[t] = 15 }
                 }
                 let (u, v) = faceUV(f, q.x, q.y, q.z)
                 vert(isTrans, base.x + q.x, base.y + q.y, base.z + q.z, f, tint, u, v, layer, aos[c], lit[c], false)
             }
             var nf = SIMD3<Float>(0, 0, 0); nf[a] = Float(sa)
             // Strips to the exposed sides with a higher index.
-            for g in (f + 1)..<6 where g >> 1 != a && ex & (1 << g) != 0 {
+            for g in (f + 1)..<6 where g >> 1 != a && cham(f, g) {
                 let b = g >> 1, sb = g & 1 == 0 ? 1 : -1, pb = sb > 0 ? 16 : 0
                 let c3 = 3 - a - b
-                let c0 = ex & (1 << (c3 * 2 + 1)) != 0 ? 1 : 0, c1 = ex & (1 << (c3 * 2)) != 0 ? 15 : 16
+                let f0 = cham(f, c3 * 2 + 1) ? 1 : 0, f1 = cham(f, c3 * 2) ? 15 : 16
+                let g0 = cham(g, c3 * 2 + 1) ? 1 : 0, g1 = cham(g, c3 * 2) ? 15 : 16
                 var ng = SIMD3<Float>(0, 0, 0); ng[b] = Float(sb)
                 var pts = [SIMD3<Int>](repeating: .zero, count: 4)
-                for (k, (onF, cc)) in [(true, c0), (true, c1), (false, c1), (false, c0)].enumerated() {
+                for (k, (onF, cc)) in [(true, f0), (true, f1), (false, g1), (false, g0)].enumerated() {
                     var q = SIMD3<Int>(0, 0, 0)
                     q[c3] = cc
                     if onF { q[a] = pa; q[b] = pb - sb } else { q[b] = pb; q[a] = pa - sa }
@@ -638,6 +651,20 @@ enum Mesher {
                 let e1 = SIMD3<Float>(pts[1] &- pts[0]), e2 = SIMD3<Float>(pts[2] &- pts[0])
                 if simd_dot(simd_cross(e1, e2), n) < 0 { pts.reverse() }
                 for q in pts { put(q, n, flat, 3) }
+                // The notch's ends against a neighbour it doesn't run on into: a triangle across each (as a quad, its
+                // last corner doubled), facing back along the edge.
+                for (end, side) in [(0, c3 * 2 + 1), (16, c3 * 2)] where ex & (1 << side) == 0 && !runsOn(side, f, g) {
+                    var p0 = SIMD3<Int>(0, 0, 0), p1 = p0, p2 = p0
+                    p0[c3] = end; p1[c3] = end; p2[c3] = end
+                    p0[a] = pa; p0[b] = pb - sb
+                    p1[b] = pb; p1[a] = pa - sa
+                    p2[a] = pa; p2[b] = pb
+                    var nc = SIMD3<Float>(0, 0, 0); nc[c3] = end == 0 ? 1 : -1
+                    var tri = [p0, p1, p2]
+                    if simd_dot(simd_cross(SIMD3<Float>(p1 &- p0), SIMD3<Float>(p2 &- p0)), nc) < 0 { tri = [p0, p2, p1] }
+                    for q in tri { put(q, nc, flat, 3) }
+                    put(tri[2], nc, flat, 3)
+                }
             }
             // Corner triangles (three exposed sides meet; drawn when f is the lowest of them).
             for c in 0..<4 {
@@ -645,7 +672,7 @@ enum Mesher {
                 let corner = SIMD3<Int>(CT[ci], CT[ci + 1], CT[ci + 2])
                 let b = (a + 1) % 3, c3 = (a + 2) % 3
                 let g = b * 2 + (corner[b] == 1 ? 0 : 1), h = c3 * 2 + (corner[c3] == 1 ? 0 : 1)
-                guard g > f && h > f && ex & (1 << g) != 0 && ex & (1 << h) != 0 else { continue }
+                guard g > f && h > f && cham(f, g) && cham(f, h) && cham(g, h) else { continue }
                 let sb = corner[b] == 1 ? 1 : -1, sc = corner[c3] == 1 ? 1 : -1
                 let pb = corner[b] * 16, pc = corner[c3] * 16
                 var p0 = SIMD3<Int>(0, 0, 0), p1 = p0, p2 = p0
@@ -1258,6 +1285,36 @@ enum Mesher {
         // same for plants).
         @inline(__always) func lowRow(_ rt: UInt8, _ bi: Int) -> Bool { rt == rWire || rt == rRail || (rt == rModel && GroundDrape.seat[bi] != 0) }
         let lowRows = drapeOn && !far && GroundDrape.lowRowOn
+        // P508 (the store trailer's Boreal Station gate: a dark slit under the yard's edge; specks at wall and well feet):
+        // a built cube standing on the field's ground keeps its bottom face (smoothOpen), lit from the ground's cell
+        // under it (black), and where the drawn ground beside it lies under its floor that face showed through as a
+        // black line under the block. The ground cell under such a block draws a foot for each open side: the block's
+        // side face carried on half a block down at its own plane, lit from the cell beside the block, so the block
+        // meets the ground (the part of the foot under the ground beside it is hidden in it).
+        func blockFoot(_ i: Int, _ x: Int, _ y: Int, _ z: Int, _ ly: Int) {
+            let a = i + RL, ab = Int(R[a])
+            guard renderT[ab] == rCube, opaqueT[ab], dens[a] <= 0, layerT[ab] == solidLayer, fkT[ab] == 0, !leafT[ab] else { return }
+            let bx16 = (x - C0) * 16, by16 = ly * 16, bz16 = (z - C0) * 16
+            let tintB = Int(tintT[ab]), tintV = tintB == 3 ? 1 : tintB
+            let cut0 = curCut, kind0 = kindNow
+            curCut = false; kindNow = MeshKind.cube
+            for f in [0, 1, 4, 5] {
+                let side = a + offs[f]
+                guard !opaqueT[Int(R[side])] || smoothOpen(side) else { continue }
+                let beside = i + offs[f]
+                let gTop: Float = dens[beside + RL] > 0 ? 1.5 : 0.5 + Float(dens[beside]) / 32
+                guard gTop < 0.97 else { continue }
+                let l = max(0, light(x + NT[f * 3], y + 1, z + NT[f * 3 + 2]))
+                let layer = Int(texT[ab * 6 + f])
+                for k in 0..<4 {
+                    let ci = (f * 4 + k) * 3
+                    let px = CT[ci] * 16, top = CT[ci + 1] == 1, pz = CT[ci + 2] * 16
+                    let (u, _) = Mesher.faceUV(f, px, 16, pz)
+                    vert(false, bx16 + px, by16 + (top ? 16 : 0), bz16 + pz, f, tintV, u, top ? 16 : 32, layer, 3, l, tintB == 3)   // (the whole cell: a dip under half a block showed a dark corner)
+                }
+            }
+            curCut = cut0; kindNow = kind0
+        }
         for ly in 0..<(lowRows ? 17 : 16) {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
@@ -1279,6 +1336,7 @@ enum Mesher {
                     if tallyBlocks { tallyFlush(Int(gbT[bi])) }
                     if smooth && natT[bi] && (!fieldOn || dens[i] > 0) {    // (chipped too: it shrinks in the smooth surface, P106)
                         if smoothWater && !fluidNets { shoreWater(i, ly) }
+                        if fieldOn && ly < 16 && Mesher.blockFeet { blockFoot(i, x, y, z, ly) }
                         continue
                     }
                     // (P338 step 2's debug counter: the field's ground drawn as cubes. A structure's own stone, sandstone,
@@ -1758,7 +1816,18 @@ enum Mesher {
                             let a = f >> 1, t1 = (a + 1) % 3, t2 = (a + 2) % 3
                             let sideMask = (3 << (t1 * 2)) | (3 << (t2 * 2))
                             if ex & sideMask != 0 {
-                                bevelFace(f: f, ex: ex, bx16: bx16, by16: by16, bz16: bz16, layer: layer, tint: tintF, flat: flat, flip: flip, isTrans: isTrans)
+                                bevelFace(f: f, ex: ex, bx16: bx16, by16: by16, bz16: bz16, layer: layer, tint: tintF, flat: flat, flip: flip, isTrans: isTrans,
+                                          runsOn: { d, f1, g1 in
+                                    // The neighbour across d: a bevelled cube of its own whose sides f1 and g1 are open too.
+                                    let j = i + offs[d], nb = Int(R[j])
+                                    guard bevelT[nb], renderT[nb] == rCube else { return false }
+                                    func open(_ k: Int) -> Bool { let m = Int(R[j + offs[k]]); return (!opaqueT[m] || detT[m] || leafBlob && leafT[m]) && !(cullSameT[nb] && R[j + offs[k]] == R[j]) }
+                                    return open(f1) && open(g1)
+                                }, cham: { g1, h1 in
+                                    guard ex & (1 << g1) != 0 && ex & (1 << h1) != 0 else { return false }
+                                    let d = Int(R[i + offs[g1] + offs[h1]])
+                                    return !(opaqueT[d] && !detT[d] && !(leafBlob && leafT[d]))
+                                })
                                 // P384 step 5: far, the face plain (a 1/16 chamfer is under half a pixel past
                                 // GroundMerge.farDistance), merged with the other plain ones where its corners match.
                                 if farCopies && !curCut && !isTrans {

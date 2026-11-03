@@ -19,6 +19,8 @@ final class Player {
     var fastFlight = true           // sprint while flying goes ~8x normal flight speed (V toggles it)
     var hyperFlight = false         // P478: creative flight with the right stick held in, ten times fast flight (Quest)
     var onGround = false
+    var clamber: (t: Float, from: V3, to: V3)? = nil     // P511: pulling himself up over a ledge (Clamber.swift)
+    var clamberBase: Float = 0      // feet y where he last stood: a mid-air clamber reaches no higher than one from there
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn eye (ViewStep.swift)
     var steadyY: Float?                             // Steady Saddle: the eased height of the saddle (ViewStep.swift)
     var steadyV: Float = 0, steadyLast: Float = 0   // its eased climb rate and the saddle height last tick
@@ -271,6 +273,10 @@ final class Player {
         if swimming {
             if !(wet && input.sprint && input.forward > 0) || flying { swimming = false }
         } else if !flying && input.sprint && input.forward > 0 && headInWater { swimming = true }
+        // P511: the pose probes meet leaves and limbs as his walk does (passed through), so a limb at head height no
+        // longer drops him to a crawl at a third of his pace (the brush check's limb grown up from another).
+        let softWas = w.foliageSoft
+        w.foliageSoft = !flying
         func fits(_ h: Float) -> Bool { !w.collides(V3(pos.x - halfW, pos.y, pos.z - halfW), V3(pos.x + halfW, pos.y + h, pos.z + halfW)) }
         crawling = !flying && !swimming && !gliding && fits(0.6) && !fits(1.5)
         // P179 (Oct 13: "crouching down should make it so I can get through caves easier"): sneaking into a gap too low
@@ -301,6 +307,7 @@ final class Player {
             }
         }
         let forcedCrouch = !flying && !prone && fits(1.5) && !fits(1.8)
+        w.foliageSoft = softWas
 
         // Unstuck: if spawned or placed inside a block, pop upward. A hair's overlap with a wall first slides out
         // sideways: on a moving vehicle the ship-frame round trip leaves the body ~1e-4 inside the wall it walks
@@ -355,6 +362,8 @@ final class Player {
         jumped = false
         if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
+        if onGround || flying || inFluid { clamberBase = pos.y }
+        if clamber != nil { stepClamber(dt, w); return }       // P511
 
         sneaking = (input.sneak || forcedCrouch || ducking) && !flying && !prone
         // VR (moveYaw set): sprint in any stick direction, at full sprint speed however far the stick is pushed (the
@@ -372,6 +381,9 @@ final class Player {
         if let m = moveLook, m.x * m.x + m.z * m.z > 1e-6 { fh = simd_normalize(V3(m.x, 0, m.z)) }
         let len = simd_length(wish)
         if len > 1 || (vrSprint && len > 1e-3) { wish /= len }
+        // P511: jump pushing into a ledge too high to jump onto: he pulls himself up over it (Clamber.swift).
+        if input.jump && !flying && !inFluid && !sneaking && !prone && levitate <= 0 && !jetThrust && len > 0.3
+            && (onGround || vel.y < 7), startClamber(wish, w) { stepClamber(dt, w); return }
 
         var speed: Float
         if flying { speed = hyperFlight ? 870 : (sprinting ? (fastFlight ? 87.0 : 21.6) : 10.9) }
@@ -461,7 +473,8 @@ final class Player {
         }
 
         // Ladders and vines: climb when pushing forward or jumping, hold with sneak, slow slide otherwise.
-        if !flying && (Player.climbable(feet) || Player.climbable(body)) {
+        let climbing = !flying && (Player.climbable(feet) || Player.climbable(body))
+        if climbing {
             if input.jump || (input.forward > 0.1 && (collides(at: pos + fh * 0.35, w))) { vel.y = 2.35 }
             else if input.sneak { vel.y = max(vel.y, 0) }
             else { vel.y = max(vel.y, -3) }
@@ -508,7 +521,10 @@ final class Player {
         }
         // P471 (Oct 26 19:53: "Still having trouble getting through doors sometimes"; P458, Oct 25: "Make it so my hitbox
         // is smaller than the door opening"): pushing into a doorway's frame, the body slides into line with the opening.
-        if !flying && Player.doorwayAssistOn && (hit.x || hit.z) && simd_length(wish) > 0.3 { doorwayAssist(wish, w, dt) }
+        // (Not on a ladder: pushing into its backing is climbing. The ridecheck board scene: the slide took the bot off the
+        // crawler's flank ladder sideways at 7 b/s into the gap beside its backing, under the chassis, or jerked him
+        // along the rungs, 30 deck-relative spikes up to 17 b/s while climbing.)
+        if !flying && !climbing && Player.doorwayAssistOn && (hit.x || hit.z) && simd_length(wish) > 0.3 { doorwayAssist(wish, w, dt) }
         // Climbing out of water: pushing into a wall while in water lifts you along it (reference: 0.3 blocks/tick
         // while there's room 0.6 higher), so a one-block bank is easy to get onto.
         if wetish && !flying && (hit.x || hit.z) && simd_length(wish) > 0.3 && !collides(at: pos + V3(0, 0.6, 0), w) {

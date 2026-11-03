@@ -1,9 +1,9 @@
 import Foundation
 
 // P420 (Remington, Oct 23 21:16 and 21:32: "I need a list of what is causing all the compute"): the frame's cost per
-// system, smoothed over the last moments of play and frozen while a menu is open, so the pause menu's Compute page
-// (playtest builds) shows what is heavy where he stands. The frame loop feeds it (QuestApp: the frame split and the
-// world renderer's record stages); the game tick's stages come from TickProf. No allocation per frame: fixed arrays,
+// system, smoothed over the last moments of play and frozen while a menu is open. P510: each voice note carries its
+// summary (what is heavy where he stands; the pause menu's Compute page is gone). The frame loop feeds it (QuestApp:
+// the frame split and the world renderer's record stages); the game tick's stages come from TickProf. No allocation per frame: fixed arrays,
 // tick stages keyed by their StaticString's address.
 enum ComputeCost {
     static let k = 0.03                                     // smoothing per frame (half of it gone in ~0.3 s at 72 fps)
@@ -56,31 +56,20 @@ enum ComputeCost {
         ("Particles", ["particles"]), ("Water and glass", ["translucent"]), ("Sky", ["sky"]),
         ("HUD and menus", ["hud", "ui"]), ("Frame setup", ["uniforms"])]
 
-    // The page: (subtitle, lines), heaviest first in each part.
-    static func rows(_ g: Game) -> (String, [String]) {
-        guard fed else { return ("Nothing measured yet: play a moment, then pause", []) }
-        func ms(_ v: Double) -> String { String(format: "%.2f ms", v) }
-        let w = g.world
-        var out: [String] = []
-        out.append(String(format: "%.0f fps", fps) + (rate > 0 ? String(format: " of %.0f Hz", rate) : "")
-                   + ", view \(w.renderDistance) chunks, active \(w.activeDistance)")
-        out.append("Frame on the CPU " + ms(cpuMs) + ": game tick " + ms(tickMs) + ", drawing " + ms(recordMs))
-        out.append("Frame on the GPU (all drawing together) " + ms(gpuMs))
-        if !stages.isEmpty {
-            out.append("Drawing, CPU, by system:")
-            var parts: [(String, Double)] = []
-            for (name, keys) in groups {
-                var s = 0.0
-                for key in keys { if let i = stageNames.firstIndex(of: key), i < stages.count { s += stages[i] } }
-                parts.append((name, s))
-            }
-            for (n, v) in parts.sorted(by: { $0.1 > $1.1 }) { out.append("  \(n): " + ms(v)) }
+    // P510: one line for a voice note: the frame split and the three heaviest drawing systems and tick stages.
+    static func summary(_ g: Game) -> String {
+        func ms(_ v: Double) -> String { String(format: "%.1f", v) }
+        var s = String(format: "%.0f fps", fps) + ", CPU \(ms(cpuMs)) ms (tick \(ms(tickMs)), drawing \(ms(recordMs))), GPU \(ms(gpuMs)) ms"
+        var parts: [(String, Double)] = []
+        for (name, keys) in groups {
+            var t = 0.0
+            for key in keys { if let i = stageNames.firstIndex(of: key), i < stages.count { t += stages[i] } }
+            parts.append((name.split(separator: " (").first.map(String.init) ?? name, t))
         }
-        if tickCount > 0 {
-            out.append("Game tick, heaviest parts:")
-            let order = (0..<tickCount).sorted { tickTimes[$0] > tickTimes[$1] }
-            for i in order.prefix(10) where tickTimes[i] >= 0.005 { out.append("  \(tickNames[i].description): " + ms(tickTimes[i])) }
-        }
-        return ("Smoothed over the last moments of play before the pause", out)
+        let top = parts.sorted { $0.1 > $1.1 }.prefix(3).filter { $0.1 >= 0.05 }
+        if !top.isEmpty { s += "; drawing: " + top.map { "\($0.0) \(ms($0.1))" }.joined(separator: ", ") }
+        let order = (0..<tickCount).sorted { tickTimes[$0] > tickTimes[$1] }.prefix(3).filter { tickTimes[$0] >= 0.05 }
+        if !order.isEmpty { s += "; tick: " + order.map { "\(tickNames[$0].description) \(ms(tickTimes[$0]))" }.joined(separator: ", ") }
+        return s
     }
 }

@@ -331,7 +331,7 @@ enum Snapshot {
                 be.container[1] = ItemStack(Potions.item(0, "strong_healing")!, 1)
                 be.container[2] = ItemStack(Potions.item(1, "poison")!, 1)
                 be.container[3] = ItemStack(Items.id("glistering_melon_slice"), 4)
-                be.container[4] = ItemStack(Items.id("blaze_powder"), 2)
+                be.container[4] = ItemStack(Items.id(HellWorks.brimsalt), 2)
                 be.fuel = 14; be.brewTime = 150; be.brewIngredient = be.container[3].item
                 game.inventory.main[9] = ItemStack(Potions.item(2, "long_night_vision")!, 1)
                 game.inventory.main[10] = ItemStack(Potions.item(3, "harming")!, 16)

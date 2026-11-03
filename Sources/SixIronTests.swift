@@ -45,13 +45,13 @@ extension TownTests {
         check(soft.allSatisfy { row[$0] == 10 }, "iron rule: below iron two rounds kill on normal (\(soft.map { "\($0) \(row[$0] ?? -1)" }.joined(separator: ", ")))")
         let iron = row["iron"] ?? 0, steel = row["steel"] ?? 0
         check(iron * 3 >= 20 && iron * 2 < 20, "iron rule: a full iron set takes \(iron) a round: three shots kill")
-        check(steel < iron && steel <= 2, "iron rule: steel takes \(steel) a round: near titanium (P459)")
-        check((row["titanium"] ?? 99) <= 1 && (row["Duskium"] ?? 99) <= 1, "iron rule: titanium and Duskium take chip damage (\(row["titanium"] ?? -1), \(row["Duskium"] ?? -1))")
+        check(steel < iron && steel <= 3, "iron rule: steel takes \(steel) a round: as titanium (P459, P511)")
+        check((row["titanium"] ?? 99) == 3 && (row["Duskium"] ?? 99) == 3 && iron > 3, "iron rule: titanium and Duskium take 3 a round, seven to drop him, iron more (P511: \(row["titanium"] ?? -1), \(row["Duskium"] ?? -1))")
         let leather = SixIron.armourScore(SixIron.fullSet("leather")), ti = SixIron.armourScore(SixIron.fullSet("diamond"))
         check(SixIron.damage(score: leather, difficulty: 1) == 7 && SixIron.damage(score: leather, difficulty: 3) == SixIron.lethal
               && SixIron.damage(score: leather, difficulty: 0) == 0
-              && SixIron.damage(score: ti, difficulty: 3) == 2,
-              "iron rule: below iron three shots on easy, one on hard; nothing on peaceful; titanium 2 on hard")
+              && SixIron.damage(score: ti, difficulty: 3) == 4,
+              "iron rule: below iron three shots on easy, one on hard; nothing on peaceful; titanium 4 on hard")
         // Iron with leather boots is iron; iron without boots isn't.
         var mixed = SixIron.fullSet("iron"); mixed[3] = SixIron.fullSet("leather")[3]
         var bare = SixIron.fullSet("iron"); bare[3] = .empty
@@ -83,7 +83,7 @@ extension TownTests {
         check(g.health == 1 && g.inventory.offhand[0].isEmpty, "iron rule: Resistance IV and golden hearts don't save you below iron (\(g.health) left: the totem did)")
         g.effects.clear(); g.absorption = 0; g.difficulty = 2
         let ironLeft = shot("iron"), tiLeft = shot("diamond")
-        check(ironLeft == 12 && tiLeft == 19, "iron rule: a round in iron leaves 12 of 20 (\(ironLeft)), in titanium 19 (\(tiLeft))")
+        check(ironLeft == 12 && tiLeft == 17, "iron rule: a round in iron leaves 12 of 20 (\(ironLeft)), in titanium 17 (\(tiLeft): P511, 3 a round)")
         g.difficulty = 0
         check(shot(nil) == 20, "iron rule: peaceful, no harm")
         g.difficulty = 2
@@ -167,6 +167,18 @@ extension TownTests {
         check(dodgeHits == 0 && proneHits <= 1, "six-iron: a step aside dodges it (\(dodgeHits)/10 hit), crawling too (\(proneHits)/10)")
         check(reloading, "six-iron: six rounds, then a reload")
         check(!arm.isEmpty, "six-iron: the model builds mid-duel")
+        // P511 (Nov 2 12:13, "Sheriffs barely did anything on hard difficulty"): on Hard the fight opens with a real round
+        // (the line, no warning over his head), and he draws and fires quicker.
+        g.difficulty = 3
+        s.town.warned = false; s.town.fired = 0
+        let w1 = SixIron.warnings
+        var hardAim: Float = 0
+        let hard = round { hardAim = s.town.aim }
+        let hardCD = s.attackCooldown
+        g.difficulty = 2
+        check(hard.aimed && hard.hit && SixIron.warnings == w1 + 1 && hardAim < SixIron.aimTime * 0.9 && hardCD < SixIron.cooldown * 0.9,
+              String(format: "six-iron: on Hard his first round is meant (hit %@), his aim %.2f s (%.2f on Normal), %.2f s between rounds (%.2f)",
+                     hard.hit ? "yes" : "no", hardAim, SixIron.aimTime, hardCD, SixIron.cooldown))
         g.player.pos = base
     }
 

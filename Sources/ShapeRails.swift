@@ -6,9 +6,13 @@ import simd
 // on the bed under it (the ballast's top: FieldTerrain.split keeps a structure's ground to its faces). The block stays
 // for gameplay (minecarts, trains, breaking, saves); powered, detector and activator rails keep their cards.
 enum ShapeRails {
+    // P504 (Nov 1 08:01:32-08:02:55, the Ash Vault's yard: "still using the small rails... we should have the bigger rail
+    // system"): a powered rail is drawn as track too (a copper strip down its sleepers), so a line keeps one size.
     static let isRail: [Bool] = (0..<Blocks.count).map { i in
-        Blocks.render[i] == RenderType.rail.rawValue && Circuit.kinds[i] == .rail
+        Blocks.render[i] == RenderType.rail.rawValue && (Circuit.kinds[i] == .rail || Circuit.kinds[i] == .poweredRail)
     }
+    static let isPowered: [Bool] = (0..<Blocks.count).map { i in isRail[i] && Circuit.kinds[i] == .poweredRail }
+    static let strip: BlockID = Blocks.has("gold_block") ? Blocks.id("gold_block") : STONE
     static let steel: BlockID = Blocks.has("iron_block") ? Blocks.id("iron_block") : STONE
     static let timber: BlockID = Blocks.has("dark_oak_planks") ? Blocks.id("dark_oak_planks") : PLANKS
     static let gauge: Float = 0.3                   // rails this far each side of the centre line
@@ -17,45 +21,62 @@ enum ShapeRails {
     // scale. A rail laid anywhere else keeps the light track.
     static let mainGauge: Float = 0.72
     static let bedKinds: [Bool] = (0..<Blocks.count).map { i in
-        ["gravel", "stone_bricks", "spruce_planks"].contains(Blocks.key(Blocks.groupBase[i]))
+        ["gravel", "stone_bricks", "spruce_planks", "polished_blackstone"].contains(Blocks.key(Blocks.groupBase[i]))   // (P504: the Ash Vault's yards)
     }
 
     static func emit(_ ctx: DetailContext) {
         var any = false
         scan: for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where isRail[Int(ctx.R[ctx.ri(x, y, z)])] { any = true; break scan } } }
         guard any else { return }
-        let steelL = Int(Blocks.tex[Int(steel) * 6 + 2]), woodL = Int(Blocks.tex[Int(timber) * 6 + 2])
+        let steelL = Int(Blocks.tex[Int(steel) * 6 + 2]), woodL = Int(Blocks.tex[Int(timber) * 6 + 2]), stripL = Int(Blocks.tex[Int(strip) * 6 + 2])
         let curveSegs = ctx.lod == 0 ? 4 : 2
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isRail[Int(b)] else { continue }
-            let shape = Int(b - Blocks.groupBase[Int(b)])
+            let powered = isPowered[Int(b)]
+            let shape = Int(b - Blocks.groupBase[Int(b)]) % (powered ? 6 : 100)     // (a powered rail's lit states: +6)
             let o = SIMD3<Float>(Float(x), Float(y), Float(z))
             let big = mainline(ctx, x, y, z, shape)
             // The centre line through the block, as points.
             var pts: [SIMD3<Float>]
+            // Quarter circles of radius 0.5 round the corner a curve (shape 6-9) turns about.
+            func curve(_ sh: Int) -> [SIMD3<Float>] {
+                let c: SIMD2<Float> = [SIMD2(1, 1), SIMD2(0, 1), SIMD2(0, 0), SIMD2(1, 0)][sh - 6]
+                // From the north or south edge's middle (0.5, c.y) to the east or west edge's (c.x, 0.5).
+                let a0 = atan2f(0, 0.5 - c.x), a1 = atan2f(0.5 - c.y, 0)
+                var d = a1 - a0
+                if d > .pi { d -= 2 * .pi } else if d < -.pi { d += 2 * .pi }
+                return (0...curveSegs).map { k in
+                    let a = a0 + d * Float(k) / Float(curveSegs)
+                    return SIMD3(c.x + 0.5 * cosf(a), 0, c.y + 0.5 * sinf(a))
+                }
+            }
             switch shape {
             case 1: pts = [SIMD3(0, 0, 0.5), SIMD3(1, 0, 0.5)]
             case 2: pts = [SIMD3(0, 0, 0.5), SIMD3(1, 1, 0.5)]
             case 3: pts = [SIMD3(0, 1, 0.5), SIMD3(1, 0, 0.5)]
             case 4: pts = [SIMD3(0.5, 0, 1), SIMD3(0.5, 1, 0)]
             case 5: pts = [SIMD3(0.5, 0, 0), SIMD3(0.5, 1, 1)]
-            case 6, 7, 8, 9:
-                // Quarter circles of radius 0.5 round the corner the curve turns about.
-                let c: SIMD2<Float> = [SIMD2(1, 1), SIMD2(0, 1), SIMD2(0, 0), SIMD2(1, 0)][shape - 6]
-                // From the north or south edge's middle (0.5, c.y) to the east or west edge's (c.x, 0.5).
-                let a0 = atan2f(0, 0.5 - c.x), a1 = atan2f(0.5 - c.y, 0)
-                var d = a1 - a0
-                if d > .pi { d -= 2 * .pi } else if d < -.pi { d += 2 * .pi }
-                pts = (0...curveSegs).map { k in
-                    let a = a0 + d * Float(k) / Float(curveSegs)
-                    return SIMD3(c.x + 0.5 * cosf(a), 0, c.y + 0.5 * sinf(a))
-                }
+            case 6, 7, 8, 9: pts = curve(shape)
             default: pts = [SIMD3(0.5, 0, 0), SIMD3(0.5, 0, 1)]
+            }
+            // P511 (RailLoops.swift): a straight that a rail runs into from the side is a junction (where a line's
+            // turning loop comes back in): its switch, the curves off the straight toward that side, is drawn too.
+            var branches: [Int] = []
+            if (shape == 0 || shape == 1) && !powered {
+                let sides: [(Int, Int, [Int])] = shape == 1 ? [(0, 1, [6, 7]), (0, -1, [8, 9])] : [(1, 0, [6, 9]), (-1, 0, [7, 8])]
+                for (dx, dz, curves) in sides {
+                    let nb = ctx.block(x + dx, y, z + dz)
+                    guard isRail[Int(nb)], !isPowered[Int(nb)] else { continue }
+                    let ns = Int(nb - Blocks.groupBase[Int(nb)]) % 100
+                    if ns < Rails.exits.count && Rails.exits[ns].contains(where: { $0.0 == -dx && $0.2 == -dz }) { branches += curves }
+                }
             }
             // P379 step 3: in a field world the track lies on the drawn bed (Railways.shapeBed shapes it to the line's
             // gentle grade): the centre's height is the bed's top under it, each edge's the mean of the two cells'.
+            var paths = branches.map { curve($0) }
             if let hc = bedTop(ctx, x, y, z) {
+                paths = paths.map { p in p.map { SIMD3($0.x, hc, $0.z) } }
                 if shape >= 6 { pts = pts.map { SIMD3($0.x, hc, $0.z) } }
                 else {
                     let ax = shape == 1 || shape == 2 || shape == 3
@@ -71,7 +92,8 @@ enum ShapeRails {
                              : [SIMD3(0.5, edge(-1), 0), SIMD3(0.5, hc, 0.5), SIMD3(0.5, edge(1), 1)]
                 }
             }
-            for k in 0..<(pts.count - 1) {
+            paths.insert(pts, at: 0)
+            for pts in paths { for k in 0..<(pts.count - 1) {
                 let p0 = o + pts[k], p1 = o + pts[k + 1]
                 let a = simd_normalize(p1 - p0)
                 let s = simd_normalize(simd_cross(SIMD3<Float>(0, 1, 0), a))
@@ -88,7 +110,11 @@ enum ShapeRails {
                     let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
                     box(ctx, c, a, s, h, len * 0.5 + 0.01, big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
                 }
-            }
+                if powered {
+                    let c = (p0 + p1) * 0.5 + h * (big ? 0.15 : 0.11)
+                    box(ctx, c, a, s, h, len * 0.5, big ? 0.09 : 0.05, 0.02, stripL)
+                }
+            } }
         } } }
     }
 

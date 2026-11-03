@@ -44,6 +44,11 @@ extension TownTests {
         w.renderDistance = 8
         w.pendingMobs.removeAll()
         _ = w.loadSync(center: centre, radius: 7)
+        // P510 (Nov 1 20:23:00, "Should be one Ember Charge somewhere in the capital"): the city holds one.
+        let chargeItem = Items.id(HellGate.chargeKey)
+        let charges = w.blockEntities.filter { abs($0.key.x - Int(centre.x)) < 120 && abs($0.key.z - Int(centre.z)) < 120 }
+            .reduce(0) { $0 + $1.value.container.countOf(chargeItem) }
+        check(charges == 1, "capitals: the city holds one Ember Charge (\(charges)), in the officer's strongbox by the fountain")
         var keepers: [ShopKind: Int] = [:], citizens = 0, desks = 0, blocked: [String] = []
         func room(_ q: V3) -> Bool {
             !w.collides(q + V3(-0.3, 0.01, -0.3), q + V3(0.3, 1.95, 0.3)) && w.collides(q + V3(-0.3, -0.2, -0.3), q + V3(0.3, -0.01, 0.3))

@@ -100,6 +100,38 @@ extension SoldierRig {
         return (depth, push, per[0], per[1], body)
     }
 
+    // Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak battle, callgrind): clear() is up to ~90
+    // clip measures a soldier, every soldier, every drawn frame: three quarters of the mobs' vertex time in the Ash
+    // Vault battle (136 soldiers). Drawn past 14 blocks (the middle and far models), a soldier's correction (how far the
+    // weapon moved, where the elbows swung) is measured again every few frames, staggered, and reused between: a
+    // stance moves less in 4-8 frames than a pixel shows at that distance. Near ones, and the AI's muzzle lookups,
+    // are measured every time.
+    static var clearFrame = 0
+    private static var clearKept: [ObjectIdentifier: (frame: Int, move: V3, poleL: V3, poleR: V3)] = [:]
+    static func clear(_ p: inout SoldierPose, _ gm: GunModel, for m: Mob, lod: Int) {
+        guard drawing, lod > 0 else { clear(&p, gm); return }
+        let key = ObjectIdentifier(m)
+        let every = lod == 1 ? 4 : 8
+        if let k = clearKept[key], clearFrame - k.frame < every, clearFrame >= k.frame {
+            let fore = gunPoint(gm, gm.fore, p)
+            let onR = p.handR.map { simd_length($0 - p.gunAt) < 0.01 } ?? false
+            let onL = p.handL.map { simd_length($0 - fore) < 0.01 } ?? false
+            p.poleL = k.poleL; p.poleR = k.poleR
+            if simd_length_squared(k.move) > 0 {
+                p.gunAt += k.move
+                if onR { p.handR = p.gunAt }
+                if onL { p.handL = gunPoint(gm, gm.fore, p) }
+            }
+            return
+        }
+        let g0 = p.gunAt
+        clear(&p, gm)
+        if clearKept.count > 4000 { clearKept.removeAll(keepingCapacity: true) }
+        // (staggered: a soldier's next measure falls on its own frame of the cycle)
+        let phase = Int(UInt(bitPattern: key.hashValue) % UInt(every))
+        clearKept[key] = (clearFrame - phase, p.gunAt - g0, p.poleL, p.poleR)
+    }
+
     // Swing the elbows round the weapon, then move the weapon (and the hands on it) clear.
     static func clear(_ p: inout SoldierPose, _ gm: GunModel) {
         guard clip(p, gm).depth > 0.25 else { return }

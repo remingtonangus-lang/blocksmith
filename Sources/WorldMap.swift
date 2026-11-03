@@ -110,12 +110,12 @@ final class MapCache {
     // P337 step 5: the map cells each railway line crosses (by line id), built once per line.
     private static var railCells: [Int64: Set<Int64>] = [:]
     private static let railLock = NSLock()
-    private static var railGen: ObjectIdentifier?
+    private static var railGen: Int?                 // (the generator's plan serial, not its address: P510)
     static func onRail(_ gen: WorldGen, _ k: Int64, _ x: Int, _ z: Int) -> Bool {
         let n = cellBlocks
         for l in Railways.near(gen, x0: x, z0: z, x1: x + n - 1, z1: z + n - 1, pad: 0) {
             railLock.lock()
-            if railCells.count > 512 || railGen != ObjectIdentifier(gen) { railCells.removeAll(); railGen = ObjectIdentifier(gen) }
+            if railCells.count > 512 || railGen != gen.planSerial { railCells.removeAll(); railGen = gen.planSerial }
             var set = railCells[l.id]
             if set == nil {
                 var s = Set<Int64>()
@@ -470,7 +470,7 @@ enum MapDraw {
             }
         }
         // Vehicles loaded nearby: hostile vessels as red diamonds, the rest (yours) blue; the one you steer is the player dot.
-        for sh in g.world.ships.list where sh !== g.world.ships.pilot {
+        for sh in g.world.ships.list where sh !== g.world.ships.pilot && sh.trainCar == nil {
             guard let p = at(sh.pos.x, sh.pos.z) else { continue }
             let col = sh.isVessel ? V4(0.95, 0.25, 0.2, 1) : V4(0.35, 0.6, 1, 1)
             out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(6 * s, 6 * s)))
@@ -613,6 +613,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
     var dragFrom: V2?
     var pressWorld: (Int, Int)?
     var pressAt: V2?, dragged: Float = 0    // a left press: where, and how far it has dragged since (a tap places a pin)
+    var back: (() -> Void)?                 // P510: opened from the Journal, Back (and M) goes back there
 
     init(game: Game) {
         cx = game.player.pos.x
@@ -623,6 +624,11 @@ final class MapMenu: Menu, CustomDrawnMenu {
     }
 
     var bpc: Int { MapMenu.zooms[zoom] }
+    override func backPressed() -> Bool {
+        guard let b = back else { return false }
+        game.closeMenu(); b()
+        return true
+    }
 
     override func tick() {
         let g = game
@@ -703,7 +709,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
             if pressAt != nil, dragged < tapTol, let w = pressWorld { pin(w.0, w.1) }
             dragFrom = nil; pressAt = nil; pressWorld = nil
         }
-        if g.input.tapped(KeyBinds.key(.map)) { g.closeMenu() }
+        if g.input.tapped(KeyBinds.key(.map)) { MapMenu.prevPad = p; g.closeMenu(); back?(); return }
         MapMenu.prevPad = p
     }
     static var prevPad = PadSnapshot()

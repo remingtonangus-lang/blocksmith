@@ -121,6 +121,15 @@ final class World {
     private var eyeSection = 0                      // the section his eye is in (World.update), P404 (3)
     private var buriedCentre: ChunkKey?
     private var buriedExtra: ChunkKey?
+    // P504 (Remington, Nov 1 08:07, flying over the Hell: "the Nether takes a long time to load"): the Deep stacks two
+    // worlds, the Ash Vault (y 0-191) and the hell band (200-375), with the Sealrock between them that only Sunderite
+    // breaks. Every chunk meshed both, so in the Hell the whole Ash Vault under the Sealrock (its woods, towns and
+    // shell holes) was meshed and never seen: four times the surface's meshing for the same ground (questcheck --view
+    // at his 08:07 spot, 193 chunks: 6.9 s against 1.6 s). Past the chunk he is in and the eight round it, the layer
+    // he isn't in is left unmeshed; crossing over hands it back. BS_DEEPLAYER=0: off.
+    static var deepLayerCut = ProcessInfo.processInfo.environment["BS_DEEPLAYER"] != "0"
+    private var deepInHell: Bool?
+    private var deepCentre: ChunkKey?
     private(set) var deferredTotal = 0          // (harness: sections deferred so far)
     // Split-screen co-op (Coop.swift): the second player's position, streamed around like the first (nil when alone).
     var extraCenter: V3?
@@ -215,6 +224,8 @@ final class World {
         // P292: Brand Chapterhouses and Searwing Roosts on ground no save generated before them (BrandChapterhouse.swift).
         if dim == .nether { P292Guard.nether = save?.structureGuard(file: "structure-guard-p292.txt") ?? [] }
         if dim == .deep { P292Guard.deep = save?.structureGuard(file: "structure-guard-p292.txt") ?? [] }
+        if dim == .nether { P508Guard.nether = save?.structureGuard(file: "structure-guard-p508.txt") ?? [] }     // (HellWorks.swift)
+        if dim == .deep { P508Guard.deep = save?.structureGuard(file: "structure-guard-p508.txt") ?? [] }
         if dim == .deep, let save, let dg = gen as? DeepGen {
             dg.keepGuard.chunks = save.structureGuard(file: "structure-guard-deep-keeps.txt")      // BrimstoneKeep.swift
             dg.vaultGuard.chunks = save.structureGuard(file: "structure-guard-vault.txt")          // AshVault.swift
@@ -654,11 +665,16 @@ final class World {
 
     // World-space collision boxes of the block at a cell.
     @inline(__always) func collisionBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)]) {
+        collisionBoxes(x, y, z, &out, column: nil)
+    }
+    // `column`: the chunk holding (x, z) when the caller has it (sweep walks a column at a time: store review, callgrind
+    // of the battle soak, a dictionary lookup per cell was a fifth of every mob's move).
+    @inline(__always) func collisionBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)], column: Chunk?) {
         var b: Int
         // PG2 rewrite: in a field world the ground is met as the field's own surface (fieldBoxes: quarter-block columns
         // cut where the density crosses zero), never as cells; built blocks in the cell keep their own shapes.
         // (P377 step 2: the cell is read through the built layer only, never first as a block.)
-        if fieldTerrain && y >= 0 && y < CH, let c = chunkAt(x, z) {
+        if fieldTerrain && y >= 0 && y < CH, let c = column ?? chunkAt(x, z) {
             let i = Chunk.index(mod(x, CS), y, mod(z, CS))
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
@@ -736,8 +752,19 @@ final class World {
         switch ShapeClass.kind[b] {
         case .foliage: return true
         case .trunk:
-            let u = Int(block(x, y - 1, z))
-            return ShapeClass.kind[u] != .trunk && !Blocks.collide[u]
+            // P511 (Nov 2 08:22:41, the jungle: "make it so the bush, the branches don't slow you down at all"): a limb is
+            // any log cell whose column of logs doesn't stand on the ground: it hangs over air or over leaves (a limb laid
+            // on a leaf mass stopped him, as did one limb grown up from another). A bush's stem, one log on the ground
+            // under its leaves, is passed through too. Trunks standing on the ground still stop him.
+            var yy = y - 1, n = 0
+            while n < 40 {
+                let u = Int(block(x, yy, z))
+                if ShapeClass.kind[u] == .trunk { yy -= 1; n += 1; continue }
+                if !Blocks.collide[u] || ShapeClass.kind[u] == .foliage { return true }
+                break
+            }
+            if n == 0 { return ShapeClass.kind[Int(block(x, y + 1, z))] == .foliage }
+            return false
         default: return false
         }
     }
@@ -832,7 +859,7 @@ final class World {
                             if fieldC { if !Blocks.collide[Int(c.blocks.raw(i))] && !fieldNear(c, x, y, z, i) { continue } }
                             else if !Blocks.collide[Int(c.blocks[i])] { continue }
                         }
-                        collisionBoxes(x, y, z, &boxes)
+                        collisionBoxes(x, y, z, &boxes, column: c)
                     }
                 } else {
                     for y in y0...y1 { collisionBoxes(x, y, z, &boxes) }
@@ -1277,6 +1304,42 @@ final class World {
     // P446: set while water and lava settle and random ticks run: the sections they change mesh in the queue's order,
     // not ahead of it (World.update's edited-chunk pass is for edits: a blast, a dug block, a door).
     static var backgroundEdits = false
+    // P511 (Nov 1 20:29-20:36 and Nov 2 09:29, "I can't see shit around me when I am driving it including a capital
+    // citadel I am literally parked beside"): what a vehicle wears away as it drives (the Ironback Crawler's ruts and the
+    // plants and trees its hull sweeps through, four passes a second) were edits round him: the chunks under it went
+    // ahead of every waiting job, two jobs at a time each, again as soon as the last was done, and the land round the
+    // crawler waited behind them. They now mesh in the queue's order at most every settleGap seconds (what its bow
+    // meets still goes at once). BS_VEHICLEWEAR=0: the old way; BS_VEHICLEWEAR=off: no wear at all (measuring).
+    static var vehicleEdits = false
+    static var frameNow: Double = 0                 // (P511: this frame's clock, World.update)
+    static var ramEdits = false                     // (P511: what its bow rams that stands up in the way: at once)
+    // P511 (build 82 at his spot: still 232 edit jobs in 16 s at one and two chunks off, 22.7 s of meshing): the edits
+    // settling after a pass (light, loose ground, the field's carve) reached chunks the footprint stamp missed and made
+    // them edits again. Every chunk within two of a wearing vehicle's footprint is a wear zone for two wear gaps after its
+    // last pass: any change there but a ram is wear. (Why a chunk went to the front: urgentWhy, BS_MESHLOG=1.)
+    struct WearZone { var id: Int; var x0: Int, z0: Int, x1: Int, z1: Int; var until: Double }
+    private static var zones: [WearZone] = []
+    private static let zoneLock = NSLock()
+    static func wearZone(_ id: Int, cx0: Int, cz0: Int, cx1: Int, cz1: Int) {
+        zoneLock.lock()
+        let z = WearZone(id: id, x0: cx0 - 2, z0: cz0 - 2, x1: cx1 + 2, z1: cz1 + 2, until: frameNow + wearGap * 2)
+        if let i = zones.firstIndex(where: { $0.id == id }) { zones[i] = z } else { zones.append(z) }
+        zones.removeAll { $0.until < frameNow }
+        zoneLock.unlock()
+    }
+    static func inWearZone(_ cx: Int, _ cz: Int) -> Bool {
+        zoneLock.lock(); defer { zoneLock.unlock() }
+        for z in zones where z.until >= frameNow && cx >= z.x0 && cx <= z.x1 && cz >= z.z0 && cz <= z.z1 { return true }
+        return false
+    }
+    static var urgentWhy: [String: Int] = [:]
+    static func noteUrgent(_ k: String) { zoneLock.lock(); urgentWhy[k, default: 0] += 1; zoneLock.unlock() }
+    // P511 (measured at his spot, questcheck --streamtest --crawler, 8 b/s: 33-75 of 349 chunks in view drawn, ticks 6 ms
+    // mean and 150 worst; with no wear all 349 by 8 s, 1.5 ms and 8): a worn chunk still went to the front of the queue
+    // whenever it was within two chunks of him (the P458 front jobs), every settleGap. It now waits wearGap seconds
+    // between meshes and never goes to the front: the ruts behind him catch up while the land ahead comes in.
+    static var wearGap: Double = Double(ProcessInfo.processInfo.environment["BS_WEARGAP"] ?? "") ?? 3
+    static let vehicleWear = ProcessInfo.processInfo.environment["BS_VEHICLEWEAR"] ?? "1"
     static var meshLog = ProcessInfo.processInfo.environment["BS_MESHLOG"] == "1"
     // P474 (Oct 26 19:28-20:14: "land doesn't like generating unless it's really forced to"; "I had to literally fly
     // into the void in order to get things to generate"): water and lava settling in the caves of new land (and random
@@ -1298,9 +1361,16 @@ final class World {
     @inline(__always) private var settleNearGap: Double {
         simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast ? World.settleGap : World.settleNear
     }
+    @inline(__always) private func worn(_ c: Chunk) -> Bool { c.vehicleWorn && !c.urgent && World.vehicleWear != "0" }
+    // P511 (build 80, his spot: worn chunks still took both workers, 15 s of meshing in 12 s, whole columns at 200 ms a
+    // job, and no new land was generated at all): a worn chunk also waits while another worn chunk's job is out, so one
+    // worker at most is ever on the crawler's wear and the other brings the land in.
+    private var wornOut = 0                         // (worn jobs out on the workers; under `lock`)
+    private var wornBusy = false                    // (this frame: one is out)
     @inline(__always) private func holdBack(_ c: Chunk, _ dx: Int, _ dz: Int, _ now: Double) -> Bool {
+        let w = worn(c)
         guard World.settleGap > 0 && c.meshedOnce && !c.urgent
-              && now - c.meshAt < (max(abs(dx), abs(dz)) > 2 ? World.settleGap : settleNearGap) else { return false }
+              && (now - c.meshAt < (w ? World.wearGap : (max(abs(dx), abs(dz)) > 2 ? World.settleGap : settleNearGap)) || (w && wornBusy)) else { return false }
         if !c.held { c.held = true; held.append(c) }
         return true
     }
@@ -1422,6 +1492,7 @@ final class World {
             meshResults.insert(contentsOf: mr[mi...], at: 0)
             lock.unlock()
         }
+        GroundSettle.borderStep(self)               // (store review: generation's loose pieces, a slice a frame)
         TickProf.mark("world.results")              // the rest of update() is charged to "world.update" (Game.tick)
         shellClock &+= 1
         if trimIn > 0 { trimIn -= 1; if trimIn == 0 { let b = MeshArena.shared.trim(); if b > 0 { print("world: view lowered, \(b >> 20) MB of mesh slabs given back") } } }
@@ -1502,6 +1573,8 @@ final class World {
 
         // P474: settling changes held back long enough mesh now (marked dirty again: the quiet pass looks at them).
         let now = CFAbsoluteTimeGetCurrent()
+        World.frameNow = now
+        lock.lock(); wornBusy = wornOut > 0; lock.unlock()
         if !held.isEmpty && now - heldCheck > 0.05 {
             heldCheck = now
             var released = false
@@ -1509,6 +1582,7 @@ final class World {
             let nearGap = settleNearGap
             held.removeAll { c in
                 guard now - c.meshAt >= nearGap && (now - c.meshAt >= World.settleGap || near(c)) else { return false }
+                if worn(c) && (now - c.meshAt < World.wearGap || wornBusy) { return false }      // (P511)
                 c.held = false
                 if chunks[ChunkKey(x: c.cx, z: c.cz)] === c && c.needsMesh { c.dirty = true; released = true }
                 return true
@@ -1541,7 +1615,7 @@ final class World {
                 c.dirty = false
                 guard !c.meshInFlight && c.needsMesh && !holdBack(c, k.x - center.x, k.z - center.z, now) else { continue }
                 let near = inMeshRadius(k.x - center.x, k.z - center.z) || (extra.map { inMeshRadius(k.x - $0.x, k.z - $0.z) } ?? false)
-                if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb, front: abs(k.x - center.x) <= 2 && abs(k.z - center.z) <= 2) }   // (P458)
+                if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb, front: abs(k.x - center.x) <= 2 && abs(k.z - center.z) <= 2 && !worn(c)) }   // (P458; P511)
             }
             list.removeAll()
             scanEpoch = MeshEpoch.value
@@ -1569,7 +1643,7 @@ final class World {
                 if jobs >= maxQueued { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh && !holdBack(c, ox, oz, now), let nb = neighbourhood(c) {
                     c.dirty = false
-                    scheduleMesh(k, c, nb, front: ci == 0 && abs(dx) <= 2 && abs(dz) <= 2 && c.meshedOnce)          // (P458)
+                    scheduleMesh(k, c, nb, front: ci == 0 && abs(dx) <= 2 && abs(dz) <= 2 && c.meshedOnce && !worn(c))          // (P458; P511)
                 }
             } else if jobs < maxQueued && !genInFlight.contains(k) {
                 // P376: inside the view past the active distance, a chunk with cached meshes comes back as a shell.
@@ -1590,6 +1664,7 @@ final class World {
     // P440: the buried sections of a far chunk are left unmeshed (an empty mesh, closed to the cave-culling walk);
     // the others are returned to mesh.
     private func deferringBuried(_ c: Chunk, _ todo: [(Int, Int)]) -> [(Int, Int)] {
+        if dim == .deep { return deferringDeepLayer(c, todo) }
         guard World.deferBuried && fieldTerrain && dim != .deep else { return todo }
         let k = ChunkKey(x: c.cx, z: c.cz)
         if nearBuried(k) { return todo }
@@ -1638,6 +1713,42 @@ final class World {
         for dz in -1...1 { for dx in -1...1 { if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] { undeferBuried(n) } } }
     }
 
+    // P504: the Deep's other layer (the Ash Vault under the Sealrock while he is in the Hell, the hell band over it while
+    // he is in the Vault): a section wholly on the far side of the Sealrock (y 192-199) and the hell band's first cells.
+    @inline(__always) static func deepOther(_ sy: Int, hell: Bool) -> Bool {
+        hell ? (sy + 1) * 16 <= DeepGen.hellBase - 8 : sy * 16 >= DeepGen.hellBase + 8
+    }
+
+    private func deferringDeepLayer(_ c: Chunk, _ todo: [(Int, Int)]) -> [(Int, Int)] {
+        guard World.deepLayerCut, let hell = deepInHell, let c0 = deepCentre else { return todo }
+        if max(abs(c.cx - c0.x), abs(c.cz - c0.z)) <= 1 { return todo }
+        var keep: [(Int, Int)] = []
+        keep.reserveCapacity(todo.count)
+        for (sy, v) in todo {
+            if World.deepOther(sy, hell: hell) { deferSection(c, sy) } else { keep.append((sy, v)) }
+        }
+        return keep
+    }
+
+    // Each frame in the Deep: which layer he is in. Crossing over gives the deferred sections back and drops the meshes
+    // of the layer he left; a new centre gives the nine chunks round him theirs.
+    private func deepLayerTick(_ pos: V3, _ center: ChunkKey) {
+        guard World.deepLayerCut else { deepInHell = nil; return }
+        let hell = pos.y >= Float(DeepGen.hellBase - 8)
+        if hell != deepInHell {
+            deepInHell = hell; deepCentre = center
+            for (k, c) in chunks where !c.hollow {
+                undeferBuried(c)
+                guard max(abs(k.x - center.x), abs(k.z - center.z)) > 1, c.meshedOnce, !c.meshInFlight else { continue }
+                for sy in 0..<NSEC where World.deepOther(sy, hell: hell) && !c.sections[sy].deferred && !c.sections[sy].needsMesh
+                    && c.sections[sy].meshedVersion >= 0 { deferSection(c, sy) }
+            }
+        } else if center != deepCentre {
+            deepCentre = center
+            for dz in -1...1 { for dx in -1...1 { if let c = chunks[ChunkKey(x: center.x + dx, z: center.z + dz)] { undeferBuried(c) } } }
+        }
+    }
+
     // A chunk's deferred sections mesh again (he came near, went underground, or the ground under them was opened).
     private func undeferBuried(_ c: Chunk) {
         guard c.deferredBuried > 0 else { return }
@@ -1653,7 +1764,8 @@ final class World {
     // Each frame: where the player is (above ground or under it) and, when that or his chunk changed, the near chunks'
     // deferred sections handed back to meshing, and the far chunks' buried meshes dropped (they cost the GPU too).
     private func buriedTick(_ pos: V3, _ center: ChunkKey, _ extra: ChunkKey?) {
-        guard World.deferBuried && fieldTerrain && dim != .deep else { buriedCentre = nil; return }
+        if dim == .deep { buriedCentre = nil; deepLayerTick(pos, center); return }
+        guard World.deferBuried && fieldTerrain else { buriedCentre = nil; return }
         var under = false, high = flyingHigh
         // The top of the drawn ground in a column (nil: its chunk isn't loaded, or is a shell).
         func groundTop(_ x: Int, _ z: Int) -> Int? {
@@ -1707,7 +1819,9 @@ final class World {
         c.lodRemeshLog = false
         let dist = max(abs(k.x - floorDiv(Int(floor(activeCenter.x)), CS)), abs(k.z - floorDiv(Int(floor(activeCenter.z)), CS)))
         let lowSec = c.groundLow >> 4
+        let wornJob = worn(c)
         c.urgent = false
+        c.vehicleWorn = false
         c.meshAt = CFAbsoluteTimeGetCurrent()
         let todo = deferringBuried(c, dirtySections(c))
         if todo.isEmpty { return }
@@ -1719,6 +1833,7 @@ final class World {
             c.meshInFlight = true
             c.meshJobsOut += 1
             jobs += 1
+            if wornJob { lock.lock(); wornOut += 1; lock.unlock(); wornBusy = true }
             // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
             let job: () -> Void = { [weak self] in
                 guard let self else { return }
@@ -1729,6 +1844,7 @@ final class World {
                 if World.meshLog { print(String(format: "meshlog: %@ d%d lod%d low%d secs %@ %.1f ms", why, dist, lod, lowSec, list.map { String($0.0) }.joined(separator: ","), el * 1000)) }
                 self.lock.lock()
                 self.meshResults.append((k, out))
+                if wornJob { self.wornOut -= 1 }
                 self.perfShared.meshJobs += 1; self.perfShared.meshSections += list.count; self.perfShared.meshSeconds += el
                 self.lock.unlock()
             }
@@ -1985,6 +2101,7 @@ final class World {
         let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
         let r = radius + 1
         buriedCentre = ChunkKey(x: cx, z: cz); underground = false          // (P440: buriedTick decides on the next update)
+        if dim == .deep && World.deepLayerCut { buriedCentre = nil; deepInHell = pos.y >= Float(DeepGen.hellBase - 8); deepCentre = ChunkKey(x: cx, z: cz) }
         var keys: [ChunkKey] = []
         for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, radius, grow: 1) {
             let k = ChunkKey(x: cx + dx, z: cz + dz)
@@ -2565,6 +2682,34 @@ final class World {
         setBlock(p.x, p.y, p.z, FIRE)
         fires[p] = 0
     }
+    // P504 (Nov 1 07:35, a forest after a shelling: "We got some hovering fire. That's not good"): fire set without its
+    // tick (a crater's scorched rim, a burning wreck's ground) never burned out, and stood on in the air when the ground
+    // under it went. Every fire is lit here (or placeFire), so it ages, spreads and goes out as fire does.
+    func lightFire(_ p: IVec3) {
+        setBlockAsync(p.x, p.y, p.z, FIRE)
+        fires[p] = 0
+    }
+    // A fire cell met by a block check (Game.gravityTick: the cells round an edit or a blast) with nothing under it to
+    // burn on goes out; one that was never ticking (an old save's) starts its tick. True when it went out.
+    func fireCheck(_ p: IVec3) -> Bool {
+        guard block(p.x, p.y, p.z) == FIRE else { return false }
+        let below = block(p.x, p.y - 1, p.z)
+        if !Blocks.opaque[Int(below)] && !Blocks.flammable[Int(below)] && !World.fireHeldBeside(self, p) {
+            setBlockAsync(p.x, p.y, p.z, AIR)
+            fires.removeValue(forKey: p)
+            return true
+        }
+        if fires[p] == nil { fires[p] = 0 }
+        return false
+    }
+    // A fire on the face of a burning block beside it (a wall, a trunk: whole flammable blocks, not leaves or plants).
+    static func fireHeldBeside(_ w: World, _ p: IVec3) -> Bool {
+        for d in World.allDirs where d.y == 0 {
+            let b = Int(w.block(p.x + d.x, p.y, p.z + d.z))
+            if Blocks.flammable[b] && Blocks.opaque[b] { return true }
+        }
+        return false
+    }
 
     // Reference fire odds per block (FireBlock: ignite, burn). Logs catch slowly and last; leaves, wool and plants go
     // fast. Every flammable block burned at a flat 1 in 5 a fire tick.
@@ -2597,7 +2742,7 @@ final class World {
             if !isLoaded(p.x, p.z) || !activeHere(p) { continue }          // (P376: fire past the active distance waits)
             FarTicks.note(self, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
             let below = block(p.x, p.y - 1, p.z)
-            let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
+            let eternal = below == NETHERRACK || below == BEDROCK || Blocks.key(below) == "magma_block"
             if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],
                p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Rand.int(in: 0..<3) == 0 {
                 let b = gen.column(p.x, p.z).biome
@@ -2623,7 +2768,8 @@ final class World {
             // Spread to air next to flammable blocks nearby.
             if anyFlammable && Rand.int(in: 0..<3) == 0 {
                 let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -1...2), p.z + Rand.int(in: -1...1))
-                if block(q.x, q.y, q.z) == AIR {
+                let qb = block(q.x, q.y - 1, q.z)
+                if block(q.x, q.y, q.z) == AIR && (Blocks.opaque[Int(qb)] || Blocks.flammable[Int(qb)] || World.fireHeldBeside(self, q)) {
                     // Catches by the most flammable neighbour's ignite odds (reference (ignite + 40 + 7 x difficulty) /
                     // (age + 30) against 100, taking normal difficulty).
                     var ig = 0
@@ -2633,7 +2779,8 @@ final class World {
                     }
                 }
             }
-            let supported = Blocks.opaque[Int(below)] || anyFlammable
+            // (P504: a flame in the air beside leaves or grass was held up by them: it hung there, burning nothing under it)
+            let supported = Blocks.opaque[Int(below)] || Blocks.flammable[Int(below)] || World.fireHeldBeside(self, p)
             // No age cap: fire on a log burns until the log is gone (it went out after 30 steps whatever it stood on).
             if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable)) {
                 setBlockAsync(p.x, p.y, p.z, AIR)

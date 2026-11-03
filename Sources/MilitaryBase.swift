@@ -64,6 +64,7 @@ enum Armour {
     static let plate = "armour_plate"
     static let breach: Float = 30
     static let heavyCap: Float = 1e6          // the main gun on a hull: every other block counts in full, armour as breach
+    static let blast: Float = 6               // P504: how armour stands to any blast (iron's; Explosion.capped)
     static let skins: Set<String> = [plate, "frigate_hull", "frigate_plate", "frigate_trim", "frigate_mark", "warship_hull"]
     static func harden(_ d: inout BlockDef) {
         d.hardness = 50; d.resistance = 1200; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 3

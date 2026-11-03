@@ -113,6 +113,9 @@ enum Greywall {
         // P503 (Oct 31 16:28:57 in a garrison's keep: "There should be people on the second floor, like a Hannibal troop
         // or something"): a Hannibal heavy holds the watch room with him.
         if upper && t == .garrison { p.append(("soldier_ironclad:heavy", -2, 6, kc - kz + 3)) }
+        // P504 (Nov 1 07:38:14, 07:59:47: "There should be a bunch of guys on the second floor of the Greywall station...
+        // They should be Hannibal troops or something up here"): a second heavy beside him.
+        if upper && t == .garrison { p.append(("soldier_ironclad:heavy", 0, 6, kc - kz + 3)) }
         // P199 (Oct 13: "a guy spawned inside the gun"): the tower lookout stands inside the tower, not on the roof the
         // deck gun takes up.
         if let tw = t.towers.first { let c = tower(t, tw.0, tw.1); p.append(("soldier_marksman", c.x - tw.0, W + 1, c.z - tw.1)) }
@@ -504,7 +507,7 @@ enum Greywall {
                 let m = ((r.x0 + r.x1) / 2, (r.z0 + r.z1 + 1) / 2)          // the officer's spot (posts)
                 for dx in r.x0...r.x1 where dx != m.0 && dx != r.door.0 { put(dx, 1, r.z1, dx % 2 == 0 || dx == r.x1 ? term : rack + 0) }   // (always a console at the east end: an outpost's room has one cell to spare)
                 put(m.0 + 1, 1, m.1, mapTable)
-                w.chest(cx + r.x1, S + 1, cz + r.z0, loot: t.rawValue >= 1 ? "greywall_command" : "greywall_armory", seed: rng.next(), facing: 2)
+                w.chest(cx + r.x1, S + 1, cz + r.z0, loot: t.rawValue >= 1 ? "greywall_charge" : "greywall_armory", seed: rng.next(), facing: 2)   // (P504: its one charge)
                 wallLamp(alarmPanel, r.x0, 2, r.z1, wall: 1)
             default: break
             }
@@ -686,7 +689,11 @@ enum Greywall {
         "greywall_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_kessel", 1, 1, 6), ("gun_repeater", 1, 1, 5),
                                      ("greywall_rounds", 16, 40, 6), ("heavy_rounds", 6, 15, 8), ("field_stim", 1, 2, 5),
                                      ("experience_bottle", 3, 8, 6), ("targeting_optic", 1, 1, 5), ("radar_module", 1, 1, 4),
-                                     ("diamond_chestplate@20-30", 1, 1, 3), ("greywall_field_notes", 1, 1, 6)]),
+                                     ("diamond_chestplate@20-30", 1, 1, 3), ("greywall_field_notes", 1, 1, 6),
+                                     // P507 (Nov 1 12:17:03, "I don't know where the Greywall codes are. I haven't seen any. Not
+                                     // sure where you get them from"): only a leashed officer carried one; the command
+                                     // room's chests keep a copy as well.
+                                     ("greywall_codebook", 1, 1, 10)]),
         "greywall_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_repeater", 1, 1, 6),
                                    ("gun_slatefall", 1, 1, 6), ("greywall_rounds", 24, 64, 8), ("heavy_rounds", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
                                    ("diamond_sword@25-35", 1, 1, 3), ("combat_stim", 1, 1, 2), ("radar_module", 1, 1, 5)]),

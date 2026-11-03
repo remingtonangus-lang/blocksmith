@@ -720,6 +720,7 @@ final class BlockRegistry {
         registerAshenGrove()
         registerSpringBlocks()
         registerShipBlocks()
+        registerTrainHulls()                              // FAILURES 3 (TrainHulls.swift)
         registerDepthChargeBlocks()                       // P278 (DepthCharges.swift)
         registerVehicleWorks()
         registerFuelPump()                                // D44 (VehicleDepot.swift)
@@ -741,8 +742,10 @@ final class BlockRegistry {
         registerGreywallBlocks()
         registerDepotBlocks()                       // P469 (Depots.swift)
         registerHellLandBlocks()                    // P292: the Sulfur Flats' crust (HellLands.swift)
+        registerHellWorksBlocks()                   // P508: Brimsalt veins (HellWorks.swift)
         registerSeats()                             // P370 (b): chairs, benches, stools (Seats.swift)
         registerLift()                              // P503 (Lift.swift)
+        registerElevators()                         // FAILURES.md 2: lifts with cars (Elevators.swift)
         registerArmouredTwins()                     // P501: a Greywall vault's walls (MilitaryBase.swift, Armour.twin)
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Charwood"), ("warped", "Gloamwood")]

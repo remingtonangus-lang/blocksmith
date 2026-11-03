@@ -507,7 +507,7 @@ extension Mob {
             return ashMarshalAI(dt, g, dist: dist, canTarget: canTarget && !g.ashVictory)
         case .brandSquire, .brandKnight, .brandChampion, .brandCommander, .searwing, .scorchling, .slagthrower, .spider, .caveSpider:
             return hellAI(dt, g, dist: dist, canTarget: canTarget)
-        case .cougar, .rattlesnake, .alligator:
+        case .cougar, .rattlesnake, .alligator, .emberAsp, .slagmaw:
             return predatorAI(dt, g, dist: dist, canTarget: canTarget)
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
             if posse == Prisoners.posse { return prisonerAI(dt, g) }       // P347

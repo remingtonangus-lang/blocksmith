@@ -119,7 +119,10 @@ enum Font {
         return p
     }
 
-    static let layerBase: Int = Int(Tex.id(texName(32)))   // glyph layers are registered consecutively
+    // Glyph layers are registered consecutively by TextureGen.registerAll (after the HUD's own): first asked before it ran
+    // (the menu screenshot tool drew the HUD before any texture), "glyph_32" alone went in ahead of the HUD names and every
+    // other letter came out 42 layers off.
+    static let layerBase: Int = { TextureGen.registerAll(); return Int(Tex.id(texName(32))) }()
 
     // Advance in font pixels (glyph width + 1 spacing).
     static func advance(_ code: Int) -> Int {

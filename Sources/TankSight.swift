@@ -61,7 +61,7 @@ extension Game {
 
     // shipInteract: the elevation the pilot's guns fire at.
     func pilotGunPitch(_ s: Ship) -> Float {
-        TankSight.sighted(s) && TankSight.aim != nil ? TankSight.elev : player.pitch + 0.05
+        TankSight.sighted(s) && TankSight.aim != nil ? TankSight.elev : player.pitch
     }
 
     // shipHUDLine: the sight's range and whether the gun is laid.

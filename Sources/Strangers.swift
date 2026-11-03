@@ -28,7 +28,7 @@ enum Strangers {
             Chapter(ask: "The men who shot him ride with a bandit gang. Five of them. I won't ask how. I'll only ask that it's done.",
                     done: "Then it's over. I can sleep.", goal: .kill("bandit", 5), pay: 15000, reward: nil),
             Chapter(ask: "They took his pocket clock. Any clock would do now, if you came by one: something to keep his time.",
-                    done: "It ticks just like his did. You've been a friend to me.", goal: .bring("clock", 1), pay: 20000, reward: ("golden_apple", 1)),
+                    done: "It ticks just like his did. You've been a friend to me.", goal: .bring("clock", 1), pay: 20000, reward: ("field_stim", 1)),
         ]),
         Story(key: "pettibone", name: "Doc Silas Pettibone", chapters: [
             Chapter(ask: "Pettibone's Restorative Tonic! Cures what ails you. Needs snake skin, mind: four strips of it. String'll do in a pinch.",

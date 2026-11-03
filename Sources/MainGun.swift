@@ -257,6 +257,7 @@ extension ShipManager {
     func mainGunImpact(at p: V3, owner: Int, game g: Game, along: V3? = nil) {
         MainGunPerf.blast(clock: g.clock)
         MainGun.noteImpact(at: p)
+        FarCitadel.noteHit(p, clock: g.clock)                // P508: its dust column shows from afar
         let t0 = CFAbsoluteTimeGetCurrent()
         var t = t0, cost: [String] = []
         func lap(_ what: String) { let n = CFAbsoluteTimeGetCurrent(); cost.append(String(format: "%@ %.1f", what, (n - t) * 1000)); t = n }
@@ -270,6 +271,7 @@ extension ShipManager {
             wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, depth: MainGun.craterDepth, along: along)
         } else if pendingCraters.count < MainGun.pendingCap {
             pendingCraters.append(p)                         // dug when the player comes near enough to load it
+            pendingAlong.append(along)
         }
         lap("crater")
         if wave.crater != nil { cost.append("(" + CraterJob.initCost + ")") }
@@ -365,11 +367,15 @@ extension ShipManager {
         pendingCraterTimer = 0.5
         if let i = pendingCraters.firstIndex(where: { craterGroundLoaded($0) }) {
             let p = pendingCraters.remove(at: i)
+            // P504 (Nov 1 07:50:28, "This crater is completely vertical, whereas it should reflect the angle of shot"): a
+            // far hit dug when its ground loads keeps the line it came in on (it was dug straight down).
+            if pendingAlong.count != pendingCraters.count + 1 { pendingAlong = [V3?](repeating: nil, count: pendingCraters.count + 1) }
+            let along = pendingAlong.remove(at: i)
             let wave = Shockwave(center: p, owner: -1)
             wave.r = MainGun.shockFelt                       // no front, no mobs struck, no shake, no smoke: just the bowl
             wave.age = 5
             wave.felt = ~0
-            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, quiet: true, depth: MainGun.craterDepth)
+            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, quiet: true, depth: MainGun.craterDepth, along: along)
             shockwaves.append(wave)
         }
     }
@@ -378,12 +384,20 @@ extension ShipManager {
         updatePendingCraters(dt, game: g)
         if shockwaves.isEmpty { return }
         let layer = Int(Tex.id("puff"))
+        // (Store review, the citadel soak: every bowl still opening took its own 1.6 ms of carving a frame, and a bowl's
+        // field ball after it; three shells in a wall were 16 ms of one frame. The bowls share the frame's carving now:
+        // once one has used it, the rest wait for the next frame, oldest first.)
+        // (Build 94: and with the naval breaches, out of one allowance a frame: CraterJob.allowance.)
+        TickProf.mark("ships.shockwaves: pending")
         for w in shockwaves {
-            if let j = w.crater, !j.done, w.age > 0 {                // from the frame after the impact
+            if let j = w.crater, !j.done, w.age > 0, CraterJob.allowance() > 0 {   // from the frame after the impact
                 let a = CFAbsoluteTimeGetCurrent()
                 if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed, scorched: j.scorched) }
                 MainGun.craterStepMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
             }
+        }
+        TickProf.mark("ships.shockwaves: bowls")             // (the soak: the bowls' carving apart from the waves)
+        for w in shockwaves {
             let r0 = w.r
             w.age += dt
             w.r += MainGun.shockSpeed * dt

@@ -8,7 +8,7 @@ extension Game {
         ("warfrigate", "Stormwarden Frigate"), ("carriage", "Siege Carriage"), ("village", "Village"),
         ("pillager_outpost", "Marauder Watchtower"), ("mansion", "Brigand Roost"), ("monument", "Sunken Dreadnought"),
         ("temple", "Temple"), ("great_ruin", "Ancient Spire"), ("ancient_city", "Buried Citadel"),
-        ("trial_chambers", "Sealed Armoury"), ("stronghold", "Stronghold")]
+        ("trial_chambers", "Sealed Armoury"), ("stronghold", "Stronghold"), ("greywall_base", "Greywall Base"), ("train", "Train")]
 
     // The nearest start of a shortcut target (x, z), nil if none is near.
     private func shortcutTarget(_ key: String) -> (Int, Int)? {
@@ -16,7 +16,8 @@ extension Game {
         if ["warfrigate", "crawler", "frigate", "carriage"].contains(key) {
             return vesselTarget(key).map { ($0.0.x, $0.0.z) }
         }
-        guard let s = world.gen.structures?.nearest(key, x: px, z: pz) else { return nil }
+        if key == "train" { return trainTarget().map { ($0.0.x, $0.0.z) } }
+        guard let s = world.gen.structures?.nearest(key, x: px, z: pz) ?? world.gen.structures?.nearest(key, x: px, z: pz, maxRegions: 40) else { return nil }
         return (s.anchor.x, s.anchor.z)
     }
 
@@ -32,7 +33,7 @@ extension Game {
         if best != nil { return best }
         let R = Vessels.region
         let rx = floorDiv(Int(player.pos.x), R), rz = floorDiv(Int(player.pos.z), R)
-        for r in 0...12 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+        for r in 0...40 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {      // (P504: however far: was 12)
             guard let e = Vessels.encounter(seed: world.seed, rx: rx + dx, rz: rz + dz, gen: world.gen),
                   Vessels.out(e.0, fleetSails: fleetSails) else { continue }
             let match = e.0 == key || (e.0 == "battle" && (key == "warfrigate" || key == "crawler"))
@@ -41,6 +42,31 @@ extension Game {
             if best == nil || d < best!.1 { best = (e.1, d, false) }
         } }
         if best != nil && r >= 2 { break } }
+        return best
+    }
+
+    // P504 (Nov 1 09:33, "...a crawler, a train or frigate"): the nearest train on the Surface: one running near him (its
+    // locomotive), else where its timetable has it now on the nearest line out to 4,000 blocks. (point, distance, line)
+    func trainTarget() -> (IVec3, Float, String)? {
+        guard dim.dim == .overworld, let gen = world.gen as? WorldGen else { return nil }
+        let p = player.pos
+        var best: (IVec3, Float, String)?
+        for tr in Trains.trains.values where !tr.wrecked && tr.track.dim == .overworld {
+            guard let c = tr.cars.first else { continue }
+            let d = simd_length(V2(c.pos.x - p.x, c.pos.z - p.z))
+            if best == nil || d < best!.1 { best = (IVec3(Int(floor(c.pos.x)), Int(floor(c.pos.y)), Int(floor(c.pos.z))), d, tr.track.name) }
+        }
+        if best != nil { return best }
+        let x = Int(floor(p.x)), z = Int(floor(p.z))
+        for r in [1500, 4000] {
+            for l in Railways.near(gen, x0: x - r, z0: z - r, x1: x + r, z1: z + r, pad: 0) where !l.cells.isEmpty {
+                let t = Trains.cachedTrack(l)
+                let c = t.cells[max(0, min(t.cells.count - 1, Int(t.at(time).s)))]
+                let d = simd_length(V2(Float(c.x) - p.x, Float(c.z) - p.z))
+                if best == nil || d < best!.1 { best = (c, d, t.name) }
+            }
+            if best != nil { break }
+        }
         return best
     }
 
@@ -61,7 +87,7 @@ extension Game {
         }
         let name = Game.shortcutList.first { $0.0 == key }?.1 ?? key
         guard let (x, z) = shortcutTarget(key) else {
-            onToast?(key == "warfrigate" && !fleetSails ? "The Stormwarden Frigates sail once a Greywall Fortress falls" : "No \(name) found nearby")
+            onToast?(key == "warfrigate" && !fleetSails ? "The Stormwarden Frigates sail once a Greywall Fortress falls" : "No \(name) found")
             return
         }
         shortcutLand(x, z)

@@ -43,7 +43,9 @@ enum NavalGuns {
             }
         }
         if manned {
-            g.arms.breaches.append(CraterJob(at: at, radius: breachRadius, cap: breachCap, game: g, quiet: true, depth: Int(breachRadius)))
+            // (P504: the breach leans along the shot as the blast does.)
+            g.arms.breaches.append(CraterJob(at: at, radius: breachRadius, cap: breachCap, game: g, quiet: true, depth: Int(breachRadius),
+                                             along: simd_length(s.vel) > 25 ? s.vel : nil))
         }
     }
 

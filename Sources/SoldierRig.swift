@@ -76,15 +76,12 @@ struct Livery {
             l.cloth = V3(0.29, 0.31, 0.2); l.legs = V3(0.25, 0.27, 0.18); l.plate = V3(0.34, 0.36, 0.38)
             l.trim = V3(0.14, 0.15, 0.16); l.metal = V3(0.45, 0.47, 0.5); l.glow = V3(2.2, 1.5, 0.4); l.glove = V3(0.12, 0.12, 0.11)
             l.accent = V3(0.78, 0.8, 0.82)
-        } else if m.faction == Faction.greywall.rawValue {
+        } else if m.faction == Faction.greywall.rawValue || m.faction == Faction.ironback.rawValue {      // (P504: the crawlers' crews are Greywall's)
             // The Greywall Command: slate-blue fatigues, grey plate, blue lenses, a red alarm-red armband (original livery).
             l.cloth = V3(0.3, 0.35, 0.42); l.legs = V3(0.25, 0.29, 0.35); l.plate = V3(0.5, 0.54, 0.58)
             l.trim = V3(0.13, 0.14, 0.16); l.metal = V3(0.56, 0.6, 0.64); l.glow = V3(0.5, 1.3, 2.4); l.glove = V3(0.14, 0.15, 0.17)
             l.accent = V3(0.78, 0.16, 0.12)
             if r == 4 { l.cloth = V3(0.22, 0.26, 0.32); l.trim = V3(0.78, 0.16, 0.12) }
-        } else if m.faction == Faction.ironback.rawValue {
-            l.cloth = V3(0.42, 0.25, 0.14); l.legs = V3(0.33, 0.22, 0.14); l.plate = V3(0.3, 0.27, 0.24)
-            l.trim = V3(0.1, 0.1, 0.1); l.metal = V3(0.55, 0.45, 0.3); l.glow = V3(2.2, 0.9, 0.3); l.glove = V3(0.2, 0.17, 0.14)
         }
         // P230 (Oct 13 21:45, "why is the Capital pirating?"): the Corsairs are their own people, never in the Capital's
         // white: salt-stained linen shirts, tarred dark breeches, a red sash, worn leather instead of plate, brass.
@@ -175,6 +172,7 @@ enum SoldierRig {
     // Only the mob draw (writeMobVertices) takes the far level: the AI's muzzle lookups build the full rig's muzzle.
     static var drawing = false
     static var lodBuilt = [0, 0, 0, 0]     // rigs built per level while drawing (questcheck's battle draw line)
+    static var lodKept = 0                 // drawn rigs reused a frame or two past 14 blocks (store review)
 
     // Rank index used by the rig: 0 trooper, 1 vanguard, 2 marksman, 3 bulwark, 4 officer, 5 pilot.
     static func rank(_ m: Mob) -> Int { Soldier.rank(m.kind) ?? 0 }
@@ -246,12 +244,17 @@ enum SoldierRig {
             lod = d > 34 ? 2 : (d > 14 ? 1 : 0)
             let seated = b.station == .seated || b.station == .passenger
             if drawing && d > farLOD && !seated { lodBuilt[3] += 1; return far(m, rank: r) }
+            // Store review (callgrind of the battle soak: this rig built for every soldier every frame, 99k instructions
+            // each, half the mob pass): past 14 blocks the drawn rig is kept for a frame (lod 1) or two (lod 2), its
+            // limbs moving at 36 or 24 Hz where it is a few pixels tall; it moves and turns with the body every frame.
+            if drawing && lod >= 1, let kept = m.rigDrawn, m.rigDrawnLod == lod,
+               SoldierRig.clearFrame &- m.rigDrawnAt <= lod { lodKept += 1; return kept }
             if drawing { lodBuilt[lod] += 1 }
         }
         var p = pose(m, b, rank: r, gm: gm, gi: gi)
         fit(&p, gm)
         let before = eye == nil ? clip(p, gm).depth : 0
-        clear(&p, gm)                                   // P353: the weapon clear of the arms and body (RigClearance.swift)
+        clear(&p, gm, for: m, lod: lod)                 // P353: the weapon clear of the arms and body (RigClearance.swift)
         fit(&p, gm)
         let lv = Livery.of(m, rank: r, seed: seed(m))
         var out = SoldierRigOut()
@@ -277,6 +280,8 @@ enum SoldierRig {
             }
             out.handR *= big; out.handL *= big; out.muzzle *= big; out.gripR *= big; out.foreL *= big; out.chestFront *= big
         }
+        if drawing && lod >= 1 { m.rigDrawn = out; m.rigDrawnLod = lod; m.rigDrawnAt = SoldierRig.clearFrame }
+        else if drawing { m.rigDrawn = nil }
         return out
     }
 
@@ -1056,10 +1061,23 @@ enum SoldierRig {
     }
 
     // The muzzle in world space (shots and the marksman's laser start there).
+    // Store review (Nov 2, callgrind of the citadel soak: muzzleWorld was a fifth of the frame thread's tick, 1.5 ms a
+    // frame): every shot, laser and line-of-fire check built the whole rig, the gun cleared of the arms included, for
+    // one point. The muzzle in the soldier's own frame is kept for `muzzleFrames` ticks (Game.tickSeat counts them):
+    // the pose moves it a few centimetres in that time, the soldier's place and heading are applied fresh each call.
+    static var muzzleTick = 0
+    static let muzzleFrames = 4
+    private static var muzzleKept: [ObjectIdentifier: (V3, Int)] = [:]
     static func muzzleWorld(_ m: Mob) -> V3 {
-        let out = build(m)
+        let id = ObjectIdentifier(m)
+        let local: V3
+        if let k = muzzleKept[id], muzzleTick &- k.1 < muzzleFrames { local = k.0 } else {
+            local = build(m).muzzle
+            if muzzleKept.count > 600 { muzzleKept.removeAll(keepingCapacity: true) }
+            muzzleKept[id] = (local, muzzleTick)
+        }
         let s: Float = m.scale / 16
-        let q = out.muzzle * s
+        let q = local * s
         let cy = cosf(m.yaw), sy = sinf(m.yaw)
         return m.pos + V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z)
     }

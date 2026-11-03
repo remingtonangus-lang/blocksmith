@@ -933,6 +933,7 @@ struct Synth {
             out = Synth.mix(Synth.mix(Synth.mix(thud, body), rush, at: frames(0.45)), spatter, at: frames(1.3))
             out = Synth.echo(out, delay: 0.45, feedback: 0.3, mix: 0.3, tail: 1.0)
         case .ashSiren: out = AshSiren.render(&self, p: p)          // P319: the motor siren loop (AshSiren.swift)
+        case .ashMarchSong: out = AshColumnSong.render(&self, p: p)  // P509: the column's march (AshColumns.swift)
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop, .thunderFar, .iceCreak, .rockfall, .volcanoRumble:
             out = TerrainAudio.render(&self, s, p: p)
         case .fallRushLoop, .hellImpact, .hellArrival: out = HellDropAudio.render(&self, s, p: p)

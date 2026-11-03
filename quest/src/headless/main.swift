@@ -14,11 +14,21 @@ func check(_ ok: Bool, _ what: String) {
 setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = CommandLine.arguments.firstIndex(of: "--worldseed").flatMap { i in i + 1 < CommandLine.arguments.count ? UInt64(CommandLine.arguments[i + 1]) : nil } ?? 12345
-WorldRules.p44 = false                 // fixture seeds keep their cities and citadels (WorldRules.p44)
+WorldRules.p44 = CommandLine.arguments.contains("--p44")   // fixture seeds keep their cities and citadels (WorldRules.p44);
+                                                          // --p44: the headset's rules (roads, P507: --view a road as he sees it)
 StructureCache.plansOffThread = false   // base ticks find their sites at once (P124: HitchProbe turns the worker planning on)
 Blueprints.on = false                  // upgrades fit without blueprints (P138: --p12pm-only P138 turns them on)
 TownSizes.on = false                   // and their towns as they were (C13 town sizes: --sizes-only turns them on)
 MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
+Soldier.unarmedPeace = false            // checks' soldiers fight an empty-handed player as before (P510's check turns it on)
+// --headset (P510): his world as the headset makes it, not the fixtures': a new saved world's water (P44 fewer lakes,
+// H8 less water: World.newTerrain markers, which an unsaved world lacks), the headset's world rules (WorldRules.p44:
+// roads, cities) and C13 town sizes. Without it a --view or --railprobe of his seed drew other rivers and towns, and
+// other railways: the Nov 1 evening line he rode (-1886...-1049, z 1181) wasn't planned at all.
+if CommandLine.arguments.contains("--headset") {
+    World.fewerLakesUnsaved = true; World.lessWaterUnsaved = true
+    WorldRules.p44 = true; TownSizes.on = true
+}
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
 // --deepscan: the Deep's layers over a few seeds (P323, Sources/DeepScan.swift), generator only.
@@ -67,7 +77,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? arg("--cine") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes")
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? arg("--cine") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") || CommandLine.arguments.contains("--framesoak")
     || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare")
     || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") || CommandLine.arguments.contains("--streamtest") ? "" : nil)
 var vkctx: VkContext?
@@ -93,6 +103,9 @@ if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < Command
 // --cine SHOTS.json --out DIR: scripted trailer footage through the Quest renderer (quest/src/headless/Cinema.swift).
 if arg("--cine") != nil, let ctx = vkctx { exit(Cinema.run(ctx: ctx)) }
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
+// --framesoak [--only crawler,citadel,naval,train,hell,battle] [--seconds 40] [--rd 10]: the store review's frame rate
+// (VRC.Quest.Performance.1) in the heavy scenes of play, frame by frame in real time (quest/src/test/QuestFrameSoak.swift).
+if CommandLine.arguments.contains("--framesoak"), let ctx = vkctx { exit(QuestFrameSoak.run(ctx: ctx)) }
 // --freezetest [--rd 8]: the Oct 23 base freezes (a bulkhead door opened, a wall block broken), frame by frame (P416).
 if CommandLine.arguments.contains("--freezetest") { exit(QuestFreezeTest.run()) }
 // --turretfreeze [--rd 6] [--seconds 30]: the Oct 31 afternoon freezes, a manned deck gun fired into a base (P502).
@@ -199,6 +212,20 @@ if let out = arg("--view"), let ctx = vkctx {
         if CommandLine.arguments.contains("--inside") { vg.player.pos.y = Float(st.anchor.y) + 2 }
         print("view: \(kind) at \(st.anchor.x) \(st.anchor.y) \(st.anchor.z)")
     }
+    // --farcitadel [HITS] (P508): the citadel past the loaded land is made before the frame (FarCitadel.sync), with HITS
+    // Tidebreaker blast spheres (radius 21.5, as BaseRecord.damage keeps them) on its tower and hall first.
+    if let fc = arg("--farcitadel") ?? (CommandLine.arguments.contains("--farcitadel") ? "0" : nil) {
+        FarCitadel.sync = true
+        if let n = Int(fc), n > 0, let st = vw.gen.structures?.nearest("military_base", x: Int(vg.player.pos.x), z: Int(vg.player.pos.z), maxRegions: 16) {
+            let cx = (st.min.x + st.max.x) / 2, cz = (st.min.z + st.max.z) / 2, key = "citadel:\(cx),\(cz)"
+            let y0 = st.pieces[0].min.y + 20
+            var r = vg.bases.records[key] ?? BaseRecord(key: key, cx: cx, cz: cz, y0: y0, lastTick: vg.clock)
+            let spots: [V3] = [V3(0, 40, 0), V3(0, 8, 20), V3(-36, 30, 0), V3(30, 6, -24)]
+            for i in 0..<n { let o = spots[i % spots.count]; r.damage.append([Float(cx) + o.x, Float(y0) + o.y, Float(cz) + o.z, 21.5]) }
+            vg.bases.records[key] = r
+            print("view: farcitadel: \(n) blast spheres on \(key)")
+        }
+    }
     // --rail [N]: the eye beside the nearest town railway's middle (P337 looks work), 8 blocks south and 5 up, facing
     // north; N picks the cell at N/100 along the line instead of the middle.
     var railLine: Railways.Line?, railCell = 0
@@ -224,6 +251,14 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    // (FAILURES 4, the void sweep: the column height is the generator's height map, and in the badlands' mesas and the
+    // field's ground the land stands well over it: the eye stood inside the rock, every view 63-88% "void". Over the
+    // loaded world's own top once it is there.)
+    if let up = Float(arg("--up") ?? "") {
+        let ix = Int(floor(vg.player.pos.x)), iz = Int(floor(vg.player.pos.z))
+        let top = vw.topY(ix, iz)
+        if top >= 0 { vg.player.pos.y = max(vg.player.pos.y, Float(max(top, SEA) + 1) + up) }
+    }
     // --rail --train passenger|cargo|troop (P470 part 2): that kind of train on the line, its middle at the --rail cell
     // (the clock set to when the timetable has it there), built as the game builds it near the player.
     if let kn = arg("--train"), let l = railLine {
@@ -304,6 +339,32 @@ if let out = arg("--view"), let ctx = vkctx {
                          c.x, c.y, c.z, ms, meshed, ring.count, old))
         }
     }
+    // P510 (Nov 1 20:10:52, Snowy Taiga: "What the hell is slowing me down here? Is it the snow?"): --walkspeed SECS
+    // walks him forward from the view's spot on foot (survival, as the game moves him), and prints each second's pace
+    // with what he stands in and on and every multiplier that cuts it.
+    if let secs = Double(arg("--walkspeed") ?? "") {
+        vg.survival = true; vg.paused = false; vg.menu = nil
+        let p = vg.player
+        p.flying = false; p.pitch = 0; p.vel = .zero
+        if let y = Player.clearY(p.pos, vw, collides: { q in vw.collides(q + V3(-0.25, 0, -0.25), q + V3(0.25, 1.8, 0.25)) }) { p.pos.y = y }
+        for _ in 0..<72 { vg.tick(1.0 / 72) }
+        vg.input.keys = [KeyBinds.key(.forward)]
+        defer { vg.input.keys = [] }
+        for s in 0..<Int(secs) {
+            let a = p.pos
+            var inKeys = Set<String>(), onKeys = Set<String>(), ground = 0
+            for _ in 0..<72 {
+                vg.tick(1.0 / 72)
+                let f = IVec3(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
+                inKeys.insert(Blocks.key(vw.materialAt(f.x, f.y, f.z))); onKeys.insert(Blocks.key(vw.materialAt(f.x, Int(floor(p.pos.y - 0.2)), f.z)))
+                if p.onGround { ground += 1 }
+            }
+            let d = p.pos - a
+            print(String(format: "walkspeed: second %d: %.2f b/s across (%.2f up), on the ground %d/72, speedMul %.2f, gun %.2f, grab %.2f; in %@, on %@",
+                         s, simd_length(V2(d.x, d.z)), d.y, ground, p.speedMul, p.gunSlow, HandGrab.slow,
+                         inKeys.sorted().joined(separator: ","), onKeys.sorted().joined(separator: ",")))
+        }
+    }
     // P446 (Oct 25 09:13, "it's freezing every time I break a block", fps 4 mining dirt with a full pack): --digtime N
     // mines N ground cells by the eye as the game mines them (survival, the pack full: a chip and its bite at each crack
     // level, then the break with its drop into the pack, the dig's carve), each step timed on the frame. --bites N first
@@ -324,6 +385,9 @@ if let out = arg("--view"), let ctx = vkctx {
         print("view: bites: \(made) scattered round the eye (\(vw.bites.count) bitten blocks)")
     }
     if let n = Int(arg("--digtime") ?? "") {
+        TownVoice.ensure()                              // (P508: as the headset does at startup; a first line read it mid-tick)
+        Structure.tally = [:]                           // (P508: what queues the structure load checks round his dig)
+        let checks0 = Structure.checks, loadMs0 = Structure.totalMs
         if CommandLine.arguments.contains("--editlane") { World.editLane = true }       // (as on the headset)
         vg.survival = true; vg.paused = false
         var fill = 0
@@ -356,12 +420,32 @@ if let out = arg("--view"), let ctx = vkctx {
                 if SmoothTerrain.natural[Int(b)] { _ = vw.carve(at: hp - V3(0, 0.25, 0), radius: Game.digRadius(b), mode: .shape) }
             }
             let brkMeshed = World.syncMeshes - m1
-            var worst = 0.0
-            for _ in 0..<36 { worst = max(worst, t { vg.tick(1.0 / 72) }) }
+            var worst = 0.0, worstWhat = ""
+            MobManager.profileOn = true
+            for _ in 0..<36 {
+                let ms = t { vg.tick(1.0 / 72) }
+                if ms > worst {
+                    worst = ms; worstWhat = TickProf.summary()
+                    let q = MobManager.prof
+                    if q.pre + q.loop + q.deaths + q.restore + q.spawn > 5 {
+                        worstWhat += String(format: "; mobs %d: before %.1f, bodies %.1f (slowest %@ %.1f), deaths %.1f, restore %.1f, spawning %.1f",
+                                            q.count, q.pre, q.loop, q.worstKind, q.worst, q.deaths, q.restore, q.spawn)
+                        if !MobManager.worstStages.isEmpty { worstWhat += " [\(MobManager.worstStages)]" }
+                        let ps = MobManager.partSummary
+                        if !ps.isEmpty { worstWhat += " {loop: \(ps)}" }
+                    }
+                }
+            }
+            MobManager.profileOn = false
             let lane = t { World.editQueue.sync {} }
-            print(String(format: "view: digtime: %@ at %d %d %d: strikes %@ ms; break %.1f ms (%d sections meshed on the frame); worst of the next 36 ticks %.1f ms; edit lane done %.1f ms later; %d drops lying",
-                         Blocks.key(b), p.x, p.y, p.z, strikes.map { String(format: "%.1f", $0) }.joined(separator: " "), brk, brkMeshed, worst, lane, vg.drops.items.count))
+            print(String(format: "view: digtime: %@ at %d %d %d: strikes %@ ms; break %.1f ms (%d sections meshed on the frame); worst of the next 36 ticks %.1f ms (%@); edit lane done %.1f ms later; %d drops lying",
+                         Blocks.key(b), p.x, p.y, p.z, strikes.map { String(format: "%.1f", $0) }.joined(separator: " "), brk, brkMeshed, worst, worstWhat, lane, vg.drops.items.count))
         }
+        let top = (Structure.tally ?? [:]).sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        print(String(format: "view: digtime: load checks %d (%.1f ms in all, worst %.1f ms), %d queued; queued by: %@",
+                     Structure.checks - checks0, Structure.totalMs - loadMs0, Structure.worstMs, vw.loadQueue.count, top)
+              + "; dug ground touching no building, none queued: \(Structure.skippedGround)")
+        Structure.tally = nil
     }
     if let n = Int(arg("--drops") ?? "") {
         let e = vg.player.pos
@@ -448,6 +532,48 @@ if let out = arg("--view"), let ctx = vkctx {
         AshWrecks.syncSkins(vw)
         let sk = AshWrecks.skinMobs
         print("view: Salvaged Fighter at \(Int(fp.pos.x)) \(Int(fp.pos.y)) \(Int(fp.pos.z)), \(fp.blockCount) blocks, skin \(sk.count) (\(sk.first.map { String(format: "%.1f %.1f %.1f", $0.pos.x, $0.pos.y, $0.pos.z) } ?? "-")), hidden \(fp.hidden)")
+    }
+    // --vesselview KIND[,SECONDS] (P508, Nov 1 16:09:59 in a desert: "this carriage wasn't done well enough. These
+    // wheels aren't even attached to it, and it's floating in the air"): a vessel spawned 24 blocks ahead as the
+    // encounters spawn it (ShipManager.spawnVessel), the game run SECONDS (3) before the picture; prints how far its
+    // lowest wheel and its hull sit over the drawn ground.
+    if let vv = arg("--vesselview") {
+        let parts = vv.split(separator: ",")
+        let kind = String(parts[0]), secs = parts.count > 1 ? (Float(parts[1]) ?? 3) : 3
+        let f = V3(-sinf(yaw), 0, -cosf(yaw))
+        let at = vg.player.pos + f * 24
+        let gx = Int(floor(at.x)), gz = Int(floor(at.z))
+        var gy = Int(vg.player.pos.y) + 8
+        while gy > 1 && !vw.solidAt(gx, gy - 1, gz) { gy -= 1 }
+        let s = vw.ships.spawnVessel(kind, home: IVec3(gx, gy, gz), game: vg)
+        vg.paused = false
+        var tt: Float = 0
+        while tt < secs { vg.tick(1.0 / 72); tt += 1.0 / 72 }
+        s.updateBounds()
+        func drawnGround(_ x: Float, _ z: Float, from y: Float) -> Float {
+            var yy = y
+            while yy > 1 && vw.fieldDensity(at: V3(x, yy, z)) <= 0 { yy -= 0.05 }
+            return yy
+        }
+        var lines: [String] = []
+        for wl in s.wheels.prefix(8) {
+            let wp = s.toWorld(wl)
+            lines.append(String(format: "%.1f", wp.y - drawnGround(wp.x, wp.z, from: wp.y + 2)))
+        }
+        let low = s.toWorld(V3(0, s.localMin.y, 0))
+        print(String(format: "view: vessel %@ at %.1f %.1f %.1f after %.1f s: lowest hull point %.2f over the drawn ground (cells say %.2f), %d wheels, wheel centres over the ground: %@; vel %.2f",
+                     kind, s.pos.x, s.pos.y, s.pos.z, secs, low.y - drawnGround(low.x, low.z, from: low.y + 2), low.y - Float(gy),
+                     s.wheels.count, lines.joined(separator: " "), simd_length(s.vel)))
+        // KIND,SECONDS,DIST: the picture from DIST blocks off its side, level with its middle.
+        if parts.count > 2, let d = Float(parts[2]) {
+            let c = (s.toWorld(s.localMin) + s.toWorld(s.localMax)) * 0.5
+            let sideW = s.dirToWorld(V3(1, 0, 0))
+            var e = c + simd_normalize(V3(sideW.x, 0, sideW.z)) * d
+            e.y = drawnGround(e.x, e.z, from: e.y + 30) + 2
+            vg.player.pos = e - (vg.player.eye - vg.player.pos)
+            let to = c - e
+            yaw = atan2f(-to.x, -to.z); pitch = atan2f(to.y, simd_length(V2(to.x, to.z)))
+        }
     }
     // --put "KEY@DX,DY,DZ;...": blocks set round the eye's cell before the frame (block looks, e.g. P463's observers).
     if let put = arg("--put") {
@@ -580,6 +706,18 @@ if let out = arg("--view"), let ctx = vkctx {
         for _ in 0..<72 { vg.tick(1.0 / 72) }
         let after = ballCells()
         print("view: collapse \(after == 0 && before > 0 && stillHeld == held ? "OK" : "FAIL"): ball \(before) cells, \(stillHeld) while the neck held, \(after) after the cut, \(GroundCollapse.dropped) cells dropped as debris, \(vg.debris.count) debris pieces; generation took out \(floaters) floating cells")
+    }
+    // --blockdump R (P511 looks work): every log, leaf mass edge and plant within R blocks of the eye's column, from 3
+    // below the feet to 10 above, as "x y z key [kind]" lines (what the generator wrote where a shot shows something odd).
+    if let rs = arg("--blockdump"), let r = Int(rs) {
+        let px = Int(floor(vg.player.pos.x)), py = Int(floor(vg.player.pos.y)), pz = Int(floor(vg.player.pos.z))
+        let names = ["none", "liquid", "plant", "foliage", "trunk", "terrain", "organic", "built", "model"]
+        for y in (py - 3)...(py + 10) { for z in (pz - r)...(pz + r) { for x in (px - r)...(px + r) {
+            let b = vw.block(x, y, z)
+            let k = ShapeClass.kind[Int(b)]
+            guard k == .trunk || k == .plant || (k == .foliage && y <= py + 1) else { continue }
+            print("blockdump: \(x) \(y) \(z) \(Blocks.key(b)) [\(names[min(names.count - 1, Int(k.rawValue))])]")
+        } } }
     }
     if CommandLine.arguments.contains("--fielddump") {
         let dir = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
@@ -716,7 +854,7 @@ if let out = arg("--view"), let ctx = vkctx {
             }
         } } }
         for l in (FieldTerrain.poolLog ?? []) { print("poollog: " + l) }
-        print("fluidprobe: \(n) fluid cells; \(FieldTerrain.perchedDropped) perched cells taken out and \(FieldTerrain.rimsRaised) rim cells raised as the chunks were made")
+        print("fluidprobe: \(n) fluid cells; \(FieldTerrain.perchedDropped) perched cells taken out and \(FieldTerrain.rimsRaised) rim cells raised and \(FieldTerrain.poolsSunk) pools sunk into the floor as the chunks were made")
     }
     // --finedig N (P377 step 1): N cells dug in a row ahead the way the game digs (the cell, then a ball where the blow
     // landed, off the cell's middle), then the frame; ground quads in the 3 x 3 chunks round the player, fine sections
@@ -1376,6 +1514,46 @@ if let out = arg("--view"), let ctx = vkctx {
             SceneRenderer.drawMerged = true
         }
         try RenderTest.render(game: vg, ctx: ctx, path: out, width: vwid, height: vhei, yaw: yaw, pitch: pitch, fovDeg: vfov)
+        // FAILURES 4: --voidcount (with QUEST_VOIDPROBE=1 QUEST_SKIP=sky): magenta pixels where a ray goes more than
+        // 12 degrees below the horizon (it meets ground within the loaded land on all but a cliff's edge): the gaps
+        // the sky shows through. Written marked (OUT-void.png) when there are any.
+        if CommandLine.arguments.contains("--voidcount") {
+            var img = RenderTest.lastRGBA
+            let tw = tanf(vfov * .pi / 360), th = tw * Float(vhei) / Float(vwid)
+            let cp = cosf(pitch), sp = sinf(pitch), lim = sinf(-12 * .pi / 180)
+            var holes = 0, below = 0, backstop = 0, rows = Set<Int>(), cols = Set<Int>()
+            var marks: [(Int, Int)] = []
+            for eye in 0..<2 { for y in 0..<vhei {
+                let vy = (1 - 2 * (Float(y) + 0.5) / Float(vhei)) * th
+                for x in 0..<vwid {
+                    let vx = (2 * (Float(x) + 0.5) / Float(vwid) - 1) * tw
+                    let wy = (cp * vy + sp) / sqrtf(vx * vx + vy * vy + 1)
+                    guard wy < lim else { continue }
+                    below += 1
+                    let i = ((y * vwid * 2) + eye * vwid + x) * 4
+                    // (pure green: only the horizon's fog floor, Renderer.buildHorizon, met the ray: no hole the sky
+                    // shows through any more, but no ground either; counted apart)
+                    if i + 2 < img.count, img[i] < 25, img[i + 1] > 235, img[i + 2] < 25 { backstop += 1 }
+                    guard i + 2 < img.count, img[i] > 235, img[i + 1] < 25, img[i + 2] > 235 else { continue }
+                    holes += 1; rows.insert(y / 8); cols.insert((eye * vwid + x) / 8)
+                    if marks.count < 4000 { marks.append((eye * vwid + x, y)) }
+                }
+            } }
+            print(String(format: "voidcount: %d of %d pixels below the horizon show through (%.4f%%), in %d by %d cells of 8 px; seed %@ at %.1f %.1f %.1f look %.0f %.0f",
+                         holes, below, Double(holes) * 100 / Double(max(1, below)), cols.count, rows.count, arg("--seed") ?? "?",
+                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0)
+                  + String(format: "; backstop %d (only the fog floor under the horizon ground)", backstop))
+            if holes > 0 {
+                for (mx, my) in marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {
+                    let x = mx + dx, y = my + dy
+                    guard x >= 0, y >= 0, x < vwid * 2, y < vhei else { continue }
+                    let i = (y * vwid * 2 + x) * 4
+                    img[i] = 0; img[i + 1] = 255; img[i + 2] = 0
+                } } }
+                try? PNG.encode(rgba: img, width: vwid * 2, height: vhei).write(to: URL(fileURLWithPath: out.replacingOccurrences(of: ".png", with: "-void.png")))
+            }
+        }
+        if FarCitadel.sync { print(String(format: "view: farcitadel: %d models made (%.0f ms), %d quads, %d drawn", FarCitadel.builds, FarCitadel.buildMs, FarCitadel.lastQuads, FarCitadel.lastDrawn)) }
         print("view: " + RenderTest.lastBreakdown.replacingOccurrences(of: "\n", with: "\nview: "))      // P403 step 2
         if !fullRGBA.isEmpty && fullRGBA.count == RenderTest.lastRGBA.count {
             let b = RenderTest.lastRGBA
@@ -1615,7 +1793,8 @@ if let a = arg("--railprobe") {
     let v = a.split(separator: ",").map { String($0) }
     let seed = UInt64(v[0]) ?? 1, cx = Int(v[1]) ?? 0, cz = Int(v[2]) ?? 0, r = Int(v[3]) ?? 4000
     let gen = WorldGen(seed: seed)
-    gen.fieldWorld = true
+    gen.fieldWorld = !CommandLine.arguments.contains("--blockrails")
+    gen.terrain.fewerLakes = World.fewerLakesUnsaved; gen.terrain.lessWater = World.lessWaterUnsaved     // (--headset)
     var why: [String: Int] = [:]
     Railways.tally = { why[$0, default: 0] += 1 }
     let span = Railways.span, w = Railways.stretch * span
@@ -1719,6 +1898,77 @@ if let names = arg("--texshot"), let i = CommandLine.arguments.firstIndex(of: "-
     print("texshot: \(want.count) layers -> \(out)")
     exit(0)
 }
+// --hudshot OUT.ppm --menu NAME (P510, his menu notes): a whole menu screen as the HUD draws it, text and icons included, the
+// HUD's triangles rasterised on the host with each texture layer painted (nearest texel) as the fragment shader samples it.
+// NAME: pause, options, journal, inventory, creative, commands, map, title. For layout work without the headset.
+if let out = arg("--hudshot") {
+    TextureGen.registerAll()
+    game.survival = true; game.paused = false; game.menu = nil
+    for (i, n) in ["iron_pickaxe", "bread", "coal", "oak_log", "torch", "apple", "stone", "iron_ingot"].enumerated() where Items.has(n) {
+        game.inventory.main[9 + i] = ItemStack(Items.id(n), n.hasSuffix("pickaxe") ? 1 : 12)
+    }
+    for k in 0..<12 {
+        let doc = k % 3 != 0
+        game.journal.append(JournalEntry(day: 1 + k / 4, hour: 8 + k, minute: 5 * k, text: "Message number \(k): the garrison opens fire",
+                                         title: doc ? ["Patrol Orders", "Signals Log", "Town Pamphlet", "A Torn Note"][k % 4] : nil,
+                                         pages: doc ? ["Page one of a document found in a tower room. It goes on for a while so the pane wraps it."] : nil))
+    }
+    Journal.rev += 1
+    switch arg("--menu") ?? "pause" {
+    case "journal": game.openJournal()
+    case "inventory": game.openMenu(InventoryMenu(game: game))
+    case "creative": game.survival = false; game.openMenu(CreativeMenu(game: game))
+    case "commands": game.openCommands()
+    case "map": game.openMenu(MapMenu(game: game))
+    case "options": let pm = PauseMenu(game: game); game.openMenu(pm); pm.act("options", back: false); pm.build()
+    case "title": let pm = PauseMenu(game: game); pm.page = .title; pm.build(); game.openMenu(pm)
+    default: game.openMenu(PauseMenu(game: game))
+    }
+    let W = 1280, H = 720
+    let verts = Renderer(game: game).buildHUD(Float(W), Float(H))
+    var img = [Float](repeating: 0.25, count: W * H * 3)
+    let S = 32
+    var layers: [Int: [UInt8]] = [:]
+    func texel(_ L: Int, _ uv: V2) -> V4 {
+        let l = L >= 4096 ? L - 4096 : L
+        if layers[l] == nil { layers[l] = TextureGen.base(size: S, layers: l..<(l + 1)) }
+        let d = layers[l]!
+        let x = max(0, min(S - 1, Int(uv.x * Float(S)))), y = max(0, min(S - 1, Int(uv.y * Float(S))))
+        let i = (y * S + x) * 4
+        return V4(Float(d[i]) / 255, Float(d[i + 1]) / 255, Float(d[i + 2]) / 255, Float(d[i + 3]) / 255)
+    }
+    var t = 0
+    while t + 2 < verts.count {
+        let a = verts[t], b = verts[t + 1], c = verts[t + 2]
+        t += 3
+        let x0 = max(0, Int(min(a.pos.x, min(b.pos.x, c.pos.x)))), x1 = min(W - 1, Int(max(a.pos.x, max(b.pos.x, c.pos.x))))
+        let y0 = max(0, Int(min(a.pos.y, min(b.pos.y, c.pos.y)))), y1 = min(H - 1, Int(max(a.pos.y, max(b.pos.y, c.pos.y))))
+        let d = (b.pos.x - a.pos.x) * (c.pos.y - a.pos.y) - (c.pos.x - a.pos.x) * (b.pos.y - a.pos.y)
+        guard abs(d) > 1e-6, x0 <= x1, y0 <= y1 else { continue }
+        let L = Int(a.extra.x)
+        for py in y0...y1 { for px in x0...x1 {
+            let q = V2(Float(px) + 0.5, Float(py) + 0.5)
+            let w1 = ((q.x - a.pos.x) * (c.pos.y - a.pos.y) - (c.pos.x - a.pos.x) * (q.y - a.pos.y)) / d
+            let w2 = ((b.pos.x - a.pos.x) * (q.y - a.pos.y) - (q.x - a.pos.x) * (b.pos.y - a.pos.y)) / d
+            let w0 = 1 - w1 - w2
+            guard w0 >= 0, w1 >= 0, w2 >= 0 else { continue }
+            var col = a.color * w0 + b.color * w1 + c.color * w2
+            if a.extra.x >= 0 {
+                let uv = a.uv * w0 + b.uv * w1 + c.uv * w2
+                let s = texel(L, uv)
+                if s.w < 0.1 { continue }
+                col = V4(s.x * col.x, s.y * col.y, s.z * col.z, s.w * col.w)
+            }
+            let i = (py * W + px) * 3, al = col.w
+            img[i] = img[i] * (1 - al) + col.x * al; img[i + 1] = img[i + 1] * (1 - al) + col.y * al; img[i + 2] = img[i + 2] * (1 - al) + col.z * al
+        } }
+    }
+    var ppm = Data("P6\n\(W) \(H)\n255\n".utf8)
+    for v in img { ppm.append(UInt8(max(0, min(255, v * 255)))) }
+    try? ppm.write(to: URL(fileURLWithPath: out))
+    print("hudshot: \(arg("--menu") ?? "pause") (\(game.menu.map { String(describing: type(of: $0)) } ?? "no menu"), \(verts.count / 3) triangles, \(layers.count) layers) -> \(out)")
+    exit(0)
+}
 // --figureshot OUT.ppm [--armour PREFIX] [--mouse X,Y] (P473): the inventory's figure wearing a set (regular_ by default), the HUD's
 // flat triangles rasterised on the host (text and icons left out), cropped round the preview box and scaled 4x.
 if let out = arg("--figureshot") {
@@ -1774,8 +2024,11 @@ if let out = arg("--figureshot") {
 }
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
-    if !CommandLine.arguments.contains("--railride") { RailwayTests.run(game, check: check) }
-    RailwayTests.ride(game, check: check)
+    // (--links: only the P510 links and the ride through)
+    if !CommandLine.arguments.contains("--railride") && !CommandLine.arguments.contains("--links") { RailwayTests.run(game, check: check) }
+    if !CommandLine.arguments.contains("--links") { RailwayTests.ride(game, check: check) }
+    RailwayTests.through(game, check: check)          // P510
+    RailLoopCheck.run(game, check)                    // P511: a line's ends turn in loops
     print(failures == 0 ? "rail: all checks passed" : "rail: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --horsecoats-only: G9 horse coats (quest/src/test/HorseCoatShots.swift); with --render X it renders the lineup and the
@@ -1792,10 +2045,6 @@ if CommandLine.arguments.contains("--maingun-quick") {
     print(failures == 0 ? "maingun: all checks passed" : "maingun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --frigatecheck: P325, the Meridian frigate's interior, flight, main gun and crash from its helm (Sources/FrigateCheck.swift).
-if CommandLine.arguments.contains("--checklist-only") {          // P399: the in-game playtest checklist page
-    PlaytestChecklistCheck.run(game, check)
-    print(failures == 0 ? "checklist: all checks passed" : "checklist: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
 if CommandLine.arguments.contains("--difficulty-only") {          // P358: hits to kill and a fight per level
     DifficultyCheck.run(game, check)
     print(failures == 0 ? "difficulty: all checks passed" : "difficulty: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -1839,6 +2088,30 @@ if CommandLine.arguments.contains("--bigfight") {              // P450: the Reck
     BigFightCheck.run(game, check)
     print(failures == 0 ? "bigfight: all checks passed" : "bigfight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--depotleak") {             // P507: a Fuel Depot's tanks hold their fuel
+    DepotLeakCheck.run(game, check)
+    print(failures == 0 ? "depotleak: all checks passed" : "depotleak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--garagedoor") {            // FAILURES.md 1: a garage door a vehicle drives through
+    GarageDoorCheck.run(game, check)
+    print(failures == 0 ? "garagedoor: all checks passed" : "garagedoor: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--elevator") {              // FAILURES.md 2: a lift car riding its shaft
+    ElevatorCheck.run(game, check)
+    print(failures == 0 ? "elevator: all checks passed" : "elevator: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--craterplace") {           // P507: blocks go down in a rocket's bowl
+    CraterPlaceCheck.run(game, check)
+    print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--builtgun") {              // P507: a gun he builds, worked from a computer
+    BuiltGunCheck.run(game, check)
+    print(failures == 0 ? "builtgun: all checks passed" : "builtgun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--roadscheck") {            // P507: roads near his spot, drawn on the ground
+    RoadsCheck.run(game, check)
+    print(failures == 0 ? "roadscheck: all checks passed" : "roadscheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--sandbreak") {             // P462: dug beach sand stays ground
     SandBreakCheck.run(game, check)
     print(failures == 0 ? "sandbreak: all checks passed" : "sandbreak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -1851,6 +2124,7 @@ if CommandLine.arguments.contains("--treeprobe") {             // P478: logs han
 if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled tree into its neighbour; standing on it
     TreeProbeCheck.fell(game, check)
     TreeProbeCheck.fellReal(game, check)
+    TreeProbeCheck.fellHalf(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--jetplate") {             // P478: a jetpack strapped onto a chest piece
@@ -1888,6 +2162,10 @@ if CommandLine.arguments.contains("--gunwreck") {               // P459: a gun m
 if CommandLine.arguments.contains("--musictakes") {             // P457: several takes per soundtrack state
     MusicTakesCheck.run(game, check)
     print(failures == 0 ? "musictakes: all checks passed" : "musictakes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--rout") {                  // P511: a broken garrison runs
+    RoutCheck.run(game, check)
+    print(failures == 0 ? "rout: all checks passed" : "rout: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--chasehull") {              // P449: the big ship's chase view outside its hull
     ChaseHullCheck.run(game, check)
@@ -1945,6 +2223,17 @@ if CommandLine.arguments.contains("--crewfight") {
 if CommandLine.arguments.contains("--shipchart") {
     ShipChartCheck.run(game, check)
     print(failures == 0 ? "shipchart: all checks passed" : "shipchart: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --vehiclezoo [N] [--zoofrom K] (P505): N player-style vehicles built, assembled, driven or flown, fired and docked.
+if CommandLine.arguments.contains("--vehiclezoo") {
+    VehicleZoo.run(game, count: Int(arg("--vehiclezoo") ?? "") ?? 100, from: Int(arg("--zoofrom") ?? "") ?? 0, check)
+    print(failures == 0 ? "vehiclezoo: all checks passed" : "vehiclezoo: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --circuitzoo [N] [--zoofrom K] (P505): N of the hundred player-style copper circuits built and driven
+// (Sources/CircuitZoo.swift); the suite runs them all after the Sparkstone Workshop.
+if CommandLine.arguments.contains("--circuitzoo") {
+    CircuitZoo.run(game, count: Int(arg("--circuitzoo") ?? "") ?? 100, from: Int(arg("--zoofrom") ?? "") ?? 0, check)
+    print(failures == 0 ? "circuitzoo: all checks passed" : "circuitzoo: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --frigatelayout: P472, the Meridian frigate walked from its hangar (Sources/FrigateLayoutCheck.swift); FRIGATE_PLANS=1
 // prints each deck.
@@ -2014,6 +2303,23 @@ if CommandLine.arguments.contains("--locatecheck") {
         let found = out.first.map { !$0.contains("Could not") } ?? false
         check(!found || (out.count == 2 && out.first!.contains("marked on your map") && MapCache.shared.marks.count == m0 + 1),
               "/locate \(k): \(found ? "found, with what it is (\(out.count) lines) and a map mark" : "none near")")
+    }
+    // P504 (Nov 1 09:33, "I want 'rare' and 'bases' to show the nearest anything regardless of if it's nearby or not
+    // including capital citadels and cities, or a crawler, a train or frigate"): a line for every kind, however far.
+    for (cmd, kinds) in [("bases", 9), ("rare", 8)] {
+        // (A place found again replaces its earlier line in the log, P456: the /locate lines above came out of it.)
+        game.commandLog.removeAll()
+        let n0 = game.commandLog.count
+        let t0 = CFAbsoluteTimeGetCurrent()
+        game.command("/\(cmd)")
+        let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        let out = Array(game.commandLog.dropFirst(n0 + 1))
+        for l in out { print("locatecheck: /\(cmd): \(l)") }
+        let found = out.filter { $0.contains(" blocks") }.count
+        let names = ["Capital Citadel", "Capital City", "Boreal Station", "Greywall Base", "Crawler", "Meridian Frigate", "Train"]
+        let missing = cmd == "bases" ? names.filter { n in !out.contains { $0.contains(n) } } : []
+        check(out.count == kinds && found >= kinds - 2 && missing.isEmpty,
+              String(format: "/\(cmd): %d lines for %d kinds, %d placed with a distance, in %.0f ms (missing: %@)", out.count, kinds, found, ms, missing.joined(separator: ", ")))
     }
     print(failures == 0 ? "locatecheck: all checks passed" : "locatecheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
@@ -2332,9 +2638,17 @@ if CommandLine.arguments.contains("--posecheck-only") {
 }
 // Hell's own mobs and the gate into hell (Sources/HellMobsTests.swift); --hell-only stops after them.
 HellMobsTests.run(game, check: check)
+HellWildTests.run(game, check: check)                  // P506: hell's wildlife (Sources/HellWild.swift)
 if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
+GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
+ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft
+RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
+BrushCheck.run(game, check)                            // P511: through bushes and limbs at his full pace
+ClamberCheck.run(game, check)                          // P511: up and over a ledge too high to jump onto
+CrawlerInteriorCheck.run(check)                         // P511: the crawler's insides dense, a motor at every wheel
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest
@@ -2371,6 +2685,8 @@ if CommandLine.arguments.contains("--lastwar-only") {
 }
 // The Sparkstone Workshop's circuit benches (Sources/CircuitWorkshopTests.swift); --workshop-only stops after them.
 CircuitWorkshopTests.run(game, check: check)
+// P505: the hundred copper circuits players build (Sources/CircuitZoo.swift).
+CircuitZoo.run(game, check)
 // L3 perf overlay (Sources/PerfOverlayTests.swift): its window, lines, option and HUD drawing on the Quest's HUD host.
 PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count }, check: check)
 // L3 volcano eruptions (Sources/EruptionTests.swift): rarity, bursts near and far, the boom, the sound.

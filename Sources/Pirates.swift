@@ -105,6 +105,7 @@ enum Corsairs {
 extension Game {
     // Every tick (CapitalBases.basesTick, beside the submarines).
     func corsairsTick(_ dt: Float) {
+        seaHuntTick(dt)                                                  // P508 (SeaHunt.swift)
         guard dim.dim == .overworld else { return }
         var live = 0
         for s in world.ships.list where s.role == "sloop" && s.parent == nil {

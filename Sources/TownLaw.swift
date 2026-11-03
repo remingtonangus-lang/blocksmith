@@ -156,7 +156,7 @@ enum TownLaw {
         if let f = forceTown { return f }
         if Property.owns(p) { return false }                                    // D28: your own house or homestead
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
-              let s = sc.nearest("village", x: p.x, z: p.z, maxRegions: 1) else { return false }
+              let s = sc.nearestIfReady("village", x: p.x, z: p.z, maxRegions: 1) else { return false }
         return abs(s.anchor.x - p.x) < 72 && abs(s.anchor.z - p.z) < 72
     }
 
@@ -165,7 +165,7 @@ enum TownLaw {
     static func isTownOwned(_ g: Game, _ p: IVec3) -> Bool {
         if let f = forceTown { return f }
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
-              let s = sc.nearest("village", x: p.x, z: p.z, maxRegions: 1),
+              let s = sc.nearestIfReady("village", x: p.x, z: p.z, maxRegions: 1),
               abs(s.anchor.x - p.x) < 200 && abs(s.anchor.z - p.z) < 200 else { return false }
         if let m = s.plan as? Mine, m.underground(p) { return false }          // C12: the mine's workings are company ground
         return s.pieces.contains { pc in
@@ -605,7 +605,7 @@ enum TownLaw {
     static func squareLoaded(_ g: Game, _ near: Mob) -> Bool {
         if let f = forceTown { return f }
         let c = IVec3(Int(floor(near.pos.x)), Int(floor(near.pos.y)), Int(floor(near.pos.z)))
-        guard isTownSpot(g, c), let sc = g.world.gen.structures, let s = sc.nearest("village", x: c.x, z: c.z, maxRegions: 1) else { return false }
+        guard isTownSpot(g, c), let sc = g.world.gen.structures, let s = sc.nearestIfReady("village", x: c.x, z: c.z, maxRegions: 1) else { return false }
         return g.world.isLoaded(s.anchor.x, s.anchor.z)
     }
 

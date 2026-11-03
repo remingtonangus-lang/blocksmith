@@ -251,7 +251,7 @@ extension Game {
                 let truck = Mob(.ashTruck, at: at(o2))
                 truck.variant = 2
                 truck.customName = f == .greywall ? "Greywall Truck" : "Capital Truck"
-                if f != .greywall { truck.faction = Faction.steelhold.rawValue }
+                truck.faction = (f == .greywall ? Faction.greywall : Faction.steelhold).rawValue
                 truck.persistent = true
                 truck.yaw = atan2f(dir.x, dir.y)                     // facing the player (-dir)
                 mobs.mobs.append(truck)

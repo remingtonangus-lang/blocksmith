@@ -120,13 +120,16 @@ extension Renderer {
     // Appends the ring's triangles (projected by `project`, the impostor shell), hazed toward the fog: distant ground
     // reads as silhouettes in the haze, a little clearer for high ground lit by the sun.
     func buildHorizon(_ out: inout [SimpleVert], game: Game, eye: V3, loaded: Float, fog: V3, sun: V3, day: Float,
-                      hdrK: Float, project p: (V3) -> V4) {
+                      hdrK: Float, shell: Float, project p: (V3) -> V4) {
         let ring = HorizonRing.shared
         ring.request(game, eye: eye)
         guard let s = ring.current(), s.n > 1, s.seed == game.world.seed else { return }
         let sp = Float(HorizonRing.spacing)
         let range = HorizonRing.range
-        let inner = loaded * 0.8                 // under the loaded terrain it is hidden anyway; this fills streaming gaps
+        // Under the loaded terrain it is hidden anyway; this fills streaming gaps. (FAILURES 4, void sweep of Nov 2: from 0.8
+        // of the loaded radius the ring's edge (a 40-block cell's centre past it) left magenta wedges where the loaded
+        // terrain ended short of it, the forest views at 0 0 on seed 7653607216494784574: 300-740 pixels.)
+        let inner = loaded * 0.6
         let night: Float = 0.3 + 0.7 * day
         let n = s.n
         // Cell normals and colours depend only on the snapshot: computed once per snapshot (they were redone for every
@@ -182,5 +185,36 @@ extension Renderer {
                 out.append(SimpleVert(pos: pb, color: col)); out.append(SimpleVert(pos: pd, color: col)); out.append(SimpleVert(pos: pc, color: col))
             }
         }
+        // FAILURES 4 (the void sweep, forest at 0 0 on seed 7653607216494784574, 0.13-0.16% of the view at every pitch
+        // facing 240): a ray that left the loaded land over its edge going down, under this coarse height field (a
+        // 40-block chord over a valley, or the sampled column above the drawn field ground), met nothing at all and
+        // showed the sky as a wedge between the loaded edge and the ring. Behind everything on the shell (past the
+        // impostors' farthest radius), a floor in the fog's colour at the ring's lowest height: whatever ray goes down
+        // past the loaded land without meeting ground ends in the fog, as the land there would. (The void probe draws it
+        // pure green, so the sweep still counts what only this floor covered: --voidcount's "backstop".)
+        var lowest = Float.greatestFiniteMagnitude
+        for h in s.h { lowest = min(lowest, h) }
+        let drop = eye.y - lowest
+        if drop > 1 {
+            let R = shell * 1.02
+            let col = Renderer.backstopProbe ? V4(0, 1, 0, 1) : V4(fog, 1)
+            // In bands of under 9 degrees each way: a flat triangle across the shell lies inside it by 1 - cos(half its
+            // span), and a fan from straight down to the rim came in front of the ring's ground (at 0.95 of the shell)
+            // over a tenth of the view.
+            let rimDown = atan2f(drop, range)                       // the rim's angle under the horizon
+            let bands = max(2, Int(ceilf((Float.pi / 2 - rimDown) / (9 * Float.pi / 180))))
+            let sides = 40
+            func at(_ band: Int, _ side: Int) -> V4 {
+                let e = -(Float.pi / 2) + (Float.pi / 2 - rimDown) * Float(band) / Float(bands)
+                let a = Float(side) * 2 * .pi / Float(sides)
+                return V4(cosf(e) * cosf(a) * R, sinf(e) * R, cosf(e) * sinf(a) * R, 1)
+            }
+            for b in 0..<bands { for k in 0..<sides {
+                let p00 = at(b, k), p01 = at(b, k + 1), p10 = at(b + 1, k), p11 = at(b + 1, k + 1)
+                out.append(SimpleVert(pos: p00, color: col)); out.append(SimpleVert(pos: p10, color: col)); out.append(SimpleVert(pos: p11, color: col))
+                if b > 0 { out.append(SimpleVert(pos: p00, color: col)); out.append(SimpleVert(pos: p11, color: col)); out.append(SimpleVert(pos: p01, color: col)) }
+            } }
+        }
     }
+    static var backstopProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
 }

@@ -105,17 +105,17 @@ enum Director {
 
     // MARK: The catalogue (b)
 
-    static let factions = ["capital", "greywall", "meridian", "ironback", "stormwarden"]
+    static let factions = ["capital", "greywall", "meridian", "stormwarden"]          // (P504: the Ironback Legion is Greywall's)
     static func faction(_ k: String) -> Faction {
-        switch k { case "greywall": return .greywall; case "meridian": return .meridian; case "ironback": return .ironback
+        switch k { case "greywall": return .greywall; case "meridian": return .meridian; case "ironback": return .greywall
                    case "stormwarden": return .stormwarden; default: return .steelhold }
     }
     static func key(_ f: Faction) -> String {
-        switch f { case .greywall: return "greywall"; case .meridian: return "meridian"; case .ironback: return "ironback"
+        switch f { case .greywall: return "greywall"; case .meridian: return "meridian"; case .ironback: return "greywall"
                    case .stormwarden: return "stormwarden"; default: return "capital" }
     }
     static var raidResults: [String: Bool] = [:]  // a town's night raid ended: did he stand with it (TownRaids.won)
-    static let rareGoods = ["diamond", "emerald", "golden_apple", "name_tag", "saddle", "experience_bottle", "blaze_rod",
+    static let rareGoods = ["diamond", "emerald", "field_stim", "name_tag", "saddle", "experience_bottle", "blaze_rod",
                             "nautilus_shell", "heart_of_the_sea", "totem_of_undying", "trident", "enchanted_golden_apple", "spyglass", "rifle_rounds",
                             "heavy_rounds", "shotgun_shells"]
 

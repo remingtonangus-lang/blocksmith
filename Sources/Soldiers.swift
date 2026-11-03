@@ -40,6 +40,9 @@ final class SoldierBrain {
     var ashTimer: Float = 5         // the Ash Marshal: seconds to his next marked barrage
     var ashCalls = 0                // ... and how often he has called his guard
     var crewed = false              // deck gun: a live soldier stands at it in the gunner stance
+    var lineClear = false           // deck gun: the line from its muzzle to the player is open (P504)
+    var walled = false              // deck gun: the player is inside its own base's walls (P508, every 0.4 s)
+    var radarOK = true              // deck gun: its base's radar stands (P508, every 0.4 s)
     var airWarn: Float = -1         // deck gun: seconds since it warned a flying player it is tracking them (P252), -1 none
     var rangeShots = 0              // ... ranging rounds fired at them since
     var cover: V3?                  // a spot out of the player's sight to reload in
@@ -110,6 +113,22 @@ final class SoldierBrain {
 }
 
 enum Soldier {
+
+    // P510 (Nov 1 20:11:03-20:11:08, near a Capital citadel in the snow: "Oh, please. I didn't even have a...", "I
+    // didn't have my gun out"; after P499's cities, P501's garrison rows and P508's Greywall: "If no gun, they send
+    // out a party"): a Capital or Greywall soldier not already fighting leaves an empty-handed man be. He is fought on
+    // sight with a weapon in hand, at the helm or on a gun, inside the soldier's own base (its walls), when the faction
+    // hunts him, or once he has hurt one of them or they're alerted (aggro).
+    // (`unarmedPeace` off: the checks' soldiers fight as before, questcheck main; the unarmed check turns it on)
+    static var unarmedPeace = true
+    static func holdsForUnarmed(_ g: Game, _ m: Mob) -> Bool {
+        guard unarmedPeace else { return false }
+        let f = m.factionValue
+        guard (f == .steelhold || f == .greywall) && m.posse == 0 && !m.raider, FactionRep.of(f) > FactionRep.huntedAt else { return false }
+        if GarrisonTown.weaponOut(g) || g.world.ships.pilot != nil || Turrets.shared.manned != nil { return false }
+        if g.clock - max(m.playerHurtAt, m.provokedAt) < 60 { return false }
+        return !HeavyTurret.sameBase(g, m, g.player.pos)
+    }
     // P460 (Oct 25 16:21: "The AI are way too oblivious to what's going on. Like, they should be attacking me as soon as I
     // break through the wall"): a block he breaks is heard by the soldiers within 20 blocks of it: they turn on him
     // (where he is), and the first of them calls its garrison.
@@ -142,6 +161,7 @@ enum Soldier {
         let armor: Int
         let toughness: Float
     }
+    static let aimTighten: Float = 0.65           // P507: rifle groups two thirds as wide as the ranks' spread below
     static let ranks: [Rank] = [
         Rank(near: 8, far: 14, sight: 26, spread: 0.07, burst: 3...5, gap: 1.0...1.8, react: 0.9, strafe: 0.3, damage: 0.8, armor: 4, toughness: 0),
         Rank(near: 7, far: 12, sight: 32, spread: 0.045, burst: 4...6, gap: 0.8...1.4, react: 0.7, strafe: 0.8, damage: 0.9, armor: 10, toughness: 2),
@@ -335,6 +355,7 @@ extension Mob {
     // Called from monsterAI for the four ranks; returns the walk speed.
     func soldierAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         if hired { return companionAI(dt, g) }                       // O2: a companion (Companions.swift)
+        if let sp = Rout.step(self, dt, g) { return sp }              // P511: his garrison broke
         // P435 (Oct 24 15:56, in the Ash Vault: "That guy is holding a capital gun, I think. It's not right"): an
         // Ashguard soldier only ever carries the army's period arms, whatever handed him another gun after ashSetup.
         if faction == Faction.ashguard.rawValue && !Guns.isAshArm(variant) && Soldier.rank(kind) != nil {
@@ -342,13 +363,17 @@ extension Mob {
             soldierBrain.gun = variant; soldierBrain.mag = Guns.all[variant].mag
         }
         var canTarget = canTarget && !g.repAllied(self)               // O3: an ally's soldiers hold fire
+        if canTarget && !aggro && Soldier.holdsForUnarmed(g, self) { canTarget = false }       // P510
         // R23: an alerted soldier (an alarm, a lockdown, a comrade's call: lockTime) hunts the player out to 64 blocks;
         // senseTarget lets go past the rank's follow range (26-40), and the alerted garrison stood at its posts.
         if !canTarget && aggro && lockTime > 0 && dist < 64 && g.survival && g.alive && !g.repAllied(self)
             && faction != Faction.ashguard.rawValue { canTarget = true }      // (the Ashguard stand down on their own: ashVictory)
         if posse == 3 && BountyHunters.holdOff { canTarget = false }  // R21: bounty hunters wait on the surface while he's below
+        MobManager.stage("soldier start")
         navyTick(dt, g)                                               // an Aegis Marine's shield (Navy.swift)
+        MobManager.stage("navy")
         var sp = soldierAIStep(dt, g, dist: dist, canTarget: canTarget)
+        MobManager.stage("soldier rest")
         if isAegis { sp *= 1.33 }                                     // T8: an Aegis Marine moves a third faster
         if troop == Int8(TroopClass.hannibal.rawValue) { sp = hannibalJets(dt, g, dist: dist, canTarget: canTarget, speed: sp) }
         return leash == nil ? sp : applyLeash(sp)
@@ -429,7 +454,9 @@ extension Mob {
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
+            MobManager.stage("before sees")
             b.sees = canTarget && dist < (aggro ? Soldier.sight(r, gun: b.gun, fighting: true) : Soldier.notice(r, sneaking: g.player.sneaking)) * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
+            MobManager.stage("sees")
         }
         let sees = b.sees && canTarget
         // P471 (Oct 26 19:53-19:56: "There should be a guy in here... sitting in a chair operating the naval gun on top"):
@@ -455,7 +482,9 @@ extension Mob {
         b.foeTimer -= dt
         if b.foeTimer <= 0 && factionValue != .none {          // (bounty hunters, posse 3, belong to no faction)
             b.foeTimer = 0.4 + Rand.float(in: 0..<0.2)
+            MobManager.stage("before foes")
             let f = w.ships.nearestFoe(of: factionValue, near: pos, range: max(rank.sight * 1.5, 64), game: g)
+            MobManager.stage("foes")
             b.foe = (f?.ship != nil || f?.mob != nil) ? f : nil
             if let fp = b.foe?.point { b.foeSees = w.canSee(eye, fp) }
         }
@@ -474,10 +503,27 @@ extension Mob {
             aggro = true
             b.react -= dt
             face(foe.point)
-            if foe.mob != nil && (simd_length(foe.point - eye) > rank.sight * 0.9 || !b.foeSees) { return spec.speed * 0.85 }
+            if crewLookout && b.foeSees { crewRoute.removeAll(); crewLookout = false }      // (in sight on the way: fight here)
+            if foe.mob != nil && (simd_length(foe.point - eye) > rank.sight * 0.9 || !b.foeSees) {
+                // Crew firing from aboard: a disabled vehicle's crew walk the hull to a spot they can see the foe from
+                // (CrewLookout); one that finds none holds where it is (walking straight at it pressed it into the
+                // room's wall).
+                if crewFree, let s = deck {
+                    lookoutT -= dt
+                    if crewLookout && lookoutT < -12 { crewRoute.removeAll(); crewLookout = false }   // (stuck on the way)
+                    if crewRoute.isEmpty && !b.foeSees && lookoutT <= 0 && CrewLookout.ready {      // (one search a turn)
+                        lookoutT = 3 + Rand.float(in: 0..<1)
+                        if CrewLookout.walk(self, s, to: foe.point, g) { lookoutT = 0 }
+                    }
+                    return crewRoute.isEmpty ? 0 : spec.speed
+                }
+                return spec.speed * 0.85
+            }
             let tp = foe.point - eye
             b.pitch += (max(-0.9, min(1.2, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
+            MobManager.stage("before foe fire")
             soldierFire(dt, g, b, gs, rank: r, dist: min(simd_length(tp), rank.sight - 1), target: foe.point)
+            MobManager.stage("foe fire")
             return 0
         }
         if sees {
@@ -511,7 +557,9 @@ extension Mob {
                 let tp = target - eye
                 let flat: Float = simd_length(V2(tp.x, tp.z))
                 b.pitch += (max(-0.9, min(1.0, atan2f(tp.y, flat))) - b.pitch) * min(1, dt * 8)
+                MobManager.stage("before fire")
                 soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+                MobManager.stage("fire")
             }
             return 0
         }
@@ -595,7 +643,9 @@ extension Mob {
         }
         // Reloading: duck out of sight first (ironclads don't bother).
         if b.reload > 0 && r != 3 {
+            MobManager.stage("before cover")
             if b.cover == nil && b.coverSearch <= 0 && sees { b.cover = findCover(g, from: g.player.eye); b.coverSearch = 1 }
+            MobManager.stage("cover")
             if let c = b.cover {
                 if simd_length(V2(c.x - pos.x, c.z - pos.z)) > 0.6 { face(c); return spec.speed * 1.1 }
                 face(g.player.pos)
@@ -646,7 +696,9 @@ extension Mob {
             }
             if tc == .hannibal && b.reload <= 0 && dist > 4 { speed = max(speed, spec.speed * 0.55); strafe *= 0.3 }
             let shotsBefore = b.mag
+            MobManager.stage("before fire")
             soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+            MobManager.stage("fire")
             // Marksmen move to a new spot after a shot now and then.
             if r == 2 && b.mag < shotsBefore && Rand.float(in: 0..<1) < 0.5 {
                 let right = V3(cosf(yaw), 0, -sinf(yaw))
@@ -665,7 +717,9 @@ extension Mob {
                 let tp = target - eye
                 b.pitch += (max(-0.9, min(0.9, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
                 BlockWear.throughShots += 1
+                MobManager.stage("before fire")
                 soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+                MobManager.stage("fire")
                 return 0
             }
             // Suppressing fire: automatic guns keep shooting where the player ducked out of sight.
@@ -799,6 +853,7 @@ extension Mob {
             let from = SoldierRig.muzzleWorld(self), to = target - from
             let len = simd_length(to)
             b.laserEnd = len > 0.01 ? from + to / len * (Armory.blockHit(g.world, from, to / len, len)?.0 ?? len) : target
+            MobManager.stage("fire: laser")
             if b.aimTime < 1.1 { return }
             b.aimTime = 0
             glintDone = true
@@ -810,11 +865,19 @@ extension Mob {
         // Clear line of fire from the muzzle (the sight check is from the eye, every 0.2-0.3 s, through opaque blocks
         // only): a wall, window, door or fence between the gun and the target holds the shot.
         // P305 (b): thin cover the rounds can wear through (glass, a plank wall, a bush, up to two blocks) doesn't.
-        guard g.world.clearShot(muzzle, target) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else { b.aimTime = 0; return }
+        MobManager.stage("fire: aim")
+        guard g.world.clearShot(muzzle, target) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else { b.aimTime = 0; MobManager.stage("fire: line"); return }
+        MobManager.stage("fire: line")
         if glintDone { b.glinted = true }          // (a glint held up by a wall doesn't use up the warning)
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
-        aimAt += g.player.vel * flight * 0.8
+        // P504 (Nov 1 07:30:44, at a Greywall fortress: "Those snipers should never miss"): a marksman leads him in full,
+        // allows for the round's drop and holds dead on (below); the laser and the glint are the warning.
+        let sniper = kind == .soldierMarksman
+        // P507 (Nov 1 12:29:17, shot at by a Greywall patrol: "Soldiers need to be more accurate"): every rank leads him
+        // in full and allows for the drop now (they used to lead him four fifths and aim low), with a tighter group.
+        aimAt += g.player.vel * flight
+        aimAt.y += 0.5 * 1.5 * flight * flight
         if Guns.isLauncher(b.gun) { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
         let dir = simd_normalize(aimAt - muzzle)
         // Soldiers' shotgun pellets hit softer (a point-blank volley shouldn't one-shot a full-health player).
@@ -823,7 +886,11 @@ extension Mob {
         let veteran = faction == Faction.ashguard.rawValue
         // P501 (Oct 31 09:46, the assault shotgun: "it should be devastating"): the Sturmbrecher's pellets hit in full.
         let soft: Float = gs.pellets > 1 && b.gun != Guns.autoShotgun ? 0.6 : 1
-        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * soft * (veteran ? 1.6 : 1) * vary.damage
+        // P511 (Nov 2 08:33:48-08:33:54, shot down from far off at a Greywall fortress: "On normal difficulty, I think it's
+        // a little too much"; "Whoever is killing me might need to nerf the weapon slightly"): a marksman never misses
+        // (P504), so on Normal and below his round lands a quarter softer.
+        let marked: Float = sniper && g.diffLevel <= 3 ? 0.75 : 1
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * soft * (veteran ? 1.6 : 1) * vary.damage * marked
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
@@ -832,7 +899,10 @@ extension Mob {
                 let kick = aimKick(gs)
                 let hunter: Float = posse == 3 ? 0.7 : 1                 // R21: bounty hunters shoot straighter than the ranks
                 let levelAim: Float = Difficulty.row.aim                 // P302: wide on the easy levels, tight on the hard
-                let d = Guns.scatter(dir, (rank.spread + gs.spread * 0.5 + kick) * (veteran ? 0.6 : 1) * (b.gun == Guns.ashsaw ? 1.8 : (b.gun == Guns.rotary ? 2.2 : 1)) * hunter * levelAim)
+                let gunWide: Float = b.gun == Guns.ashsaw ? 1.8 : (b.gun == Guns.rotary ? 2.2 : 1)
+                let who: Float = (veteran ? 0.6 : 1) * hunter * levelAim * Soldier.aimTighten
+                let wide: Float = (rank.spread + gs.spread * 0.5 + kick) * gunWide * who
+                let d = sniper && gs.pellets == 1 ? dir : Guns.scatter(dir, wide)
                 g.arms.spawn(Slug(pos: muzzle, vel: d * gs.speed, kind: .bullet, damage: gs.damage * scale, fromPlayer: false,
                                   shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
             }
@@ -850,17 +920,21 @@ extension Mob {
         case .beam:
             g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread * Difficulty.row.aim), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
         }
+        MobManager.stage("fire: round")
         let quiet = TroopClass.suppressed(self)                       // Spec Ops suppressors: hushed, no alarm noise
         g.sfx(.gun(gs.sound), quiet ? 0.35 : 1, at: muzzle)
         if factionValue != .steelhold && !quiet { g.baseNoise(at: muzzle, kind: .gunshot, byMob: true) }      // other factions' fire carries to citadels
         g.particles.add(Particle(pos: muzzle + dir * 0.2, vel: dir * 0.5, life: 0.06, maxLife: 0.06, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
+        MobManager.stage("fire: sound, noise, flash")
         b.mag -= 1
         b.recoil = 1
         // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).
         if b.burst <= 0 {
-            let bursts: ClosedRange<Int> = b.gun == Guns.rotary ? 24...40 : (b.gun == Guns.autoShotgun ? 3...5 : (b.gun == Guns.ashsaw ? 7...11 : (troop == 3 ? 6...10 : rank.burst)))
+            // P510 (Nov 1 20:16:25, a Capital heavy with the Sturmbrecher: "That guy should be rapid firing shotgun
+            // rounds"): the box-fed shotgun empties in long runs at its own cycle (it fired three to five at 0.34 s).
+            let bursts: ClosedRange<Int> = b.gun == Guns.rotary ? 24...40 : (b.gun == Guns.autoShotgun ? 6...10 : (b.gun == Guns.ashsaw ? 7...11 : (troop == 3 ? 6...10 : rank.burst)))
             b.burst = Rand.int(in: bursts)
         }
         b.burst -= 1
@@ -870,8 +944,10 @@ extension Mob {
         }
         let rate: Float = enraged ? 0.6 : 1
         let pace: Float = Difficulty.row.pace                    // P302: slower fire on the easy levels
-        b.shotTimer = b.burst > 0 ? gs.interval * (b.gun == Guns.ashsaw ? 1 : 1.4) * rate / pace
-                                  : Rand.float(in: rank.gap) * Soldier.burstGap * rate * (b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : 1)) / pace
+        let cycle: Float = b.gun == Guns.ashsaw || b.gun == Guns.autoShotgun ? 1 : 1.4
+        let gapK: Float = b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : (b.gun == Guns.autoShotgun ? 0.7 : 1))
+        b.shotTimer = b.burst > 0 ? gs.interval * cycle * rate / pace
+                                  : Rand.float(in: rank.gap) * Soldier.burstGap * rate * gapK / pace
     }
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).
@@ -992,16 +1068,37 @@ extension Mob {
         if air { engage = max(engage, flak ? AirDefence.flakRange : AirDefence.navalAirRange) }
         // P501 (Oct 31 09:48, "If I go into the little town beside one of these capital citadels, they shouldn't be
         // automatically hostile to me unless I have a gun in my hand"): the guns keep the row's peace as its troopers do.
-        let canTarget = g.survival && g.alive && dist < engage && !GarrisonTown.shelters(g, self) && !Disguise.covers(g, self)
+        // P508 (Nov 1 15:43:34-15:43:48 and 15:53:45-15:54:03, at a Greywall garrison and a Boreal Station: "The naval guns
+        // will only shoot you if you're outside the base or... if you're in one of the naval gun towers... they will not
+        // shoot inside the base because it's their base", "only on very hard difficulty... the cannon just obliterates you
+        // no matter where you are"): a base's own guns hold their fire on him inside its walls unless he works one of
+        // its guns; on Very Hard they fire anywhere.
+        let walled = b.walled && g.diffLevel < 5 && Turrets.shared.manned == nil
+        let canTarget = g.survival && g.alive && dist < engage && !walled && !GarrisonTown.shelters(g, self) && !Disguise.covers(g, self)
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.4
+            b.walled = deck == nil && dist < engage && HeavyTurret.sameBase(g, self, g.player.pos)
+            b.radarOK = deck != nil || dist >= engage || HeavyTurret.radarUp(g, self)
             b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye)
+            // P504 (Nov 1 07:27:56-07:28:11: "as soon as the base is in [range], it is able to spot me because of its
+            // special radar ability. And then its naval guns just immediately evaporate me if they can. Have to have a
+            // clear line of fire"): a base's gun knows him in its reach by radar and lays on him; it fires once the
+            // line from its muzzle is clear (its own parapet hid him from the turret's middle at a wall's foot).
+            b.lineClear = b.sees || canTarget && g.world.canSee(HeavyTurret.muzzle(self, 0), g.player.eye)
             b.crewed = deckGunCrewed(g)
-            if !b.crewed && factionValue != .greywall { claimGunner(g) }
+            if !b.crewed && factionValue != .greywall && !consoleGun(g) { claimGunner(g) }
             if !GunParts.supported(self, g.world) { GunParts.fall(self, g); return }         // P465: its tower shot away
         }
-        if b.sees && canTarget {
+        // P508 (Nov 1 16:26: "make it so boreal station knows where you are at all times instead of greywall until you
+        // destroy their beacon. greywall just needs a clear line of sight and see you holding a gun"): the radar that lays
+        // a base's guns on him unseen is the Capital's and a Boreal Station's (while its dish stands); Greywall's guns
+        // need to see him, and see a gun in his hands unless the base is already fighting.
+        let grey = deck == nil && factionValue == .greywall
+        let radar = canTarget && deck == nil && !grey && b.radarOK
+        let armed = g.heldGun != nil || g.world.ships.pilot != nil || Turrets.shared.manned != nil
+        let greyHolds = grey && !aggro && !armed && !g.bases.greywall.sites.values.contains { $0.on && Greywall.inside($0, pos, pad: 4) }
+        if (b.sees || radar) && canTarget && !greyHolds {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
             b.lastSeen = player
             b.seenAgo = 0
@@ -1017,6 +1114,9 @@ extension Mob {
         // Spotting still raises the alarm (above), but only a live gunner lays and fires the gun: an empty turret kept
         // shelling the player after the whole garrison was dead (Quest round 4).
         guard b.crewed, let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; if b.seenAgo > 6 { b.airWarn = -1 }; return }
+        // (On him by radar: it lays, but holds its fire until the line is clear.)
+        let onPlayer = canTarget && (b.sees || radar)
+        let clearShot = !onPlayer || b.lineClear
         let v: Float = flak ? AirDefence.flakSpeed : HeavyTurret.speed, grav: Float = HeavyTurret.gravity
         var wantPitch: Float = 0.75, wantYaw: Float
         var dx: Float
@@ -1041,22 +1141,30 @@ extension Mob {
             let dy = aimP.y - pivot.y
             let disc = v * v * v * v - grav * (grav * dx * dx + 2 * dy * v * v)
             if disc >= 0 && dx > 0.5 { wantPitch = atanf((v * v - sqrtf(disc)) / (grav * dx)) }
+            else if dx <= 0.5 { wantPitch = dy < 0 ? -1.5 : 1.5 }
+            else { wantPitch = 9 }                                         // (out of its reach: no solution, no shot)
             wantYaw = atan2f(-(aimP.x - pivot.x), -(aimP.z - pivot.z))
             if !air { b.airWarn = -1 }
         }
-        wantPitch = max(HeavyTurret.pitchMin, min(HeavyTurret.pitchTop(self), wantPitch))
+        let rawPitch = wantPitch
+        wantPitch = max(HeavyTurret.pitchLow(self), min(HeavyTurret.pitchTop(self), wantPitch))
         var dyaw = wantYaw - yaw
         while dyaw > .pi { dyaw -= 2 * .pi }
         while dyaw < -.pi { dyaw += 2 * .pi }
         // A 1,000-tonne gunhouse traverses slowly; a flak gun lays fast enough to follow a helicopter.
         let turn: Float = (flak ? 1.6 : HeavyTurret.traverse * (light ? 4 : 1)) * dt
-        let elevate: Float = (flak ? 1.2 : (light && airShot ? 0.6 : 0.15)) * dt
+        let elevate: Float = (flak ? 1.2 : (light && airShot ? 0.6 : (light ? 0.4 : 0.25))) * dt
         if GunParts.canTurn(self) { yaw += max(-turn, min(turn, dyaw)) }         // P372: a broken mount holds it
         b.pitch += max(-elevate, min(elevate, wantPitch - b.pitch))
         walkPhase += abs(max(-turn, min(turn, dyaw)))
         let tol: Float = airShot ? 0.05 : 0.04
-        let aligned = abs(dyaw) * cosf(b.pitch) < tol && abs(wantPitch - b.pitch) < (airShot ? 0.04 : 0.03) && dx > (airShot ? 12 : 24)
-            && (!airShot || b.airWarn >= AirDefence.warnDelay)
+        // (P504: a man at the wall's foot is close below, not far off: the shell must clear its own gun, 16 blocks for
+        // the heavy gun's burst, 8 for the light ones; it held fire at 24 across the ground before. A target past its
+        // depression or out of its reach is not fired at: the shells went up into the sky.)
+        let near: Float = airShot ? 12 : (light || flak ? 8 : 16)
+        let laid = airShot || rawPitch >= HeavyTurret.pitchLow(self) - 0.02 && rawPitch <= HeavyTurret.pitchTop(self) + 0.02
+        let aligned = abs(dyaw) * cosf(b.pitch) < tol && abs(wantPitch - b.pitch) < (airShot ? 0.04 : 0.03) && simd_length(tgt - pivot) > near
+            && (!airShot || b.airWarn >= AirDefence.warnDelay) && clearShot && laid
         if aligned && b.reload <= 0 && GunParts.canFireAny(self) {
             if b.charge == 0 { g.sfx(.gun(12), 1.2, at: pivot) }
             b.charge += dt
@@ -1173,9 +1281,34 @@ extension Mob {
         persistent = true
     }
 
+    // P507 (Nov 1 12:17:48-12:18:30 in a Greywall gun room: "The gun is operable even though there's nobody at the computer
+    // station... the only way that gun can fire [is] if there is a person in the chair at the computer... How does the gun
+    // fire on its own?"; 12:20:29 at the fuel depot: "I shouldn't be able to get on the gun just by standing on top of
+    // it. I have to go to the computer"): a gun with a computer under it (a gun room's console or terminal, as
+    // Game.stationGunUse finds them) is worked from that computer only: its operator in the
+    // chair, or him at the console. A soldier beside it doesn't fire it, and nobody climbs on or takes its handles.
+    // (Looked for once, the first time asked: the gun room is built with the gun.)
+    func consoleGun(_ g: Game) -> Bool {
+        guard kind == .deckGun else { return false }
+        if consoleGunKnown >= 0 { return consoleGunKnown == 1 }
+        let w = g.world
+        let gx = Int(floor(pos.x)), gy = Int(floor(pos.y)), gz = Int(floor(pos.z))
+        guard w.chunkAt(gx, gz) != nil else { return false }
+        let console = Blocks.has("command_console") ? Blocks.groupBase[Int(Blocks.id("command_console"))] : AIR
+        let terminal = Blocks.has("greywall_terminal") ? Blocks.groupBase[Int(Blocks.id("greywall_terminal"))] : AIR
+        var found = false
+        scan: for y in stride(from: gy - 2, through: max(1, gy - 20), by: -1) { for z in (gz - 5)...(gz + 5) { for x in (gx - 5)...(gx + 5) {
+            let b = Blocks.groupBase[Int(w.materialAt(x, y, z))]
+            if b != AIR && (b == console || b == terminal) { found = true; break scan }
+        } } }
+        consoleGunKnown = found ? 1 : 0
+        return found
+    }
+
     func deckGunCrewed(_ g: Game) -> Bool {
         // (A Greywall base's tower guns are worked by any of its soldiers posted beside them: the tower's lookout.)
         let grey = factionValue == .greywall
+        let fromConsole = consoleGun(g)                                  // (P507: then only its operator)
         for m in g.mobs.mobs where m.health > 0 && Soldier.rank(m.kind) != nil {
             // P471: a gun room's operator in his chair works the gun over the room.
             if let b = m.brain, b.orderStation == .seated, let post = b.gunPost {
@@ -1183,9 +1316,13 @@ extension Mob {
                     && pos.y > post.y + 1 && pos.y < post.y + 20 { return true }
                 continue
             }
+            if fromConsole { continue }
             guard m.brain?.orderStation == .gunner || grey && m.factionValue == .greywall else { continue }
+            // P504 (Nov 1 07:35:25: "this gun wasn't firing anymore. So somehow someone on the second level of the tower
+            // was operating the gun, even though the console's on the first level"): only a man at the gun's own level
+            // works it (8 blocks up or down took in the floors under it).
             let d = V2(m.pos.x - pos.x, m.pos.z - pos.z)
-            if simd_length_squared(d) < 13 * 13 && abs(m.pos.y - pos.y) < 8 { return true }
+            if simd_length_squared(d) < (grey ? 7 * 7 : 13 * 13) && m.pos.y > pos.y - 2.5 && m.pos.y < pos.y + 3 { return true }
         }
         return false
     }
@@ -1282,6 +1419,18 @@ func soldierParts(_ m: Mob, swing: Float) -> [Part] { SoldierRig.build(m).parts 
 // flanks, roof periscope hoods, two 20 m barrels (L/48) 4.5 m apart through armoured gun ports, on a barbette
 // ring (the barbette itself is built in blocks under it). Origin: the barbette top centre; the guns face -Z.
 enum HeavyTurret {
+    // P508: a base gun's radar works: always at a citadel, at a Boreal Station while its dish stands (BorealBeacon).
+    static func radarUp(_ g: Game, _ m: Mob) -> Bool {
+        guard let c = BorealStation.siteNear(g, m.pos) else { return true }
+        return BorealBeacon.standing(g, cx: Int(c.x), cz: Int(c.y))
+    }
+    // P508: p is inside the walls of the base this gun stands in (a citadel, a Greywall site, a Boreal Station).
+    static func sameBase(_ g: Game, _ m: Mob, _ p: V3) -> Bool {
+        if let r = g.bases.records.values.first(where: { $0.inside(m.pos) }) { return r.inside(p) }
+        if let (_, st) = g.bases.greywall.sites.first(where: { Greywall.inside($0.value, m.pos, pad: 2) }) { return Greywall.inside(st, p) }
+        if let st = BorealStation.siteNear(g, m.pos) { return abs(p.x - st.x) < BorealStation.wallHalf && abs(p.z - st.y) < BorealStation.wallHalf }
+        return false
+    }
     static let trunnionY: Float = 3                 // gun trunnions above the barbette top (blocks)
     static let trunnionZ: Float = -6                // ... and ahead of the turret centre
     static let barrel: Float = 21                   // trunnion to muzzle
@@ -1290,6 +1439,10 @@ enum HeavyTurret {
     // P459 (Oct 25 16:19: "they're shooting over my head... They can't aim down far enough"; 16:51 "naval guns need to
     // be able to shoot down further"): -13 degrees, down onto the ground round the base (was -5).
     static let pitchMin: Float = -0.22, pitchMax: Float = 0.52     // -13 to +30 degrees
+    // P504 (Nov 1 07:28:15 and 07:58:10, walking up to a Greywall fortress: "They can't really aim that far down",
+    // "the naval guns still need to be able to shoot downwards more, way more. That way they can actually hit me when
+    // I'm walking up"): a gun high on a tower depresses to -50 degrees (the light and small mounts -57), crewed or his.
+    static func pitchLow(_ m: Mob) -> Float { scale(m) < 1 ? -1.0 : -0.87 }
     static let traverse: Float = 0.2                // radians per second
     static let reload: Float = 9
     static let range: Float = 220                   // once provoked
@@ -1390,6 +1543,9 @@ func deckGunLook(_ m: Mob) -> DeckGunLook {
     default: break
     }
     if m.variant == 0 { m.variant = 1 + Int(hashf(Int(floor(m.pos.x)), Int(floor(m.pos.z)), 7070, 0xDEC) * 2.999) }
+    // P504 (Nov 1 08:01:01, the Ash Vault: "the naval guns here look weird. I don't know if there's supposed to be a cover
+    // over this"): the Ashguard's guns are the closed turret, never the open casemate.
+    if m.factionValue == .ashguard { return (m.variant - 1) % 3 == 2 ? .monitor : DeckGunLook(rawValue: (m.variant - 1) % 3) ?? .turret }
     return DeckGunLook(rawValue: (m.variant - 1) % 3) ?? .turret
 }
 
@@ -1400,6 +1556,8 @@ func deckGunParts(_ m: Mob) -> [Part] {
     if look == .casemate { grey = V3(0.5, 0.52, 0.47); mid = V3(0.38, 0.4, 0.36) }      // (field drab)
     // P459 (Oct 25 16:36: "Make it so that the capital naval guns are white"): the Capital's guns in its white plate.
     if m.factionValue == .steelhold && look != .casemate { grey = V3(0.86, 0.87, 0.88); mid = V3(0.72, 0.73, 0.75); dark = V3(0.3, 0.31, 0.33); deck = V3(0.62, 0.63, 0.65) }
+    // P504 (Nov 1 08:01:08, the Ash Vault's guns: "they should be black, not naval gray"): the Ashguard's in black plate.
+    if m.factionValue == .ashguard { grey = V3(0.12, 0.12, 0.13); mid = V3(0.08, 0.08, 0.09); dark = V3(0.04, 0.04, 0.045); deck = V3(0.1, 0.1, 0.11) }
     // P102: a hurt gun's plate blackens (smoking, then burning: NavalGuns.state) and its right barrel droops.
     let hurt = NavalGuns.state(m)
     if hurt > 0 { let f: Float = hurt == 2 ? 0.5 : 0.78; grey *= f; mid *= f; deck *= f }
@@ -1634,7 +1792,6 @@ extension Mob {
         .stormwarden: ["Stormwarden Deckhand", "Stormwarden Boarder", "Stormwarden Gunner", "Stormwarden Breacher", "Stormwarden Mate", "Stormwarden Helmsman"],
         .greywall: ["Greywall Sentry", "Greywall Rifleman", "Greywall Marksman", "Greywall Heavy", "Greywall Officer", "Greywall Crewman"],
         .corsairs: ["Corsair Deckhand", "Corsair Cutthroat", "Corsair Sharpshot", "Corsair Brute", "Corsair Captain", "Corsair Helmsman"],
-        .ironback: ["Ironback Legionary", "Ironback Vanguard", "Ironback Sharpshooter", "Ironback Bulwark", "Ironback Centurion", "Ironback Driver"],
     ]
 
     func crewSetup() {

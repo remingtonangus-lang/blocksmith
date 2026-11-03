@@ -184,11 +184,12 @@ enum Potions {
 // MARK: Brewing stand block entity logic
 
 extension BlockEntity {
-    // Slots 0-2 bottles, 3 ingredient, 4 cinder powder. 20 s per brew; one powder = 20 brews.
+    // Slots 0-2 bottles, 3 ingredient, 4 Brimsalt (P508: hell's salt fuels every brew; it was cinder powder). 20 s per
+    // brew; one crystal = 20 brews.
     // Returns true when the bottle slots changed (for the block's bottle display).
     func tickBrewing() -> Bool {
         let c = container
-        if fuel <= 0, !c[4].isEmpty, Items.key(c[4].item) == "blaze_powder" {
+        if fuel <= 0, !c[4].isEmpty, Items.key(c[4].item) == HellWorks.brimsalt {
             fuel = 20
             var f = c[4]; f.count -= 1; c[4] = f
         }

@@ -40,7 +40,7 @@ enum Waymarks {
             out.append(Target(kind: "contract", key: key, name: "Contract: " + what, pos: v(a[0], a[1], py)))
         }
         out += outlaws(g, py)                                       // P474: notice-board outlaw jobs
-        if let (gg, _, _) = GangLeaders.wanted(g, from: IVec3(Int(g.player.pos.x), 0, Int(g.player.pos.z))), let p = leaderPos(g, gg) {
+        if let (gg, _, _) = GangLeaders.wanted(g, from: IVec3(Int(g.player.pos.x), 0, Int(g.player.pos.z)), ready: true), let p = leaderPos(g, gg) {
             out.append(Target(kind: "bounty", key: gg.leader, name: "Bounty: \(gg.leader) (\(Money.format(gg.bounty)))", pos: p))
         }
         // P474 (Oct 26 19:36-19:37, at a citadel: "So a helicopter here... No, there's no helicopter"; P333 and P437 the
@@ -90,7 +90,7 @@ enum Waymarks {
     static func leaderPos(_ g: Game, _ gg: GangLeaders.Gang) -> V3? {
         guard let sc = g.world.gen.structures else { return nil }
         let px = Int(g.player.pos.x), pz = Int(g.player.pos.z)
-        return sc.nearest("wild_camp", x: px, z: pz, maxRegions: 3, accept: { $0.kind == "camp_outlaws" && GangLeaders.gang(at: $0.anchor).leader == gg.leader })
+        return sc.nearestIfReady("wild_camp", x: px, z: pz, maxRegions: 3, accept: { $0.kind == "camp_outlaws" && GangLeaders.gang(at: $0.anchor).leader == gg.leader })
             .map { v($0.anchor.x, $0.anchor.z, Float($0.anchor.y)) }
     }
 
