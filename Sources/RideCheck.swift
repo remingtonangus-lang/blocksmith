@@ -884,8 +884,8 @@ enum RideCheck {
                     let crew = st.crewMobs.values.filter { $0.health > 0 }
                     let withFoe = crew.filter { $0.soldierBrain.foe != nil }.count, seeing = crew.filter { $0.soldierBrain.foe != nil && $0.soldierBrain.foeSees }.count
                     let near = crew.map { c in foes.map { simd_length($0.pos - c.pos) }.min() ?? -1 }.min() ?? -1
-                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off; lookouts found %ld, none for %ld", foes.map { "\($0.factionValue) at \(Int(simd_length($0.pos - s.pos))) health \(Int($0.health))" }.joined(separator: ", "),
-                                     crew.count, withFoe, seeing, near, CrewLookout.found, CrewLookout.failed)
+                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off; lookouts found %ld, none for %ld (%ld spots, %ld clear of the hull, %ld of the world, %ld with no way there; last: %@)", foes.map { "\($0.factionValue) at \(Int(simd_length($0.pos - s.pos))) health \(Int($0.health))" }.joined(separator: ", "),
+                                     crew.count, withFoe, seeing, near, CrewLookout.found, CrewLookout.failed, CrewLookout.spots, CrewLookout.hullClear, CrewLookout.worldClear, CrewLookout.noPath, CrewLookout.lastMiss)
                 }
                 for m in st.crewMobs.values where m.health > 0 {
                     let b = m.soldierBrain

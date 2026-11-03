@@ -511,7 +511,7 @@ extension Mob {
                 if crewFree, let s = deck {
                     lookoutT -= dt
                     if crewLookout && lookoutT < -12 { crewRoute.removeAll(); crewLookout = false }   // (stuck on the way)
-                    if crewRoute.isEmpty && !b.foeSees && lookoutT <= 0 {
+                    if crewRoute.isEmpty && !b.foeSees && lookoutT <= 0 && CrewLookout.ready {      // (one search a turn)
                         lookoutT = 3 + Rand.float(in: 0..<1)
                         if CrewLookout.walk(self, s, to: foe.point, g) { lookoutT = 0 }
                     }

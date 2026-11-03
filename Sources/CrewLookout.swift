@@ -9,6 +9,9 @@ import simd
 enum CrewLookout {
     static var nextSearch = 0.0                 // one search at a time across all crew (seconds, CFAbsoluteTime)
     static var found = 0, failed = 0            // (counters: ridecheck)
+    static var spots = 0, hullClear = 0, worldClear = 0, noPath = 0
+    static var lastMiss = ""                    // (ridecheck: the last search that found nothing, where it looked)
+    static var ready: Bool { CFAbsoluteTimeGetCurrent() >= nextSearch }
     private static let reach = 22               // how far along the deck a spot is looked for (blocks, each way)
 
     /// Sends `m` (aboard `s`) to a spot of the hull it can see `foe` from. True: it is on its way.
@@ -35,6 +38,7 @@ enum CrewLookout {
             }
         }
         cands.sort { $0.0 < $1.0 }
+        spots += cands.count
         // A spot sees the foe when the line from its eye leaves the hull without meeting a block, then meets nothing
         // in the world (the ground, other hulls) on the rest of the way.
         let eyeH = m.height * 0.9
@@ -55,7 +59,10 @@ enum CrewLookout {
                 if solid(ix, iy, iz) { clear = false; break }
                 t += 0.3
             }
-            guard clear, w.canSee(s.toWorld(e), foe) else { continue }
+            guard clear else { continue }
+            hullClear += 1
+            guard w.canSee(s.toWorld(e), foe) else { continue }
+            worldClear += 1
             tried += 1
             let goal = V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5)
             if c.x == fx && c.z == fz && abs(c.y - fy) <= 1 { m.crewRoute = [goal]; m.crewLookout = true; found += 1; return true }
@@ -66,13 +73,15 @@ enum CrewLookout {
             w.frame = s
             let path = PathFinder.find(w, from: l, to: goal, profile: pr, maxNodes: 700)
             w.frame = was
-            guard let p = path, let last = p.last, last.x == c.x, last.z == c.z, abs(last.y - c.y) <= 1 else { continue }
+            guard let p = path, let last = p.last, last.x == c.x, last.z == c.z, abs(last.y - c.y) <= 1 else { noPath += 1; continue }
             m.crewRoute = p.map { V3(Float($0.x) + 0.5, Float($0.y), Float($0.z) + 0.5) }
             m.crewLookout = true
             found += 1
             return true
         }
         failed += 1
+        lastMiss = String(format: "from %ld,%ld,%ld (grid %ldx%ldx%ld) to the foe at %.1f,%.1f,%.1f: %ld spots, %ld rays", fx, fy, fz, gr.sx, gr.sy, gr.sz,
+                          fl.x, fl.y, fl.z, cands.count, rays)
         return false
     }
 }
