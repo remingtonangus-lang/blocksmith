@@ -499,6 +499,8 @@ final class Mob {
     var crewPost: V3?               // capital crew: its post in the ship's frame, held while the vehicle runs
     var crewRoute: [V3] = []        // capital crew: ship-space waypoints it walks (troops leaving by the ramp)
     var crewFree = false            // crew of a disabled vehicle: fights where it likes aboard, never off a ledge
+    var crewLookout = false         // its crewRoute is a walk aboard to a spot it can see its foe from (CrewLookout)
+    var lookoutT: Float = 0         // seconds until it looks for such a spot again
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Rand.float(in: 0...5)
     var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
@@ -1357,7 +1359,7 @@ final class Mob {
                 // Off the hull's edge onto the world's ground is a ledge too for crew at their posts or fighting from
                 // aboard (T3 ridecheck: with the port wheels shot away a marksman stepped down off the deck onto the
                 // ground); only troops on their way out by the ramp step down onto the ground.
-                let floorBelow = crewRoute.isEmpty ? w.ships.overHull(s, a + V3(0, 0.05, 0), halfW: 0.2)
+                let floorBelow = crewRoute.isEmpty || crewLookout ? w.ships.overHull(s, a + V3(0, 0.05, 0), halfW: 0.2)
                     : w.collides(V3(a.x - 0.2, a.y - 3, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2))
                 if !floorBelow { lv.x = 0; lv.z = 0 }
             }
@@ -1450,7 +1452,7 @@ final class Mob {
             goal = crewRoute[0]
             if simd_length(V2(goal.x - l.x, goal.z - l.z)) < 0.6 {
                 crewRoute.removeFirst()
-                if crewRoute.isEmpty { faceGoal = nil; strafe = 0; return 0 }
+                if crewRoute.isEmpty { faceGoal = nil; strafe = 0; crewLookout = false; return 0 }
                 goal = crewRoute[0]
             }
         } else if crewFree {

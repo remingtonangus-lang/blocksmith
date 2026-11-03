@@ -503,7 +503,22 @@ extension Mob {
             aggro = true
             b.react -= dt
             face(foe.point)
-            if foe.mob != nil && (simd_length(foe.point - eye) > rank.sight * 0.9 || !b.foeSees) { return spec.speed * 0.85 }
+            if crewLookout && b.foeSees { crewRoute.removeAll(); crewLookout = false }      // (in sight on the way: fight here)
+            if foe.mob != nil && (simd_length(foe.point - eye) > rank.sight * 0.9 || !b.foeSees) {
+                // Crew firing from aboard: a disabled vehicle's crew walk the hull to a spot they can see the foe from
+                // (CrewLookout); one that finds none holds where it is (walking straight at it pressed it into the
+                // room's wall).
+                if crewFree, let s = deck {
+                    lookoutT -= dt
+                    if crewLookout && lookoutT < -12 { crewRoute.removeAll(); crewLookout = false }   // (stuck on the way)
+                    if crewRoute.isEmpty && !b.foeSees && lookoutT <= 0 {
+                        lookoutT = 3 + Rand.float(in: 0..<1)
+                        if CrewLookout.walk(self, s, to: foe.point, g) { lookoutT = 0 }
+                    }
+                    return crewRoute.isEmpty ? 0 : spec.speed
+                }
+                return spec.speed * 0.85
+            }
             let tp = foe.point - eye
             b.pitch += (max(-0.9, min(1.2, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
             MobManager.stage("before foe fire")
