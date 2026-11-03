@@ -612,7 +612,7 @@ enum Capital {
         // sponsons from the chassis), and a squad of troops in the bay who go out by the rear ramp.
         hb.post(0, 22, 29, .driver)
         for (x, y, z) in [(2, 22, 53), (-2, 22, 61), (2, 22, 33), (-9, 10, 15), (-9, 10, 68), (9, 10, 15), (9, 10, 68)] { hb.post(x, y, z, .gunner) }
-        for (x, y, z) in [(-5, 10, 40), (5, 10, 55), (-3, 10, 46), (3, 10, 34), (-5, 10, 52), (4, 10, 44), (0, 22, 36), (-3, 22, 48)] {
+        for (x, y, z) in [(-5, 10, 40), (5, 10, 55), (-3, 10, 46), (3, 10, 34), (-5, 10, 52), (4, 10, 44), (0, 22, 36), (-3, 22, 47)] {
             hb.post(x, y, z, .troop)
         }
         // P511 (Nov 2 08:49:46-08:49:49, in its bunk room: "The crew's not even this many. So you need to expand the crew"):
@@ -684,7 +684,7 @@ enum Capital {
         // The command deck. Clear: the aisles (x -5...-3 and 3...5) and the centreline forward of the first trunk, the
         // posts, the hatches (8, 30) and the ladder head (-7, 58).
         var keep = Set<IVec3>()
-        for (x, z) in [(2, 53), (-2, 61), (2, 33), (0, 36), (-3, 48), (0, 29), (-4, 26), (4, 26)] { for y in 22...23 { keep.insert(IVec3(x, y, z)) } }
+        for (x, z) in [(2, 53), (-2, 61), (2, 33), (0, 36), (-3, 47), (0, 29), (-4, 26), (4, 26)] { for y in 22...23 { keep.insert(IVec3(x, y, z)) } }
         for sx in [-1, 1] { for x in 5...7 { for z in 29...31 { for y in 22...23 { keep.insert(IVec3(sx * x, y, z)) } } } }
         for x in -7...(-5) { for z in 57...59 { for y in 22...24 { keep.insert(IVec3(x, y, z)) } } }
         func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {

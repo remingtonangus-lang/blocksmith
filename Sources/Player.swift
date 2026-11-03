@@ -473,7 +473,8 @@ final class Player {
         }
 
         // Ladders and vines: climb when pushing forward or jumping, hold with sneak, slow slide otherwise.
-        if !flying && (Player.climbable(feet) || Player.climbable(body)) {
+        let climbing = !flying && (Player.climbable(feet) || Player.climbable(body))
+        if climbing {
             if input.jump || (input.forward > 0.1 && (collides(at: pos + fh * 0.35, w))) { vel.y = 2.35 }
             else if input.sneak { vel.y = max(vel.y, 0) }
             else { vel.y = max(vel.y, -3) }
@@ -520,7 +521,10 @@ final class Player {
         }
         // P471 (Oct 26 19:53: "Still having trouble getting through doors sometimes"; P458, Oct 25: "Make it so my hitbox
         // is smaller than the door opening"): pushing into a doorway's frame, the body slides into line with the opening.
-        if !flying && Player.doorwayAssistOn && (hit.x || hit.z) && simd_length(wish) > 0.3 { doorwayAssist(wish, w, dt) }
+        // (Not on a ladder: pushing into its backing is climbing. The ridecheck board scene: the slide took the bot off the
+        // crawler's flank ladder sideways at 7 b/s into the gap beside its backing, under the chassis, or jerked him
+        // along the rungs, 30 deck-relative spikes up to 17 b/s while climbing.)
+        if !flying && !climbing && Player.doorwayAssistOn && (hit.x || hit.z) && simd_length(wish) > 0.3 { doorwayAssist(wish, w, dt) }
         // Climbing out of water: pushing into a wall while in water lifts you along it (reference: 0.3 blocks/tick
         // while there's room 0.6 higher), so a one-block bank is easy to get onto.
         if wetish && !flying && (hit.x || hit.z) && simd_length(wish) > 0.3 && !collides(at: pos + V3(0, 0.6, 0), w) {

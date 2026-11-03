@@ -74,7 +74,8 @@ enum RideCheck {
                 // solid part at z 37 and pressed into it the whole run. The lap goes down each aisle through both doors
                 // and crosses forward of the first bulkhead (z 35) and aft of the middle mount's racks (z 58).
                 deckScene(r, sc, deckY: 22, start: V3(14.0, 22.02, 46.5),
-                          lap: [V3(14.0, 22, 35.5), V3(21.0, 22, 35.5), V3(21.0, 22, 58.5), V3(14.0, 22, 58.5)], seconds: secs(240), turnEvery: 20)
+                          lap: [V3(14.0, 22, 35.5), V3(21.0, 22, 35.5), V3(21.0, 22, 58.5), V3(14.0, 22, 58.5)], seconds: secs(240), turnEvery: 20,
+                          doorZ: [37.5, 49.5])     // (the doors are three high: a jump through one bumps the lintel)
             case "frigate":
                 guard let sc = makeScene(device, seed: seed, kind: "capfrigate") else { r.check(false, "the frigate spawned"); continue }
                 // The Meridian frigate's gun deck, port side (P325: the gun's accelerator runs down the middle). (P510: the
@@ -314,7 +315,8 @@ enum RideCheck {
 
     // Stand 20 s, then cycles of 25 s walking laps (every other lap sprinting, a jump every 6 s) and 8 s standing,
     // while the vehicle drives S-turns (full turn one way, then the other, every `turnEvery` seconds).
-    static func deckScene(_ r: Report, _ sc: Scene, deckY: Float, start: V3, lap: [V3], seconds: Int, turnEvery: Int) {
+    // (`doorZ`: ship-space z of doorways on the lap, where the bot doesn't jump: its head meets the lintel and stops it)
+    static func deckScene(_ r: Report, _ sc: Scene, deckY: Float, start: V3, lap: [V3], seconds: Int, turnEvery: Int, doorZ: [Float] = []) {
         let s = sc.ship, st = sc.st, g = sc.game
         place(sc, local: start)
         st.testTurn = 1
@@ -334,7 +336,8 @@ enum RideCheck {
                 legs += 1
                 if wp == 0 { laps += 1 }
             }
-            let jump = Int(t * 60) % 360 == 0
+            let lz = s.toLocal(stt.pos).z
+            let jump = Int(t * 60) % 360 == 0 && !doorZ.contains { abs($0 - lz) < 2.5 }
             return walk(stt, to: s.toWorld(lap[wp]), sprint: laps % 2 == 1, jump: jump)
         }
         var standT: Float = 0
