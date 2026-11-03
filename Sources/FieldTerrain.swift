@@ -514,11 +514,18 @@ extension World {
         let reach = Int(ceil(r + 1.5))
         let cxI = Int(floor(ctr.x)), cyI = Int(floor(ctr.y)), czI = Int(floor(ctr.z))
         var touched: [(Chunk, Int)] = []
+        // (store review, callgrind of the rocket craters: a dictionary lookup per cell was a fifth of a blast's carve; the
+        // chunk is looked up when the row crosses into another)
+        var lkx = Int.min, lkz = Int.min
+        var lc: Chunk?
         for y in stride(from: max(0, cyI - reach), through: min(CH - 1, cyI + reach), by: 1) {
             for z in (czI - reach)...(czI + reach) {
                 for x in (cxI - reach)...(cxI + reach) {
-                    guard let c0 = chunkAt(x, z) else { continue }
-                    let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0          // P376 (a shell refilled; its cached meshes stale)
+                    if x >> 4 != lkx || z >> 4 != lkz {
+                        lkx = x >> 4; lkz = z >> 4
+                        lc = chunkAt(x, z).map { c0 in c0.hollow || !c0.cacheDropped ? editing(c0) : c0 }   // P376 (a shell refilled; its cached meshes stale)
+                    }
+                    guard let c = lc else { continue }
                     guard c.blocks.isField else { continue }
                     let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
                     let dist = simd_length(p - ctr)
