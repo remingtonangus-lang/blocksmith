@@ -3110,8 +3110,10 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             let saved = (game.player.pos, game.player.flying, game.time)
             let o = IVec3(Int(spawn.x) + 3000, ProvingGrounds.deckY, Int(spawn.z) + 3000)
             let b = ProvingGrounds.plan(o)
+            // (no game ticks after: the harness world has no save, and a tick's streaming would drop the far chunks'
+            // edits with them; in play the world's save keeps them)
+            game.player.pos = ProvingGrounds.start(o)
             while !b.done { b.run(game, budget: 1) }
-            for _ in 0..<40 { game.tick(0.05) }
             game.player.flying = true
             game.time = 0.27 * DAY_LENGTH
             let s0 = ProvingGrounds.start(o), f0 = o + ProvingGrounds.pad(0), boats = ProvingGrounds.park.rows[4]
