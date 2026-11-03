@@ -118,7 +118,12 @@ extension Game {
     func queueLeafDecay(around p: IVec3) {
         for dy in -6...6 { for dz in -6...6 { for dx in -6...6 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
-            if Game.leafKinds[Int(world.materialAt(q.x, q.y, q.z))] == 2 { leafQueue.insert(q, at: Rand.int(in: 0...leafQueue.count)) }
+            // (appended and swapped with a random place: an insert at a random place moved the whole queue each time,
+            // a felled canopy's 2,000 cells into a queue thousands long)
+            if Game.leafKinds[Int(world.materialAt(q.x, q.y, q.z))] == 2 {
+                leafQueue.append(q)
+                leafQueue.swapAt(Rand.int(in: 0...(leafQueue.count - 1)), leafQueue.count - 1)
+            }
         } } }
     }
 
