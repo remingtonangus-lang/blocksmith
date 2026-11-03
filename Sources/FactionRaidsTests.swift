@@ -23,7 +23,7 @@ enum FactionRaidsTests {
         let place = g.raidPlaces().first
         let n = g.startRaid(FactionRaids.angered() ?? .greywall, at: home, place: place?.1 ?? "?", sync: true)
         let drops = g.world.ships.list.filter { !ships0.contains(ObjectIdentifier($0)) && $0.role == "dropship" }.count
-        check(FactionRaids.angered() == .greywall && place?.1 == "your home" && n == 2 && drops == 2 && FactionRaids.active?.faction == .greywall,
+        check(FactionRaids.angered() == .greywall && place?.1 == "your home" && n == 1 && drops == 1 && FactionRaids.active?.faction == .greywall,
               "raids: an angered Greywall raids \(place?.1 ?? "-") with \(n) dropships (\(drops) in the air)")
 
         // A wall turret placed by the home fires on a Greywall raider in front of it.

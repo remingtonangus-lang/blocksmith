@@ -52,16 +52,25 @@ enum EncounterCheck {
         let ships0 = Set(w.ships.list.map { ObjectIdentifier($0) })
         g.factionRaidsTick()
         let raid = FactionRaids.active
+        for _ in 0..<30 { g.tick(1.0 / 30) }                       // (the dropship is built on a worker)
         let drops = w.ships.list.filter { !ships0.contains(ObjectIdentifier($0)) && $0.role == "dropship" }
         check(!early && wait >= 900 && wait <= 2400 && raid?.faction == .steelhold && raid?.place == "your home" && !drops.isEmpty,
               String(format: "encounters: a broken base's raid falls due %.0f min later (not before: %@), on his home (%@), %d dropship%@ inbound",
                      wait / 60, early ? "came early" : "held", raid?.place ?? "none", drops.count, drops.count == 1 ? "" : "s"))
         // Two minutes of play: the dropship lands, its troops come for him.
+        let beaten0 = FactionRaids.beaten
         var hurt = 0, nearHome = 0, foes = 0
         for t in 0..<(120 * 30) {
             g.tick(1.0 / 30)
             if g.health < 20 { hurt += 20 - g.health }
             g.health = 20; g.alive = true
+            if t % 300 == 0 {
+                let ds = w.ships.list.filter { $0.role == "dropship" && $0.parent == nil }
+                let sol = g.mobs.mobs.filter { $0.health > 0 && Soldier.rank($0.kind) != nil }
+                print(String(format: "encounters: t %3d s: %d dropship%@ %@, %d soldiers (%d of the raid's faction), raid %@", t / 30, ds.count, ds.count == 1 ? "" : "s",
+                             ds.map { String(format: "%.0f off phase %d troops %d", simd_length($0.pos - home), w.ships.capState[$0.id]?.phase ?? -1, w.ships.capState[$0.id]?.troopsLeft ?? -1) }.joined(separator: "; "),
+                             sol.count, sol.filter { $0.factionValue == .steelhold }.count, FactionRaids.active == nil ? "over" : "on"))
+            }
             if t % 30 == 0 {
                 let raiders = g.mobs.mobs.filter { $0.health > 0 && !$0.hired && $0.factionValue == .steelhold && Soldier.rank($0.kind) != nil }
                 nearHome = max(nearHome, raiders.filter { simd_length($0.pos - home) < 64 }.count)
@@ -70,13 +79,14 @@ enum EncounterCheck {
         }
         check(nearHome > 0 && (hurt > 0 || foes > 0),
               "encounters: the raid's troops get down by his home (\(nearHome) within 64 blocks) and fight him (\(foes) out for him, \(hurt) half-hearts taken)")
+        let early2 = FactionRaids.beaten - beaten0
         for m in g.mobs.mobs where m.factionValue == .steelhold { m.health = 0 }
         g.mobs.mobs.removeAll { $0.health <= 0 }
         let money0 = g.money
         g.clock += 61
         g.factionRaidsTick()
-        check(FactionRaids.active == nil && g.money == money0 + FactionRaids.salvage,
-              "encounters: with the raiders down the raid is beaten off (+\(Money.format(g.money - money0)) salvage)")
+        check(early2 == 0 && FactionRaids.active == nil && g.money == money0 + FactionRaids.salvage && FactionRaids.beaten - beaten0 == 1,
+              "encounters: the raid lasts while its troops are about (\(early2 == 0 ? "yes" : "beaten off with none landed")); with them down it is beaten off (+\(Money.format(g.money - money0)) salvage)")
         for s in w.ships.list where !ships0.contains(ObjectIdentifier(s)) { w.ships.remove(s) }
         FactionRaids.owed = [:]; FactionRaids.settled = []; FactionRaids.active = nil
     }
@@ -84,7 +94,9 @@ enum EncounterCheck {
     // Out on the open sea, on a raft of stone.
     static func seaHunts(_ g: Game, _ check: (Bool, String) -> Void) {
         let w = g.world, ships = w.ships
-        ships.encounters = false
+        // (the vessels' crews sail and fire in the encounter tick; nothing else spawns)
+        ships.encounters = true
+        ships.spawnEncounters = false
         let x = Int(floor(seaSpot.x)), z = Int(floor(seaSpot.z))
         g.player.pos = V3(Float(x) + 0.5, Float(SEA + 1), Float(z) + 0.5)
         _ = w.loadSync(center: g.player.pos, radius: 12)

@@ -29,6 +29,7 @@ enum VehicleGunners {
     static func seated(_ m: Mob) -> Bool { seats.contains { $0.mob === m } }
     static func riding(_ m: Mob) -> Bool { seats.contains { $0.mob === m && $0.rider } }
     static var riders = 0, stations = 0          // (harness: riders boarded, gunners sat at stations)
+    static var boardWait: Float = 0
 
     // A seated gunner where the turret holds them now (true), or not seated (false).
     @discardableResult
@@ -106,7 +107,9 @@ extension Game {
         let boardReach = VehicleGunners.board
         defer {
             // P512: the rest of his companions near it ride aboard.
-            let tryNow = Int(clock * 2) != Int((clock - Double(dt)) * 2)                 // (twice a second: a hull's cells scanned)
+            VehicleGunners.boardWait -= dt                                             // (twice a second: a hull's cells scanned)
+            let tryNow = VehicleGunners.boardWait <= 0
+            if tryNow { VehicleGunners.boardWait = 0.5 }
             for m in companions where tryNow && !VehicleGunners.seated(m) && ships.boundsDistance(v, m.pos) < boardReach {
                 let taken = VehicleGunners.seats.filter { $0.rider && $0.vehicle === v }.map { $0.local }
                 guard let spot = VehicleGunners.riderSpot(v, taken: taken) else { break }

@@ -319,7 +319,7 @@ extension Game {
         guard save?.dir.lastPathComponent == ProvingGrounds.worldName else { provingChecked = true; return }
         guard dim.dim == .overworld else { return }
         provingChecked = true
-        world.ships.encounters = false
+        world.ships.spawnEncounters = false                                 // (nothing sails in to shell the grounds)
         let o = ProvingGrounds.origin(spawn: findSpawn())
         _ = world.loadSync(center: V3(Float(o.x), Float(o.y), Float(o.z)), radius: 1)
         let first = ProvingGrounds.built(world, o) == false

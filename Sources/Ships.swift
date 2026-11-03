@@ -773,6 +773,7 @@ final class ShipManager {
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
     var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
     var encounters = true            // rare vessels spawn near their home regions (off in harness scenes)
+    var spawnEncounters = true       // P512: ... and spawn (off: the crews still sail and fire; the Proving Grounds, checks)
     var encounterTimer: Float = 0
     var spawnedRegions = Set<String>()   // regions whose vessel has already appeared
     let meshQueue = DispatchQueue(label: "blocksmith.shipmesh", qos: .userInitiated)

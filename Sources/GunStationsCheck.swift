@@ -17,7 +17,8 @@ enum GunStationsCheck {
             g.alive = true; g.player.pos = p0; g.player.vel = .zero
         }
         g.paused = false
-        ships.encounters = false
+        ships.encounters = true; ships.spawnEncounters = false
+        defer { ships.spawnEncounters = true }
         var frigate: Ship?
         for (k, kind) in ["frigate", "capfrigate", "crawler"].enumerated() {
             let n0 = ships.list.count

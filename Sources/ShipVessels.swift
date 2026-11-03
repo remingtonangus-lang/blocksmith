@@ -241,7 +241,7 @@ extension ShipManager {
     func encounterTick(_ dt: Float, game g: Game) {
         guard world.dim == .overworld else { return }
         encounterTimer -= dt
-        if encounterTimer <= 0 {
+        if encounterTimer <= 0 && spawnEncounters {
             encounterTimer = 5
             // Round every player (split screen: vessels and frigates appeared only where player 1 went).
             for seat in 0..<max(1, g.coop.seatCount) {
