@@ -114,6 +114,7 @@ final class QuestControls {
     private var lHoldAt: Double = -1
     private var rThrows = false                // (the right grip went down on a throwable thing, not a gun)
     private var lBraced = false                // (the left grip held round a braced gun's foregrip at some point)
+    private var lastBraceDir: V3?              // P510: the braced gun's line last frame (the brace follows it)
     private var gripOpenAt: [Double] = [-9, -9]  // when each hand was last open (grip under a quarter)
     private var prevRWorld: V3?
     private var velR = V3(0, 0, 0)
@@ -400,6 +401,7 @@ final class QuestControls {
         // hands (braceRot), as a real rifle does. The 3.2x model's foregrip sits up to a metre ahead (far = 1.05).
         game.vrTwoHanded = false
         let wasBraced = braceRot != nil
+        if !wasBraced { lastBraceDir = nil }
         braceRot = nil
         // P282 (b): mounted, the left hand is on the reins or the paddle: a long gun fires from the right hand alone.
         if let gi = game.heldGun, R.aimValid, L.aimValid, gi < CapitalArms.models.count, CapitalArms.models[gi].shouldered, !inMenu, !game.mountedOneHand {
@@ -410,8 +412,12 @@ final class QuestControls {
             var d: V3?
             if wasBraced && hold > 0.3 {
                 // (P504: the line between the hands less the offset the front hand closed at)
+                // P510 (Nov 1 20:18:19, "when I try to really angle the gun around a corner, it snaps back and loses my
+                // left hand"): held, the brace follows the line between the hands wherever it turns; it was dropped as
+                // soon as that line was more than 66 degrees off the rear hand's own ray (a wrist turned round a corner).
+                // Only a jump (the line flipping between two frames) or the hands too close or too far apart lets go.
                 let s2 = span - rq.act(braceOff), len = simd_length(s2)
-                if len > 0.08 && len < 1.3 && simd_dot(s2 / len, aimDir) > 0.4 { d = s2 / len }
+                if len > 0.08 && len < 1.3 && simd_dot(s2 / len, lastBraceDir ?? aimDir) > 0.5 { d = s2 / len }
             } else if VRTwoHand.braced(rear: aimOrigin, rearForward: aimDir, front: front, frontTrigger: hold, shouldered: true) != nil {
                 let perp = span - aimDir * simd_dot(span, aimDir)
                 braceOff = rq.inverse.act(perp)
@@ -425,6 +431,7 @@ final class QuestControls {
                 let y = simd_cross(-d, x)
                 braceRot = simd_quatf(float3x3(columns: (x, y, -d)))
                 aimDir = d; game.vrTwoHanded = true
+                lastBraceDir = d
                 if !wasBraced { app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.04, frequency: 160) }
             }
         }
@@ -474,7 +481,12 @@ final class QuestControls {
         }
         // Grips step the hotbar: left = previous slot, right = next (a press; at a ship's helm the left grip descends).
         let lGrip = gripBtn[0].down, rGrip = gripBtn[1].down
-        for i in 0..<2 where gripBtn[i].value < 0.25 { gripOpenAt[i] = game.clock }
+        // P511 (Nov 2 08:28:50 "There was a giant delay where I couldn't left grip", 08:33:15, 08:33:34 "That grip left thing,
+        // that's gotta be fixed"): a press counted only after the hand had opened under a quarter in the half second
+        // before it. A quick re-grip from a hand only eased off (the Touch grip springs back to about a third) was
+        // ignored until he opened his hand all the way. Under 0.4 is open: a hand still round a gun's grip after
+        // easing off stays well over it (VRButton lets go at 0.3 under the peak).
+        for i in 0..<2 where gripBtn[i].value < 0.4 { gripOpenAt[i] = game.clock }
         // P177: a grip with the hand on a small creature picks it up (let go to throw it); on a carcass, drags it
         // (HandGrab.swift). Those grips don't step the hotbar.
         var handGrab = false
@@ -628,8 +640,8 @@ final class QuestControls {
             // with anything or nothing in the hand. A grip held to hold a gun never steps. P371: a held, swung right grip
             // throws what isn't a gun.
             // (Only from an open hand: squeezing harder round a held gun after easing off reads as a new press.)
-            if lGrip && !prevGripL && game.clock - gripOpenAt[0] < 0.5 { lHoldAt = game.clock; lBraced = braceRot != nil }
-            if rGrip && !prevGripR && game.clock - gripOpenAt[1] < 0.5 { rHoldAt = game.clock; rThrows = !game.held.isEmpty && game.heldGun == nil && R.gripValid }
+            if lGrip && !prevGripL && game.clock - gripOpenAt[0] < 0.75 { lHoldAt = game.clock; lBraced = braceRot != nil }
+            if rGrip && !prevGripR && game.clock - gripOpenAt[1] < 0.75 { rHoldAt = game.clock; rThrows = !game.held.isEmpty && game.heldGun == nil && R.gripValid }
             if (lGrip && !prevGripL) || (rGrip && !prevGripR) { hudSolid = 4 }
         } else { lHoldAt = -1; rHoldAt = -1 }
         if lGrip && braceRot != nil { lBraced = true }
@@ -639,7 +651,11 @@ final class QuestControls {
         if lHoldAt >= 0 && !lGrip {
             let held = game.clock - lHoldAt
             lHoldAt = -1
-            if held < 0.35 && !lBraced && !inMenu && game.menu == nil {
+            // P510 (Nov 1 20:14:58 "can't left grip", 20:21:49 "Something stops me from gripping left when I have the gun...
+            // Especially when I have health shit"): with a long gun out, a left grip anywhere near the barrel braces it
+            // (P504's wide foregrip zone), and a braced grip never stepped the hotbar, so the left grip did nothing with
+            // a gun in hand. A tap (let go within 0.35 s) steps whatever it touched; a brace is a grip held longer.
+            if held < 0.35 && !inMenu && game.menu == nil {
                 game.select(game.selected - 1); app.input.haptic(moveHand, amplitude: 0.25, seconds: 0.02, frequency: 300)
             }
         }

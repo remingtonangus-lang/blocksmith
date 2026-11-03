@@ -288,11 +288,14 @@ extension ShipManager {
             if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
         shells = keep
+        TickProf.mark("shells: flight")
         for (p, power, owner, onHull, kind, gentle, vel) in blasts {
             if kind == 3, let g = game {
                 let hit = onHull ? list.first(where: { $0.root.id != owner && shipBlock(in: $0, at: p) }) : nil
                 mainGunImpact(at: p, owner: owner, game: g, along: vel)
+                TickProf.mark("shells: main gun impact")
                 mainGunHullDamage(at: p, owner: owner, direct: hit, game: g)
+                TickProf.mark("shells: main gun hull")
                 continue
             }
             if let g = game {
@@ -310,15 +313,18 @@ extension ShipManager {
                 if kind == 5 { g.depthChargeBurst(at: p, power: power, owner: owner) }     // P278: boom, plume, pressure wave
                 // P499: a rail slug drives on through what it struck and bursts where it stops.
                 let at = kind == 1 && !onHull && !gentle ? railBore(from: p, along: vel, game: g) : p
+                TickProf.mark("shells: bursts")
                 // P507 (Nov 1 12:27:33, his frigate's autocannons on a Capital tower: "Frigate's little guns didn't do enough
                 // damage to this building"): shells from a gun he steers are high-explosive and breach as his rockets do
                 // (a wall's blocks stand to them as if no harder than Guns.rocketBreach; a Capital Steel wall's 12 broke none).
                 Explosion.explode(at: at, power: power, game: g, breakBlocks: !gentle, resistCap: steered ? Guns.rocketBreach : .infinity,
                                   along: onHull ? nil : vel)   // (P357 e)
+                TickProf.mark("shells: explode")
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).
                 if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
+                TickProf.mark("shells: hull blast")
             } else if !gentle { blast(at: p, power: power, game: nil) }
         }
     }
@@ -336,12 +342,11 @@ extension ShipManager {
 
     // P499: a rail slug's path on through the blocks it struck: a bore about a block and a half across, through up to
     // ShipManager.railReach blocks (a block of resistance over 1,200, bedrock or a citadel's armour, stops it; the
-    // Capital's own guns leave its citadels whole, as their shells do). Returns where it stops, to burst there.
+    // P510: the Capital's own guns bore their citadels too). Returns where it stops, to burst there.
     func railBore(from p: V3, along vel: V3, game g: Game) -> V3 {
         guard simd_length(vel) > 1e-3 else { return p }
         let d = simd_normalize(vel)
         let w = g.world
-        if g.bases.quiet && g.bases.inAnyBase(p) { return p }
         var end = p, last = IVec3(Int.min, 0, 0)
         var t: Float = 0
         while t < Float(ShipManager.railReach) {
@@ -369,7 +374,7 @@ extension ShipManager {
     // and heavy gun shells (Armory) flew straight through hulls.
     func segmentHit(_ o: V3, _ d: V3, _ len: Float, except: Int) -> (Float, Ship)? {
         let lo = simd_min(o, o + d * len), hi = simd_max(o, o + d * len)
-        for s in list where s.root.id != except && hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
+        for s in list where s.root.id != except && s.root.trainCar == nil && hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
             && lo.y < s.worldMax.y && hi.z > s.worldMin.z && lo.z < s.worldMax.z {
             let n = max(1, Int(ceil(len / 0.4)))
             for i in 0...n {
@@ -419,9 +424,10 @@ extension ShipManager {
     // like in the world; blocks they get through are destroyed (dropping with chance 1/power); the hull is pushed.
     func blast(at c: V3, power: Float, game: Game?, resistCap: Float = .infinity) {
         let reach = power * 2 + 1
-        for s in list where c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
+        for s in list where s.root.trainCar == nil && c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
             && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach {
             let lc = s.toLocal(c)
+            defer { if s.kinematic && s.parent == nil { wheelBlast(s, lc, power: power) } }     // P511: big wheels wear (after the blast's own cells)
             let g = s.grid
             var destroyed = Set<IVec3>()
             var shaken: [IVec3: Float] = [:]                // cells that stopped a ray: share of their cost it carried
@@ -544,7 +550,7 @@ extension ShipManager {
 
     func tear(at c: V3, radius: Float, except: Int, game: Game?) -> Int {
         var total = 0
-        for s in list where s.root.id != except && c.x > s.worldMin.x - radius && c.x < s.worldMax.x + radius && c.y > s.worldMin.y - radius
+        for s in list where s.root.id != except && s.root.trainCar == nil && c.x > s.worldMin.x - radius && c.x < s.worldMax.x + radius && c.y > s.worldMin.y - radius
             && c.y < s.worldMax.y + radius && c.z > s.worldMin.z - radius && c.z < s.worldMax.z + radius {
             let lc = s.toLocal(c)
             let ri = Int(ceilf(radius))

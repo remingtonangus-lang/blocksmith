@@ -339,8 +339,12 @@ extension ShipManager {
     // crew's business; the guns won't shell their own deck).
     func gunsEngage(_ s: Ship, _ g: Game) -> Bool {
         let pp = g.player.pos + V3(0, 1, 0)
-        guard g.alive && g.survival && g.difficulty > 0 && !Reckoning.won && simd_length(pp - s.pos) < (s.role == "frigate" ? 64 : 80) else { return false }   // (P98: at peace)
-        if s.role == NavalPatrol.role && FactionRep.of(.meridian) >= 0 { return false }      // P243: a navy, not pirates
+        // P508: a sea hunter (SeaHunt.swift) has come for him: the cruiser out to 160 blocks; only the water hides him.
+        let hunter = SeaHunt.isHunter(s)
+        guard g.alive && g.survival && g.difficulty > 0 && !Reckoning.won
+            && simd_length(pp - s.pos) < (s.role == "frigate" ? 64 : (SeaHunt.cruiser(s) ? SeaHunt.reach : 80)) else { return false }   // (P98: at peace)
+        if hunter && SeaHunt.under(g) { return false }
+        if !hunter && s.role == NavalPatrol.role && FactionRep.of(.meridian) >= 0 { return false }      // P243: a navy, not pirates
         if aboard?.root === s || standing(on: g.player.pos)?.root === s { return false }
         return true
     }
@@ -385,7 +389,7 @@ extension ShipManager {
             let f = s.dirToWorld(s.fwd)
             let fh = simd_normalize(V2(f.x, f.z) + V2(1e-5, 0))
             // Circle the home point (steer toward a point ahead on the circle).
-            let r: Float = s.role == "frigate" ? 70 : (s.role == "sloop" ? 12 : (s.role == NavalPatrol.role ? 140 : 30))
+            let r: Float = SeaHunt.isHunter(s) ? 45 : (s.role == "frigate" ? 70 : (s.role == "sloop" ? 12 : (s.role == NavalPatrol.role ? 140 : 30)))
             let dist = simd_length(toHome)
             let tangent = V2(-toHome.y, toHome.x) / max(1, dist)
             let pull: Float = (dist - r) / (r * max(1, dist))
@@ -423,7 +427,7 @@ extension ShipManager {
             s.fireTimer -= dt
             if seen {
                 let volley = s.fireTimer <= 0
-                if volley { s.fireTimer = s.role == "frigate" ? 3.5 : 6 }
+                if volley { s.fireTimer = s.role == "frigate" ? 3.5 : (SeaHunt.cruiser(s) ? 2 : 6) }     // (P508: the cruiser is vicious)
                 for t in turrets(of: s) {
                     let muzzle = t.toWorld(t.pivot)
                     let d = pp - muzzle

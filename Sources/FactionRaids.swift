@@ -48,6 +48,9 @@ enum FactionRaids {
     // (`settled`), and an owed raid comes 15-40 minutes later, the next time you are home.
     static var owed: [String: (faction: Int, due: Double)] = [:]
     static var settled: Set<String> = []
+    // P508 (Nov 1 16:08:46-54: "after you destroy a base... a one quarter of a chance that some attack party shows up to
+    // your house... per base you destroy"): a base cleared, taken or broken is owed back one time in four (was eight).
+    static let baseChance: Float = 0.25
     static func owe(_ key: String, _ f: Faction, chance: Float, clock: Double) {
         guard !settled.contains(key) else { return }
         settled.insert(key)
@@ -93,7 +96,7 @@ extension Game {
             out.append((V3(Float(m.x), y, Float(m.z)), "your camp"))
         }
         let px = Int(player.pos.x), pz = Int(player.pos.z)
-        if let s = world.gen.structures?.nearest("village", x: px, z: pz, maxRegions: 1),
+        if let s = world.gen.structures?.nearestIfReady("village", x: px, z: pz, maxRegions: 1),       // (asked every second)
            simd_length(V2(Float(s.anchor.x - px), Float(s.anchor.z - pz))) < 100 {
             out.append((V3(Float(s.anchor.x), player.pos.y, Float(s.anchor.z)), Townsfolk.townName(s.anchor.x, s.anchor.z, seed: world.seed)))
         }

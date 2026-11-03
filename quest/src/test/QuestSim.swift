@@ -295,8 +295,16 @@ enum QuestSim {
         let pm = PauseMenu(game: game)
         game.openMenu(pm)
         game.paused = true
-        check(pm.rows.contains { $0.1 == "host:vr" } && !pm.rows.contains { $0.1 == "photo" },
-              "VR options: the pause menu lists \(PauseMenu.hostEntry?.0 ?? "-") (and no Photo Mode)")
+        // P510: VR Comfort & Controls is the Options' second page (after Video), not a pause row of its own.
+        pm.act("options", back: false)
+        let pages = PauseMenu.shownCats.map { PauseMenu.catName($0) }
+        pm.switchTab(1)
+        check(!pm.rows.isEmpty && pm.page == .options && pm.cat == .host && pm.title == "Options: VR Comfort & Controls" && pm.rows.contains { $0.1 == "q_snap" || $0.1 == "q_tspeed" }
+              && !pm.rows.contains { $0.1 == "photo" } && pages.count >= 2 && pages[1] == "VR Comfort & Controls",
+              "VR options: the Options' pages \(pages.joined(separator: ", ")); next to Video, \(pm.title) (\(pm.rows.count) rows)")
+        pm.act("back", back: false)
+        check(!pm.rows.contains { $0.1.hasPrefix("host:") || $0.1 == "photo" } && pm.rows.contains { $0.1 == "options" },
+              "VR options: the pause menu has Options and no row of its own for VR Comfort (and no Photo Mode)")
         // The right stick scrolls a list longer than the panel (the main page's rows fit it now: the VR page).
         pm.act("host:vr", back: false)
         frames(30) { _ in idleHands(); sim.hands[1].stick = V2(0, -1) }
@@ -309,7 +317,7 @@ enum QuestSim {
         pm.act("host:vr", back: false)
         let snap0 = QuestSettings.snapAngle
         pm.act("q_snap", back: false)
-        check(pm.title == "VR Comfort & Controls" && QuestSettings.snapAngle == 60 && pm.rows.contains { $0.0.hasPrefix("Snap Angle: 60") },
+        check(pm.title == "Options: VR Comfort & Controls" && QuestSettings.snapAngle == 60 && pm.rows.contains { $0.0.hasPrefix("Snap Angle: 60") },
               "VR options: Snap Angle \(QuestOptions.angle(snap0)) -> \(QuestOptions.angle(QuestSettings.snapAngle)) (page \(pm.title))")
         pm.act("back", back: false)
         game.closeMenu(); game.paused = false

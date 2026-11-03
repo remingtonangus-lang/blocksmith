@@ -140,6 +140,13 @@ extension Game {
             fwd = s.dirToWorld(V3(0, 0, -1)); back = thirdPersonDistance
         } else if let m = riding, m.kind == .boat {
             fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw)); back = 6
+        } else if let m = riding, Trains.isCar(m), let (tr, _) = Trains.carOf[ObjectIdentifier(m)] {
+            // P510 (Nov 1 20:38, riding a train's coach: "Should be third person. Not first person 'cause then I can't
+            // see shit"): out behind and over the train, facing the way it runs, whichever car he sits in.
+            let s0 = tr.layout.isEmpty ? m.pos : tr.track.point(tr.lastS)
+            let s1 = tr.layout.isEmpty ? m.pos + m.forward : tr.track.point(tr.lastS + tr.dir * 2)
+            fwd = simd_length(V2(s1.x - s0.x, s1.z - s0.z)) > 0.05 ? s1 - s0 : m.forward
+            back = tr.layout.isEmpty ? 8 : 14
         } else if let m = AshSeat.shared.vehicle {
             // P449 (Oct 25 09:04-09:05: the half-track "as if I'm walking with a half track on top of me... it should be
             // a third-person view"; the truck "I spawn inside of it and can't see where I'm going. Easy solution, make it
@@ -346,7 +353,11 @@ extension Game {
             // P461 (Oct 25 16:42, taking his landed dropship from the ground beside it: "shouldn't have been able to mount it
             // like this"): a dropship's helm is taken from inside its hull (up the ramp) or at the helm itself; the 9-block
             // reach and the 3 blocks round the hull let him in through its plating from the ground anywhere near it.
-            if s.role == "dropship" {
+            // P508: a frigate's own guns flown by him reload in under a second, as machine guns held on the trigger.
+        if s.role == "frigate" || s.role == "capfrigate" {
+            for t in ships.turrets(of: s) where !t.cannons.isEmpty { t.reloadTime = min(t.reloadTime, Capital.frigateHeldReload) }
+        }
+        if s.role == "dropship" {
                 let inHull = ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.3 && p.y > s.worldMin.y + 0.4
                 if (inHull && d < 9 || d < 2) && d < bd { best = s; bd = d }
                 continue
@@ -392,6 +403,10 @@ extension Game {
         // P435 (Oct 24 15:41-15:43, "gun on the drop ship doesn't do enough damage", "doesn't do damage to buildings so
         // much... I wanna do way more damage to buildings"): flown by him, a dropship's autocannon fires as long as the
         // trigger is held, quicker, with heavier high-explosive rounds that blow holes in walls.
+        // P508: a frigate's own guns flown by him reload in under a second, as machine guns held on the trigger.
+        if s.role == "frigate" || s.role == "capfrigate" {
+            for t in ships.turrets(of: s) where !t.cannons.isEmpty { t.reloadTime = min(t.reloadTime, Capital.frigateHeldReload) }
+        }
         if s.role == "dropship" {
             for t in ships.turrets(of: s) where !t.cannons.isEmpty {
                 t.gunPower = Capital.autoHeld.power; t.reloadTime = Capital.autoHeld.reload
@@ -517,18 +532,24 @@ extension Game {
             // P472 (Oct 26 19:47 at a taken frigate's helm: "Where are my guns firing?... They have the main gun, yeah,
             // but the little guns on the frigate are not firing"): the press that charges the Tidebreaker fires the
             // point-defence guns too (it took the press whole, and with the gun loaded again every 22 s they hardly spoke).
-            let charged = breakNow && ships.playerMainGun(s, game: self)
+            // P508 (Nov 1 16:02:11-16:02:31 at a Meridian frigate's helm: "Frigates' little guns need to fire faster... like
+            // machine guns where I can just hold the trigger. And then as for the tiebreaker gun... it needs to be separate...
+            // I have to hit both triggers at the same time to fire the tiebreaker"): on a hull with a Tidebreaker the big gun
+            // charges when both triggers are down (the second one pressed), and either trigger held alone works the guns.
+            let tideHull = ships.gunState(s) != nil
+            let both = (breakNow && useHeld) || (useNow && breakHeld)
+            let charged = (tideHull ? both : breakNow) && ships.playerMainGun(s, game: self)
             if charged { swing = 1 }
             if breakNow && ships.playerRail(s, pitch: pilotGunPitch(s), game: self) { swing = 1 }     // P455 (and the turrets)
-            if useNow && dropFromRacks(s) { swing = 1; return true }    // P278: the racks let go (DepthCharges.swift)
+            if useNow && !both && dropFromRacks(s) { swing = 1; return true }    // P278: the racks let go (DepthCharges.swift)
             // P483 (Oct 28 17:36, "Should be a reticle to show where the big gun's pointed... Also probably some separate
             // controls for the smaller guns"): at the helm of a ship with a Tidebreaker, attack is the big gun and use
             // (held) the guns laid on the sight, firing as each reloads; attack fires them only while the big gun can't.
-            let tide = ships.gunState(s) != nil
+            let tide = tideHull
             // P507 (Nov 1 12:09:20-12:09:32 at a crawler's helm: "we need to increase the rate of fire... they should be
             // semiautomatic, but I should be able to hold down the trigger and they will fire when they load
             // automatically"): held, the trigger fires every gun of his as it reloads, on any hull.
-            let small = tide ? useHeld || breakNow && !charged : breakNow || breakHeld
+            let small = tide ? (useHeld || breakHeld) && !both && !charged : breakNow || breakHeld
             // P93: in survival the guns use cannonballs from the pack, one a gun.
             if small {                                                   // (P435: the autocannon fires while held)
                 let guns = ([s] + ships.turrets(of: s)).filter { $0.reload <= 0 }.reduce(0) { $0 + $1.cannons.count }

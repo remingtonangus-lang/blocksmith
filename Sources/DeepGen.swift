@@ -45,7 +45,7 @@ final class DeepGen: TerrainGenerator {
         matN = Noise(seed: seed &+ 205)
         let vg = VaultGround(seed: seed, s32: s)
         ground = vg
-        structures = StructureCache(seed: seed, types: [Fortress.deepType, BrimstoneKeep.type(worldSeed: seed, guardSet: keepGuard), Bastion.deepType(worldSeed: seed, guardSet: keepGuard)] + AshWar.types + [AshFront.sceneType(vg)],
+        structures = StructureCache(seed: seed, types: [Fortress.deepType, BrimstoneKeep.type(worldSeed: seed, guardSet: keepGuard), Bastion.deepType(worldSeed: seed, guardSet: keepGuard), HellWorks.type(worldSeed: seed, base: DeepGen.hellBase, deep: true, guardSet: keepGuard)] + AshWar.types + [AshFront.sceneType(vg)],
                                     fixed: AshWar.starts(seed: seed, guardSet: vaultGuard))
     }
 

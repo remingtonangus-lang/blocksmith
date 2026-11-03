@@ -190,6 +190,7 @@ extension MobManager {
     // Despawn rules for one mob (true = remove). `d` is the distance to the nearest player (3D).
     func shouldDespawn(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
         let c = m.kind.category
+        if m.routed && m.fledClear { return true }       // P511: a broken garrison's soldier, clear of him (Rout)
         guard c.despawns, !m.persistent, !m.waveUnit, m.customName == nil, !m.leashed, !m.raider, m.mount == nil, game.riding !== m else { return false }
         if d > c.farDistance { return true }
         if m.patrolling { return false }                  // patrols only vanish beyond 128 blocks (reference)

@@ -573,6 +573,14 @@ enum PlaytestOct12PMTests {
         }
         let shut = (0...1).allSatisfy { Int(w.block(c.x + $0, c.y, c.z) - door) & 4 == 0 }
         check(results == [true, true] && shut, "P128 double door: the middle 0.9 blocks clear once open (left first \(results[0]), right first \(results[1])); both close again \(shut)")
+        // P508: one use swings both leaves, and the next shuts both.
+        g.openBlock(IVec3(c.x + 1, c.y + 1, c.z))
+        let seam = Float(c.x + 1)
+        let both = (0...1).allSatisfy { Int(w.block(c.x + $0, c.y, c.z) - door) & 4 != 0 }
+            && !w.collides(V3(seam - 0.45, Float(c.y), Float(c.z) - 0.5), V3(seam + 0.45, Float(c.y) + 1.8, Float(c.z) + 1.5))
+        g.openBlock(IVec3(c.x, c.y, c.z))
+        let shutBoth = (0...1).allSatisfy { Int(w.block(c.x + $0, c.y, c.z) - door) & 4 == 0 && Int(w.block(c.x + $0, c.y + 1, c.z) - door) & 4 == 0 }
+        check(both && shutBoth, "P508 double door: one use opens both leaves with the middle clear (\(both)), the next shuts both (\(shutBoth))")
     }
 
     // P129: the crafting book doesn't craft by accident: a grip / right click on a tile only selects it, a click in the
@@ -994,6 +1002,7 @@ enum PlaytestOct12PMTests {
         g.inventory.main[1] = ItemStack(Items.id("iron_sword"), 1)
         g.inventory.main[2] = ItemStack(Items.id("iron_ingot"), 64)
         g.inventory.main[3] = ItemStack(Items.id("flint"), 64)
+        g.inventory.main[4] = ItemStack(Items.id(TechSalvage.key), 64)        // (P508: the levels' place)
         // Without the blueprint the bench refuses; reading one learns it; then it fits.
         let refused = Upgrades.fit(g, g.inventory.main, 1, .sharpness)
         g.inventory.selected = 0

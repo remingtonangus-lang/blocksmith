@@ -88,8 +88,8 @@ final class ShipDraw {
             if s.mesh.released || !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
             let f = fog(s, u)
             let m = model(s, eye: eye)
-            let perSection = s.mesh.sections.count > 48
-            let outside = perSection && !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
+            let perSection = s.mesh.sections.count > 4                  // (P510: a crawler's dozens of sections culled too)
+            let outside = !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
             for (k, full) in s.mesh.sections {
                 let sec = outside ? s.mesh.outerSecs[k] ?? full : full
                 if perSection && !ShipDraw.sectionVisible(s, sec, frustum) { continue }
@@ -206,8 +206,8 @@ final class ShipDraw {
         for s in ships.list where !s.hidden && frustum.visible(min: s.worldMin, max: s.worldMax) {
             let m = model(s, eye: eye)
             let f = fog(s, u)
-            let perSection = s.mesh.sections.count > 48
-            let outside = perSection && !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
+            let perSection = s.mesh.sections.count > 4                  // (P510: a crawler's dozens of sections culled too)
+            let outside = !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
             for (k, full) in s.mesh.sections {
                 let sec = outside ? s.mesh.outerSecs[k] ?? full : full
                 guard let buf = sec.trans, sec.transQuads > 0 else { continue }

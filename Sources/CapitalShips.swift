@@ -23,6 +23,35 @@ enum Faction: Int {
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
+// P508: a dropship's lift, judged twice a second from its hull (CapitalShips.commandeeredTick).
+enum DropLift {
+    static var seen: [Int: (at: Double, lame: Bool)] = [:]
+    static var told: Set<Int> = []
+    static var base: [Int: (Int, Int)] = [:]
+    static func lame(_ s: Ship, _ g: Game) -> Bool {
+        if let k = seen[s.id], g.clock - k.at < 0.5 { return k.lame }
+        var l = 0, r = 0
+        let gr = s.grid, mid = Float(gr.sx) * 0.5
+        for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx where gr.get(x, y, z) != AIR {
+            if Float(x) + 0.5 < mid { l += 1 } else { r += 1 }
+        } } }
+        // (each side against itself as built, where it was seen whole: the hull needn't sit square in its grid)
+        if base[s.id] == nil && s.initialBlocks > 0 && s.blockCount * 20 >= s.initialBlocks * 19 { base[s.id] = (max(1, l), max(1, r)) }
+        let (l0, r0) = base[s.id] ?? (max(1, max(l, r)), max(1, max(l, r)))
+        let fl = Float(l) / Float(l0), fr = Float(r) / Float(r0)
+        let lopsided = l + r > 60 && min(fl, fr) < max(fl, fr) * 0.67
+        let torn = s.initialBlocks > 0 && s.blockCount * 10 < s.initialBlocks * 6
+        let lame = lopsided || torn
+        seen[s.id] = (g.clock, lame)
+        if lame && !told.contains(s.id) && g.world.ships.pilot === s {
+            told.insert(s.id)
+            g.onToast?("The \(s.name) is losing lift")
+            g.sfx(.explode, 0.6, at: s.pos)
+        }
+        return lame
+    }
+}
+
 final class CapitalState {
     // P476 (Oct 27, "these four giant things are engines... thruster blocks back here. The engines connect to the
     // thruster blocks and somehow are what drives the frigate... if it doesn't have enough thrust, it doesn't get off
@@ -30,6 +59,10 @@ final class CapitalState {
     // the hull's block count as built (her load).
     var thrustCells: [IVec3] = []
     var thrustLive = 0
+    // P508 (Nov 1 16:04:40, in the Meridian's engine room: "this little reactor you have in here, if anything hits that,
+    // ship's dead"): the reactor core's cells as built and how many are left (Capital.countThrust).
+    var reactorCells: [IVec3] = []
+    var reactorLive = 0
     var thrustT: Float = 0
     var blocks0 = 0
     // P476: the hull as built (HullBuilder blocks, the root grid's layout) for repairs, drawn up off the frame once she
@@ -95,6 +128,9 @@ final class CapitalState {
     var groundMax: Float = 0           // highest terrain under and ahead of a frigate (sampled twice a second)
     var isles: [(c: V2, top: Float, r: Float)]? = nil   // T11: sky isles near a frigate's home (found once)
     var crushTimer: Float = 0
+    var crushNextZ: Float?             // store review: a pass under way left part done (crawlerCrush), its next row
+    var crushEndZ: Float = 0           // (the pass's last row: the stern on a whole sweep, the bow rows on a straight run)
+    var crushFullYaw: Float = 0, crushFullAt = -1.0     // (heading and clock of the last whole sweep)
     var crushedAll = false
     var sinkSpeed: Float = 0
     var wreckFx: Float = 0
@@ -114,6 +150,7 @@ final class CapitalState {
     var testSpeed: Float?              // harness (--ridecheck): this speed instead of the AI's (with testTurn)
     var rampDown = true                // crawler: the rear ramp is lowered (built so)
     var rampTimer: Float = 0           // seconds the crawler has wanted the ramp the other way
+    var rutCarved: [Int: V3] = [:]     // P511: crawler: where each wheel last cut its track (world space)
     var ground: V3?                    // crawler: smoothed ground under it (height, pitch, roll)
     var grind: Float = -1              // disabled crawler: forward speed while it grinds to a stop (-1 not yet)
     var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
@@ -160,7 +197,9 @@ struct VehicleWheel {
     var n0: Int
     var n: Int
     var orig: [BlockID] = []   // the part's cells as built (T9: a repair puts the missing ones back)
-    var lost: Bool { n * 2 < n0 }
+    var wear: Float = 0        // P511: blast damage taken as one part (ShipManager.wheelBlast)
+    var burst = false          // worn through: lost however many of its blocks still stand
+    var lost: Bool { n * 2 < n0 || burst }
 }
 
 struct CapTarget {
@@ -309,6 +348,7 @@ enum Capital {
     static let heavy = GunSpec2(speed: 110, power: 4, reload: 4.5, pitchMin: -0.45, pitchMax: 0.7)     // (P455: "can't shoot down far enough")
     static let auto = GunSpec2(speed: 140, power: 1.8, reload: 1.2, pitchMin: -0.6, pitchMax: 1.0, scatter: 0.025)
     // P435: the same gun flown by him (ShipPlay.startPiloting): a quicker, heavier high-explosive round.
+    static let frigateHeldReload: Float = 0.7      // P508: a frigate's guns at his helm (ShipPlay.startPiloting)
     static let autoHeld = GunSpec2(speed: 170, power: 3.4, reload: 0.4, pitchMin: -0.4, pitchMax: 1.0, scatter: 0.012)
 
     // MARK: Stormwarden Frigate (bow toward -Z at z 0, keel at y 0, centreline x 0)
@@ -566,11 +606,19 @@ enum Capital {
             hb.set(sx * 9, 21, 30, Capital.id(sx > 0 ? "steel_plating_stairs[west]" : "steel_plating_stairs[east]", panel))
         }
         for (c, b) in crawlerRamp(down: true) { hb.set(c.x, c.y, c.z, b) }
+        crawlerDense(hb, chassis: chassis, upper: superstructure, inside: inside)     // (P511: first: its fittings take their places)
+        crawlerRooms(hb, chassis: chassis)
         // Crew: a driver at the helm, a gunner for each turret (two heavies served from the command deck, four
         // sponsons from the chassis), and a squad of troops in the bay who go out by the rear ramp.
         hb.post(0, 22, 29, .driver)
         for (x, y, z) in [(2, 22, 53), (-2, 22, 61), (2, 22, 33), (-9, 10, 15), (-9, 10, 68), (9, 10, 15), (9, 10, 68)] { hb.post(x, y, z, .gunner) }
         for (x, y, z) in [(-5, 10, 40), (5, 10, 55), (-3, 10, 46), (3, 10, 34), (-5, 10, 52), (4, 10, 44), (0, 22, 36), (-3, 22, 48)] {
+            hb.post(x, y, z, .troop)
+        }
+        // P511 (Nov 2 08:49:46-08:49:49, in its bunk room: "The crew's not even this many. So you need to expand the crew"):
+        // the upper deck's own hands, one for each bed left over (22 beds, 16 posts): the radio room, the bunks, the mess,
+        // the workshop and the sick bay. They stay aboard (the troops sent out are the lower deck's).
+        for (x, y, z) in [(0, 16, 18), (-2, 16, 25), (2, 16, 33), (0, 16, 46), (6, 16, 53), (-7, 16, 54)] {
             hb.post(x, y, z, .troop)
         }
         // Turrets: two heavy mounts on the superstructure and (P507) a twin on its front over the command deck where the
@@ -593,6 +641,181 @@ enum Capital {
             hb.pods.append((V3(Float(sx * 9 + W) + 0.5, 26.5, Float(z) + 1), simd_normalize(V3(Float(sx) * 0.5, 1.5, -0.3))))
         } }
         return hb
+    }
+
+    // P511 (Nov 2 12:13, "the crawler's interior design sucks. Should be dense, no big open room. A way to take up space
+    // is actual gun stuff underneath the positions. Like, things that hold ammo... Each wheel can have its own engine
+    // or something too and have a realistic design set up for the whole thing"). Diesel-electric, as a real land
+    // dreadnought would be: the engine banks aft turn generators, a cable run along each side of the lower deck carries
+    // their power to a drive motor at every wheel (a motor housing, a gearbox, the shaft out through the hull; the
+    // motors count among its engines, so shooting them out slows it). The command deck, one long open room under the
+    // three gun mounts, is split by two bulkheads into the bridge, the gun mounts' ammunition rooms and the fire control
+    // room between them: under each mount its trunk (the turret's armoured column down to the deck) with a shell hoist
+    // in its face, ready racks and crates round it, propellant charges in barrels aft; consoles for the gunners and the
+    // fire controllers. The aisles either side, the gunners' and the crew's places, the hatches and the ladder stay clear.
+    static func crawlerDense(_ hb: HullBuilder, chassis: (Int, Int, Int) -> Bool, upper: (Int, Int, Int) -> Bool,
+                             inside: (Int, Int, Int) -> Bool) {
+        func g(_ n: String, _ f: BlockID) -> BlockID { id(n, f) }
+        let iron = id("iron_block"), panel = id("warship_panel"), engine = id("ship_engine"), light = id("light_panel")
+        let crate = g("ammo_crate", iron), ash = g("ash_crate", crate), cab = g("data_cabinet", iron), barrel = g("barrel", iron)
+        let console = id("command_console"), term = g("greywall_terminal", console), table = g("greywall_map_table", console)
+        let hoist = g(ShipShells.hoistKey, iron), bars = g("iron_bars", iron), gen = g("generator_vent", iron)
+        let pipeX = g("depot_pipe_x", bars), pipeZ = g("depot_pipe_z", bars), armour = g("warship_hull", iron)
+        func low(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            guard chassis(x, y, z), hb.get(x, y, z) == AIR else { return }
+            hb.set(x, y, z, b)
+        }
+        // (the command deck's air: inside the superstructure, off its skin)
+        func deck(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            guard upper(x, y, z), y >= 22, hb.get(x, y, z) == AIR,
+                  inside(x + 1, y, z) && inside(x - 1, y, z) && inside(x, y + 1, z) && inside(x, y, z + 1) && inside(x, y, z - 1) else { return }
+            hb.set(x, y, z, b)
+        }
+        func deckStack(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, _ h: Int) { for k in 0..<h { deck(x, y + k, z, b) } }
+        // Drive motors: one at each wheel, on the lower deck against the hull side by its axle.
+        for zc in [18, 41, 64] { for sx in [-1, 1] {
+            for z in (zc - 1)...(zc + 1) { for y in 10...11 { low(sx * 10, y, z, engine) } }
+            low(sx * 10, 12, zc, gen)                                   // (its cooling vent)
+            low(sx * 9, 10, zc, iron)                                   // the gearbox
+            low(sx * 9, 11, zc, pipeX)                                  // the shaft out to the wheel
+        } }
+        // The cable runs from the generators aft to the motors, under the upper deck along both sides.
+        for sx in [-1, 1] { for z in 17...66 { low(sx * 9, 14, z, pipeZ) } }
+        // The command deck. Clear: the aisles (x -5...-3 and 3...5) and the centreline forward of the first trunk, the
+        // posts, the hatches (8, 30) and the ladder head (-7, 58).
+        var keep = Set<IVec3>()
+        for (x, z) in [(2, 53), (-2, 61), (2, 33), (0, 36), (-3, 48), (0, 29), (-4, 26), (4, 26)] { for y in 22...23 { keep.insert(IVec3(x, y, z)) } }
+        for sx in [-1, 1] { for x in 5...7 { for z in 29...31 { for y in 22...23 { keep.insert(IVec3(sx * x, y, z)) } } } }
+        for x in -7...(-5) { for z in 57...59 { for y in 22...24 { keep.insert(IVec3(x, y, z)) } } }
+        func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            guard !keep.contains(IVec3(x, y, z)), abs(x) < 3 || abs(x) > 5 || b == panel else { return }
+            deck(x, y, z, b)
+        }
+        // The bridge: cabinets and the chart table along the walls behind the helm.
+        for sx in [-1, 1] { for z in 22...27 { put(sx * 7, 22, z, cab); put(sx * 7, 23, z, cab) } }
+        put(-6, 22, 28, table); put(6, 22, 28, term)
+        // Two bulkheads across the deck (z 37 and 49), a door in each aisle.
+        for z in [37, 49] { for x in -7...7 where !(abs(x) >= 3 && abs(x) <= 4) { for y in 22...27 { deck(x, y, z, panel) } }
+            for sx in [-1, 1] { for x in 3...4 { for y in 25...27 { deck(sx * x, y, z, panel) } } }
+            deck(0, 26, z, light)
+        }
+        // The gunners' consoles beside their posts (before the racks take the places).
+        put(2, 22, 52, console); put(-2, 22, 60, console); put(2, 22, 34, console)
+        // Each mount's trunk under its ring, a hoist in its face, ready racks and crates round it.
+        for zc in [32, 54, 63] {
+            var top = 28
+            while top > 20 && !inside(0, top, zc) { top -= 1 }
+            for z in (zc - 1)...(zc + 1) { for x in -1...1 { for y in 22..<top { put(x, y, z, armour) } } }
+            put(0, 22, zc - 2, hoist); put(0, 23, zc - 2, bars)
+            for sx in [-1, 1] { for z in (zc - 2)...(zc + 2) {
+                // (beside the trunk; the forward mount's port side stays open: the way in from the port hatch, ridecheck)
+                if abs(z - zc) <= 1 && !(zc == 32 && sx < 0) { put(sx * 2, 22, z, z % 2 == 0 ? crate : ash); put(sx * 2, 23, z, bars) }
+                put(sx * 6, 22, z, crate); put(sx * 6, 23, z, ash); put(sx * 7, 22, z, ash); put(sx * 7, 23, z, crate); put(sx * 7, 24, z, crate)
+            } }
+        }
+        // Fire control (z 38...48): rangefinder and plotting consoles along both walls, the plot table down the middle.
+        for sx in [-1, 1] { for z in stride(from: 38, through: 47, by: 2) { put(sx * 7, 22, z, z % 4 == 2 ? term : console); put(sx * 7, 23, z, cab)
+            put(sx * 7, 22, z + 1, cab); put(sx * 7, 23, z + 1, cab); put(sx * 6, 22, z + 1, g("oak_chair[\(sx < 0 ? "west" : "east")]", AIR)) } }
+        for z in 41...44 { put(0, 22, z, table); put(-1, 22, z, table); put(1, 22, z, table) }
+        // Propellant aft of the last mount, in barrels, two high.
+        for x in -7...7 where abs(x) < 3 || abs(x) > 5 { for z in 65...66 { put(x, 22, z, barrel); put(x, 23, z, barrel) } }
+    }
+
+    // P510 (Nov 1 20:34:20-39 aboard: "we need an engine room for the crawler... It also needs to be more dense inside...
+    // realistically laid out"): the chassis was one bay ten blocks high with the engines at the back. It is two decks
+    // now under a two-storey engine hall. The lower deck (standing at 10): the magazine forward (ammunition racks, the
+    // sponson gunners' posts kept clear), the troop compartment (benches facing in along both sides, lockers, weapon
+    // racks; the aisle down the middle kept clear to the ramp), a bulkhead with a wide door. The upper deck (standing at
+    // 16, a grating floor at 15): the radio room forward, bunks, the mess, the workshop and sick bay, ladders between
+    // the decks. The engine hall (z 60 on): the two engine banks with their exhaust stacks to the roof, fuel tanks and
+    // generators along the sides, the engineer's panel, a gantry along each side at the upper deck's height. The
+    // command deck gets its chart table, signal consoles and cabinets. Only air inside the hull is filled, the
+    // centreline aisle, the ramp's way round the engines, the hatches, ladders and crew posts are left clear.
+    static func crawlerRooms(_ hb: HullBuilder, chassis: (Int, Int, Int) -> Bool) {
+        func g(_ n: String, _ f: BlockID) -> BlockID { id(n, f) }
+        let panel = id("warship_panel"), grating = id("steel_grating"), light = id("light_panel"), iron = id("iron_block")
+        let ladder = Blocks.id("ladder"), crate = g("ammo_crate", iron), ash = g("ash_crate", crate), cab = g("data_cabinet", iron)
+        let console = id("command_console"), term = g("greywall_terminal", console), barrel = g("barrel", iron)
+        let tank = g("depot_tank", iron), band = g("depot_tank_band", tank), vent = g("generator_vent", iron)
+        let pipeY = g("depot_pipe_y", g("iron_bars", iron)), pipeZ = g("depot_pipe_z", g("iron_bars", iron))
+        let post = g("oak_fence", iron), plate = g("oak_pressure_plate", AIR), bench = g("steel_plating_stairs", panel)
+        // (only into the chassis' air, never into its hull or a fitting already there)
+        func room(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+            guard chassis(x, y, z), hb.get(x, y, z) == AIR else { return }
+            hb.set(x, y, z, b)
+        }
+        func stack(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, _ h: Int) { for k in 0..<h { room(x, y + k, z, b) } }
+        func bed(_ x: Int, _ zFoot: Int, _ zHead: Int, _ colour: String) {
+            guard Blocks.has("\(colour)_bed"), Blocks.has("\(colour)_bed_head") else { return }
+            let s = BlockID(zHead < zFoot ? 1 : 0)
+            room(x, 16, zFoot, Blocks.id("\(colour)_bed") + s); room(x, 16, zHead, Blocks.id("\(colour)_bed_head") + s)
+        }
+        func chair(_ x: Int, _ y: Int, _ z: Int, _ face: String) {
+            let n = face == "north" ? "oak_chair" : "oak_chair[\(face)]"
+            if Blocks.has(n) { room(x, y, z, Blocks.id(n)) }
+        }
+        let stairE = Blocks.has("steel_plating_stairs[east]") ? Blocks.id("steel_plating_stairs[east]") : bench
+        let stairW = Blocks.has("steel_plating_stairs[west]") ? Blocks.id("steel_plating_stairs[west]") : bench
+        // The upper deck's floor over the magazine, troops and bunks (z 14-59); the engine hall stays open to the roof.
+        // Wells for the ladders (the command deck's at -7, 58; one forward at 7, 21) and a light every few steps.
+        for z in 14...59 { for x in -10...10 { room(x, 15, z, (x == 0 || abs(x) == 6) && z % 8 == 2 ? light : grating) } }
+        hb.set(-7, 15, 58, ladder + 3)
+        for y in 10...16 { hb.set(8, y, 21, panel); hb.set(7, y, 21, ladder + 2) }
+        // Lower deck: the magazine forward, racks two and three high along both walls (the sponson gunners' places at
+        // 9, 15 and their way to the aisle kept clear).
+        for sx in [-1, 1] { for z in 11...20 where !(z >= 14 && z <= 16) {
+            stack(sx * 10, 10, z, z % 2 == 0 ? crate : ash, 3)
+            if z != 20 { stack(sx * 9, 10, z, crate, 2) }
+        } }
+        for z in [12, 13] { for x in [-5, -4, 4, 5] { stack(x, 10, z, ash, 2) } }
+        room(-3, 10, 19, id(ShipShells.hoistKey, iron)); room(3, 10, 19, barrel)
+        // The troop compartment: benches facing in along both walls, a locker or a weapon rack between every few seats,
+        // a light over the aisle (the chests at -9, 30 and 9, 50 and the flank ladders' backing at 29 stay).
+        for sx in [-1, 1] { for z in 22...57 {
+            let wall = sx * 10, seat = sx * 8
+            if z % 6 == 0 { stack(wall, 10, z, cab, 2); continue }
+            if z % 6 == 3 { stack(wall, 10, z, crate, 1); room(wall, 11, z, g("iron_bars", iron)); continue }
+            room(seat, 10, z, sx < 0 ? stairE : stairW)
+            room(wall, 10, z, panel)
+        } }
+        // The bulkhead to the engine hall, a door the aisle's width and a way along each side.
+        for x in -10...10 where abs(x) > 2 && abs(x) < 7 { for y in 10...14 { room(x, y, 59, panel) } }
+        for x in [-2, 2] { room(x, 14, 59, panel) }
+        // The upper deck (standing at 16): the radio room forward.
+        for sx in [-1, 1] { for z in 15...19 { stack(sx * 10, 16, z, cab, 2) } }
+        for x in [-8, -7, 7, 8] { room(x, 16, 20, console); chair(x, 16, 19, "south") }
+        room(-4, 16, 16, g("greywall_map_table", console)); room(-3, 16, 16, g("greywall_map_table", console))
+        room(4, 16, 16, term); chair(4, 16, 17, "north")
+        // Bunks: heads to the bulkheads in pairs along both walls, a locker at each pair.
+        for sx in [-1, 1] { for z0 in stride(from: 23, through: 39, by: 4) {
+            for x in [sx * 9, sx * 7] { bed(x, z0 + 1, z0, sx < 0 ? "light_gray" : "white") }
+            room(sx * 10, 16, z0, barrel); room(sx * 10, 16, z0 + 1, cab)
+        } }
+        // The mess: a long table with chairs either side.
+        for z in 43...49 { room(-6, 16, z, post); room(-6, 17, z, plate); chair(-7, 16, z, "east"); chair(-5, 16, z, "west") }
+        for z in 43...49 { room(6, 16, z, post); room(6, 17, z, plate); chair(7, 16, z, "west"); chair(5, 16, z, "east") }
+        for sx in [-1, 1] { stack(sx * 10, 16, 44, barrel, 1); stack(sx * 10, 16, 46, g("bookshelf", cab), 2) }
+        // The workshop and sick bay.
+        room(8, 16, 52, g(GunsmithBench.key, iron)); room(8, 16, 54, g("anvil", iron)); stack(10, 16, 53, crate, 2)
+        for z in [51, 55] { stack(10, 16, z, cab, 2) }
+        for z0 in [52, 55] { bed(-9, z0 + 1, z0, "white") }
+        room(-10, 16, 51, g("brewing_stand", cab)); stack(-10, 16, 58, cab, 2)
+        // The engine hall: exhaust stacks from the engine banks to the roof, fuel tanks along the walls, generators and
+        // the engineer's panel by the bulkhead, a gantry along each wall at the upper deck's height.
+        for sx in [-1, 1] { for z in [64, 68] { for y in 14...19 { room(sx * 4, y, z, pipeY) } } }
+        for x in -8...8 { room(x, 16, 60, g("iron_bars", iron)) }                 // (the upper deck's rail over the hall)
+        for sx in [-1, 1] {
+            // (the sponson gunner's place at 9, 68 gets a bay three wide: the tanks either side of it pressed him)
+            for z in 61...71 where z < 66 || z > 69 {
+                stack(sx * 10, 10, z, (z % 3 == 0) ? band : tank, 4)
+            }
+            for z in 60...71 { room(sx * 9, 15, z, grating) }
+            room(sx * 8, 10, 61, vent); room(sx * 8, 11, 61, vent)
+            for z in 61...71 { room(sx * 10, 15, z, grating) }
+            for z in 60...71 { room(sx * 7, 18, z, pipeZ) }
+        }
+        room(-8, 10, 60, console); room(8, 10, 60, term)
+        for z in [62, 66, 70] { room(0, 19, z, light) }
     }
 
     // The crawler's rear ramp cells (builder coordinates): lowered, steel stairs from the bay floor (y 9) down to the
@@ -846,6 +1069,13 @@ extension ShipManager {
                 }
                 st.thrustLive = st.thrustCells.count
             }
+            if cap, Blocks.has("frigate_reactor") {
+                let core = Blocks.id("frigate_reactor"), gr = s.grid, c = hb.grid(0, 17, 128)
+                for y in max(0, c.y - 12)...(c.y + 12) { for z in (c.z - 10)...(c.z + 10) { for x in (c.x - 10)...(c.x + 10) where gr.get(x, y, z) == core {
+                    st.reactorCells.append(IVec3(x, y, z))
+                } } }
+                st.reactorLive = st.reactorCells.count
+            }
             st.blocks0 = s.blockCount
             st.crew = hb.crew
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
@@ -960,7 +1190,7 @@ extension ShipManager {
         guard s.captured, let st = capState[s.id], !st.wheels.isEmpty || st.engines0 > 0 else { return nil }
         let at = V3(Float(cell.x), Float(cell.y), Float(cell.z))
         var best = -1, bd = Float.greatestFiniteMagnitude
-        for (k, w) in st.wheels.enumerated() where w.n < w.n0 && !w.orig.isEmpty {
+        for (k, w) in st.wheels.enumerated() where (w.n < w.n0 || w.burst || w.wear > 0) && !w.orig.isEmpty {
             let c = (V3(Float(w.lo.x), Float(w.lo.y), Float(w.lo.z)) + V3(Float(w.hi.x), Float(w.hi.y), Float(w.hi.z))) * 0.5
             let d = simd_length(c - at)
             if d < bd { bd = d; best = k }
@@ -976,6 +1206,7 @@ extension ShipManager {
             } } }
             if w.part < s.wheelParts.count, s.wheelParts[w.part].blocks.count == w.orig.count { s.wheelParts[w.part].blocks = w.orig }
             st.wheels[best].n = w.n0
+            st.wheels[best].wear = 0; st.wheels[best].burst = false
             s.wheelGen += 1
             st.wheelTimer = 0
             what = "Wheel rebuilt (\(st.wheels.count - st.wheelsLost)/\(st.wheels.count) wheels)"
@@ -1093,6 +1324,39 @@ extension ShipManager {
         if let k = hullShare(s, st) { what += String(format: " (hull %d%%)", Int((k * 100).rounded(.down))) }
         return what
     }
+
+    // P511 (Nov 2 12:17, "the crawler wheels, I think they can't be destroyed or something, maybe we can fix that so
+    // that they get damaged"): a great wheel is some 600 tyre blocks and was lost only at half of them, past what any
+    // gun of his gets through. Blasts now wear a big wheel down as one part: each takes its strength, less with the
+    // distance, off every wheel it reaches; at wheelHP the tyre bursts: the blocks round the hit go, the wheel counts
+    // as lost (the hull sags onto it, the drive slows, half the wheels gone and it stops), and an ingot rebuilds it.
+    static let wheelHP: Float = 18, bigWheel = 40
+    func wheelBlast(_ s: Ship, _ lc: V3, power: Float) {
+        guard s.parent == nil, let st = capState[s.id], !st.wheels.isEmpty else { return }
+        let reach = power * 1.5 + 1
+        for k in st.wheels.indices where !st.wheels[k].lost && st.wheels[k].n0 > ShipManager.bigWheel {
+            let w = st.wheels[k]
+            let lo = V3(Float(w.lo.x), Float(w.lo.y), Float(w.lo.z))
+            let hi = V3(Float(w.hi.x + 1), Float(w.hi.y + 1), Float(w.hi.z + 1))
+            let near = simd_clamp(lc, lo, hi)
+            let d = simd_length(lc - near)
+            guard d < reach else { continue }
+            let hit: Float = power * (1 - d / reach)
+            st.wheels[k].wear += hit
+            guard st.wheels[k].wear >= ShipManager.wheelHP else { continue }
+            st.wheels[k].burst = true
+            var gone = Set<IVec3>()
+            let kinds = ShipParts.kinds
+            for y in w.lo.y...w.hi.y { for z in w.lo.z...w.hi.z { for x in w.lo.x...w.hi.x {
+                let c = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                if simd_length(c - near) < 3.6 && kinds[Int(s.grid.get(x, y, z))] == .wheel { gone.insert(IVec3(x, y, z)) }
+            } } }
+            if !gone.isEmpty { removeCells(s, gone, chipped: [], center: s.toWorld(near), power: power, game: nil, detach: false) }   // (no hundred tyres on the ground)
+            st.wheelTimer = 0
+            ShipManager.wheelsBurst += 1
+        }
+    }
+    static var wheelsBurst = 0                                 // (checks)
 
     func trackWheels(_ s: Ship, _ st: CapitalState, _ dt: Float) {
         st.wheelTimer -= dt
@@ -1229,6 +1493,7 @@ extension ShipManager {
                 }
             }
             if s.role == "crawler" { crawlerRamp(s, st, dt, g) }
+            TickProf.mark("cap: crew, wheels, ramp")             // (store review: the capital tick split for questcheck --framesoak)
             if s.wrecked { st.gunCharge = -1; founder(s, st, dt, g); continue }      // a charge dies with the ship
             st.retarget -= dt
             if st.retarget <= 0 || (st.target.map { !targetValid($0, g, spareBases: s.factionValue == .steelhold) } ?? false) {
@@ -1239,11 +1504,15 @@ extension ShipManager {
                 refresh(&t, g)
                 st.target = t
             }
+            TickProf.mark("cap: target")
             if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
+            TickProf.mark("cap: drive")
             capitalGuns(s, st, dt, g)
+            TickProf.mark("cap: guns")
             shipMissiles(s, st, dt, g)
             if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); boardingParty(s, st, dt, g) }
             deployTroops(s, st, dt, g)
+            TickProf.mark("cap: missiles, boarding, troops")
         }
     }
 
@@ -1454,8 +1723,17 @@ extension ShipManager {
                 guard world.isLoaded(Int(floor(at.x)), Int(floor(at.z))), simd_length(at - g.player.pos) < 120 else { continue }
                 st.crewDone.insert(i)
                 let role = i < st.crewRoles.count ? st.crewRoles[i] : .troop
-                let kind: MobKind = role == .driver ? .soldierTrooper : (role == .gunner ? .soldierMarksman : troopRanks[i % troopRanks.count])
-                let m = Mob(kind, at: at)
+                var kind: MobKind = role == .driver ? .soldierTrooper : (role == .gunner ? .soldierMarksman : troopRanks[i % troopRanks.count])
+                var m = Mob(kind, at: at)
+                // (P510, ridecheck: an Ironclad's broad body at a post walked out for a trooper, by the frigate's skin,
+                // stood in the hull plates; such a post gets a trooper)
+                if kind == .soldierIronclad {
+                    let f0 = world.frame
+                    world.frame = s
+                    let tight = m.collides(post + V3(0, 0.05, 0), world)
+                    world.frame = f0
+                    if tight { kind = .soldierTrooper; m = Mob(kind, at: at) }
+                }
                 m.faction = s.faction
                 m.persistent = true
                 m.deck = s
@@ -1494,6 +1772,7 @@ extension ShipManager {
     // under its own crew. With half its wheels lost it won't move until they are rebuilt (ShipManager.repairVehicle).
     private func capturedCrawlerTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         trackWheels(s, st, dt)
+        if st.rampDown { crawlerRamp(s, st, dt, g) }                     // P511: up, for good
         let steered = pilot === s
         let lost = st.wheels.isEmpty ? 0 : Float(st.wheelsLost) / Float(st.wheels.count)
         let drives = lost < 0.5 && (st.engines0 == 0 || s.engines * 10 >= st.engines0 * 4)
@@ -1584,6 +1863,14 @@ extension ShipManager {
             var want = fwd * (thr * (thr > 0 ? (over ? 83 : 55) : 12)) + right * (side * 14)
             want.y = steered ? s.climb * 9 : 0
             if steered && !dropFuel(s, st, dt, g) { want = V3(0, -2.5, 0) }       // dry tanks: it settles to the ground
+            // P508 (Nov 1 16:04:57-16:05:13 at a dropship shot half away: "No way this thing should be flying... If it has
+            // one wing destroyed, like that thing is going down"): with a wing torn off (one side of the hull a third
+            // lighter than the other) or under three fifths of its blocks left it has no lift: it goes down, slewing,
+            // and can't climb off the ground again.
+            if DropLift.lame(s, g) {
+                want.y = min(want.y * 0.2, -7)
+                want.x *= 0.5; want.z *= 0.5
+            }
             // P461 (16:42, "after landing it's somehow floating into midair instead of falling"): left without a pilot
             // it comes down and rests on the ground instead of hanging where it was left.
             // Never into the ground. P461 (16:41, "This thing should be able to crush trees on landing"): the keel
@@ -1652,6 +1939,14 @@ extension ShipManager {
         // (6 blocks/s, easing to 1.5 over the last dozen blocks so she settles onto the ground gently); the steer still
         // turns her on the spot. Drive on and she flies along her bow again.
         Capital.countThrust(s, st, dt)
+        if Capital.reactorBreached(st) && !s.wrecked {
+            s.wrecked = true
+            let c = st.reactorCells[0]
+            let at = s.toWorld(V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5))
+            Explosion.explode(at: at, power: 8, game: g, breakBlocks: false)
+            g.onToast?("The reactor is breached! The \(s.name) is going down")
+            return
+        }
         let lift = Capital.power(s, st)
         // Under half the thrust her weight wants she can't hold her height: she settles toward the ground, faster the
         // less she has (8 blocks/s with none), whoever is at the helm.
@@ -2047,6 +2342,7 @@ extension ShipManager {
         // The ramp down (troops going out, riders walking up): it creeps until it is raised.
         if st.rampDown { speed = min(speed, 1.5) }
         crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: 0.18)
+        TickProf.mark("cap: drive motion")                   // (store review: the drive split for the frame soak)
         crawlerCrush(s, st, dt, g)
     }
 
@@ -2079,7 +2375,22 @@ extension ShipManager {
         var want = want0, speed = speed0
         let fw = s.dirToWorld(V3(0, 0, -1))
         let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
-        func ground(_ p: V2) -> Float { groundTop(Int(floor(p.x)), Int(floor(p.y))) }
+        // P510 (Nov 1 20:29-20:30, at a crawler's helm on a beach: "For some reason it can't move... Maybe it's 'cause I'm
+        // trying to go in water... It should be able to go into water no problem"; 20:51, "the crawler doesn't like water
+        // but moves great elsewhere"): under his hand water no longer stops it short. It wades in on its wheels, the hull
+        // riding the bottom; where the water is deeper than its draft it swims, the hull at the surface less the draft,
+        // at a third of its pace on land, and climbs out on the far bank. (Its own crew still turn back from water.)
+        var wet = 0
+        func ground(_ p: V2) -> Float {
+            let x = Int(floor(p.x)), z = Int(floor(p.y))
+            let g = groundTop(x, z)
+            guard piloted, world.isLoaded(x, z) else { return g }
+            var wy = Int(g) + 1, k = 0
+            while k < 64 && wy < CH - 1 && Blocks.isLiquid(world.rawBlock(x, wy, z)) { wy += 1; k += 1 }
+            guard k > 0 else { return g }
+            wet += 1
+            return max(g, Float(wy) - ShipManager.crawlerDraft)
+        }
         let half: Float = 28, track: Float = 13
         let c2 = V2(s.pos.x, s.pos.z)
         let side = V2(-fh.y, fh.x)
@@ -2089,9 +2400,10 @@ extension ShipManager {
         // P499 (Oct 30 20:19, at a captured crawler's helm: "its turning is inverted"): under the player it no longer
         // swings itself round its patrol's way (the stick turned it the other way, or not at all): it stops short and
         // the stick still turns it, or backs it off.
+        if wet >= 2 { speed *= 0.35; ShipManager.crawlerWaded += 1 }
         if turnRate > 0 || (piloted && speed > 0) {
             let hA = ground(c2 + fh * (half + 14))
-            if hA < Float(SEA) || hA - hF > 8 {
+            if (hA < Float(SEA) && !piloted) || hA - hF > 8 {
                 if piloted { speed = min(speed, 0) }
                 else { want = V2(-fh.y, fh.x) * st.orbitDir; speed = min(speed, 1.5) }
             }
@@ -2118,7 +2430,14 @@ extension ShipManager {
     // door once it means to drive off and nobody stands on it (after 8 s it closes anyway). A disabled crawler drops it.
     func crawlerRamp(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         let troopsOut = st.crewMobs.values.contains { !$0.crewRoute.isEmpty && $0.deck === s && $0.health > 0 }
-        let want = s.wrecked || troopsOut || st.wantSpeed < 1.6
+        // P510 (Nov 1 20:30:10, driving a captured one slowly out of the water: "this thing dragging off its rear end.
+        // Like that's-- We don't need that"): at his helm the ramp stays up however slowly it goes; it comes down
+        // only once he has let go of the helm with it standing.
+        let his = pilot === s
+        // P511 (Nov 2 08:51:09, at a captured one's helm: "Still got the back ramp on the crawler. It's gotta go"): a
+        // captured crawler's ramp goes up and stays up (its tick never ran this, so it kept the ramp it was built with,
+        // dragging down behind it); he boards by the roof hatch.
+        let want = s.captured ? false : s.wrecked || (his ? false : (troopsOut || st.wantSpeed < 1.6))
         if want == st.rampDown { st.rampTimer = 0; return }
         st.rampTimer += dt
         if st.rampTimer < 0.6 { return }
@@ -2142,11 +2461,38 @@ extension ShipManager {
     // Trees, plants, fences, glass and timber under the crawler's front give way (no drops); driving on, so does
     // masonry (P65).
     static var rutCells = 0, rutDug = 0, crawlerFelled = 0     // (checks)
+    static let crawlerDraft: Float = 6                          // P510: its wheels and lower hull under the water when it swims
+    static var crawlerWaded = 0                                 // (checks: steps it moved with water under its wheels)
     private func crawlerCrush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.crushTimer -= dt
-        guard st.crushTimer <= 0 else { return }
-        st.crushTimer = st.wantSpeed > 12 ? 0.1 : 0.25            // (P507: at 100 km/h a pass every 3 blocks)
-        if st.wantSpeed > 0.3 { crawlerRuts(s, st) }
+        // Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak crawler: the capital tick 37-57 ms on a
+        // pass's frame): a pass under way sweeps the whole footprint, tens of thousands of cells, so it is spread over
+        // the frames after it starts, `crushSeconds` of work a frame, and carries on from the row it reached.
+        let resume = st.crushNextZ
+        st.crushNextZ = nil
+        guard st.crushTimer <= 0 || resume != nil else { return }
+        if resume == nil { st.crushTimer = st.wantSpeed > 12 ? 0.1 : 0.25 }           // (P507: at 100 km/h a pass every 3 blocks)
+        // P511: its wear (ruts, what the hull sweeps through, plants under the bow) meshes in the queue's order, at most
+        // every settleGap (World.vehicleEdits); only what the bow rams that stands up in the way (a trunk, a wall) goes
+        // ahead of the queue, so it is seen to give way.
+        if World.vehicleWear == "off" { return }
+        let wear = World.vehicleWear != "0"
+        let was = (World.backgroundEdits, World.vehicleEdits, World.ramEdits)
+        defer { World.backgroundEdits = was.0; World.vehicleEdits = was.1; World.ramEdits = was.2 }
+        func worn(_ on: Bool) { if wear { World.backgroundEdits = on || was.0; World.vehicleEdits = on; World.ramEdits = !on } }
+        worn(true)
+        // (the ground round its footprint, a chunk out: what settles there after the pass is wear too)
+        if wear && resume == nil {
+            let lo = s.worldMin, hi = s.worldMax
+            for cz in floorDiv(Int(floor(lo.z)) - CS, CS)...floorDiv(Int(floor(hi.z)) + CS, CS) {
+                for cx in floorDiv(Int(floor(lo.x)) - CS, CS)...floorDiv(Int(floor(hi.x)) + CS, CS) {
+                    world.chunkAt(cx * CS, cz * CS)?.wornAt = World.frameNow
+                }
+            }
+            World.wearZone(s.id, cx0: floorDiv(Int(floor(lo.x)), CS), cz0: floorDiv(Int(floor(lo.z)), CS),
+                           cx1: floorDiv(Int(floor(hi.x)), CS), cz1: floorDiv(Int(floor(hi.z)), CS))
+        }
+        if st.wantSpeed > 0.3 && resume == nil { crawlerRuts(s, st); TickProf.mark("cap: drive ruts") }
         // (a felled trunk lies as a body for good: one a pass, only where he can see it, and not past a dozen about)
         var felled = simd_length(g.player.pos - s.pos) < 110 ? 0 : 1
         if felled == 0 && world.ships.list.reduce(0, { $0 + (Felling.isFelled($1) && simd_length($1.pos - s.pos) < 160 ? 1 : 0) }) >= 12 { felled = 1 }
@@ -2174,7 +2520,21 @@ extension ShipManager {
         let cap = full ? 4000 : 900
         defer { if full && n < cap { st.crushedAll = true } }
         let ahead = max(Float(4), (st.wantSpeed * 0.3).rounded(.up))
-        for lz in stride(from: lo.z - ahead, through: hi.z, by: 1) {
+        // Store review (frame soak: the sweep was 1.3 ms of every frame under way): going straight, what comes into the
+        // footprint comes in at the bow, so a pass sweeps the bow's rows (and those ahead); the whole footprint is swept
+        // once it has turned two degrees since the last whole sweep (the sides and the stern swing through trees), and at
+        // least once a second (climbing, sliding).
+        if resume == nil {
+            let dy = atan2f(sinf(s.yaw - st.crushFullYaw), cosf(s.yaw - st.crushFullYaw))
+            if full || abs(dy) > 0.035 || g.clock - st.crushFullAt > 1 {
+                st.crushEndZ = hi.z; st.crushFullYaw = s.yaw; st.crushFullAt = g.clock
+            } else {
+                st.crushEndZ = min(hi.z, lo.z + 8)
+            }
+        }
+        let deadline = full ? Double.infinity : CFAbsoluteTimeGetCurrent() + ShipManager.crushSeconds
+        for lz in stride(from: resume ?? (lo.z - ahead), through: st.crushEndZ, by: 1) {
+            if CFAbsoluteTimeGetCurrent() > deadline { st.crushNextZ = lz; return }
             let bow = lz <= lo.z + 6
             for lx in stride(from: lo.x, through: hi.x, by: 1) {
                 // From the bottom row (trunks stood through the wheel arches); soft blocks only, so ground is never dug.
@@ -2193,14 +2553,18 @@ extension ShipManager {
                     // just despawning"): under way, a tree the bow meets goes over, out to the side it stood on and
                     // ahead, a felled trunk with its crown (Felling); the rest give way as before.
                     if bow && !full && felled < 1 && CapitalBase.isLog(b), let trunk = treeAt(x, y, z) {
+                        worn(false)
                         let off = simd_dot(V3(Float(x) + 0.5 - s.pos.x, 0, Float(z) + 0.5 - s.pos.z), simd_cross(fwd, V3(0, 1, 0)))
                         let out = simd_normalize(V3(fwd.x, 0, fwd.z) + simd_cross(fwd, V3(0, 1, 0)) * (off >= 0 ? 1.2 : -1.2) + V3(1e-5, 0, 0))
+                        TickProf.mark("cap: drive sweep")
                         g.topple(trunk, away: out)
+                        TickProf.mark("cap: drive topple")
                         felled += 1; ShipManager.crawlerFelled += 1
                         n += trunk.count
                         if n >= cap { return }
                         continue
                     }
+                    worn(!(bow && Blocks.collide[Int(b)] && ShapeClass.kind[Int(b)] != .foliage))     // (P511: leaves wear too)
                     world.setBlockAsync(x, y, z, AIR)
                     n += 1
                     if n >= cap { return }
@@ -2233,10 +2597,19 @@ extension ShipManager {
         let rut = Blocks.id("coarse_dirt")
         var dug = 0
         func hardnessOK(_ b: BlockID) -> Bool { let h = Blocks.hardness[Int(b)]; return h >= 0 && h < 2 }   // (soil, not rock)
-        for wh in st.wheels where !wh.lost {
+        // P511 (questcheck --streamtest --crawler at his spot): every wheel cut a ball into the field ground on every pass
+        // (up to 24 a second): each cut remeshed the ground round it, and the land round him waited. A wheel cuts again
+        // only once it has rolled on most of a ball's width from its last cut, one cut a pass at most (below).
+        for (wi, wh) in st.wheels.enumerated() where !wh.lost {
             var sunk = 0
             defer {
-                if sunk > 0 && dug < 6 {
+                let mid0 = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y), Float(wh.lo.z + wh.hi.z + 1) * 0.5)
+                let at = s.toWorld(mid0)
+                let rolled = st.rutCarved[wi].map { simd_length(V2($0.x - at.x, $0.z - at.z)) } ?? .infinity
+                // (store review, the crawler soak: two cuts a pass were up to 21 ms of one frame; one a pass now, the
+                // wheels taking turns as they roll on)
+                if sunk > 0 && dug < 1 && rolled > 1.4 {
+                    st.rutCarved[wi] = at
                     // (a ball whose bottom is a third of a block under the wheel: a shallow rut, not a trench)
                     let r = min(1.8, max(0.9, Float(min(wh.hi.x - wh.lo.x, wh.hi.z - wh.lo.z) + 1) * 0.5))
                     let mid = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y) + r - 0.3, Float(wh.lo.z + wh.hi.z + 1) * 0.5)
@@ -2424,10 +2797,11 @@ extension ShipManager {
                     g.mobs.mobs.append(m)
                     st.crewMobs[i] = m
                 } else { continue }
-                // Lanes beside the engine room: port outboard of the bay ladder, starboard inboard of the supply chest.
-                let lane: Float = post.x < ox + 0.5 ? -9.5 : 7.5
+                // Out down the aisle: the centreline is kept clear from the magazine through the bulkhead door and between
+                // the engine banks to the ramp (P510's rooms). (The lanes beside the engine room they used ran through the
+                // troop benches and the supply chest: ridecheck's troops stepped onto the seats and inside them.)
                 m.crewPost = nil
-                m.crewRoute = [V3(ox + 0.5 + lane, 10, post.z), V3(ox + 0.5 + lane, 10, 71.5), V3(ox + 0.5, 10, 72.5),
+                m.crewRoute = [V3(ox + 0.5, 10, post.z), V3(ox + 0.5, 10, 72.5),
                                V3(ox + 0.5, 10, 74.2), V3(ox + 0.5 + Float(sent) - 0.5, 0.5, 83.5), V3(ox + 0.5 + Float(sent) * 2 - 1, 0, 88)]
                 m.aggro = true
                 st.troops.append(m)
@@ -2621,7 +2995,7 @@ extension ShipManager {
             s.angVel = V3(0.4, 1.2, 0.2)
             if Int(st.phaseT * 6) % 2 == 0 { g.particles.smoke(at: s.pos) }
             if keelY <= ground + 1 || st.phaseT > 30 {
-                Explosion.explode(at: s.pos, power: 4, game: g, breakBlocks: !g.bases.inAnyBase(s.pos))
+                Explosion.explode(at: s.pos, power: 4, game: g)          // (P510: a crash breaks what it lands on, a citadel too)
                 remove(s)
                 capState.removeValue(forKey: s.id)
             }
@@ -2789,6 +3163,7 @@ extension ShipManager {
     // them and bounces off (a rise only as high as its keel row it rides up over), and a hit over 10 m/s tears hull
     // plates off where it struck (more the faster: 30 m/s takes six), with a crash. Anyone in its way at speed is hit by the hull.
     static var crushed = 0, rams = 0, ramTorn = 0, smashed = 0   // (checks)
+    static var crushSeconds = 0.0012              // (store review: a crush pass's work a frame, crawlerCrush)
     func crush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.crushT -= dt
         st.ramT -= dt
@@ -3165,7 +3540,13 @@ extension Capital {
         st.thrustT = 0.5
         let thr = Blocks.has("frigate_thruster") ? Blocks.id("frigate_thruster") : AIR
         st.thrustLive = st.thrustCells.reduce(0) { $0 + (s.grid.get($1.x, $1.y, $1.z) == thr ? 1 : 0) }
+        if !st.reactorCells.isEmpty {
+            let core = Blocks.has("frigate_reactor") ? Blocks.id("frigate_reactor") : AIR
+            st.reactorLive = st.reactorCells.reduce(0) { $0 + (s.grid.get($1.x, $1.y, $1.z) == core ? 1 : 0) }
+        }
     }
+    // P508: the reactor breached (under half its core left): the ship is lost.
+    static func reactorBreached(_ st: CapitalState) -> Bool { !st.reactorCells.isEmpty && st.reactorLive * 2 < st.reactorCells.count }
 
     // Top speed along the bow at full throttle (blocks/s).
     static let dropChase: Float = 55          // P499: a Capital Dropship's top speed giving chase (200 km/h, as his own)

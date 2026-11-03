@@ -255,6 +255,9 @@ enum WildCamps {
             let deck = b("spruce_planks"), canopy = b("white_wool"), hoop = b("spruce_fence", "oak_fence")
             let wheel = Blocks.has("cart_wheel") ? Blocks.id("cart_wheel") + f.north : f.log("oak", alongX: true)
             for dz in [-3, 1] { put(-3, 0, dz, wheel); put(1, 0, dz, wheel) }
+            // P508 (Nov 1 16:09:59, "These wheels aren't even attached to it, and it's floating in the air"): the bed sat
+            // a block up on wheels standing free beside it; an axle beam now runs under the bed from hub to hub.
+            for dz in [-3, 1] { for dx in -2...0 { put(dx, 0, dz, b("spruce_slab[top]", "spruce_planks")) } }
             for dz in -4...2 { for dx in -2...0 { put(dx, 1, dz, deck) } }
             for dz in -3...1 {
                 put(-2, 2, dz, hoop); put(0, 2, dz, hoop)

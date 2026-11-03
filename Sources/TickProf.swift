@@ -22,6 +22,9 @@ enum TickProf {
         last = t
     }
 
+    // The stage under way (the last one marked: what runs now is charged to the next mark).
+    static var after: String { count > 0 ? "after " + names[count - 1].description : "tick start" }
+
     // The slowest stage of the tick just run: (name, ms).
     static func top() -> (StaticString, Double) {
         var bi = -1, bt = 0.0

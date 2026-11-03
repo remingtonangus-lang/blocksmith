@@ -473,8 +473,53 @@ enum MainGunTests {
                 for _ in 0..<144 { w.ships.capitalTick(1.0 / 72, game: g) }
                 let v = simd_length(V2(e.vel.x, e.vel.z))
                 w.ships.pilot = nil; e.throttle = 0
-                check(takeable && est.wheelsLost == 0 && rebuilt >= lost0 && est.disabledWhy.isEmpty && v > 2,
-                      String(format: "crawler: a crewless wreck can be taken, %d ingot uses rebuild its %d lost wheels (%d/%d) and engines (%d/%d), and it drives at %.1f b/s", rebuilt, lost0, est.wheels.count - est.wheelsLost, est.wheels.count, e.engines, est.engines0, v))
+                check(takeable && est.wheelsLost == 0 && rebuilt >= lost0 && est.disabledWhy.isEmpty && v > 2 && !est.rampDown,
+                      String(format: "crawler: a crewless wreck can be taken, %d ingot uses rebuild its %d lost wheels (%d/%d) and engines (%d/%d), and it drives at %.1f b/s with its back ramp up (P511: %@)", rebuilt, lost0, est.wheels.count - est.wheelsLost, est.wheels.count, e.engines, est.engines0, v, est.rampDown ? "down" : "up"))
+                // P511 (Nov 2 12:17, "the crawler wheels, I think they can't be destroyed"): rockets into a great wheel's
+                // outer face wear it as one part; a few burst it (blocks round the hit gone, the wheel lost), the wheel
+                // beside it untouched; an ingot rebuilds it.
+                do {
+                    let wl = est.wheels[0]
+                    let lo = V3(Float(wl.lo.x), Float(wl.lo.y), Float(wl.lo.z)), hi = V3(Float(wl.hi.x + 1), Float(wl.hi.y + 1), Float(wl.hi.z + 1))
+                    let mid = (lo + hi) * 0.5
+                    let out: Float = mid.x < e.com.x ? -1 : 1
+                    let face = e.toWorld(V3(out < 0 ? lo.x - 0.4 : hi.x + 0.4, mid.y, mid.z))
+                    let burst0 = ShipManager.wheelsBurst, others = est.wheels.dropFirst().map { $0.n }
+                    var rockets = 0
+                    while rockets < 12 && !est.wheels[0].lost { w.ships.blast(at: face, power: Guns.rocketPower, game: g); rockets += 1 }
+                    w.ships.capitalTick(1.0 / 72, game: g)
+                    est.wheelTimer = 0
+                    w.ships.capitalTick(1.0 / 72, game: g)
+                    let left = est.wheels[0].n, kept = Array(est.wheels.dropFirst().map { $0.n }) == others
+                    check(est.wheels[0].lost && rockets <= 6 && rockets >= 3 && ShipManager.wheelsBurst == burst0 + 1 && left < est.wheels[0].n0 && kept && est.wheelsLost == 1,
+                          "crawler: \(rockets) rockets into a great wheel's face burst it (\(est.wheels[0].n0) -> \(left) tyre blocks, lost: \(est.wheels[0].lost)); the others untouched (\(kept)), \(est.wheelsLost) of \(est.wheels.count) lost")
+                    var fixes = 0
+                    while fixes < 4, w.ships.repairVehicle(e, near: IVec3(Int(mid.x), Int(mid.y), Int(mid.z))) != nil, est.wheelsLost > 0 { fixes += 1 }
+                    check(est.wheelsLost == 0 && est.wheels[0].wear == 0, "crawler: an ingot rebuilds the burst wheel (\(fixes) uses, \(est.wheelsLost) lost)")
+                }
+                // P510 (Nov 1 20:29-20:30: "It should be able to go into water no problem"): a lake ahead of it, eight deep;
+                // under his hand it drives in and on through it instead of stopping short at the shore.
+                do {
+                    let fw = e.dirToWorld(V3(0, 0, -1))
+                    let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0)), sd = V2(-fh.y, fh.x)
+                    let water = Blocks.id("water")
+                    _ = w.loadSync(center: e.pos + V3(fh.x, 0, fh.y) * 80, radius: 6)
+                    w.deferRemesh = true
+                    for a in stride(from: Float(44), through: 130, by: 1) { for b in stride(from: Float(-24), through: 24, by: 1) {
+                        let q = V2(e.pos.x, e.pos.z) + fh * a + sd * b
+                        let x = Int(floor(q.x)), z = Int(floor(q.y))
+                        let top = Int(w.ships.groundTop(x, z))
+                        for y in (top - 7)...(top + 1) { w.setBlock(x, y, z, water) }
+                    } }
+                    w.deferRemesh = false
+                    let p0 = e.pos, waded0 = ShipManager.crawlerWaded
+                    w.ships.pilot = e; e.throttle = 1
+                    for _ in 0..<(72 * 9) { w.ships.update(1.0 / 72, game: g) }           // (its capital tick runs in it)
+                    w.ships.pilot = nil; e.throttle = 0
+                    let went = simd_dot(V2(e.pos.x - p0.x, e.pos.z - p0.z), fh)
+                    check(went > 40 && ShipManager.crawlerWaded > waded0,
+                          String(format: "crawler P510: at the helm it drives into a lake 8 deep and on through it (%.0f blocks in 9 s, %d steps in the water)", went, ShipManager.crawlerWaded - waded0))
+                }
                 // P499 (Oct 30 20:20, "his main cannon should be more of a railgun"): its main gun fires a rail slug at
                 // 700 m/s that drives on through a stone wall 16 blocks thick before it bursts.
                 est.mainGunCD = 0

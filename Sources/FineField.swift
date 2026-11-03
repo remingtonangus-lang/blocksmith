@@ -101,10 +101,24 @@ extension World {
                 raw[(lx + 1) + (lz + 1) * N + (ly + 1) * NN] = v
             }
         } }
+        // (Store review, callgrind of the rocket craters: this upsampling was 44% of a blast's ground carving, every
+        // sample reading its eight cells. The eight cells round each corner are looked at once: where they are all
+        // wholly inside or outside, so are the eight samples between them, as upsample gives.)
+        let U = 17, UU = U * U, mixed: Int16 = 0x7FFF
+        var uni = [Int16](repeating: mixed, count: U * UU)
+        for by in -1...15 { for bz in -1...15 { for bx in -1...15 {
+            let r0 = raw[(bx + 1) + (bz + 1) * N + (by + 1) * NN]
+            guard r0 == FieldTerrain.inside || r0 == FieldTerrain.outside else { continue }
+            var same = true
+            for k in 1..<8 where raw[(bx + 1 + (k & 1)) + (bz + 1 + (k >> 2)) * N + (by + 1 + ((k >> 1) & 1)) * NN] != r0 { same = false; break }
+            if same { uni[(bx + 1) + (bz + 1) * U + (by + 1) * UU] = Int16(r0) }
+        } } }
         var f = [Int8](repeating: 0, count: FineField.count)
         for fy in 0..<32 { for fz in 0..<32 { for fx in 0..<32 {
             // Cell centres at local n + 0.5: the sample at (f + 0.5) / 2 lies between cells (f - 1) / 2 and that + 1.
             let bx = (fx - 1) >> 1, by = (fy - 1) >> 1, bz = (fz - 1) >> 1
+            let u = uni[(bx + 1) + (bz + 1) * U + (by + 1) * UU]
+            if u != mixed { f[FineField.index(fx, fy, fz)] = Int8(u); continue }
             let t = SIMD3<Float>(fx & 1 == 0 ? 0.75 : 0.25, fy & 1 == 0 ? 0.75 : 0.25, fz & 1 == 0 ? 0.75 : 0.25)
             var v = SIMD8<Float>()
             var same = true

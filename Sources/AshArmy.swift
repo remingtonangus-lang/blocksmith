@@ -197,6 +197,7 @@ extension Game {
     func ashArmyTick(_ dt: Float) {
         ashShellTick(dt)
         ashWreckTick(dt)
+        ashColumnsTick(dt)                              // P509: marching columns and armoured divisions (AshColumns.swift)
         guard alive, !ashVictory else {
             if ashVictory { ashAlarm = 0; ashAlarmLevel = 0 }
             return

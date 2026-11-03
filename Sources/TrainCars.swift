@@ -34,10 +34,11 @@ extension Trains {
     // Cars from the end of the line's higher cells to its lower: (variant, turned round).
     static func consist(_ k: Kind) -> [(Int, Bool)] {
         switch k {
-        case .passenger: return [(loco, false), (tender, false), (coach, false), (coach, false), (express, false), (tender, true), (loco, true)]
-        case .cargo: return [(loco, false), (tender, false), (boxcar, false), (tankWagon, false), (flatcar, false), (boxcar, false), (tender, true), (loco, true)]
-        case .troop: return [(armouredLoco, false), (troopCar, false), (gunCar, false), (troopCar, false), (armouredLoco, true)]
-        case .bullion: return [(armouredLoco, false), (gunCar, false), (express, false), (troopCar, false), (armouredLoco, true)]
+        // P508 ("one engine"): the engine and its tender at the head only (Train.facing turns the train at the ends).
+        case .passenger: return [(loco, false), (tender, false), (coach, false), (coach, false), (express, false)]
+        case .cargo: return [(loco, false), (tender, false), (boxcar, false), (tankWagon, false), (flatcar, false), (boxcar, false)]
+        case .troop: return [(armouredLoco, false), (troopCar, false), (gunCar, false), (troopCar, false)]
+        case .bullion: return [(armouredLoco, false), (gunCar, false), (express, false), (troopCar, false)]
         }
     }
 
@@ -60,7 +61,10 @@ extension Trains {
     // The top of a car's roof (or load) above the rail.
     static func roofTop(_ m: Mob) -> Float {
         guard isBig(m) else { return roofHeight[m.variant] ?? 2 }
-        switch m.variant {
+        return roofTop(variant: m.variant)
+    }
+    static func roofTop(variant v: Int) -> Float {
+        switch v {
         case loco: return 3.7
         case tender: return 3.1
         case coach: return 4.1
@@ -96,7 +100,10 @@ extension Trains {
         return m.variant == armouredLoco ? world(m, V3(0, 18.2, 7)) : world(m, V3(0, 18, -20.4))
     }
     // The locomotive at the front of the train, the way it runs now.
-    static func lead(_ tr: Train) -> Mob? { tr.layout.isEmpty || tr.dir > 0 ? tr.cars.first : tr.cars.last }
+    static func lead(_ tr: Train) -> Mob? {
+        if !tr.layout.isEmpty, tr.cars.filter({ isEngine($0) }).count == 1 { return tr.cars.first { isEngine($0) } }   // (P508: one engine)
+        return tr.layout.isEmpty || tr.dir > 0 ? tr.cars.first : tr.cars.last
+    }
     static func isEngine(_ m: Mob) -> Bool { m.variant == loco || m.variant == armouredLoco }
     // P505 (the coordinator, Nov 1 15:41: the rear engine "faces backwards by design ... make it read right to a player"):
     // the engine at the tail as the train runs now. It is the train's end, so it shows the red tail lamps on its buffer
@@ -110,12 +117,13 @@ extension Trains {
     // MARK: Building a real-size train
 
     static func buildBig(_ g: Game, _ tr: Train, day: Int) {
-        tr.kind = tr.bullion ? .bullion : kind(tr.track, day: day)
+        tr.kind = tr.bullion ? .bullion : (TrainArrivals.kindFor(tr.track.id) ?? kind(tr.track, day: day))
+        tr.fresh = true
         var cars = consist(tr.kind)
         // A short line: cars come out of the middle until the train fits between the buffers.
         let room = Float(tr.track.cells.count) - 8
         func length(_ c: [(Int, Bool)]) -> Float { c.reduce(0) { $0 + 2 * halfUnits($1.0) * bigScale / 16 } + coupler * Float(c.count - 1) }
-        while cars.count > 2 && length(cars) > room { cars.remove(at: cars.count / 2) }
+        while cars.count > 2 && length(cars) > room { cars.remove(at: cars.count - 1) }      // (P508: from the tail; the engine leads)
         if length(cars) > room { cars = [cars[0]] }
         tr.length = length(cars)
         var off = tr.length / 2
@@ -143,6 +151,7 @@ extension Trains {
         }
         tr.carS = Array(repeating: 0, count: tr.cars.count)
         place(g, tr, dt: 0)
+        TrainHulls.build(g, tr)                                   // FAILURES 3: their bodies, and the passengers
         // The soldiers: four to a troop car, at its firing slits.
         guard tr.kind == .troop || tr.kind == .bullion else { return }
         for car in tr.cars where car.variant == troopCar {
@@ -163,12 +172,14 @@ extension Trains {
         let t = tr.track
         let n = Float(t.cells.count), half = tr.length / 2
         let lo = half + 3, hi = n - 4 - half
-        let sc = lo <= hi ? max(lo, min(hi, s)) : (n - 1) / 2
-        let moving = abs(sc - tr.lastS)
+        let sc = t.cyclic ? s : lo <= hi ? max(lo, min(hi, s)) : (n - 1) / 2       // (P511: a circuit has no ends to hold off)
+        let moving = abs(t.delta(tr.lastS, sc))
         tr.lastS = sc
         tr.dir = dir
+        let fs = tr.facing < 0 ? Float(-1) : 1                        // P508: the layout mirrored to run with the engine at -s
         for (k, m) in tr.cars.enumerated() where k < tr.layout.count {
-            let (_, back, off) = tr.layout[k]
+            let (_, back0, off0) = tr.layout[k]
+            let back = back0 != (fs < 0), off = off0 * fs
             let sk = sc + off
             let b = halfLength(m) * 0.7
             var d = t.point(sk + b) - t.point(sk - b)
@@ -190,6 +201,8 @@ extension Trains {
         tr.troops.removeAll { $0.health <= 0 && $0.mount == nil }
         let aboard = tr.troops.filter { $0.mount != nil && $0.health > 0 }
         guard !aboard.isEmpty else { return }
+        // P510: aboard, he fights them where they sit, car by car (MilitaryTrain); they don't leave it to him.
+        if MilitaryTrain.aboard(g, tr) { tr.roused = true; return }
         let near = tr.cars.contains { simd_length($0.pos - g.player.pos) < 40 }
         let shot = tr.troops.contains { $0.health < $0.spec.health } || tr.cars.contains { $0.variant == gunCar && $0.health < 160 }
         let stood = tr.blocksPerSec < 0.3 && tr.track.at(tr.time).stop == nil

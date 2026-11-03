@@ -40,7 +40,7 @@ extension Trains {
 
     // Trains.place, after the cars have moved: carry a roof rider along and hold them up on the roof.
     static func carryRoofRider(_ g: Game, _ tr: Train, before: [(V3, Float)]) {
-        guard g.alive, let (k, h, inside) = roofUnder(g, tr, before) else { return }
+        guard g.alive, !TrainHulls.has(tr), let (k, h, inside) = roofUnder(g, tr, before) else { return }      // (FAILURES 3: its body carries him)
         let car = tr.cars[k]
         let (c0, y0) = before[k]
         // The car's move, turn included (round a curve the rider swings with it).
@@ -76,7 +76,7 @@ extension Trains {
         guard g.player.sneaking, !tr.wrecked else { return false }
         if g.riding != nil { g.dismount() }
         let top = m.pos.y + roofTop(m)
-        g.player.pos = V3(m.pos.x, top, m.pos.z) - m.forward * 0.4
+        g.player.pos = TrainHulls.roofPoint(m, near: m.pos - m.forward * 0.4) ?? V3(m.pos.x, top, m.pos.z) - m.forward * 0.4
         g.player.vel = .zero
         g.player.onGround = true
         g.player.airPeak = top

@@ -188,6 +188,7 @@ enum Mining {
         // snowballs: a snow layer gives none, a snow block one (Silk Touch still keeps the block).
         case "snow_block": return shovel ? one("snowball", 1) : []
         case "glass", "spawner", "glass_pane", DeepSeal.setCharge: return []
+        case HellWorks.vein: return one(HellWorks.brimsalt, rnd(2, 4))   // P508 (HellWorks.swift)
         case "sealrock": return one("sealrock_shard", 1)            // the seal's trophy (DeepGates.swift)
         case "sunderite_ore": return one("raw_sunderite", 1)
         case "fern":

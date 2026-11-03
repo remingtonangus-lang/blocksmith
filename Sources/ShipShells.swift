@@ -23,6 +23,40 @@ enum ShipShells {
     }
 
     static func recipe() -> Recipe? { Recipes.shapeless(["iron_ingot", "iron_ingot", "gunpowder", "gunpowder", "copper_ingot"], key, 1) }
+    // P508: a Shell Hoist of his own to set up on land (a block of iron, four gunpowder, two copper).
+    static func hoistRecipe() -> Recipe? {
+        Recipes.shapeless(["iron_block", "gunpowder", "gunpowder", "gunpowder", "gunpowder", "copper_ingot", "copper_ingot"], hoistKey, 1)
+    }
+
+    // P508 (his Nov 1 16:26 list: "a place to fill the ammo up for every vehicle, the frigate too"): a Shell Hoist standing
+    // on land is a rearming point, as a fuel pump is a filling station. Used, it fills the magazine of the nearest war
+    // vessel of his within 32 blocks (a frigate hovering over it, a crawler or a dropship parked beside it) to full, at
+    // 15 a round in survival.
+    static let landReach: Float = 32, pricePerRound = 15
+    static var rearms = 0                                  // (harness)
+    static func nearestMagazine(_ g: Game, _ p: V3) -> Ship? {
+        let ships = g.world.ships
+        return ships.list.filter { $0.parent == nil && $0.captured && !$0.wrecked && $0.kinematic && ships.capState[$0.id] != nil
+            && ships.boundsDistance($0, p) < landReach }.min { ships.boundsDistance($0, p) < ships.boundsDistance($1, p) }
+    }
+    static func rearm(_ g: Game, at: IVec3) {
+        let c = V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5)
+        let ships = g.world.ships
+        guard let s = nearestMagazine(g, c), let st = ships.capState[s.id] else {
+            g.onToast?("No war vessel of yours at the hoist"); g.sfx(.click, 0.5); return
+        }
+        let full = ShipShells.full(ships, s)
+        if st.rounds < 0 { st.rounds = full }
+        let need = full - st.rounds
+        guard need > 0 else { g.onToast?("The \(s.name)'s magazine is full: \(full) rounds"); g.sfx(.click, 0.5); return }
+        let afford = g.survival ? min(need, g.money / pricePerRound) : need
+        guard afford > 0 else { g.onToast?("Shells are \(Money.format(pricePerRound)) a round. You're broke"); g.sfx(.click, 0.5); return }
+        if g.survival { g.money -= afford * pricePerRound }
+        st.rounds += afford
+        rearms += 1
+        g.sfx(.gun(6), 0.9, at: c)
+        g.onToast?("Rearmed the \(s.name): \(st.rounds) of \(full) rounds" + (g.survival ? " for \(Money.format(afford * pricePerRound))" : ""))
+    }
 
     static let icon = ["................", "................", "....b...b...b...", "...bbb.bbb.bbb..", "...yyy.yyy.yyy..",
                        "...yyy.yyy.yyy..", ".11111111111111.", ".1aaaaaaaaaaaa1.", ".1a1aaaaaaaa1a1.", ".1aa1aaaaaa1aa1.",

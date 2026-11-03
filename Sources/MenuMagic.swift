@@ -21,7 +21,7 @@ final class BrewingMenu: Menu {
         ing.filter = { Potions.isIngredient($0.item) }
         slots.append(ing)
         let fuel = MenuSlot(17, 17, be.container, 4, .fuel)
-        fuel.filter = { Items.key($0.item) == "blaze_powder" }
+        fuel.filter = { Items.key($0.item) == HellWorks.brimsalt }     // (P508)
         slots.append(fuel)
         // Q2c-console-64: room for the status lines between the stand and the pack.
         height = 190
@@ -34,7 +34,7 @@ final class BrewingMenu: Menu {
     var status: [(String, Bool)] {
         let c = be.container
         let bottles = (0..<3).map { c[$0] }.filter { !$0.isEmpty }
-        let powder = BrewingMenu.name("blaze_powder")
+        let powder = BrewingMenu.name(HellWorks.brimsalt)
         let fuelLine = be.fuel > 0 ? "Fuel for \(be.fuel) more brew\(be.fuel == 1 ? "" : "s")"
             : (c[4].isEmpty ? "No \(powder) left: add some on the left" : "Fuel for \(20 * c[4].count) more brews")
         if be.brewTime > 0 {
@@ -101,7 +101,7 @@ final class EnchantMenu: Menu {
         let shelvesLine = ("\(shelvesName) around: \(shelves) of 15 (more give stronger offers)", false)
         guard game.survival else { return [shelvesLine] }
         if box[1].isEmpty { return [("Add \(n("lapis_lazuli")) on the right: 1 to 3 per offer", true), shelvesLine] }
-        if let low = costs.filter({ $0 > 0 }).min(), game.xpLevel < low {
+        if Game.xpOn, let low = costs.filter({ $0 > 0 }).min(), game.xpLevel < low {
             return [("You need more levels: you have \(game.xpLevel)", true), shelvesLine]
         }
         return [shelvesLine]
@@ -123,7 +123,7 @@ final class EnchantMenu: Menu {
     func available(_ i: Int) -> Bool {
         guard costs[i] > 0 else { return false }
         if !game.survival { return true }
-        return game.xpLevel >= costs[i] && game.xpLevel >= i + 1 && box[1].count >= i + 1
+        return (!Game.xpOn || game.xpLevel >= costs[i] && game.xpLevel >= i + 1) && box[1].count >= i + 1
     }
 
     override func buttonPressed(_ i: Int) {
@@ -192,7 +192,7 @@ final class AnvilMenu: Menu {
         guard !l.isEmpty, out[0].isEmpty else { return nil }
         func a(_ n: String) -> String { ("AEIOU".contains(n.first ?? "x") ? "an " : "a ") + n }
         if r.isEmpty { return name.isEmpty || name == l.displayName ? "Add a second item to repair or enchant it, or type a new name" : nil }
-        if cost > 0 && !tooExpensive && game.survival && game.xpLevel < cost { return "You need \(cost) levels (you have \(game.xpLevel))" }
+        if Game.xpOn && cost > 0 && !tooExpensive && game.survival && game.xpLevel < cost { return "You need \(cost) levels (you have \(game.xpLevel))" }
         if tooExpensive { return nil }                                       // the plate says it
         let rk = Items.key(r.item)
         if l.def.durability > 0, let mat = Enchant.repairMaterial(l.item) {
@@ -232,7 +232,7 @@ final class AnvilMenu: Menu {
         tooExpensive = r.out.isEmpty
         cost = r.cost
         rightUsed = r.rightUsed
-        out[0] = (game.survival && game.xpLevel < cost) ? .empty : r.out
+        out[0] = (Game.xpOn && game.survival && game.xpLevel < cost) ? .empty : r.out
         if tooExpensive { out[0] = .empty }
     }
 

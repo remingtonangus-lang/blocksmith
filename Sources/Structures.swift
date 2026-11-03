@@ -309,6 +309,8 @@ final class StructureCache {
             legacyP484 = SaveManager.guarding?.structureGuard(file: "structure-guard-p484.txt") ?? []
             legacyP499 = SaveManager.guarding?.structureGuard(file: "structure-guard-p499.txt") ?? []
             legacyP503 = SaveManager.guarding?.structureGuard(file: "structure-guard-p503.txt") ?? []
+            legacyP510 = SaveManager.guarding?.structureGuard(file: "structure-guard-p510.txt") ?? []
+            legacyP511 = SaveManager.guarding?.structureGuard(file: "structure-guard-p511.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
@@ -322,6 +324,8 @@ final class StructureCache {
     var legacyP484: Set<Int64> = []              // ground saved before P484 kept Greywall bases well away from towns (Greywall.townBerth)
     var legacyP499: Set<Int64> = []              // ground saved before P499 left out every other small place (Village.thinned)
     var legacyP503: Set<Int64> = []              // ground saved before P503's citadel gun rooms and lifts (CapitalBase.build)
+    var legacyP510: Set<Int64> = []              // ground saved before P510 ran each railway on to the next (Railways.link)
+    var legacyP511: Set<Int64> = []              // ground saved before P511 turned a railway's ends in loops (RailLoops.swift)
     var legacyP475: Set<Int64> = []              // ground saved before P475 fenced Boreal Stations in chain link with a gate
     var legacyP470: Set<Int64> = []              // ground saved before P470 let two stations make a line (Railways.plan)
     var legacyP469: Set<Int64> = []              // ground saved before P469 gave depot bases their compounds (Depots.swift)
@@ -409,7 +413,14 @@ final class StructureCache {
         lock.lock()
         if let c = cache[key] { useClock += 1; used[key] = useClock; lock.unlock(); return c }
         lock.unlock()
-        let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
+        let t0: Double = CFAbsoluteTimeGetCurrent()
+        defer {
+            // (store review: a start planned on the frame thread is a hitch; the frame soak names each one)
+            if StructureCache.onFrameThread {
+                let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                if ms > 1 && StructureCache.framePlans.count < 16 { StructureCache.framePlans.append(String(format: "%@ %.0f ms (%@)", t.name, ms, TickProf.after)) }
+            }
+        }
         let (cx, cz) = candidate(t, rx, rz)
         var s: StructureStart?
         if let keep = StructureCache.keepR22[t.name], WorldRules.p44,
@@ -447,9 +458,14 @@ final class StructureCache {
     // answer at once; HitchProbe turns it on.)
     static var plansOffThread = true
     private var planning = Set<StartKey>()
-    func nearestIfReady(_ kind: String, x: Int, z: Int, maxRegions: Int = 1) -> StructureStart? {
+    func nearestIfReady(_ kind: String, x: Int, z: Int, maxRegions: Int = 1, accept: (StructureStart) -> Bool = { _ in true }) -> StructureStart? {
+        regionsReady(kind, x: x, z: z, maxRegions: maxRegions) ? nearest(kind, x: x, z: z, maxRegions: maxRegions, accept: accept) : nil
+    }
+    // Whether nearest(kind, ...) would find every region it looks at made (true in the host checks); the missing ones
+    // are made on a worker. (For a lookup whose answer is kept: ask again later instead of keeping a "none".)
+    func regionsReady(_ kind: String, x: Int, z: Int, maxRegions: Int = 1) -> Bool {
         guard StructureCache.plansOffThread, fixed.isEmpty || !fixed.contains(where: { $0.kind == kind }),
-              let t = types.first(where: { $0.name == kind }) else { return nearest(kind, x: x, z: z, maxRegions: maxRegions) }
+              let t = types.first(where: { $0.name == kind }) else { return true }
         let rx = floorDiv(floorDiv(x, CS), t.spacing), rz = floorDiv(floorDiv(z, CS), t.spacing)
         var missing: [StartKey] = []
         lock.lock()
@@ -459,7 +475,7 @@ final class StructureCache {
             else if cache[k] == nil { missing.append(StartKey(name: "", rx: 0, rz: 0)) }      // (already on its way)
         } }
         lock.unlock()
-        if missing.isEmpty { return nearest(kind, x: x, z: z, maxRegions: maxRegions) }
+        if missing.isEmpty { return true }
         let todo = missing.filter { !$0.name.isEmpty }
         if !todo.isEmpty {
             DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -468,9 +484,44 @@ final class StructureCache {
                 self.lock.lock(); for k in todo { self.planning.remove(k) }; StructureCache.offThreadPlans += todo.count; self.lock.unlock()
             }
         }
-        return nil
+        return false
     }
     static var offThreadPlans = 0
+    // Store review (Nov 3, the frame soak's "starts planned on the frame thread": villages, temples, citadels and
+    // outposts planned by the once-a-second town, map-fog, hunting and mob lookups, 2-31 ms each, in every scene,
+    // ordinary walking included): the starts round the player are planned on a worker ahead of him, every kind two
+    // regions out each way, nearest first, so those lookups find them made. Once a second (Game's second tick).
+    static let prefetchQueue = DispatchQueue(label: "structure-prefetch", qos: .utility)
+    static var prefetched = 0
+    func prefetch(x: Int, z: Int, ring: Int = 2) {
+        guard StructureCache.plansOffThread else { return }
+        let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+        var todo: [(Int, StructureType, StartKey)] = []
+        lock.lock()
+        for t in types {
+            let rx = floorDiv(cx, t.spacing), rz = floorDiv(cz, t.spacing)
+            for dz in -ring...ring { for dx in -ring...ring {
+                let k = StartKey(name: t.name, rx: rx + dx, rz: rz + dz)
+                if cache.index(forKey: k) == nil && !planning.contains(k) { planning.insert(k); todo.append((max(abs(dx), abs(dz)), t, k)) }
+            } }
+        }
+        lock.unlock()
+        guard !todo.isEmpty else { return }
+        todo.sort { $0.0 < $1.0 }
+        let work = todo
+        StructureCache.prefetchQueue.async { [weak self] in
+            guard let self = self else { return }
+            for (_, t, k) in work {
+                _ = self.start(t, regionX: k.rx, regionZ: k.rz)
+                self.lock.lock(); self.planning.remove(k); StructureCache.prefetched += 1; self.lock.unlock()
+            }
+        }
+    }
+    static var framePlans: [String] = []           // starts planned on the frame thread over 1 ms (the frame soak's report)
+    // The game's frame thread (Game.tickSeat notes it each tick), where a region is never planned (structure(at:)).
+    private static var frameThreadID: pthread_t?
+    static func noteFrameThread() { if frameThreadID == nil { frameThreadID = pthread_self() } }
+    static var onFrameThread: Bool { frameThreadID.map { pthread_equal($0, pthread_self()) != 0 } ?? false }
 
     func isCached(_ t: StructureType, regionX rx: Int, regionZ rz: Int) -> Bool {
         lock.lock(); defer { lock.unlock() }
@@ -579,8 +630,35 @@ final class StructureCache {
     }
 
     // Structure (of a kind) containing a world position — used for structure mob spawns.
+    // Store review (Nov 2, VRC.Quest.Performance.1): asked on the frame thread (spawns, the music's place, the steelhold
+    // check once a second, fortress mobs), a region nobody had looked at yet planned its start right there, tens of ms
+    // flying into new land (P124's rule, which only the base ticks kept). On the frame thread it now answers from the
+    // starts already made and has the missing regions made on a worker: the question is asked again a moment later.
     func structure(at x: Int, _ y: Int, _ z: Int, kind: String) -> StructureStart? {
         let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+        if StructureCache.plansOffThread && StructureCache.onFrameThread {
+            for t in types where t.name == kind {
+                let r = t.reach
+                var missing: [StartKey] = []
+                for rz in floorDiv(cz - r, t.spacing)...floorDiv(cz + r, t.spacing) { for rx in floorDiv(cx - r, t.spacing)...floorDiv(cx + r, t.spacing) {
+                    let k = StartKey(name: t.name, rx: rx, rz: rz)
+                    lock.lock()
+                    let made = cache.index(forKey: k) != nil, busy = planning.contains(k)
+                    if !made && !busy { planning.insert(k); missing.append(k) }
+                    lock.unlock()
+                    if made, let s = start(t, regionX: rx, regionZ: rz), s.contains(x, y, z) { return s }
+                } }
+                if !missing.isEmpty {
+                    DispatchQueue.global(qos: .utility).async { [weak self] in
+                        guard let self = self else { return }
+                        for k in missing { _ = self.start(t, regionX: k.rx, regionZ: k.rz) }
+                        self.lock.lock(); for k in missing { self.planning.remove(k) }; StructureCache.offThreadPlans += missing.count; self.lock.unlock()
+                    }
+                }
+            }
+            for s in fixed where s.kind == kind && s.contains(x, y, z) { return s }
+            return nil
+        }
         for t in types where t.name == kind {
             for s in startsNear(cx: cx, cz: cz, t) where s.contains(x, y, z) { return s }
         }
@@ -721,6 +799,23 @@ enum Loot {
                                    ("tnt", 1, 3, 6)]),
         "brimstone_strongroom": (4...7, [("raw_sunderite", 1, 3, 14), ("netherite_scrap", 1, 3, 6), ("diamond", 2, 4, 8), ("gold_block", 1, 2, 6),
                                          ("combat_stim", 1, 1, 1), ("experience_bottle", 3, 8, 6), ("blaze_powder", 2, 6, 8)]),
+        // P508: the Hell Works (HellWorks.swift): tonics, Brimsalt (the brewing stand's fuel) and Tech Salvage (only here).
+        "hell_distillery": (4...7, [("potion_healing", 1, 2, 10), ("potion_strong_healing", 1, 1, 5), ("potion_fire_resistance", 1, 2, 10),
+                                    ("potion_long_fire_resistance", 1, 1, 5), ("potion_strength", 1, 2, 8), ("potion_regeneration", 1, 1, 6),
+                                    ("potion_swiftness", 1, 2, 6), ("potion_night_vision", 1, 1, 5), ("potion_invisibility", 1, 1, 3),
+                                    ("splash_potion_harming", 1, 2, 5), ("splash_potion_healing", 1, 2, 5), ("splash_potion_slowness", 1, 2, 3),
+                                    (HellWorks.brimsalt, 3, 8, 14), ("nether_wart", 3, 9, 10), ("glass_bottle", 3, 8, 8), ("blaze_powder", 1, 4, 6),
+                                    ("magma_cream", 1, 3, 5), ("ghast_tear", 1, 2, 3), ("fermented_spider_eye", 1, 3, 4), ("tech_salvage", 1, 2, 3)]),
+        "hell_gaol": (3...6, [("gold_ingot", 2, 6, 10), ("iron_ingot", 3, 9, 10), ("iron_sword@0", 1, 1, 6), ("golden_sword@0", 1, 1, 4),
+                              ("tech_salvage", 1, 3, 10), ("potion_healing", 1, 1, 6), ("potion_regeneration", 1, 1, 4), (HellWorks.brimsalt, 2, 5, 8),
+                              ("bone", 2, 8, 8), ("chain", 2, 6, 6), ("diamond", 1, 2, 3), ("blaze_rod", 1, 3, 5), ("field_stim", 1, 1, 3)]),
+        "hell_quarry": (4...7, [(HellWorks.brimsalt, 4, 12, 18), ("raw_gold", 2, 8, 10), ("gold_ingot", 1, 4, 6), ("iron_pickaxe@0", 1, 1, 5),
+                                ("golden_pickaxe@0", 1, 1, 3), ("tnt", 1, 4, 6), ("tech_salvage", 1, 3, 8), ("rail", 4, 12, 6), ("torch", 4, 12, 6),
+                                ("magma_cream", 1, 2, 3), ("potion_fire_resistance", 1, 1, 5), ("blaze_powder", 1, 3, 4)]),
+        "hell_works_vault": (5...8, [("tech_salvage", 3, 8, 22), (HellWorks.brimsalt, 4, 10, 12), ("potion_strong_healing", 1, 2, 8),
+                                     ("potion_long_fire_resistance", 1, 1, 6), ("potion_strong_strength", 1, 1, 5), ("splash_potion_strong_harming", 1, 2, 4),
+                                     ("diamond", 1, 3, 6), ("netherite_scrap", 1, 2, 4), ("gold_block", 1, 2, 5), ("combat_stim", 1, 1, 2),
+                                     ("field_stim", 1, 1, 3)]),
         // The Ashguard's sites in the Deep (AshSites.swift): what an army at war keeps in its depots.
         "ash_armory": (3...6, [("gun_kessel", 1, 1, 10), ("gun_sturmwind", 1, 1, 10), ("gun_hagel", 1, 1, 8),
                                ("gun_launcher", 1, 1, 4), ("gun_faust", 1, 1, 10), ("faust_warhead", 1, 4, 12), ("rifle_rounds", 16, 48, 20),
@@ -813,7 +908,18 @@ enum Loot {
     // P504 (Nov 1 07:27:21, "golden apples are still in the game"): no chest anywhere holds one; a stim where one was.
     static let noApples = ["golden_apple": "field_stim", "enchanted_golden_apple": "combat_stim"]
     static let chargeSuffix = "_charge"
+    // P508 (Nov 1 15:52:55, a Greywall-held Boreal Station's chest: "Greywall keycard. Why would I need a Greywall
+    // keycard here?"): a station has no locked bulkheads, so its chests ("<table>_station") hold the table's loot
+    // without the keycard the garrisons' tables carry.
+    static let stationSuffix = "_station"
+    // P508: the tables of hell's sites, where Tech Salvage turns up (HellWorks.swift); anywhere else it is never loot.
+    static let hellTables: Set<String> = ["hell_distillery", "hell_gaol", "hell_quarry", "hell_works_vault", "brimstone_keep", "brimstone_strongroom", "fortress", "bastion"]
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
+        if table.hasSuffix(stationSuffix) {
+            fill(c, table: String(table.dropLast(stationSuffix.count)), rng: &rng)
+            for i in 0..<c.count where !c[i].isEmpty && Items.key(c[i].item) == BaseSecurity.card { c[i] = .empty }
+            return
+        }
         if table.hasSuffix(chargeSuffix) {                                // P504: the base's one Ember Charge
             fill(c, table: String(table.dropLast(chargeSuffix.count)) + "_command", rng: &rng)
             if Items.has(HellGate.chargeKey), !(0..<c.count).contains(where: { Items.key(c[$0].item) == HellGate.chargeKey }),
@@ -835,8 +941,8 @@ enum Loot {
             return
         }
         guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? Depots.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] ?? FrontierSites.loot[table] else { return }
-        roll(c, t.rolls, t.entries, rng: &rng)
-        for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng) }
+        roll(c, t.rolls, t.entries, rng: &rng, hell: hellTables.contains(table))
+        for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng, hell: hellTables.contains(table)) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }
         Blueprints.addToChest(c, table: table, rng: &rng)                // P138
         VehiclePresets.addToChest(c, table: table, rng: &rng)            // D43
@@ -861,7 +967,7 @@ enum Loot {
         }
     }
 
-    private static func roll(_ c: ItemContainer, _ rolls: ClosedRange<Int>, _ all: [(String, Int, Int, Int)], rng: inout SRng) {
+    private static func roll(_ c: ItemContainer, _ rolls: ClosedRange<Int>, _ all: [(String, Int, Int, Int)], rng: inout SRng, hell: Bool = false) {
         let entries = all.filter { $0.0 == "empty" || Items.has(String($0.0.split(separator: "@")[0])) }
         let total = entries.reduce(0) { $0 + $1.3 }
         guard total > 0, c.count > 0 else { return }
@@ -875,7 +981,10 @@ enum Loot {
                     var slot = rng.int(c.count)
                     for _ in 0..<c.count where !c[slot].isEmpty { slot = (slot + 1) % c.count }
                     if !c[slot].isEmpty { return }                       // chest full
-                    c[slot] = stack(Loot.noApples[e.0] ?? e.0, rng.range(e.1, e.2), rng: &rng)
+                    // P508: no experience bottles; Tech Salvage is found only in hell (its works, keeps and strongrooms).
+                    if e.0 == "experience_bottle" && !Game.xpOn && !hell { break }
+                    let key = Loot.noApples[e.0] ?? (e.0 == "experience_bottle" && !Game.xpOn ? TechSalvage.key : e.0)   // (P508)
+                    c[slot] = stack(key, key == TechSalvage.key ? max(1, rng.range(e.1, e.2) / 2) : rng.range(e.1, e.2), rng: &rng)
                     break
                 }
             }

@@ -211,7 +211,7 @@ extension Game {
             let p = world.freeSpawn(cart.pos, wide: true)
             if !cart.collides(p, world) { cart.pos = p }
         }
-        player.pos = cart.pos + V3(0, 1, 0)
+        player.pos = TrainHulls.exitPoint(self, cart) ?? cart.pos + V3(0, 1, 0)       // (FAILURES 3: in the cab, not in the boiler)
         player.vel = .zero
         player.airPeak = player.pos.y
     }

@@ -59,7 +59,7 @@ enum Audit {
             for (label, id) in rows {
                 allIDs[id, default: []].append(label)
                 let nav = ["back", "padinfo", "keys", "controls", "padmap", "audio_test"].contains(id)
-                if !nav && !id.hasPrefix("vol:") && PauseMenu.help[id] == nil { fail.append("\(c.name): \"\(label)\" has no help text") }
+                if !nav && !id.hasPrefix("vol:") && !id.hasPrefix("host:") && (PauseMenu.help[id] ?? PauseMenu.hostHelp[id]) == nil { fail.append("\(c.name): \"\(label)\" has no help text") }
                 guard PauseMenu.isValue(id), !skipStep.contains(id) else { continue }
                 // Step forward: the label must change; keep stepping until it comes back (the value is restored).
                 pm.act(id, back: false); pm.build()

@@ -788,7 +788,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let rd = Float(game.world.renderDistance)
         let underwater = p.headInWater
         // Capital ships show far past the terrain (a 480-block frigate on the horizon): a longer far plane while one is out.
-        let far = max(rd * 16 + 96, game.world.ships.list.contains { $0.kinematic } ? 1000 : 0)
+        let far = max(rd * 16 + 96, game.world.ships.list.contains { $0.kinematic && $0.trainCar == nil } ? 1000 : 0)
         let proj = perspectiveRH(fovy: (game.cine.active ? game.cine.fov : game.fovSetting * game.fovScale) * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
         let viewRot = rotationX(-camPitch) * rotationY(-camYaw)
         let viewProj = proj * viewRot
@@ -2136,11 +2136,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                 text(nm + caret, o.x + 63 * s, o.y + 23 * s, s, V4(0.95, 0.95, 0.95, 1))
                 text("+", o.x + 56 * s, o.y + 51 * s, s, titleC, shadow: false)
                 arrowRight(o.x + 100 * s, o.y + 55 * s, 24 * s, s, V4(0.5, 0.5, 0.5, 1))
-                if a.cost > 0 {
+                if a.cost > 0 && (Game.xpOn || a.tooExpensive) {
                     // On a dark plate under the output, clear of the "Inventory" label (lime on the grey panel was 1.3:1
                     // and ran into the label: blind UI critic, anvil).
                     let t = a.tooExpensive ? "Too Expensive!" : "Cost: \(a.cost) levels"
-                    let ok = !a.tooExpensive && (!game.survival || game.xpLevel >= a.cost)
+                    let ok = !a.tooExpensive && (!game.survival || !Game.xpOn || game.xpLevel >= a.cost)
                     let tw: Float = textWidth(t, s)
                     let tx: Float = o.x + 168 * s - tw
                     rect(tx - 3 * s, o.y + 67 * s, tw + 6 * s, 11 * s, V4(0.12, 0.12, 0.14, 0.9))
@@ -2837,10 +2837,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             // P360 (Oct 17 20:29-20:30: "the hunger bar and experience bar look just like Minecraft's"): the experience bar
             // is a thin pale-gold line on a dark track, and the level shows as marks above its left end (a tall mark per
             // ten levels, a short one per level), no number.
-            rect(x0, xpY + s, total, 3 * s, V4(0, 0, 0, 0.45))
-            let xpFrac = simd_clamp(Float(game.xpPoints) / Float(Game.xpToNext(game.xpLevel)), 0, 1)
+            if Game.xpOn { rect(x0, xpY + s, total, 3 * s, V4(0, 0, 0, 0.45)) }       // (P508: no experience bar)
+            let xpFrac = Game.xpOn ? simd_clamp(Float(game.xpPoints) / Float(Game.xpToNext(game.xpLevel)), 0, 1) : 0
             if xpFrac > 0 { rect(x0 + s, xpY + 2 * s, (total - 2 * s) * xpFrac, s, V4(0.96, 0.86, 0.56, 0.95)) }
-            if game.xpLevel > 0 {
+            if Game.xpOn && game.xpLevel > 0 {
                 let tens = min(game.xpLevel / 10, 9), ones = game.xpLevel % 10
                 var mx = x0
                 for _ in 0..<tens { rect(mx, xpY - 4 * s, 2 * s, 4 * s, V4(0.96, 0.86, 0.56, 0.95)); mx += 3 * s }

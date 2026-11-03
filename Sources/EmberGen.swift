@@ -25,7 +25,7 @@ final class EmberGen: TerrainGenerator {
         bH = Noise(seed: seed &+ 104)
         deco = Noise(seed: seed &+ 105)
         shapeN = Noise(seed: seed &+ 106)
-        self.structures = structures ? StructureCache(seed: seed, types: [Fortress.type, Bastion.type]) : nil
+        self.structures = structures ? StructureCache(seed: seed, types: [Fortress.type, Bastion.type, HellWorks.type(worldSeed: seed, base: base, deep: false)]) : nil
     }
 
     // P342 (a) ("biomes are too small, make each one last much longer"): the lands' noise runs 2.6 times wider (was 220).

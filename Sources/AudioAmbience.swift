@@ -174,6 +174,7 @@ extension Game {
         emitter("stationhum", .stationHumLoop, base: 0.2, per: 0.01, cap: 0.45)
         if let (gp, gv) = stationGeneratorHum(eye) { ask("generator", .engineIdleLoop, gv, at: gp) }     // P288 (a)
         for (k, sp, sv) in ashSirens(eye) { ask(k, .ashSiren, sv, at: sp) }                              // P319
+        if let (cs, cp, cv) = ashColumnSound(eye) { ask(cs == .ashMarchSong ? "ashcolumn" : "ashdivision", cs, cv, at: cp) }   // P509
         if let e = a.emitters["drygrass"], !isNight, Rand.float(in: 0..<1) < dt * min(0.3, 0.05 + 0.01 * Float(e.count)) {
             sfx(.dryGrassRustle, 0.5, at: e.pos + V3(Rand.float(in: -2...2), 0.3, Rand.float(in: -2...2)))
         }

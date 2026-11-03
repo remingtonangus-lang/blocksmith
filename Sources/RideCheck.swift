@@ -71,13 +71,17 @@ enum RideCheck {
                           lap: [V3(12.5, 22, 32.5), V3(22.5, 22, 32.5), V3(22.5, 22, 60.5), V3(12.5, 22, 60.5)], seconds: secs(240), turnEvery: 20)
             case "frigate":
                 guard let sc = makeScene(device, seed: seed, kind: "capfrigate") else { r.check(false, "the frigate spawned"); continue }
-                // The Meridian frigate's gun deck, port side (P325: the gun's accelerator runs down the middle).
+                // The Meridian frigate's gun deck, port side (P325: the gun's accelerator runs down the middle). (P510: the
+                // hold's wall stands across x 8.5 at z 97 since P357's rooms; the bot pressed into it for three minutes,
+                // walking 0 laps. Both legs come back to the doorway at x 6.5.)
                 deckScene(r, sc, deckY: 9, start: V3(7.5, 9.02, 110.5),
-                          lap: [V3(6.5, 9, 112.5), V3(6.5, 9, 72.5), V3(8.5, 9, 72.5), V3(8.5, 9, 112.5)], seconds: secs(240), turnEvery: 30)
+                          lap: [V3(6.5, 9, 112.5), V3(6.5, 9, 72.5), V3(8.5, 9, 72.5), V3(8.5, 9, 94.5), V3(6.5, 9, 94.5)], seconds: secs(240), turnEvery: 30)
             case "warfrigate":
                 guard let sc = makeScene(device, seed: seed, kind: "warfrigate") else { r.check(false, "the frigate spawned"); continue }
                 deckScene(r, sc, deckY: 27, start: V3(56.5, 27.02, 190.5),
-                          lap: [V3(53.5, 27, 172.5), V3(59.5, 27, 172.5), V3(59.5, 27, 208.5), V3(53.5, 27, 208.5)], seconds: secs(90), turnEvery: 30)
+                          // (P510: something now stands across x 59.5 at z 198 on this deck: the bot pressed into it for
+                          // 60 s, 0 laps. The lap keeps short of it.)
+                          lap: [V3(53.5, 27, 172.5), V3(59.5, 27, 172.5), V3(59.5, 27, 194.5), V3(53.5, 27, 194.5)], seconds: secs(90), turnEvery: 30)
             case "board":
                 guard let sc = makeScene(device, seed: seed, kind: "crawler") else { r.check(false, "the crawler spawned"); continue }
                 boardScene(r, sc, seconds: max(secs(200), 160))     // it stops when every step is done
@@ -384,7 +388,7 @@ enum RideCheck {
             [],
             [V3(7.4, 21, 30.5), V3(9.7, 22, 30.5), V3(13.5, 22, 30.5), V3(15.5, 22, 35.5)],
             [V3(13.5, 22, 30.5), V3(9.7, 22, 30.5), V3(7.4, 21, 30.0), V3(5.9, 21, 29.5)],
-            [V3(-1.5, 0, 33), V3(-1.5, 0, 90), V3(17.5, 0, 90), V3(17.5, 0, 86), V3(17.5, 10, 74.6), V3(17.5, 10, 72.6), V3(25, 10, 66)],
+            [V3(-1.5, 0, 33), V3(-1.5, 0, 90), V3(17.5, 0, 90), V3(17.5, 0, 86), V3(17.5, 10, 74.6), V3(17.5, 10, 72.6), V3(17.5, 10, 56)],   // (P510: up the aisle between the engine banks and through the bulkhead door into the troop compartment; the old bay's corner at 25, 66 is behind the port engines now)
             [V3(17.5, 10, 72.6), V3(17.5, 10, 74.6), V3(17.5, 1, 83.5), V3(17.5, 0, 90)],
         ]
         func advance(_ why: String) {
@@ -457,7 +461,8 @@ enum RideCheck {
         r.check(mon.insideTicks == 0, "never inside a solid while aboard (\(mon.insideTicks) ticks)\(mon.firstInside.isEmpty ? "" : ", first at " + mon.firstInside)")
         r.check(mon.transitions >= 2 && mon.maxTransitionJump < 3, String(format: "boarding and leaving keep the bot's world velocity (%ld changes, worst jump %.2f b/s)",
                                                                        mon.transitions, mon.maxTransitionJump))
-        r.check(mon.spikes == 0, String(format: "no deck-relative velocity spikes aboard (%ld, worst %.2f)", mon.spikes, mon.maxRelJump))
+        r.check(mon.spikes == 0, String(format: "no deck-relative velocity spikes aboard (%ld, worst %.2f)%@", mon.spikes, mon.maxRelJump,
+                                        mon.firstSpike.isEmpty ? "" : ", first at " + mon.firstSpike))
     }
 
     // Landing on a moving frigate by flight, walking its hangar, deckhouse, side door and narrow side deck, taking off.
@@ -565,6 +570,9 @@ enum RideCheck {
             g.mobs.mobs.append(m)
             foes.append(m)
         }
+        // (what its AI would aim at: the foes' side, distance and sight, P510's crawler with rooms saw none)
+        r.note(String(format: "foes: %@; crawler %@ (sight %.0f, retarget %.1f), %.0f blocks to the first", foes.map { "\($0.factionValue)" }.joined(separator: ", "),
+                      "\(s.factionValue)", st.sight, st.retarget, foes.first.map { simd_length($0.pos - s.pos) } ?? -1))
         var out = Set<ObjectIdentifier>()
         var jumps = 0, inside = 0, rampSeen = false
         var last: [ObjectIdentifier: (V3, Bool)] = [:]
@@ -582,6 +590,13 @@ enum RideCheck {
                 }.joined(separator: "; ")
                 r.note(String(format: "t %.0f s: ramp %@, AI wants %.1f b/s, speed %.1f, target %@, %ld troops walking out %@", t, st.rampDown ? "down" : "up",
                               st.wantSpeed, simd_length(V2(s.vel.x, s.vel.z)), st.target == nil ? "none" : "yes", walking.count, where_))
+                if st.target == nil && t < 11 {
+                    // (why no target: the foes as its AI would find them)
+                    let fs = foes.map { m in String(format: "%@ health %.0f listed %@ at %.0f blocks, y %.1f (ground %d)", "\(m.factionValue)", m.health,
+                                                   g.mobs.mobs.contains { $0 === m } ? "yes" : "no", simd_length(m.pos - s.pos), m.pos.y,
+                                                   w.topY(Int(floor(m.pos.x)), Int(floor(m.pos.z)))) }
+                    r.note("no target: " + fs.joined(separator: "; ") + String(format: "; wrecked %@, driver %@, retarget %.1f", s.wrecked ? "yes" : "no", st.driverAlive ? "yes" : "no", st.retarget))
+                }
             }
             if st.rampDown { rampSeen = true }
             for (k, m) in st.crewMobs where m.health > 0 && k < st.crew.count && st.crew[k].y < 15 && st.crewRoles[k] == .troop {
@@ -654,9 +669,14 @@ enum RideCheck {
         place(sc, local: frigate ? V3(7.5, 9.02, 110.5) : V3(23.5, 22.02, 44.5))
         st.testTurn = 1
         let idle = Bot()
-        let floorY: Float = frigate ? 8.5 : 9.5          // no crew member ever below the lowest deck
+        // No crew member ever below the lowest deck (the frigate's lowest crew post: its engine room and keel decks run
+        // under the old 8.5, where a trooper at his post on the keel counted as fallen off the ship).
+        let floorY: Float = frigate ? min(8.5, (st.crew.map { $0.y }.min() ?? 9) - 0.5) : 9.5
         var worstPost: Float = 0, worstWho = "", worstWhen = ""
-        var off = 0, inside = 0, firstOff = ""
+        var off = 0, inside = 0, firstOff = "", firstIn = ""
+        // (the drift's story: each soldier's last second, every sixth tick: post error, deck-relative speed, ship turn rate)
+        var trail: [ObjectIdentifier: [String]] = [:]
+        var worstTrail: [String] = []
         func crewCheck(_ i: Int, posts: Bool) {
             for (k, m) in st.crewMobs where m.health > 0 {
                 let l = s.toLocal(m.pos)
@@ -666,12 +686,30 @@ enum RideCheck {
                     continue
                 }
                 w.frame = s
-                if m.collides(l + V3(0, 0.05, 0), w) { inside += 1 }
+                if m.collides(l + V3(0, 0.05, 0), w) {
+                    inside += 1
+                    if firstIn.isEmpty {
+                        var near: [String] = []
+                        let c = IVec3(Int(floor(l.x)), Int(floor(l.y + 0.5)), Int(floor(l.z)))
+                        for y in c.y...(c.y + 1) { for z in (c.z - 1)...(c.z + 1) { for x in (c.x - 1)...(c.x + 1) where Blocks.collide[Int(w.block(x, y, z))] {
+                            near.append("\(Blocks.key(w.block(x, y, z))) at \(x),\(y),\(z)")
+                        } } }
+                        firstIn = String(format: "%@ (post %ld) at ship-space %.2f,%.2f,%.2f, tick %ld, by ", m.kind.key, k, l.x, l.y, l.z, i) + near.prefix(5).joined(separator: ", ")
+                    }
+                }
                 w.frame = nil
                 if posts, k < st.crew.count {
                     let p = st.crew[k]
                     let e = simd_length(V2(l.x - p.x, l.z - p.z))
+                    if i % 6 == 0 {
+                        let lv = s.dirToLocal(m.vel)
+                        var tr = trail[ObjectIdentifier(m), default: []]
+                        tr.append(String(format: "%ld: err %.2f, v %.2f,%.2f, spd %.2f strafe %.2f, turn %.2f", i, e, lv.x, lv.z, m.crewSpeed, m.strafe, s.angVel.y))
+                        if tr.count > 10 { tr.removeFirst() }
+                        trail[ObjectIdentifier(m)] = tr
+                    }
                     if e > worstPost {
+                        worstTrail = trail[ObjectIdentifier(m)] ?? []
                         worstPost = e; worstWho = "\(m.kind.key) at post \(k)"
                         worstWhen = String(format: "tick %ld: ship-space %.2f,%.2f,%.2f, post %.2f,%.2f,%.2f, aggro %@, free %@, route %ld, ground %@, ship speed %.1f",
                                            i, l.x, l.y, l.z, p.x, p.y, p.z, m.aggro ? "yes" : "no", m.crewFree ? "yes" : "no", m.crewRoute.count,
@@ -691,8 +729,8 @@ enum RideCheck {
         r.check(spawned == st.crew.count, "every crew post is manned (\(spawned)/\(st.crew.count))")
         r.check(off == 0, "the crew ride the moving vehicle (\(off) crew-ticks off it)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(worstPost < 1.0, String(format: "every soldier holds its post while it drives and turns (worst %.2f blocks: %@)", worstPost, worstWho))
-        if worstPost >= 1.0 { r.note("ride crew worst post: " + worstWhen) }
-        r.check(inside == 0, "no crew member inside a solid (\(inside) crew-ticks)")
+        if worstPost >= 1.0 { r.note("ride crew worst post: " + worstWhen + "; before: " + worstTrail.joined(separator: " | ")) }
+        r.check(inside == 0, "no crew member inside a solid (\(inside) crew-ticks)" + (firstIn.isEmpty ? "" : "; first " + firstIn))
         // Disable it: half the wheels (the port side) of the crawler, the frigate's drive engines.
         let kinds = ShipParts.kinds
         var cells: [(IVec3, BlockID)] = []
@@ -716,6 +754,7 @@ enum RideCheck {
         var aliveAtRest = -1
         var mags: [ObjectIdentifier: Int] = [:]
         var foes: [Mob] = []
+        var foeNote = ""
         let limit = frigate ? 120 * 60 : 60 * 60
         for i in 0..<limit {
             sc.agent.step(idle)
@@ -739,6 +778,15 @@ enum RideCheck {
                 }
             }
             if !foes.isEmpty {
+                // (they must outlast the hull's own guns for the crew's rifles to be tested, as in the troop scene)
+                for m in foes { m.health = max(m.health, 50) }
+                if foeNote.isEmpty && Float(i) / 60 > stopT + 20 {
+                    let crew = st.crewMobs.values.filter { $0.health > 0 }
+                    let withFoe = crew.filter { $0.soldierBrain.foe != nil }.count, seeing = crew.filter { $0.soldierBrain.foe != nil && $0.soldierBrain.foeSees }.count
+                    let near = crew.map { c in foes.map { simd_length($0.pos - c.pos) }.min() ?? -1 }.min() ?? -1
+                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off", foes.map { "\($0.factionValue) at \(Int(simd_length($0.pos - s.pos))) health \(Int($0.health))" }.joined(separator: ", "),
+                                     crew.count, withFoe, seeing, near)
+                }
                 for m in st.crewMobs.values where m.health > 0 {
                     let b = m.soldierBrain
                     let id = ObjectIdentifier(m)
@@ -762,6 +810,7 @@ enum RideCheck {
             r.check(stopT > 1.5 || speed0 < 1, String(format: "it grinds to a stop, not at once (%.1f s from %.1f b/s)", stopT, speed0))
             r.check(worstDecel < 4, String(format: "no sudden stop (worst deceleration %.2f b/s2)", worstDecel))
             r.check(shots > 0, "the crew fight enemy soldiers from aboard (\(shots) shots)")
+            if shots == 0 { r.note("crew fight: " + foeNote) }
         }
         r.check(off == 0, "the crew stay aboard the disabled vehicle (\(off) crew-ticks off)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(aliveAtRest == spawned, "the crew survive it (\(aliveAtRest) of \(spawned) alive when it came to rest, \(alive) at the end)")

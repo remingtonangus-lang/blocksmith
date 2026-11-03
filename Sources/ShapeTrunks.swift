@@ -446,26 +446,34 @@ enum ShapeTrunks {
             prof.append((y1, r0))
         }
         let roots = !below && (living || stump) && onGround
+        // P511 (Nov 2 08:22:41, the jungle: "we still got a lot of horrible triangles. Look at this one right here"): the
+        // root flare's three lobes were cut from the trunk's nine sides, so each lobe was one spike vertex between two
+        // flat ones: sharp fins round every tree's foot. The foot cell goes round with twice the sides and the lobes
+        // swell smoothly (no clamped cosine edge), so they read as buttress roots running into the ground.
+        let ring = roots ? sides * 2 : sides
         let wrap = max(1, (2 * .pi * r).rounded())          // bark repeats round the trunk (one count for every ring)
         var prev: [SIMD3<Float>] = [], prevN: [SIMD3<Float>] = [], bottom: [SIMD3<Float>] = []
         for (k, (h, rr)) in prof.enumerated() {
             let c = lean(ctx, cx, cz, h, living: living)
             var ps: [SIMD3<Float>] = [], ns: [SIMD3<Float>] = []
-            for a in 0...sides {
-                let th = Float(a % sides) / Float(sides) * 2 * .pi
+            for a in 0...ring {
+                let th = Float(a % ring) / Float(ring) * 2 * .pi
                 let d = SIMD3<Float>(cosf(th), 0, sinf(th))
                 var rad = rr
                 let wpt = SIMD3<Float>(c.x, h, c.y) + d * rr
                 rad *= 1 + (living ? 0.07 : 0.03) * ctx.noise(wpt, 2.1, 0xBA4C)
-                if roots && k < 4 { rad = r + (rad - r) * (1 + 1.6 * max(0, cosf(th * 3 + ctx.hash(x, 0, z, 0x2007) * 6.28))) }
+                if roots && k < 4 {
+                    let lobe = 0.5 + 0.5 * cosf(th * 3 + ctx.hash(x, 0, z, 0x2007) * 6.28)
+                    rad = r + (rad - r) * (1 + 1.1 * lobe * lobe)
+                }
                 ps.append(SIMD3(c.x, h, c.y) + d * rad)
                 ns.append(d)
             }
             if k > 0 {
                 let (h0, rr0) = prof[k - 1]
                 let slope = (rr0 - rr) / max(0.05, h - h0)
-                for a in 0..<sides {
-                    let u0 = Float(a) / Float(sides) * wrap, u1 = Float(a + 1) / Float(sides) * wrap
+                for a in 0..<ring {
+                    let u0 = Float(a) / Float(ring) * wrap, u1 = Float(a + 1) / Float(ring) * wrap
                     let n00 = simd_normalize(prevN[a] + SIMD3(0, slope, 0)), n01 = simd_normalize(prevN[a + 1] + SIMD3(0, slope, 0))
                     let n10 = simd_normalize(ns[a] + SIMD3(0, slope, 0)), n11 = simd_normalize(ns[a + 1] + SIMD3(0, slope, 0))
                     let top = h > y1 + 0.01 && !above

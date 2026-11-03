@@ -176,9 +176,9 @@ extension Game {
     }
 
     func grantAdvancement(_ a: Advancement) {
-        guard advancements.insert(a.id).inserted else { return }
-        advToasts.append((a.title, a.challenge, clock))
-        sfx(a.challenge ? .levelUp : .xp, a.challenge ? 1 : 0.6)
+        // P510 (Nov 1 20:32, "let's get rid of the achievements or advancements"): kept quietly (Statistics, the
+        // playthrough's checks), with no toast or chime in play and no pause menu row.
+        advancements.insert(a.id)
     }
 
     // Once a second: item, dimension and effect criteria, plus derived events.
@@ -213,7 +213,8 @@ extension Game {
         // Structures the player stands in.
         let px = Int(floor(player.pos.x)), py = Int(floor(player.pos.y)), pz = Int(floor(player.pos.z))
         func inside(_ kind: String) -> Bool {
-            guard let s = world.gen.structures?.nearest(kind, x: px, z: pz, maxRegions: 2) else { return false }
+            // (store review: once a second on the frame thread; from starts already made, the rest planned on a worker)
+            guard let s = world.gen.structures?.nearestIfReady(kind, x: px, z: pz, maxRegions: 2) else { return false }
             return px >= s.min.x && px <= s.max.x && pz >= s.min.z && pz <= s.max.z && py >= s.min.y - 2 && py <= s.max.y + 2
         }
         let under = Blocks.key(Blocks.groupBase[Int(world.materialAt(px, py - 1, pz))])

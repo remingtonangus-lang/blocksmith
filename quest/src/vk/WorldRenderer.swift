@@ -24,7 +24,7 @@ final class WorldRenderer {
     static let stageNames = ["uniforms", "table", "walk", "horizon", "occlusion", "list", "records", "hud", "terrain", "ring",
                              "ships", "landmarks", "mobs", "entities", "particles", "sky", "translucent", "ui"]
     private var stageSums = [Double](repeating: 0, count: 18), stageFrames = 0
-    // P420: this frame's record stages (ms), for the pause menu's Compute page (ComputeCost).
+    // P420: this frame's record stages (ms), for the voice notes' compute line (ComputeCost).
     private var stagePrev = [Double](repeating: 0, count: 18)
     private(set) var stageFrame = [Double](repeating: 0, count: 18)
     private(set) var stageWorst = 0.0                       // the slowest frame's record since the last take (ms)
@@ -72,6 +72,9 @@ final class WorldRenderer {
     }
     private var camYaw: Float = 0, camPitch: Float = 0
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
+    // FAILURES 4 (questcheck --view ... --voidcount, tools/voidsweep.sh): the frame cleared to pure magenta with no sky
+    // drawn over it (QUEST_SKIP=sky), so every gap in what is drawn shows as magenta.
+    static var voidProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
     static var debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
 
     let ships: ShipDraw
@@ -283,7 +286,7 @@ final class WorldRenderer {
         MobLight.fill = (0.06 + 0.3 * QuestSettings.brightness) * 2 * eyeDark
         MobLight.nightVision = nv
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (p.headInLava ? Game.lavaFog : (underwater ? game.underwaterFog : (underground ? fogColor : sky)))
-        return (u, clear)
+        return (u, WorldRenderer.voidProbe ? V3(1, 0, 1) : clear)
     }
 
     // Records the whole world pass into `t` (the caller submits).
@@ -489,13 +492,36 @@ final class WorldRenderer {
             if k != lastKey { lastKey = k; lastChunk = w.chunks[k] }
             guard let c = lastChunk, !c.hollow else { continue }
             let col = mod(x, CS) + mod(z, CS) * CS
-            var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
-            while y > 0 {
+            @inline(__always) func solid(_ y: Int) -> Bool {
                 let j = col + y * CSQ
-                if c.blocks.ground(j) { break }
+                if c.blocks.ground(j) { return true }
                 let b = Int(c.blocks[j])
-                if (opaqueT[b] && !leafT[b]) || fluidT[b] != 0 { break }
-                y -= 1
+                return (opaqueT[b] && !leafT[b]) || fluidT[b] != 0
+            }
+            var y = min(min(CH, c.blocks.storedCount / CSQ) - 1, Int(c.height[col]))
+            // P510 (Nov 1 20:30:42, a sky isle coming in: "this right here is a giant pillar. It forms temporarily when
+            // there's a sky island"): the isle's rock is made ground, so the cover's corners under it rose 200 blocks to
+            // its turf and stood as dark sheets up into the sky until the chunk was drawn. A mass with open air under it
+            // (four or more) is passed over: the cover takes the ground it floats over.
+            while y > 0 {
+                while y > 0 && !solid(y) { y -= 1 }
+                guard y > 0 else { break }
+                var b = y
+                while b > 1 && y - b < 48 && solid(b - 1) { b -= 1 }
+                guard y - b < 48 else { break }                   // (deep: the land itself)
+                var gap = 0
+                while gap < 4 && b - 1 - gap > 0 && !solid(b - 1 - gap) { gap += 1 }
+                if gap < 4 { break }
+                y = b - 1 - gap
+            }
+            // (P510, 20:33:58 by a Capital base still streaming in: "can't even see the capital base that I'm literally
+            // right beside": its towers lifted the cover's corners into olive spikes and walls 40 blocks up. Built
+            // blocks count up to 8 over the ground they stand on (a yard, a podium, a low wall); a taller building
+            // leaves the cover on its ground.)
+            if y > 0 && !c.blocks.ground(col + y * CSQ) {
+                var gy = y - 1
+                while gy > 0 && y - gy <= 64 && !c.blocks.ground(col + gy * CSQ) { gy -= 1 }
+                if gy > 0 && c.blocks.ground(col + gy * CSQ) && y - gy > 8 { y = gy }
             }
             guard y > 0 else { continue }
             gapVerts[i].pos.y = Float(y + 1)

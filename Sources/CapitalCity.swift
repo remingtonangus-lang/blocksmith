@@ -702,6 +702,9 @@ enum CapitalCity {
             w.mob("soldier_marksman", V3(Float(cx + 6) + 0.5, Float(L + 1), Float(cz) + 0.5))
             // (P499: the civic square's guard, four more)
             w.mob("soldier_officer", V3(Float(cx) + 0.5, Float(L + 1), Float(cz - 6) + 0.5))
+            // P510 (Nov 1 20:23:00, "Should be one Ember Charge somewhere in the capital... I don't know where, but
+            // somewhere"): the city's one, in the officer's strongbox by the fountain (the citadels hold theirs in the vault).
+            w.chest(cx + 2, L + 1, cz - 6, loot: "steelhold\(Loot.chargeSuffix)", seed: UInt64(bitPattern: Int64(cx &* 31 &+ cz &* 17)), facing: 1)
             w.mob("soldier_trooper", V3(Float(cx) + 0.5, Float(L + 1), Float(cz + 6) + 0.5))
             w.mob("soldier_trooper", V3(Float(cx - 6) + 0.5, Float(L + 1), Float(cz - 6) + 0.5))
             w.mob("soldier_trooper", V3(Float(cx + 6) + 0.5, Float(L + 1), Float(cz + 6) + 0.5))

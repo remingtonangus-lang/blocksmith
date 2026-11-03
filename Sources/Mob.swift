@@ -275,6 +275,9 @@ enum MobKind: Int, CaseIterable {
 }
 
 final class Mob {
+    // (SoldierRig.build: the drawn rig kept a frame or two past 14 blocks; written only by the mob pass)
+    var rigDrawn: SoldierRigOut?
+    var rigDrawnLod = 0, rigDrawnAt = 0
     lazy var vary: MobVary = MobVary.roll(self)          // P55: this one's own speed, strength, toughness, aim
     static let hitFlashTime: Float = 0.14
     static weak var trace: Mob?     // harness: print this mob's physics steps
@@ -507,6 +510,7 @@ final class Mob {
     var driveSpeed: Float = 0
     var driveYaw: Float = 0
     var lockTime: Float = 0         // remembers the player this long after last seeing them (MobAI.swift)
+    var notice: Float = 0           // P508: how far it has noticed him, 0 to 1 (Stealth.swift)
     var sightTimer: Float = Rand.float(in: 0...0.5)
     var wasHit = false              // hit since the last update (pack rally)
     var convertTime: Float = 0      // drowning zombie / freezing skeleton / boarling out of the Emberdeep / tadpole (Conversions.swift)
@@ -536,10 +540,13 @@ final class Mob {
     var meetSearch: Float = 0
     var brain: SoldierBrain?        // Capital soldiers and deck guns (Soldiers.swift, SoldierRig.swift)
     var strafe: Float = 0           // sideways walk speed this update (right is positive)
+    var crewSpeed: Float = 0        // crew aboard: the forward walk speed crewStep gave this update (ridecheck's drift note)
     var shield: Float = 0, shieldMax: Float = 0   // an Aegis Marine's energy shield (Navy.swift)
     var shieldIdle: Float = 0, shieldLock: Float = 0
     var shieldFx: Int8 = 0          // this update's shield effect: 1 flare, 2 pop (drawn by navyTick, which has the game)
     var hired = false               // a companion following the player (Companions.swift, O2)
+    var routed = false              // P511: his garrison broke (Rout.swift): running from the player, not fighting
+    var fledClear = false           // P511: ... and clear of him: removed at the next despawn pass
     weak var companionFoe: Mob?     // ... the threat it is firing on
     var troop: Int8 = -1            // troop class (TroopClasses.swift): -1 not yet decided, 0 none, 1 regular, 2 spec ops, 3 Hannibal
     var troopSeg = SIMD3<Float>(0, 0, 0)    // helmet, chest, legs armour left
@@ -616,6 +623,17 @@ final class Mob {
 
     private func solid(_ x: Float, _ y: Float, _ z: Float, _ w: World) -> Bool {
         w.solidAt(Int(floor(x)), Int(floor(y)), Int(floor(z)))
+    }
+
+    // Nothing to stand on within `depth` blocks under the point a (world space, ahead of the feet). P510 ridecheck (crew
+    // drifting 1.3 blocks off their posts): aboard a vehicle the hull's floor counts. Its blocks aren't in the world's
+    // grid, so every step on a deck read as a ledge: a calm soldier's walk back to his post was zeroed whenever the post
+    // lay ahead of him (only his sideways step was left), and animals and townsfolk riding a deck turned round at
+    // every step.
+    private func dropAt(_ a: V3, depth: Int, _ w: World) -> Bool {
+        if let s = deck, w.ships.overHull(s, s.toLocal(V3(a.x, pos.y + 0.05, a.z)), halfW: 0.2, depth: depth) { return false }
+        for k in 0..<depth where solid(a.x, pos.y - 0.5 - Float(k), a.z, w) { return false }
+        return true
     }
 
     func face(_ p: V3) {
@@ -738,7 +756,9 @@ final class Mob {
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
         // Invisible players are only noticed up close.
+        MobManager.stage("start")
         let canTarget = senseTarget(g, dist: dist, dt)
+        MobManager.stage("sense")
         var speed: Float = 0
         if wasHit { wasHit = false; rallyPack(g) }
         let fleeFrom = panic > 0 ? nil : threat(g)
@@ -920,19 +940,28 @@ final class Mob {
                 restock(g)
                 villageTick(g)
             }
+            MobManager.stage("villager jobs")                // (store review: the town's one-off 66 ms villager tick, split)
             if let s = Saloon.pianistStep(self, g) { speed = s; break }       // D17: at the keys
             if let s = Brawls.step(self, dt, g) { speed = s; break }          // D13: fists up, or out cold
             // P51: a rider on the road keeps to the road (Riders.swift).
             if Riders.isRider(self) || Stagecoach.isDriver(self) { speed = Riders.step(self, dt, g); break }
             // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
             // (TownStats: each person's own pace, a deputy's run to an elder's shuffle.)
-            if let s = townDefend(dt, g) {
+            MobManager.stage("villager saloon, riders")
+            let defend = townDefend(dt, g)
+            MobManager.stage("villager defend")
+            if let s = defend {
                 if lying { wake(g) }             // (out of bed beside it, not in the wall: VillageLife.wake)
                 speed = s * townStats.speed; break
             }
-            if townReact(dt, g) { speed = 0; break }
-            if villagerNight(g) { speed = 0; break }
+            let reacts = townReact(dt, g)
+            MobManager.stage("villager react")
+            if reacts { speed = 0; break }
+            let night = villagerNight(g)
+            MobManager.stage("villager night")
+            if night { speed = 0; break }
             speed = villagerDay(dt, g) * townStats.speed
+            MobManager.stage("villager day")
         case .golem:
             if home == nil { home = pos }
             // Village-made golems defend villagers from a player they think badly of (reputation <= -100).
@@ -1160,7 +1189,7 @@ final class Mob {
 
         // Crew aboard a capital vehicle hold their posts in the hull's frame (they turn and fire as the soldier AI
         // decides, but don't stroll, flank or chase off the deck); troops sent out walk their route down the ramp.
-        if let s = deck, crewPost != nil || !crewRoute.isEmpty || crewFree { speed = crewStep(s, speed) }
+        if let s = deck, crewPost != nil || !crewRoute.isEmpty || crewFree { speed = crewStep(s, speed); crewSpeed = speed }
         // A passive mount carrying a jockey goes where the rider wants.
         if driven > 0 {
             driven -= dt
@@ -1189,8 +1218,10 @@ final class Mob {
             && spec.height > 1.6 && spec.height < 2.4 && halfW < 0.45 { speed = HumanGait.maxRun }
         // Walking towards something: follow a path around obstacles instead of straight at it.
         var onPath = false
+        MobManager.stage("behaviour")
         if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {
             steerAlongPath(t, dt, g, repath: onGround || inWater)
+            MobManager.stage("path")
             onPath = path.index < path.nodes.count
         } else {
             path.stallPos = pos; path.stallTime = 0          // standing still on purpose is not a stall
@@ -1202,22 +1233,21 @@ final class Mob {
         if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 && !onPath {
             let a = pos + forward * (halfW + 0.45)
             let wet = Blocks.isLiquid(w.builtBlock(Int(floor(a.x)), Int(floor(pos.y - 0.5)), Int(floor(a.z))))
-            let drop = !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
+            let drop = dropAt(a, depth: 3, w)
             if wet || drop { yaw += .pi * Rand.float(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Rand.float(in: 1...3) }
         }
         // Calm soldiers walking straight (no path to an order or stroll goal) stop at a ledge rather than step off it
         // (citadel behaviour sim: a patrol leader searching a hillside fell 5 blocks).
         if kind.steelhold && !aggro && speed > 0 && onGround && !onPath {
             let a = pos + forward * (halfW + 0.45)
-            if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w) { speed = 0 }
+            if dropAt(a, depth: 3, w) { speed = 0 }
         }
         // Calm townsfolk never step off a drop deeper than the path finder's three blocks, on a path or not (a path
         // cutting the corner of a ravine bridge in a village: seed 777 behaviour sim, two fell 5 blocks, Q2). Not when
         // panicking or running from a zombie or raider (villagerDay's 2.2): a fall beats being caught.
         if spec.behavior == .villager && panic <= 0 && speed > 0 && speed < 2.2 && onGround {
             let a = pos + forward * (halfW + 0.45)
-            if !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
-                && !solid(a.x, pos.y - 3.5, a.z, w) { speed = 0 }
+            if dropAt(a, depth: 4, w) { speed = 0 }
         }
         if spec.flying {
             if kind == .blaze && speed != 0 {
@@ -1343,7 +1373,9 @@ final class Mob {
             hit = (false, true, false)
         } else {
             w.touchedPlayer = false
+            MobManager.stage("steer")
             hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: kind.ashVehicle ? 1.05 : 0.6, onGround: onGround)
+            MobManager.stage("move")
             pressedPlayer = w.touchedPlayer
         }
         if self === Mob.trace {
@@ -2264,6 +2296,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     var n = 0
     SoldierRig.eye = eye                    // soldier level of detail by distance
     SoldierRig.drawing = true
+    SoldierRig.clearFrame &+= 1             // (RigClearance: the far soldiers' kept corrections)
     defer { SoldierRig.drawing = false; MobDetail.level = 0 }
     // Dimension ambient, lifted by night vision like the terrain (Renderer: 1 - (1 - dim) * (1 - 0.85 nv)).
     let amb: Float = 1 - (1 - world.dim.ambient) * (1 - 0.85 * MobLight.nightVision)
@@ -2317,7 +2350,11 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         // P440 (Oct 24 21:00, "I can see like zombies and shit under, like underground"): a mob in land not drawn yet (its
         // chunk not meshed, or a buried section left unmeshed) is not drawn: flying over new land, cave mobs hung in the
         // open before the ground round them came in.
-        if let c = world.chunkAt(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
+        // P510 (Nov 1 20:27, inside a crawler: "for a second there, the troops despawn", "the guy on the helm just
+        // disappeared"; 20:51: "troops vanish I think because of the angle, the crawler was on its side"): a mob aboard
+        // a hull is on the hull, not in the land under it: a crew whose cell fell in a buried section of the ground (a
+        // tipped or dug-in crawler, a hull low in a valley) was hidden with the cave mobs.
+        if m.deck == nil, let c = world.chunkAt(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
             let sy = Int(floor(m.pos.y)) >> 4
             if !c.meshedOnce || (sy >= 0 && sy < NSEC && c.sections[sy].deferred) { MobDrawStats.culled += 1; continue }
         }
@@ -2630,9 +2667,53 @@ final class MobManager {
         _ = Mob.earth.count; _ = VillageLife.bedHead.count; _ = Villagers.jobSiteOf.count
         _ = TownLaw.property.count          // (P394: built on the first block break, 84 ms on the host, at load instead)
         _ = PlantSupport.ruleOf(AIR)        // (P394: likewise on the first break under a plant or a carried thing)
+        LoadWarm.tables()                   // (store review: every per-state table, LoadWarm.swift)
     }
 
+    // P508 (the dirt freeze): where a slow mob tick went, when a check asks (`profileOn`): the stages and the slowest
+    // body. Off in play (no clock reads).
+    static var profileOn = false
+    static var prof = (pre: 0.0, loop: 0.0, deaths: 0.0, restore: 0.0, spawn: 0.0, worst: 0.0, worstKind: "-", count: 0)
+    // Inside one mob's update: the time since the last mark, by stage (the slowest mob's are kept in `worstStages`).
+    static var stageT = 0.0
+    static var stages: [(String, Double)] = []
+    static var worstStages = ""
+    @inline(__always) static func stage(_ name: StaticString) {
+        guard profileOn else { return }
+        let t = CFAbsoluteTimeGetCurrent()
+        stages.append(("\(name)", (t - stageT) * 1000)); stageT = t
+    }
+    // The body loop's own work round each update (summed over the bodies, by part), and its slowest single piece.
+    static var partT = 0.0
+    static var parts: [(String, Double)] = []
+    static var worstPart = ""
+    static var worstPartMs = 0.0
+    @inline(__always) static func part(_ name: StaticString, _ m: Mob) {
+        guard profileOn else { return }
+        let t = CFAbsoluteTimeGetCurrent(), d = (t - partT) * 1000
+        partT = t
+        let k = "\(name)"
+        if let i = parts.firstIndex(where: { $0.0 == k }) { parts[i].1 += d } else { parts.append((k, d)) }
+        if d > worstPartMs { worstPartMs = d; worstPart = String(format: "%@ %.1f (%@)", k, d, m.kind.key) }
+    }
+    static var partSummary: String {
+        let big = parts.filter { $0.1 >= 0.5 }.sorted { $0.1 > $1.1 }.map { String(format: "%@ %.1f", $0.0, $0.1) }
+        return big.isEmpty ? "" : big.joined(separator: ", ") + "; slowest piece " + worstPart
+    }
     func update(_ dt: Float, game: Game) {
+        let pOn = MobManager.profileOn
+        var pT = pOn ? CFAbsoluteTimeGetCurrent() : 0
+        if pOn {
+            MobManager.prof = (0, 0, 0, 0, 0, 0, "-", mobs.count); MobManager.worstStages = ""
+            MobManager.parts.removeAll(keepingCapacity: true); MobManager.worstPart = ""; MobManager.worstPartMs = 0
+        }
+        func pMark(_ k: Int) {
+            guard pOn else { return }
+            let t = CFAbsoluteTimeGetCurrent(), d = (t - pT) * 1000
+            pT = t
+            switch k { case 0: MobManager.prof.pre = d; case 1: MobManager.prof.loop = d; case 2: MobManager.prof.deaths = d
+                       case 3: MobManager.prof.restore = d; default: MobManager.prof.spawn = d }
+        }
         Mob.world = game.world
         PathFinder.budget = 4
         PathFinder.spent = 0
@@ -2653,14 +2734,19 @@ final class MobManager {
         let pBox = (V3(p.x - pl.halfW, p.y, p.z - pl.halfW), V3(p.x + pl.halfW, p.y + pl.height, p.z + pl.halfW))
         Mob.keepClearOf = bodyOn ? p : nil
         lodFrame &+= 1
+        pMark(0)
+        if pOn { MobManager.partT = CFAbsoluteTimeGetCurrent() }
         for m in mobs where game.seatOwns(m.pos) {
+            MobManager.part("skipped", m)                   // (since the last mark: a skipped body's checks)
             if m.kind == .villager && (m.villager?.person == nil || m.villager?.town == nil) { m.becomeTownsperson(game) }
+            MobManager.part("town", m)
             let before = m.pos, wasGround = m.onGround
             if m.hitStop > 0 { m.hitStop -= dt; continue }      // frozen by a landed blade (VRCombatFeel.swift)
             // P339: past the active distance a mob stands in its last pose (drawn, never ticked).
             // (P376: a deck crew past it too: its ship sleeps there, ShipPhysics.)
             if !w.activeHere(m.pos) && game.riding !== m && !MobManager.inFiringReach(m, of: p, w) { continue }
             FarTicks.note(w, m.pos)
+            MobManager.part("active", m)
             // P283: far calm mobs on a slower beat (the time they missed is handed over when their turn comes).
             let every = MobManager.lodEvery(m, distSq: simd_length_squared(m.pos - p), game: game)
             if every > 1 {
@@ -2676,14 +2762,27 @@ final class MobManager {
                 m.fieldSettled = true
                 if w.fieldTerrain, m.deck == nil, m.mount == nil, m.kind != .minecart, m.kind != .boat, let h = w.restHeight(m.pos, halfW: min(0.3, m.halfW), up: 1, depth: 1) { m.pos.y = h }
             }
+            MobManager.part("settle", m)
             w.playerBox = bodyOn && game.riding !== m && m.deck == nil && m.mount == nil && MobManager.bodySolid(m.kind) ? pBox : nil
+            let mt0 = pOn ? CFAbsoluteTimeGetCurrent() : 0
+            if pOn { MobManager.stages.removeAll(keepingCapacity: true); MobManager.stageT = mt0 }
             m.update(mdt, game: game)
+            if pOn {
+                MobManager.stage("rest")
+                let d = (CFAbsoluteTimeGetCurrent() - mt0) * 1000
+                if d > MobManager.prof.worst {
+                    MobManager.prof.worst = d; MobManager.prof.worstKind = m.kind.key + (m.aggro ? " (fighting)" : "")
+                    MobManager.worstStages = MobManager.stages.filter { $0.1 >= 0.5 }.map { String(format: "%@ %.1f", $0.0, $0.1) }.joined(separator: ", ")
+                }
+            }
             w.playerBox = nil
+            if pOn { MobManager.partT = CFAbsoluteTimeGetCurrent() }
             // Smooth worlds (P142): mobs near the player stand on the drawn ground, not the block steps under it (U1: out
             // to 96 blocks, where a herd on a hillside still read as hovering; the 4 column heights are cached per cell).
             let gnd: Float = (SmoothTerrain.enabled || w.fieldTerrain) && m.onGround && simd_length_squared(m.pos - p) < 96 * 96
                 ? w.smoothGroundOffset(m.pos, key: &m.groundKey, heights: &m.groundH) : 0
             m.easeStep(fromY: before.y, wasGround: wasGround, mdt, ground: gnd)
+            MobManager.part("ground", m)
             // NaN quarantine: a non-finite position, velocity or facing reaches Int(floor(...)) in the chunk and unload
             // checks (undefined in the -Ounchecked build) and makes the mob save fail as a whole. Put it back where it was.
             let sane: Bool = m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite && m.vel.x.isFinite && m.vel.y.isFinite && m.vel.z.isFinite
@@ -2739,6 +2838,7 @@ final class MobManager {
                     }
                 }
             }
+            MobManager.part("steps", m)
             if m.teleportSound {
                 m.teleportSound = false
                 game.sfx(.teleport, 0.9, at: before + V3(0, 1, 0))
@@ -2767,7 +2867,9 @@ final class MobManager {
                     game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), vol, at: m.pos + V3(0, m.height * 0.8, 0))
                 }
             }
+            MobManager.part("voices", m)
         }
+        pMark(1)
         if second { spawnTick(dt, game); return }
         // Breeding: two mobs of a kind in love next to each other make a baby.
         var babies: [Mob] = []
@@ -2816,6 +2918,7 @@ final class MobManager {
         Hulks.tick(game, dt)                                     // P473 (after the bodies' boxes)
         mobs.removeAll { m in
             if m.health <= 0 { addCorpse(m, game); return true }
+            if m.routed && m.fledClear { return true }          // P511: fled from a broken garrison (Rout), not stashed
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
@@ -2834,13 +2937,16 @@ final class MobManager {
             return shouldDespawn(m, simd_length(m.pos - pn), dt, game)      // 3D, as the reference (a mob far below stayed)
         }
         mobs += spawned
+        pMark(2)
         restoreTimer -= dt
         if restoreTimer <= 0 {
             restoreTimer = 1
             // Round every player (split screen: stashed villagers near player 2 came back only when player 1 went there).
             for i in 0..<max(1, game.coop.seatCount) { restore(w, center: game.coop.seatPlayer(i, game).pos, limit: limit) }
         }
+        pMark(3)
         spawnTick(dt, game)
+        pMark(4)
     }
 
     // Surface y (feet) at a column if it's grass with two free blocks above, else nil.
@@ -2971,7 +3077,7 @@ extension Mob {
               !onLadder, !spec.flying, halfW <= 1.2,
               let c = w.chunkAt(Int(floor(pos.x)), Int(floor(pos.z))),
               c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version == restVer else { return false }
-        for s in w.ships.list where simd_length_squared(s.pos - pos) < 96 * 96 { return false }
+        for s in w.ships.list where s.trainCar == nil && simd_length_squared(s.pos - pos) < 96 * 96 { return false }
         return true
     }
 }

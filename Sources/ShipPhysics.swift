@@ -13,6 +13,8 @@ enum ShipTuning {
     static let propThrust: Float = 120          // per powered propeller at full throttle
     static let planeAccel: Float = 11            // P435: a flight-model plane's propellers give it at least this acceleration (b/s^2; g is 12)
     static let paddleThrust: Float = 18         // the helm alone moves a small boat slowly
+    static let wadeAccel: Float = 2.4           // P510: a wheeled hull afloat drives on its wheels as paddles (b/s^2)
+    static let wadeTop: Float = 6               // ... up to this pace through the water (b/s)
     static let wheelAccel: Float = 7            // drive per wheel: its share of the weight times this (b/s^2)
     static let perEngine = 4                    // propellers / wheels one engine drives
     static let hullRadius: Float = 0.45
@@ -148,6 +150,7 @@ extension ShipManager {
             SeaStorms.tick(game, dt)                   // H9: storm sea state, crest spray (SeaStorms.swift)
         }
         if encounters, let game { encounterTick(dt, game: game) }
+        TickProf.mark("ships.encounters")
         if let game { capitalTick(dt, game: game) }
         TickProf.mark("ships.capital")
         if list.isEmpty { return }
@@ -162,7 +165,7 @@ extension ShipManager {
             // A rider standing on the world's ground (stepped off the ramp's foot, walked out from under a hull) has left
             // the deck. A mob's velocity is relative to its deck while it rides: the deck's own is added back when it
             // leaves and taken out when it boards (troops walking off a moving crawler stopped dead).
-            for m in game.mobs.mobs where game.riding !== m && m.health > 0 {
+            for m in game.mobs.mobs where game.riding !== m && m.health > 0 && !TrainHulls.bound(m) {
                 // (In the air it stays aboard only over the hull or at one of its ladders: off the ramp's foot it
                 // falls in the world, onto the world's exact ground.)
                 if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d,
@@ -250,6 +253,7 @@ extension ShipManager {
             steps += 1
         }
         if steps == 4 { accum = 0 }
+        TrainHulls.follow(self, dt, game)                          // FAILURES 3: the trains' bodies go with their cars
         TickProf.mark("ships.physics")
         updateShells(dt, game: game)
         meltTick(dt, game: game)                                   // P461: hulls in lava (ShipMelt.swift)
@@ -272,7 +276,7 @@ extension ShipManager {
         // Mobs a moving hull ran into are shoved aside (or lifted onto it when they are near its top).
         if let game {
             // (crews on deck are carried, not shoved)
-            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !mobRiders.contains(where: { $0.0 === m }) {
+            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !TrainHulls.bound(m) && !mobRiders.contains(where: { $0.0 === m }) {
                 let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
                 guard let s = list.first(where: { mx.x > $0.worldMin.x && mn.x < $0.worldMax.x && mx.y > $0.worldMin.y && mn.y < $0.worldMax.y
                     && mx.z > $0.worldMin.z && mn.z < $0.worldMax.z }), overlaps(mn, mx) else { continue }
@@ -629,6 +633,7 @@ extension ShipManager {
             let tank = s.name == AshCommandeer.tankName
             let topSpeed: Float = car ? (AshCommandeer.hullTop(s) ?? 16) : 16 * max(1, min(2.2, Float(s.engines * 120) / Float(max(1, s.blockCount))))
             if s.id == ShipManager.probeId { ShipManager.probeWheels.removeAll() }
+            var touching = 0
             for p in s.wheels {
                 let wp = s.toWorld(p)
                 let x = Int(floor(wp.x)), z = Int(floor(wp.z))
@@ -659,6 +664,7 @@ extension ShipManager {
                 let fn = max(0, k * min(comp, car ? 1.0 : 0.6) - c * v.y)
                 if fn <= 0 { continue }
                 s.grounded = true
+                touching += 1
                 let grip = 0.9 * fn
                 // (P449: a tank's tracks skid as it pivots: they grip against the hull's own drift and roll, not its turn)
                 let vs = simd_dot(tank ? s.vel : v, side), vf = simd_dot(tank ? s.vel : v, fh)
@@ -679,6 +685,19 @@ extension ShipManager {
                 apply(V3(0, fn, 0), at: wp)
                 apply(side * lat + fh * long, at: V3(wp.x, (wp.y + ground) * 0.5, wp.z))
             }
+            // P510 (Nov 1 20:29-20:30, the Ironback Crawler at a beach: "For some reason it can't move... Maybe it's 'cause
+            // I'm trying to go in water... It should be able to go into water no problem"; 20:51: "the crawler doesn't like
+            // water but moves great elsewhere"): afloat or wading, the wheels found no ground within reach of the axles and
+            // the helm's paddle (a rowing boat's push) moved a 77-block hull nowhere. A wheeled hull in the water drives on
+            // its wheels as paddles, by the share of them off the bottom: it fords a river, swims a lake at a few blocks a
+            // second and climbs out the far bank on the wheels that reach ground again.
+            if piloted && s.throttleEase != 0 && power > 0 && sub > 0 && s.flight == nil {
+                let off: Float = 1 - Float(touching) / Float(max(1, wheels))
+                let vf = simd_dot(s.vel, fh)
+                let fade = s.throttleEase * vf > 0 ? max(0, 1 - abs(vf) / ShipTuning.wadeTop) : 1
+                F += fh * (s.throttleEase * s.mass * ShipTuning.wadeAccel * power * fade * off)
+                s.wading = off > 0
+            } else { s.wading = false }
             // P464 (Oct 25 19:33, the Ashguard Sidecar: "Still doesn't really drive like a truck. Kinda drifts"): a small
             // car's tyres don't slide sideways the way the clamped grip let its light hull do through a turn: on the
             // ground the sideways part of its motion dies away in about a fifth of a second, so it goes where it points.

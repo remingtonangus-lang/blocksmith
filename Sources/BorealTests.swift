@@ -292,6 +292,17 @@ enum BorealTests {
         let gk = Blocks.key(Blocks.groupBase[Int(world.materialAt(gen.x, gen.y, gen.z))])
         check(ck == "command_console" && gk == "steel_plating", "boreal ops: control-room console (\(ck)) and generator (\(gk)) where the plan puts them")
 
+        // P508: while the radar dish stands the station knows he is inside (a throwaway game: the alarm goes on); shot
+        // down from outside the fence (half its blocks gone) it has lost him, and the silent run can begin.
+        do {
+            let g0 = Game(world: world, save: nil, persistent: false)
+            g0.paused = false; g0.survival = true
+            g0.player.pos = at(-5, S + 1, Float(BorealStation.yard - 6)); g0.player.vel = .zero
+            g0.basesTick(1.0); g0.basesTick(1.0)
+            let radarUp = BorealBeacon.standing(g0, cx: cx, cz: cz)
+            let rang = g0.bases.boreal.sites[key]?.on == true
+            check(radarUp && rang, "boreal ops (P508): with the radar standing (\(radarUp)) stepping inside rings the alarm (\(rang))")
+        }
         // Silent run: nobody in the station to see or hear.
         var g = Game(world: world, save: nil, persistent: false)
         g.paused = false; g.survival = true
@@ -302,6 +313,15 @@ enum BorealTests {
         g.player.pos = at(-5, S + 1, Float(BorealStation.yard + 8)); g.player.vel = .zero
         secs(2)
         check(g.stationOps[key]?.stage == 0 && g.stationOpBar() == nil, "boreal ops: outside the fence the operation waits (stage \(g.stationOps[key]?.stage ?? -1))")
+        var dish = 0
+        for y in (S + 15)...(S + 28) { for z in (cz - 24)...(cz - 12) { for x in (cx + 12)...(cx + 24) {
+            let b = world.block(x, y, z)
+            if b != AIR && !SmoothTerrain.natural[Int(b)] && !Blocks.isLiquid(b) { world.setBlock(x, y, z, AIR); dish += 1 }
+        } } }
+        BorealBeacon.counts[key]?.at = -100
+        let radarDown = !BorealBeacon.standing(g, cx: cx, cz: cz)
+        check(radarDown && toasts.contains { $0.hasPrefix("The station's radar is down") },
+              "boreal ops (P508): the radar shot away (\(dish) blocks) is down (\(radarDown)) and he's told so")
         g.player.pos = at(-5, S + 1, Float(BorealStation.yard - 6))
         secs(1)
         let bar0 = g.stationOpBar()?.0 ?? "none"

@@ -257,6 +257,7 @@ extension ShipManager {
     func mainGunImpact(at p: V3, owner: Int, game g: Game, along: V3? = nil) {
         MainGunPerf.blast(clock: g.clock)
         MainGun.noteImpact(at: p)
+        FarCitadel.noteHit(p, clock: g.clock)                // P508: its dust column shows from afar
         let t0 = CFAbsoluteTimeGetCurrent()
         var t = t0, cost: [String] = []
         func lap(_ what: String) { let n = CFAbsoluteTimeGetCurrent(); cost.append(String(format: "%@ %.1f", what, (n - t) * 1000)); t = n }
@@ -383,8 +384,12 @@ extension ShipManager {
         updatePendingCraters(dt, game: g)
         if shockwaves.isEmpty { return }
         let layer = Int(Tex.id("puff"))
+        // (Store review, the citadel soak: every bowl still opening took its own 1.6 ms of carving a frame, and a bowl's
+        // field ball after it; three shells in a wall were 16 ms of one frame. The bowls share the frame's carving now:
+        // once one has used it, the rest wait for the next frame, oldest first.)
+        let carve0 = CFAbsoluteTimeGetCurrent()
         for w in shockwaves {
-            if let j = w.crater, !j.done, w.age > 0 {                // from the frame after the impact
+            if let j = w.crater, !j.done, w.age > 0, CFAbsoluteTimeGetCurrent() - carve0 < CraterJob.frameSeconds {   // from the frame after the impact
                 let a = CFAbsoluteTimeGetCurrent()
                 if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed, scorched: j.scorched) }
                 MainGun.craterStepMs = (CFAbsoluteTimeGetCurrent() - a) * 1000

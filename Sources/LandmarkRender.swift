@@ -25,10 +25,13 @@ extension Renderer {
     static var citadelList: [V3] = []
     static var citadelAt: Double = -10
     static var citadelPlanning = false
+    // P508: each citadel's start, record key and the blast spheres it holds (FarCitadel), alongside citadelList.
+    static var citadelSites: [(st: StructureStart, key: String, damage: [[Float]])] = []
     func citadelCache(_ game: Game) -> [V3] {
         if game.clock - Renderer.citadelAt < 2 { return Renderer.citadelList }
         Renderer.citadelAt = game.clock
         Renderer.citadelList.removeAll()
+        Renderer.citadelSites.removeAll()
         guard let wg = game.world.gen as? WorldGen, let sc = wg.structures, let t = sc.types.first(where: { $0.name == "military_base" }) else { return [] }
         let span = t.spacing * CS
         let p = game.player.pos
@@ -41,6 +44,8 @@ extension Renderer {
             guard let st = sc.start(t, regionX: rx, regionZ: rz) else { continue }
             let x = (st.min.x + st.max.x) / 2, z = (st.min.z + st.max.z) / 2
             Renderer.citadelList.append(V3(Float(x), Float(wg.groundY(x, z)), Float(z)))
+            let key = "citadel:\(x),\(z)"
+            Renderer.citadelSites.append((st, key, FarCitadel.damage(game, key: key)))
         } }
         if !todo.isEmpty && !Renderer.citadelPlanning {
             Renderer.citadelPlanning = true
@@ -62,13 +67,25 @@ extension Renderer {
         let p = game.player.pos
         let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
         let n = Int(Renderer.spireRange) / span + 1
+        // (Store review, the crawler soak: a spire region not planned yet was planned here, in the frame's record, 25 ms;
+        // off the render thread now, as the citadels', and shown next time.)
+        var todo: [(Int, Int)] = []
         for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
+            guard sc.isCached(t, regionX: rx, regionZ: rz) else { todo.append((rx, rz)); continue }
             guard let s = sc.start(t, regionX: rx, regionZ: rz) else { continue }
             let y0 = Float(s.min.y + 8), h = Float(s.max.y - 4 - (s.min.y + 8))
             Renderer.spireList.append(V4(Float(s.min.x + s.max.x) / 2, y0, Float(s.min.z + s.max.z) / 2, h))
         } }
+        if !todo.isEmpty && !Renderer.spirePlanning {
+            Renderer.spirePlanning = true
+            DispatchQueue.global(qos: .utility).async {
+                for (rx, rz) in todo { _ = sc.start(t, regionX: rx, regionZ: rz) }
+                Renderer.spirePlanning = false
+            }
+        }
         return Renderer.spireList
     }
+    static var spirePlanning = false
 
     // Appends the impostor triangles: opaque ones first, then `smokeStart` marks the blended smoke.
     // P385: `horizon` false leaves the horizon ground out (the Quest keeps the last one and rebuilds only the landmarks
@@ -273,12 +290,20 @@ extension Renderer {
         // at its true depth out to 1024 blocks) rising behind them covered them from above (P483, "I can't see it").
         func at(_ w: V3, _ near: Bool) -> V4 { near ? V4(w - eye, 1) : p(w) }
         let stone = V3(0.9, 0.91, 0.92), trim = V3(0.68, 0.7, 0.73)
-        for ct in citadelCache(game) {
+        for (ci, ct) in citadelCache(game).enumerated() {
             let dist = simd_length(V2(ct.x - eye.x, ct.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.citadelRange else { continue }
             let haze: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist), margin: 0.22)
             let near = dist + 60 < place * 0.9
             func p(_ w: V3) -> V4 { at(w, near) }
+            // P508: within reach, the citadel itself, compressed from its own blocks (FarCitadel); the boxes until it's made.
+            if dist < FarCitadel.range, ci < Renderer.citadelSites.count, !Renderer.citadelSites[ci].st.pieces.isEmpty {
+                let site = Renderer.citadelSites[ci]
+                if let m = FarCitadel.model(site.st, key: site.key, damage: site.damage) {
+                    FarCitadel.draw(m, eye: eye, loaded: loaded, sun: sun, day: day, nightK: nightK, hdrK: hdrK, fog: fog, haze: haze, at: p, into: &out)
+                    continue
+                }
+            }
             let y0 = ct.y + 1
             // (centre offset x, z, half width, foot, top, colour) of each box (CapitalBase.build: the podium 44, the hall
             // roof 11 up, the tower roof 59 up, the side towers at 36 either side).
@@ -333,6 +358,9 @@ extension Renderer {
                 tri(p(r0), p(r2), p(r1), roof, &out); tri(p(r0), p(r3), p(r2), roof, &out)
             }
         }
+        FarCitadel.dust(&smoke, clock: game.clock, eye: eye, loaded: loaded, fog: fog, day: day, hdrK: hdrK) { q in
+            simd_length(q - eye) + 80 < place * 0.9 ? V4(q - eye, 1) : p(q)
+        }                                                                                   // P508: a far hit shows
         Renderer.plumeRising = !smoke.isEmpty                    // (volcano smoke: the Quest rebuilds it every 2nd frame)
         fireSmoke(&smoke, game: game, eye: eye, day: day, hdrK: hdrK)                     // P365 (a)
         townGlow(&smoke, game: game, eye: eye, loaded: loaded, fog: fog, day: day, hdrK: hdrK, shell: p)   // P365 (i)

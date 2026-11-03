@@ -1113,11 +1113,13 @@ enum TextureGen {
         deepPainters(&p)
         deepGatePainters(&p)
         hellPainters(&p)
+        hellWorksPainters(&p)                             // P508 (HellWorks.swift)
         hellLandPainters(&p)                              // P292: hell's own looks (HellLooks.swift)
         greywallPainters(&p)
         depotPainters(&p)                                 // P469 (Depots.swift)
         securityCameraPainters(&p)                        // D35
         liftPainters(&p)                                  // P503 (Lift.swift)
+        elevatorPainters(&p)                              // FAILURES.md 2 (Elevators.swift)
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         rotatedPainters(&p)

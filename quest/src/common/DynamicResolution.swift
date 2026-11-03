@@ -7,14 +7,17 @@ import Foundation
 // 27.8 ms with Space Warp):
 // - a smoothed GPU time over 95 % of the budget drops the scale: by 5 %, or straight to the scale its pixels say
 //   fits (at most 15 % at once) when the frame is far over, so a 26 ms frame is back inside 72 Hz in about half a
-//   second instead of two (to 70 % at the least);
+//   second instead of two (to 60 % at the least);
 // - a drop that didn't make the GPU faster (a frame bound by its triangles rather than its pixels) is taken back and
 //   no further drop is tried for a while, so the picture is never softened for nothing. P498: one probe that says
 //   pixels counts for the next 30 s (walking makes the GPU time swing more than a 5 % step saves, and a swing must
 //   not undo a good drop); it takes two failed probes in a row to hold off for 10 s (one holds for 3 s);
 // - with room again (the time the next step up would cost still under 85 % of the budget) it climbs back a step.
 struct DynamicResolution {
-    static let minScale: Float = 0.7, step: Float = 0.05, maxStep: Float = 0.15
+    // (Store review, Nov 2, VRC.Quest.Performance.1: the frame must hold the display's rate. His Oct 30 captures were
+    // pixel-bound at up to 26 ms, which 70 % of the eye (49 % of the pixels) brought only to the budget's edge; 60 %
+    // gives the frame room. Only the heaviest views reach it, for as long as they are heavy.)
+    static let minScale: Float = 0.6, step: Float = 0.05, maxStep: Float = 0.15
     private(set) var scale: Float = 1
     private(set) var drops = 0, takenBack = 0           // for the perf line
     // The last probe's answer (P403 step 2, 'triangles or pixels'): the GPU time after a pixel cut over the time

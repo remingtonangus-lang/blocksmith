@@ -102,7 +102,7 @@ enum LiftCheck {
         check(up1 == 12 && up2 == 18 && top == 18 && down == 12 && off == 0,
               "lift: a jump on a pad rides up past a pad with no room over it (\(up1) up, 12 wanted), on to the top (\(up2), 18), no further (\(top)); a crouch rides down (\(down), 12); off a pad nothing (\(off))")
         // The citadel, on new ground and on ground saved before P503.
-        func citadel(_ rooms: Bool) -> (mobs: [String: Int], built: [String: Int], seated: Int) {
+        func citadel(_ rooms: Bool) -> (mobs: [String: Int], built: [String: Int], seated: Int, gun: Int) {
             var mobs: [String: Int] = [:], built: [String: Int] = [:]
             var consoles: [IVec3] = [], chairs = Set<IVec3>()
             for cz in -4...3 { for cx in -4...3 {
@@ -117,19 +117,24 @@ enum LiftCheck {
                     let k = Blocks.key(Blocks.groupBase[Int(b)])
                     built[k, default: 0] += 1
                     let q = IVec3(cx * CS + i % CS, i / (CS * CS), cz * CS + (i / CS) % CS)
-                    if k == "command_console" { consoles.append(q) } else if k == "oak_chair" { chairs.insert(q) }
+                    // (the gun rooms' consoles: a side tower's storeys below its gun room are other rooms, TowerRooms)
+                    let towerRoom = abs(abs(q.x) - 36) <= 5 && abs(q.z) <= 5 && q.y < 104 + 32
+                    if k == "command_console" && !towerRoom { consoles.append(q) } else if k == "oak_chair" { chairs.insert(q) }
                 }
             } }
             // (consoles with a chair beside them: a citadel's command desks have them too)
             let seated = consoles.filter { c in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { chairs.contains(c + $0) } }.count
-            return (mobs, built, seated)
+            return (mobs, built, seated, consoles.count)
         }
         let new = citadel(true), old = citadel(false)
         let ops = new.mobs.filter { $0.key.hasPrefix("soldier_trooper:operator") }.values.reduce(0, +)
-        let consoles = (new.built["command_console"] ?? 0) - (old.built["command_console"] ?? 0)
+        let consoles = new.gun - old.gun
         let chairs = new.seated - old.seated
         let oldOps = old.mobs.filter { $0.key.hasPrefix("soldier_trooper:operator") }.count
-        check(ops == 4 && consoles == 4 && chairs == 4 && new.built["lift_pad"] == 14 && oldOps == 0 && old.built["lift_pad"] == nil,
-              "lift: a citadel on new ground has 4 gun rooms (\(consoles) consoles, \(chairs) chairs, \(ops) operators) and \(new.built["lift_pad"] ?? 0) Lift Pads (14); on old ground \(oldOps) operators and \(old.built["lift_pad"] ?? 0) pads")
+        let cars = new.built[Elevators.floorKey] ?? 0
+        // P510: and its side towers' storeys are rooms (beds, ammo racks, cabinets, a gunsmith's bench, tables).
+        let rooms = ["white_bed", "ammo_crate", "data_cabinet", GunsmithBench.key, "oak_pressure_plate"].filter { (new.built[$0] ?? 0) > (old.built[$0] ?? 0) }
+        check(ops == 4 && consoles == 4 && chairs >= 4 && new.built["lift_pad"] == nil && cars == 8 && oldOps == 0 && old.built["lift_pad"] == nil && rooms.count == 5,
+              "lift: a citadel on new ground has 4 gun rooms (\(consoles) consoles, \(chairs) chairs, \(ops) operators), a lift car in each side tower (\(cars) floor cells, 8) and no Lift Pads (\(new.built["lift_pad"] ?? 0)); its towers' rooms add \(rooms.joined(separator: ", ")); on old ground \(oldOps) operators and \(old.built["lift_pad"] ?? 0) pads")
     }
 }

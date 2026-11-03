@@ -50,7 +50,16 @@ extension Game {
                 if ms > RandomTickRng.worstMs { RandomTickRng.worstMs = ms; RandomTickRng.worstWhat = "\(Blocks.key(b)) at \(p.x) \(p.y) \(p.z)" }
             }
         } else {
-            for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b { randomTick(p, b) }     // (an earlier tick may have changed it)
+            // (Store review, Nov 2: a frame's random ticks stop at `RandomTickRng.frameSeconds` of work; the draws left
+            // over are dropped, as random as the ones that ran. A sapling grown or a fire spread could take 9 ms of
+            // one frame in his jungle: questcheck --framesoak jungle.)
+            let deadline = CFAbsoluteTimeGetCurrent() + RandomTickRng.frameSeconds
+            var k = 0
+            for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {     // (an earlier tick may have changed it)
+                randomTick(p, b)
+                k += 1
+                if k & 7 == 0 && CFAbsoluteTimeGetCurrent() > deadline { break }
+            }
         }
         RandomTickRng.hits = hits
         // Leaves whose tree was cut decay a few at a time.
@@ -691,4 +700,5 @@ enum RandomTickRng {
     static var state = SRng(0x5EED_71C4)
     static var hits: [(IVec3, BlockID)] = []          // (Game.randomTicks' reused list)
     static var profile = false, worstMs = 0.0, worstWhat = ""   // (P400 harness)
+    static var frameSeconds = 0.0012                    // (store review: a frame's random ticks at most this long)
 }

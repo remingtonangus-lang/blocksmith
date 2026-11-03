@@ -69,6 +69,7 @@ extension Game {
             rs.schedule(p, stone ? 20 : 30)
             sfx(stone ? .buttonStone : .buttonWood, 0.6, at: at)
             rs.vibrate(at: at, freq: 10)
+            GarageDoors.button(self, p)                                // a garage door's button (GarageDoors.swift)
         case .repeater:
             let delay = ((s >> 2) & 3 + 1) & 3
             world.setBlock(p.x, p.y, p.z, base + BlockID((s & ~12) | (delay << 2)))

@@ -239,6 +239,14 @@ enum BorealStation {
     static let display = "Boreal Station"
     static let yard = 30                     // fence half-size
     static let B = 24                        // bunker monolith half-size (rooms inside +-23)
+    static let wallHalf = Float(yard)           // P508: inside the fence (HeavyTurret.sameBase)
+    // P508: the centre (x, z) of a planned station whose fenced yard p stands in, or nil.
+    static func siteNear(_ g: Game, _ p: V3) -> V2? {
+        guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
+              let s = sc.nearestIfReady(kind, x: Int(p.x), z: Int(p.z)) else { return nil }
+        let c = V2(Float(s.anchor.x + 5), Float(s.anchor.z - yard - 2))
+        return abs(p.x - c.x) < wallHalf + 4 && abs(p.z - c.y) < wallHalf + 4 ? c : nil
+    }
     static let depth = 16                    // bunker floor block = surface block - 16
     static let biomes: Set<Biome> = [.snowyPlains, .snowyTaiga, .iceSpikes, .grove, .snowySlopes]
 
@@ -603,8 +611,8 @@ enum BorealStation {
         // MARK: Control room (north): screen wall, two rows of desks, the command chest
         for dx in -5...5 { for ly in 2...3 { put(dx, F + ly, -24, console) } }
         for dz in [-20, -18] { for dx in -4...4 where dx != 0 { put(dx, F + 1, dz, console) } }
-        w.chest(X(5), F + 1, Z(-23), loot: grey ? "greywall_charge" : "steelhold_charge", seed: rng.next(), facing: 1)   // (P504)
-        w.chest(X(-5), F + 1, Z(-23), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 1)
+        w.chest(X(5), F + 1, Z(-23), loot: grey ? "greywall_charge_station" : "steelhold_charge", seed: rng.next(), facing: 1)   // (P504)
+        w.chest(X(-5), F + 1, Z(-23), loot: grey ? "greywall_supply_station" : "steelhold_supply", seed: rng.next(), facing: 1)
 
         // MARK: Data archive (west): cabinet rows, two tall
         for dz in -5...5 where dz != 0 {
@@ -613,7 +621,7 @@ enum BorealStation {
                 put(-19, F + ly, dz, cab + 2); put(-18, F + ly, dz, cab + 3)
             }
         }
-        w.chest(X(-16), F + 1, Z(-6), loot: grey ? "greywall_command" : "steelhold_command", seed: rng.next(), facing: 2)
+        w.chest(X(-16), F + 1, Z(-6), loot: grey ? "greywall_command_station" : "steelhold_command", seed: rng.next(), facing: 2)
 
         // MARK: Holding cells (east): a walk along the bars, three cells
         for dz in -6...6 { for ly in 1...4 { put(18, F + ly, dz, ly == 4 ? con : bars) } }
@@ -666,7 +674,7 @@ enum BorealStation {
                 put(c.x, F + c.y, c.z, cable + BlockID(arms))
             }
         }
-        w.chest(X(16), F + 1, Z(22), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 3)
+        w.chest(X(16), F + 1, Z(22), loot: grey ? "greywall_supply_station" : "steelhold_supply", seed: rng.next(), facing: 3)
 
         // MARK: Mess (south-west): two long tables with slab benches, the galley along the south wall
         for tx in [-21, -18] {
@@ -676,7 +684,7 @@ enum BorealStation {
             }
         }
         for dx in (-23)...(-17) { if dx % 2 == 0 { put(dx, F + 1, 23, g("smoker", barrel)) } else { w.sundryBarrel(cx + dx, F + 1, cz + 23, seed: seed) } }
-        w.chest(X(-16), F + 1, Z(23), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 0)
+        w.chest(X(-16), F + 1, Z(23), loot: grey ? "greywall_supply_station" : "steelhold_supply", seed: rng.next(), facing: 0)
 
         // MARK: Barracks (north-west): bunks along both walls, lockers on the north wall
         for dz in stride(from: -22, through: -10, by: 3) {
@@ -687,7 +695,7 @@ enum BorealStation {
             }
         }
         for dx in (-21)...(-19) { put(dx, F + 1, -23, steel); put(dx, F + 2, -23, steel) }
-        w.chest(X(-20), F + 1, Z(-9), loot: grey ? "greywall_supply" : "steelhold_supply", seed: rng.next(), facing: 0)
+        w.chest(X(-20), F + 1, Z(-9), loot: grey ? "greywall_supply_station" : "steelhold_supply", seed: rng.next(), facing: 0)
 
         // MARK: Blockhouse over the stairwell
         let bh0 = -8, bh1 = 7, bz0 = 14, bz1 = 23

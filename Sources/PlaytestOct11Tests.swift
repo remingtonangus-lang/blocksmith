@@ -776,7 +776,9 @@ enum PlaytestOct11Tests {
         let far = dists().allSatisfy { $0 >= Reckoning.start.lowerBound - 1 && $0 <= Reckoning.start.upperBound + 1 }
         let begun = Reckoning.stage == 2 && sides.count == Reckoning.Side.allCases.count && units >= 80 && far
         // They close in from every side at once, and come in out of sight, capped.
-        for _ in 0..<40 { Reckoning.tick(g, 10) }
+        // (The clock steps with them: a band refused a spot in his sight waits a second of g.clock before its next try,
+        // and a clock that never moved left every band out the moment its first spot was in view: flaky, P511.)
+        for _ in 0..<40 { g.clock += 10; Reckoning.tick(g, 10) }
         let closing = dists().filter { $0 < Reckoning.near * 1.5 }.count
         let inn = Reckoning.members(g)
         let capped = !inn.isEmpty && inn.count <= Reckoning.liveCap
@@ -960,8 +962,9 @@ enum PlaytestOct11Tests {
         var rider: Mob?
         Stagecoach.chance = 0                              // (a rider on a saddled horse: a third drew a coach, unsaddled)
         FactionRaids.lastAssault = -1e9                    // (P215: no posse within 90 minutes of any check's assault)
-        for _ in 0..<6 where rider == nil { rider = Riders.send(g) }
-        var robbedOK = false, posse = 0, gunmen = true, mounted = false, robWhy = ""
+        var sendWhy: [String] = []
+        for _ in 0..<6 where rider == nil { Riders.why = "no road"; rider = Riders.send(g); if rider == nil { sendWhy.append(Riders.why) } }
+        var robbedOK = false, posse = 0, gunmen = true, mounted = false, robWhy = rider == nil ? "no rider: " + sendWhy.joined(separator: "; ") : ""
         if let r = rider, let h = r.mount, Items.has("gun_sidearm") {
             mounted = h.kind == .horse && h.saddled
             h.pos = p + V3(8, 0, 0); r.pos = h.pos + V3(0, h.height * 0.8, 0)
