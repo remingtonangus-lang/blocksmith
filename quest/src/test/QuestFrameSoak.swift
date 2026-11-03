@@ -257,6 +257,7 @@ enum QuestFrameSoak {
         _ = g.spawnPoint                                // (a save has it; a fresh game settles it at its spawn, not mid-soak)
         StructureCache.plansOffThread = true
         let plansMs = QuestWarmup.structures(g)                          // (as the game's loading does)
+        TownVoice.ensure()                                               // (and this)
         let loadS = CFAbsoluteTimeGetCurrent() - a0
 
         let scene = try SceneRenderer(ctx: ctx, device: device as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)

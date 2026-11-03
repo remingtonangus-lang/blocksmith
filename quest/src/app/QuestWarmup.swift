@@ -51,6 +51,9 @@ enum QuestWarmup {
         }
         let t2 = CFAbsoluteTimeGetCurrent()
         let plans = structures(game)
+        // (Store review, the town soak: the first greeting read the 36 MB voice bank on the frame thread, a 38-56 ms
+        // frame on the host; read here, with the loading scene up.)
+        TownVoice.ensure()
         print(String(format: "warmup: world: mesh cache %d files %.1f ms, %d rail lines %.1f ms, bases %.1f ms, starts round him %.0f ms", cached, (t0 - tc) * 1000,
                      rails, (t1 - t0) * 1000, (t2 - t1) * 1000, plans))
     }
