@@ -91,8 +91,13 @@ enum PlaytestPM9BTests {
             grassOld += per(og, a.cols); grassNew += per(ng, b.cols)
             // Per biome a few dozen blades decide it: 1/8 with room for sampling noise; the sum over biomes below is strict.
             check(og < 20 || ratio <= 0.2, String(format: "plants: %@ short grass %.1f -> %.1f per chunk (x%.3f, want ~1/8)", biome, per(og, a.cols), per(ng, b.cols), ratio))
-            let total = plantKeys.reduce(0) { $0 + (b.n[$1] ?? 0) } - (b.n["kelp"] ?? 0) - (b.n["seagrass"] ?? 0) - (b.n["bamboo"] ?? 0)
-            let before = plantKeys.reduce(0) { $0 + (a.n[$1] ?? 0) } - (a.n["kelp"] ?? 0) - (a.n["seagrass"] ?? 0) - (a.n["bamboo"] ?? 0)
+            func land(_ n: [String: Int]) -> Int {
+                var t = 0
+                for k in plantKeys { t += n[k] ?? 0 }
+                for k in ["kelp", "seagrass", "bamboo"] { t -= n[k] ?? 0 }
+                return t
+            }
+            let total = land(b.n), before = land(a.n)
             check(per(total, b.cols) <= 22, String(format: "plants: %@ land plants %.1f -> %.1f per chunk (want <= 22: about one column in 12)", biome, per(before, a.cols), per(total, b.cols)))
             if biome == "desert" {
                 let c = per(b.n["cactus"] ?? 0, b.cols), co = per(a.n["cactus"] ?? 0, a.cols)

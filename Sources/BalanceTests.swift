@@ -204,11 +204,19 @@ enum BalanceTests {
         let gunners = Set(roster.filter { $0.steelhold }.map { $0.spec.name })
         // (And a Gravesworn's guard and feints make one duel's kill time the luck of when its guard drops: within 15%.)
         let guarded: Set<String> = ["Gravesworn Duellist", "Gravesworn Squire"]
-        let flat = rows.filter { r in
-            (0..<2).contains { t in
-                (r.kills[t + 1] ?? inf) > (r.kills[t] ?? inf) * (guarded.contains(r.name) ? 1.15 : 1) + 0.3
-                    || (r.name != MobKind.witch.spec.name && (r.toKill[t + 1] ?? inf) * (gunners.contains(r.name) && t == 1 ? 1.3 : 1.15) + 0.3 < (r.toKill[t] ?? inf))
+        // (split into typed steps: the one expression timed out the CI's type checker)
+        let witchName = MobKind.witch.spec.name
+        let flat = rows.filter { r -> Bool in
+            for t in 0..<2 {
+                let killUp: Float = r.kills[t + 1] ?? inf, killHere: Float = r.kills[t] ?? inf
+                let killSlack: Float = guarded.contains(r.name) ? 1.15 : 1
+                if killUp > killHere * killSlack + 0.3 { return true }
+                if r.name == witchName { continue }
+                let lastUp: Float = r.toKill[t + 1] ?? inf, lastHere: Float = r.toKill[t] ?? inf
+                let lastSlack: Float = gunners.contains(r.name) && t == 1 ? 1.3 : 1.15
+                if lastUp * lastSlack + 0.3 < lastHere { return true }
             }
+            return false
         }
         check(flat.isEmpty, "balance gear pays: each tier up kills every mob as fast or faster and survives as long or longer\(flat.isEmpty ? "" : ": not for " + flat.map { $0.name }.joined(separator: ", "))")
         check(blasts[0] >= 10 && blasts[2] < 20 && blasts[1] <= blasts[0] && blasts[2] <= blasts[1], "balance hisser: a blast at arm's length takes \(blasts[0]) of an unarmoured player's 20 (at least 10), \(blasts[1]) in iron (the reference can kill there too), \(blasts[2]) in diamond (survived)")

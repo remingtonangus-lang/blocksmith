@@ -124,7 +124,8 @@ extension World {
             var same = true
             let r0 = raw[(bx + 1) + (bz + 1) * N + (by + 1) * NN]
             for k in 0..<8 {
-                let r = raw[(bx + 1 + (k & 1)) + (bz + 1 + (k >> 2)) * N + (by + 1 + ((k >> 1) & 1)) * NN]
+                let ix: Int = bx + 1 + (k & 1), iz: Int = bz + 1 + (k >> 2), iy: Int = by + 1 + ((k >> 1) & 1)
+                let r = raw[ix + iz * N + iy * NN]
                 v[k] = Float(r)
                 if r != r0 { same = false }
             }
@@ -333,11 +334,14 @@ extension Mesher {
                     // (the ground beside it, under it first: grass reaching up into the open cell over it stays grass)
                     b = DIRT
                     var found = false
-                    for o in [-RL, 1, -1, RW, -RW, RL] where dens[src + o] > 0 && natT[Int(R[src + o])] { b = R[src + o]; found = true; break }
+                    let around: [Int] = [-RL, 1, -1, RW, -RW, RL]
+                    for o in around where dens[src + o] > 0 && natT[Int(R[src + o])] { b = R[src + o]; found = true; break }
                     if !found {
-                        let bx = gx >> 1, by = sy * 16 + (gy >> 1), bz = gz >> 1
-                        let st = n9[(bx >> 4) + 1 + ((bz >> 4) + 1) * 3]
-                        let m = by >= 0 && by < CH ? Int(st.material(Chunk.index(bx & 15, by, bz & 15))) : 0
+                        let bx: Int = gx >> 1, by: Int = sy * 16 + (gy >> 1), bz: Int = gz >> 1
+                        let ni: Int = (bx >> 4) + 1 + ((bz >> 4) + 1) * 3
+                        let st = n9[ni]
+                        var m = 0
+                        if by >= 0 && by < CH { m = Int(st.material(Chunk.index(bx & 15, by, bz & 15))) }
                         if m != 0 { b = FieldMat.blocks[m] }
                     }
                 } else if d <= 0 && cellGround {

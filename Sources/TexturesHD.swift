@@ -2045,7 +2045,7 @@ enum HDTex {
     static let machineStone: Gen = stone([(0, 0x46464A), (0.5, 0x5C5C60), (1, 0x727276)], veins: 0.1, strata: 0)
     static let observerShell: Gen = stone([(0, 0x8C9CA6), (0.5, 0xA2B2BC), (1, 0xB6C4CC)], veins: 0, strata: 0)     // P463
     static func sparkFace(_ kind: String) -> Gen {
-        { n, s in
+        { (n: Int, s: Int) -> Img in
             let fn = Float(n), u = n / 16
             let fine = vnoise(n, max(1, n / 64), s &+ 2)
             func put(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
@@ -2186,11 +2186,13 @@ enum HDTex {
                     case "observer_front":
                         // The face (P110: "the observer needs a new look"): a round glass lens set in a copper ring
                         // with a dark gasket, a pale glint on the glass, and four copper bolts in the corners.
-                        let dx: Float = (Float(x) + 0.5 - fn / 2) / Float(u), dy: Float = (Float(y) + 0.5 - fn / 2) / Float(u)
+                        let half: Float = fn / 2, fu1: Float = Float(u)
+                        let dx: Float = (Float(x) + 0.5 - half) / fu1, dy: Float = (Float(y) + 0.5 - half) / fu1
                         let d: Float = (dx * dx + dy * dy).squareRoot()
                         if d < 3.4 {
                             let depth: Float = cl(1 - d / 3.4)
-                            var c: V3 = col(0x1E3A4A) * (0.55 + 0.45 * (1 - depth)) + col(0x0A1218) * depth
+                            let glass: V3 = col(0x1E3A4A) * (0.55 + 0.45 * (1 - depth))
+                            var c: V3 = glass + col(0x0A1218) * depth
                             let gx: Float = dx + 1.3, gy: Float = dy + 1.3
                             let glint: Float = cl(1 - (gx * gx + gy * gy).squareRoot() / 0.9)
                             c = c + (col(0xD8F0F8) - c) * (glint * glint)

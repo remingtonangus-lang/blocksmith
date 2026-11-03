@@ -138,8 +138,10 @@ extension Game {
                     continue
                 }
                 let j = jitter()
-                if debris.piece(f.poly, o.blocks[o.parts[f.part].cell], origin: pieceOrigin(f),
-                                velocity: cn * (1.8 + j.y) + blow * 1.2 + j * 1.4 + V3(0, 1.4, 0), spin: j * 10, layers: layers(f)) {
+                let fly: V3 = cn * (1.8 + j.y) + blow * 1.2
+                let vel: V3 = fly + j * 1.4 + V3(0, 1.4, 0)
+                let spin: V3 = j * 10
+                if debris.piece(f.poly, o.blocks[o.parts[f.part].cell], origin: pieceOrigin(f), velocity: vel, spin: spin, layers: layers(f)) {
                     objectStats.debris += 1
                 }
             }
@@ -209,8 +211,12 @@ extension Game {
             let pt = o.parts[f.part], bi = Int(b)
             let lay: [UInt16]? = pt.boxIndex >= 0 && pt.boxIndex < Blocks.boxes[bi].count && Blocks.boxes[bi][pt.boxIndex].tex.count == 6
                 ? Blocks.boxes[bi][pt.boxIndex].tex : nil
-            debris.piece(f.poly, b, origin: ov + V3(0, world.objectSeat(b, o.cells[k]), 0),
-                         velocity: out * 1.2 + player.look * 0.8 + j * 1.2 + V3(0, 0.8, 0), spin: j * 5, layers: lay)
+            let seat: Float = world.objectSeat(b, o.cells[k])
+            let origin: V3 = ov + V3(0, seat, 0)
+            let push: V3 = out * 1.2 + player.look * 0.8
+            let vel: V3 = push + j * 1.2 + V3(0, 0.8, 0)
+            let spin: V3 = j * 5
+            debris.piece(f.poly, b, origin: origin, velocity: vel, spin: spin, layers: lay)
         }
         tb = objectStats.note("break: pieces", tb)
         if let k = o.cells.indices.first(where: { !o.gone[$0] }) { blockSound(audioBreakSound(o.blocks[k]), at: o.cells[k]) }

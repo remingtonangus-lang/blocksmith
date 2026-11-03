@@ -83,8 +83,11 @@ enum FriendlyFireTests {
         }
         g.mobs.mobs.removeAll(); g.arms.slugs.removeAll(); g.arms.beams.removeAll()
         print("friendly fire: " + rows.joined(separator: "; "))
-        check(bad.isEmpty && quiet.isEmpty, "friendly fire: no soldier squad hurts its own in 20 s against the player (12 each, three ranks firing through each other): "
-              + rows.map { $0.components(separatedBy: " (").first ?? $0 }.joined(separator: ", ")
-              + (bad.isEmpty ? "" : "; own hits: " + bad.joined(separator: ", ")) + (quiet.isEmpty ? "" : "; never fought: " + quiet.joined(separator: ", ")))
+        let names: [String] = rows.map { (r: String) -> String in r.components(separatedBy: " (").first ?? r }
+        var msg = "friendly fire: no soldier squad hurts its own in 20 s against the player (12 each, three ranks firing through each other): "
+        msg += names.joined(separator: ", ")
+        if !bad.isEmpty { msg += "; own hits: " + bad.joined(separator: ", ") }
+        if !quiet.isEmpty { msg += "; never fought: " + quiet.joined(separator: ", ") }
+        check(bad.isEmpty && quiet.isEmpty, msg)
     }
 }

@@ -136,9 +136,11 @@ extension Trains {
         tr.raidedDay = day
         tr.raidT = 0
         guard let lead = lead(tr) else { return }
-        let ahead = lead.pos + lead.forward * (halfLength(lead) + 10)
-        let side = V3(lead.forward.z, 0, -lead.forward.x)
-        let spots = [ahead + side * 2, ahead - side * 2, lead.pos + side * 6 - lead.forward * 4, lead.pos - side * 6 - lead.forward * 8]
+        let fwd: V3 = lead.forward, at: V3 = lead.pos
+        let ahead: V3 = at + fwd * (halfLength(lead) + 10)
+        let side = V3(fwd.z, 0, -fwd.x)
+        let left: V3 = at + side * 6 - fwd * 4, right: V3 = at - side * 6 - fwd * 8
+        let spots: [V3] = [ahead + side * 2, ahead - side * 2, left, right]
         for (i, s) in spots.enumerated() {
             let m = Mob(i % 2 == 0 ? .pillager : .vindicator, at: g.world.freeSpawn(s))
             m.customName = robberName

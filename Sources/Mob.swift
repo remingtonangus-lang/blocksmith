@@ -599,7 +599,9 @@ final class Mob {
     var bowMuzzle: V3 {
         guard Mob.bowKinds.contains(kind) else { return eye + forward * 0.3 }
         let r = V3(cosf(yaw), 0, -sinf(yaw))
-        return pos + V3(0, 22.0 / 16 * scale, 0) + forward * 0.5 * scale + r * 0.31 * scale
+        let up: V3 = V3(0, 22.0 / 16 * scale, 0)
+        let out: V3 = forward * (0.5 * scale) + r * (0.31 * scale)
+        return pos + up + out
     }
     static let bowKinds: Set<MobKind> = [.skeleton, .stray, .parched, .bogged]
     // Where the Powderwight's fuse burns, in the world: the spark part's centre (model -5.2, 30.35, 5.7) after the hunch

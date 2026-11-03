@@ -670,6 +670,9 @@ final class StructureCache {
 // MARK: Loot tables (item, min, max, weight) with a number of rolls.
 
 enum Loot {
+    typealias Table = (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])
+    // The other sites' tables, looked in after `tables`, in this order.
+    static let lootSources: [[String: Table]] = [WildCamps.loot, Greywall.loot, Depots.loot, SkyIsle.loot, MiningTowns.loot, NavalPort.loot, FrontierSites.loot]
     static let tables: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [
         "fortress": (2...4, [("keepers_journal", 1, 1, 6), ("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 5), ("gold_ingot", 1, 3, 15), ("golden_sword", 1, 1, 5),
                              ("golden_chestplate", 1, 1, 5), ("flint_and_steel", 1, 1, 5), ("nether_wart", 3, 7, 5),
@@ -940,7 +943,10 @@ enum Loot {
             GunGrade.gradeChest(c, table: "steelhold_vault", rng: &rng)
             return
         }
-        guard let t = tables[table] ?? WildCamps.loot[table] ?? Greywall.loot[table] ?? Depots.loot[table] ?? SkyIsle.loot[table] ?? MiningTowns.loot[table] ?? NavalPort.loot[table] ?? FrontierSites.loot[table] else { return }
+        // (looked up a source at a time: one chain of ?? timed out the CI's type checker)
+        var found = tables[table]
+        for more in Loot.lootSources where found == nil { found = more[table] }
+        guard let t = found else { return }
         roll(c, t.rolls, t.entries, rng: &rng, hell: hellTables.contains(table))
         for pool in extraPools[table] ?? [] { roll(c, pool.rolls, pool.entries, rng: &rng, hell: hellTables.contains(table)) }
         if BaseSundries.supplyTables.contains(table) { roll(c, BaseSundries.supplyPool.rolls, BaseSundries.supplyPool.entries, rng: &rng) }
