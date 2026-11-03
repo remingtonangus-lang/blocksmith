@@ -249,6 +249,14 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    // (FAILURES 4, the void sweep: the column height is the generator's height map, and in the badlands' mesas and the
+    // field's ground the land stands well over it: the eye stood inside the rock, every view 63-88% "void". Over the
+    // loaded world's own top once it is there.)
+    if let up = Float(arg("--up") ?? "") {
+        let ix = Int(floor(vg.player.pos.x)), iz = Int(floor(vg.player.pos.z))
+        let top = vw.topY(ix, iz)
+        if top >= 0 { vg.player.pos.y = max(vg.player.pos.y, Float(max(top, SEA) + 1) + up) }
+    }
     // --rail --train passenger|cargo|troop (P470 part 2): that kind of train on the line, its middle at the --rail cell
     // (the clock set to when the timetable has it there), built as the game builds it near the player.
     if let kn = arg("--train"), let l = railLine {
