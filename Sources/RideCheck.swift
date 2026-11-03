@@ -495,7 +495,9 @@ enum RideCheck {
                     r.note(String(format: "climb %.2f s: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@, vel %.2f,%.2f,%.2f; at y %ld z %ld: ", phaseT, l.x, l.y, l.z,
                                   aboard ? "yes" : "no", stt.onGround ? "yes" : "no", g.player.vel.x, g.player.vel.y, g.player.vel.z, fy, fz) + cells.joined(separator: ", "))
                 }
-                var a = walk(stt, to: s.toWorld(V3(9, 0, 29.5)))
+                // (Into the backing at the ladder's middle, z 29.5: aimed at x 9 the push barely turned him back, and
+                // arriving on the rungs moving along the flank, build 98 drifted off the ladder's side at 2 b/s.)
+                var a = walk(stt, to: s.toWorld(V3(7.2, 0, 29.5)))
                 a.forward = 1
                 a.jump = true
                 return a
