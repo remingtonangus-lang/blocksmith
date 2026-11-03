@@ -284,6 +284,8 @@ enum Countries {
         if let t = state.towns[town], t.count == 2 { return (t[0], t[1]) }
         let x = Int(floor(p.x)), z = Int(floor(p.z))
         var a = (x, z)
+        // (store review: its village regions made on a worker; the town is learnt when they are)
+        if let sc = g.world.gen.structures, !sc.regionsReady("village", x: x, z: z, maxRegions: 1) { return a }
         if let s = g.world.gen.structures?.nearest("village", x: x, z: z, maxRegions: 1), abs(s.anchor.x - x) < 200 && abs(s.anchor.z - z) < 200 {
             a = (s.anchor.x, s.anchor.z)
         }
@@ -319,6 +321,12 @@ enum Countries {
         if let v = capitals[c.key] { return v.map { (name: $0.0, x: $0.1, z: $0.2) } }
         var out: (String, Int, Int)?
         if let sc = g.world.gen.structures {
+            // (Store review, the frame soak's "starts planned on the frame thread": the first look at a country planned
+            // up to 81 village regions round its seat on the frame thread, 1-6 ms each. They're made on a worker now,
+            // and the capital is found once they are; until then it's not known, and not kept.)
+            let a = sc.regionsReady("capital_city", x: c.seatX, z: c.seatZ, maxRegions: 2)
+            let b = sc.regionsReady("village", x: c.seatX, z: c.seatZ, maxRegions: 4)
+            guard a && b else { return nil }
             func inside(_ s: StructureStart) -> Bool {
                 let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
                 return cellAt(cx, cz, seed: g.world.seed) == (c.cx, c.cz)
@@ -512,6 +520,14 @@ enum Countries {
     static func postSpot(_ g: Game, _ a: Country, _ b: Country) -> (Int, Int)? {
         let k = warKey(a.key, b.key)
         if let v = postSpots[k] { return v }
+        // (store review: the spot looks at every kind's starts along the border; they're made on a worker first, and
+        // the spot found, and kept, once they are)
+        if let sc = g.world.gen.structures {
+            let mx = (a.seatX + b.seatX) / 2, mz = (a.seatZ + b.seatZ) / 2
+            var ready = true
+            for t in sc.types where !sc.regionsReady(t.name, x: mx, z: mz, maxRegions: 1) { ready = false }
+            if !ready { return nil }
+        }
         var out: (Int, Int)?
         let mx = Float(a.seatX + b.seatX) / 2, mz = Float(a.seatZ + b.seatZ) / 2
         var along = V2(-Float(b.seatZ - a.seatZ), Float(b.seatX - a.seatX))

@@ -52,13 +52,16 @@ enum StructureTip {
         let floorY = max(1, p.y - r)
         let R = Structure.gridR, G = Structure.gridW, grid = Structure.grid
         @inline(__always) func slot(_ q: IVec3) -> Int { (q.x - p.x + R) + (q.y - p.y + R) * G + (q.z - p.z + R) * G * G }
+        // (store review: the fill read each cell's chunk out of the world's table, some 160,000 lookups for a
+        // citadel tower; a cursor keeps the chunk it last read, as Structure's fills do)
+        var k = ChunkCursor(w)
         var cells: [IVec3] = [], mats: [Structure.Mat] = []
         var links: [Float] = []                                   // per cell: the bonds of its joints out past `side`
         defer { for q in cells { grid[slot(q)] = -1 } }
         func add(_ q: IVec3) -> Bool {
             guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY, grid[slot(q)] < 0,
-                  let m = Structure.part(w, q.x, q.y, q.z) else { return true }
-            if Structure.helm[Int(w.builtBlock(q.x, q.y, q.z))] { return false }
+                  let m = Structure.part(&k, q.x, q.y, q.z) else { return true }
+            if Structure.helm[Int(k.built(q.x, q.y, q.z))] { return false }
             grid[slot(q)] = Int32(cells.count)
             cells.append(q); mats.append(m); links.append(0)
             return true
@@ -74,12 +77,12 @@ enum StructureTip {
             let rim = abs(c.x - p.x) >= side || abs(c.z - p.z) >= side
             for d in Structure.nbrs {
                 let q = c + d
-                guard w.isLoaded(q.x, q.z) else { return nil }
+                guard k.loaded(q.x, q.z) else { return nil }
                 if rim && (abs(q.x - p.x) > side || abs(q.z - p.z) > side) {
                     // A block's hold across is its strongest joint there (one bond, as a footing block's is; an edge
                     // joint half): the edge joints beside a face joint add nothing to what turns it (they made a
                     // 15-long skyway hold a 900-block tower off its end, Nov 1 20:24).
-                    if q.y >= floorY, let mq = Structure.part(w, q.x, q.y, q.z) {
+                    if q.y >= floorY, let mq = Structure.part(&k, q.x, q.y, q.z) {
                         let edge = abs(d.x) + abs(d.y) + abs(d.z) == 2
                         links[head - 1] = max(links[head - 1], min(mats[head - 1].bond, mq.bond) * (edge ? 0.5 : 1))
                     }
@@ -97,10 +100,10 @@ enum StructureTip {
             let c = cells[i]
             for d in Structure.nbrs where d.y == -1 {
                 let q = c + d
-                if Structure.anchor(w, q.x, q.y, q.z) { ground[i] = true; break }
-                if Structure.part(w, q.x, q.y, q.z) != nil { onBlock[i] = true }
+                if Structure.anchor(&k, q.x, q.y, q.z) { ground[i] = true; break }
+                if Structure.part(&k, q.x, q.y, q.z) != nil { onBlock[i] = true }
             }
-            if !ground[i] { for d in World.allDirs where d.y == 0 && Structure.anchor(w, c.x + d.x, c.y, c.z + d.z) { ground[i] = true; break } }
+            if !ground[i] { for d in World.allDirs where d.y == 0 && Structure.anchor(&k, c.x + d.x, c.y, c.z + d.z) { ground[i] = true; break } }
         }
         var mark = [Int32](repeating: -1, count: n)
         var comp: [Int] = []
@@ -151,19 +154,20 @@ enum StructureTip {
     static let hangLimit = 2000, hangOut = 24
     static func cantilever(_ w: World, at p: IVec3, r: Int) -> [IVec3]? {
         let r = max(1, min(r, 8))
+        var k = ChunkCursor(w)                                             // (as check's fill)
         for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
             @inline(__always) func beyond(_ q: IVec3) -> Int { (q.x - p.x) * d.x + (q.z - p.z) * d.z }
             // The far side's built cells at the hole, then all of that side's piece joined to them.
             var piece: [IVec3] = [], seen = Set<IVec3>()
             var ok = true
             func add(_ q: IVec3) {
-                guard ok, beyond(q) >= 1, !seen.contains(q), Structure.part(w, q.x, q.y, q.z) != nil else { return }
-                if piece.count >= hangLimit || abs(q.x - p.x) > hangOut || abs(q.y - p.y) > hangOut || abs(q.z - p.z) > hangOut || !w.isLoaded(q.x, q.z)
-                    || Structure.helm[Int(w.builtBlock(q.x, q.y, q.z))] { ok = false; return }
+                guard ok, beyond(q) >= 1, !seen.contains(q), Structure.part(&k, q.x, q.y, q.z) != nil else { return }
+                if piece.count >= hangLimit || abs(q.x - p.x) > hangOut || abs(q.y - p.y) > hangOut || abs(q.z - p.z) > hangOut || !k.loaded(q.x, q.z)
+                    || Structure.helm[Int(k.built(q.x, q.y, q.z))] { ok = false; return }
                 seen.insert(q); piece.append(q)
                 // (standing on its own: ground under or beside it; then it's no overhang)
-                if Structure.anchor(w, q.x, q.y - 1, q.z) { ok = false; return }
-                for n in World.allDirs where n.y == 0 && Structure.anchor(w, q.x + n.x, q.y, q.z + n.z) { ok = false; return }
+                if Structure.anchor(&k, q.x, q.y - 1, q.z) { ok = false; return }
+                for n in World.allDirs where n.y == 0 && Structure.anchor(&k, q.x + n.x, q.y, q.z + n.z) { ok = false; return }
             }
             for y in (p.y - r - 1)...(p.y + r + 1) { for b in 1...(r + 1) { for a in (-r - 1)...(r + 1) {
                 let q = d.x != 0 ? IVec3(p.x + d.x * b, y, p.z + a) : IVec3(p.x + a, y, p.z + d.z * b)
@@ -180,13 +184,13 @@ enum StructureTip {
             var cut = false
             var weight: Float = 0, wOut: Float = 0
             for c in piece {
-                guard let m = Structure.part(w, c.x, c.y, c.z) else { continue }
+                guard let m = Structure.part(&k, c.x, c.y, c.z) else { continue }
                 weight += m.weight
                 wOut += m.weight * Float(beyond(c))
                 for n in Structure.nbrs {
                     let q = c + n
                     guard !seen.contains(q) else { continue }
-                    if let mq = Structure.part(w, q.x, q.y, q.z) {
+                    if let mq = Structure.part(&k, q.x, q.y, q.z) {
                         let edge = abs(n.x) + abs(n.y) + abs(n.z) == 2
                         joints.append((c.y, beyond(c), min(m.bond, mq.bond) * (edge ? 0.5 : 1)))
                     } else if !cut && beyond(q) <= beyond(c) {

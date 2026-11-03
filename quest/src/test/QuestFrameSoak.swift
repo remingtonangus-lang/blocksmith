@@ -256,6 +256,7 @@ enum QuestFrameSoak {
         sc.prepare(g)
         _ = g.spawnPoint                                // (a save has it; a fresh game settles it at its spawn, not mid-soak)
         StructureCache.plansOffThread = true
+        let plansMs = QuestWarmup.structures(g)                          // (as the game's loading does)
         let loadS = CFAbsoluteTimeGetCurrent() - a0
 
         let scene = try SceneRenderer(ctx: ctx, device: device as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
@@ -355,8 +356,8 @@ enum QuestFrameSoak {
         scene.waitIdle()
         let n = Double(max(1, cpu.count))
         let mean = cpu.reduce(0, +) / n
-        print(String(format: "framesoak %@ (%@): loaded in %.1f s; %d frames; peak %d mobs, %d shells in flight, %d ships",
-                     sc.name, sc.what, loadS, cpu.count, mobsPeak, shellsPeak, g.world.ships.list.count))
+        print(String(format: "framesoak %@ (%@): loaded in %.1f s (starts round him %.0f ms); %d frames; peak %d mobs, %d shells in flight, %d ships",
+                     sc.name, sc.what, loadS, plansMs, cpu.count, mobsPeak, shellsPeak, g.world.ships.list.count))
         print(String(format: "    frame thread (host ms): mean %.2f p95 %.2f p99 %.2f worst %.1f; tick mean %.2f p99 %.2f worst %.1f; record mean %.2f p99 %.2f worst %.1f",
                      mean, pct(cpu, 95), pct(cpu, 99), cpu.max() ?? 0, ticks.reduce(0, +) / n, pct(ticks, 99), ticks.max() ?? 0,
                      recs.reduce(0, +) / n, pct(recs, 99), recs.max() ?? 0))

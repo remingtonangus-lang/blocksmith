@@ -50,7 +50,20 @@ enum QuestWarmup {
             for kind in [Greywall.kind, "military_base", BorealStation.kind] { _ = sc.nearestIfReady(kind, x: x, z: z) }
         }
         let t2 = CFAbsoluteTimeGetCurrent()
-        print(String(format: "warmup: world: mesh cache %d files %.1f ms, %d rail lines %.1f ms, bases %.1f ms", cached, (t0 - tc) * 1000,
-                     rails, (t1 - t0) * 1000, (t2 - t1) * 1000))
+        let plans = structures(game)
+        print(String(format: "warmup: world: mesh cache %d files %.1f ms, %d rail lines %.1f ms, bases %.1f ms, starts round him %.0f ms", cached, (t0 - tc) * 1000,
+                     rails, (t1 - t0) * 1000, (t2 - t1) * 1000, plans))
+    }
+
+    // Store review (the frame soak's "starts planned on the frame thread": the first seconds' town, map-fog, hunting
+    // and mob lookups planned villages, temples and bases on the frame thread, 1-15 ms each, racing the worker that
+    // plans ahead of him): every kind's starts a region round him are planned here, with the loading scene up.
+    @discardableResult
+    static func structures(_ game: Game) -> Double {
+        guard let sc = game.world.gen.structures, game.player.pos.x.isFinite, game.player.pos.z.isFinite else { return 0 }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        sc.prefetch(x: Int(floor(game.player.pos.x)), z: Int(floor(game.player.pos.z)), ring: 1)
+        StructureCache.prefetchQueue.sync {}
+        return (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
 }
