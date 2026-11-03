@@ -77,7 +77,9 @@ enum ProvingGroundsCheck {
             }
             let turrets = ships.turrets(of: s).count
             if turrets >= 1 { taken += 1 } else { notes.append("\(ProvingGrounds.guns[k].name) no turret") }
-            for _ in 0..<30 { g.tick(1.0 / 60) }
+            // (the ships alone, not a game tick: the check's world keeps no save, and a tick's streaming round him would
+            // drop the far guns' chunks and their blocks with them)
+            for _ in 0..<30 { ships.update(1.0 / 60, game: g) }
             let n = ships.fire(s, pitch: 0, game: g)
             if n > 0 { fired += 1 } else { notes.append("\(ProvingGrounds.guns[k].name) didn't fire") }
             for sh in ships.shells { sh.life = 0 }

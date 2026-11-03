@@ -126,6 +126,10 @@ enum EncounterCheck {
             return nil
         }
         // Plays `secs` at 30 ticks a second; his raft held, his health kept; returns (closest, rounds fired, hurt).
+        var lastHurt = "nothing"
+        let onDamage0 = Game.onDamage
+        Game.onDamage = { _, cause in lastHurt = cause }
+        defer { Game.onDamage = onDamage0 }
         func play(_ s: Ship, _ secs: Float, under: Bool = false) -> (Float, Int, Int) {
             var closest: Float = .infinity, hurt = 0
             var seen = Set<ObjectIdentifier>()
@@ -136,7 +140,9 @@ enum EncounterCheck {
                                  s.name, f / 30, simd_length(V2(s.pos.x - g.player.pos.x, s.pos.z - g.player.pos.z)), s.asleep ? "yes" : "no",
                                  simd_length(s.vel), s.autopilot.map { String(format: "%.1f,%.1f", $0.x, $0.y) } ?? "none", ts.count,
                                  ts.filter { $0.aimAt != nil }.count, g.mobs.mobs.filter { $0.deck === s && $0.health > 0 }.count,
-                                 ships.gunsEngage(s, g) ? "yes" : "no", s.fireTimer))
+                                 ships.gunsEngage(s, g) ? "yes" : "no", s.fireTimer)
+                          + String(format: " (alive %@, survival %@, difficulty %d, won %@, %.0f off in 3D, last hurt by %@)", g.alive ? "yes" : "no",
+                                   g.survival ? "yes" : "no", g.difficulty, Reckoning.won ? "yes" : "no", simd_length(g.player.pos + V3(0, 1, 0) - s.pos), lastHurt))
                 }
                 if under { g.player.pos = V3(Float(x) + 0.5, Float(SEA - 4), Float(z) + 4.5); g.player.vel = .zero }
                 g.tick(1.0 / 30)
