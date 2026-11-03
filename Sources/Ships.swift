@@ -766,6 +766,7 @@ final class ShipManager {
     var itemRiders: [(ItemEntity, Ship)] = []
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
     var shockwaves: [Shockwave] = []
+    var shockDt: Float = 1.0 / 72                // (the last frame's dt: stepBowls tells a wave born this frame)
     var pendingCraters: [V3] = []                    // Tidebreaker hits on ground not loaded yet (MainGun.swift)
     var pendingAlong: [V3?] = []                     // ... and the line each came in on (P504), index for index
     var pendingCraterTimer: Float = 0 // Tidebreaker impacts spreading out (MainGun.swift)

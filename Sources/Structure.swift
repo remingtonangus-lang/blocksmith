@@ -378,9 +378,21 @@ enum Structure {
     }
 
     // The queue: World.setBlock notes structural changes; a few are checked a frame.
+    // Store review (build 111's citadel soak: a load check, up to 4.8 ms, ran beside the soldiers' 3-6 ms): in the
+    // game's tick a check waits for a frame with the carving allowance left (CraterJob.allowance, which goes by what the
+    // tick has left), at most `maxWait` frames; it spends the allowance. Seeded runs and harnesses check as before.
+    static var wantSeconds = 0.0012, maxWait = 3          // (one check a frame was all it ever ran: a short wait)
+    private static var waited = 0
     static func tick(_ g: Game) {
         let w = g.world
         guard enabled, !w.loadQueue.isEmpty else { return }
+        let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
+        if paced {
+            if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
+            waited = 0
+        }
+        let began = CFAbsoluteTimeGetCurrent()
+        defer { if paced { CraterJob.spend(CFAbsoluteTimeGetCurrent() - began) } }
         var budget = 1
         while budget > 0, !w.loadQueue.isEmpty {
             let p = w.loadQueue.removeFirst()

@@ -1482,7 +1482,7 @@ final class World {
             if let c = chunks[k] { if c.hollow { refill(c, p) }; World.noteResult(ti, "refill"); continue }
             if let e = p.cached { installShell(k, e); World.noteResult(ti, "shell from the cache"); continue }
             install(k, p)
-            World.noteResult(ti, p.fromDisk ? "install (saved)" : "install (generated)")
+            if World.resultsProfile { World.noteResult(ti, (p.fromDisk ? "install (saved): " : "install (generated): ") + World.installSplit) }
         }
         while mi < mr.count && (mi <= nearMeshes || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, list) = mr[mi]; mi += 1
@@ -2078,7 +2078,10 @@ final class World {
         return out
     }
 
+    static var installSplit = ""                         // (the soak: where the last install's time went)
     private func install(_ k: ChunkKey, _ p: Produced) {
+        let prof = World.resultsProfile
+        let t0 = prof ? CFAbsoluteTimeGetCurrent() : 0
         if p.ground != nil { fieldStamp &+= 1 }              // (cached field collision at its border reads it now)
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint, field: p.ground)
         c.world = self
@@ -2088,11 +2091,18 @@ final class World {
         c.fieldEdits = p.field
         if !p.fromDisk, let gd = p.ground { c.borderSeeds = gd.borderSeeds }     // P380 (2)
         chunks[k] = c
+        let t1 = prof ? CFAbsoluteTimeGetCurrent() : 0
         GroundSettle.borderCheck(self, around: k)
+        let t2 = prof ? CFAbsoluteTimeGetCurrent() : 0
         for t in p.tracked { redstone.tracked.insert(t) }
         // Lava springs go to the lava queue: the water tick skips lava, so generated lavafalls never started.
         for q in p.springs { if Blocks.fluidKind[Int(rawBlock(q.x, q.y, q.z))] == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) } }
         borderSprings(c)
+        if prof {
+            let t3 = CFAbsoluteTimeGetCurrent()
+            World.installSplit = String(format: "chunk %.1f, border settle %.1f, springs %.1f; %ld springs, %ld tracked", (t1 - t0) * 1000, (t2 - t1) * 1000,
+                                        (t3 - t2) * 1000, p.springs.count, p.tracked.count)
+        }
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.

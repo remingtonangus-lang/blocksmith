@@ -70,12 +70,13 @@ extension Game {
             }
         }
         RandomTickRng.hits = hits
+        TickProf.mark("random ticks")
         // Leaves whose tree was cut decay a few at a time.
         var n = 0
         while n < 4, let p = leafQueue.popLast() {
             n += 1
             let b = world.materialAt(p.x, p.y, p.z)
-            guard Blocks.key(b).hasSuffix("leaves"), !placedLeaves.contains(p) else { continue }
+            guard Game.leafKinds[Int(b)] == 2, !placedLeaves.contains(p) else { continue }
             if !logNearby(p, radius: 6) {          // reference: leaves live up to 6 steps from a log (4 stripped big canopies)
                 world.setBlock(p.x, p.y, p.z, AIR)
                 for s in Mining.drops(b, .empty) { drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
@@ -83,20 +84,30 @@ extension Game {
         }
     }
 
+    // Per block state: 1 a log or wood, 2 leaves (store review, build 111's citadel soak: a 20 Hz tick's leaf decay
+    // after the crawler's topples took 10-13 ms of a frame, every cell of each search read as its name and suffixes).
+    static let leafKinds: [UInt8] = (0..<Blocks.count).map { i -> UInt8 in
+        let k = Blocks.key(BlockID(i))
+        if k.hasSuffix("_log") || k.hasSuffix("_wood") { return 1 }
+        return k.hasSuffix("leaves") ? 2 : 0
+    }
+
     private func logNearby(_ p: IVec3, radius: Int) -> Bool {
         // BFS through leaves looking for a log within `radius` steps.
+        let kinds = Game.leafKinds
         var seen = Set<IVec3>([p])
         var frontier = [p]
+        let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
         for _ in 0..<radius {
             var next: [IVec3] = []
             for q in frontier {
-                for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                for d in dirs {
                     let n = q + d
                     if seen.contains(n) { continue }
                     seen.insert(n)
-                    let k = Blocks.key(world.materialAt(n.x, n.y, n.z))
-                    if k.hasSuffix("_log") || k.hasSuffix("_wood") { return true }
-                    if k.hasSuffix("leaves") { next.append(n) }
+                    let kind = kinds[Int(world.materialAt(n.x, n.y, n.z))]
+                    if kind == 1 { return true }
+                    if kind == 2 { next.append(n) }
                 }
             }
             frontier = next
@@ -107,7 +118,12 @@ extension Game {
     func queueLeafDecay(around p: IVec3) {
         for dy in -6...6 { for dz in -6...6 { for dx in -6...6 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
-            if Blocks.key(world.materialAt(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Rand.int(in: 0...leafQueue.count)) }
+            // (appended and swapped with a random place: an insert at a random place moved the whole queue each time,
+            // a felled canopy's 2,000 cells into a queue thousands long)
+            if Game.leafKinds[Int(world.materialAt(q.x, q.y, q.z))] == 2 {
+                leafQueue.append(q)
+                leafQueue.swapAt(Rand.int(in: 0...(leafQueue.count - 1)), leafQueue.count - 1)
+            }
         } } }
     }
 
