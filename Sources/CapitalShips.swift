@@ -2599,14 +2599,16 @@ extension ShipManager {
         func hardnessOK(_ b: BlockID) -> Bool { let h = Blocks.hardness[Int(b)]; return h >= 0 && h < 2 }   // (soil, not rock)
         // P511 (questcheck --streamtest --crawler at his spot): every wheel cut a ball into the field ground on every pass
         // (up to 24 a second): each cut remeshed the ground round it, and the land round him waited. A wheel cuts again
-        // only once it has rolled on most of a ball's width from its last cut, two cuts a pass at most.
+        // only once it has rolled on most of a ball's width from its last cut, one cut a pass at most (below).
         for (wi, wh) in st.wheels.enumerated() where !wh.lost {
             var sunk = 0
             defer {
                 let mid0 = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y), Float(wh.lo.z + wh.hi.z + 1) * 0.5)
                 let at = s.toWorld(mid0)
                 let rolled = st.rutCarved[wi].map { simd_length(V2($0.x - at.x, $0.z - at.z)) } ?? .infinity
-                if sunk > 0 && dug < 2 && rolled > 1.4 {
+                // (store review, the crawler soak: two cuts a pass were up to 21 ms of one frame; one a pass now, the
+                // wheels taking turns as they roll on)
+                if sunk > 0 && dug < 1 && rolled > 1.4 {
                     st.rutCarved[wi] = at
                     // (a ball whose bottom is a third of a block under the wheel: a shallow rut, not a trench)
                     let r = min(1.8, max(0.9, Float(min(wh.hi.x - wh.lo.x, wh.hi.z - wh.lo.z) + 1) * 0.5))

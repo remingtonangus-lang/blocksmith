@@ -3474,6 +3474,10 @@ final class Game {
             Reckoning.tick(self, rt)
             GarrisonTown.tick(self, rt)
             TickProf.mark("reckoning+garrison")
+            if player.pos.x.isFinite && player.pos.z.isFinite {                    // (planned on a worker: StructureCache.prefetch)
+                world.gen.structures?.prefetch(x: Int(floor(player.pos.x)), z: Int(floor(player.pos.z)))
+            }
+            TickProf.mark("structure prefetch")
             FarTicks.roll(clock: clock)             // P376: the stats line's "far ticking" count
             world.unparkActive()
             Trains.tick(self)                       // C1: trains near the player built and taken away

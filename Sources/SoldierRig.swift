@@ -172,6 +172,7 @@ enum SoldierRig {
     // Only the mob draw (writeMobVertices) takes the far level: the AI's muzzle lookups build the full rig's muzzle.
     static var drawing = false
     static var lodBuilt = [0, 0, 0, 0]     // rigs built per level while drawing (questcheck's battle draw line)
+    static var lodKept = 0                 // drawn rigs reused a frame or two past 14 blocks (store review)
 
     // Rank index used by the rig: 0 trooper, 1 vanguard, 2 marksman, 3 bulwark, 4 officer, 5 pilot.
     static func rank(_ m: Mob) -> Int { Soldier.rank(m.kind) ?? 0 }
@@ -243,6 +244,11 @@ enum SoldierRig {
             lod = d > 34 ? 2 : (d > 14 ? 1 : 0)
             let seated = b.station == .seated || b.station == .passenger
             if drawing && d > farLOD && !seated { lodBuilt[3] += 1; return far(m, rank: r) }
+            // Store review (callgrind of the battle soak: this rig built for every soldier every frame, 99k instructions
+            // each, half the mob pass): past 14 blocks the drawn rig is kept for a frame (lod 1) or two (lod 2), its
+            // limbs moving at 36 or 24 Hz where it is a few pixels tall; it moves and turns with the body every frame.
+            if drawing && lod >= 1, let kept = m.rigDrawn, m.rigDrawnLod == lod,
+               SoldierRig.clearFrame &- m.rigDrawnAt <= lod { lodKept += 1; return kept }
             if drawing { lodBuilt[lod] += 1 }
         }
         var p = pose(m, b, rank: r, gm: gm, gi: gi)
@@ -274,6 +280,8 @@ enum SoldierRig {
             }
             out.handR *= big; out.handL *= big; out.muzzle *= big; out.gripR *= big; out.foreL *= big; out.chestFront *= big
         }
+        if drawing && lod >= 1 { m.rigDrawn = out; m.rigDrawnLod = lod; m.rigDrawnAt = SoldierRig.clearFrame }
+        else if drawing { m.rigDrawn = nil }
         return out
     }
 

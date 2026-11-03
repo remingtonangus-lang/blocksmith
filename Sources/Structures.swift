@@ -482,6 +482,35 @@ final class StructureCache {
         return nil
     }
     static var offThreadPlans = 0
+    // Store review (Nov 3, the frame soak's "starts planned on the frame thread": villages, temples, citadels and
+    // outposts planned by the once-a-second town, map-fog, hunting and mob lookups, 2-31 ms each, in every scene,
+    // ordinary walking included): the starts round the player are planned on a worker ahead of him, every kind two
+    // regions out each way, nearest first, so those lookups find them made. Once a second (Game's second tick).
+    static let prefetchQueue = DispatchQueue(label: "structure-prefetch", qos: .utility)
+    static var prefetched = 0
+    func prefetch(x: Int, z: Int, ring: Int = 2) {
+        guard StructureCache.plansOffThread else { return }
+        let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+        var todo: [(Int, StructureType, StartKey)] = []
+        lock.lock()
+        for t in types {
+            let rx = floorDiv(cx, t.spacing), rz = floorDiv(cz, t.spacing)
+            for dz in -ring...ring { for dx in -ring...ring {
+                let k = StartKey(name: t.name, rx: rx + dx, rz: rz + dz)
+                if cache.index(forKey: k) == nil && !planning.contains(k) { planning.insert(k); todo.append((max(abs(dx), abs(dz)), t, k)) }
+            } }
+        }
+        lock.unlock()
+        guard !todo.isEmpty else { return }
+        todo.sort { $0.0 < $1.0 }
+        StructureCache.prefetchQueue.async { [weak self] in
+            guard let self = self else { return }
+            for (_, t, k) in todo {
+                _ = self.start(t, regionX: k.rx, regionZ: k.rz)
+                self.lock.lock(); self.planning.remove(k); StructureCache.prefetched += 1; self.lock.unlock()
+            }
+        }
+    }
     static var framePlans: [String] = []           // starts planned on the frame thread over 1 ms (the frame soak's report)
     // The game's frame thread (Game.tickSeat notes it each tick), where a region is never planned (structure(at:)).
     private static var frameThreadID: pthread_t?

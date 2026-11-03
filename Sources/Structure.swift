@@ -93,6 +93,9 @@ enum Structure {
         }
     }
     static let member: [Bool] = table.map { $0 != nil }
+    static let grows: [Bool] = (0..<Blocks.count).map { i in
+        ["bamboo", "bamboo_sapling", "sugar_cane", "cactus", "kelp", "kelp_plant"].contains(Blocks.key(Blocks.groupBase[i]))
+    }
     static var skippedGround = 0                            // (harness: dug ground touching no building, no check queued)
     // A docked vessel (a piece with a helm) is the ships' business: it is put back as blocks where it docked, in the
     // water or the air, and lifts off again (Ships.swift); never checked.
@@ -608,6 +611,9 @@ extension World {
         if SmoothTerrain.natural[Int(old)] && (SmoothTerrain.natural[Int(new)] || Blocks.isLiquid(new)) { return }
         // P508 (Nov 1 15:50, digging by Boreal Station, fps 44 while it snowed): snow settling out of the sky (air to a
         // snow layer) or melting off (a layer to air) carries nothing: each one queued a check of the station's piece.
+        // (Store review, the jungle soak: bamboo shooting up queued 335 checks in 30 s. A plant growing into air
+        // carries nothing.)
+        if old == AIR && Structure.grows[Int(new)] { return }
         let sl = BlockID(SmoothTerrain.snowLayer)
         if ((old == AIR && new == sl) || (old == sl && new == AIR)) && !Structure.snowLoad { return }
         // P510 (his dirt freeze by Boreal Station, measured: 34 of 42 checks queued by dug dirt, 3 ms each on the host,

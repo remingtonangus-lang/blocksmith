@@ -6,7 +6,7 @@ import Foundation
 // the ambient emitters. All of them are built at load now, with MobManager.warmTables (Dimension.init).
 enum LoadWarm {
     static func tables() {
-        _ = Structure.member
+        _ = Structure.member; _ = Structure.grows
         _ = Game.emitters
         _ = BorealStation.powerOff
         _ = BrandChapterhouse.floor

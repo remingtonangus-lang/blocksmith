@@ -275,6 +275,9 @@ enum MobKind: Int, CaseIterable {
 }
 
 final class Mob {
+    // (SoldierRig.build: the drawn rig kept a frame or two past 14 blocks; written only by the mob pass)
+    var rigDrawn: SoldierRigOut?
+    var rigDrawnLod = 0, rigDrawnAt = 0
     lazy var vary: MobVary = MobVary.roll(self)          // P55: this one's own speed, strength, toughness, aim
     static let hitFlashTime: Float = 0.14
     static weak var trace: Mob?     // harness: print this mob's physics steps
@@ -937,19 +940,28 @@ final class Mob {
                 restock(g)
                 villageTick(g)
             }
+            MobManager.stage("villager jobs")                // (store review: the town's one-off 66 ms villager tick, split)
             if let s = Saloon.pianistStep(self, g) { speed = s; break }       // D17: at the keys
             if let s = Brawls.step(self, dt, g) { speed = s; break }          // D13: fists up, or out cold
             // P51: a rider on the road keeps to the road (Riders.swift).
             if Riders.isRider(self) || Stagecoach.isDriver(self) { speed = Riders.step(self, dt, g); break }
             // Townsfolk: fight monsters (and a player who hurt one of them), react to the player, then the routine.
             // (TownStats: each person's own pace, a deputy's run to an elder's shuffle.)
-            if let s = townDefend(dt, g) {
+            MobManager.stage("villager saloon, riders")
+            let defend = townDefend(dt, g)
+            MobManager.stage("villager defend")
+            if let s = defend {
                 if lying { wake(g) }             // (out of bed beside it, not in the wall: VillageLife.wake)
                 speed = s * townStats.speed; break
             }
-            if townReact(dt, g) { speed = 0; break }
-            if villagerNight(g) { speed = 0; break }
+            let reacts = townReact(dt, g)
+            MobManager.stage("villager react")
+            if reacts { speed = 0; break }
+            let night = villagerNight(g)
+            MobManager.stage("villager night")
+            if night { speed = 0; break }
             speed = villagerDay(dt, g) * townStats.speed
+            MobManager.stage("villager day")
         case .golem:
             if home == nil { home = pos }
             // Village-made golems defend villagers from a player they think badly of (reputation <= -100).
