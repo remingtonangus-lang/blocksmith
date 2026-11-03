@@ -77,8 +77,11 @@ enum VehicleGunners {
             let p = V3(Float(x) + 0.5, Float(y + 1) + 0.02, Float(z) + 0.5)
             let hc = V3(Float(h.x) + 0.5, Float(h.y) + 1, Float(h.z) + 0.5)
             let d = simd_length(p - hc)
-            guard d > 1.2, !taken.contains(where: { simd_length($0 - p) < 1.2 }), d < bd else { continue }
-            bd = d; best = p
+            // (three blocks or more off the helm where there's room: right beside him, he stood in their line of fire
+            // and they held every shot)
+            let score = d < 3 ? d + 100 : d
+            guard d > 1.2, !taken.contains(where: { simd_length($0 - p) < 1.2 }), score < bd else { continue }
+            bd = score; best = p
         } } }
         return best
     }

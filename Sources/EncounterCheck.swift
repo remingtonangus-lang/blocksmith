@@ -101,9 +101,13 @@ enum EncounterCheck {
         ships.encounters = true
         ships.spawnEncounters = false
         let x = Int(floor(seaSpot.x)), z = Int(floor(seaSpot.z))
-        g.player.pos = V3(Float(x) + 0.5, Float(SEA + 1), Float(z) + 0.5)
-        _ = w.loadSync(center: g.player.pos, radius: 12)
-        for dz in -3...3 { for dx in -3...3 { w.setBlock(x + dx, SEA, z + dz, STONE) } }
+        _ = w.loadSync(center: V3(Float(x) + 0.5, Float(SEA + 1), Float(z) + 0.5), radius: 12)
+        // His raft: two layers of stone over the water's surface, him on top (one layer at sea level left him in the
+        // water, drowning, and the hunters' guns lost him as they do a diver).
+        let surf = Submarine.surface(w, x + 10, z) ?? (SEA - 1)
+        for dz in -3...3 { for dx in -3...3 { for y in surf...(surf + 1) { w.setBlock(x + dx, y, z + dz, STONE) } } }
+        let raft = V3(Float(x) + 0.5, Float(surf + 2), Float(z) + 0.5)
+        g.player.pos = raft
         g.player.vel = .zero; g.player.flying = false
         let atSea = SeaHunt.atSea(g)
         // Never in creative or on peaceful.
@@ -144,7 +148,8 @@ enum EncounterCheck {
                           + String(format: " (alive %@, survival %@, difficulty %d, won %@, %.0f off in 3D, last hurt by %@)", g.alive ? "yes" : "no",
                                    g.survival ? "yes" : "no", g.difficulty, Reckoning.won ? "yes" : "no", simd_length(g.player.pos + V3(0, 1, 0) - s.pos), lastHurt))
                 }
-                if under { g.player.pos = V3(Float(x) + 0.5, Float(SEA - 4), Float(z) + 4.5); g.player.vel = .zero }
+                g.player.pos = under ? V3(Float(x) + 0.5, Float(surf - 4), Float(z) + 5.5) : raft
+                g.player.vel = .zero
                 g.tick(1.0 / 30)
                 if g.health < 20 { hurt += 20 - g.health }
                 g.health = 20; g.alive = true
@@ -174,7 +179,7 @@ enum EncounterCheck {
             check(hidden && firedUnder <= 2, "encounters: two blocks under the water (\(hidden)) the cruiser's guns lose him (\(firedUnder) rounds in 20 s)")
             // 450 blocks off (past it, away from it), it gives up and sails away.
             let away = simd_normalize(V2(g.player.pos.x - cr.pos.x, g.player.pos.z - cr.pos.z) + V2(1e-3, 0))
-            g.player.pos = V3(cr.pos.x + away.x * 450, Float(SEA + 1), cr.pos.z + away.y * 450)
+            g.player.pos = V3(cr.pos.x + away.x * 450, Float(surf + 1), cr.pos.z + away.y * 450)
             g.seaHuntTick(0.05)
             check(!ships.list.contains { $0 === cr }, "encounters: with him 450 blocks off the cruiser gives up the hunt")
         } else { check(false, "encounters: no Corsair Cruiser came in 200 rolls") }

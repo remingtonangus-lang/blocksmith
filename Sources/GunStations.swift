@@ -9,6 +9,7 @@ import simd
 // (Capital.makeShips: new hulls; one taken before keeps its rooms as they were, and its crew stand at the guns instead).
 extension Capital {
     static let stationReach = 12
+    static let stationReachFar = 18, stationUpFar = 16          // (the second, wider look)
 
     // Places a station for each mount ring (hull grid cells) where the hull has room: an open cell on a floor, under a
     // roof, with the console's cell beside it on the floor (backed by a wall where one is near). A station never cuts a
@@ -21,100 +22,111 @@ extension Capital {
         let console = Blocks.id("command_console")
         let chairKey = Blocks.has("dark_oak_chair") ? "dark_oak_chair" : "oak_chair"
         guard Blocks.has(chairKey) else { return 0 }
-        let collide = Blocks.collide
-        func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { collide[Int(gr.get(x, y, z))] && !ShipParts.console[Int(gr.get(x, y, z))] }
+        let collide = Blocks.collide, kinds = ShipParts.kinds, consoles = ShipParts.console
+        func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { collide[Int(gr.get(x, y, z))] && !consoles[Int(gr.get(x, y, z))] }
         func open(_ x: Int, _ y: Int, _ z: Int) -> Bool { gr.get(x, y, z) == AIR }
+        // The helms (and any console already in the hull): a station keeps 3 blocks clear of them, so the man at the helm
+        // keeps his stand (P512: a chair on the Stormwarden's helm stand put him off command).
+        var helms: [IVec3] = []
+        for y in 0..<gr.sy { for z in 0..<gr.sz { for x in 0..<gr.sx {
+            let b = Int(gr.get(x, y, z))
+            if b != Int(AIR) && (kinds[b] == .helm || consoles[b]) { helms.append(IVec3(x, y, z)) }
+        } } }
+        func nearHelm(_ c: IVec3) -> Bool { helms.contains { abs($0.x - c.x) <= 3 && abs($0.z - c.z) <= 3 && abs($0.y - c.y) <= 2 } }
         // (dx, dz) toward the console -> the chair's facing state name
         let dirs: [(Int, Int, String)] = [(0, -1, ""), (0, 1, "[south]"), (-1, 0, "[west]"), (1, 0, "[east]")]
         var placed: [IVec3] = []
-        let r = stationReach
-        var walk = Walkways(gr)                       // (worked out again only when a station stands)
-        for ring in rings {
-            var cands: [(IVec3, IVec3, String, Float)] = []
-            for y in max(1, ring.y - 10)...max(1, min(gr.sy - 3, ring.y + 10)) {
-                for z in max(1, ring.z - r)...max(1, min(gr.sz - 2, ring.z + r)) {
-                    for x in max(1, ring.x - r)...max(1, min(gr.sx - 2, ring.x + r)) {
-                        guard open(x, y, z), open(x, y + 1, z), solid(x, y - 1, z) else { continue }
-                        // Under a roof (inside the hull, not on a deck in the open).
-                        var roof = false
-                        for k in 2...6 where y + k < gr.sy { if solid(x, y + k, z) { roof = true; break } }
-                        guard roof else { continue }
-                        let c = IVec3(x, y, z)
-                        guard !placed.contains(where: { abs($0.x - x) + abs($0.y - y) + abs($0.z - z) < 4 }) else { continue }
-                        let d0 = V3(Float(x - ring.x), Float(y - ring.y), Float(z - ring.z))
-                        let dist = simd_length(d0)
-                        var best: (IVec3, String, Float)?
-                        for (dx, dz, face) in dirs {
-                            let k = IVec3(x + dx, y, z + dz)
-                            guard open(k.x, k.y, k.z), solid(k.x, k.y - 1, k.z), open(k.x, k.y + 1, k.z) else { continue }
-                            let wall = solid(k.x + dx, k.y, k.z + dz)
-                            let score = dist + (wall ? 0 : 3)
-                            if best == nil || score < best!.2 { best = (k, face, score) }
+        // Near the mount under a low roof first; a gun with no room there (a keel gun over a tall hangar, a mast-top gun)
+        // looks wider, under a higher roof.
+        var served = [Bool](repeating: false, count: rings.count)
+        for (reach, up, roofMax) in [(stationReach, 10, 6), (stationReachFar, stationUpFar, 14)] {
+            for (ri, ring) in rings.enumerated() where !served[ri] {
+                var cands: [(IVec3, IVec3, String, Float)] = []
+                for y in max(1, ring.y - up)...max(1, min(gr.sy - 3, ring.y + up)) {
+                    for z in max(1, ring.z - reach)...max(1, min(gr.sz - 2, ring.z + reach)) {
+                        for x in max(1, ring.x - reach)...max(1, min(gr.sx - 2, ring.x + reach)) {
+                            guard open(x, y, z), open(x, y + 1, z), solid(x, y - 1, z) else { continue }
+                            // Under a roof (inside the hull, not on a deck in the open).
+                            var roof = false
+                            for k in 2...roofMax where y + k < gr.sy { if solid(x, y + k, z) { roof = true; break } }
+                            guard roof else { continue }
+                            let c = IVec3(x, y, z)
+                            guard !placed.contains(where: { abs($0.x - x) + abs($0.y - y) + abs($0.z - z) < 4 }), !nearHelm(c) else { continue }
+                            let dist = simd_length(V3(Float(x - ring.x), Float(y - ring.y), Float(z - ring.z)))
+                            var best: (IVec3, String, Float)?
+                            for (dx, dz, face) in dirs {
+                                let k = IVec3(x + dx, y, z + dz)
+                                guard open(k.x, k.y, k.z), solid(k.x, k.y - 1, k.z), open(k.x, k.y + 1, k.z) else { continue }
+                                let wall = solid(k.x + dx, k.y, k.z + dz)
+                                let score = dist + (wall ? 0 : 3)
+                                if best == nil || score < best!.2 { best = (k, face, score) }
+                            }
+                            if let b = best { cands.append((c, b.0, b.1, b.2)) }
                         }
-                        if let b = best { cands.append((c, b.0, b.1, b.2)) }
                     }
                 }
-            }
-            cands.sort { $0.3 < $1.3 }
-            for (c, k, face, _) in cands.prefix(12) {
-                let before = walk.largest
-                gr.set(c.x, c.y, c.z, Blocks.id(chairKey + face))
-                gr.set(k.x, k.y, k.z, console)
-                let after = Walkways(gr)
-                if after.largest >= before - 8 { walk = after; placed.append(c); break }
-                gr.set(c.x, c.y, c.z, AIR)
-                gr.set(k.x, k.y, k.z, AIR)
+                cands.sort { $0.3 < $1.3 }
+                for (c, k, face, _) in cands.prefix(12) {
+                    // A station never cuts a way through: round it, the largest stretch of walkable floor loses no more
+                    // than its own cells and a nook behind it.
+                    let lo = c - IVec3(20, 12, 20), hi = c + IVec3(20, 12, 20)
+                    let before = Walkways(gr, lo, hi).largest
+                    gr.set(c.x, c.y, c.z, Blocks.id(chairKey + face))
+                    gr.set(k.x, k.y, k.z, console)
+                    if Walkways(gr, lo, hi).largest >= before - 8 { placed.append(c); served[ri] = true; break }
+                    gr.set(c.x, c.y, c.z, AIR)
+                    gr.set(k.x, k.y, k.z, AIR)
+                }
             }
         }
         return placed.count
     }
 
-    // The hull's floor a crewman can stand on (open, two high, on something solid) and walk between: level, a step up or
-    // down (stairs), up and down ladders, through doors. `largest`: the cells of the biggest connected stretch.
+    // The hull's floor a crewman can stand on (open, two high, on something solid) and walk between, inside the box lo...hi:
+    // level, a step up or down (stairs), up and down ladders, through doors. `largest`: the cells of its biggest stretch.
     struct Walkways {
         var largest = 0
         // Per block state: walked through, climbed, stood on.
         static let passT: [Bool] = (0..<Blocks.count).map { let sh = Blocks.shape[$0]; return !Blocks.collide[$0] || sh == "door" || sh == "gate" || sh == "trapdoor" }
         static let ladderT: [Bool] = (0..<Blocks.count).map { Blocks.shape[$0] == "ladder" }
         static let floorT: [Bool] = (0..<Blocks.count).map { let sh = Blocks.shape[$0]; return Blocks.collide[$0] && sh != "door" && sh != "trapdoor" }
-        init(_ gr: ShipGrid) {
+        init(_ gr: ShipGrid, _ lo0: IVec3, _ hi0: IVec3) {
             let passT = Walkways.passT, ladderT = Walkways.ladderT, floorT = Walkways.floorT
-            let n = gr.sx * gr.sy * gr.sz
+            let lo = IVec3(max(0, lo0.x), max(1, lo0.y), max(0, lo0.z))
+            let hi = IVec3(min(gr.sx - 1, hi0.x), min(gr.sy - 2, hi0.y), min(gr.sz - 1, hi0.z))
+            guard lo.x <= hi.x, lo.y <= hi.y, lo.z <= hi.z else { return }
+            let bx = hi.x - lo.x + 1, by = hi.y - lo.y + 1, bz = hi.z - lo.z + 1
             func pass(_ x: Int, _ y: Int, _ z: Int) -> Bool { passT[Int(gr.get(x, y, z))] }
             func ladder(_ x: Int, _ y: Int, _ z: Int) -> Bool { ladderT[Int(gr.get(x, y, z))] }
             func stand(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-                guard x >= 0, y >= 1, z >= 0, x < gr.sx, y < gr.sy - 1, z < gr.sz, pass(x, y, z), pass(x, y + 1, z) else { return false }
+                guard x >= lo.x, y >= lo.y, z >= lo.z, x <= hi.x, y <= hi.y, z <= hi.z, pass(x, y, z), pass(x, y + 1, z) else { return false }
                 return floorT[Int(gr.get(x, y - 1, z))] || ladder(x, y, z) || ladder(x, y - 1, z)
             }
-            var seen = [Bool](repeating: false, count: n)
-            func idx(_ x: Int, _ y: Int, _ z: Int) -> Int { (y * gr.sz + z) * gr.sx + x }
-            var queue: [Int32] = []
+            var seen = [Bool](repeating: false, count: bx * by * bz)
+            func idx(_ x: Int, _ y: Int, _ z: Int) -> Int { ((y - lo.y) * bz + (z - lo.z)) * bx + (x - lo.x) }
+            var queue: [IVec3] = []
             queue.reserveCapacity(4096)
-            for y in 1..<max(1, gr.sy - 1) { for z in 0..<gr.sz { for x in 0..<gr.sx {
-                let i0 = idx(x, y, z)
-                guard !seen[i0], stand(x, y, z) else { continue }
-                seen[i0] = true
+            for y in lo.y...hi.y { for z in lo.z...hi.z { for x in lo.x...hi.x {
+                guard !seen[idx(x, y, z)], stand(x, y, z) else { continue }
+                seen[idx(x, y, z)] = true
                 queue.removeAll(keepingCapacity: true)
-                queue.append(Int32(i0))
+                queue.append(IVec3(x, y, z))
                 var head = 0
                 while head < queue.count {
-                    let i = Int(queue[head]); head += 1
-                    let cx = i % gr.sx, cz = (i / gr.sx) % gr.sz, cy = i / (gr.sx * gr.sz)
+                    let c = queue[head]; head += 1
                     for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                         for dy in [0, 1, -1] {
-                            let x = cx + dx, y = cy + dy, z = cz + dz
+                            let nx = c.x + dx, ny = c.y + dy, nz = c.z + dz
                             // (a step up needs headroom over him where he stands)
-                            if dy == 1 && !pass(cx, cy + 2, cz) { continue }
-                            guard stand(x, y, z) else { continue }
-                            let j = idx(x, y, z)
-                            if !seen[j] { seen[j] = true; queue.append(Int32(j)) }
+                            if dy == 1 && !pass(c.x, c.y + 2, c.z) { continue }
+                            guard stand(nx, ny, nz) else { continue }
+                            if !seen[idx(nx, ny, nz)] { seen[idx(nx, ny, nz)] = true; queue.append(IVec3(nx, ny, nz)) }
                             break
                         }
                     }
-                    if ladder(cx, cy, cz) || ladder(cx, cy - 1, cz) {
-                        for dy in [1, -1] where stand(cx, cy + dy, cz) {
-                            let j = idx(cx, cy + dy, cz)
-                            if !seen[j] { seen[j] = true; queue.append(Int32(j)) }
+                    if ladder(c.x, c.y, c.z) || ladder(c.x, c.y - 1, c.z) {
+                        for dy in [1, -1] where stand(c.x, c.y + dy, c.z) && !seen[idx(c.x, c.y + dy, c.z)] {
+                            seen[idx(c.x, c.y + dy, c.z)] = true; queue.append(IVec3(c.x, c.y + dy, c.z))
                         }
                     }
                 }
@@ -148,11 +160,11 @@ extension VehicleGunners {
         for t in turrets { stationCache[t.id] = .some(nil) }
         guard !turrets.isEmpty else { return }
         let rings = turrets.map { IVec3(Int(floor($0.mountLocal.x)), Int(floor($0.mountLocal.y)) - 1, Int(floor($0.mountLocal.z))) }
-        let r = Capital.stationReach
+        let r = Capital.stationReachFar, up = Capital.stationUpFar
         var lo = IVec3(Int.max, Int.max, Int.max), hi = IVec3(Int.min, Int.min, Int.min)
         for c in rings {
-            lo = IVec3(min(lo.x, c.x - r), min(lo.y, c.y - 10), min(lo.z, c.z - r))
-            hi = IVec3(max(hi.x, c.x + r), max(hi.y, c.y + 10), max(hi.z, c.z + r))
+            lo = IVec3(min(lo.x, c.x - r), min(lo.y, c.y - up), min(lo.z, c.z - r))
+            hi = IVec3(max(hi.x, c.x + r), max(hi.y, c.y + up), max(hi.z, c.z + r))
         }
         lo = IVec3(max(0, lo.x), max(0, lo.y), max(0, lo.z))
         hi = IVec3(min(gr.sx - 1, hi.x), min(gr.sy - 1, hi.y), min(gr.sz - 1, hi.z))
@@ -168,7 +180,7 @@ extension VehicleGunners {
         for (ti, c) in rings.enumerated() {
             for (si, st) in stations.enumerated() {
                 let d = st.0 - c
-                guard abs(d.x) <= r, abs(d.z) <= r, abs(d.y) <= 10 else { continue }
+                guard abs(d.x) <= r, abs(d.z) <= r, abs(d.y) <= up else { continue }
                 pairs.append((simd_length(V3(Float(d.x), Float(d.y), Float(d.z))), ti, si))
             }
         }
