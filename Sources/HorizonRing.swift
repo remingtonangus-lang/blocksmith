@@ -198,16 +198,22 @@ extension Renderer {
         if drop > 1 {
             let R = shell * 1.02
             let col = Renderer.backstopProbe ? V4(0, 1, 0, 1) : V4(fog, 1)
-            let down = V4(0, -R, 0, 1)
-            let sides = 48
-            var prev = V4(0, 0, 0, 1)
-            for k in 0...sides {
-                let a = Float(k) * 2 * .pi / Float(sides)
-                let d = simd_normalize(V3(cosf(a) * range, -drop, sinf(a) * range))
-                let rim = V4(d * R, 1)
-                if k > 0 { out.append(SimpleVert(pos: down, color: col)); out.append(SimpleVert(pos: prev, color: col)); out.append(SimpleVert(pos: rim, color: col)) }
-                prev = rim
+            // In bands of under 9 degrees each way: a flat triangle across the shell lies inside it by 1 - cos(half its
+            // span), and a fan from straight down to the rim came in front of the ring's ground (at 0.95 of the shell)
+            // over a tenth of the view.
+            let rimDown = atan2f(drop, range)                       // the rim's angle under the horizon
+            let bands = max(2, Int(ceilf((Float.pi / 2 - rimDown) / (9 * Float.pi / 180))))
+            let sides = 40
+            func at(_ band: Int, _ side: Int) -> V4 {
+                let e = -(Float.pi / 2) + (Float.pi / 2 - rimDown) * Float(band) / Float(bands)
+                let a = Float(side) * 2 * .pi / Float(sides)
+                return V4(cosf(e) * cosf(a) * R, sinf(e) * R, cosf(e) * sinf(a) * R, 1)
             }
+            for b in 0..<bands { for k in 0..<sides {
+                let p00 = at(b, k), p01 = at(b, k + 1), p10 = at(b + 1, k), p11 = at(b + 1, k + 1)
+                out.append(SimpleVert(pos: p00, color: col)); out.append(SimpleVert(pos: p10, color: col)); out.append(SimpleVert(pos: p11, color: col))
+                if b > 0 { out.append(SimpleVert(pos: p00, color: col)); out.append(SimpleVert(pos: p11, color: col)); out.append(SimpleVert(pos: p01, color: col)) }
+            } }
         }
     }
     static var backstopProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
