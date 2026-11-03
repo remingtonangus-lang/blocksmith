@@ -22,8 +22,10 @@ enum ProvingGroundsCheck {
         let t0 = CFAbsoluteTimeGetCurrent()
         var worst = 0.0, worstStep = 0
         while !b.done {
-            let s0 = CFAbsoluteTimeGetCurrent()
             let k = b.next
+            // (in play each step waits for its chunks to stream in on the workers; made here first, outside the timing)
+            if let (c, r) = b.needs[k] { _ = w.loadSync(center: c, radius: r) }
+            let s0 = CFAbsoluteTimeGetCurrent()
             b.run(g, budget: 0)
             let ms = (CFAbsoluteTimeGetCurrent() - s0) * 1000
             if ms > worst { worst = ms; worstStep = k }
@@ -63,7 +65,16 @@ enum ProvingGroundsCheck {
             let console = IVec3(c.x + 2, o.y, c.z + 2)
             g.player.pos = V3(Float(console.x) + 0.5, Float(o.y), Float(console.z) + 1.6)
             let before = ships.list.count
-            guard g.builtGunUse(console), let s = ships.pilot else { notes.append("\(ProvingGrounds.guns[k].name) not taken"); continue }
+            var said = ""
+            let toast0 = g.onToast
+            g.onToast = { said = $0 }
+            let used = g.builtGunUse(console)
+            g.onToast = toast0
+            guard used, let s = ships.pilot else {
+                let at = Blocks.key(Blocks.groupBase[Int(w.rawBlock(console.x, console.y, console.z))])
+                notes.append("\(ProvingGrounds.guns[k].name) not taken: \(used ? "used" : "refused"), console cell \(at), pilot \(ships.pilot != nil), manned \(Turrets.shared.manned != nil)" + (said.isEmpty ? "" : ", \"\(said)\""))
+                continue
+            }
             let turrets = ships.turrets(of: s).count
             if turrets >= 1 { taken += 1 } else { notes.append("\(ProvingGrounds.guns[k].name) no turret") }
             for _ in 0..<30 { g.tick(1.0 / 60) }

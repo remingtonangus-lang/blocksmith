@@ -29,9 +29,9 @@ enum GunStationsCheck {
                 check(false, "gunstations: the \(kind) spawns"); continue
             }
             let guns = ships.turrets(of: s).filter { !$0.cannons.isEmpty }
-            let held = guns.filter { VehicleGunners.station($0, on: s) != nil }.count
+            let held = guns.filter { VehicleGunners.station($0, on: s, ships) != nil }.count
             check(!guns.isEmpty && held * 10 >= guns.count * 9,
-                  "gunstations: the \(s.name) has a station (console and chair) for \(held) of its \(guns.count) guns")
+                  "gunstations: the \(s.name) has a station (console and chair) for \(held) of its \(guns.count) guns (\(ships.turrets(of: s).count) mounts)")
             if kind == "frigate" { frigate = s } else { ships.remove(s); ships.capState.removeValue(forKey: s.id) }
         }
         guard let s = frigate, let stand = g.helmStand(s) else { check(false, "gunstations: a frigate to command"); return }
@@ -82,7 +82,18 @@ enum GunStationsCheck {
         var drift: Float = 0
         run(360) {
             raider.health = 20; raider.aggro = true
-            for m in seated { if let st = VehicleGunners.seats.first(where: { $0.mob === m }) { drift = max(drift, simd_length(s.toWorld(st.local) - m.pos)) } }
+            for (i, m) in seated.enumerated() {
+                guard let st = VehicleGunners.seats.first(where: { $0.mob === m }) else {
+                    if drift < 99 { print("gunstations: hand \(i) left its seat (health \(m.health), hired \(m.hired))") }
+                    drift = 99; continue
+                }
+                let off = simd_length(s.toWorld(st.local) - m.pos)
+                if off > 0.5 && drift <= 0.5 {
+                    print(String(format: "gunstations: hand %d %.2f off its chair (ship moving %.2f m/s, on deck %@, station %@)", i, off,
+                                 simd_length(s.vel), m.deck === s ? "yes" : "no", st.station ? "yes" : "no"))
+                }
+                drift = max(drift, off)
+            }
         }
         let volleys = ShipManager.crewVolleys - v0
         check(volleys > 0 && drift < 0.5, String(format: "gunstations: the hands at the stations fire %d volleys at a raider while he holds the helm, staying at their chairs (%.2f)", volleys, drift))

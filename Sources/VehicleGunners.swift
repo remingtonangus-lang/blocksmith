@@ -33,6 +33,8 @@ enum VehicleGunners {
 
     // A seated gunner where the turret holds them now (true), or not seated (false).
     @discardableResult
+    static func atStation(_ m: Mob) -> Bool { seats.contains { $0.mob === m && $0.station } }
+
     static func place(_ m: Mob) -> Bool {
         guard let st = seats.first(where: { $0.mob === m }), let v = st.vehicle, let t = st.rider || st.station ? v : st.turret else { return false }
         m.pos = t.toWorld(st.local)
@@ -103,7 +105,7 @@ extension Game {
         guard let v = driving else { return }
         var free = ships.turrets(of: v).filter { !$0.cannons.isEmpty && !VehicleGunners.manned($0) }
         // P512: on a capital hull only the guns with a station in it (a crewman doesn't ride a frigate's turret roof).
-        if v.kinematic { free = free.filter { VehicleGunners.station($0, on: v) != nil } }
+        if v.kinematic { free = free.filter { VehicleGunners.station($0, on: v, ships) != nil } }
         let boardReach = VehicleGunners.board
         defer {
             // P512: the rest of his companions near it ride aboard.
@@ -122,7 +124,7 @@ extension Game {
         guard !free.isEmpty else { return }
         func seat(_ m: Mob) {
             let t = free.removeFirst()
-            if let stn = VehicleGunners.station(t, on: v) {
+            if let stn = VehicleGunners.station(t, on: v, ships) {
                 // P512: at the gun's station: in the chair, facing the console.
                 let c = stn.chair, k = stn.console
                 let top = ChairSeat.seatTop(Blocks.key(Blocks.groupBase[Int(v.grid.get(c.x, c.y, c.z))])) ?? 0.6

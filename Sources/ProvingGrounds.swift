@@ -88,9 +88,10 @@ enum ProvingGrounds {
         GunDesign(name: "Heavy Gun", lines: ["Heavy Gun", "eight large", "barrels"]) { put in
             put(0, 0, 0, "ship_turret_ring"); for k in 0..<8 { put(0, 1, -k, "gun_barrel_large[south]") }
         },
-        GunDesign(name: "Triple Mount", lines: ["Triple Mount", "three rows of", "gun barrels"]) { put in
+        GunDesign(name: "Triple Mount", lines: ["Triple Mount", "three cannons", "with long tubes"]) { put in
+            // (a Gun Barrel lengthens the cannon it runs on from: each row starts at its cannon)
             put(0, 0, 0, "ship_turret_ring")
-            for x in -1...1 { for k in 0..<4 { put(x, 1, -k, "ship_gun_barrel[south]") } }
+            for x in -1...1 { put(x, 1, 0, "ship_cannon[south]"); for k in 1..<4 { put(x, 1, -k, "ship_gun_barrel[south]") } }
         },
         GunDesign(name: "Tower Gun", lines: ["Tower Gun", "a ring on a", "plank tower"]) { put in
             for y in 0..<4 { put(0, y, 0, "oak_planks") }
@@ -283,8 +284,15 @@ enum ProvingGrounds {
                 let r = cases[i].run(zb)
                 if r.0 { b.circuitsOK += 1 }
                 // Its sign by the pad's north-west corner, clear of the build.
-                let at = IVec3(max(c.x - h + 1, min(zb.lo.x, c.x)), o.y, max(c.z - h + 1, min(zb.lo.z, c.z) - 2))
-                if w.rawBlock(at.x, at.y, at.z) == AIR {
+                // (where the build took that cell, the open cell nearest it along the pad's north edge, then anywhere)
+                let want = IVec3(max(c.x - h + 1, min(zb.lo.x, c.x)), o.y, max(c.z - h + 1, min(zb.lo.z, c.z) - 2))
+                func free(_ q: IVec3) -> Bool { w.rawBlock(q.x, q.y, q.z) == AIR && w.rawBlock(q.x, q.y + 1, q.z) == AIR }
+                var at: IVec3? = free(want) ? want : nil
+                for r in 1...h where at == nil {
+                    for q in [IVec3(want.x + r, o.y, want.z), IVec3(want.x - r, o.y, want.z), IVec3(want.x, o.y, want.z - r),
+                              IVec3(want.x, o.y, want.z + r)] where abs(q.x - c.x) < h && abs(q.z - c.z) < h && free(q) { at = q; break }
+                }
+                if let at {
                     sign(w, at, facingSouth: false, [String(format: "Circuit %03d", i + 1)] + wrap(cases[i].family + ": " + cases[i].name, lines: 3))
                 }
             }

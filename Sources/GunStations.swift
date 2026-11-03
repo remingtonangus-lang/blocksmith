@@ -61,36 +61,58 @@ extension Capital {
 }
 
 extension VehicleGunners {
-    static var stationCache: [Int: (chair: IVec3, console: IVec3)] = [:]   // turret id -> its station in the hull
+    // turret id -> its station in the hull (nil: none in reach). Worked out for all a hull's guns at once.
+    static var stationCache: [Int: (chair: IVec3, console: IVec3)?] = [:]
 
-    // The gun station of turret `t` on hull `v`: the chair nearest its mount (within reach) with a console beside it.
-    static func station(_ t: Ship, on v: Ship) -> (chair: IVec3, console: IVec3)? {
+    // The gun station of turret `t` on hull `v`: a chair with a console beside it, near its mount.
+    static func station(_ t: Ship, on v: Ship, _ ships: ShipManager) -> (chair: IVec3, console: IVec3)? {
         let gr = v.grid
         func isChair(_ c: IVec3) -> Bool { ChairSeat.seatTop(Blocks.key(Blocks.groupBase[Int(gr.get(c.x, c.y, c.z))])) != nil }
-        if let st = stationCache[t.id], isChair(st.chair), ShipParts.console[Int(gr.get(st.console.x, st.console.y, st.console.z))] { return st }
-        stationCache[t.id] = nil
-        let ring = IVec3(Int(floor(t.mountLocal.x)), Int(floor(t.mountLocal.y)) - 1, Int(floor(t.mountLocal.z)))
+        if let hit = stationCache[t.id] {
+            guard let st = hit else { return nil }
+            if isChair(st.chair) && ShipParts.console[Int(gr.get(st.console.x, st.console.y, st.console.z))] { return st }
+        }
+        assignStations(v, ships)
+        return stationCache[t.id] ?? nil
+    }
+
+    // Every station on hull v (a chair with a console beside it) given to the hull's guns, nearest pairs first, each
+    // within reach of its gun's mount; a gun with none in reach has none.
+    static func assignStations(_ v: Ship, _ ships: ShipManager) {
+        let gr = v.grid
+        let turrets = ships.turrets(of: v)
+        for t in turrets { stationCache[t.id] = .some(nil) }
+        guard !turrets.isEmpty else { return }
+        let rings = turrets.map { IVec3(Int(floor($0.mountLocal.x)), Int(floor($0.mountLocal.y)) - 1, Int(floor($0.mountLocal.z))) }
         let r = Capital.stationReach
-        var best: (IVec3, IVec3)?, bd = Float.infinity
-        for y in max(0, ring.y - 10)...max(0, min(gr.sy - 1, ring.y + 10)) {
-            for z in max(0, ring.z - r)...max(0, min(gr.sz - 1, ring.z + r)) {
-                for x in max(0, ring.x - r)...max(0, min(gr.sx - 1, ring.x + r)) {
-                    let c = IVec3(x, y, z)
-                    guard isChair(c) else { continue }
-                    let d = simd_length(V3(Float(x - ring.x), Float(y - ring.y), Float(z - ring.z)))
-                    guard d < bd else { continue }
-                    for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] where ShipParts.console[Int(gr.get(x + dx, y, z + dz))] {
-                        // (a station another gun already holds is theirs)
-                        let k = IVec3(x + dx, y, z + dz)
-                        if stationCache.contains(where: { $0.key != t.id && $0.value.chair == c }) { continue }
-                        best = (c, k); bd = d
-                        break
-                    }
-                }
+        var lo = IVec3(Int.max, Int.max, Int.max), hi = IVec3(Int.min, Int.min, Int.min)
+        for c in rings {
+            lo = IVec3(min(lo.x, c.x - r), min(lo.y, c.y - 10), min(lo.z, c.z - r))
+            hi = IVec3(max(hi.x, c.x + r), max(hi.y, c.y + 10), max(hi.z, c.z + r))
+        }
+        lo = IVec3(max(0, lo.x), max(0, lo.y), max(0, lo.z))
+        hi = IVec3(min(gr.sx - 1, hi.x), min(gr.sy - 1, hi.y), min(gr.sz - 1, hi.z))
+        guard lo.x <= hi.x, lo.y <= hi.y, lo.z <= hi.z else { return }
+        var stations: [(IVec3, IVec3)] = []
+        for y in lo.y...hi.y { for z in lo.z...hi.z { for x in lo.x...hi.x {
+            guard ChairSeat.seatTop(Blocks.key(Blocks.groupBase[Int(gr.get(x, y, z))])) != nil else { continue }
+            for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] where ShipParts.console[Int(gr.get(x + dx, y, z + dz))] {
+                stations.append((IVec3(x, y, z), IVec3(x + dx, y, z + dz))); break
+            }
+        } } }
+        var pairs: [(Float, Int, Int)] = []
+        for (ti, c) in rings.enumerated() {
+            for (si, st) in stations.enumerated() {
+                let d = st.0 - c
+                guard abs(d.x) <= r, abs(d.z) <= r, abs(d.y) <= 10 else { continue }
+                pairs.append((simd_length(V3(Float(d.x), Float(d.y), Float(d.z))), ti, si))
             }
         }
-        guard let (c, k) = best else { return nil }
-        stationCache[t.id] = (c, k)
-        return (c, k)
+        pairs.sort { $0.0 < $1.0 }
+        var gunDone = Set<Int>(), seatDone = Set<Int>()
+        for (_, ti, si) in pairs where !gunDone.contains(ti) && !seatDone.contains(si) {
+            gunDone.insert(ti); seatDone.insert(si)
+            stationCache[turrets[ti].id] = .some((stations[si].0, stations[si].1))
+        }
     }
 }
