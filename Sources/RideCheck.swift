@@ -230,6 +230,7 @@ enum RideCheck {
         private var calm = 0                        // ticks since the last jump or landing (velocity checks skip 3 after one)
         var transitions = 0
         var maxTransitionJump: Float = 0
+        var worstTransition = ""
         var spikeLimit: Float = 3                   // b/s in a tick (a bot walking into a wall stops dead: 4.3)
         init(_ sc: Scene, deckY: Float) { self.sc = sc; self.deckY = deckY }
 
@@ -289,7 +290,17 @@ enum RideCheck {
                     let j = simd_length(wv - pv)
                     maxWorldJump = max(maxWorldJump, j)
                     // (horizontal: leaving onto the world's ground may step up onto it)
-                    if aboard != prevAboard { maxTransitionJump = max(maxTransitionJump, simd_length(V2(wv.x - pv.x, wv.z - pv.z))) }
+                    if aboard != prevAboard {
+                        let tj = simd_length(V2(wv.x - pv.x, wv.z - pv.z))
+                        if tj > maxTransitionJump {
+                            maxTransitionJump = tj
+                            // (where: which way, from and to in ship space, the world step, the ground under him)
+                            let pl = prevL ?? l
+                            worstTransition = where_ + String(format: " %@: from %.2f,%.2f,%.2f, world step %.2f,%.2f,%.2f, before %.2f,%.2f b/s, ground %@ (was %@)",
+                                                              aboard ? "boarding" : "leaving", pl.x, pl.y, pl.z, p.pos.x - pw.x, p.pos.y - pw.y, p.pos.z - pw.z,
+                                                              pv.x, pv.z, p.onGround ? "yes" : "no", prevGround ? "yes" : "no")
+                        }
+                    }
                 }
                 prevWV = wv
             }
@@ -559,6 +570,7 @@ enum RideCheck {
         r.check(mon.insideTicks == 0, "never inside a solid while aboard (\(mon.insideTicks) ticks)\(mon.firstInside.isEmpty ? "" : ", first at " + mon.firstInside)")
         r.check(mon.transitions >= 2 && mon.maxTransitionJump < 3, String(format: "boarding and leaving keep the bot's world velocity (%ld changes, worst jump %.2f b/s)",
                                                                        mon.transitions, mon.maxTransitionJump))
+        if mon.maxTransitionJump >= 3 { r.note("worst change aboard: " + mon.worstTransition) }
         r.check(mon.spikes == 0, String(format: "no deck-relative velocity spikes aboard (%ld, worst %.2f)%@", mon.spikes, mon.maxRelJump,
                                         mon.firstSpike.isEmpty ? "" : ", first at " + mon.firstSpike))
     }

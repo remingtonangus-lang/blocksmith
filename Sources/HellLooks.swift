@@ -69,13 +69,15 @@ enum HellLooks {
 
     // Wind ripples over a drift (soft bright and dark bands along a wandering direction).
     static func rippled(_ base: @escaping Gen) -> Gen {
-        { n, s in
+        { (n: Int, s: Int) -> HDTex.Img in
             var img = base(n, s)
             let w = HDTex.fbm(n, n / 4, 2, s &+ 41)
             let fn = Float(n)
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
-                let ph: Float = (Float(y) + Float(x) * 0.25) / fn * 2 * Float.pi * 6 + (w[i] - 0.5) * 5
+                let along: Float = (Float(y) + Float(x) * 0.25) / fn
+                let wob: Float = (w[i] - 0.5) * 5
+                let ph: Float = along * 12 * Float.pi + wob
                 let k: Float = 0.94 + 0.09 * sinf(ph)
                 let p = img.px[i]
                 img.px[i] = V4(min(1, p.x * k), min(1, p.y * k), min(1, p.z * k), p.w)
@@ -194,7 +196,7 @@ enum HellLooks {
 
     // Layered feathery fronds packed into a block (wrapping), darker deep in, bright at the tips.
     static func fronds(dark: UInt32, mid: UInt32, tip: UInt32, salt: Int) -> Gen {
-        { n, s in
+        { (n: Int, s: Int) -> HDTex.Img in
             let fn = Float(n)
             var img = HDTex.Img(n, V4(col(dark).x, col(dark).y, col(dark).z, 1))
             let cd = col(dark), cm = col(mid), ct = col(tip)
@@ -215,7 +217,9 @@ enum HellLooks {
                     let wdt: Float = sinf(t * Float.pi) * (0.75 + 0.25 * sinf(t * 40))       // serrated edge
                     guard abs(across) <= wdt else { continue }
                     let rib: Float = abs(across) < 0.1 ? 0.75 : 1
-                    let c: V3 = (base * (1 - t * 0.5) + ct * (t * t * 0.6)) * rib * (0.85 + 0.2 * (1 - abs(across)))
+                    let lit: V3 = base * (1 - t * 0.5) + ct * (t * t * 0.6)
+                    let shade: Float = rib * (0.85 + 0.2 * (1 - abs(across)))
+                    let c: V3 = lit * shade
                     img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
                 } }
             }

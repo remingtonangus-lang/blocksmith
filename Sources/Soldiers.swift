@@ -517,6 +517,16 @@ extension Mob {
                     }
                     return crewRoute.isEmpty ? 0 : spec.speed
                 }
+                // A foe aboard a vehicle it can't see, close in under its side: it backs off out from under the hull to
+                // where the deck shows (ridecheck crew: the two soldiers walked in under the wreck's flank, 7-10 blocks
+                // from its crew and seen by none of them, nor seeing any).
+                if deck == nil, let fm = foe.mob, let hull = fm.deck, !b.foeSees {
+                    // (out from the hull's footprint: from its nearest point, to 20 blocks off it)
+                    let nx = max(hull.worldMin.x, min(hull.worldMax.x, pos.x)), nz = max(hull.worldMin.z, min(hull.worldMax.z, pos.z))
+                    var out = V3(pos.x - nx, 0, pos.z - nz)
+                    if simd_length(out) < 0.1 { out = V3(pos.x - hull.pos.x, 0, pos.z - hull.pos.z) }
+                    if simd_length(out) < 20 && simd_length(out) > 1e-3 { yaw = atan2f(-out.x, -out.z); faceGoal = nil; return spec.speed * 0.7 }
+                }
                 return spec.speed * 0.85
             }
             let tp = foe.point - eye
