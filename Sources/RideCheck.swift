@@ -651,7 +651,9 @@ enum RideCheck {
                       simd_length(V2(s.vel.x, s.vel.z)), st.driverAlive ? "yes" : "no"))
         var foes: [Mob] = []
         for k in 0..<2 {
-            let at = s.toWorld(V3(17.5 + Float(k) * 4, 0, -55))
+            // (40 ahead of the bow: at 55 they stood ~100 blocks from the bot on the roof, past the 96 a view of 6 loads,
+            // and in the full run their chunk unloaded and they were gone before the crawler looked: build 97, 0 troops out)
+            let at = s.toWorld(V3(17.5 + Float(k) * 4, 0, -40))
             let ix = Int(floor(at.x)), iz = Int(floor(at.z))
             _ = w.loadSync(center: at, radius: 2)
             let m = Mob(.soldierIronclad, at: V3(at.x, Float(w.topY(ix, iz) + 1), at.z))
