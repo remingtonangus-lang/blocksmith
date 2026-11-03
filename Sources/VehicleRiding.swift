@@ -114,9 +114,11 @@ extension ShipManager {
         let g = s.grid
         for k in cols where k < s.colMin.count {
             let x = k % g.sx, z = k / g.sx
-            var lo = Int16.max
+            var lo = Int16.max, hi: Int16 = -1
             for y in 0..<g.sy where Blocks.collide[Int(g.blocks[g.index(x, y, z)])] { lo = Int16(y); break }
+            for y in stride(from: g.sy - 1, through: 0, by: -1) where Blocks.collide[Int(g.blocks[g.index(x, y, z)])] { hi = Int16(y); break }
             s.colMin[k] = lo
+            if k < s.colMax.count { s.colMax[k] = hi }
         }
         s.mesh.rebuildAround(s, changed, device: world.device, queue: meshQueue)
     }

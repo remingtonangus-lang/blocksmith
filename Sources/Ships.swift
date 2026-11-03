@@ -269,6 +269,7 @@ final class Ship {
     var hull: [V3] = []              // centres of exposed solid cells (contacts)
     var buckets: [ShipBucket] = []
     var colMin: [Int16] = []         // per column (x + z*sx): lowest solid cell, Int16.max if none
+    var colMax: [Int16] = []         // per column: highest solid cell, -1 if none
     var dryMask: [Bool] = []         // per cell: enclosed air that keeps water out
     var localMin = V3(0, 0, 0), localMax = V3(1, 1, 1)   // bounds of the blocks (ship space)
     var gridOrigin = IVec3(0, 0, 0)  // world cell of ship cell (0, 0, 0) when it was assembled
@@ -537,8 +538,10 @@ final class Ship {
         // Column bottoms and the enclosed-air (dry) mask: air above a solid cell of its column and between
         // solid cells along both its x row and its z row (a bowl, a closed hull or a walled deck).
         colMin = [Int16](repeating: Int16.max, count: sx * sz)
+        colMax = [Int16](repeating: -1, count: sx * sz)
         for z in 0..<sz { for x in 0..<sx {
             for y in 0..<sy where collide[Int(g.blocks[g.index(x, y, z)])] { colMin[x + z * sx] = Int16(y); break }
+            for y in stride(from: sy - 1, through: 0, by: -1) where collide[Int(g.blocks[g.index(x, y, z)])] { colMax[x + z * sx] = Int16(y); break }
         } }
         dryMask = [Bool](repeating: false, count: sx * sy * sz)
         var rowLo = [Int](repeating: Int.max, count: sx), rowHi = [Int](repeating: -1, count: sx)
@@ -631,11 +634,22 @@ final class Ship {
     // came and went whole in a body standing where the ramp's foot meets the ground (full ride checks: the board bot
     // shoved 14-44 b/s in a tick, a troop a tick inside a cube). Here the ground's height is sampled up the cell's middle,
     // so it rises and falls with the hull's motion instead of jumping a block.
+    // A land vehicle's own cell between the hull's floor and a hull block over it in its column: the world's ground
+    // and water there are kept out of the frame (they reach up into a hull driving over a rise). Only under something:
+    // the buried foot of the crawler's lowered ramp, with open sky over it, kept them out too, so a body walking onto
+    // it from the ground dropped 0.74 through the ground it stood on and slid down the ramp (full ride checks, the board
+    // bot boarding there 45 b/s).
+    @inline(__always) func roofed(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard kinematic else { return false }
+        let k = x + z * grid.sx
+        return Int(colMin[k]) < y && (k >= colMax.count || Int(colMax[k]) > y)
+    }
+
     func frameGroundTop(_ x: Int, _ y: Int, _ z: Int, _ w: World) -> Float? {
         if grid.inside(x, y, z) {
             let i = grid.index(x, y, z)
             if grid.blocks[i] != AIR || dryMask[i] { return nil }
-            if kinematic && Int(colMin[x + z * grid.sx]) < y { return nil }
+            if roofed(x, y, z) { return nil }
         }
         let mid = toWorld(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
         for t in children where mid.x > t.worldMin.x && mid.x < t.worldMax.x && mid.y > t.worldMin.y && mid.y < t.worldMax.y
@@ -661,7 +675,7 @@ final class Ship {
             let b = grid.blocks[i]
             if b != AIR { return b }
             if dryMask[i] { return AIR }
-            hullCol = kinematic && Int(colMin[x + z * grid.sx]) < y
+            hullCol = roofed(x, y, z)
         }
         let p = toWorld(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
         // Turrets on this ship (their own grids, turned on their rings).
