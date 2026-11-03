@@ -33,6 +33,13 @@ extension Capital {
             if b != Int(AIR) && (kinds[b] == .helm || consoles[b]) { helms.append(IVec3(x, y, z)) }
         } } }
         func nearHelm(_ c: IVec3) -> Bool { helms.contains { abs($0.x - c.x) <= 3 && abs($0.z - c.z) <= 3 && abs($0.y - c.y) <= 2 } }
+        // Nor on a stair, landing or doorway's way (the boarding check's walk to the helm was stopped on the Stormwarden's
+        // upper landing by a chair beside its stair): no stair, ladder, door or hatch within two blocks.
+        let wayT = Walkways.wayT
+        func byWay(_ c: IVec3) -> Bool {
+            for y in (c.y - 1)...(c.y + 1) { for z in (c.z - 2)...(c.z + 2) { for x in (c.x - 2)...(c.x + 2) where wayT[Int(gr.get(x, y, z))] { return true } } }
+            return false
+        }
         // (dx, dz) toward the console -> the chair's facing state name
         let dirs: [(Int, Int, String)] = [(0, -1, ""), (0, 1, "[south]"), (-1, 0, "[west]"), (1, 0, "[east]")]
         var placed: [IVec3] = []
@@ -51,12 +58,12 @@ extension Capital {
                             for k in 2...roofMax where y + k < gr.sy { if solid(x, y + k, z) { roof = true; break } }
                             guard roof else { continue }
                             let c = IVec3(x, y, z)
-                            guard !placed.contains(where: { abs($0.x - x) + abs($0.y - y) + abs($0.z - z) < 4 }), !nearHelm(c) else { continue }
+                            guard !placed.contains(where: { abs($0.x - x) + abs($0.y - y) + abs($0.z - z) < 4 }), !nearHelm(c), !byWay(c) else { continue }
                             let dist = simd_length(V3(Float(x - ring.x), Float(y - ring.y), Float(z - ring.z)))
                             var best: (IVec3, String, Float)?
                             for (dx, dz, face) in dirs {
                                 let k = IVec3(x + dx, y, z + dz)
-                                guard open(k.x, k.y, k.z), solid(k.x, k.y - 1, k.z), open(k.x, k.y + 1, k.z) else { continue }
+                                guard open(k.x, k.y, k.z), solid(k.x, k.y - 1, k.z), open(k.x, k.y + 1, k.z), !byWay(k) else { continue }
                                 let wall = solid(k.x + dx, k.y, k.z + dz)
                                 let score = dist + (wall ? 0 : 3)
                                 if best == nil || score < best!.2 { best = (k, face, score) }
@@ -89,6 +96,7 @@ extension Capital {
         // Per block state: walked through, climbed, stood on.
         static let passT: [Bool] = (0..<Blocks.count).map { let sh = Blocks.shape[$0]; return !Blocks.collide[$0] || sh == "door" || sh == "gate" || sh == "trapdoor" }
         static let ladderT: [Bool] = (0..<Blocks.count).map { Blocks.shape[$0] == "ladder" }
+        static let wayT: [Bool] = (0..<Blocks.count).map { let sh = Blocks.shape[$0]; return sh == "stairs" || sh == "ladder" || sh == "door" || sh == "trapdoor" }
         static let floorT: [Bool] = (0..<Blocks.count).map { let sh = Blocks.shape[$0]; return Blocks.collide[$0] && sh != "door" && sh != "trapdoor" }
         init(_ gr: ShipGrid, _ lo0: IVec3, _ hi0: IVec3) {
             let passT = Walkways.passT, ladderT = Walkways.ladderT, floorT = Walkways.floorT

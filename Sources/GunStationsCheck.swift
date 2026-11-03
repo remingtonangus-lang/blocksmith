@@ -34,6 +34,10 @@ enum GunStationsCheck {
                 let r = IVec3(Int(floor(t.mountLocal.x)), Int(floor(t.mountLocal.y)) - 1, Int(floor(t.mountLocal.z)))
                 print("gunstations: \(s.name) gun at ring \(r.x),\(r.y),\(r.z) (hull \(s.grid.sx)x\(s.grid.sy)x\(s.grid.sz)) has no station")
             }
+            if kind == "capfrigate" {
+                print("gunstations: \(s.name) stations (chair, console): " + guns.compactMap { VehicleGunners.station($0, on: s, ships) }
+                    .map { "\($0.chair.x),\($0.chair.y),\($0.chair.z) / \($0.console.x),\($0.console.y),\($0.console.z)" }.joined(separator: "; "))
+            }
             check(!guns.isEmpty && held * 10 >= guns.count * 9,
                   "gunstations: the \(s.name) has a station (console and chair) for \(held) of its \(guns.count) guns (\(ships.turrets(of: s).count) mounts)")
             if kind == "frigate" { frigate = s } else { ships.remove(s); ships.capState.removeValue(forKey: s.id) }
@@ -90,7 +94,15 @@ enum GunStationsCheck {
         g.mobs.mobs.append(raider)
         let v0 = ShipManager.crewVolleys
         var drift: Float = 0
+        var hp = seated.map { $0.health }, frame = 0
         run(360) {
+            frame += 1
+            for (i, m) in seated.enumerated() where m.health < hp[i] {
+                print(String(format: "gunstations: hand %d hurt %d at frame %d (%.1f off its chair; shells about %d; raider %.0f off)", i, hp[i] - m.health, frame,
+                             VehicleGunners.seats.first(where: { $0.mob === m }).map { simd_length(s.toWorld($0.local) - m.pos) } ?? -1,
+                             ships.shells.count, simd_length(raider.pos - m.pos)))
+                hp[i] = m.health
+            }
             raider.health = 20; raider.aggro = true
             for (i, m) in seated.enumerated() {
                 guard let st = VehicleGunners.seats.first(where: { $0.mob === m }) else {

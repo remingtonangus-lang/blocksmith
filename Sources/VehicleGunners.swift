@@ -105,6 +105,9 @@ extension Game {
             if m.health > 0 { m.pos += V3(0, 0.2, 0) }
         }
         VehicleGunners.seats = keep
+        // (each one put back on their spot now the hulls have moved this tick: placed before the ship's step, a crewman at
+        // a frigate's station trailed it by a tick's travel, 0.4 blocks at its cruise)
+        for st in keep { if let m = st.mob { VehicleGunners.place(m) } }
         guard let v = driving else { return }
         var free = ships.turrets(of: v).filter { !$0.cannons.isEmpty && !VehicleGunners.manned($0) }
         // P512: on a capital hull only the guns with a station in it (a crewman doesn't ride a frigate's turret roof).

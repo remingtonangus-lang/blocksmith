@@ -136,7 +136,7 @@ enum EncounterCheck {
         defer { Game.onDamage = onDamage0 }
         func play(_ s: Ship, _ secs: Float, under: Bool = false) -> (Float, Int, Int) {
             var closest: Float = .infinity, hurt = 0
-            var seen = Set<ObjectIdentifier>()
+            var seen = Set<ObjectIdentifier>(), early = Set<ObjectIdentifier>()
             for f in 0..<Int(secs * 30) {
                 if f % 300 == 0 {
                     let ts = ships.turrets(of: s)
@@ -154,7 +154,9 @@ enum EncounterCheck {
                 if g.health < 20 { hurt += 20 - g.health }
                 g.health = 20; g.alive = true
                 let ids = Set([s.id] + ships.turrets(of: s).map { $0.id })
-                for sh in ships.shells where ids.contains(sh.owner) { seen.insert(ObjectIdentifier(sh)) }
+                // (under the water, the rounds already on their way and the volley laid as he went down aren't counted)
+                if !under || f >= 90 { for sh in ships.shells where ids.contains(sh.owner) && !early.contains(ObjectIdentifier(sh)) { seen.insert(ObjectIdentifier(sh)) } }
+                else { for sh in ships.shells where ids.contains(sh.owner) { early.insert(ObjectIdentifier(sh)) } }
                 closest = min(closest, simd_length(V2(s.pos.x - g.player.pos.x, s.pos.z - g.player.pos.z)))
             }
             return (closest, seen.count, hurt)
@@ -176,7 +178,7 @@ enum EncounterCheck {
             // Under the water (head two blocks down): its guns lose him.
             let (_, firedUnder, _) = play(cr, 20, under: true)
             let hidden = SeaHunt.under(g)
-            check(hidden && firedUnder <= 2, "encounters: two blocks under the water (\(hidden)) the cruiser's guns lose him (\(firedUnder) rounds in 20 s)")
+            check(hidden && firedUnder <= 2, "encounters: two blocks under the water (\(hidden)) the cruiser's guns lose him (\(firedUnder) rounds after his first 3 s down, of 20)")
             // 450 blocks off (past it, away from it), it gives up and sails away.
             let away = simd_normalize(V2(g.player.pos.x - cr.pos.x, g.player.pos.z - cr.pos.z) + V2(1e-3, 0))
             g.player.pos = V3(cr.pos.x + away.x * 450, Float(surf + 1), cr.pos.z + away.y * 450)
