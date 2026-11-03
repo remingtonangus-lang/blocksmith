@@ -67,6 +67,9 @@ enum Cinema {
         let shots: [Shot]
         do { shots = try JSONDecoder().decode([Shot].self, from: data) } catch { print("cine: bad shot file: \(error)"); return 1 }
         let out = arg("--out") ?? "cine"
+        // The Deep meshes only the layer the player stands in (World.deepLayerCut); the cine camera flies free of the
+        // harness's player, so a hell shot showed only its nearest chunks. A player in hell sees all of hell: mesh both.
+        World.deepLayerCut = false
         let only = Set((arg("--only") ?? "").split(separator: ",").map(String.init))
         let W = Int(arg("--w") ?? "") ?? 1920, H = Int(arg("--h") ?? "") ?? 1080
         let still = CommandLine.arguments.contains("--still")     // the middle frame of each shot only
