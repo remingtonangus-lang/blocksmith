@@ -67,13 +67,25 @@ extension Renderer {
         let p = game.player.pos
         let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
         let n = Int(Renderer.spireRange) / span + 1
+        // (Store review, the crawler soak: a spire region not planned yet was planned here, in the frame's record, 25 ms;
+        // off the render thread now, as the citadels', and shown next time.)
+        var todo: [(Int, Int)] = []
         for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
+            guard sc.isCached(t, regionX: rx, regionZ: rz) else { todo.append((rx, rz)); continue }
             guard let s = sc.start(t, regionX: rx, regionZ: rz) else { continue }
             let y0 = Float(s.min.y + 8), h = Float(s.max.y - 4 - (s.min.y + 8))
             Renderer.spireList.append(V4(Float(s.min.x + s.max.x) / 2, y0, Float(s.min.z + s.max.z) / 2, h))
         } }
+        if !todo.isEmpty && !Renderer.spirePlanning {
+            Renderer.spirePlanning = true
+            DispatchQueue.global(qos: .utility).async {
+                for (rx, rz) in todo { _ = sc.start(t, regionX: rx, regionZ: rz) }
+                Renderer.spirePlanning = false
+            }
+        }
         return Renderer.spireList
     }
+    static var spirePlanning = false
 
     // Appends the impostor triangles: opaque ones first, then `smokeStart` marks the blended smoke.
     // P385: `horizon` false leaves the horizon ground out (the Quest keeps the last one and rebuilds only the landmarks
