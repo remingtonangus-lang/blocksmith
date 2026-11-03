@@ -55,8 +55,14 @@ extension Game {
             // one frame in his jungle: questcheck --framesoak jungle.)
             let deadline = CFAbsoluteTimeGetCurrent() + RandomTickRng.frameSeconds
             var k = 0
+            let track = RandomTickRng.track
             for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {     // (an earlier tick may have changed it)
+                let t0 = track ? CFAbsoluteTimeGetCurrent() : 0
                 randomTick(p, b)
+                if track {
+                    let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                    if ms > RandomTickRng.worstMs { RandomTickRng.worstMs = ms; RandomTickRng.worstWhat = "\(Blocks.key(b)) at \(p.x) \(p.y) \(p.z)" }
+                }
                 k += 1
                 if k & 7 == 0 && CFAbsoluteTimeGetCurrent() > deadline { break }
             }
@@ -700,5 +706,6 @@ enum RandomTickRng {
     static var state = SRng(0x5EED_71C4)
     static var hits: [(IVec3, BlockID)] = []          // (Game.randomTicks' reused list)
     static var profile = false, worstMs = 0.0, worstWhat = ""   // (P400 harness)
+    static var track = false                                     // (the frame soak's SOAK_MOBPROF: the slowest one, timed as it runs)
     static var frameSeconds = 0.0012                    // (store review: a frame's random ticks at most this long)
 }
