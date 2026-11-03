@@ -508,9 +508,10 @@ final class StructureCache {
         lock.unlock()
         guard !todo.isEmpty else { return }
         todo.sort { $0.0 < $1.0 }
+        let work = todo
         StructureCache.prefetchQueue.async { [weak self] in
             guard let self = self else { return }
-            for (_, t, k) in todo {
+            for (_, t, k) in work {
                 _ = self.start(t, regionX: k.rx, regionZ: k.rz)
                 self.lock.lock(); self.planning.remove(k); StructureCache.prefetched += 1; self.lock.unlock()
             }
