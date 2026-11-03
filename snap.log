@@ -1,0 +1,15 @@
+natural census: 63 sample chunks in 20186 ms
+posecheck: weapon clearance: 330 of 925 poses had the weapon through an arm or the body before clearing; worst after 0.46 px
+posecheck: 1034 raised limbs checked, 0 failed
+textures: 2032 layers at 16 px, BC3, 0.7 MB with mips (build 1567 ms, upload 744 ms)
+target: grass_block at 24 136 28, boxes [(SIMD3<Float>(0.0, 0.0, 0.0), SIMD3<Float>(1.0, 1.0, 1.0))], feet SIMD3<Float>(25.5, 136.0, 31.5)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck fast.png magenta=0.00000 black=0.0071 white=0.0008 std=39.8 hash=8e2bb75820bbfdf6
+imagecheck fast.png magenta=0.00000 black=0.0071 white=0.0008 std=39.8 hash=8e2bb75820bbfdf6
+seed 12345  pos 25.5 136.0 31.5  rd 4  chunks 109  (drawn 28)
+gen 98988 ms  mesh(all, parallel) 22660 ms  mesh(1 section) 168.51 ms  quads 302646 opaque / 571 water
+frame (encode+GPU, offscreen, median of 30) 17.52 ms  biome forest
+mesh slabs 12 MB, chunks 109 (block+light arrays 11 MB), Metal allocated 114 MB
+memory: resident 156 MB  (section meshes 9 MB)
+wrote snaps/fast.png
+imagecheck: 1 frames, no flags
