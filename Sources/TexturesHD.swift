@@ -2049,12 +2049,13 @@ enum HDTex {
     static func sparkFaceImage(_ kind: String, _ n: Int, _ s: Int) -> Img {
         let fn = Float(n), u = n / 16
         let fine = vnoise(n, max(1, n / 64), s &+ 2)
-        func put(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+        func paintPx(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+        func tint(_ h: UInt32, _ f: Float) -> V3 { let c: V3 = col(h); return c * f }
         func rod(_ img: inout Img, _ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int) {
             for y in y0..<y1 { for x in x0..<x1 {
                 let across: Float = (Float(x - x0) + 0.5) / Float(x1 - x0)
                 let k: Float = 1.2 - 0.6 * abs(across - 0.35)
-                put(&img, x, y, V3(0.72, 0.72, 0.74) * (k * (0.94 + 0.08 * fine[y * n + x])))
+                paintPx(&img, x, y, V3(0.72, 0.72, 0.74) * (k * (0.94 + 0.08 * fine[y * n + x])))
             } }
         }
         func hole(_ img: inout Img, _ inside: (Float, Float) -> Bool) {
@@ -2063,7 +2064,7 @@ enum HDTex {
                 guard inside(dx, dy) else { continue }
                 let rim: Bool = inside(dx + Float(u) * 0.6, dy + Float(u) * 0.6) == false
                 let k: Float = rim ? 0.32 : 0.12
-                put(&img, x, y, V3(k, k, k * 1.05) * (0.85 + 0.3 * fine[y * n + x]))
+                paintPx(&img, x, y, V3(k, k, k * 1.05) * (0.85 + 0.3 * fine[y * n + x]))
             } }
         }
         // P442 (Oct 24 20:53-20:54: "the dispenser... it's literally just a fucking stone wall"; "the dropper's fucked
@@ -2079,7 +2080,7 @@ enum HDTex {
                 let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
                 if frame && edge < u {
                     let k: Float = y < u && edge == y ? 1.18 : (y >= n - u && edge == n - 1 - y ? 0.74 : (x < u ? 1.02 : 0.86))
-                    put(&img, x, y, col(0xB87333) * (k * fk))
+                    paintPx(&img, x, y, tint(0xB87333, (k * fk)))
                     continue
                 }
                 if frame && edge == u { let c = img[x, y]; img[x, y] = V4(c.x * 0.55, c.y * 0.55, c.z * 0.55, 1); continue }
@@ -2089,14 +2090,14 @@ enum HDTex {
                 if frame && rx * rx + ry * ry < 0.55 * fu * fu {
                     let cy: Float = Float(y) < fn / 2 ? 2.5 * fu : fn - 2.5 * fu
                     let hi: Float = Float(y) + 0.5 < cy ? 1.25 : 0.85
-                    put(&img, x, y, col(0xC8884A) * (hi * fk))
+                    paintPx(&img, x, y, tint(0xC8884A, (hi * fk)))
                     continue
                 }
                 if hatch {
                     let hx = abs(Float(x) + 0.5 - fn / 2), hy = abs(Float(y) + 0.5 - fn / 2)
                     let he = 3.2 * fu - max(hx, hy)
                     if he >= 0 && he < 0.45 * fu { let c = img[x, y]; img[x, y] = V4(c.x * 0.45, c.y * 0.45, c.z * 0.45, 1) }   // the seam
-                    else if hy < 0.5 * fu && hx < 1.6 * fu { put(&img, x, y, col(0xB87333) * ((Float(y) + 0.5 < fn / 2 ? 1.2 : 0.8) * fk)) }
+                    else if hy < 0.5 * fu && hx < 1.6 * fu { let lit: Float = Float(y) + 0.5 < fn / 2 ? 1.2 : 0.8; paintPx(&img, x, y, tint(0xB87333, lit * fk)) }
                 }
             } }
             return img
@@ -2112,12 +2113,12 @@ enum HDTex {
                     let depth: Float = cl(1 - d / (r * fu))
                     let lift: Float = dy > 0 ? 0.04 * cl(dy / (r * fu)) : 0
                     let k: Float = 0.16 - 0.09 * depth + lift
-                    put(&img, x, y, V3(k, k * 0.97, k * 0.95) * fk)
+                    paintPx(&img, x, y, V3(k, k * 0.97, k * 0.95) * fk)
                 } else if d < (r + 0.9) * fu {
                     let k: Float = dy < 0 ? 0.82 : 1.18
-                    put(&img, x, y, col(0xB87333) * (k * fk))
+                    paintPx(&img, x, y, tint(0xB87333, (k * fk)))
                 } else if d < (r + 1.2) * fu {
-                    put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
+                    paintPx(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
                 }
             } }
         }
@@ -2142,7 +2143,7 @@ enum HDTex {
                     let gr: Float = (gx * gx + gy * gy) / (fn * fn * 0.02)
                     let gl: Float = cl(1 - gr)
                     let sk: Float = 0.8 + 0.15 * fine[y * n + x] + 0.35 * gl
-                    put(&img, x, y, col(0x5AAE4A) * sk)
+                    paintPx(&img, x, y, tint(0x5AAE4A, sk))
                 }
             } }
             return img
@@ -2157,7 +2158,7 @@ enum HDTex {
                     img[x, y] = c
                 } else {
                     let k: Float = y == 4 * u ? 1.2 : (y == 5 * u - 1 ? 0.75 : 1.0)
-                    put(&img, x, y, col(0xB87333) * (k * (0.9 + 0.2 * fine[y * n + x])))
+                    paintPx(&img, x, y, tint(0xB87333, (k * (0.9 + 0.2 * fine[y * n + x]))))
                 }
             } }
             return img
@@ -2198,15 +2199,15 @@ enum HDTex {
                         let gd: Float = (gx * gx + gy * gy).squareRoot()
                         let glint: Float = cl(1 - gd / 0.9)
                         c = c + (col(0xD8F0F8) - c) * (glint * glint)
-                        put(&img, x, y, c)
+                        paintPx(&img, x, y, c)
                     } else if d < 4.8 {
                         let bevel: Float = 0.8 + 0.4 * cl((dy * -1 + 4.8) / 9.6)
-                        put(&img, x, y, col(0xB87333) * (bevel * fk))
+                        paintPx(&img, x, y, tint(0xB87333, (bevel * fk)))
                     } else if d < 5.5 {
-                        put(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
+                        paintPx(&img, x, y, V3(0.12, 0.12, 0.13) * fk)
                     } else {
                         let bx: Float = abs(abs(dx) - 5.6), by: Float = abs(abs(dy) - 5.6)
-                        if bx * bx + by * by < 0.5 { put(&img, x, y, col(0xC8884A) * (by < 0.2 && dy < 0 ? 1.2 : 0.95)) }
+                        if bx * bx + by * by < 0.5 { let lit: Float = by < 0.2 && dy < 0 ? 1.2 : 0.95; paintPx(&img, x, y, tint(0xC8884A, lit)) }
                     }
                 case "observer_back", "observer_back_on":
                     let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
@@ -2217,14 +2218,14 @@ enum HDTex {
                         let lit: V3 = col(0xF82A1A) + (col(0xFFC0A0) - col(0xF82A1A)) * (core * core)
                         let ok: Float = 0.8 + 0.3 * core
                         let c: V3 = on ? lit : col(0x3A1A18) * ok
-                        put(&img, x, y, c)
-                    } else if d < 2.8 { put(&img, x, y, V3(0.16, 0.16, 0.17) * fk) }
+                        paintPx(&img, x, y, c)
+                    } else if d < 2.8 { paintPx(&img, x, y, V3(0.16, 0.16, 0.17) * fk) }
                 case "observer_side":
                     // A copper signal strip with notches (it carried a plain grey bar).
                     if ly == 7 || ly == 8 {
                         var top: Float = 1
                         if ly == 7 && y % u == 0 { top = 1.25 } else if ly == 8 && y % u == u - 1 { top = 0.7 }
-                        put(&img, x, y, (lx % 4 == 1 ? col(0x5A3018) : col(0xB87333)) * (top * fk))
+                        paintPx(&img, x, y, (lx % 4 == 1 ? col(0x5A3018) : col(0xB87333)) * (top * fk))
                     }
                 default:
                     // P463: the arrow the signal takes, from the lens to the red output on the back, on every face
@@ -2242,7 +2243,7 @@ enum HDTex {
                     let ddx: Float = (Float(ax) + 0.5 - half2) / fu2
                     let ddy: Float = (Float(ay) + 0.5) / fu2 - 13.5
                     let dot: Bool = ddx * ddx + ddy * ddy < 2.6
-                    if dot { put(&img, x, y, col(0x2A6A8A) * fk) } else if shaft || head { put(&img, x, y, col(0xC0301C) * fk) }
+                    if dot { paintPx(&img, x, y, tint(0x2A6A8A, fk)) } else if shaft || head { paintPx(&img, x, y, tint(0xC0301C, fk)) }
                 }
             } }
             return img
@@ -2260,7 +2261,7 @@ enum HDTex {
                 let depth: Float = Float(min(edge, 3 * u)) / Float(3 * u)
                 var k: Float = 0.12 + 0.03 * depth
                 if edge < u / 2 { k = 0.07 }
-                put(&img, x, y, V3(k, k, k * 1.08) * (0.9 + 0.2 * fine[y * n + x]))
+                paintPx(&img, x, y, V3(k, k, k * 1.08) * (0.9 + 0.2 * fine[y * n + x]))
             } }
             return img
         case "note_block":
@@ -2274,7 +2275,7 @@ enum HDTex {
                 let hx2: Float = hx - fn * 5 / 16
                 let headA: Bool = hx * hx * 0.6 + hy * hy < fn * fn * 0.004
                 let headB: Bool = hx2 * hx2 * 0.6 + hy * hy < fn * fn * 0.004
-                if bar || stem || headA || headB { put(&img, x, y, col(0x22160C) * (0.9 + 0.2 * fine[y * n + x])) }
+                if bar || stem || headA || headB { paintPx(&img, x, y, tint(0x22160C, (0.9 + 0.2 * fine[y * n + x]))) }
             } }
             return img
         case "redstone_lamp", "redstone_lamp_on":
@@ -2306,7 +2307,7 @@ enum HDTex {
                         c = col(0x6A3A22) * dk
                     }
                 }
-                put(&img, x, y, c)
+                paintPx(&img, x, y, c)
             } }
             return img
         case "target_top", "target_side":
@@ -2321,7 +2322,7 @@ enum HDTex {
                 let fibre: Float = straw[(y * n + x / 3) % (n * n)]
                 let base: V3 = red ? col(0xC82A1E) : col(0xE8E0C8)
                 let k: Float = 0.82 + 0.22 * fibre + 0.06 * fine[i]
-                put(&img, x, y, base * k)
+                paintPx(&img, x, y, base * k)
             } }
             return img
         default:  // sea_lantern
@@ -2336,7 +2337,7 @@ enum HDTex {
                 let glow: Float = 0.85 + 0.2 * blot[i] + 0.1 * min(ea, eb)
                 let pane: V3 = col(0xB8DCD2) * glow
                 let c: V3 = pane + (col(0xF4FCF6) - pane) * seam
-                put(&img, x, y, c)
+                paintPx(&img, x, y, c)
             } }
             return img
         }
