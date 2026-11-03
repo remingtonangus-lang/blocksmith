@@ -126,7 +126,15 @@ enum EncounterCheck {
         func play(_ s: Ship, _ secs: Float, under: Bool = false) -> (Float, Int, Int) {
             var closest: Float = .infinity, hurt = 0
             var seen = Set<ObjectIdentifier>()
-            for _ in 0..<Int(secs * 30) {
+            for f in 0..<Int(secs * 30) {
+                if f % 300 == 0 {
+                    let ts = ships.turrets(of: s)
+                    print(String(format: "encounters: %@ t %2d s: %.0f off, asleep %@, speed %.1f, autopilot %@, %d turrets (%d aimed), crew %d, engaged %@, timer %.1f",
+                                 s.name, f / 30, simd_length(V2(s.pos.x - g.player.pos.x, s.pos.z - g.player.pos.z)), s.asleep ? "yes" : "no",
+                                 simd_length(s.vel), s.autopilot.map { String(format: "%.1f,%.1f", $0.x, $0.y) } ?? "none", ts.count,
+                                 ts.filter { $0.aimAt != nil }.count, g.mobs.mobs.filter { $0.deck === s && $0.health > 0 }.count,
+                                 ships.gunsEngage(s, g) ? "yes" : "no", s.fireTimer))
+                }
                 if under { g.player.pos = V3(Float(x) + 0.5, Float(SEA - 4), Float(z) + 4.5); g.player.vel = .zero }
                 g.tick(1.0 / 30)
                 if g.health < 20 { hurt += 20 - g.health }
@@ -155,8 +163,9 @@ enum EncounterCheck {
             let (_, firedUnder, _) = play(cr, 20, under: true)
             let hidden = SeaHunt.under(g)
             check(hidden && firedUnder <= 2, "encounters: two blocks under the water (\(hidden)) the cruiser's guns lose him (\(firedUnder) rounds in 20 s)")
-            // 400 blocks off, it gives up and sails away.
-            g.player.pos = V3(Float(x) + 450.5, Float(SEA + 1), Float(z) + 0.5)
+            // 450 blocks off (past it, away from it), it gives up and sails away.
+            let away = simd_normalize(V2(g.player.pos.x - cr.pos.x, g.player.pos.z - cr.pos.z) + V2(1e-3, 0))
+            g.player.pos = V3(cr.pos.x + away.x * 450, Float(SEA + 1), cr.pos.z + away.y * 450)
             g.seaHuntTick(0.05)
             check(!ships.list.contains { $0 === cr }, "encounters: with him 450 blocks off the cruiser gives up the hunt")
         } else { check(false, "encounters: no Corsair Cruiser came in 200 rolls") }

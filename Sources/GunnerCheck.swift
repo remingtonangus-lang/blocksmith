@@ -124,8 +124,11 @@ enum GunnerCheck {
             foe.aggro = true
             g.mobs.mobs.append(foe)
             let mag0 = r.soldierBrain.mag, reload0 = r.soldierBrain.reload
-            run(120)
+            var saw = false
+            // (the gun on the truck works on the raider too: kept standing so the rider's own shots are what's measured)
+            run(240, MoveInput()) { foe.health = 20; foe.aggro = true; if r.companionFoe === foe { saw = true } }
             let shot = r.soldierBrain.mag < mag0 || r.soldierBrain.reload > reload0
+            if !shot { print("gunners: the rider \(saw ? "saw" : "never saw") the raider (\(Int(simd_length(foe.pos - r.pos))) blocks off)") }
             check(shot && VehicleGunners.riding(r), "gunners: the rider fires their own gun from aboard at a raider 12 blocks off (rounds \(mag0) -> \(r.soldierBrain.mag)), still aboard")
             g.mobs.mobs.removeAll { $0 === foe }
         }
