@@ -131,7 +131,7 @@ extension Renderer {
             into.append(SimpleVert(pos: a, color: col)); into.append(SimpleVert(pos: b, color: col)); into.append(SimpleVert(pos: c, color: col))
         }
         // The ground past the loaded terrain first (HorizonRing.swift): the landmarks below stand on it.
-        if horizon { buildHorizon(&out, game: game, eye: eye, loaded: loaded, fog: fog, sun: sun, day: day, hdrK: hdrK, project: p) }
+        if horizon { buildHorizon(&out, game: game, eye: eye, loaded: loaded, fog: fog, sun: sun, day: day, hdrK: hdrK, shell: place, project: p) }
         Renderer.horizonEnd = out.count
         for v in vols {
             let c = V3(v.x, Float(YOFF) + v.base, v.z)

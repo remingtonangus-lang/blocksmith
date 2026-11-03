@@ -120,7 +120,7 @@ extension Renderer {
     // Appends the ring's triangles (projected by `project`, the impostor shell), hazed toward the fog: distant ground
     // reads as silhouettes in the haze, a little clearer for high ground lit by the sun.
     func buildHorizon(_ out: inout [SimpleVert], game: Game, eye: V3, loaded: Float, fog: V3, sun: V3, day: Float,
-                      hdrK: Float, project p: (V3) -> V4) {
+                      hdrK: Float, shell: Float, project p: (V3) -> V4) {
         let ring = HorizonRing.shared
         ring.request(game, eye: eye)
         guard let s = ring.current(), s.n > 1, s.seed == game.world.seed else { return }
@@ -185,5 +185,30 @@ extension Renderer {
                 out.append(SimpleVert(pos: pb, color: col)); out.append(SimpleVert(pos: pd, color: col)); out.append(SimpleVert(pos: pc, color: col))
             }
         }
+        // FAILURES 4 (the void sweep, forest at 0 0 on seed 7653607216494784574, 0.13-0.16% of the view at every pitch
+        // facing 240): a ray that left the loaded land over its edge going down, under this coarse height field (a
+        // 40-block chord over a valley, or the sampled column above the drawn field ground), met nothing at all and
+        // showed the sky as a wedge between the loaded edge and the ring. Behind everything on the shell (past the
+        // impostors' farthest radius), a floor in the fog's colour at the ring's lowest height: whatever ray goes down
+        // past the loaded land without meeting ground ends in the fog, as the land there would. (The void probe draws it
+        // pure green, so the sweep still counts what only this floor covered: --voidcount's "backstop".)
+        var lowest = Float.greatestFiniteMagnitude
+        for h in s.h { lowest = min(lowest, h) }
+        let drop = eye.y - lowest
+        if drop > 1 {
+            let R = shell * 1.02
+            let col = Renderer.backstopProbe ? V4(0, 1, 0, 1) : V4(fog, 1)
+            let down = V4(0, -R, 0, 1)
+            let sides = 48
+            var prev = V4(0, 0, 0, 1)
+            for k in 0...sides {
+                let a = Float(k) * 2 * .pi / Float(sides)
+                let d = simd_normalize(V3(cosf(a) * range, -drop, sinf(a) * range))
+                let rim = V4(d * R, 1)
+                if k > 0 { out.append(SimpleVert(pos: down, color: col)); out.append(SimpleVert(pos: prev, color: col)); out.append(SimpleVert(pos: rim, color: col)) }
+                prev = rim
+            }
+        }
     }
+    static var backstopProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
 }
