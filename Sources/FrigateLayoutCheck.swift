@@ -99,6 +99,19 @@ enum FrigateLayoutCheck {
                 }
             }
             let solid = hb.blocks.filter { $0 != AIR }.count
+            if joined < solid {
+                // Where the loose blocks are, by kind (blueprint x as the layout's own, centred on 0).
+                var loose: [String: (Int, IVec3, IVec3)] = [:]
+                for (i, bl) in hb.blocks.enumerated() where bl != AIR && !seen[i] {
+                    let c = IVec3(i % hb.sx - hb.ox, i / (hb.sx * hb.sz), (i / hb.sx) % hb.sz)
+                    let k = Blocks.key(bl)
+                    let e = loose[k] ?? (0, c, c)
+                    loose[k] = (e.0 + 1, IVec3(min(e.1.x, c.x), min(e.1.y, c.y), min(e.1.z, c.z)), IVec3(max(e.2.x, c.x), max(e.2.y, c.y), max(e.2.z, c.z)))
+                }
+                for (k, e) in loose.sorted(by: { $0.value.0 > $1.value.0 }).prefix(12) {
+                    print("frigatelayout: loose \(e.0) \(k), x \(e.1.x)...\(e.2.x) y \(e.1.y)...\(e.2.y) z \(e.1.z)...\(e.2.z)")
+                }
+            }
             var kinds: [String: Int] = [:]
             for z in 121...154 { for y in 0..<hb.sy { for x in -13...13 {
                 let k = Blocks.key(hb.get(x, y, z))
