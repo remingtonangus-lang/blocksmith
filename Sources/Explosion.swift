@@ -453,6 +453,7 @@ final class CraterJob {
     // Other ground carving drawing on the same allowance (the crawler's ruts).
     static func spend(_ seconds: Double) { if inTick { _ = allowance(); used += seconds } }
     static var initCost = ""                 // (MainGunTests)
+    static var worstStepMs = 0.0, worstStep = ""   // (the soak: the slowest timed step and where its time went)
     static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
     private var waitFrames = 0
@@ -505,7 +506,15 @@ final class CraterJob {
         let timed = blocks != .max
         if timed && CraterJob.allowance() <= 0 { return false }
         let began = CFAbsoluteTimeGetCurrent()
-        defer { if timed && CraterJob.inTick { CraterJob.used += CFAbsoluteTimeGetCurrent() - began } }
+        var phase = "wait", removed0 = removed
+        defer {
+            let took = CFAbsoluteTimeGetCurrent() - began
+            if timed && CraterJob.inTick { CraterJob.used += took }
+            if timed && took * 1000 > CraterJob.worstStepMs {
+                CraterJob.worstStepMs = took * 1000
+                CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f", phase, removed - removed0, r)
+            }
+        }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         // (Oct 31: a far strike) The bowl and its scorch reach shell chunks round the impact (ChunkShells: blocks
         // dropped past the active distance): they come back on the workers first and the bowl opens under the dust
@@ -518,6 +527,7 @@ final class CraterJob {
             waitFrames = -1
         }
         if circuitsNear == nil {
+            phase = "circuit scan"
             // Any circuit part within reach of the bowl or its scorch (a changed block marks neighbours up to 2 away)?
             // None: carve without the per-block circuit marks. 100k cells, straight through each chunk's array and
             // spread over the first few frames (one pass was a 30-40 ms frame); the carving waits for it (under the
@@ -540,6 +550,7 @@ final class CraterJob {
             if found { circuitsNear = true } else if scanY > y1 { circuitsNear = false } else if blocks != .max { return false }
             if circuitsNear == nil { return step(g, blocks: blocks) }   // (all at once: the harness's Explosion.crater)
         }
+        phase = "carving"; removed0 = removed
         let quiet0 = w.circuitQuiet
         w.circuitQuiet = circuitsNear == false
         defer { w.circuitQuiet = quiet0 }
@@ -606,12 +617,13 @@ final class CraterJob {
             let t = Float(bowlNext) * Float(depth) / 6
             let k = t / Float(max(1, depth))
             let rr = 0.85 * r * sqrtf(max(0.05, 1 - k * k))
+            phase = "field ball"
             let along: V3 = axes.map { -$0.1 * t } ?? V3(shear.x * t, -t, shear.y * t)
             _ = w.carve(at: center + along, radius: rr, mode: .shape)
             bowlNext += 1
             return done
         }
-        if carved && budget > 0 && CFAbsoluteTimeGetCurrent() < deadline { scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
+        if carved && budget > 0 && CFAbsoluteTimeGetCurrent() < deadline { phase += " + scorch"; scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
         return done
     }
     private var bowlNext = 0

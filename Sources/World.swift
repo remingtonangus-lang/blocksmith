@@ -674,21 +674,33 @@ final class World {
         // PG2 rewrite: in a field world the ground is met as the field's own surface (fieldBoxes: quarter-block columns
         // cut where the density crosses zero), never as cells; built blocks in the cell keep their own shapes.
         // (P377 step 2: the cell is read through the built layer only, never first as a block.)
-        if fieldTerrain && y >= 0 && y < CH, let c = column ?? chunkAt(x, z) {
+        // (Through a ship's frame, x y z are the hull's cells: the world's chunks, pieces, objects and chips there are the
+        // world's at those numbers, nowhere near it. Full ride checks: with the chunks at the world's origin loaded, the
+        // deep ground under them stood in the crawler's frame as cubes, and a troop and the board bot at the ramp's foot,
+        // ship space y 1, were pushed out of them 14-44 b/s in a tick. The frame's own block() reads the world where the
+        // cell really is.)
+        let plain = frame == nil
+        if plain && fieldTerrain && y >= 0 && y < CH, let c = column ?? chunkAt(x, z) {
             let i = Chunk.index(mod(x, CS), y, mod(z, CS))
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
-        } else { b = Int(block(x, y, z)) }
-        if !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
+        } else {
+            if let s = frame, fieldTerrain, let top = s.frameGroundTop(x, y, z, self) {
+                if top > 0.02 { out.append((V3(Float(x), Float(y), Float(z)), V3(Float(x + 1), Float(y) + top, Float(z + 1)))) }
+                return
+            }
+            b = Int(block(x, y, z))
+        }
+        if plain && !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
         // P389: a struck object's cell is met as what is left of it there.
-        if !objectReg.cellBoxes.isEmpty, let ob = objectReg.cellBoxes[IVec3(x, y, z)] { out.append(contentsOf: ob); return }
+        if plain && !objectReg.cellBoxes.isEmpty, let ob = objectReg.cellBoxes[IVec3(x, y, z)] { out.append(contentsOf: ob); return }
         if !Blocks.collide[b] { return }
         if foliageSoft && softFoliage(b, x, y, z) { return }
         let o = V3(Float(x), Float(y), Float(z))
         if fieldTerrain, let r = fallenLog(b, x, y, z) { out.append((r.0 + o, r.1 + o)); return }
         if Blocks.fullCollide[b] {
             // A chipped block gives up the whole layers it has lost (you sink into a block chipped from the top).
-            if !damage.isEmpty && !World.realistic, let dv = damage[IVec3(x, y, z)] {
+            if plain && !damage.isEmpty && !World.realistic, let dv = damage[IVec3(x, y, z)] {
                 let (mn, mx) = Mesher.chipBox(face: Int(dv >> 5), level: Int(dv & 31), x: x, y: y, z: z)
                 out.append((o + mn, o + mx)); return
             }

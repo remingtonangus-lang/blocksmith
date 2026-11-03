@@ -322,7 +322,8 @@ extension Mesher {
                 else if ax >= az { f = nrm.x > 0 ? 0 : 1 }
                 else { f = nrm.z > 0 ? 4 : 5 }
                 // The ground half a block under the quad's middle (the lattice sample may be the dirt under the turf).
-                let mid = (pts[0] + pts[1] + pts[2] + pts[3]) * 0.25 - nrm / len * 0.5
+                let sum: V3 = (pts[0] + pts[1]) + (pts[2] + pts[3])
+                let mid: V3 = sum * 0.25 - nrm / len * 0.5
                 let mi = ri(Int(floor(mid.x)), Int(floor(mid.y)), Int(floor(mid.z)))
                 var id = E[mi] > 0 && nat[Int(R[mi])] ? Int(R[mi]) : Int(R[ri(sb[0], sb[1], sb[2])])
                 if id == Int(DIRT) && nrm.y > 0.35 * len {

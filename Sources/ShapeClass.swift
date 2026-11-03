@@ -158,8 +158,9 @@ enum ShapeClass {
         for k in [4, 5, 6, 7] { out += "  \(names[k]) (\(groups[k].count) groups): " + groups[k].sorted().joined(separator: " ") + "\n" }
         let old = Set((0..<Blocks.count).filter { legacyGround[$0] }.map { group(BlockID($0)) })
         let now = Set(groups[5])
-        out += "  terrain vs old natural list: lost [" + old.subtracting(now).sorted().joined(separator: " ") + "], new [" +
-            now.subtracting(old).sorted().joined(separator: " ") + "]\n"
+        let lost: String = old.subtracting(now).sorted().joined(separator: " ")
+        let gained: String = now.subtracting(old).sorted().joined(separator: " ")
+        out += "  terrain vs old natural list: lost [" + lost + "], new [" + gained + "]\n"
         for i in 0..<Blocks.count where kind[i] == .organic {
             out += "  organic \(Blocks.key(BlockID(i))): \(family[i])\n"
         }

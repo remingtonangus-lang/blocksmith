@@ -108,7 +108,9 @@ extension AdaptiveGround {
                 worstA = max(worstA, d); if d > tol { overA += 1 }
             } }
             for t in test {
-                let ps = [t.0, t.1, t.2, (t.0 + t.1) / 2, (t.1 + t.2) / 2, (t.0 + t.2) / 2, (t.0 + t.1 + t.2) / 3]
+                let m01: V3 = (t.0 + t.1) / 2, m12: V3 = (t.1 + t.2) / 2, m02: V3 = (t.0 + t.2) / 2
+                let mid: V3 = (t.0 + t.1 + t.2) / 3
+                let ps: [V3] = [t.0, t.1, t.2, m01, m12, m02, mid]
                 for p in ps { let d = gr.near(p); pointsB += 1; worstB = max(worstB, d); if d > tol { overB += 1 } }
             }
         }

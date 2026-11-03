@@ -29,9 +29,33 @@ enum StructureTip {
     private static var fillAt = 0.0, groundAt = 0.0, levelsAt = 0.0
     static var describe = false                                             // (the harness: note every piece weighed)
 
+    // Store review (VRC.Quest.Performance.1, build 109's citadel soak: a 6,380-block check was 9.7 ms of one frame, the
+    // weighing 5.2 and the overhangs 4.5, on top of a bowl's carving): in the game's tick a check waits for a frame with
+    // the carving allowance (CraterJob.allowance) left whole, at most `maxWait` frames, and the overhangs beside the
+    // hole are weighed a frame after the piece over it. Both spend the allowance. (A harness calling tick itself, and a
+    // seeded run, weigh both at once as before.)
+    static var wantSeconds = 0.0012, maxWait = 8
+    private static var waited = 0
+    private static var overhangs: (IVec3, Int)? = nil
     static func tick(_ g: Game) {
         let w = g.world
-        guard Structure.enabled, let (p, r) = w.tipQueue.popLast() else { return }
+        guard Structure.enabled else { return }
+        let split = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
+        if split && (overhangs != nil || !w.tipQueue.isEmpty) {
+            if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
+            waited = 0
+        }
+        if let (p, r) = overhangs {
+            overhangs = nil
+            guard w.activeHere(p) else { return }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            if let piece = cantilever(w, at: p, r: r) { g.topple(piece); snapped += 1 }
+            let dt = CFAbsoluteTimeGetCurrent() - t0
+            CraterJob.spend(dt)
+            if dt * 1000 > worstMs { worstMs = dt * 1000; worstSplit = String(format: "the overhangs %.1f", dt * 1000) }
+            return
+        }
+        guard let (p, r) = w.tipQueue.popLast() else { return }
         if w.tipQueue.count > 16 { w.tipQueue.removeFirst(w.tipQueue.count - 16) }
         guard w.activeHere(p) else { return }
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -39,12 +63,15 @@ enum StructureTip {
         if let piece = check(w, at: p, r: r, count: &cells) {
             g.topple(piece)
             tipped += 1
+        } else if split {
+            overhangs = (p, r)
         } else if let piece = cantilever(w, at: p, r: r) {
             g.topple(piece)
             snapped += 1
         }
         checks += 1
         let t1 = CFAbsoluteTimeGetCurrent(), ms = (t1 - t0) * 1000
+        CraterJob.spend(t1 - t0)
         if ms > worstMs {
             worstMs = ms
             worstSplit = String(format: "%d blocks: fill %.1f, footings %.1f, levels %.1f, overhangs or the fall %.1f", cells, (fillAt - t0) * 1000,

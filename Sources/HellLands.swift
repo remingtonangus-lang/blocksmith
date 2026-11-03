@@ -86,7 +86,9 @@ extension EmberGen {
                         past = top + r + 2
                     }
                     else if drift == 0 && h % 307 == 0 && x > 1 && x < 14 && z > 1 && z < 14 {
-                        for dz in -1...1 { for dx in -1...1 where (h >> UInt32(9 + (dx + 1) * 3 + dz + 1)) & 1 == 1 || (dx == 0 && dz == 0) {
+                        for dz in -1...1 { for dx in -1...1 {
+                            let bit: Int = 9 + (dx + 1) * 3 + dz + 1
+                            guard (h >> UInt32(bit)) & 1 == 1 || (dx == 0 && dz == 0) else { continue }
                             if at(x + dx, top, z + dz) == soulSand || at(x + dx, top, z + dz) == soulSoil { set(x + dx, top, z + dz, magma) }
                         } }
                         if at(x, top + 1, z) == AIR { set(x, top, z, soulSoil); set(x, top + 1, z, ghostFire) }

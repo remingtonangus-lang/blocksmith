@@ -158,8 +158,10 @@ enum RenderDistanceGovernorTest {
             trace.append(g.current)
         }
         let minRD = trace.min() ?? 16
-        let steps = (1..<trace.count).map { (trace[$0] - trace[$0 - 1]).signum() }.filter { $0 != 0 }
-        let changes = steps.isEmpty ? 0 : (1..<steps.count).filter { steps[$0] != steps[$0 - 1] }.count
+        var steps: [Int] = []
+        for i in 1..<max(1, trace.count) { let d: Int = (trace[i] - trace[i - 1]).signum(); if d != 0 { steps.append(d) } }
+        var changes = 0
+        for i in 1..<max(1, steps.count) where steps[i] != steps[i - 1] { changes += 1 }
         log("trace 1 (heavy 60 s, then light): " + trace.map(String.init).joined(separator: " "))
         check(minRD < 16, "a sustained heavy stretch lowers the distance (min \(minRD))")
         check(trace.last == 16, "it climbs back to the chosen 16 once there is headroom (end \(trace.last ?? 0))")
