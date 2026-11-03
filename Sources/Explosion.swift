@@ -559,14 +559,14 @@ final class CraterJob {
         var budget = blocks
         // Store review (Nov 2, VRC.Quest.Performance.1; questcheck --framesoak citadel: a main gun's bowl in a citadel's
         // walls cost 20-37 ms of tick a frame for 4 s, each of the 250 blocks a frame tipping, lighting and remeshing what
-        // was built on it): a frame's carving also stops at `frameSeconds` of work (checked every 8 blocks), so the
+        // was built on it): a frame's carving also stops at `frameSeconds` of work (checked every 2 blocks), so the
         // bowl opens over more frames instead of the frame rate falling under the dust. (The harness's whole-crater
         // calls, blocks .max, are untimed.)
         let deadline = blocks == .max ? Double.infinity : CFAbsoluteTimeGetCurrent() + max(0, CraterJob.allowance() - (CFAbsoluteTimeGetCurrent() - began))
         var sinceCheck = 0
         while next < offsets.count && budget > 0 && removed < cap {
             sinceCheck += 1
-            if sinceCheck >= 8 { sinceCheck = 0; if CFAbsoluteTimeGetCurrent() > deadline { break } }
+            if sinceCheck >= 2 { sinceCheck = 0; if CFAbsoluteTimeGetCurrent() > deadline { break } }   // (build 110: 19 citadel blocks took 3.8 ms, 0.2 ms each, so 8 between looks overran the allowance by 1.6 ms)
             let o = offsets[next]
             next += 1
             let dx = Int(o.x), dy = Int(o.y), dz = Int(o.z)
