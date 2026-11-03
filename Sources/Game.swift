@@ -3370,8 +3370,6 @@ final class Game {
         GarageDoors.tick(self, Float(dt))                      // garage doors swinging (GarageDoors.swift)
         Elevators.tick(self, Float(dt))                        // lift cars riding their shafts (Elevators.swift)
         TickProf.mark("doors and lifts")
-        Structure.tick(self)                                   // P388: built pieces near a change carry their load
-        TickProf.mark("structure load")
         if Int(clock * 0.5) != Int((clock - Double(dt)) * 0.5) { packStims() }    // P504: no golden apples, every 2 s
         settleStrayPieces()                                    // P448
         TickProf.mark("stray pieces")
@@ -3400,6 +3398,8 @@ final class Game {
         TickProf.mark("ships.shockwaves: bowls")
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
+        Structure.tick(self)                                   // P388: built pieces near a change carry their load
+        TickProf.mark("structure load")
         StructureTip.tick(self)                                // P503: a piece shot out from under it tips
         TickProf.mark("structure tip")
         if survival { timeSinceRest += Float(dt) }
@@ -3563,7 +3563,7 @@ final class Game {
     private func gameTick() {
         if persistent && survival { Stats.tick(self) }                 // Q2c-console-57
         randomTicks()
-        TickProf.mark("random ticks")
+        TickProf.mark("leaf decay")
         precipitationTicks()
         TickProf.mark("precipitation")
         blockEntityTicks()

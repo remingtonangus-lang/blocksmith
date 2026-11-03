@@ -480,6 +480,7 @@ extension Mob {
             if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; dropSearch(); giveUp(target); return }
         }
         if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); dropSearch(); return }
+        MobManager.stage("path: watchdog")                      // (the soak: an ironclad's path stage was 7 ms, the search's share 1.5)
         // A search still running from an earlier tick: its share of this tick's budget (dropped if the goal has moved
         // far since; the usual repath below starts a new one).
         if let s = path.search {
@@ -491,6 +492,7 @@ extension Mob {
                 if done { path.search = nil; takePath(s); PathFinder.recycle(s) }
             }
         }
+        MobManager.stage("path: resumed search")
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
         let climbing = PathFinder.climbable(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
@@ -508,8 +510,10 @@ extension Mob {
             // This tick's share of the 1.5 ms (all of it in the deterministic harness runs); unfinished, it carries on
             // next tick while the mob keeps its old path / heads straight for the target.
             let deadline: Double = Rand.deterministic ? .infinity : t0 + PathFinder.slice - PathFinder.spent
+            MobManager.stage("path: search begun")
             if PathFinder.run(s, w, deadline: deadline) { takePath(s); PathFinder.recycle(s) } else { path.search = s }
             PathFinder.spent += CFAbsoluteTimeGetCurrent() - t0
+            MobManager.stage("path: new search")
         }
         let off: Float = path.span == 2 ? 1 : 0.5
         while path.index < path.nodes.count {
