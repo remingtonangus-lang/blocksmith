@@ -2102,6 +2102,14 @@ if CommandLine.arguments.contains("--craterplace") {           // P507: blocks g
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--encounters") {            // P512: revenge raids, corsair sloops, the Corsair Cruiser
+    EncounterCheck.run({ World(seed: $0, device: device, save: nil, dim: .overworld) }, check)
+    print(failures == 0 ? "encounters: all checks passed" : "encounters: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--proving") {               // P512: the Proving Grounds (vehicles, circuits, guns)
+    ProvingGroundsCheck.run(game, check)
+    print(failures == 0 ? "proving: all checks passed" : "proving: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--builtgun") {              // P507: a gun he builds, worked from a computer
     BuiltGunCheck.run(game, check)
     print(failures == 0 ? "builtgun: all checks passed" : "builtgun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -3089,6 +3097,32 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 print("workshop: \(dir)/\(name).png")
             }
             CircuitWorkshop.clear(world, at: o)
+            (game.player.pos, game.player.flying, game.time) = saved
+            _ = world.loadSync(center: game.player.pos, radius: 6)
+        }
+        // --proving-shots DIR (P512): the Proving Grounds built far off, seen from the start, the range and the field.
+        if let dir = arg("--proving-shots") {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            let saved = (game.player.pos, game.player.flying, game.time)
+            let o = IVec3(Int(spawn.x) + 3000, ProvingGrounds.deckY, Int(spawn.z) + 3000)
+            let b = ProvingGrounds.plan(o)
+            while !b.done { b.run(game, budget: 1) }
+            for _ in 0..<40 { game.tick(0.05) }
+            game.player.flying = true
+            game.time = 0.27 * DAY_LENGTH
+            let s0 = ProvingGrounds.start(o), f0 = o + ProvingGrounds.pad(0), boats = ProvingGrounds.park.rows[4]
+            let views: [(String, V3, Float, Float)] = [
+                ("proving_park", s0 + V3(0, 9, -2), .pi + 0.35, -0.45),
+                ("proving_range", s0 + V3(30, 6, 4), 0.15, -0.25),
+                ("proving_field", V3(Float(f0.x) - 10, Float(o.y) + 14, Float(f0.z) - 14), .pi + 0.6, -0.5),
+                ("proving_boats", V3(Float(o.x) + 20, Float(o.y) + 8, Float(o.z + boats.z) - 2), .pi + 0.4, -0.45),
+            ]
+            for (name, p, yaw, pitch) in views {
+                game.player.pos = p
+                _ = world.loadSync(center: p, radius: 5)
+                try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/\(name).png", yaw: yaw, pitch: pitch)
+                print("proving: \(dir)/\(name).png")
+            }
             (game.player.pos, game.player.flying, game.time) = saved
             _ = world.loadSync(center: game.player.pos, radius: 6)
         }

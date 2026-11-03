@@ -307,6 +307,8 @@ final class QuestApp {
             switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.diffLevel, smooth: true))   // (PG6: Polygons, even from a block world)
         case "workshop":
             switchWorld(WorldRequest(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 2))
+        case "proving":                                                               // P512 (ProvingGrounds.swift)
+            switchWorld(WorldRequest(name: ProvingGrounds.worldName, seed: ProvingGrounds.seed, survival: false, difficulty: 2, smooth: false))
         case _ where id.hasPrefix("create:"):
             if let req = WorldRequest.create(action: id) { switchWorld(req) }
         default: break

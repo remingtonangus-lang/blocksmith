@@ -99,5 +99,37 @@ enum GunnerCheck {
         let again = VehicleGunners.volunteers - noneLow - one
         check(noneLow == 0 && one == 1 && seatedOne && again == 0,
               "gunners: no townsman volunteers at honour 0 (\(noneLow)); at Respected one jumps up on the gun (\(one), on it: \(seatedOne)); no second from that town the same day (\(again))")
+
+        // (5) P512: two companions and one gun: one takes the gun, the other rides aboard as he drives and fires their
+        // own gun from there at a raider; both climb down when he walks off.
+        g.leaveHelm(); g.player.pos = s.pos + V3(40, 0, 0); run(2)
+        g.mobs.mobs.removeAll { $0.hired || $0.villager != nil }
+        VehicleGunners.seats = []
+        let h1 = g.enlist(townsman(-8)), h2 = g.enlist(townsman(8))
+        h2.soldierBrain.mag = Guns.all[max(0, h2.soldierBrain.gun)].mag
+        let riders0 = VehicleGunners.riders
+        helm(); run(40)
+        let gunner = [h1, h2].first { VehicleGunners.seated($0) && !VehicleGunners.riding($0) }
+        let rider = [h1, h2].first { VehicleGunners.riding($0) }
+        let rideAt = VehicleGunners.seats.first { $0.rider }?.local ?? .zero
+        var rideDrift: Float = 0
+        let r0 = s.pos
+        run(150, drive) { if let r = rider { rideDrift = max(rideDrift, simd_length(s.toWorld(rideAt) - r.pos)) } }
+        let rode = simd_length(s.pos - r0)
+        check(gunner != nil && rider != nil && VehicleGunners.riders - riders0 == 1 && rode > 4 && rideDrift < 0.3 && rider?.deck === s,
+              String(format: "gunners: with two companions and one gun, one takes the gun (%@) and the other rides aboard (%@) %.1f blocks, at most %.2f off the rider's place",
+                     gunner == nil ? "no" : "yes", rider == nil ? "no" : "yes", rode, rideDrift))
+        if let r = rider {
+            let foe = Mob(.zombie, at: s.pos + s.dirToWorld(V3(1, 0, 0)) * 12 + V3(0, 1, 0))
+            foe.aggro = true
+            g.mobs.mobs.append(foe)
+            let mag0 = r.soldierBrain.mag, reload0 = r.soldierBrain.reload
+            run(120)
+            let shot = r.soldierBrain.mag < mag0 || r.soldierBrain.reload > reload0
+            check(shot && VehicleGunners.riding(r), "gunners: the rider fires their own gun from aboard at a raider 12 blocks off (rounds \(mag0) -> \(r.soldierBrain.mag)), still aboard")
+            g.mobs.mobs.removeAll { $0 === foe }
+        }
+        g.leaveHelm(); g.player.pos = s.pos + V3(40, 0, 0); run(2)
+        check(!VehicleGunners.seated(h1) && !VehicleGunners.seated(h2), "gunners: on foot 40 blocks off, the gunner and the rider both climb down")
     }
 }

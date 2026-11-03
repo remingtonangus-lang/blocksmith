@@ -11,8 +11,11 @@ import simd
 //   the guns    a gunner's turret is theirs: laid for its own shell onto the nearest enemy vessel, hostile soldier, or
 //               anything out for him (GunCrew.crewFoe), and fired when it bears; his sight keeps the turrets no one holds;
 //   leaving     on foot more than 24 blocks from the vehicle, or with it wrecked, they climb down and follow him again.
+// P512 (Nov 2 12:22: hired people "follow and ride the vehicle he drives"): a companion with no free gun to take climbs
+// aboard as a rider, on a free standing spot of the hull nearest its helm, rides there as he drives, and fires their own
+// gun from it at what is out for him (Mob.companionAI); they climb down as the gunners do.
 enum VehicleGunners {
-    struct Seat { weak var mob: Mob?; weak var turret: Ship?; weak var vehicle: Ship?; var local: V3 }
+    struct Seat { weak var mob: Mob?; weak var turret: Ship?; weak var vehicle: Ship?; var local: V3; var rider = false }
     static var seats: [Seat] = []
     static let board: Float = 32
     static let stayNear: Float = 24
@@ -21,18 +24,20 @@ enum VehicleGunners {
     static var volunteers = 0                    // (harness)
     static var volunteered: [String: Int] = [:]  // town -> the day someone there last volunteered
 
-    static func manned(_ t: Ship) -> Bool { seats.contains { $0.turret === t && ($0.mob?.health ?? 0) > 0 } }
+    static func manned(_ t: Ship) -> Bool { seats.contains { !$0.rider && $0.turret === t && ($0.mob?.health ?? 0) > 0 } }
     static func seated(_ m: Mob) -> Bool { seats.contains { $0.mob === m } }
+    static func riding(_ m: Mob) -> Bool { seats.contains { $0.mob === m && $0.rider } }
+    static var riders = 0                        // (harness: riders boarded)
 
     // A seated gunner where the turret holds them now (true), or not seated (false).
     @discardableResult
     static func place(_ m: Mob) -> Bool {
-        guard let st = seats.first(where: { $0.mob === m }), let t = st.turret, let v = st.vehicle else { return false }
+        guard let st = seats.first(where: { $0.mob === m }), let v = st.vehicle, let t = st.rider ? v : st.turret else { return false }
         m.pos = t.toWorld(st.local)
         m.vel = v.velocity(at: m.pos)
         m.onGround = true
         m.deck = v
-        let f = t.dirToWorld(V3(0, 0, -1))
+        let f = st.rider ? v.dirToWorld(v.fwd) : t.dirToWorld(V3(0, 0, -1))
         m.yaw = atan2f(-f.x, -f.z)
         m.headYaw = m.yaw
         return true
@@ -51,6 +56,24 @@ enum VehicleGunners {
         }
         return t.toLocal(V3(top.x, feet + 0.02, top.z))
     }
+
+    // A rider's spot on the vehicle, in its own frame: the free standing cell nearest the helm (solid under it, two clear
+    // over it, not the helm's own stand and not another's), else nil.
+    static func riderSpot(_ v: Ship, taken: [V3]) -> V3? {
+        let gr = v.grid, h = v.helm ?? IVec3(gr.sx / 2, 0, gr.sz / 2)
+        let collide = Blocks.collide
+        var best: V3?, bd = Float.infinity
+        for y in 0..<max(0, gr.sy - 1) { for z in 0..<gr.sz { for x in 0..<gr.sx {
+            guard collide[Int(gr.get(x, y, z))], !collide[Int(gr.get(x, y + 1, z))], !collide[Int(gr.get(x, y + 2, z))] else { continue }
+            if Blocks.isLiquid(gr.get(x, y + 1, z)) { continue }
+            let p = V3(Float(x) + 0.5, Float(y + 1) + 0.02, Float(z) + 0.5)
+            let hc = V3(Float(h.x) + 0.5, Float(h.y) + 1, Float(h.z) + 0.5)
+            let d = simd_length(p - hc)
+            guard d > 1.2, !taken.contains(where: { simd_length($0 - p) < 1.2 }), d < bd else { continue }
+            bd = d; best = p
+        } } }
+        return best
+    }
 }
 
 extension Game {
@@ -61,8 +84,9 @@ extension Game {
         // Who stays at the guns.
         var keep: [VehicleGunners.Seat] = []
         for st in VehicleGunners.seats {
-            guard let m = st.mob, let t = st.turret, let v = st.vehicle else { continue }
-            let there = m.health > 0 && m.hired && !v.wrecked && ships.list.contains { $0 === t } && ships.list.contains { $0 === v }
+            guard let m = st.mob, let v = st.vehicle, st.rider || st.turret != nil else { continue }
+            let gunThere = st.rider || ships.list.contains { $0 === st.turret }
+            let there = m.health > 0 && m.hired && !v.wrecked && gunThere && ships.list.contains { $0 === v }
             let near = ships.pilot === v || simd_length(player.pos - v.pos) < VehicleGunners.stayNear
             if there && near { keep.append(st); continue }
             m.deck = nil                                             // climbs down: back to following him
@@ -71,6 +95,19 @@ extension Game {
         VehicleGunners.seats = keep
         guard let v = driving else { return }
         var free = ships.turrets(of: v).filter { !$0.cannons.isEmpty && !VehicleGunners.manned($0) }
+        defer {
+            // P512: the rest of his companions near it ride aboard.
+            let reach = VehicleGunners.board + simd_length(v.worldMax - v.worldMin) * 0.5
+            let tryNow = Int(clock * 2) != Int((clock - Double(dt)) * 2)                 // (twice a second: a hull's cells scanned)
+            for m in companions where tryNow && !VehicleGunners.seated(m) && simd_length(m.pos - v.pos) < reach {
+                let taken = VehicleGunners.seats.filter { $0.rider && $0.vehicle === v }.map { $0.local }
+                guard let spot = VehicleGunners.riderSpot(v, taken: taken) else { break }
+                VehicleGunners.seats.append(VehicleGunners.Seat(mob: m, turret: nil, vehicle: v, local: spot, rider: true))
+                VehicleGunners.riders += 1
+                VehicleGunners.place(m)
+                sfx(.step(.metal), 0.8, at: m.pos)
+            }
+        }
         guard !free.isEmpty else { return }
         func seat(_ m: Mob) {
             let t = free.removeFirst()
