@@ -2600,6 +2600,18 @@ extension ShipManager {
         // P511 (questcheck --streamtest --crawler at his spot): every wheel cut a ball into the field ground on every pass
         // (up to 24 a second): each cut remeshed the ground round it, and the land round him waited. A wheel cuts again
         // only once it has rolled on most of a ball's width from its last cut, one cut a pass at most (below).
+        // (The fine ground a few blocks ahead of each wheel made before it gets there, one section a pass: with it made
+        // only when a cut needed it, the cut waited and the rut had gaps at the sections' borders.)
+        let hv = V3(s.vel.x, 0, s.vel.z)
+        if simd_length(hv) > 0.3 && CraterJob.allowance() >= 0.001 {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0) }
+            let ahead = simd_normalize(hv) * 5
+            for wh in st.wheels where !wh.lost {
+                let mid = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y) + 0.6, Float(wh.lo.z + wh.hi.z + 1) * 0.5)
+                if world.prefetchFine(s.toWorld(mid) + ahead, radius: 1.8) { break }
+            }
+        }
         for (wi, wh) in st.wheels.enumerated() where !wh.lost {
             var sunk = 0
             defer {
@@ -2614,11 +2626,15 @@ extension ShipManager {
                 if sunk > 0 && dug < 1 && rolled > 1.4 && CraterJob.allowance() >= 0.001 {
                     let t0 = CFAbsoluteTimeGetCurrent()
                     defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0) }
-                    st.rutCarved[wi] = at
                     // (a ball whose bottom is a third of a block under the wheel: a shallow rut, not a trench)
                     let r = min(1.8, max(0.9, Float(min(wh.hi.x - wh.lo.x, wh.hi.z - wh.lo.z) + 1) * 0.5))
                     let mid = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y) + r - 0.3, Float(wh.lo.z + wh.hi.z + 1) * 0.5)
-                    ShipManager.rutDug += world.carve(at: s.toWorld(mid), radius: r, mode: .dig)
+                    // (the fine ground of a new section made first, one section a frame, World.prefetchFine: the cut
+                    // comes on a later frame, once the ball's sections all have theirs)
+                    if !world.prefetchFine(s.toWorld(mid), radius: r) {
+                        st.rutCarved[wi] = at
+                        ShipManager.rutDug += world.carve(at: s.toWorld(mid), radius: r, mode: .dig)
+                    }
                     dug += 1
                 }
             }
