@@ -93,7 +93,7 @@ enum PathFinder {
         // P338 step 3 (handoff step 9): in a field world the ground in and round a cell is met as the field's own
         // surface (World.collisionBoxes: the quarter-block columns bodies stand on), not as a full cell of its material,
         // so a search stands mobs where they will really stand and climbs what they can really climb.
-        if w.fieldTerrain, y >= 0, y < CH, let c = w.chunkAt(x, z), c.blocks.isField,
+        if w.fieldTerrain, w.frame == nil, y >= 0, y < CH, let c = w.chunkAt(x, z), c.blocks.isField,
            w.fieldNear(c, x, y, z, Chunk.index(mod(x, CS), y, mod(z, CS))) {
             if doors && isWoodDoor(blk(w, x, y, z)) { return 0 }
             boxes.removeAll(keepingCapacity: true)
@@ -163,7 +163,7 @@ enum PathFinder {
             let cx = x + i, cz = z + j
             // (P338: on the field the ground can rise into the feet cell by up to half a block, a step bodies take
             // without a jump; it holds them up there.)
-            let footRoom: Float = w.fieldTerrain ? 0.55 : 0.2
+            let footRoom: Float = w.fieldTerrain && w.frame == nil ? 0.55 : 0.2     // (a hull's frame: its cells)
             for k in 0..<pr.tall {
                 let id = blk(w, cx, y + k, cz)
                 if danger(id) { return nil }

@@ -134,6 +134,30 @@ extension World {
         return true
     }
 
+    // Store review (build 97's crawler soak: a wheel's rut cut was 2-3 ms of one frame, most of it the fine samples of
+    // each new ground section the ball reached, made at once): the sections a carve at `ctr` will reach are made ahead,
+    // at most one a call. True while one was made now (the carve waits a frame); false once all of them have theirs.
+    func prefetchFine(_ ctr: V3, radius r: Float) -> Bool {
+        guard FineField.enabled, fieldTerrain else { return false }
+        let reach = r + 1.0
+        let s0 = max(0, Int(floor(ctr.y - reach)) >> 4), s1 = min(NSEC - 1, max(0, Int(floor(ctr.y + reach))) >> 4)
+        guard s0 <= s1 else { return false }
+        for cz in floorDiv(Int(floor(ctr.z - reach)), CS)...floorDiv(Int(floor(ctr.z + reach)), CS) {
+            for cx in floorDiv(Int(floor(ctr.x - reach)), CS)...floorDiv(Int(floor(ctr.x + reach)), CS) {
+                guard let c0 = chunks[ChunkKey(x: cx, z: cz)], c0.blocks.isField else { continue }
+                for sy in s0...s1 where c0.blocks.fine[sy] == nil {
+                    let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0
+                    guard c.blocks.isField, ensureFine(c, sy) else { continue }
+                    World.finePrefetched.removeAll { $0.c == nil }
+                    if World.finePrefetched.count > 64 { World.finePrefetched.removeFirst(World.finePrefetched.count - 64) }  // (never carved: let go)
+                    World.finePrefetched.append(FinePrefetch(c: c, sy: sy, version: c.sections[sy].version))
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     // fieldSphere's fine part: the same sphere on the fine samples of the sections it reaches (given them first, from
     // the cells before the sphere). Returns the sections whose samples changed.
     func fineSphere(_ ctr: V3, radius r: Float, carve: Bool, prepared: [(Chunk, Int, Bool)]) -> [(Chunk, Int)] {
@@ -183,7 +207,12 @@ extension World {
                 guard let c0 = chunks[ChunkKey(x: cx, z: cz)] else { continue }
                 let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0
                 guard c.blocks.isField else { continue }
-                for sy in s0...s1 { out.append((c, sy, ensureFine(c, sy))) }
+                for sy in s0...s1 {
+                    // (made ahead by prefetchFine and still untouched: as fresh as one made now, so a sphere that leaves
+                    // it as it was doesn't keep it)
+                    let ahead = !World.finePrefetched.isEmpty && World.takePrefetched(c, sy)
+                    out.append((c, sy, ensureFine(c, sy) || ahead))
+                }
             }
         }
         return out
@@ -366,5 +395,19 @@ extension Mesher {
             }
         }
         sc.smValid = false
+    }
+}
+
+// A section prefetchFine made: the chunk itself (weak: an ObjectIdentifier outlives its chunk and comes back for the
+// next one made at that address) and the section's version then. It counts as fresh only while both still hold: any
+// edit since (a placed block's ensureFine, another carve) bumps the version, and a fresh section a sphere leaves as it
+// was is let go, which would throw that edit's fine ground away.
+struct FinePrefetch { weak var c: Chunk?; let sy: Int; let version: Int }
+extension World {
+    static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
+    static func takePrefetched(_ c: Chunk, _ sy: Int) -> Bool {
+        guard let i = finePrefetched.firstIndex(where: { $0.c === c && $0.sy == sy }) else { return false }
+        let p = finePrefetched.remove(at: i)
+        return p.version == c.sections[sy].version
     }
 }

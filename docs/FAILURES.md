@@ -90,3 +90,11 @@ this list and ask whether the work repeats one of these.
   pattern: where else the drawn ground, trunks, roots, water and shells leave a gap the sky shows through, at what
   distances, LODs, mesh borders and viewing angles. A bug he names is a family; the check is a sweep that finds every
   member (many seeds, biomes, structures, distances, the headset's view), not one screenshot.
+- **Swept (Nov 3, PR #650):** `tools/voidsweep.sh` renders 564 headset-style views (the field world, the Quest's LOD
+  rings, the frame cleared to magenta with no sky: `questcheck --view ... --voidcount`): his six spots each looking four
+  ways, and 15 biomes on three seeds at four pitches looking three ways. It found two patterns. From high up, a ray
+  going down past the loaded land and over the far ring's outer edge met nothing (a sky wedge under the horizon in 29
+  views): a fog floor now lies under the far ring, drawn in fog colour, so the wedge is far haze. The other was the
+  sweep's own placement (badlands views stood inside the mesa: `--up` now goes over the loaded world's top). On build
+  101 all 564 views are clean. Still to check on the headset: his own spots in the Quest's stereo view, since the host
+  renders one eye's frustum per side, not the device's.

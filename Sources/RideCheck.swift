@@ -482,22 +482,29 @@ enum RideCheck {
                     r.note(String(format: "at the ladder: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@", l.x, l.y, l.z, aboard ? "yes" : "no", stt.onGround ? "yes" : "no"))
                     advance(names[0]); return AgentAction.idle
                 }
-                return walk(stt, to: s.toWorld(routes[0][0]))
+                return walk(stt, to: s.toWorld(V3(routes[0][0].x, l.y, routes[0][0].z)))      // (his height: the lean, below)
             case 1:
                 // Done once standing on the roof (stopping at the ladder's top to turn, it would drop off).
                 if l.y > 20.95 && aboard && stt.onGround && l.x > 7.05 { advance(names[1]); return AgentAction.idle }
                 // (Build 93: never up the ladder; it ended under the chassis at x 9. The first seconds, a few times each:
                 // where it is, whether it is aboard, on the ground, and the cells at its feet and body.)
                 let tick = Int((phaseT * 60).rounded())
-                if tick < 360 && (tick < 20 || tick % 15 == 0) {
+                // (Build 99: up at last after 79 s, a minute of it a block out from the rungs at y 13-15: past 6 s, once a
+                // second, with the cells to the head and either side along the flank.)
+                if (tick < 360 && (tick < 20 || tick % 15 == 0)) || (tick < 6000 && tick % 60 == 0) {
                     let fx = Int(floor(l.x)), fz = Int(floor(l.z)), fy = Int(floor(l.y))
-                    let cells = (-1...1).map { dx in "\(fx + dx): " + (0...1).map { dy in Blocks.key(s.grid.get(fx + dx, fy + dy, fz)) }.joined(separator: "/") }
+                    let deep = tick >= 360
+                    let cells = (-1...1).map { dx in "\(fx + dx): " + (0...(deep ? 2 : 1)).map { dy in Blocks.key(s.grid.get(fx + dx, fy + dy, fz)) }.joined(separator: "/") }
+                        + (deep ? [-1, 1].map { dz in "z\(fz + dz): " + (0...2).map { dy in Blocks.key(s.grid.get(fx, fy + dy, fz + dz)) }.joined(separator: "/") } : [])
                     r.note(String(format: "climb %.2f s: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@, vel %.2f,%.2f,%.2f; at y %ld z %ld: ", phaseT, l.x, l.y, l.z,
                                   aboard ? "yes" : "no", stt.onGround ? "yes" : "no", g.player.vel.x, g.player.vel.y, g.player.vel.z, fy, fz) + cells.joined(separator: ", "))
                 }
                 // (Into the backing at the ladder's middle, z 29.5: aimed at x 9 the push barely turned him back, and
                 // arriving on the rungs moving along the flank, build 98 drifted off the ladder's side at 2 b/s.)
-                var a = walk(stt, to: s.toWorld(V3(7.2, 0, 29.5)))
+                // (At his own height in ship space: the hull leans (up 0.08, 0.99, -0.07 at this spot), and a point at
+                // y 0 lay 0.8 blocks off in the world at y 10 and 1.7 at the roof, so he walked off the rungs sideways and,
+                // at the top, back off the roof edge: builds 99 and 101, 42-79 s up a 21-block ladder.)
+                var a = walk(stt, to: s.toWorld(V3(7.2, l.y, 29.5)))
                 a.forward = 1
                 a.jump = true
                 return a
@@ -513,11 +520,11 @@ enum RideCheck {
                     }
                     if done { advance(names[phase]); return AgentAction.idle }
                     // Down the ladder: off the roof edge into the rungs, no input while it slides down, then step off.
-                    if phase == 3 { return l.y > 1.2 ? AgentAction.idle : walk(stt, to: s.toWorld(V3(3.8, 0, 29.5))) }
+                    if phase == 3 { return l.y > 1.2 ? AgentAction.idle : walk(stt, to: s.toWorld(V3(3.8, l.y, 29.5))) }
                     return AgentAction.idle
                 }
                 let target = route[wp]
-                let tw = s.toWorld(target)
+                let tw = s.toWorld(V3(target.x, l.y, target.z))          // (his height: the hull's lean, phase 1)
                 if simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z)) < 0.45 { wp += 1; return AgentAction.idle }
                 var a = walk(stt, to: tw)
                 // Stuck on the ground (a bush, a step the auto-jump won't take): jump, then side-step a moment.
@@ -877,8 +884,8 @@ enum RideCheck {
                     let crew = st.crewMobs.values.filter { $0.health > 0 }
                     let withFoe = crew.filter { $0.soldierBrain.foe != nil }.count, seeing = crew.filter { $0.soldierBrain.foe != nil && $0.soldierBrain.foeSees }.count
                     let near = crew.map { c in foes.map { simd_length($0.pos - c.pos) }.min() ?? -1 }.min() ?? -1
-                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off", foes.map { "\($0.factionValue) at \(Int(simd_length($0.pos - s.pos))) health \(Int($0.health))" }.joined(separator: ", "),
-                                     crew.count, withFoe, seeing, near)
+                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off; lookouts found %ld, none for %ld (%ld spots, %ld clear of the hull, %ld of the world, %ld with no way there; last: %@)", foes.map { "\($0.factionValue) at \(Int(simd_length($0.pos - s.pos))) health \(Int($0.health))" }.joined(separator: ", "),
+                                     crew.count, withFoe, seeing, near, CrewLookout.found, CrewLookout.failed, CrewLookout.spots, CrewLookout.hullClear, CrewLookout.worldClear, CrewLookout.noPath, CrewLookout.lastMiss)
                 }
                 for m in st.crewMobs.values where m.health > 0 {
                     let b = m.soldierBrain
@@ -903,7 +910,7 @@ enum RideCheck {
             r.check(stopT > 1.5 || speed0 < 1, String(format: "it grinds to a stop, not at once (%.1f s from %.1f b/s)", stopT, speed0))
             r.check(worstDecel < 4, String(format: "no sudden stop (worst deceleration %.2f b/s2)", worstDecel))
             r.check(shots > 0, "the crew fight enemy soldiers from aboard (\(shots) shots)")
-            if shots == 0 { r.note("crew fight: " + foeNote) }
+            r.note("crew fight: " + foeNote)
         }
         r.check(off == 0, "the crew stay aboard the disabled vehicle (\(off) crew-ticks off)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(aliveAtRest == spawned, "the crew survive it (\(aliveAtRest) of \(spawned) alive when it came to rest, \(alive) at the end)")

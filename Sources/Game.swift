@@ -3364,10 +3364,12 @@ final class Game {
         FlightCrew.tick(self)                                  // seated aircraft crews (Aircraft.swift)
         vehicleGunnersTick(Float(dt))                          // P478: his people at his vehicle's guns (VehicleGunners.swift)
         aircraftCrashTick(Float(dt))                           // P294: crashes and rotor strikes (AircraftCrash.swift)
+        TickProf.mark("flight crews")
         fellingTick(Float(dt))                                 // P298: felled trees and a carried trunk (Felling.swift)
+        TickProf.mark("felling")
         GarageDoors.tick(self, Float(dt))                      // garage doors swinging (GarageDoors.swift)
         Elevators.tick(self, Float(dt))                        // lift cars riding their shafts (Elevators.swift)
-        TickProf.mark("flight crews")
+        TickProf.mark("doors and lifts")
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load

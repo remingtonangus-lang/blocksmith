@@ -249,6 +249,14 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    // (FAILURES 4, the void sweep: the column height is the generator's height map, and in the badlands' mesas and the
+    // field's ground the land stands well over it: the eye stood inside the rock, every view 63-88% "void". Over the
+    // loaded world's own top once it is there.)
+    if let up = Float(arg("--up") ?? "") {
+        let ix = Int(floor(vg.player.pos.x)), iz = Int(floor(vg.player.pos.z))
+        let top = vw.topY(ix, iz)
+        if top >= 0 { vg.player.pos.y = max(vg.player.pos.y, Float(max(top, SEA) + 1) + up) }
+    }
     // --rail --train passenger|cargo|troop (P470 part 2): that kind of train on the line, its middle at the --rail cell
     // (the clock set to when the timetable has it there), built as the game builds it near the player.
     if let kn = arg("--train"), let l = railLine {
@@ -1511,7 +1519,7 @@ if let out = arg("--view"), let ctx = vkctx {
             var img = RenderTest.lastRGBA
             let tw = tanf(vfov * .pi / 360), th = tw * Float(vhei) / Float(vwid)
             let cp = cosf(pitch), sp = sinf(pitch), lim = sinf(-12 * .pi / 180)
-            var holes = 0, below = 0, rows = Set<Int>(), cols = Set<Int>()
+            var holes = 0, below = 0, backstop = 0, rows = Set<Int>(), cols = Set<Int>()
             var marks: [(Int, Int)] = []
             for eye in 0..<2 { for y in 0..<vhei {
                 let vy = (1 - 2 * (Float(y) + 0.5) / Float(vhei)) * th
@@ -1521,6 +1529,9 @@ if let out = arg("--view"), let ctx = vkctx {
                     guard wy < lim else { continue }
                     below += 1
                     let i = ((y * vwid * 2) + eye * vwid + x) * 4
+                    // (pure green: only the horizon's fog floor, Renderer.buildHorizon, met the ray: no hole the sky
+                    // shows through any more, but no ground either; counted apart)
+                    if i + 2 < img.count, img[i] < 25, img[i + 1] > 235, img[i + 2] < 25 { backstop += 1 }
                     guard i + 2 < img.count, img[i] > 235, img[i + 1] < 25, img[i + 2] > 235 else { continue }
                     holes += 1; rows.insert(y / 8); cols.insert((eye * vwid + x) / 8)
                     if marks.count < 4000 { marks.append((eye * vwid + x, y)) }
@@ -1528,7 +1539,8 @@ if let out = arg("--view"), let ctx = vkctx {
             } }
             print(String(format: "voidcount: %d of %d pixels below the horizon show through (%.4f%%), in %d by %d cells of 8 px; seed %@ at %.1f %.1f %.1f look %.0f %.0f",
                          holes, below, Double(holes) * 100 / Double(max(1, below)), cols.count, rows.count, arg("--seed") ?? "?",
-                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0))
+                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0)
+                  + String(format: "; backstop %d (only the fog floor under the horizon ground)", backstop))
             if holes > 0 {
                 for (mx, my) in marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {
                     let x = mx + dx, y = my + dy

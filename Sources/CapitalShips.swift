@@ -2537,6 +2537,7 @@ extension ShipManager {
             if CFAbsoluteTimeGetCurrent() > deadline { st.crushNextZ = lz; return }
             let bow = lz <= lo.z + 6
             for lx in stride(from: lo.x, through: hi.x, by: 1) {
+                if lx > lo.x && CFAbsoluteTimeGetCurrent() > deadline { st.crushNextZ = lz; return }   // (a row of leaves: a column at a time)
                 // From the bottom row (trunks stood through the wheel arches); soft blocks only, so ground is never dug.
                 for ly in stride(from: lo.y, through: hi.y, by: 1) {
                     let w = s.toWorld(V3(lx, ly, lz))
@@ -2552,12 +2553,17 @@ extension ShipManager {
                     // P507 (Nov 1 12:07:22, "It's definitely despawning trees. It's just the trees aren't falling, they're
                     // just despawning"): under way, a tree the bow meets goes over, out to the side it stood on and
                     // ahead, a felled trunk with its crown (Felling); the rest give way as before.
+                    // (Store review, crawler soak build 103: a topple is 1-2 ms. On a frame with the carving allowance
+                    // spent the trunk stands for a later pass; the bow's rows sweep four ahead of it.)
+                    if bow && !full && felled < 1 && CapitalBase.isLog(b) && CraterJob.allowance() < 0.001 { continue }
                     if bow && !full && felled < 1 && CapitalBase.isLog(b), let trunk = treeAt(x, y, z) {
                         worn(false)
                         let off = simd_dot(V3(Float(x) + 0.5 - s.pos.x, 0, Float(z) + 0.5 - s.pos.z), simd_cross(fwd, V3(0, 1, 0)))
                         let out = simd_normalize(V3(fwd.x, 0, fwd.z) + simd_cross(fwd, V3(0, 1, 0)) * (off >= 0 ? 1.2 : -1.2) + V3(1e-5, 0, 0))
                         TickProf.mark("cap: drive sweep")
+                        let t0 = CFAbsoluteTimeGetCurrent()
                         g.topple(trunk, away: out)
+                        CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0)
                         TickProf.mark("cap: drive topple")
                         felled += 1; ShipManager.crawlerFelled += 1
                         n += trunk.count
@@ -2600,6 +2606,18 @@ extension ShipManager {
         // P511 (questcheck --streamtest --crawler at his spot): every wheel cut a ball into the field ground on every pass
         // (up to 24 a second): each cut remeshed the ground round it, and the land round him waited. A wheel cuts again
         // only once it has rolled on most of a ball's width from its last cut, one cut a pass at most (below).
+        // (The fine ground a few blocks ahead of each wheel made before it gets there, one section a pass: with it made
+        // only when a cut needed it, the cut waited and the rut had gaps at the sections' borders.)
+        let hv = V3(s.vel.x, 0, s.vel.z)
+        if simd_length(hv) > 0.3 && CraterJob.allowance() >= 0.001 {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0) }
+            let ahead = simd_normalize(hv) * 5
+            for wh in st.wheels where !wh.lost {
+                let mid = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y) + 0.6, Float(wh.lo.z + wh.hi.z + 1) * 0.5)
+                if world.prefetchFine(s.toWorld(mid) + ahead, radius: 1.8) { break }
+            }
+        }
         for (wi, wh) in st.wheels.enumerated() where !wh.lost {
             var sunk = 0
             defer {
@@ -2614,11 +2632,15 @@ extension ShipManager {
                 if sunk > 0 && dug < 1 && rolled > 1.4 && CraterJob.allowance() >= 0.001 {
                     let t0 = CFAbsoluteTimeGetCurrent()
                     defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0) }
-                    st.rutCarved[wi] = at
                     // (a ball whose bottom is a third of a block under the wheel: a shallow rut, not a trench)
                     let r = min(1.8, max(0.9, Float(min(wh.hi.x - wh.lo.x, wh.hi.z - wh.lo.z) + 1) * 0.5))
                     let mid = V3(Float(wh.lo.x + wh.hi.x + 1) * 0.5, Float(wh.lo.y) + r - 0.3, Float(wh.lo.z + wh.hi.z + 1) * 0.5)
-                    ShipManager.rutDug += world.carve(at: s.toWorld(mid), radius: r, mode: .dig)
+                    // (the fine ground of a new section made first, one section a frame, World.prefetchFine: the cut
+                    // comes on a later frame, once the ball's sections all have theirs)
+                    if !world.prefetchFine(s.toWorld(mid), radius: r) {
+                        st.rutCarved[wi] = at
+                        ShipManager.rutDug += world.carve(at: s.toWorld(mid), radius: r, mode: .dig)
+                    }
                     dug += 1
                 }
             }
