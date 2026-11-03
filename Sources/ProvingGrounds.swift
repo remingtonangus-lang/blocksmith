@@ -122,15 +122,32 @@ enum ProvingGrounds {
     final class Build {
         let o: IVec3
         var steps: [(Game) -> Void] = []
+        var needs: [(V3, Int)?] = []          // the chunks each step works in (a centre, a radius in chunks)
         var next = 0
         var circuitsOK = 0
+        var waited = 0
         init(_ o: IVec3) { self.o = o }
         var done: Bool { next >= steps.count }
-        // Runs steps for up to `budget` seconds (at least one).
-        func run(_ g: Game, budget: Double) {
+        func add(_ at: V3?, _ r: Int, _ f: @escaping (Game) -> Void) { steps.append(f); needs.append(at.map { ($0, r) }) }
+        // Runs steps for up to `budget` seconds (at least one). With `stream`, a step whose chunks aren't made yet waits
+        // for the world's workers to make them (World.extraCenter streams round it, as round a second player) instead
+        // of making them on the frame; after 30 s of waiting it makes them itself.
+        func run(_ g: Game, budget: Double, stream: Bool = false) {
             let t0 = CFAbsoluteTimeGetCurrent()
+            let w = g.world
             repeat {
-                guard next < steps.count else { return }
+                guard next < steps.count else { if stream && !g.coop.active { w.extraCenter = nil }; return }
+                if stream && !g.coop.active, let (c, r) = needs[next] {
+                    let cx = floorDiv(Int(floor(c.x)), CS), cz = floorDiv(Int(floor(c.z)), CS)
+                    var ready = true
+                    for dz in -r...r { for dx in -r...r where ready && w.chunks[ChunkKey(x: cx + dx, z: cz + dz)] == nil { ready = false } }
+                    if !ready && waited < 600 {
+                        w.extraCenter = c
+                        waited += 1
+                        return
+                    }
+                }
+                waited = 0
                 steps[next](g)
                 next += 1
             } while CFAbsoluteTimeGetCurrent() - t0 < budget
@@ -170,42 +187,48 @@ enum ProvingGrounds {
         let stone = STONE, walk = key("andesite"), water = WATER
         // The deck, a 32-block tile a step (each loaded first: the far tiles are past what streams in round him).
         for tz in stride(from: d.z0, through: d.z1, by: 32) { for tx in stride(from: d.x0, through: d.x1, by: 32) {
-            b.steps.append { g in
+            let at = V3(Float(o.x + tx + 16), Float(o.y), Float(o.z + tz + 16))
+            b.add(at, 1) { g in
                 let w = g.world
-                _ = w.loadSync(center: V3(Float(o.x + tx + 16), Float(o.y), Float(o.z + tz + 16)), radius: 1)
+                _ = w.loadSync(center: at, radius: 1)
                 for z in tz..<min(tz + 32, d.z1 + 1) { for x in tx..<min(tx + 32, d.x1 + 1) {
                     put(w, o.x + x, o.y - 1, o.z + z, stone)
                     for y in o.y..<(o.y + 12) where w.rawBlock(o.x + x, y, o.z + z) != AIR { _ = w.setBlockAsync(o.x + x, y, o.z + z, AIR) }
                 } }
             }
         } }
-        // Walkways: north of each vehicle row, along the gun range and round the circuit field.
-        b.steps.append { g in
-            let w = g.world
-            for r in park.rows { for z in r.z...(r.z + 2) { for x in 0..<r.x1 { put(w, o.x + x, o.y - 1, o.z + z, walk) } } }
-            for z in (gunZ + 7)...(gunZ + 9) { for x in 0...(gunAt(guns.count - 1).x + 8) { put(w, o.x + x, o.y - 1, o.z + z, walk) } }
-            for z in -3...(-1) { for x in 0..<(fieldX + 9 * padGap) { put(w, o.x + x, o.y - 1, o.z + z, walk) } }
+        // Over a rectangle (relative x0...x1, z0...z1), a 32-block tile a step, each tile's chunks made first.
+        func tiles(_ x0: Int, _ x1: Int, _ z0: Int, _ z1: Int, _ body: @escaping (World, Int, Int) -> Void) {
+            for tz in stride(from: z0, through: z1, by: 32) { for tx in stride(from: x0, through: x1, by: 32) {
+                let at = V3(Float(o.x + tx + 16), Float(o.y), Float(o.z + tz + 16))
+                b.add(at, 1) { g in
+                    let w = g.world
+                    _ = w.loadSync(center: at, radius: 1)
+                    for z in tz...min(tz + 31, z1) { for x in tx...min(tx + 31, x1) { body(w, o.x + x, o.z + z) } }
+                }
+            } }
         }
+        // Walkways: north of each vehicle row, along the gun range and round the circuit field.
+        for r in park.rows { tiles(0, r.x1 - 1, r.z, r.z + 2) { w, x, z in put(w, x, o.y - 1, z, walk) } }
+        tiles(0, gunAt(guns.count - 1).x + 8, gunZ + 7, gunZ + 9) { w, x, z in put(w, x, o.y - 1, z, walk) }
+        tiles(0, fieldX + 9 * padGap - 1, -3, -1) { w, x, z in put(w, x, o.y - 1, z, walk) }
         // The water rows' channels: eight deep, walled, under the whole row.
         for r in park.rows where r.water {
-            b.steps.append { g in
-                let w = g.world
-                let x0 = 1, x1 = r.x1, z0 = r.z0 - 2, z1 = r.z1 + 2
-                _ = w.loadSync(center: V3(Float(o.x + (x0 + x1) / 2), Float(o.y), Float(o.z + (z0 + z1) / 2)), radius: (x1 - x0) / 32 + 2)
-                for z in z0...z1 { for x in x0...x1 {
-                    let edge = x == x0 || x == x1 || z == z0 || z == z1
-                    put(w, o.x + x, o.y - 9, o.z + z, stone)
-                    for y in (o.y - 8)...(o.y - 1) { put(w, o.x + x, y, o.z + z, edge ? stone : water) }
-                } }
+            let x0 = 1, x1 = r.x1, z0 = r.z0 - 2, z1 = r.z1 + 2
+            tiles(x0, x1, z0, z1) { w, x, z in
+                let edge = x == o.x + x0 || x == o.x + x1 || z == o.z + z0 || z == o.z + z1
+                put(w, x, o.y - 9, z, stone)
+                for y in (o.y - 8)...(o.y - 1) { put(w, x, y, z, edge ? stone : water) }
             }
         }
         // The hundred vehicles, as blocks, each with a sign before it.
         for pl in park.plots {
-            b.steps.append { g in
+            let base = o + pl.at
+            let at = V3(Float(base.x + pl.size.x / 2), Float(o.y), Float(base.z + pl.size.z / 2))
+            b.add(at, 1) { g in
                 let w = g.world
                 let p = VehicleZoo.plan(pl.index)
-                let base = o + pl.at
-                _ = w.loadSync(center: V3(Float(base.x + pl.size.x / 2), Float(o.y), Float(base.z + pl.size.z / 2)), radius: 1)
+                _ = w.loadSync(center: at, radius: 1)
                 // Clear the plot of anything built before (a reload mid-build, or one he moved off), water rows to water.
                 for y in base.y...(base.y + pl.size.y + 2) { for z in (base.z - 1)...(base.z + pl.size.z) { for x in (base.x - 1)...(base.x + pl.size.x) {
                     let want = pl.water && y <= o.y - 1 ? water : AIR
@@ -220,9 +243,9 @@ enum ProvingGrounds {
         }
         // The ten guns, each on its plank pad with its computer, a sign on the walkway side; and the targets.
         for (k, gd) in guns.enumerated() {
-            b.steps.append { g in
+            let c = o + gunAt(k)
+            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 1) { g in
                 let w = g.world
-                let c = o + gunAt(k)
                 _ = w.loadSync(center: V3(Float(c.x), Float(o.y), Float(c.z)), radius: 1)
                 for y in o.y...(o.y + 7) { for z in (c.z - 11)...(c.z + 3) { for x in (c.x - 2)...(c.x + 2) { put(w, x, y, z, AIR) } } }
                 for z in -2...2 { for x in -2...2 { put(w, c.x + x, o.y - 1, c.z + z, key("oak_planks", "stone")) } }
@@ -231,7 +254,7 @@ enum ProvingGrounds {
                 sign(w, IVec3(c.x, o.y, c.z + 5), facingSouth: true, gd.lines)
             }
         }
-        b.steps.append { g in
+        b.add(V3(Float(o.x + 70), Float(o.y), Float(o.z + targetZ)), 3) { g in
             let w = g.world
             let iron = key("iron_block"), bricks = key("stone_bricks"), plank = key("spruce_planks")
             for k in 0..<5 {
@@ -244,9 +267,9 @@ enum ProvingGrounds {
         // The hundred circuits, one pad a step, each run through its test and left standing.
         let cases = CircuitZoo.cases()
         for i in 0..<min(100, cases.count) {
-            b.steps.append { g in
+            let c = o + pad(i)
+            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 2) { g in
                 let w = g.world
-                let c = o + pad(i)
                 _ = w.loadSync(center: V3(Float(c.x), Float(o.y), Float(c.z)), radius: 2)
                 let h = padGap / 2 - 1
                 for z in (c.z - h)...(c.z + h) { for x in (c.x - h)...(c.x + h) {
@@ -267,7 +290,7 @@ enum ProvingGrounds {
             }
         }
         // Done: the marker at the start corner.
-        b.steps.append { g in put(g.world, marker(o).x, marker(o).y, marker(o).z, key(markerBlock)) }
+        b.add(nil, 0) { g in put(g.world, marker(o).x, marker(o).y, marker(o).z, key(markerBlock)) }
         return b
     }
 
@@ -285,7 +308,7 @@ extension Game {
     // yet and stand him at the start; then a few steps every tick until it's done.
     func provingTick() {
         if let b = provingBuild {
-            b.run(self, budget: 0.006)
+            b.run(self, budget: 0.006, stream: true)
             if b.done {
                 provingBuild = nil
                 onToast?("Proving Grounds")

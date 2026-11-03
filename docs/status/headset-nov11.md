@@ -25,6 +25,20 @@ The lane adds a line whenever it merges something the host can't fully prove. Ne
 - The train (FAILURES 3): the line's ends now loop back into the line, so the train never stops at a "start".
 - Garage door and elevator (FAILURES 1 and 2): rebuilt in #648.
 
+## New to try (P512)
+- The Proving Grounds: Worlds menu, "Proving Grounds (vehicles, circuits, guns)" (shown with Cheats & Commands on,
+  as in playtest builds). The first load builds a deck high over the spawn a few steps a frame (you start flying while
+  it goes down; "Proving Grounds" shows when it's done). On it: the hundred vehicles in rows by kind (boats afloat in
+  channels), each with its helm and a sign; the hundred copper circuits on pads east of them; ten guns built from
+  blocks to the north, each worked from the Command Console on its pad, facing a row of targets. Does the frame
+  hold while it builds? Can you reach and use everything?
+- Hired companions now ride the vehicle you drive when there's no free gun for them, and shoot their own guns from
+  it. Hiring still costs $30 for a townsperson and $60 for a soldier: you said "a few thousand"; say if you want it
+  raised and to what.
+- Every gun on a frigate or crawler has a station inside the hull (a console with a chair) near its mount. On a hull
+  you command, your companions sit at those stations and fire their guns while you drive. Only new hulls have the
+  stations; one taken before keeps its old rooms.
+
 ## Fights
 - Sheriffs on Hard: do they fight hard enough now (#648)?
 - Void triangles (FAILURES 4): any left anywhere? Say where.
