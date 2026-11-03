@@ -74,7 +74,7 @@ extension Railways {
         let flat = run.map { IVec3($0.0, 0, $0.1) }
         let key = loopKey(row, s, east: east)
         if gen.fieldWorld, let hs = l.heights {
-            guard let h = gentleProfile(gen, flat, [], ends: (hs[east ? n - 1 : 0], hs[j])) else { loopNote?("loop: field grade"); return nil }
+            guard let h = gentleProfile(gen, flat, [], ends: (hs[east ? n - 1 : 0], hs[j]), floatCurves: true) else { loopNote?("loop: field grade"); return nil }
             let lp = Line(id: key, name: l.name, cells: flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }, stations: [], heights: h)
             lp.joins = j
             return lp
@@ -193,7 +193,8 @@ enum RailLoopCheck {
             if abs(t.ys[i] - t.ys[(i + 1) % n]) > Railways.grade + 0.02 { jumps += 1 }
         }
         // The timetable over a lap: forward only, no jumps, calling at every station both ways but the end ones once.
-        var back = 0, leaps = 0, calls = Set<Int>(), lastS = t.at(0).s
+        // (from where the walk starts: t.at(0) is the timetable at phase, a leap and a backing step from the first sample)
+        var back = 0, leaps = 0, calls = Set<Int>(), lastS = t.at(-t.phase).s
         var inEast = false, inWest = false
         let eastFrom = l.cells.count - lw.joins, eastTo = eastFrom + le.cells.count
         let westFrom = n - lw.cells.count
@@ -260,7 +261,12 @@ enum RailLoopCheck {
             if rounded && Int(s) >= eastTo + 30 && Int(s) < westFrom { home = true }
             if tr.blocksPerSec < 0.05 && tr.track.at(tr.time).stop == nil { stood += 1; worstStood = max(worstStood, stood) } else { stood = 0 }
             maxS = max(maxS, s)
-            if frames % 90 == 0 { _ = world.loadSync(center: tr.cars.first?.pos ?? g.player.pos, radius: 3) }
+            // (he keeps by the train, as riding it: left at the station, the loop's far side was out past the
+            // check world's active ground and the train stood there)
+            if frames % 90 == 0, let head = tr.cars.first?.pos {
+                g.player.pos = head + V3(0, 6, 0); g.player.flying = true
+                _ = world.loadSync(center: head, radius: 3)
+            }
         }
         check(rounded && home && turned == 0 && worstStood < 60 * 3,
               String(format: "P511 loops: the train from %.0f went round the east loop (%@) and back along the line westbound (%@) in %.0f s, backing %d frames, longest stand off a stop %.1f s",

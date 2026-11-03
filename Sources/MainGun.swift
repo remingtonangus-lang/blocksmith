@@ -387,13 +387,17 @@ extension ShipManager {
         // (Store review, the citadel soak: every bowl still opening took its own 1.6 ms of carving a frame, and a bowl's
         // field ball after it; three shells in a wall were 16 ms of one frame. The bowls share the frame's carving now:
         // once one has used it, the rest wait for the next frame, oldest first.)
-        let carve0 = CFAbsoluteTimeGetCurrent()
+        // (Build 94: and with the naval breaches, out of one allowance a frame: CraterJob.allowance.)
+        TickProf.mark("ships.shockwaves: pending")
         for w in shockwaves {
-            if let j = w.crater, !j.done, w.age > 0, CFAbsoluteTimeGetCurrent() - carve0 < CraterJob.frameSeconds {   // from the frame after the impact
+            if let j = w.crater, !j.done, w.age > 0, CraterJob.allowance() > 0 {   // from the frame after the impact
                 let a = CFAbsoluteTimeGetCurrent()
                 if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed, scorched: j.scorched) }
                 MainGun.craterStepMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
             }
+        }
+        TickProf.mark("ships.shockwaves: bowls")             // (the soak: the bowls' carving apart from the waves)
+        for w in shockwaves {
             let r0 = w.r
             w.age += dt
             w.r += MainGun.shockSpeed * dt

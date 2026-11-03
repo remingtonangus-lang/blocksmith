@@ -1464,7 +1464,10 @@ final class Mob {
         faceGoal = nil
         let d = s.dirToWorld(V3(goal.x - l.x, 0, goal.z - l.z))
         let dist = simd_length(d)
-        if !walking && dist < 0.3 { strafe = 0; return 0 }
+        // (Settled within 0.15 of the post: a gunner's post can be a one-block pocket between a console, a rack and the
+        // gun's trunk, 0.2 of slack each side of a soldier; settling anywhere within 0.3 left him touching the console,
+        // and the deck's sway pushed him into it: ridecheck crew, 116 crew-ticks inside a solid.)
+        if !walking && dist < 0.15 { strafe = 0; return 0 }
         let dir = d / max(dist, 1e-4)
         if walking {
             yaw = atan2f(-dir.x, -dir.z)

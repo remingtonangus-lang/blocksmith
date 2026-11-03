@@ -751,7 +751,10 @@ enum Railways {
     // rail block stands at the rounded height (so a rail cell changes level by one at most per step and minecarts keep
     // their slopes); the drawn bed is shaped to the height itself (FieldTerrain.split: Railways.shapeBed).
     static let grade: Float = 1.0 / 8
-    static func gentleProfile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station], ends: (Float, Float)? = nil) -> [Float]? {
+    // `floatCurves`: a curve is levelled within what the ends reach at the grade (nearest its ground) instead of at its
+    // ground, the track cut or banked to it (a terminus loop: its four corners on ground up to 10 apart were each fixed
+    // at their own, and half the loops in the rail check failed the grade: "loop: field grade" 127 of 256 ends).
+    static func gentleProfile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station], ends: (Float, Float)? = nil, floatCurves: Bool = false) -> [Float]? {
         let n = cells.count
         guard n > 2 else { return nil }
         var target = [Float](repeating: Float(SEA + 2), count: n)
@@ -767,9 +770,21 @@ enum Railways {
             let a = cells[i], p = cells[i - 1], q = cells[i + 1]
             return (a.x - p.x) != (q.x - a.x) || (a.z - p.z) != (q.z - a.z)
         }
+        if floatCurves, let (e0, e1) = ends { for j in 0..<min(3, n) { fixed[j] = e0; fixed[n - 1 - j] = e1 } }
+        // (the band a cell can take from the cells fixed so far, at the grade)
+        func band(_ i: Int) -> (Float, Float) {
+            var lo: Float = -1e9, hi: Float = 1e9
+            for j in 0..<n { if let f = fixed[j] { let r = Float(abs(i - j)) * grade; lo = max(lo, f - r); hi = min(hi, f + r) } }
+            return (lo, hi)
+        }
         for i in 0..<n where isCurve(i) {
             let window = target[max(0, i - 2)...min(n - 1, i + 2)].sorted()
-            let lv = fixed[i] ?? window[window.count / 2]
+            var lv = fixed[i] ?? window[window.count / 2]
+            if floatCurves && fixed[i] == nil {
+                var lo: Float = -1e9, hi: Float = 1e9
+                for j in max(0, i - 1)...min(n - 1, i + 1) { let b = band(j); lo = max(lo, b.0); hi = min(hi, b.1) }
+                if lo <= hi { lv = max(lo, min(hi, lv)) }
+            }
             for j in max(0, i - 1)...min(n - 1, i + 1) { fixed[j] = fixed[j] ?? lv }
         }
         for st in stations {

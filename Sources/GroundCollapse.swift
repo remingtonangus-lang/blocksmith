@@ -87,6 +87,8 @@ enum GroundCollapse {
                 if let all = GroundSettle.bigPiece(w, from: s, around: p) {
                     for c in all { _ = done.insert(c) }; dropped = true
                     if all.count > maxCells { GroundSettle.dropBig(g, all) } else { drop(g, all) }
+                } else {
+                    for c in GroundSettle.lastHeld { _ = done.insert(c) }      // (held: the seeds in it are too)
                 }
                 continue
             }

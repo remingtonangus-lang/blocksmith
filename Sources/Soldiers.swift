@@ -838,6 +838,7 @@ extension Mob {
             let from = SoldierRig.muzzleWorld(self), to = target - from
             let len = simd_length(to)
             b.laserEnd = len > 0.01 ? from + to / len * (Armory.blockHit(g.world, from, to / len, len)?.0 ?? len) : target
+            MobManager.stage("fire: laser")
             if b.aimTime < 1.1 { return }
             b.aimTime = 0
             glintDone = true
@@ -849,7 +850,9 @@ extension Mob {
         // Clear line of fire from the muzzle (the sight check is from the eye, every 0.2-0.3 s, through opaque blocks
         // only): a wall, window, door or fence between the gun and the target holds the shot.
         // P305 (b): thin cover the rounds can wear through (glass, a plank wall, a bush, up to two blocks) doesn't.
-        guard g.world.clearShot(muzzle, target) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else { b.aimTime = 0; return }
+        MobManager.stage("fire: aim")
+        guard g.world.clearShot(muzzle, target) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else { b.aimTime = 0; MobManager.stage("fire: line"); return }
+        MobManager.stage("fire: line")
         if glintDone { b.glinted = true }          // (a glint held up by a wall doesn't use up the warning)
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
@@ -902,12 +905,14 @@ extension Mob {
         case .beam:
             g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread * Difficulty.row.aim), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
         }
+        MobManager.stage("fire: round")
         let quiet = TroopClass.suppressed(self)                       // Spec Ops suppressors: hushed, no alarm noise
         g.sfx(.gun(gs.sound), quiet ? 0.35 : 1, at: muzzle)
         if factionValue != .steelhold && !quiet { g.baseNoise(at: muzzle, kind: .gunshot, byMob: true) }      // other factions' fire carries to citadels
         g.particles.add(Particle(pos: muzzle + dir * 0.2, vel: dir * 0.5, life: 0.06, maxLife: 0.06, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
+        MobManager.stage("fire: sound, noise, flash")
         b.mag -= 1
         b.recoil = 1
         // The Ashsaw fires in long ripping bursts (with a long pause between them: the moment to move).

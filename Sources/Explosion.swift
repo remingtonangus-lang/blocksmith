@@ -430,6 +430,28 @@ final class CraterJob {
     private(set) var done = false
     static let blocksPerFrame = 250
     static var frameSeconds = 0.0016           // (about 2.7 ms of the headset's frame; see step)
+    // Store review (citadel soak, build 94): each bowl and each naval breach opening took its own `frameSeconds` a
+    // frame (the breaches in the arms stage, the bowls in the shockwaves: up to 9.8 ms of one tick), on top of 3-5 ms
+    // of soldiers. Every crater job now draws on one allowance a frame: `frameSeconds`, less what the rest of the last
+    // tick took past `tickTarget` (host seconds; about 9.4 ms of the headset's 13.9), never under `floorSeconds`. A
+    // frame heavy with soldiers carves less; the bowl opens over a few more frames.
+    // (Only inside the game's tick, Game.tickSeat: a check driving the shockwaves or breaches itself, frame after frame
+    // with no tick, gets `frameSeconds` a call as before; the shared allowance never came back for it.)
+    static var tickTarget = 0.0055, floorSeconds = 0.0004
+    static var inTick = false
+    private static var allowTick = -1, allow = 0.0, used = 0.0, usedPrev = 0.0
+    static func allowance() -> Double {
+        guard inTick else { return frameSeconds }
+        if allowTick != TickProf.tick {
+            allowTick = TickProf.tick
+            usedPrev = used; used = 0
+            let rest = max(0, TickProf.prevTotal - usedPrev)
+            allow = max(floorSeconds, min(frameSeconds, tickTarget - rest))
+        }
+        return allow - used
+    }
+    // Other ground carving drawing on the same allowance (the crawler's ruts).
+    static func spend(_ seconds: Double) { if inTick { _ = allowance(); used += seconds } }
     static var initCost = ""                 // (MainGunTests)
     static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
@@ -479,6 +501,11 @@ final class CraterJob {
         // P502: a breach burst wholly over the world's top (a deck gun's shell timed out in the sky) or under it, or at
         // a point that isn't one, has nothing to carve, scorch or wait for.
         guard World.reachesWorld(center, max(r * 1.5, Float(depth)) + 4) else { done = true; CraterJob.outside &+= 1; return true }
+        // (the frame's shared carving: none left, it waits a frame; the harness's whole-crater calls are untimed)
+        let timed = blocks != .max
+        if timed && CraterJob.allowance() <= 0 { return false }
+        let began = CFAbsoluteTimeGetCurrent()
+        defer { if timed && CraterJob.inTick { CraterJob.used += CFAbsoluteTimeGetCurrent() - began } }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
         // (Oct 31: a far strike) The bowl and its scorch reach shell chunks round the impact (ChunkShells: blocks
         // dropped past the active distance): they come back on the workers first and the bowl opens under the dust
@@ -522,7 +549,7 @@ final class CraterJob {
         // was built on it): a frame's carving also stops at `frameSeconds` of work (checked every 8 blocks), so the
         // bowl opens over more frames instead of the frame rate falling under the dust. (The harness's whole-crater
         // calls, blocks .max, are untimed.)
-        let deadline = blocks == .max ? Double.infinity : CFAbsoluteTimeGetCurrent() + CraterJob.frameSeconds
+        let deadline = blocks == .max ? Double.infinity : CFAbsoluteTimeGetCurrent() + max(0, CraterJob.allowance() - (CFAbsoluteTimeGetCurrent() - began))
         var sinceCheck = 0
         while next < offsets.count && budget > 0 && removed < cap {
             sinceCheck += 1
@@ -573,6 +600,9 @@ final class CraterJob {
         // of drawn ground standing in the bowl; the bowl is carved out of the field as a whole too, one ball a frame
         // down its axis (as a plain blast's bowl is: Explosion.explode).
         if carved && bowlNext < 6 && (w.fieldTerrain || w.keepsField) {
+            // (Store review, build 96's citadel soak: the ball ran after the frame's carving had already used the
+            // allowance, 6.7 ms of one frame; it waits for the next frame's now, with the blocks all taken by then.)
+            if timed && CFAbsoluteTimeGetCurrent() > deadline { return done }
             let t = Float(bowlNext) * Float(depth) / 6
             let k = t / Float(max(1, depth))
             let rr = 0.85 * r * sqrtf(max(0.05, 1 - k * k))

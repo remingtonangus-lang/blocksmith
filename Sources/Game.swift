@@ -1037,6 +1037,9 @@ final class Game {
     func tickSeat(_ rawDt: Double) {
         let dt = min(rawDt, 0.05)
         let seat = coop.current
+        let craters0 = CraterJob.inTick                  // (the frame's shared carving allowance: CraterJob.allowance)
+        CraterJob.inTick = true
+        defer { CraterJob.inTick = craters0 }
         if seat == 0 {
             TickProf.begin()
             StructureCache.noteFrameThread()
