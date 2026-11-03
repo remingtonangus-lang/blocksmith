@@ -476,7 +476,9 @@ enum RideCheck {
             let aboard = w.ships.aboard === s
             switch phase {
             case 0:
-                if l.x > 6.15 && abs(l.z - 29.5) < 0.6 {
+                // (In the ladder's column, z 29: build 97 stopped at z 30.1, standing on ground up against the flank beside
+                // the ladder's backing, walked on past the backing and fell into the gap under the chassis.)
+                if l.x > 6.15 && abs(l.z - 29.5) < 0.25 {
                     r.note(String(format: "at the ladder: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@", l.x, l.y, l.z, aboard ? "yes" : "no", stt.onGround ? "yes" : "no"))
                     advance(names[0]); return AgentAction.idle
                 }
