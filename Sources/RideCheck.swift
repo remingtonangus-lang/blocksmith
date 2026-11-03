@@ -679,7 +679,7 @@ enum RideCheck {
                               st.wantSpeed, simd_length(V2(s.vel.x, s.vel.z)), st.target == nil ? "none" : "yes", walking.count, where_))
                 if st.target == nil && t < 11 {
                     // (why no target: the foes as its AI would find them)
-                    let fs = foes.map { m in String(format: "%@ health %.0f listed %@ at %.0f blocks, y %.1f (ground %d)", "\(m.factionValue)", m.health,
+                    let fs = foes.map { m in String(format: "%@ health %ld listed %@ at %.0f blocks, y %.1f (ground %ld)", "\(m.factionValue)", m.health,
                                                    g.mobs.mobs.contains { $0 === m } ? "yes" : "no", simd_length(m.pos - s.pos), m.pos.y,
                                                    w.topY(Int(floor(m.pos.x)), Int(floor(m.pos.z)))) }
                     r.note("no target: " + fs.joined(separator: "; ") + String(format: "; wrecked %@, driver %@, retarget %.1f", s.wrecked ? "yes" : "no", st.driverAlive ? "yes" : "no", st.retarget))

@@ -598,6 +598,9 @@ final class CraterJob {
         // of drawn ground standing in the bowl; the bowl is carved out of the field as a whole too, one ball a frame
         // down its axis (as a plain blast's bowl is: Explosion.explode).
         if carved && bowlNext < 6 && (w.fieldTerrain || w.keepsField) {
+            // (Store review, build 96's citadel soak: the ball ran after the frame's carving had already used the
+            // allowance, 6.7 ms of one frame; it waits for the next frame's now, with the blocks all taken by then.)
+            if timed && CFAbsoluteTimeGetCurrent() > deadline { return done }
             let t = Float(bowlNext) * Float(depth) / 6
             let k = t / Float(max(1, depth))
             let rr = 0.85 * r * sqrtf(max(0.05, 1 - k * k))
