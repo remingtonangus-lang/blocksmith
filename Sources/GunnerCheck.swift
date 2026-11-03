@@ -128,7 +128,13 @@ enum GunnerCheck {
             // (the gun on the truck works on the raider too: kept standing so the rider's own shots are what's measured)
             run(240, MoveInput()) { foe.health = 20; foe.aggro = true; if r.companionFoe === foe { saw = true } }
             let shot = r.soldierBrain.mag < mag0 || r.soldierBrain.reload > reload0
-            if !shot { print("gunners: the rider \(saw ? "saw" : "never saw") the raider (\(Int(simd_length(foe.pos - r.pos))) blocks off)") }
+            if !shot {
+                let mz = SoldierRig.muzzleWorld(r), aim = foe.pos + V3(0, foe.height * 0.6, 0)
+                let dir = simd_normalize(aim - mz), toP = g.player.eye - V3(0, 0.5, 0) - mz, along = simd_dot(toP, dir)
+                let across = along > 0 && along < simd_length(aim - mz) && simd_length(toP - dir * along) < 1.2
+                let hull = ships.segmentHit(mz, dir, simd_length(aim - mz), except: -1)
+                print("gunners: the rider \(saw ? "saw" : "never saw") the raider (\(Int(simd_length(foe.pos - r.pos))) blocks off); world clear \(w.clearShot(mz, aim)), hull in the way \(hull != nil), he is in the line \(across), reload \(r.soldierBrain.reload), mag \(r.soldierBrain.mag)")
+            }
             check(shot && VehicleGunners.riding(r), "gunners: the rider fires their own gun from aboard at a raider 12 blocks off (rounds \(mag0) -> \(r.soldierBrain.mag)), still aboard")
             g.mobs.mobs.removeAll { $0 === foe }
         }

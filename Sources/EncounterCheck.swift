@@ -61,6 +61,8 @@ enum EncounterCheck {
         let beaten0 = FactionRaids.beaten
         var hurt = 0, nearHome = 0, foes = 0
         for t in 0..<(120 * 30) {
+            // (he holds his home: the rockets' knockback once threw him off past where the raid is counted)
+            g.player.pos = home; g.player.vel = .zero
             g.tick(1.0 / 30)
             if g.health < 20 { hurt += 20 - g.health }
             g.health = 20; g.alive = true
@@ -69,7 +71,8 @@ enum EncounterCheck {
                 let sol = g.mobs.mobs.filter { $0.health > 0 && Soldier.rank($0.kind) != nil }
                 print(String(format: "encounters: t %3d s: %d dropship%@ %@, %d soldiers (%d of the raid's faction), raid %@", t / 30, ds.count, ds.count == 1 ? "" : "s",
                              ds.map { String(format: "%.0f off phase %d troops %d", simd_length($0.pos - home), w.ships.capState[$0.id]?.phase ?? -1, w.ships.capState[$0.id]?.troopsLeft ?? -1) }.joined(separator: "; "),
-                             sol.count, sol.filter { $0.factionValue == .steelhold }.count, FactionRaids.active == nil ? "over" : "on"))
+                             sol.count, sol.filter { $0.factionValue == .steelhold }.count, FactionRaids.active == nil ? "over" : "on")
+                      + String(format: ", the raid's nearest %.0f off his home", sol.filter { $0.factionValue == .steelhold }.map { simd_length($0.pos - home) }.min() ?? -1))
             }
             if t % 30 == 0 {
                 let raiders = g.mobs.mobs.filter { $0.health > 0 && !$0.hired && $0.factionValue == .steelhold && Soldier.rank($0.kind) != nil }

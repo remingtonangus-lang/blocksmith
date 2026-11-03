@@ -30,6 +30,10 @@ enum GunStationsCheck {
             }
             let guns = ships.turrets(of: s).filter { !$0.cannons.isEmpty }
             let held = guns.filter { VehicleGunners.station($0, on: s, ships) != nil }.count
+            for t in guns where VehicleGunners.station(t, on: s, ships) == nil {
+                let r = IVec3(Int(floor(t.mountLocal.x)), Int(floor(t.mountLocal.y)) - 1, Int(floor(t.mountLocal.z)))
+                print("gunstations: \(s.name) gun at ring \(r.x),\(r.y),\(r.z) (hull \(s.grid.sx)x\(s.grid.sy)x\(s.grid.sz)) has no station")
+            }
             check(!guns.isEmpty && held * 10 >= guns.count * 9,
                   "gunstations: the \(s.name) has a station (console and chair) for \(held) of its \(guns.count) guns (\(ships.turrets(of: s).count) mounts)")
             if kind == "frigate" { frigate = s } else { ships.remove(s); ships.capState.removeValue(forKey: s.id) }
@@ -60,6 +64,12 @@ enum GunStationsCheck {
             }
         }
         run(60)
+        for (i, m) in hands.enumerated() {
+            print(String(format: "gunstations: hand %d: seated %@, riding %@, on deck %@, %.1f off the hull, health %.0f, hired %@", i,
+                         VehicleGunners.seated(m) ? "yes" : "no", VehicleGunners.riding(m) ? "yes" : "no", m.deck === s ? "yes" : "no",
+                         ships.boundsDistance(s, m.pos), Float(m.health), m.hired ? "yes" : "no"))
+        }
+        print("gunstations: he drives \(ships.pilot === s ? "it" : "nothing"), his: \(ships.isYours(s)), free guns with stations \(ships.turrets(of: s).filter { !$0.cannons.isEmpty && !VehicleGunners.manned($0) && VehicleGunners.station($0, on: s, ships) != nil }.count), seats \(VehicleGunners.seats.count)")
         let seated = hands.filter { VehicleGunners.seated($0) && !VehicleGunners.riding($0) }
         var off: Float = 0
         for m in seated {

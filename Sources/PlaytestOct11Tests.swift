@@ -5,6 +5,9 @@ import simd
 // Quest host check in questcheck (--p11-only stops after them).
 enum PlaytestOct11Tests {
     static func run(_ game: Game, _ check: (Bool, String) -> Void) {
+        // (alive and fed: the render suite runs long enough in survival scenes that he had starved by here, and a dead
+        // player takes no rounds and reloads nothing: P30 and P56 failed on that, not on what they test)
+        game.alive = true; game.health = 20; game.hunger = 20; game.saturation = 5
         iceInWater(game, check)
         dripstone(game, check)
         farCaveFaces(game, check)
