@@ -32,7 +32,7 @@ extension Game {
         // (Store review, crawler soak build 102: 1500 checks took 2.4 ms of a frame behind the crawler's ruts and
         // shells, a plant popped or a fire put out at each. The checks stop at `gravitySeconds`; the cells left go back
         // to the queue's front for the next tick.)
-        let deadline = World.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + Game.gravitySeconds
+        let deadline = World.deterministic || Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + Game.gravitySeconds
         for (k, p) in q.enumerated() {
             if k & 15 == 15 && CFAbsoluteTimeGetCurrent() > deadline {
                 world.gravityQueue.insert(contentsOf: q[k...], at: 0)

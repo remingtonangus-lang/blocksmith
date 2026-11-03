@@ -53,7 +53,9 @@ extension Game {
             // (Store review, Nov 2: a frame's random ticks stop at `RandomTickRng.frameSeconds` of work; the draws left
             // over are dropped, as random as the ones that ran. A sapling grown or a fire spread could take 9 ms of
             // one frame in his jungle: questcheck --framesoak jungle.)
-            let deadline = CFAbsoluteTimeGetCurrent() + RandomTickRng.frameSeconds
+            // (A seeded run, Rand.deterministic: no clock in it, so a replay or a harness duel draws the same numbers
+            // however busy the host is: the main-gun suite's Gravesworn duel went 7.2 s to 9.8 s with the host's load.)
+            let deadline = Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + RandomTickRng.frameSeconds
             var k = 0
             let track = RandomTickRng.track
             for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {     // (an earlier tick may have changed it)
