@@ -2608,7 +2608,12 @@ extension ShipManager {
                 let rolled = st.rutCarved[wi].map { simd_length(V2($0.x - at.x, $0.z - at.z)) } ?? .infinity
                 // (store review, the crawler soak: two cuts a pass were up to 21 ms of one frame; one a pass now, the
                 // wheels taking turns as they roll on)
-                if sunk > 0 && dug < 1 && rolled > 1.4 {
+                // (and from the frame's shared carving, CraterJob.allowance: build 96's crawler soak had a rut's cut,
+                // 4-7 ms, in the frames the ground collapse and the drive were heaviest; it waits for a frame with a millisecond
+                // of carving left, after a light tick)
+                if sunk > 0 && dug < 1 && rolled > 1.4 && CraterJob.allowance() >= 0.001 {
+                    let t0 = CFAbsoluteTimeGetCurrent()
+                    defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0) }
                     st.rutCarved[wi] = at
                     // (a ball whose bottom is a third of a block under the wheel: a shallow rut, not a trench)
                     let r = min(1.8, max(0.9, Float(min(wh.hi.x - wh.lo.x, wh.hi.z - wh.lo.z) + 1) * 0.5))

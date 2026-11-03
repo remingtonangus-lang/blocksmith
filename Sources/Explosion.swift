@@ -450,6 +450,8 @@ final class CraterJob {
         }
         return allow - used
     }
+    // Other ground carving drawing on the same allowance (the crawler's ruts).
+    static func spend(_ seconds: Double) { if inTick { _ = allowance(); used += seconds } }
     static var initCost = ""                 // (MainGunTests)
     static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
