@@ -489,9 +489,13 @@ enum RideCheck {
                 // (Build 93: never up the ladder; it ended under the chassis at x 9. The first seconds, a few times each:
                 // where it is, whether it is aboard, on the ground, and the cells at its feet and body.)
                 let tick = Int((phaseT * 60).rounded())
-                if tick < 360 && (tick < 20 || tick % 15 == 0) {
+                // (Build 99: up at last after 79 s, a minute of it a block out from the rungs at y 13-15: past 6 s, once a
+                // second, with the cells to the head and either side along the flank.)
+                if (tick < 360 && (tick < 20 || tick % 15 == 0)) || (tick < 6000 && tick % 60 == 0) {
                     let fx = Int(floor(l.x)), fz = Int(floor(l.z)), fy = Int(floor(l.y))
-                    let cells = (-1...1).map { dx in "\(fx + dx): " + (0...1).map { dy in Blocks.key(s.grid.get(fx + dx, fy + dy, fz)) }.joined(separator: "/") }
+                    let deep = tick >= 360
+                    let cells = (-1...1).map { dx in "\(fx + dx): " + (0...(deep ? 2 : 1)).map { dy in Blocks.key(s.grid.get(fx + dx, fy + dy, fz)) }.joined(separator: "/") }
+                        + (deep ? [-1, 1].map { dz in "z\(fz + dz): " + (0...2).map { dy in Blocks.key(s.grid.get(fx, fy + dy, fz + dz)) }.joined(separator: "/") } : [])
                     r.note(String(format: "climb %.2f s: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@, vel %.2f,%.2f,%.2f; at y %ld z %ld: ", phaseT, l.x, l.y, l.z,
                                   aboard ? "yes" : "no", stt.onGround ? "yes" : "no", g.player.vel.x, g.player.vel.y, g.player.vel.z, fy, fz) + cells.joined(separator: ", "))
                 }
