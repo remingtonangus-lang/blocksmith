@@ -10,9 +10,99 @@ What the game is (facts, not process): Quest 3 is the product, at 72 fps in the 
 
 The items below are his notes and what is known so far. Steps, tags and notes in them are history, not orders.
 
+## Week plan, Nov 3-10 (Remington approved 90 of 100 items, relayed Nov 3 22:32 UTC)
+
+His order: frame rate and his own requests first; the 1,000-bug hunt fills every gap. "You" means Remington. Denied, never
+to be done: 2 Quest check list for Nov 11 (dropped: docs/status/headset-nov11.md removed); 3 daily summary; 4 FAILURES
+never come back; 29 friendly-fire rules; 31 squad orders; 35 radio intel; 38 region bosses; 97 screenshot gallery per
+merge; 99 keep the Mac flat-screen build alive.
+
+Approved:
+1. 1,000-bug hunt: find and fix 1,000 real bugs a player could hit, each reproduced before and proven gone after, fixed at the root; a running count in docs/status/bug-ledger.md. Fills every gap.
+5. Bloom every fix: when a bug is fixed, hunt down every similar bug across the game, fix those too, and log what was found.
+6. Pass Meta's frame-rate check: steady at the target in every normal scene; grow the 10 soak scenes to 25 (towns, hell, the Ash Vault, sea battles, trains, big fights).
+7. Worst-case soak: crawler, citadel siege, naval guns and rain at night all at once, held at frame rate.
+8. Spike hunter: log every over-budget frame with the system that caused it; drive spikes to zero in the soaks.
+9. Full view distance at full frame rate: finish the view-24 work (P375/P376/P384/P392/P403).
+10. Two-hour session test: memory, heat and leaks over two simulated hours; nothing grows without limit.
+11. Faster loading: measure launch-to-playable and save loading, and cut them.
+12. Resolution backstop: a heavy scene drops resolution slightly instead of frames.
+13. Frame-time overlay: a dev-menu toggle showing frame time.
+14. Snow slowdown everywhere: the Nov 1 fix holds in every snowy biome and in storms.
+15. Double-tap jump to climb over ledges and walls ("big one, missed twice"; the clamber of #648 is a start).
+16. Vault low obstacles: sprinting into a fence or low wall vaults it.
+17. Slide: crouch while sprinting.
+18. Hands-on ladders: grab rungs with the hands; vehicle ladders climb reliably.
+19. Swimming pass: swim feel, underwater view, climbing out onto docks and boats.
+20. Comfort options check: snap and smooth turning, vignette, seated mode, all tested.
+21. Gun handling: two-handed grip stability, recoil per gun, hand reloads that feel right.
+22. Melee: rifle-butt and knife hits that feel physical and land where swung.
+23. Grenade arcs: a real arc and cook time.
+24. Hit feedback: sound and haptics for hits, distinct for headshots and kills.
+25. Haptics pass: vibration on every interaction that should have it.
+26. Sheriffs fight on Hard: cover, flanking, escalation to a posse.
+27. Troops don't vanish: sweep for soldiers disappearing at some view angles or distances; fix every cause.
+28. Raids, pirates, cruisers tested (P512: questcheck --encounters).
+30. Wanted level: crimes raise a level: sheriff, posse, then army.
+32. Garrison reinforcements by truck, train or air when alarmed.
+33. Convoy ambushes: supply convoys on roads and rails to raid.
+34. Boarding actions: board a frigate or crawler and fight through its interior.
+36. Factions fight each other in the world.
+37. Cover and suppression for every faction.
+39. Weapon balance: every gun has a reason; tune damage and range.
+40. Difficulty levels feel distinct, checked by bots on each level.
+41. Crawler interior redesign: real rooms (bridge, gun decks, bunks, engine room).
+42. Crawler wheels take damage: shot out and repaired.
+43. Crawler fords shallow water, stops in deep water, crosses rail tracks without sticking.
+44. See around while driving: third-person and camera views for every vehicle.
+45. A seat for every frigate gun: crew fire every gun while he steers (P512 gun stations).
+46. A computer for every gun: fire control at each gun (P512 gun stations).
+47. Trains without the start stutter; military, civilian and cargo trains.
+48. Plane handling, from his Nov 1 notes.
+49. Part-by-part vehicle damage: engines, tracks, wheels and guns break separately.
+50. Fuel and ammo resupply for vehicles.
+51. Vehicle zoo he can visit (P512 Proving Grounds).
+52. Player builds fail visibly (engine sputters, wings stall) instead of silently.
+53. Dropship and helicopter polish: take-off, landing, hover.
+54. Copper machine world he can visit (P512 Proving Grounds).
+55. 10 guns built from blocks where he can try them (P512 Proving Grounds).
+56. Copper edge cases: more tests so player-made machines hit few errors.
+57. Turrets he builds defend his base from raids.
+58. Blueprints: save a build and place copies.
+59. Strength for every material: weight and connection strength for every block.
+60. Built things sit on the ground (trailer bug: houses floating off slopes).
+61. No falling blocks in house building (Oct 31 notes).
+62. Placement sanity: no torches in lava or other impossible placements (trailer bug).
+63. Zero void gaps: an automated void count in every soak, held at zero.
+64. More bases in hell: varied, with potions and a potion material.
+65. High-tech base material found only in bases.
+66. Ash Vault army: planes, tank and troop divisions singing original songs.
+67. Parasite horde (original) for the Ash Vault side.
+68. Sky limit 400: build height raised to 400 and tested.
+69. Boreal Station troops: their own original sci-fi troops with super-soldiers.
+70. Map shows the nearest of everything (citadels, cities, crawlers, trains, frigates).
+71. No pop-in: the passenger train and other spawns never appear in plain sight.
+72. Far-view seams: no block-style far versions poking through citadels; sweep every seam.
+73. Stealth uses light and weather.
+74. Cave variety: more cave types and loot.
+75. Sea life and wrecks to dive.
+76. Living towns: schedules, jobs and shops.
+78. Hire people: followers he can arm (P512: they ride his vehicle and crew its guns).
+79. Wages and loyalty: pay and food; loyalty affects how they fight.
+80. Scrap the XP system: progress through gear, money and builds.
+81. Ammo economy: ammo found or crafted (Nov 1 notes).
+82. Salvage: strip wrecks for parts.
+83. Bounty board in towns.
+84. Photo mode: freeze time and take shots (store pictures too).
+85. Save safety: autosaves, slots, recovery from a corrupt save.
+86. Resubmission package: once frame rate is proven, a build ready to upload with the measured numbers.
+87. Pre-check every other Meta VRC requirement on each release candidate.
+88. Store pictures from the final build.
+89. Trailer final cuts: a 30-second and a 6 ... (the relay reached lane 2 cut off here; items 89-100 to be filled in from his list)
+
 ## Open (in this order)
 
-P512. [CLAIMED: lane 2, Nov 3 19:45 UTC. His Nov 2 notes checked against the code. Built in #648 (P511 there): the clamber (jump into a ledge 1.05-2.3 blocks over his feet and he pulls himself up and over, ClamberCheck), crawler wheels that wear and burst under fire and an ingot rebuilds, the dense crawler interior (a motor per wheel, gun trunks with hoists, bulkheads, fire control; CrawlerInteriorCheck), sheriffs on Hard at the level's pace and aim, railway ends that loop back into the line (RailLoopCheck), and the store frame rate (#649-#652: all ten --framesoak scenes under 0.5%). Open, in this order: (1) the vehicle zoo, the circuit zoo and ten guns built from the game's own blocks, reachable in play on the headset; (2) host checks proving a base's revenge raid on his home, a corsair sloop's hunt and a Corsair Cruiser encounter; (3) hired followers: a few thousand to hire, armed and armoured by him, following him and riding the vehicle he drives; (4) every frigate gun its own computer and seat, hired crew working them while he drives; (5) view 24 at 72 fps (P375/P376/P384/P392/P403). What only the headset can confirm is kept in docs/status/headset-nov11.md.] [Remington, Nov 2 12:13-12:22, relayed Nov 2 and Nov 3 19:43] "Halo Infinite / Halo 5 style double tap jump to climb over stuff" (inspiration only; "big one, missed twice"); make 10 of its own guns from the in-game blocks, and see the world with the 100 vehicles and 100 copper machines: "Put it somewhere so I can access it in the game"; crawler wheels should take damage; "The crawler's interior design sucks"; "Sheriffs barely did anything on hard difficulty"; "The railway was good but there was still a 'start' to it"; tests showing that base revenge attacks, pirates and cruiser encounters all work; hiring people; a seat for every frigate gun so crew can fire while he drives, and computers for every gun; frame rate is not finished (the view-24 scenes).
+P512. [CLAIMED: lane 2, Nov 3 19:45 UTC. His Nov 2 notes checked against the code. Built in #648 (P511 there): the clamber (jump into a ledge 1.05-2.3 blocks over his feet and he pulls himself up and over, ClamberCheck), crawler wheels that wear and burst under fire and an ingot rebuilds, the dense crawler interior (a motor per wheel, gun trunks with hoists, bulkheads, fire control; CrawlerInteriorCheck), sheriffs on Hard at the level's pace and aim, railway ends that loop back into the line (RailLoopCheck), and the store frame rate (#649-#652: all ten --framesoak scenes under 0.5%). Open, in this order: (1) the vehicle zoo, the circuit zoo and ten guns built from the game's own blocks, reachable in play on the headset; (2) host checks proving a base's revenge raid on his home, a corsair sloop's hunt and a Corsair Cruiser encounter; (3) hired followers: a few thousand to hire, armed and armoured by him, following him and riding the vehicle he drives; (4) every frigate gun its own computer and seat, hired crew working them while he drives; (5) view 24 at 72 fps (P375/P376/P384/P392/P403).] [Remington, Nov 2 12:13-12:22, relayed Nov 2 and Nov 3 19:43] "Halo Infinite / Halo 5 style double tap jump to climb over stuff" (inspiration only; "big one, missed twice"); make 10 of its own guns from the in-game blocks, and see the world with the 100 vehicles and 100 copper machines: "Put it somewhere so I can access it in the game"; crawler wheels should take damage; "The crawler's interior design sucks"; "Sheriffs barely did anything on hard difficulty"; "The railway was good but there was still a 'start' to it"; tests showing that base revenge attacks, pirates and cruiser encounters all work; hiring people; a seat for every frigate gun so crew can fire while he drives, and computers for every gun; frame rate is not finished (the view-24 scenes).
 
 P510. [CLAIMED: lane 2, Nov 2. Built in #648, checked on the Linux host build (questcheck): Capital big guns break Capital blocks and every missile craters; the VR brace follows the hands round a corner and a left-grip tap steps the hotbar; the Quest steps the game in real time at a low frame rate (the "snow" slowdown at 49 fps); unarmed, he is left alone; shot-out overhangs and the helipad snap off, a tower held only by its skyway falls; one Ember Charge in each Capital city; the garage door and the elevator rebuilt (docs/FAILURES.md 1-2, --garagedoor, --elevator) with furnished tower storeys that differ; war-vessel rooms (citadel towers: guard post, signals, bunks, armoury with ammo racks, mess); the crawler: wades and swims, crew shown while tipped, two decks and an engine hall, drawn from outside without its rooms, bay troops out down the aisle; the sky-isle pillar was the gap cover lifted to the isle (now only over ground, never over a tall build: also the olive spike by the Capital base at 20:33); hulks fall and land; the pause menu cut down (no checklist, advancements or messages; map in the journal; options and comfort together; shortcuts in commands); audio recovers after a drop; railways: lines run on by links (a key bug linked every line south of row 0 to itself), trains run through, strays cleared, chase view, field dips banked; the military train is taken from inside car by car, driven, and its gun worked; roads: bridges over water, roads past empty regions and out to citadels, cities, Greywall and Boreal sites. Open: plane handling (no detail yet), the crawler GPU load on device.] [Remington, Nov 1 20:08-20:43 on 0.129 e7f56a4f (#647), 189 notes in docs/playtests/2026-11-01/voice-notes.md (11a29fec); his 20:51 corrections relayed Nov 2 00:52-00:56] Planes need better handling (20:09); snow slows him (20:10); attacked with no gun out (20:11); a missile made no crater inside a building (20:13); can't left grip with a gun out, worse holding health items (20:14, 20:21); big-gun shells (naval guns, Capital guns) do no damage to Capital blocks round his battery, whoever fires: a bug, they should damage what they hit (20:15-20:22); a soldier should rapid-fire shotgun rounds (20:16); angling a gun round a corner snaps back and loses the left hand (20:18); the elevator (FAILURES 2: a real elevator, different things on each floor, not copy-paste floors); one Ember Church somewhere in each Capital (20:23); shot-out Capital blocks should bring heavy structures down, the helipad too (20:23-20:24); board the military train compartment by compartment, clear it, drive it, use its guns (20:24); war-vessel rooms more decorative, ammo racks per gun (20:27); crew vanished while the crawler lay on its side, back when it righted (20:27); the crawler: renders heavily (GPU maxed near it), can't go into water, a thing dragging off its rear, needs a real engine room and a dense realistic interior like the frigate (20:28-20:36); a giant pillar forms for a while under a sky island (20:30); main menu: no playtest checklist, the world map in the journal, journal and inventory less crowded, options and VR comfort together, no advancements, no messages, shortcuts into commands (20:32); audio dropped out briefly (20:33); a Capital base right beside him not drawn (20:33); a railroad that stops; two engines (P508 has one); a third-person view in the train (20:38); lines go on forever, the train must not stop at an end (20:38); a train stuck on its track (20:39); rails smooth on the terrain, ends matching (20:39-20:40); roads and bridges (20:40); the garage door (FAILURES 1: a real garage door you drive through); something floating (20:42).
 
