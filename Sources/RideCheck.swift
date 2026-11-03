@@ -482,7 +482,7 @@ enum RideCheck {
                     r.note(String(format: "at the ladder: ship-space %.2f,%.2f,%.2f, aboard %@, ground %@", l.x, l.y, l.z, aboard ? "yes" : "no", stt.onGround ? "yes" : "no"))
                     advance(names[0]); return AgentAction.idle
                 }
-                return walk(stt, to: s.toWorld(routes[0][0]))
+                return walk(stt, to: s.toWorld(V3(routes[0][0].x, l.y, routes[0][0].z)))      // (his height: the lean, below)
             case 1:
                 // Done once standing on the roof (stopping at the ladder's top to turn, it would drop off).
                 if l.y > 20.95 && aboard && stt.onGround && l.x > 7.05 { advance(names[1]); return AgentAction.idle }
@@ -501,7 +501,10 @@ enum RideCheck {
                 }
                 // (Into the backing at the ladder's middle, z 29.5: aimed at x 9 the push barely turned him back, and
                 // arriving on the rungs moving along the flank, build 98 drifted off the ladder's side at 2 b/s.)
-                var a = walk(stt, to: s.toWorld(V3(7.2, 0, 29.5)))
+                // (At his own height in ship space: the hull leans (up 0.08, 0.99, -0.07 at this spot), and a point at
+                // y 0 lay 0.8 blocks off in the world at y 10 and 1.7 at the roof, so he walked off the rungs sideways and,
+                // at the top, back off the roof edge: builds 99 and 101, 42-79 s up a 21-block ladder.)
+                var a = walk(stt, to: s.toWorld(V3(7.2, l.y, 29.5)))
                 a.forward = 1
                 a.jump = true
                 return a
@@ -517,11 +520,11 @@ enum RideCheck {
                     }
                     if done { advance(names[phase]); return AgentAction.idle }
                     // Down the ladder: off the roof edge into the rungs, no input while it slides down, then step off.
-                    if phase == 3 { return l.y > 1.2 ? AgentAction.idle : walk(stt, to: s.toWorld(V3(3.8, 0, 29.5))) }
+                    if phase == 3 { return l.y > 1.2 ? AgentAction.idle : walk(stt, to: s.toWorld(V3(3.8, l.y, 29.5))) }
                     return AgentAction.idle
                 }
                 let target = route[wp]
-                let tw = s.toWorld(target)
+                let tw = s.toWorld(V3(target.x, l.y, target.z))          // (his height: the hull's lean, phase 1)
                 if simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z)) < 0.45 { wp += 1; return AgentAction.idle }
                 var a = walk(stt, to: tw)
                 // Stuck on the ground (a bush, a step the auto-jump won't take): jump, then side-step a moment.
