@@ -49,9 +49,20 @@ enum GroundCollapse {
     static let maxCells = 1500
     private static let seenMarks = CellMarks(radius: reach + 1), doneMarks = CellMarks(radius: reach + 1)
 
+    // Store review (crawler soak, build 103): a check is 1-2.6 ms, and it came on frames already heavy with the drive and
+    // the soldiers (ticks of 9-11 ms). It draws on the carving allowance (CraterJob.allowance): a frame with under
+    // `wantSeconds` left waits, at most `maxWait` frames in a row, so the ground still comes down within a few frames.
+    static var wantSeconds = 0.0012, maxWait = 6
+    private static var waited = 0
+
     static func tick(_ g: Game) {
         let w = g.world
-        guard w.fieldTerrain, let (p, r) = w.collapseQueue.popLast() else { return }
+        guard w.fieldTerrain, !w.collapseQueue.isEmpty else { return }
+        if waited < maxWait && !World.deterministic && !Rand.deterministic && CraterJob.allowance() < wantSeconds { waited += 1; return }
+        waited = 0
+        let began = CFAbsoluteTimeGetCurrent()
+        defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - began) }
+        guard let (p, r) = w.collapseQueue.popLast() else { return }
         if w.collapseQueue.count > 64 { w.collapseQueue.removeFirst(w.collapseQueue.count - 64) }
         let done = doneMarks, seen = seenMarks
         done.reset(around: p)

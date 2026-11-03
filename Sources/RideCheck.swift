@@ -910,7 +910,7 @@ enum RideCheck {
             r.check(stopT > 1.5 || speed0 < 1, String(format: "it grinds to a stop, not at once (%.1f s from %.1f b/s)", stopT, speed0))
             r.check(worstDecel < 4, String(format: "no sudden stop (worst deceleration %.2f b/s2)", worstDecel))
             r.check(shots > 0, "the crew fight enemy soldiers from aboard (\(shots) shots)")
-            if shots == 0 { r.note("crew fight: " + foeNote) }
+            r.note("crew fight: " + foeNote)
         }
         r.check(off == 0, "the crew stay aboard the disabled vehicle (\(off) crew-ticks off)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(aliveAtRest == spawned, "the crew survive it (\(aliveAtRest) of \(spawned) alive when it came to rest, \(alive) at the end)")

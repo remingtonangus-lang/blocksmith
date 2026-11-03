@@ -2537,6 +2537,7 @@ extension ShipManager {
             if CFAbsoluteTimeGetCurrent() > deadline { st.crushNextZ = lz; return }
             let bow = lz <= lo.z + 6
             for lx in stride(from: lo.x, through: hi.x, by: 1) {
+                if lx > lo.x && CFAbsoluteTimeGetCurrent() > deadline { st.crushNextZ = lz; return }   // (a row of leaves: a column at a time)
                 // From the bottom row (trunks stood through the wheel arches); soft blocks only, so ground is never dug.
                 for ly in stride(from: lo.y, through: hi.y, by: 1) {
                     let w = s.toWorld(V3(lx, ly, lz))
@@ -2552,12 +2553,17 @@ extension ShipManager {
                     // P507 (Nov 1 12:07:22, "It's definitely despawning trees. It's just the trees aren't falling, they're
                     // just despawning"): under way, a tree the bow meets goes over, out to the side it stood on and
                     // ahead, a felled trunk with its crown (Felling); the rest give way as before.
+                    // (Store review, crawler soak build 103: a topple is 1-2 ms. On a frame with the carving allowance
+                    // spent the trunk stands for a later pass; the bow's rows sweep four ahead of it.)
+                    if bow && !full && felled < 1 && CapitalBase.isLog(b) && CraterJob.allowance() < 0.001 { continue }
                     if bow && !full && felled < 1 && CapitalBase.isLog(b), let trunk = treeAt(x, y, z) {
                         worn(false)
                         let off = simd_dot(V3(Float(x) + 0.5 - s.pos.x, 0, Float(z) + 0.5 - s.pos.z), simd_cross(fwd, V3(0, 1, 0)))
                         let out = simd_normalize(V3(fwd.x, 0, fwd.z) + simd_cross(fwd, V3(0, 1, 0)) * (off >= 0 ? 1.2 : -1.2) + V3(1e-5, 0, 0))
                         TickProf.mark("cap: drive sweep")
+                        let t0 = CFAbsoluteTimeGetCurrent()
                         g.topple(trunk, away: out)
+                        CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0)
                         TickProf.mark("cap: drive topple")
                         felled += 1; ShipManager.crawlerFelled += 1
                         n += trunk.count
