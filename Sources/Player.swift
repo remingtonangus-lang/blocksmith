@@ -158,6 +158,12 @@ final class Player {
             else { probe.x = mid; probe.z += d.y > 0 ? ahead : -ahead; there.x = mid }
             // Room in the opening ahead, and nothing in the way of the slide itself.
             guard !collides(at: probe, w), !collides(at: there, w) else { continue }
+            // And an opening: its frame on both sides (Nov 4, the ridecheck board scene: brushing a gun station's chair on
+            // the crawler's command deck, open floor on its far side, slid the bot 7 b/s off its line toward the cell
+            // beside the chair as if the chair were a door's jamb; any chair, table or post did the same to him).
+            var left = probe, right = probe
+            if alongX { left.z = mid - 1; right.z = mid + 1 } else { left.x = mid - 1; right.x = mid + 1 }
+            guard collides(at: left, w) && collides(at: right, w) else { continue }
             if best == nil || abs(mid - perp) < abs(best! - perp) { best = mid }
         }
         guard let mid = best else { return }
