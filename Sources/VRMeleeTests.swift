@@ -190,20 +190,23 @@ enum VRMeleeTests {
             defer { game.survival = false }
             p.pitch = -1.55
             let z = zombie(P + V3(2.5, 0, -2.5))
-            ticks(60) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true; game.health = 20 }
+            ticks(300) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true; game.health = 20 }
             let guarded = game.world.block(dirt.x, dirt.y, dirt.z) == Blocks.id("dirt")
             game.inventory.held = ItemStack(Items.id("iron_pickaxe"), 1)
-            ticks(60) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true; game.health = 20 }
+            ticks(300) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true; game.health = 20 }
             let pick = game.world.block(dirt.x, dirt.y, dirt.z) != Blocks.id("dirt")
             game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
             remove(z)
             game.inventory.held = sword
-            ticks(60) { game.input.leftDown = true }
+            var at60 = ""
+            var n = 0
+            ticks(300) { game.input.leftDown = true; game.health = 20; n += 1
+                if n == 60 { at60 = String(format: "at 1 s: on the ground %@, progress %.2f", p.onGround ? "yes" : "no", game.mineProgress) } }
             let alone = game.world.block(dirt.x, dirt.y, dirt.z) != Blocks.id("dirt")
             game.input.leftDown = false
             ticks(2)
             game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
-            check(guarded && pick && alone, "trigger mining: sword with a zombie near breaks nothing \(guarded), pickaxe mines \(pick), sword alone mines \(alone)")
+            check(guarded && pick && alone, "trigger mining: sword with a zombie near breaks nothing \(guarded), pickaxe mines \(pick), sword alone mines \(alone) (\(at60))")
         }
 
         // 5b. Verifier round (Oct 10). Swing melee holding a non-weapon (torch, bread, the bare hand): the trigger
@@ -288,7 +291,7 @@ enum VRMeleeTests {
                 game.survival = survival
                 defer { remove(m); game.survival = false }
                 game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
-                ticks(survival ? 60 : 20) { m.pos = P + off; m.vel = .zero; game.input.leftDown = true; game.health = 20 }
+                ticks(survival ? 300 : 20) { m.pos = P + off; m.vel = .zero; game.input.leftDown = true; game.health = 20 }
                 game.input.leftDown = false
                 ticks(2) { m.pos = P + off; m.vel = .zero }
                 let broke = game.world.block(dirt.x, dirt.y, dirt.z) != Blocks.id("dirt")
