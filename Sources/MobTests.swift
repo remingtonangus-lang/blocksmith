@@ -367,8 +367,11 @@ enum MobTests {
             biggest = max(biggest, mm.mobs.filter { $0.mount == nil }.count - before)
         }
         check(biggest <= 4, "spawn at most 4 monsters an attempt", "biggest \(biggest)")
-        let packs = Dictionary(grouping: night.filter { $0.kind != .slime }) { m in "\(m.kind.key)\(Int(floor(m.pos.x / 12))),\(Int(floor(m.pos.z / 12)))" }
-        check(packs.values.contains { $0.count >= 2 }, "spawn monsters come in packs", "biggest \(packs.values.map { $0.count }.max() ?? 0)")
+        // (Nov 4: by kind within 10 blocks of each other; it bucketed them into 12-block squares, and a pack across a
+        // square's edge counted as two lone ones: failed on build 149 with 9 zombies out, passed on 145)
+        let walkers = night.filter { $0.kind != .slime }
+        let packed = walkers.filter { m in walkers.contains { $0 !== m && $0.kind == m.kind && simd_length($0.pos - m.pos) < 10 } }.count
+        check(packed >= 2, "spawn monsters come in packs", "\(packed) of \(walkers.count) have one of their kind within 10 blocks")
 
         // Noon: nothing spawns in daylight (raw sky light above 7).
         mm.mobs.removeAll()
