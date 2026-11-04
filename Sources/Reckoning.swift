@@ -285,6 +285,7 @@ enum Reckoning {
         }
         // The hunt's crawler drives on him wherever he is on the surface (its target in sight or not); below, it waits.
         if let c = crawlerAt, let s = huntCrawler(g, c), let st = g.world.ships.capState[s.id] { st.goal = down ? nil : g.player.pos }
+        if warshipAt != nil, let s = g.world.ships.capitals.first(where: { huntWarship($0) }), let st = g.world.ships.capState[s.id] { st.goal = down ? nil : g.player.pos }
         if !down { barrages(g, p, dt) }
         // Bring units in, nearest groups first, while the player is on the surface.
         var alive = hunts.reduce(0) { $0 + $1.live.count }

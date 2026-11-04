@@ -1727,6 +1727,14 @@ extension ShipManager {
             let dir = to / d
             if d > 40 { want = dir; speed = 9 * fast }
             else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * 0.3); speed = 4 * fast }
+        } else if let goal = st.goal {
+            // Nov 4 (ledger 16): sent for someone (the Reckoning's warship, made past the fog: from there her circle round
+            // home never came near him): fly in, then circle over the spot until she has him in her sight.
+            let to = V2(goal.x - s.pos.x, goal.z - s.pos.z)
+            let d = max(1, simd_length(to))
+            let dir = to / d
+            if d > 160 { want = dir; speed = 10 * fast }
+            else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * ((d - 100) / 80)); speed = 6 * fast }
         } else if let isle = st.isles?.first {
             // T11: a frigate with a sky isle near its home keeps its own route: a wide circle round the isle, at
             // cruise clearance over its turf (the altitude below counts the isle as ground).
