@@ -106,9 +106,10 @@ enum QuestFrameSoak {
     }
 
     // Riding a passenger train from the cab along the nearest line to his jungle spot (seed of FAILURES 3).
-    static func trainScene() -> Setup {
+    static func trainScene(_ kind: Trains.Kind = .passenger, name: String = "train") -> Setup {
         var drive: (() -> Void)?
-        return Setup(name: "train", what: "driving a passenger train from the cab, regulator open",
+        let what = kind == .passenger ? "a passenger" : (kind == .cargo ? "a freight" : (kind == .troop ? "a troop" : "a bullion"))
+        return Setup(name: name, what: "driving \(what) train from the cab, regulator open",
                      seed: crawlerSeed, at: V3(-5572, 141, 2813),
                      prepare: { g in
             guard let gen = g.world.gen as? WorldGen else { return }
@@ -124,7 +125,7 @@ enum QuestFrameSoak {
             var at = g.time
             for k in 0..<Int(t.period) { let a = t.at(g.time + Double(k)); if a.stop == 0 && a.dir > 0 { at = g.time + Double(k) + 1; break } }
             g.time = at
-            Trains.forceKind = .passenger
+            Trains.forceKind = kind
             Trains.tick(g)
             Trains.forceKind = nil
             guard let tr = Trains.trains[t.id], let lead = tr.cars.first else { print("framesoak: no train built on \(l.name)"); return }
@@ -201,7 +202,179 @@ enum QuestFrameSoak {
          moving("taiga", "flying at the creative sprint into new taiga (Oct 24: 41-49 fps)", seed: 5933896066598527833, x: 4740.5, y: 143.5, z: -3278.6, yaw: 320, pitch: -20, fly: true)]
     }
 
-    static var scenes: [Setup] { ordinary + [crawlerScene(parkedBy: false), crawlerScene(parkedBy: true), navalScene(), trainScene(), hellScene(), battleScene()] }
+    // Week plan item 6 (Remington, Nov 3: "grow the 10 soak scenes to 25: towns, hell, the Ash Vault, sea battles, trains,
+    // big fights"): fifteen more. Ordinary play in the other biomes (found from the seed's spawn, the middle of each), the
+    // weather and the night, towns and the capital city on foot, the Hollow, his frigate under way, the other trains,
+    // the sea hunters, and item 7's worst case all at once.
+    static let biomeSeed: UInt64 = 12345
+
+    // The middle of `biome` on `seed`'s world, the player moved there and the land loaded round him.
+    // (spiralling out from spawn in 48-block steps, the column and eight points 40 out all in it: well inside, not its edge)
+    static func findBiome(_ gen: TerrainGenerator, _ want: String) -> V3? {
+        var x = 0, z = 0, dx = 0, dz = -1
+        let probes: [(Int, Int)] = [(0, 0), (40, 0), (-40, 0), (0, 40), (0, -40), (40, 40), (-40, 40), (40, -40), (-40, -40)]
+        for _ in 0..<20000 {
+            let wx = x * 48 + 8, wz = z * 48 + 8
+            if probes.allSatisfy({ gen.column(wx + $0.0, wz + $0.1).biome.name == want }) {
+                return V3(Float(wx) + 0.5, Float(max(gen.column(wx, wz).height, SEA) + 1), Float(wz) + 0.5)
+            }
+            if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
+            x += dx; z += dz
+        }
+        return nil
+    }
+    static func goTo(_ g: Game, biome: String) {
+        guard let p = findBiome(g.world.gen, biome) else { print("framesoak: no \(biome) found"); return }
+        g.player.pos = p
+        _ = g.world.loadSync(center: p, radius: g.world.renderDistance)
+        print(String(format: "framesoak: %@ at %.0f %.0f", biome, p.x, p.z))
+    }
+
+    // Walking (or flying) through the middle of a biome, with the weather and the hour it asks for.
+    static func biomeScene(_ name: String, _ what: String, biome: String, fly: Bool, storm: Bool = false, night: Bool = false) -> Setup {
+        let base = moving(name, what, seed: biomeSeed, x: 0, y: 70, z: 0, yaw: 300, pitch: fly ? -20 : -10, fly: fly)
+        return Setup(name: name, what: what, seed: biomeSeed, at: base.at, prepare: { g in
+            goTo(g, biome: biome)
+            if night { g.time = 0.75 * DAY_LENGTH; g.difficulty = 2 }
+            base.prepare(g)
+            if storm { g.weather.raining = true; g.weather.rain = 1; g.weather.thundering = true; g.weather.thunder = 1 }
+        }, step: { g, f in
+            if storm { g.weather.raining = true; g.weather.thundering = true; g.weather.rainTime = 600; g.weather.thunderTime = 600 }
+            base.step(g, f)
+        })
+    }
+
+    // On foot through the middle of the nearest structure of `kind` (a village, the capital city).
+    static func townScene(_ name: String, _ what: String, kind: String) -> Setup {
+        let base = moving(name, what, seed: biomeSeed, x: 0, y: 70, z: 0, yaw: 300, pitch: -10, fly: false)
+        return Setup(name: name, what: what, seed: biomeSeed, at: base.at, prepare: { g in
+            if let st = g.world.gen.structures?.nearest(kind, x: 0, z: 0, maxRegions: 24) {
+                let c = V3(Float(st.min.x + st.max.x) / 2 + 0.5, g.player.pos.y, Float(st.min.z + st.max.z) / 2 + 0.5)
+                // (from its edge, walking in toward the middle)
+                let r = Float(max(st.max.x - st.min.x, st.max.z - st.min.z)) / 2
+                g.player.pos = c + V3(r * 0.6, 0, 0)
+                _ = g.world.loadSync(center: g.player.pos, radius: g.world.renderDistance)
+                for (n, q) in g.world.pendingMobs { if let m = Mob.structureMob(n, at: q) { g.mobs.mobs.append(m) } }
+                g.world.pendingMobs.removeAll()
+                print(String(format: "framesoak: %@ at %.0f %.0f, %.0f across", kind, c.x, c.z, 2 * r))
+            } else { print("framesoak: no \(kind) near spawn") }
+            base.prepare(g)
+            g.player.yaw = .pi / 2                                       // (facing west, into it)
+        }, step: base.step)
+    }
+
+    // The Hollow: flying over the main island past the spikes at the creative sprint.
+    static func hollowScene() -> Setup {
+        Setup(name: "hollow", what: "the Hollow, flying over the main island and its spikes",
+              seed: crawlerSeed, dim: .end, at: V3(60, 150, 0),
+              prepare: { g in g.player.flying = true; g.player.yaw = .pi / 2; g.player.pitch = -0.25 },
+              step: { g, _ in
+            g.player.flying = true
+            let yaw = g.player.yaw
+            g.player.pos += V3(-sinf(yaw), 0, -cosf(yaw)) * (8.0 / 72)
+            g.player.vel = .zero
+        })
+    }
+
+    // His Stormwarden frigate under way: aboard at its helm, flying on at 10 b/s over new land.
+    static func frigateScene() -> Setup {
+        var ship: Ship?
+        return Setup(name: "frigate", what: "aboard a Stormwarden frigate at its helm, flying on at 10 b/s over new land",
+                     seed: biomeSeed, at: V3(400, 160, 400),
+                     prepare: { g in
+            let w = g.world
+            w.ships.encounters = false
+            w.ships.spawnCapital("frigate", home: IVec3(Int(floor(g.player.pos.x)), 0, Int(floor(g.player.pos.z))), yaw: 0, region: nil, sync: true)
+            guard let s = w.ships.capitals.first(where: { $0.role == "frigate" }), let st = w.ships.capState[s.id], let stand = g.helmStand(s) else {
+                print("framesoak: no frigate could be spawned"); return
+            }
+            st.crewDone = Set(0..<st.crew.count); st.crewless = true
+            st.testTurn = 0; st.testSpeed = 10
+            ship = s
+            g.player.flying = false
+            g.player.pos = s.toWorld(stand)
+            g.player.vel = s.velocity(at: g.player.pos)
+            g.player.yaw = 0; g.player.pitch = -0.1
+            print(String(format: "framesoak: %@ at %.0f %.0f %.0f", s.name, s.pos.x, s.pos.y, s.pos.z))
+        }, step: { g, _ in
+            guard let s = ship, let stand = g.helmStand(s) else { return }
+            // (held at the helm as the deck carries him)
+            if simd_length(g.player.pos - s.toWorld(stand)) > 3 { g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos) }
+        })
+    }
+
+    // The sea hunters: on his raft at sea with a corsair sloop and the Corsair Cruiser closing and firing (SeaHunt).
+    static func seaHuntScene() -> Setup {
+        var sc = navalScene()
+        sc.name = "seahunt"
+        sc.what = "the Corsair Cruiser and a corsair sloop hunting him at sea, closing from 150 blocks"
+        sc.prepare = { g in
+            let w = g.world
+            w.ships.encounters = true; w.ships.spawnEncounters = false
+            let x = Int(floor(g.player.pos.x)), z = Int(floor(g.player.pos.z))
+            let surf = Submarine.surface(w, x + 10, z) ?? (SEA - 1)
+            for dz in -3...3 { for dx in -3...3 { for y in surf...(surf + 1) { w.setBlock(x + dx, y, z + dz, STONE) } } }
+            g.player.pos = V3(Float(x) + 0.5, Float(surf + 2), Float(z) + 0.5)
+            g.player.flying = false
+            g.survival = true; g.difficulty = 2
+            for (role, a) in [(NavalPatrol.role, Float(0.3)), ("sloop", Float(2.2))] {
+                let hx = Int(floor(g.player.pos.x + cosf(a) * 150)), hz = Int(floor(g.player.pos.z + sinf(a) * 150))
+                guard let y = Submarine.surface(w, hx, hz) else { continue }
+                let s = w.ships.spawnVessel(role, home: IVec3(hx, y + 1, hz), game: g, yaw: atan2f(cosf(a), sinf(a)))
+                s.home = g.player.pos
+                SeaHunt.hunters.insert(s.id)
+                Corsairs.landed.insert(s.id)
+                if role == NavalPatrol.role { s.name = SeaHunt.cruiserName; for m in g.mobs.mobs where m.deck === s { Corsairs.dress(m) } }
+            }
+            g.player.yaw = .pi; g.player.pitch = -0.05
+            print("framesoak: \(SeaHunt.hunters.count) hunters out for him")
+        }
+        return sc
+    }
+
+    // Item 7, the worst case: the crawler parked by the citadel firing into it, two frigates shelling him, rain at night.
+    static func worstScene() -> Setup {
+        var sc = crawlerScene(parkedBy: true)
+        let prep = sc.prepare
+        sc.name = "worst"
+        sc.what = "item 7: the crawler firing into a citadel, two hostile frigates shelling him, rain at night"
+        sc.prepare = { g in
+            g.time = 0.75 * DAY_LENGTH
+            prep(g)
+            let w = g.world
+            let x = Int(floor(g.player.pos.x)), z = Int(floor(g.player.pos.z))
+            w.ships.spawnCapital("capfrigate", home: IVec3(x - 30, 0, z + 90), yaw: 0, region: nil, sync: true)
+            w.ships.spawnCapital("capfrigate", home: IVec3(x - 110, 0, z - 30), yaw: .pi / 2, region: nil, sync: true)
+            g.weather.raining = true; g.weather.rain = 1
+            g.survival = true; g.difficulty = 2
+            print("framesoak: \(w.ships.capitals.count) capitals about him")
+        }
+        let step = sc.step
+        sc.step = { g, f in
+            g.weather.raining = true; g.weather.rainTime = 600
+            g.survival = true; g.health = 20; g.alive = true
+            step(g, f)
+        }
+        return sc
+    }
+
+    static var more: [Setup] {
+        [biomeScene("desert", "walking through the middle of a desert", biome: "desert", fly: false),
+         biomeScene("snowstorm", "walking the snowy plains in a snow storm (item 14: the snow slowdown)", biome: "snowy_plains", fly: false, storm: true),
+         biomeScene("swamp", "walking through a swamp", biome: "swamp", fly: false),
+         biomeScene("peaks", "flying at the creative sprint over jagged peaks", biome: "jagged_peaks", fly: true),
+         biomeScene("ocean", "flying at the creative sprint over the deep ocean", biome: "deep_ocean", fly: true),
+         biomeScene("night", "walking a dark forest at midnight in a thunderstorm, the night's mobs about", biome: "dark_forest", fly: false, storm: true, night: true),
+         biomeScene("badlands", "walking through the badlands", biome: "badlands", fly: false),
+         biomeScene("cherry", "walking through a cherry grove", biome: "cherry_grove", fly: false),
+         townScene("village", "walking into a village, its people about", kind: "village"),
+         townScene("city", "walking into the capital city, its garrison about", kind: "capital_city"),
+         hollowScene(), frigateScene(),
+         trainScene(.cargo, name: "freight"), trainScene(.troop, name: "troops"),
+         seaHuntScene(), worstScene()]
+    }
+
+    static var scenes: [Setup] { ordinary + [crawlerScene(parkedBy: false), crawlerScene(parkedBy: true), navalScene(), trainScene(), hellScene(), battleScene()] + more }
 
     struct Slow { var cpu: Double; var tick: Double; var record: Double; var why: String }
 

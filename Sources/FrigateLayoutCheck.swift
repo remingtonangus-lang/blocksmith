@@ -130,6 +130,14 @@ enum FrigateLayoutCheck {
                     shown += 1
                 }
             }
+            // (bloom: the other capital hulls, how many loose pieces they hold, and the cost of joining them)
+            for (name, mk) in [("Stormwarden Frigate", { Capital.frigate() }), ("Ironback Crawler", { Capital.crawler() })] as [(String, () -> HullBuilder)] {
+                let h = mk()
+                let t1 = CFAbsoluteTimeGetCurrent()
+                let n = h.joinIslands()
+                print(String(format: "frigatelayout: the %@ (%dx%dx%d) has %d loose pieces' worth of joins (%.0f ms to find and join)", name, h.sx, h.sy, h.sz, n,
+                             (CFAbsoluteTimeGetCurrent() - t1) * 1000))
+            }
             var kinds: [String: Int] = [:]
             for z in 121...154 { for y in 0..<hb.sy { for x in -13...13 {
                 let k = Blocks.key(hb.get(x, y, z))

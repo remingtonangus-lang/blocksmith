@@ -124,6 +124,9 @@ enum EncounterCheck {
                 for s in ships.list where SeaHunt.isHunter(s) { ships.remove(s) }
                 SeaHunt.hunters = []
                 SeaHunt.atSea = SeaHunt.every
+                // (and not "ashore" from the raid at his home: its count, left over a minute, sent the sloop off at the
+                // first tick of the hunt, before a second at sea had reset it; at sea in play it reads 0)
+                SeaHunt.ashore = 0
                 g.seaHuntTick(0.05)
                 if let s = ships.list.first(where: { SeaHunt.isHunter($0) }), SeaHunt.cruiser(s) == cruiser { return s }
             }

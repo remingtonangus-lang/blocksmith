@@ -252,7 +252,9 @@ extension ShipManager {
                 if sh.kind == 3 && !reader.loaded(bx, bz) && p.y <= Float(world.gen.column(bx, bz).height) + 1 { hit = p; break }
                 if shipBlock(at: p, except: sh.owner) { hit = p; onHull = true; break }
                 if let g = game, sh.age > 0.25 {                   // (clear of the gun crew first)
-                    if let m = g.mobs.mobs.first(where: { $0.health > 0 && simd_length($0.pos + V3(0, $0.height * 0.5, 0) - p) < max(0.8, $0.halfW + 0.4) }) {
+                    // (P512: never the gun's own crew. A ship's shells fly through its own hull, and a hand at a gun station
+                    // inside it took the round from a gun firing across the deck: 4 of 4 dead in the station check.)
+                    if let m = g.mobs.mobs.first(where: { $0.health > 0 && $0.deck?.root.id != sh.owner && simd_length($0.pos + V3(0, $0.height * 0.5, 0) - p) < max(0.8, $0.halfW + 0.4) }) {
                         // P345: nobody survives a cannon round to the body (a deck gun or a vehicle still only takes the blast).
                         if !sh.gentle && !m.kind.shellProof {
                             if g.world.ships.pilot?.root.id == sh.owner { m.killedByPlayer = true; m.playerHurtAt = g.clock }
