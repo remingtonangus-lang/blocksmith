@@ -441,6 +441,7 @@ extension ShipManager {
             let lc = s.toLocal(c)
             defer { if s.kinematic && s.parent == nil { wheelBlast(s, lc, power: power) } }     // P511: big wheels wear (after the blast's own cells)
             let g = s.grid
+            let gxF = Float(g.sx), gyF = Float(g.sy), gzF = Float(g.sz)
             var destroyed = Set<IVec3>()
             var shaken: [IVec3: Float] = [:]                // cells that stopped a ray: share of their cost it carried
             for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
@@ -449,6 +450,16 @@ extension ShipManager {
                 var intensity = power * (0.7 + Rand.float(in: 0..<0.6))
                 var p = lc
                 while intensity > 0 {
+                    // (Nov 4, the worst-case soak's profile: most steps of a blast beside a hull are in the open round
+                    // its grid, each with three floors and a lookup; outside the grid is air, and a ray outside it on a
+                    // side it's moving away from never comes back)
+                    if p.x < 0 || p.y < 0 || p.z < 0 || p.x >= gxF || p.y >= gyF || p.z >= gzF {
+                        if (p.x < 0 && d.x <= 0) || (p.x >= gxF && d.x >= 0) || (p.y < 0 && d.y <= 0) || (p.y >= gyF && d.y >= 0)
+                            || (p.z < 0 && d.z <= 0) || (p.z >= gzF && d.z >= 0) { break }
+                        p += d * 0.3
+                        intensity -= 0.225
+                        continue
+                    }
                     let cell = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
                     let b = g.get(cell.x, cell.y, cell.z)
                     if b != AIR {

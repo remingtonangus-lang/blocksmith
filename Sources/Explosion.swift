@@ -98,6 +98,19 @@ enum Explosion {
         Explosion.lap("ships")
         var destroyed = Set<IVec3>()
         var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried
+        // (Nov 4, the worst-case soak's profile: the rays' block reads were a third of a blast, each one looking its
+        // chunk up in the world's table; nearly every step is in the chunk the last one read. As World.block.)
+        var rayKey = (Int.min, Int.min), rayChunk: Chunk? = nil
+        @inline(__always) func rayBlock(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+            if w.frame != nil { return w.block(x, y, z) }
+            if y < 0 { return BEDROCK }
+            if y >= CH { return AIR }
+            let kx = x >> 4, kz = z >> 4
+            if kx != rayKey.0 || kz != rayKey.1 { rayKey = (kx, kz); rayChunk = w.chunkAt(x, z) }
+            guard let c = rayChunk else { return AIR }
+            if c.hollow { return y <= Int(c.height[(x & 15) + (z & 15) * CS]) ? STONE : AIR }
+            return c.blocks[Chunk.index(x & 15, y, z & 15)]
+        }
         // (The rays only find blocks to break or chip: a blast that breaks none skips them, 17 ms at power 8.)
         if breakBlocks { for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
             if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
@@ -108,7 +121,7 @@ enum Explosion {
             var p = c
             while intensity > 0 {
                 let b = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
-                let id = w.block(b.x, b.y, b.z)
+                let id = rayBlock(b.x, b.y, b.z)
                 if id != AIR {
                     let fluid = Blocks.isLiquid(id)
                     let r0 = Blocks.resistance[Int(id)]
