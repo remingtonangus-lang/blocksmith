@@ -76,7 +76,10 @@ extension Game {
         for k in 0..<12 {
             let a = a0 + Float(k) * .pi / 6
             let x = Int(floor(p.x + cosf(a) * 150)), z = Int(floor(p.z + sinf(a) * 150))
-            guard world.isLoaded(x, z), let y = Submarine.surface(world, x, z) else { continue }
+            // (open water all round where it comes in: a sloop made against a reef or a shore lost its gun and lay there)
+            guard world.isLoaded(x, z), let y = Submarine.surface(world, x, z),
+                  [(14, 0), (-14, 0), (0, 14), (0, -14)].allSatisfy({ world.isLoaded(x + $0.0, z + $0.1) && Submarine.surface(world, x + $0.0, z + $0.1) != nil })
+            else { continue }
             let yaw = atan2f(cosf(a), sinf(a))                       // bow (-Z) toward him
             let s = ships.spawnVessel(cruiser ? NavalPatrol.role : "sloop", home: IVec3(x, y + 1, z), game: self, yaw: yaw)
             s.home = p

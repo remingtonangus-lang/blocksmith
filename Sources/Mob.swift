@@ -278,6 +278,7 @@ final class Mob {
     // (SoldierRig.build: the drawn rig kept a frame or two past 14 blocks; written only by the mob pass)
     var rigDrawn: SoldierRigOut?
     var rigDrawnLod = 0, rigDrawnAt = 0
+    var muzzleDrawn = V3(0, 0, 0), muzzleDrawnAt = Int.min / 2     // (SoldierRig.muzzleWorld: the drawn rig's muzzle, by tick)
     lazy var vary: MobVary = MobVary.roll(self)          // P55: this one's own speed, strength, toughness, aim
     static let hitFlashTime: Float = 0.14
     static weak var trace: Mob?     // harness: print this mob's physics steps
@@ -1340,7 +1341,12 @@ final class Mob {
         let before = pos
         var hit: (x: Bool, y: Bool, z: Bool)
         var deckBumped = false
-        if let s = deck {
+        if deck != nil && VehicleGunners.atStation(self) {
+            // P512: in a gun station's chair it stays put (the chair's own box lifted it onto the seat back each tick).
+            pressedPlayer = false
+            _ = VehicleGunners.place(self)
+            hit = (false, true, false)
+        } else if let s = deck {
             // On a moving deck: walk and collide in the ship's own frame (its blocks are exact there; the
             // world-space boxes of a turned hull are only an approximation), with velocity relative to the deck.
             pressedPlayer = false

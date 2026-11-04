@@ -233,7 +233,7 @@ enum SoldierRig {
 
     // MARK: Build
 
-    static func build(_ m: Mob) -> SoldierRigOut {
+    static func build(_ m: Mob, clearance: Bool = true) -> SoldierRigOut {
         let r = rank(m)
         let b = m.soldierBrain
         let gi = max(0, min(CapitalArms.models.count - 1, b.gun))
@@ -248,14 +248,16 @@ enum SoldierRig {
             // each, half the mob pass): past 14 blocks the drawn rig is kept for a frame (lod 1) or two (lod 2), its
             // limbs moving at 36 or 24 Hz where it is a few pixels tall; it moves and turns with the body every frame.
             if drawing && lod >= 1, let kept = m.rigDrawn, m.rigDrawnLod == lod,
-               SoldierRig.clearFrame &- m.rigDrawnAt <= lod { lodKept += 1; return kept }
+               SoldierRig.clearFrame &- m.rigDrawnAt <= lod { lodKept += 1; m.muzzleDrawn = kept.muzzle; m.muzzleDrawnAt = muzzleTick; return kept }
             if drawing { lodBuilt[lod] += 1 }
         }
         var p = pose(m, b, rank: r, gm: gm, gi: gi)
         fit(&p, gm)
         let before = eye == nil ? clip(p, gm).depth : 0
-        clear(&p, gm, for: m, lod: lod)                 // P353: the weapon clear of the arms and body (RigClearance.swift)
-        fit(&p, gm)
+        if clearance {
+            clear(&p, gm, for: m, lod: lod)             // P353: the weapon clear of the arms and body (RigClearance.swift)
+            fit(&p, gm)
+        }
         let lv = Livery.of(m, rank: r, seed: seed(m))
         var out = SoldierRigOut()
         out.parts.reserveCapacity(lod == 0 ? 190 : (lod == 1 ? 90 : 34))
@@ -280,6 +282,7 @@ enum SoldierRig {
             }
             out.handR *= big; out.handL *= big; out.muzzle *= big; out.gripR *= big; out.foreL *= big; out.chestFront *= big
         }
+        if drawing { m.muzzleDrawn = out.muzzle; m.muzzleDrawnAt = muzzleTick }
         if drawing && lod >= 1 { m.rigDrawn = out; m.rigDrawnLod = lod; m.rigDrawnAt = SoldierRig.clearFrame }
         else if drawing { m.rigDrawn = nil }
         return out
@@ -1071,8 +1074,13 @@ enum SoldierRig {
     static func muzzleWorld(_ m: Mob) -> V3 {
         let id = ObjectIdentifier(m)
         let local: V3
-        if let k = muzzleKept[id], muzzleTick &- k.1 < muzzleFrames { local = k.0 } else {
-            local = build(m).muzzle
+        // Nov 4 (callgrind of the worst-case soak: muzzleWorld still 46% of the mob tick, 6.2 of 13.6 billion
+        // instructions, nine tenths of it clearing the gun of the arms): a soldier drawn in the last few ticks takes the
+        // drawn rig's muzzle (the mob pass builds that rig anyway); one not drawn (out of view, past the far detail) is
+        // built without the clearance, which moves the muzzle a centimetre or two.
+        if muzzleTick &- m.muzzleDrawnAt < muzzleFrames { local = m.muzzleDrawn }
+        else if let k = muzzleKept[id], muzzleTick &- k.1 < muzzleFrames { local = k.0 } else {
+            local = build(m, clearance: false).muzzle
             if muzzleKept.count > 600 { muzzleKept.removeAll(keepingCapacity: true) }
             muzzleKept[id] = (local, muzzleTick)
         }

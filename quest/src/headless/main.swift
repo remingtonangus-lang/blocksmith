@@ -2102,6 +2102,18 @@ if CommandLine.arguments.contains("--craterplace") {           // P507: blocks g
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--encounters") {            // P512: revenge raids, corsair sloops, the Corsair Cruiser
+    EncounterCheck.run({ World(seed: $0, device: device, save: nil, dim: .overworld) }, check)
+    print(failures == 0 ? "encounters: all checks passed" : "encounters: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--gunstations") {           // P512: a station for every capital gun, crew at them
+    GunStationsCheck.run(game, check)
+    print(failures == 0 ? "gunstations: all checks passed" : "gunstations: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--proving") {               // P512: the Proving Grounds (vehicles, circuits, guns)
+    ProvingGroundsCheck.run(game, check)
+    print(failures == 0 ? "proving: all checks passed" : "proving: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--builtgun") {              // P507: a gun he builds, worked from a computer
     BuiltGunCheck.run(game, check)
     print(failures == 0 ? "builtgun: all checks passed" : "builtgun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2211,6 +2223,10 @@ if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck
 if CommandLine.arguments.contains("--huntcrawler") {          // P460: the Reckoning's Capital band brings a crawler
     HuntCrawlerCheck.run(game, check)
     print(failures == 0 ? "huntcrawler: all checks passed" : "huntcrawler: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--huntwarship") {         // Nov 4: the Reckoning's Stormwarden band brings a warship that comes
+    HuntWarshipCheck.run(game, check)
+    print(failures == 0 ? "huntwarship: all checks passed" : "huntwarship: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --crewfight: P471, a frigate's crew with him on its deck (Sources/CrewFightCheck.swift).
 if CommandLine.arguments.contains("--crewfight") {
@@ -3092,6 +3108,34 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             (game.player.pos, game.player.flying, game.time) = saved
             _ = world.loadSync(center: game.player.pos, radius: 6)
         }
+        // --proving-shots DIR (P512): the Proving Grounds built far off, seen from the start, the range and the field.
+        if let dir = arg("--proving-shots") {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            let saved = (game.player.pos, game.player.flying, game.time)
+            let o = IVec3(Int(spawn.x) + 3000, ProvingGrounds.deckY, Int(spawn.z) + 3000)
+            let b = ProvingGrounds.plan(o)
+            // (no game ticks after: the harness world has no save, and a tick's streaming would drop the far chunks'
+            // edits with them; in play the world's save keeps them)
+            game.player.pos = ProvingGrounds.start(o)
+            while !b.done { b.run(game, budget: 1) }
+            game.player.flying = true
+            game.time = 0.27 * DAY_LENGTH
+            let s0 = ProvingGrounds.start(o), f0 = o + ProvingGrounds.pad(0), boats = ProvingGrounds.park.rows[4]
+            let views: [(String, V3, Float, Float)] = [
+                ("proving_park", s0 + V3(0, 9, -2), .pi + 0.35, -0.45),
+                ("proving_range", s0 + V3(30, 6, 4), 0.15, -0.25),
+                ("proving_field", V3(Float(f0.x) - 10, Float(o.y) + 14, Float(f0.z) - 14), .pi + 0.6, -0.5),
+                ("proving_boats", V3(Float(o.x) + 20, Float(o.y) + 8, Float(o.z + boats.z) - 2), .pi + 0.4, -0.45),
+            ]
+            for (name, p, yaw, pitch) in views {
+                game.player.pos = p
+                _ = world.loadSync(center: p, radius: 5)
+                try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/\(name).png", yaw: yaw, pitch: pitch)
+                print("proving: \(dir)/\(name).png")
+            }
+            (game.player.pos, game.player.flying, game.time) = saved
+            _ = world.loadSync(center: game.player.pos, radius: 6)
+        }
         if let shots = arg("--mob-shots") { try MobPortraits.run(game: game, ctx: ctx, dir: shots, kinds: (arg("--mob-kinds") ?? "creeper").split(separator: ",").map(String.init)) }
         if CommandLine.arguments.contains("--sky-only") { print(failures == 0 ? "skytest: all checks passed" : "skytest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)
@@ -3196,7 +3240,10 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         // CPU share (4 ms of 13.9).
         // The budget: the fog cuts sections, terrain and units, and the mob pass stays inside a third of the frame's
         // shared vertex scratch (the rest: dropped items, particles, hands, HUD); past it the farthest units would drop.
-        let mobBytes = with.mobVerts * MemoryLayout<MobVert>.stride, mobBudget = SceneRenderer.scratchSize / 3
+        // (P512: since P385 the mob pass writes into a buffer of its own on a worker, WorldRenderer.mobBufBytes, not the
+        // frame's shared scratch; the budget is half of that buffer, the scratch's third only when the pass runs in place.)
+        let mobBytes = with.mobVerts * MemoryLayout<MobVert>.stride
+        let mobBudget = WorldRenderer.mobThread ? WorldRenderer.mobBufBytes / 2 : SceneRenderer.scratchSize / 3
         check(units >= 40 && with.sections < without.sections && with.mobsDrawn < without.mobsDrawn && mobBytes <= mobBudget,
               String(format: "ash vault draw: the biggest battle (%d units, render distance 10) with the fog budget: %d sections, %d quads, %d units in reach, %d mob vertices (%.1f of %.1f MB), record %.1f ms; without: %d sections, %d quads, %d units, %d vertices, %.1f ms",
                      units, with.sections, with.quads, with.mobsDrawn, with.mobVerts, Double(mobBytes) / 1048576, Double(mobBudget) / 1048576, with.recordMs,
@@ -3228,14 +3275,20 @@ func leaves(_ name: String, _ body: () -> Void) {
     // (P499: and at no helm and on no mount: a group that left him at a frigate's helm put every later aim and chase
     // view check in the helm's hands.)
     let pilot0 = game.world.ships.pilot, riding0 = game.riding, vrAim0 = game.vrAim
+    // (Nov 4: and with the factions' standing as it was: the friendly-fire squads of the Meridian never fought once a
+    // group before them had left him the Meridian's ally.)
+    let rep0 = FactionRep.encode(), repMap0 = FactionRep.rep, hunters0 = FactionRep.nextHunters
     // Put it all back after the check, so one group's leftover fails that group, not every group after it.
     defer {
         game.player.flying = fly; game.world.ships.encounters = enc; game.survival = surv; game.player.pos = pos; game.player.vel = .zero; game.menu = menu0
         game.world.ships.pilot = pilot0; game.riding = riding0; game.vrAim = vrAim0
+        FactionRep.rep = repMap0; FactionRep.nextHunters = hunters0
     }
     body()
     let moved = simd_length(game.player.pos - pos)
     let helm = game.world.ships.pilot === pilot0 && game.riding === riding0
+    let rep = FactionRep.encode()
+    if rep != rep0 { print("\(name): left the factions' standing at \(rep) (was \(rep0)); put back") }
     check(game.player.flying == fly && game.world.ships.encounters == enc && game.survival == surv && moved < 1 && (game.menu == nil) == menu && helm,
           "\(name): leaves the player and world as it found them (flying \(game.player.flying)/\(fly), encounters \(game.world.ships.encounters)/\(enc), survival \(game.survival)/\(surv), moved \(String(format: "%.1f", moved)), menu \(game.menu == nil ? "none" : "open"), helm \(game.world.ships.pilot?.root.name ?? "none")/\(pilot0?.root.name ?? "none"), riding \(game.riding?.kind.key ?? "none")/\(riding0?.kind.key ?? "none"))")
 }

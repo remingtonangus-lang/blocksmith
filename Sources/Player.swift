@@ -158,6 +158,12 @@ final class Player {
             else { probe.x = mid; probe.z += d.y > 0 ? ahead : -ahead; there.x = mid }
             // Room in the opening ahead, and nothing in the way of the slide itself.
             guard !collides(at: probe, w), !collides(at: there, w) else { continue }
+            // And an opening: its frame on both sides (Nov 4, the ridecheck board scene: brushing a gun station's chair on
+            // the crawler's command deck, open floor on its far side, slid the bot 7 b/s off its line toward the cell
+            // beside the chair as if the chair were a door's jamb; any chair, table or post did the same to him).
+            var left = probe, right = probe
+            if alongX { left.z = mid - 1; right.z = mid + 1 } else { left.x = mid - 1; right.x = mid + 1 }
+            guard collides(at: left, w) && collides(at: right, w) else { continue }
             if best == nil || abs(mid - perp) < abs(best! - perp) { best = mid }
         }
         guard let mid = best else { return }
@@ -499,7 +505,11 @@ final class Player {
         w.bodiesSolid = !flying                // P306: step onto the bodies lying about, not through them
         w.mobsSolid = true                     // P311 (a): and never walk through a living mob
         w.foliageSoft = !flying                // P417 (a): through leaves and limbs, not trunks
-        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish)
+        // (Nov 4, the ridecheck board scene: climbing a ladder whose top is flush with the deck, pressed against the rungs'
+        // backing, the body rose past the top and fell back a few hundredths short, over and over, for three minutes: in
+        // the air off the ladder there's no time to build up speed onto the deck. Climbing, it steps up as on the ground:
+        // at the top it steps onto the deck; lower down the rungs above stop the step.)
+        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish || (climbing && vel.y > 0))
         w.bodiesSolid = false
         w.mobsSolid = false
         w.foliageSoft = false

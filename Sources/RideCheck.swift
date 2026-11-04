@@ -274,7 +274,24 @@ enum RideCheck {
                 if let pr = prevRV, !jumpy {
                     let j = simd_length(V2(rv.x - pr.x, rv.z - pr.z))
                     maxRelJump = max(maxRelJump, j)
-                    if j > spikeLimit { spikes += 1; if firstSpike.isEmpty { firstSpike = where_ + String(format: " (%.1f b/s in a tick)", j) } }
+                    if j > spikeLimit {
+                        spikes += 1
+                        if firstSpike.isEmpty {
+                            // (what's round him in the hull: the blocks a step or a chair could have shoved him off)
+                            var near: [String] = []
+                            let c = IVec3(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
+                            for dy in -1...1 { for dz in -1...1 { for dx in -1...1 {
+                                let b = s.grid.get(c.x + dx, c.y + dy, c.z + dz)
+                                if b != AIR && !Blocks.key(b).hasPrefix("warship_panel") { near.append("\(dx),\(dy),\(dz) \(Blocks.key(b))") }
+                            } } }
+                            // (Nov 4: and the body's own velocity in the deck's frame after its move, against the move its
+                            // position made: a collision stops the velocity with the body; an unstick moves only the body.)
+                            let pv = s.dirToLocal(p.vel - s.velocity(at: p.pos))
+                            firstSpike = where_ + String(format: " (%.1f b/s in a tick, vel %.2f,%.2f,%.2f, was %.2f,%.2f; body's own vel %.2f,%.2f,%.2f, ground %@, from %.3f,%.3f,%.3f)",
+                                                          j, rv.x, rv.y, rv.z, pr.x, pr.z, pv.x, pv.y, pv.z, p.onGround ? "yes" : "no", pl.x, pl.y, pl.z)
+                                + "; near: " + near.prefix(10).joined(separator: "; ")
+                        }
+                    }
                 }
                 if flatDeck && p.onGround && prevGround && !jumpy {
                     maxBounce = max(maxBounce, abs(rv.y))

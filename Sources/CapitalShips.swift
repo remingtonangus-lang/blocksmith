@@ -245,6 +245,69 @@ final class HullBuilder {
         guard gx >= 0 && gx < sx && y >= 0 && y < sy && z >= 0 && z < sz else { return AIR }
         return blocks[gx + z * sx + y * sx * sz]
     }
+    // Pieces of the hull that touch the rest only along edges or corners (a skin stepping two blocks a cell): each gets one
+    // block of its own kind in an open cell beside it that meets the main hull face to face (stairs count as one flight,
+    // as FrigateLayoutCheck counts them). Returns the blocks added.
+    static var keepIslands = false                  // (FrigateLayoutCheck: a hull as built, to list what floats)
+    @discardableResult
+    func joinIslands() -> Int {
+        if HullBuilder.keepIslands { return 0 }
+        let n = sx * sy * sz
+        guard let start = blocks.firstIndex(where: { $0 != AIR }) else { return 0 }
+        var main = [Bool](repeating: false, count: n)
+        let faces: [(Int, Int, Int)] = [(0, 0, 1), (0, 0, -1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)]
+        func idx(_ x: Int, _ y: Int, _ z: Int) -> Int? {
+            guard x >= 0 && x < sx && y >= 0 && y < sy && z >= 0 && z < sz else { return nil }
+            return x + z * sx + y * sx * sz
+        }
+        func flood(_ from: Int) {
+            var stack = [from]
+            main[from] = true
+            while let i = stack.popLast() {
+                let x = i % sx, z = (i / sx) % sz, y = i / (sx * sz)
+                for (dx, dy, dz) in faces { if let j = idx(x + dx, y + dy, z + dz), !main[j], blocks[j] != AIR { main[j] = true; stack.append(j) } }
+                if Blocks.shape[Int(blocks[i])] == "stairs" {
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { for dy in [1, -1] {
+                        if let j = idx(x + dx, y + dy, z + dz), !main[j], Blocks.shape[Int(blocks[j])] == "stairs" { main[j] = true; stack.append(j) }
+                    } }
+                }
+            }
+        }
+        // (the largest piece is the hull)
+        var seen = [Bool](repeating: false, count: n)
+        var best = start, bestSize = 0
+        for i in 0..<n where blocks[i] != AIR && !seen[i] {
+            var stack = [i], size = 0
+            seen[i] = true
+            while let k = stack.popLast() {
+                size += 1
+                let x = k % sx, z = (k / sx) % sz, y = k / (sx * sz)
+                for (dx, dy, dz) in faces { if let j = idx(x + dx, y + dy, z + dz), !seen[j], blocks[j] != AIR { seen[j] = true; stack.append(j) } }
+            }
+            if size > bestSize { bestSize = size; best = i }
+        }
+        flood(best)
+        var added = 0
+        for _ in 0..<4 {
+            var changed = false
+            for i in 0..<n where blocks[i] != AIR && !main[i] {
+                let x = i % sx, z = (i / sx) % sz, y = i / (sx * sz)
+                for (dx, dy, dz) in faces {
+                    guard let j = idx(x + dx, y + dy, z + dz), blocks[j] == AIR else { continue }
+                    let jx = x + dx, jy = y + dy, jz = z + dz
+                    let meets = faces.contains { f in idx(jx + f.0, jy + f.1, jz + f.2).map { main[$0] } ?? false }
+                    guard meets else { continue }
+                    blocks[j] = Blocks.shape[Int(blocks[i])] == "stairs" ? (Blocks.has("frigate_hull") ? Blocks.id("frigate_hull") : STONE) : blocks[i]
+                    added += 1
+                    flood(j)
+                    changed = true
+                    break
+                }
+            }
+            if !changed { break }
+        }
+        return added
+    }
     func fill(_ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int, _ z0: Int, _ z1: Int, _ b: BlockID) {
         for y in min(y0, y1)...max(y0, y1) { for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) { set(x, y, z, b) } } }
     }
@@ -517,6 +580,7 @@ enum Capital {
             hb.fill(x, x, 62, 64, z - 1, z + 1, iron)
             hb.pods.append((V3(Float(x + W) + 0.5 + Float(sx) * 1.5, 63.5, Float(z) + 0.5), simd_normalize(V3(Float(sx), 1.2, 0))))
         } }
+        hb.joinIslands()                         // (P512: no piece of the hull hangs on nothing: FrigateLayoutCheck)
         return hb
     }
 
@@ -640,6 +704,7 @@ enum Capital {
             hb.fill(sx * 8, sx * 8, 25, 26, z, z + 1, iron)
             hb.pods.append((V3(Float(sx * 9 + W) + 0.5, 26.5, Float(z) + 1), simd_normalize(V3(Float(sx) * 0.5, 1.5, -0.3))))
         } }
+        hb.joinIslands()                         // (P512: no piece of the hull hangs on nothing: FrigateLayoutCheck)
         return hb
     }
 
@@ -898,7 +963,9 @@ enum Capital {
     }
 
     static func makeShips(_ hb: HullBuilder, ids: [Int], name: String, role: String, faction: Faction) -> [Ship] {
-        let s = Ship(id: ids[0], grid: ShipGrid(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks))
+        let hull = ShipGrid(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks)
+        if role != "dropship" { Capital.addGunStations(hull, rings: hb.turrets.map { $0.ring }) }     // P512 (GunStations.swift)
+        let s = Ship(id: ids[0], grid: hull)
         s.name = name
         s.role = role
         s.kinematic = true

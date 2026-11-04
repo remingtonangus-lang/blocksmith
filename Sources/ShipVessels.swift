@@ -241,7 +241,7 @@ extension ShipManager {
     func encounterTick(_ dt: Float, game g: Game) {
         guard world.dim == .overworld else { return }
         encounterTimer -= dt
-        if encounterTimer <= 0 {
+        if encounterTimer <= 0 && spawnEncounters {
             encounterTimer = 5
             // Round every player (split screen: vessels and frigates appeared only where player 1 went).
             for seat in 0..<max(1, g.coop.seatCount) {
@@ -273,7 +273,9 @@ extension ShipManager {
                     }
                     continue
                 }
-                if simd_length(d) > 150 || !world.isLoaded(home.x, home.z) { continue }
+                // (Week item 71, no pop-in: past the fog's end at his view, as trains are; at 150 a carriage or sloop came into
+                // being in plain sight at any view past 9. Its home must be loaded, which his view's ground is.)
+                if simd_length(d) > max(150, Float(world.renderDistance * CS) - 4) || !world.isLoaded(home.x, home.z) { continue }
                 spawnedRegions.insert(key)
                 spawnVessel(kind, home: home, game: g)
             } }

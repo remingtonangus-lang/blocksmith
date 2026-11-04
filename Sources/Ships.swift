@@ -773,6 +773,7 @@ final class ShipManager {
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
     var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
     var encounters = true            // rare vessels spawn near their home regions (off in harness scenes)
+    var spawnEncounters = true       // P512: ... and spawn (off: the crews still sail and fire; the Proving Grounds, checks)
     var encounterTimer: Float = 0
     var spawnedRegions = Set<String>()   // regions whose vessel has already appeared
     let meshQueue = DispatchQueue(label: "blocksmith.shipmesh", qos: .userInitiated)
@@ -804,7 +805,9 @@ final class ShipManager {
     // Removes a ship with its turrets, or (turrets: false, a hull destroyed under them) sets the turrets loose as
     // ships of their own.
     static var probeId = -1, probeContacts: [String] = [], probeWheels: [String] = []      // (harness: one ship's contacts and wheels)
+    static var onRemove: ((Ship) -> Void)?                  // (host checks: who takes a ship away)
     func remove(_ s: Ship, turrets: Bool = true) {
+        ShipManager.onRemove?(s)
         for t in list where t !== s && t.root === s {
             if turrets { remove(t) } else if t.parent === s { t.parent = nil; t.parentId = nil }
         }

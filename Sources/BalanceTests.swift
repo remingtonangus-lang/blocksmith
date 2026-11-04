@@ -169,8 +169,10 @@ enum BalanceTests {
                 // to 9.8 s on one binary from run to run, the world's worker threads changing what each tick draws:
                 // eleven seeds, the middle one.)
                 let guardedKind = k.spec.name.hasPrefix("Gravesworn")
+                // (P512: a Capital Trooper's vest takes a blow by where it lands, so one duel's kill time was the luck of
+                // the draw too: early 4.6 s, iron 5.3 s on one run, iron 3.3 s on the next; seven seeds, the middle one.)
                 var kr: [Float?] = []
-                for n in 0..<(guardedKind ? 11 : 1) {
+                for n in 0..<(guardedKind ? 11 : (k.steelhold ? 7 : 1)) {
                     Rand.seed(0xBA1A_6000 + UInt64(k.rawValue) * 16 + UInt64(t) + UInt64(n) * 0x1000)
                     kr.append(kills(k, t))
                 }

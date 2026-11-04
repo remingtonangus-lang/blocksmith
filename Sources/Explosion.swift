@@ -59,6 +59,7 @@ enum Explosion {
     // P471: the blast is a heavy naval shell's (Armory.detonate): Game.hurtPlayer lets it hit harder than the level's
     // cap on one blow.
     static var heavyShell = false
+    static var onExplode: ((V3, Float) -> Void)?             // (host checks: where blasts go off)
     static let heavyPlayerReach: Float = 14         // P501: how far a heavy shell's burst reaches him (Explosion.explode)
     // P472: a crash's own blasts spare whoever rides the crashing ship (CapitalShips.hullContact, VehicleDamage).
     static var sparePlayer = false
@@ -80,6 +81,7 @@ enum Explosion {
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world
+        Explosion.onExplode?(c, power)
         Explosion.lapStart()
         defer { Explosion.lapEnd("entities") }
         // P357 (e) (Oct 16 20:14: "a shell crater follows the angle of the shot"): a shell's blast carries on the way it
@@ -230,23 +232,36 @@ enum Explosion {
             // P508 (questcheck craterplace: 3 to 6 a crater, as the rays fell): round the bowls' edge the field drew some
             // ground cells as a dot of rock (their middle barely inside it), each a block the eye sees past and a click
             // refuses; they open as the bowl did.
-            var dots: [IVec3] = []
-            for (at, rr) in balls {
-                let R = Int(ceil(rr + 1.5)), ax = Int(floor(at.x)), ay = Int(floor(at.y)), az = Int(floor(at.z))
-                for y in (ay - R)...(ay + R) { for z in (az - R)...(az + R) { for x in (ax - R)...(ax + R) {
-                    let q = IVec3(x, y, z), mid = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
-                    guard !carved.contains(q), simd_length(mid - at) < rr + 1.5, w.groundAt(x, y, z),
-                          Blocks.hardness[Int(w.block(x, y, z))] >= 0, w.fieldDensity(at: mid) < 0.12 else { continue }
-                    carved.insert(q); dots.append(q)
-                } } }
-            }
-            Explosion.lap("rim scan")
-            for q in dots { w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true) }
-            // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
-            // surface in to a block and a half past its radius)
-            for b in opened {
-                let q = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
-                if !balls.contains(where: { simd_length(q - $0.0) < $0.1 + 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true) }
+            // Nov 4 (bug hunt, the render suite's craterplace: 5 left where qc120 left 2): one scan missed the dots the
+            // shaping made after it (each opened dot's and blasted cell's own hollow thins the field round it), so the
+            // scan runs again over what the last pass shaped, a block wider each time, until none is left (three passes
+            // at most). A dot drops what it holds, as the bowl's cells do.
+            for pass in 0..<3 {
+                var dots: [IVec3] = []
+                let reach = 1.5 + Float(pass)
+                for (at, rr) in balls {
+                    let R = Int(ceil(rr + reach)), ax = Int(floor(at.x)), ay = Int(floor(at.y)), az = Int(floor(at.z))
+                    for y in (ay - R)...(ay + R) { for z in (az - R)...(az + R) { for x in (ax - R)...(ax + R) {
+                        let q = IVec3(x, y, z), mid = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                        guard !carved.contains(q), simd_length(mid - at) < rr + reach, w.groundAt(x, y, z),
+                              Blocks.hardness[Int(w.block(x, y, z))] >= 0, w.fieldDensity(at: mid) < 0.12 else { continue }
+                        carved.insert(q); dots.append(q)
+                    } } }
+                }
+                Explosion.lap("rim scan")
+                if pass > 0 && dots.isEmpty { break }
+                for q in dots {
+                    for s in Explosion.blastDrops(w.block(q.x, q.y, q.z)) { g.drops.spawn(s, at: V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)) }
+                    w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true)
+                }
+                // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
+                // surface in to a block and a half past its radius)
+                if pass == 0 {
+                    for b in opened {
+                        let q = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
+                        if !balls.contains(where: { simd_length(q - $0.0) < $0.1 + 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true) }
+                    }
+                }
             }
         } else {
             for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
