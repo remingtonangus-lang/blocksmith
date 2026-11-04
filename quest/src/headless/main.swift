@@ -3363,7 +3363,14 @@ var tickAllocs: [Int] = []
 var slow: [(Double, Double, Int, Int, Int)] = []
 let frames = 72 * 20
 let p0 = game.player.pos
+// (Nov 4, build 134: he died in this walk once, the death menu still up at its end: what hurt him, and when)
+var walkHurt: [String] = []
+let walkHealth0 = game.health
+let onDamageWalk0 = Game.onDamage
+var walkFrame = 0
+Game.onDamage = { amt, cause in if walkHurt.count < 12 { walkHurt.append("frame \(walkFrame): \(amt) by \(cause)") } }
 for i in 0..<frames {
+    walkFrame = i
     var p = PadSnapshot()
     p.ly = 1
     p.rx = 0.2
@@ -3383,6 +3390,7 @@ for i in 0..<frames {
     slow.append((ms, (b - a) * 1000, i, world.chunks.count, game.mobs.mobs.count))
 }
 pm.touch = nil
+Game.onDamage = onDamageWalk0
 // The slowest frames, split into world streaming (results applied, scheduling) and the rest of the game tick.
 slow.sort { $0.0 > $1.0 }
 for (ms, upd, i, ch, mobs) in slow.prefix(6) {
@@ -3398,7 +3406,9 @@ print(String(format: "ticks: median %.2f ms, p99 %.2f ms, worst %.2f ms", tickMs
 let moved = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
 check(game.player.pos.x.isFinite && game.player.pos.y.isFinite, "player position finite")
 check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved))
-check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))")
+check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))"
+      + (game.menu == nil ? "" : "; health at the start \(walkHealth0), survival \(game.survival), difficulty \(game.difficulty), hurt: " + (walkHurt.isEmpty ? "nothing" : walkHurt.joined(separator: "; ")))
+      + "; mobs within 24: " + game.mobs.mobs.filter { simd_length($0.pos - game.player.pos) < 24 }.map { "\($0.kind)" }.joined(separator: ", "))
 
 // The Meridian frigate's Tidebreaker (Sources/MainGunTests.swift): barrel, shockwave, a shot through Game.tick with the
 // frame time after the impact; with --render, stereo frames of the barrel, the charge, the blast and the crater
