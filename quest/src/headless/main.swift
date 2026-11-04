@@ -2603,6 +2603,12 @@ if CommandLine.arguments.contains("--military-only") {
     print(MobTests.failures.isEmpty ? "military: all checks passed" : "military: \(MobTests.failures.count) FAILED: \(MobTests.failures.joined(separator: ", "))")
     exit(MobTests.failures.isEmpty ? 0 : 1)
 }
+// --mobtests: the whole Mac --mobtests suite (Sources/MobTests.swift: paths, ladders, doors, spawning, villagers,
+// conversions, raids, soldiers...), never run on this build before Nov 4 (bug hunt).
+if CommandLine.arguments.contains("--mobtests") {
+    let ok = MobTests.run(game: game, world: game.world, pos: game.player.pos, rd: 8)
+    exit(ok ? 0 : 1)
+}
 // --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
 if CommandLine.arguments.contains("--latency-only") {
     InputLatencyTests.run(game: game, check: check)
