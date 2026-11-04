@@ -114,7 +114,9 @@ enum PlaytestV78Tests {
             for _ in 0..<(60 * 4) { game.mobs.hostileAttempts(game) }
             let ms = game.mobs.mobs.filter { $0.kind.category == .monster }
             let under = ms.filter { Int(floor($0.pos.y)) < w.topY(Int(floor($0.pos.x)), Int(floor($0.pos.z))) - 8 }.count
-            let near = ms.filter { simd_length($0.pos - at) < 48 }.count
+            // (H1, Remington: cave monsters spawn about 10 blocks farther off, the nearest 34: "near" is within 64, the
+            // 48 this asked before H1 left only a 34-48 ring and failed one run in two on the headset build, Nov 4)
+            let near = ms.filter { simd_length($0.pos - at) < 64 }.count
             let close = ms.filter { simd_length($0.pos - at) < 32 }.count
             return (ms.count, near, close, under)
         }
@@ -132,7 +134,7 @@ enum PlaytestV78Tests {
         } } }
         if let c = cave {
             let r = run(c)
-            check(r.under >= 3 && r.near >= 2, String(format: "spawning: in a cave at y %d, 60 s: %d underground, %d within 48 blocks (want >= 3 and >= 2)", Int(c.y) - 64, r.under, r.near))
+            check(r.under >= 3 && r.near >= 2, String(format: "spawning: in a cave at y %d, 60 s: %d underground, %d within 64 blocks (want >= 3 and >= 2)", Int(c.y) - 64, r.under, r.near))
             check(r.close <= 8, "spawning: in a cave, no swarm: \(r.close) monsters within 32 blocks (want <= 8)")
         } else { check(false, "spawning: no cave found near the spawn to test") }
     }
