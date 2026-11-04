@@ -242,6 +242,16 @@ extension ShipManager {
             var hit: V3?
             var onHull = false
             var before = start
+            // (Nov 4, callgrind of the worst-case soak: every 0.4-block step of every shell looked through every mob,
+            // 157 of them; the mobs that can be within reach of this frame's flight are picked out once.)
+            shellNear.removeAll(keepingCapacity: true)
+            if let g = game, sh.age > 0.25 {
+                let mid = (start + end) * 0.5
+                for m in g.mobs.mobs where m.health > 0 {
+                    let reach = len * 0.5 + max(0.8, m.halfW + 0.4) + m.height * 0.5 + 0.1
+                    if simd_length_squared(m.pos - mid) < reach * reach { shellNear.append(m) }
+                }
+            }
             for i in 1...n {
                 if i > 1 { before = start + (end - start) * (Float(i - 1) / Float(n)) }
                 let p = start + (end - start) * (Float(i) / Float(n))
@@ -254,7 +264,7 @@ extension ShipManager {
                 if let g = game, sh.age > 0.25 {                   // (clear of the gun crew first)
                     // (P512: never the gun's own crew. A ship's shells fly through its own hull, and a hand at a gun station
                     // inside it took the round from a gun firing across the deck: 4 of 4 dead in the station check.)
-                    if let m = g.mobs.mobs.first(where: { $0.health > 0 && $0.deck?.root.id != sh.owner && simd_length($0.pos + V3(0, $0.height * 0.5, 0) - p) < max(0.8, $0.halfW + 0.4) }) {
+                    if let m = shellNear.first(where: { $0.health > 0 && $0.deck?.root.id != sh.owner && simd_length($0.pos + V3(0, $0.height * 0.5, 0) - p) < max(0.8, $0.halfW + 0.4) }) {
                         // P345: nobody survives a cannon round to the body (a deck gun or a vehicle still only takes the blast).
                         if !sh.gentle && !m.kind.shellProof {
                             if g.world.ships.pilot?.root.id == sh.owner { m.killedByPlayer = true; m.playerHurtAt = g.clock }

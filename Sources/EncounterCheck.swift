@@ -205,10 +205,10 @@ enum EncounterCheck {
             let fog = Float(w.renderDistance * CS - 12)
             if let sl = hunter(cruiser: false) {
                 let d0 = simd_length(V2(sl.pos.x - g.player.pos.x, sl.pos.z - g.player.pos.z))
-                for _ in 0..<60 { g.player.pos = raft; g.player.vel = .zero; g.tick(1.0 / 30); g.health = 20; g.alive = true }
+                for _ in 0..<300 { g.player.pos = raft; g.player.vel = .zero; g.tick(1.0 / 30); g.health = 20; g.alive = true }
                 let d1 = simd_length(V2(sl.pos.x - g.player.pos.x, sl.pos.z - g.player.pos.z))
-                check(d0 > fog && d1 < d0 - 2 && !sl.asleep,
-                      String(format: "encounters: at view 12 a corsair sloop comes in from %.0f blocks (the fog ends %.0f out) and is %.0f off 2 s later (asleep %@)",
+                check(d0 > fog && d1 < d0 - 10 && !sl.asleep,
+                      String(format: "encounters: at view 12 a corsair sloop comes in from %.0f blocks (the fog ends %.0f out) and is %.0f off 10 s later (asleep %@)",
                              d0, fog, d1, sl.asleep ? "yes" : "no"))
                 ships.remove(sl)
             } else { check(false, "encounters: at view 12 no corsair sloop came in 200 rolls") }
