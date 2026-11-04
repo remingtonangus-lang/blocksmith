@@ -98,7 +98,16 @@ Approved:
 86. Resubmission package: once frame rate is proven, a build ready to upload with the measured numbers.
 87. Pre-check every other Meta VRC requirement on each release candidate.
 88. Store pictures from the final build.
-89. Trailer final cuts: a 30-second and a 6 ... (the relay reached lane 2 cut off here; items 89-100 to be filled in from his list)
+89. Trailer final cuts: a 30-second and a 60-second cut from the final build.
+90. Store page text: rewrite the description to sell the mix without naming other games.
+91. Settings that all work: audio sliders, comfort and graphics presets, all tested.
+92. Subtitles for voiced lines.
+93. Crash reports: collect crash details from the headset with the player's consent.
+94. Read in-game bug reports: check the in-game report inbox and fix what comes in.
+95. Audio mix pass: gunfire, engines and music balanced so nothing drowns the rest.
+96. A bot plays every merge: a 30-minute scripted playthrough on each merge that flags crashes, stuck spots and void gaps.
+98. Quieter CI: fix or retire the failing Mac CI runs that keep emailing him. [Nov 4, lane 2: every failure in the last runs was the Mac heavy lane, which ran by itself every 5th push; it now runs only on [full] or a manual dispatch. main's own copy of mac.yml still schedules it nightly: that needs his say-so to change main.]
+100. Voice notes ready for Nov 11: pulling and reading his trip's notes in a single step.
 
 ## Open (in this order)
 

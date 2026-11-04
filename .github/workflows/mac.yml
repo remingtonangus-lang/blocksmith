@@ -4,8 +4,8 @@ name: mac
 # FAST lane, every push (target < 6 min): unoptimized parallel build, type-check times collected as WARNINGS into
 # typecheck.log (never a failure), one 16 px snapshot at render distance 4. Published to `ci-fast-<branch>`.
 #
-# HEAVY lane: every 5th run, any push whose head commit message contains [full], a manual dispatch (full: true) or the
-# nightly schedule (schedules fire only from the default branch's copy of this file). One release build shared as an
+# HEAVY lane: only when asked for: a push whose head commit message contains [full], or a manual dispatch (full: true).
+# (It ran every 5th push and nightly until Nov 4: week plan item 98.) One release build shared as an
 # artifact, then six parallel jobs: smoke test, benchmarks + profile, playthrough + terrain check, snap.sh "checks"
 # (audio, structure walker, gen check, behaviour sim, bots), snap.sh "tours", snap.sh "shots". Published to
 # `ci-snaps-<branch>` (runs of claude/eloquent-lovelace-bsc5v1 also update `ci-snaps`).
@@ -18,8 +18,6 @@ on:
         description: 'Run the heavy lane too'
         type: boolean
         default: true
-  schedule:
-    - cron: '41 6 * * *'          # nightly heavy lane (default branch only)
 
 permissions:
   contents: write
@@ -38,10 +36,11 @@ jobs:
           RUN: ${{ github.run_number }}
         run: |
           full=false
-          if [ "$EVENT" = schedule ]; then full=true; fi
+          # (Week plan item 98, Nov 3: "fix or retire the failing Mac CI runs that keep emailing you"; item 99, keeping the
+          # Mac flat-screen build alive, was denied. The heavy lane no longer runs by itself, every 5th push or nightly:
+          # only when asked for, by a manual dispatch or [full] in the head commit message.)
           if [ "$EVENT" = workflow_dispatch ] && [ "$DISPATCH_FULL" != false ]; then full=true; fi
           if printf '%s' "$MSG" | grep -qF '[full]'; then full=true; fi
-          if [ $((RUN % 5)) -eq 0 ]; then full=true; fi
           echo "run $RUN, event $EVENT: heavy lane $full"
           echo "full=$full" >> "$GITHUB_OUTPUT"
 
