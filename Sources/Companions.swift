@@ -193,6 +193,14 @@ extension Mob {
         let toP = g.player.eye - V3(0, 0.5, 0) - muzzle
         let along = simd_dot(toP, dir)
         if along > 0 && along < simd_length(t - muzzle) && simd_length(toP - dir * along) < 1.2 { return }
+        // Nor across another of his people (P512 bloom of the station hands killed by their own guns: a rider on his
+        // vehicle's deck fired past the others riding with them, and its rounds take the first body on the line).
+        let reach = simd_length(t - muzzle)
+        for m in g.mobs.mobs where m.hired && m !== self && m.health > 0 {
+            let to = m.pos + V3(0, m.height * 0.5, 0) - muzzle
+            let a = simd_dot(to, dir)
+            if a > 0 && a < reach && simd_length(to - dir * a) < 1 { return }
+        }
         let scale: Float = gs.pellets > 1 ? 0.6 : 1
         switch gs.shot {
         case .bullet:
