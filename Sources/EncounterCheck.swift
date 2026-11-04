@@ -137,7 +137,17 @@ enum EncounterCheck {
         func play(_ s: Ship, _ secs: Float, under: Bool = false) -> (Float, Int, Int) {
             var closest: Float = .infinity, hurt = 0
             var seen = Set<ObjectIdentifier>(), early = Set<ObjectIdentifier>()
+            var blasts = 0, frame = 0
+            Explosion.onExplode = { c, pw in
+                if blasts < 6 {
+                    print(String(format: "encounters: %@ frame %d: a power %.1f blast %.0f off the hull, %.0f off him (shells %d, crew %d)", s.name, frame, pw,
+                                 simd_length(c - s.pos), simd_length(c - g.player.pos), ships.shells.count, g.mobs.mobs.filter { $0.deck === s }.count))
+                }
+                blasts += 1
+            }
+            defer { Explosion.onExplode = nil; if blasts > 0 { print("encounters: \(s.name): \(blasts) blasts in all") } }
             for f in 0..<Int(secs * 30) {
+                frame = f
                 if f % 300 == 0 {
                     let ts = ships.turrets(of: s)
                     print(String(format: "encounters: %@ t %2d s: %.0f off, asleep %@, speed %.1f, autopilot %@, %d turrets (%d aimed), crew %d, engaged %@, timer %.1f",

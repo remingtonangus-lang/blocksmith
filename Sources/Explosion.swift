@@ -59,6 +59,7 @@ enum Explosion {
     // P471: the blast is a heavy naval shell's (Armory.detonate): Game.hurtPlayer lets it hit harder than the level's
     // cap on one blow.
     static var heavyShell = false
+    static var onExplode: ((V3, Float) -> Void)?             // (host checks: where blasts go off)
     static let heavyPlayerReach: Float = 14         // P501: how far a heavy shell's burst reaches him (Explosion.explode)
     // P472: a crash's own blasts spare whoever rides the crashing ship (CapitalShips.hullContact, VehicleDamage).
     static var sparePlayer = false
@@ -80,6 +81,7 @@ enum Explosion {
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world
+        Explosion.onExplode?(c, power)
         Explosion.lapStart()
         defer { Explosion.lapEnd("entities") }
         // P357 (e) (Oct 16 20:14: "a shell crater follows the angle of the shot"): a shell's blast carries on the way it

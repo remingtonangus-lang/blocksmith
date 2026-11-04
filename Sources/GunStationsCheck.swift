@@ -95,8 +95,22 @@ enum GunStationsCheck {
         let v0 = ShipManager.crewVolleys
         var drift: Float = 0
         var hp = seated.map { $0.health }, frame = 0
+        var last = seated.map { $0.pos }
+        let onHit0 = Mob.onHit
+        Mob.onHit = { m, src, dmg in
+            guard let i = seated.firstIndex(where: { $0 === m }), dmg > 30 else { return }
+            print(String(format: "gunstations: hand %d hit for %d from %.1f off it at frame %d", i, dmg, simd_length(src - m.pos), frame))
+            for l in Thread.callStackSymbols.prefix(10) { print("gunstations:    " + l) }
+        }
+        defer { Mob.onHit = onHit0 }
         run(360) {
             frame += 1
+            for (i, m) in seated.enumerated() where simd_length(m.pos - last[i]) > 4 {
+                print(String(format: "gunstations: hand %d jumped %.1f at frame %d (%.1f,%.1f,%.1f -> %.1f,%.1f,%.1f; seat %@, deck %@, health %d)", i,
+                             simd_length(m.pos - last[i]), frame, last[i].x, last[i].y, last[i].z, m.pos.x, m.pos.y, m.pos.z,
+                             VehicleGunners.seats.contains { $0.mob === m } ? "yes" : "no", m.deck === s ? "frigate" : (m.deck == nil ? "none" : "other"), m.health))
+            }
+            last = seated.map { $0.pos }
             for (i, m) in seated.enumerated() where m.health < hp[i] {
                 print(String(format: "gunstations: hand %d hurt %d at frame %d (%.1f off its chair; shells about %d; raider %.0f off)", i, hp[i] - m.health, frame,
                              VehicleGunners.seats.first(where: { $0.mob === m }).map { simd_length(s.toWorld($0.local) - m.pos) } ?? -1,
