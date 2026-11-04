@@ -2609,6 +2609,15 @@ if CommandLine.arguments.contains("--mobtests") {
     let ok = MobTests.run(game: game, world: game.world, pos: game.player.pos, rd: 8)
     exit(ok ? 0 : 1)
 }
+// Mac harness suites the questcheck never ran before Nov 4 (bug hunt): --swingtest (VR melee and the bow,
+// VRMeleeTests) and --v78 (the V78 playtest list, PlaytestV78Tests). (QuestBugTests, the PM9 lists, smooth ground, audio
+// and copper suites are Mac-only files, quest/mac-only.txt.)
+if CommandLine.arguments.contains("--swingtest") { let f = VRMeleeTests.run(game); print("swingtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
+if CommandLine.arguments.contains("--v78") {
+    var f = 0
+    PlaytestV78Tests.run(game) { ok, msg in print("v78: \(ok ? "ok  " : "FAIL") \(msg)"); if !ok { f += 1 } }
+    print("v78: \(f) failed"); exit(f == 0 ? 0 : 1)
+}
 // --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
 if CommandLine.arguments.contains("--latency-only") {
     InputLatencyTests.run(game: game, check: check)
