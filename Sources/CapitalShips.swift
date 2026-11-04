@@ -3492,6 +3492,24 @@ extension ShipManager {
 
 enum DetachLooseTiming {
     static let oldSearch = ProcessInfo.processInfo.environment["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
+    // detachLoose's cell table (the main thread's blasts only), grown to the largest hull blasted; `base` moves past
+    // each blast's searches, so the table is never cleared (but when it would run past the top).
+    private static var buf: UnsafeMutablePointer<UInt32>? = nil
+    private static var cap = 0
+    static var base: UInt32 = 1
+    static func table(_ n: Int) -> UnsafeMutablePointer<UInt32> {
+        if n > cap || buf == nil {
+            buf?.deallocate()
+            cap = max(n, 1 << 16)
+            buf = UnsafeMutablePointer<UInt32>.allocate(capacity: cap)
+            buf!.initialize(repeating: 0, count: cap)
+            base = 1
+        } else if base > UInt32.max - 1024 {
+            buf!.update(repeating: 0, count: cap)
+            base = 1
+        }
+        return buf!
+    }
 }
 
 extension ShipManager {
@@ -3539,15 +3557,20 @@ extension ShipManager {
                 if open && comp.count >= 1 { pieces.append(comp) }
             }
         } else {
-            // (one table of cell index -> the search that found it, in place of a set per search and their union)
-            var owner: [Int: Int32] = [:]
-            owner.reserveCapacity(min(limit * 6, 1 << 16))
-            var k: Int32 = 0
+            // (one table of cell index -> the search that found it, in place of a set per search and their union. Nov 4,
+            // the next profile: as a dictionary it was still 4.6 million instructions a blast on the crawler in game,
+            // the first search's 4,000 cells hashed six times each; now a flat buffer over the grid, reused from blast
+            // to blast: a cell holds base + its search, anything under base is unseen.)
+            let cells = g.sx * g.sy * g.sz
+            let owner = DetachLooseTiming.table(cells)
+            let base = DetachLooseTiming.base
+            var k: UInt32 = 0
+            defer { DetachLooseTiming.base = base + k + 1 }
             for st in starts {
                 let si = g.index(st.x, st.y, st.z)
-                if owner[si] != nil { continue }
+                if owner[si] >= base { continue }
                 k += 1
-                owner[si] = k
+                owner[si] = base + k
                 var comp: [IVec3] = [st]
                 var head = 0
                 var open = true
@@ -3557,12 +3580,13 @@ extension ShipManager {
                         let n = c + d
                         guard g.inside(n.x, n.y, n.z) else { continue }
                         let ni = g.index(n.x, n.y, n.z)
-                        if let o = owner[ni] {
-                            if o == k { continue }
+                        let o = owner[ni]
+                        if o >= base {
+                            if o == base + k { continue }
                             open = false; break search             // an earlier search's cell: joined to the hull
                         }
                         if g.get(n.x, n.y, n.z) == AIR { continue }
-                        owner[ni] = k
+                        owner[ni] = base + k
                         comp.append(n)
                     }
                     if comp.count > limit { open = false; break }
