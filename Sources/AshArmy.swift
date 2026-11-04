@@ -514,7 +514,9 @@ extension Game {
         while kinds.count < size { kinds.append((kinds.count % 2 == 0 ? .soldierTrooper : .soldierRecruit, 0)) }
         for (i, (k, role)) in kinds.enumerated() {
             let a = Float(i) * 2.1
-            let m = Mob(k, at: at + V3(cosf(a) * 1.6, 0, sinf(a) * 1.6))
+            // Round the spot on the ground there (at its height a ring 1.6 out stood in a slope's rock or over a drop: the
+            // trader llamas' bug, Nov 4), failing that on the spot itself.
+            let m = Mob(k, at: MobManager.groundSpot(world, near: at + V3(cosf(a) * 1.6, 0, sinf(a) * 1.6)) ?? at)
             m.ashSetup()
             if role != 0 { m.ashTakeRole(role) }
             m.persistent = true                     // kept by the war, not the spawner; far stragglers go in ashAlarmTick
