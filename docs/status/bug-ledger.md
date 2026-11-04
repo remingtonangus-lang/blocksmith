@@ -4,7 +4,7 @@ Each entry is a bug a player could hit. It was reproduced before the fix (a host
 fixed at its root. Item 5 (bloom) applies to every entry: after each fix, look for the same mistake elsewhere and log what turned
 up. Newest at the bottom.
 
-Count: 14
+Count: 15
 
 | # | Found | Bug | Root cause and fix | Proof | Bloom |
 |---|-------|-----|--------------------|-------|-------|
@@ -22,6 +22,7 @@ Count: 14
 | 12 | Nov 4 | Brushing a chair, table or post slid him sideways up to 7 b/s, as if it were a door's jamb | The doorway assist (P471/P501) took any blocked move with room ahead as a doorway and slid the body into line with the cell beside the obstacle. It now slides only into a real opening: the cells on both sides of it must be solid (Player.doorwayAssist). | --ridecheck board: a 7.1 b/s deck-relative spike by the command deck's chair on builds 123 and 124, 0 on build 128 (worst 3.8 b/s); --doorway: a lone chair walked into 0.38 off its middle, 0.00 aside | Doors, bulkhead doors and bare gaps still pull him in (--doorway) |
 | 13 | Nov 4 | Trains and small vessels appeared out of nothing inside his view at view 12 and above (week item 71, no pop-in) | Trains were made 128 blocks from him and arrivals put 170 up the line, and sea vessels spawned 150 off, all inside the fog at views past 8 (it ends 16 x view - 12 out). They are now made past the fog at his view (Trains.reach, TrainArrivals.alongFor, ShipVessels). | --rail-only: at view 16 a train is made 260 blocks off (the fog ends 244 out) and an arrival 284 up the line; the P508 arrival still comes in 4 after 20 s | Other things made near him at a fixed distance: to sweep |
 | 14 | Nov 4 | At the top of a ladder whose top is flush with the deck he could rise past it and fall back short, over and over (on a crawler leaning 7 degrees the bot did it for three minutes) | Pressed against the rungs' backing the body has no speed toward the deck, and off the ladder's top there is too little air time to build it up. Climbing upward, the move now steps up as on the ground: at the top it steps onto the deck; lower down the rungs above stop the step (Player.swift). | --ridecheck board on the leaning crawler: stuck at y 20.96 for 3 minutes on builds 124, 126 and 127 (run alone), on the roof in 9 s on build 128, all six legs passed | Mobs climb by their own path code (Mob.swift): to check |
+| 15 | Nov 4 | Pirate raid sloops and Corsair sea hunters appeared out of nothing inside his view at view 12 and above | The same as entry 13: raid sloops were made 90 blocks off and sea hunters 150 off, inside the fog past view 8; once made past the active distance a raid sloop also slept like entry 1. Both are now made past the fog at his view (Corsairs.comeIn), the open-water check looks inward and to each side of the spot, and a raiding sloop stays awake. | --encounters at view 12: a sloop made 188 off (the fog ends 180 out), awake, and 162 off 10 s later; every other encounter check still passes on build 134 | Entry 13's sweep: trains, arrivals, sea vessels, raid sloops and sea hunters now all come in past the fog |
 
 ## Check fixes (not counted: bugs in the host checks, not in the game)
 
