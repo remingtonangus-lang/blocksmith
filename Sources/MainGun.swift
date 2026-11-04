@@ -66,9 +66,11 @@ enum MainGun {
     static var warnings = 0                             // charges an AI frigate aimed at a player (MainGunTests)
 
     // Controller rumble (Touch controllers on the Quest, the pad on the Mac).
+    static var feelLog: [Float] = []                    // (MainGunTests: the gun's own rumbles, apart from anything else's)
     static func feel(_ strength: Float, _ seconds: Float, sharpness: Float) {
         let pm = PadManager.shared
         guard strength > 0.02, pm.connected, Settings.shared.rumble > 0 else { return }
+        if pm.simulated != nil { feelLog.append(min(1, strength)); if feelLog.count > 64 { feelLog.removeFirst() } }
         pm.rumble(min(1, strength), seconds, sharpness: sharpness)
     }
 }
