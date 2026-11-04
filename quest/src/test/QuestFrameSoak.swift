@@ -284,8 +284,9 @@ enum QuestFrameSoak {
                      prepare: { g in
             let w = g.world
             w.ships.encounters = false
-            w.ships.spawnCapital("frigate", home: IVec3(Int(floor(g.player.pos.x)), 0, Int(floor(g.player.pos.z))), yaw: 0, region: nil, sync: true)
-            guard let s = w.ships.capitals.first(where: { $0.role == "frigate" }), let st = w.ships.capState[s.id], let stand = g.helmStand(s) else {
+            // (the Stormwarden's role is "warfrigate": spawned as "frigate" she was driven as a crawler, along the ground)
+            w.ships.spawnCapital("warfrigate", home: IVec3(Int(floor(g.player.pos.x)), 0, Int(floor(g.player.pos.z))), yaw: 0, region: nil, sync: true)
+            guard let s = w.ships.capitals.first(where: { $0.role == "warfrigate" }), let st = w.ships.capState[s.id], let stand = g.helmStand(s) else {
                 print("framesoak: no frigate could be spawned"); return
             }
             st.crewDone = Set(0..<st.crew.count); st.crewless = true
