@@ -3479,6 +3479,10 @@ extension ShipManager {
 
 // MARK: Breakaway pieces (block-based damage on capital hulls)
 
+enum DetachLooseTiming {
+    static let oldSearch = ProcessInfo.processInfo.environment["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
+}
+
 extension ShipManager {
     // After a blast on a capital hull: flood out from the cells next to the hole, each search capped at `limit`
     // cells. A search that runs dry before the cap found a piece no longer joined to the hull: it breaks away as a
@@ -3498,18 +3502,24 @@ extension ShipManager {
         // (P461: a small hull, the dropship's 295 blocks, is itself under the limit: one block melted or shot out of
         // it cut the whole craft loose as a wreck. A piece holding half the hull or more is the hull and stays.)
         let limit = min(limit, max(1, s.blockCount / 2))
+        // (Nov 4, the worst-case soak: one shell's blast on a crawler took 11 of its 12 ms here. A search from the far
+        // side of the hole never met the cells an earlier search had already found joined to the hull, and walked its
+        // own 4,000 again, up to 400 times a blast. Every cell already seen is the hull's (a loose piece's search runs
+        // dry, so no later search can reach its cells): meeting one, the search is joined to the hull and stops.)
+        let joinSeen = !DetachLooseTiming.oldSearch
         for st in starts where !seen.contains(st) {
             var comp: [IVec3] = [st]
             var local = Set<IVec3>([st])
             var head = 0
             var open = true
-            while head < comp.count {
+            search: while head < comp.count {
                 let c = comp[head]; head += 1
                 for d in dirs {
                     let n = c + d
                     if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
                     let b = g.get(n.x, n.y, n.z)
                     if b == AIR { continue }
+                    if joinSeen && seen.contains(n) { open = false; break search }
                     local.insert(n)
                     comp.append(n)
                 }
