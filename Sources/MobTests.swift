@@ -579,6 +579,34 @@ enum MobTests {
         let traders = mm.mobs.filter { $0.kind == .wanderingTrader }.count, llamas = mm.mobs.filter { $0.kind == .traderLlama }.count
         check(traders == 1 && llamas >= 1, "wandering trader arrives with llamas", "\(traders) trader, \(llamas) llamas")
         mm.mobs.removeAll()
+
+        // Skeleton trap horses come up on the ground (bug ledger, Nov 4: each was put 1.5 off at the trap's own height,
+        // in the rock of a bank beside it as often as not). The trap stands at the foot of a 3-high bank.
+        do {
+            let bx = Int(floor(pos.x)) + 40, bz = Int(floor(pos.z)), by = Int(floor(pos.y))
+            let stone = Blocks.id("stone")
+            for dx in -3...3 { for dz in -3...3 {
+                world.setBlockAsync(bx + dx, by - 1, bz + dz, stone)
+                for dy in 0...4 { world.setBlockAsync(bx + dx, by + dy, bz + dz, dx >= 1 && dy < 3 ? stone : AIR) }
+            } }
+            let p0 = game.player.pos
+            var inRock = 0, total = 0
+            for _ in 0..<10 {
+                mm.mobs.removeAll()
+                let h = Mob(.skeletonHorse, at: V3(Float(bx) + 0.5, Float(by), Float(bz) + 0.5))
+                h.trap = true
+                mm.mobs.append(h)
+                game.player.pos = h.pos + V3(-3, 0, 0)
+                h.trapTick(game)
+                for m in mm.mobs where m.kind == .skeletonHorse {
+                    total += 1
+                    if world.solidAt(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z))) { inRock += 1 }
+                }
+            }
+            game.player.pos = p0
+            check(total == 40 && inRock == 0, "skeleton trap horses come up clear of rock", "\(inRock) of \(total) horses in rock")
+            mm.mobs.removeAll()
+        }
     }
 
     // MARK: Behaviour details

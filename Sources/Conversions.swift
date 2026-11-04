@@ -101,7 +101,9 @@ extension Mob {
         g.sfx(.thunder, 1.4, at: pos)
         var horses: [Mob] = [self]
         for _ in 0..<3 {
-            let h = Mob(.skeletonHorse, at: pos + V3(Rand.float(in: -1.5...1.5), 0, Rand.float(in: -1.5...1.5)))
+            // On the ground by the trap horse (a spot 1.5 off at its height stood in a slope's rock or over a drop; the
+            // bug ledger's trader llamas, Nov 4), or on its own spot.
+            let h = Mob(.skeletonHorse, at: MobManager.groundSpot(g.world, near: pos + V3(Rand.float(in: -1.5...1.5), 0, Rand.float(in: -1.5...1.5))) ?? pos)
             horses.append(h)
             g.mobs.mobs.append(h)
         }
