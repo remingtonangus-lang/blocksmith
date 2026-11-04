@@ -524,12 +524,13 @@ final class CraterJob {
         if timed && CraterJob.allowance() <= 0 { return false }
         let began = CFAbsoluteTimeGetCurrent()
         var phase = "wait", removed0 = removed
+        let refills0 = World.refilledAtOnce          // (Nov 4: a shell chunk refilled on the frame thread by an edit)
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
             if timed && took * 1000 > CraterJob.worstStepMs {
                 CraterJob.worstStepMs = took * 1000
-                CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f", phase, removed - removed0, r)
+                CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f, %ld chunks refilled at once", phase, removed - removed0, r, World.refilledAtOnce - refills0)
             }
         }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
@@ -619,6 +620,7 @@ final class CraterJob {
         }
         if (next >= offsets.count || removed >= cap) && !carved {
             carved = true
+            phase = "carving, then the tip check and rim fluids"
             w.queueTipCheck(IVec3(cx, cy, cz), Int(ceil(r)) + 1)        // (P503: what stood over the breach weighed)
             for b in rim { w.scheduleFluid(around: b) }
             rim.removeAll()

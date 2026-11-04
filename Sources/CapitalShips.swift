@@ -3506,27 +3506,58 @@ extension ShipManager {
         // side of the hole never met the cells an earlier search had already found joined to the hull, and walked its
         // own 4,000 again, up to 400 times a blast. Every cell already seen is the hull's (a loose piece's search runs
         // dry, so no later search can reach its cells): meeting one, the search is joined to the hull and stops.)
-        let joinSeen = !DetachLooseTiming.oldSearch
-        for st in starts where !seen.contains(st) {
-            var comp: [IVec3] = [st]
-            var local = Set<IVec3>([st])
-            var head = 0
-            var open = true
-            search: while head < comp.count {
-                let c = comp[head]; head += 1
-                for d in dirs {
-                    let n = c + d
-                    if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
-                    let b = g.get(n.x, n.y, n.z)
-                    if b == AIR { continue }
-                    if joinSeen && seen.contains(n) { open = false; break search }
-                    local.insert(n)
-                    comp.append(n)
+        if DetachLooseTiming.oldSearch {
+            for st in starts where !seen.contains(st) {
+                var comp: [IVec3] = [st]
+                var local = Set<IVec3>([st])
+                var head = 0
+                var open = true
+                while head < comp.count {
+                    let c = comp[head]; head += 1
+                    for d in dirs {
+                        let n = c + d
+                        if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
+                        let b = g.get(n.x, n.y, n.z)
+                        if b == AIR { continue }
+                        local.insert(n)
+                        comp.append(n)
+                    }
+                    if comp.count > limit { open = false; break }
                 }
-                if comp.count > limit { open = false; break }
+                seen.formUnion(local)
+                if open && comp.count >= 1 { pieces.append(comp) }
             }
-            seen.formUnion(local)
-            if open && comp.count >= 1 { pieces.append(comp) }
+        } else {
+            // (one table of cell index -> the search that found it, in place of a set per search and their union)
+            var owner: [Int: Int32] = [:]
+            owner.reserveCapacity(min(limit * 6, 1 << 16))
+            var k: Int32 = 0
+            for st in starts {
+                let si = g.index(st.x, st.y, st.z)
+                if owner[si] != nil { continue }
+                k += 1
+                owner[si] = k
+                var comp: [IVec3] = [st]
+                var head = 0
+                var open = true
+                search: while head < comp.count {
+                    let c = comp[head]; head += 1
+                    for d in dirs {
+                        let n = c + d
+                        guard g.inside(n.x, n.y, n.z) else { continue }
+                        let ni = g.index(n.x, n.y, n.z)
+                        if let o = owner[ni] {
+                            if o == k { continue }
+                            open = false; break search             // an earlier search's cell: joined to the hull
+                        }
+                        if g.get(n.x, n.y, n.z) == AIR { continue }
+                        owner[ni] = k
+                        comp.append(n)
+                    }
+                    if comp.count > limit { open = false; break }
+                }
+                if open { pieces.append(comp) }
+            }
         }
         guard !pieces.isEmpty else { return }
         let kinds = ShipParts.kinds
