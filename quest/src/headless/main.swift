@@ -2228,6 +2228,10 @@ if CommandLine.arguments.contains("--detachcheck") {         // Nov 4: the loose
     DetachCheck.run(game, check)
     print(failures == 0 ? "detachcheck: all checks passed" : "detachcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--surfacecheck") {        // Nov 4: the field's surface under a standing spot, as before and faster
+    SurfaceCheck.run(game, check)
+    print(failures == 0 ? "surfacecheck: all checks passed" : "surfacecheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--huntwarship") {         // Nov 4: the Reckoning's Stormwarden band brings a warship that comes
     HuntWarshipCheck.run(game, check)
     print(failures == 0 ? "huntwarship: all checks passed" : "huntwarship: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
