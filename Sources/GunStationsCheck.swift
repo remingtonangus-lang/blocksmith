@@ -34,11 +34,11 @@ enum GunStationsCheck {
                 let r = IVec3(Int(floor(t.mountLocal.x)), Int(floor(t.mountLocal.y)) - 1, Int(floor(t.mountLocal.z)))
                 print("gunstations: \(s.name) gun at ring \(r.x),\(r.y),\(r.z) (hull \(s.grid.sx)x\(s.grid.sy)x\(s.grid.sz)) has no station")
             }
-            if kind == "capfrigate" {
+            do {
                 print("gunstations: \(s.name) stations (chair, console): " + guns.compactMap { VehicleGunners.station($0, on: s, ships) }
                     .map { "\($0.chair.x),\($0.chair.y),\($0.chair.z) / \($0.console.x),\($0.console.y),\($0.console.z)" }.joined(separator: "; "))
             }
-            check(!guns.isEmpty && held * 10 >= guns.count * 9,
+            check(!guns.isEmpty && held == guns.count,
                   "gunstations: the \(s.name) has a station (console and chair) for \(held) of its \(guns.count) guns (\(ships.turrets(of: s).count) mounts)")
             if kind == "frigate" { frigate = s } else { ships.remove(s); ships.capState.removeValue(forKey: s.id) }
         }

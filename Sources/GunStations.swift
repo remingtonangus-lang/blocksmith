@@ -10,6 +10,9 @@ import simd
 extension Capital {
     static let stationReach = 12
     static let stationReachFar = 18, stationUpFar = 16          // (the second, wider look)
+    // (the last look, for a gun with no room near it at all, the Stormwarden's mast-top gun: its computer is wherever the
+    // hull has room nearest it, worked from there as any fire control)
+    static let stationReachLast = 40, stationUpLast = 48
 
     // Places a station for each mount ring (hull grid cells) where the hull has room: an open cell on a floor, under a
     // roof, with the console's cell beside it on the floor (backed by a wall where one is near). A station never cuts a
@@ -46,7 +49,7 @@ extension Capital {
         // Near the mount under a low roof first; a gun with no room there (a keel gun over a tall hangar, a mast-top gun)
         // looks wider, under a higher roof.
         var served = [Bool](repeating: false, count: rings.count)
-        for (reach, up, roofMax) in [(stationReach, 10, 6), (stationReachFar, stationUpFar, 14)] {
+        for (reach, up, roofMax) in [(stationReach, 10, 6), (stationReachFar, stationUpFar, 14), (stationReachLast, stationUpLast, 30)] {
             for (ri, ring) in rings.enumerated() where !served[ri] {
                 var cands: [(IVec3, IVec3, String, Float)] = []
                 for y in max(1, ring.y - up)...max(1, min(gr.sy - 3, ring.y + up)) {
@@ -168,7 +171,8 @@ extension VehicleGunners {
         for t in turrets { stationCache[t.id] = .some(nil) }
         guard !turrets.isEmpty else { return }
         let rings = turrets.map { IVec3(Int(floor($0.mountLocal.x)), Int(floor($0.mountLocal.y)) - 1, Int(floor($0.mountLocal.z))) }
-        let r = Capital.stationReachFar, up = Capital.stationUpFar
+        let r = Capital.stationReachLast, up = Capital.stationUpLast
+        let rNear = Capital.stationReachFar, upNear = Capital.stationUpFar
         var lo = IVec3(Int.max, Int.max, Int.max), hi = IVec3(Int.min, Int.min, Int.min)
         for c in rings {
             lo = IVec3(min(lo.x, c.x - r), min(lo.y, c.y - up), min(lo.z, c.z - r))
@@ -184,19 +188,23 @@ extension VehicleGunners {
                 stations.append((IVec3(x, y, z), IVec3(x + dx, y, z + dz))); break
             }
         } } }
-        var pairs: [(Float, Int, Int)] = []
-        for (ti, c) in rings.enumerated() {
-            for (si, st) in stations.enumerated() {
-                let d = st.0 - c
-                guard abs(d.x) <= r, abs(d.z) <= r, abs(d.y) <= up else { continue }
-                pairs.append((simd_length(V3(Float(d.x), Float(d.y), Float(d.z))), ti, si))
-            }
-        }
-        pairs.sort { $0.0 < $1.0 }
+        // Nearest pairs first within the near reach; then a gun still without one takes the nearest free station within
+        // the last look's reach (the mast-top gun's computer down in the hull).
         var gunDone = Set<Int>(), seatDone = Set<Int>()
-        for (_, ti, si) in pairs where !gunDone.contains(ti) && !seatDone.contains(si) {
-            gunDone.insert(ti); seatDone.insert(si)
-            stationCache[turrets[ti].id] = .some((stations[si].0, stations[si].1))
+        for (rr, uu) in [(rNear, upNear), (r, up)] {
+            var pairs: [(Float, Int, Int)] = []
+            for (ti, c) in rings.enumerated() where !gunDone.contains(ti) {
+                for (si, st) in stations.enumerated() where !seatDone.contains(si) {
+                    let d = st.0 - c
+                    guard abs(d.x) <= rr, abs(d.z) <= rr, abs(d.y) <= uu else { continue }
+                    pairs.append((simd_length(V3(Float(d.x), Float(d.y), Float(d.z))), ti, si))
+                }
+            }
+            pairs.sort { $0.0 < $1.0 }
+            for (_, ti, si) in pairs where !gunDone.contains(ti) && !seatDone.contains(si) {
+                gunDone.insert(ti); seatDone.insert(si)
+                stationCache[turrets[ti].id] = .some((stations[si].0, stations[si].1))
+            }
         }
     }
 }

@@ -3236,7 +3236,10 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         // CPU share (4 ms of 13.9).
         // The budget: the fog cuts sections, terrain and units, and the mob pass stays inside a third of the frame's
         // shared vertex scratch (the rest: dropped items, particles, hands, HUD); past it the farthest units would drop.
-        let mobBytes = with.mobVerts * MemoryLayout<MobVert>.stride, mobBudget = SceneRenderer.scratchSize / 3
+        // (P512: since P385 the mob pass writes into a buffer of its own on a worker, WorldRenderer.mobBufBytes, not the
+        // frame's shared scratch; the budget is half of that buffer, the scratch's third only when the pass runs in place.)
+        let mobBytes = with.mobVerts * MemoryLayout<MobVert>.stride
+        let mobBudget = WorldRenderer.mobThread ? WorldRenderer.mobBufBytes / 2 : SceneRenderer.scratchSize / 3
         check(units >= 40 && with.sections < without.sections && with.mobsDrawn < without.mobsDrawn && mobBytes <= mobBudget,
               String(format: "ash vault draw: the biggest battle (%d units, render distance 10) with the fog budget: %d sections, %d quads, %d units in reach, %d mob vertices (%.1f of %.1f MB), record %.1f ms; without: %d sections, %d quads, %d units, %d vertices, %.1f ms",
                      units, with.sections, with.quads, with.mobsDrawn, with.mobVerts, Double(mobBytes) / 1048576, Double(mobBudget) / 1048576, with.recordMs,
