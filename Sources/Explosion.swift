@@ -474,6 +474,7 @@ final class CraterJob {
     static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
     private var waitFrames = 0
+    private var fineFrames = 0
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
@@ -525,12 +526,13 @@ final class CraterJob {
         let began = CFAbsoluteTimeGetCurrent()
         var phase = "wait", removed0 = removed
         let refills0 = World.refilledAtOnce          // (Nov 4: a shell chunk refilled on the frame thread by an edit)
+        let fine0 = World.fineMade
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
             if timed && took * 1000 > CraterJob.worstStepMs {
                 CraterJob.worstStepMs = took * 1000
-                CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f, %ld chunks refilled at once", phase, removed - removed0, r, World.refilledAtOnce - refills0)
+                CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f, %ld chunks refilled at once, %ld fine sections made", phase, removed - removed0, r, World.refilledAtOnce - refills0, World.fineMade - fine0)
             }
         }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
@@ -543,6 +545,13 @@ final class CraterJob {
                 return false
             }
             waitFrames = -1
+        }
+        // (Nov 4, the worst-case soak: a carving step that took 2 blocks took 10.6 ms: each block of field ground taken
+        // first gives its section its fine samples, 1-2 ms a section. The sections the bowl and its field balls reach
+        // get theirs first, one a frame under the fireball, as the crawler's ruts do: World.prefetchFine.)
+        if blocks != .max && fineFrames < 48 {
+            if w.prefetchFine(center, radius: max(r, Float(depth))) { fineFrames += 1; phase = "fine prefetch"; return false }
+            fineFrames = 48
         }
         if circuitsNear == nil {
             phase = "circuit scan"

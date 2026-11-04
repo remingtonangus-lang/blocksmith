@@ -499,11 +499,12 @@ extension ShipManager {
             g.set(cell.x, cell.y, cell.z, AIR)
         }
         if pilot === s, let h = s.helm, destroyed.contains(h) { pilot = nil; s.piloted = false }
+        Explosion.lap("ships: cells")
         if s.kinematic {
             // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
             s.blockCount -= destroyed.count
             s.mesh.rebuildAround(s, Array(destroyed) + chipped, device: world.device, queue: meshQueue)
-            Explosion.lap("ships: remove")
+            Explosion.lap("ships: remesh")
             if detach { detachLoose(s, around: Array(destroyed)); Explosion.lap("ships: detach") }
             return
         }
