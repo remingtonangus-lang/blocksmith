@@ -69,9 +69,11 @@ extension MobTests {
         mm.mobs.removeAll()
         game.arms.slugs.removeAll()
         // Items.
-        let guns = Guns.all.filter { Items.has($0.key) && Items.def(Items.id($0.key)).maxStack == 1 }
+        // (retired guns, Guns.retired, are no items: a saved one turns into the gun that replaced it)
+        let live = Guns.all.indices.filter { !Guns.isRetired($0) }.map { Guns.all[$0] }
+        let guns = live.filter { Items.has($0.key) && Items.def(Items.id($0.key)).maxStack == 1 }
         let ammo = Guns.ammo.filter { Items.has($0.0) }
-        check(guns.count == Guns.all.count && guns.count >= 8 && ammo.count == Guns.ammo.count && ammo.count >= 5, "guns and ammo registered", "\(guns.count) guns, \(ammo.count) ammo")
+        check(guns.count == live.count && guns.count >= 8 && ammo.count == Guns.ammo.count && ammo.count >= 5, "guns and ammo registered", "\(guns.count) guns, \(ammo.count) ammo")
         check(Guns.index(Items.id("gun_sniper")) == Guns.sniper, "gun lookup by item")
 
         // Arena: a long open strip with a stone floor.
@@ -199,6 +201,7 @@ extension MobTests {
         mm.mobs.append(shooter); mm.mobs.append(buddy)
         var hurtAt: Float = -1
         game.audio.record = [:]
+        let said0 = TroopVoice.said
         t = 0
         while t < 8 {
             mm.update(0.05, game: game)
@@ -215,7 +218,8 @@ extension MobTests {
         game.audio.record = nil
         let shots = heard.filter { $0.key.hasPrefix("gun_") && !$0.key.hasPrefix("gun_reload") }.values.reduce(0, +)
         let near = (heard["bulletWhizz"] ?? 0) + (heard["bulletFlesh"] ?? 0)
-        let barks = heard.filter { $0.key.hasPrefix("soldier_") && $0.key.hasSuffix("_alert") }.values.reduce(0, +)
+        // (P468: an alert is a spoken line where one fits, TroopVoice, and the bark sound only where none does)
+        let barks = heard.filter { $0.key.hasPrefix("soldier_") && $0.key.hasSuffix("_alert") }.values.reduce(0, +) + (TroopVoice.said - said0)
         check(shots > 0 && near > 0 && barks > 0, "firefight audio: gunfire, hits or whizzes, alert barks", "\(shots) shots, \(near) near, \(barks) barks")
         game.audio.combatCheck = 0
         game.combatTick(0.05)
@@ -286,37 +290,35 @@ extension MobTests {
         mm.mobs.removeAll()
         game.arms.slugs.removeAll()
 
-        // Line of fire: a glass wall (see-through, so the soldier "sees" the player) between a trooper and the player
-        // holds every shot; it opens up when the wall goes.
+        // Line of fire. P305 (b): a glass wall between a trooper and the player is shot through (a round breaks glass and
+        // passes on); P419 (c): a wall a round only wears (stone) holds every shot, though he knows where the player is;
+        // the trooper opens up again when the wall goes. (Nov 4: this asked the glass to hold fire, from before P305.)
         let glass = Blocks.id("glass")
-        for x in (x0 - 4)...(x0 + 4) { for y in gy..<(gy + 4) { world.setBlockAsync(x, y, z0 - 6, glass) } }
+        func wall(_ b: BlockID) { for x in (x0 - 4)...(x0 + 4) { for y in gy..<(gy + 4) { world.setBlockAsync(x, y, z0 - 6, b) } } }
+        wall(glass)
         game.health = 20; game.alive = true; game.menu = nil
         let tw = Mob(.soldierTrooper, at: at(0, -14)); tw.persistent = true; tw.variant = Guns.rifle; tw.yaw = .pi
         mm.mobs.append(tw)
-        var throughGlass = 0, sawThroughGlass = false
-        t = 0
-        while t < 5 {
-            mm.update(0.05, game: game)
-            if tw.soldierBrain.sees { sawThroughGlass = true }
-            throughGlass += game.arms.slugs.filter { $0.shooter == ObjectIdentifier(tw) }.count
-            game.arms.slugs.removeAll()
-            game.player.pos = at(0, 0); game.player.vel = .zero
-            game.health = 20; game.alive = true; tw.pos = at(0, -14)
-            t += 0.05
+        func firing(_ secs: Float, untilOne: Bool = false) -> Int {
+            var n = 0
+            var t: Float = 0
+            while t < secs && !(untilOne && n > 0) {
+                mm.update(0.05, game: game)
+                n += game.arms.slugs.filter { $0.shooter == ObjectIdentifier(tw) }.count
+                game.arms.slugs.removeAll()
+                game.player.pos = at(0, 0); game.player.vel = .zero
+                game.health = 20; game.alive = true; tw.pos = at(0, -14)
+                t += 0.05
+            }
+            return n
         }
-        for x in (x0 - 4)...(x0 + 4) { for y in gy..<(gy + 4) { world.setBlockAsync(x, y, z0 - 6, AIR) } }
-        var afterWall = 0
-        t = 0
-        while t < 5 && afterWall == 0 {
-            mm.update(0.05, game: game)
-            afterWall += game.arms.slugs.filter { $0.shooter == ObjectIdentifier(tw) }.count
-            game.arms.slugs.removeAll()
-            game.player.pos = at(0, 0); game.player.vel = .zero
-            game.health = 20; game.alive = true; tw.pos = at(0, -14)
-            t += 0.05
-        }
-        check(sawThroughGlass && throughGlass == 0 && afterWall > 0, "trooper holds fire behind a glass wall, fires once it is gone",
-              "saw \(sawThroughGlass), \(throughGlass) shots through glass, \(afterWall) after")
+        let throughGlass = firing(5)
+        wall(STONE)
+        let throughStone = firing(5)
+        wall(AIR)
+        let afterWall = firing(5, untilOne: true)
+        check(throughGlass > 0 && throughStone == 0 && afterWall > 0, "trooper shoots through glass, holds fire at a stone wall, fires once it is gone",
+              "\(throughGlass) shots through glass, \(throughStone) through stone, \(afterWall) after")
         mm.mobs.removeAll()
         game.arms.slugs.removeAll()
 
@@ -387,7 +389,7 @@ extension MobTests {
                     var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
                     CapitalBase.build(&w, c, y0, c, 12345)
                     chests += w.entities.filter { $0.1.kind == .chest }.count
-                    for (k, _) in w.mobs { mobs[k, default: 0] += 1 }
+                    for (k, _) in w.mobs { mobs[String(k.split(separator: ":").first ?? Substring(k)), default: 0] += 1 }   // ("soldier_ironclad:heavy", "deck_gun:aa")
                 }
                 for b in blocks where b != AIR && b != STONE { built[Blocks.key(Blocks.groupBase[Int(b)]), default: 0] += 1 }
             } }
@@ -397,7 +399,7 @@ extension MobTests {
                   "citadel built of white stone, glass and gardens", built.filter { $0.key.hasPrefix("capital") || $0.key.hasSuffix("leaves") || $0.key.hasPrefix("command") || $0.key.hasPrefix("light") }
                     .map { "\($0.value) \($0.key)" }.sorted().joined(separator: ", "))
             let soldiers = ["soldier_recruit", "soldier_trooper", "soldier_marksman", "soldier_ironclad"].map { mobs[$0] ?? 0 }
-            check(soldiers.allSatisfy { $0 > 0 } && mobs["deck_gun"] == 2 && chests >= 12, "citadel garrison, twin 42 cm turrets and loot",
+            check(soldiers.allSatisfy { $0 > 0 } && (mobs["deck_gun"] ?? 0) >= 2 && chests >= 12, "citadel garrison, twin 42 cm turrets and loot",
                   "\(soldiers) soldiers, \(mobs["deck_gun"] ?? 0) turrets, \(chests) chests")
         } else {
             check(false, "fortress structure type registered")
