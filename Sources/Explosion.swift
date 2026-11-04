@@ -642,7 +642,7 @@ final class CraterJob {
             bowlNext += 1
             return done
         }
-        if carved && budget > 0 && CFAbsoluteTimeGetCurrent() < deadline { phase += " + scorch"; scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
+        if carved && budget > 0 && CFAbsoluteTimeGetCurrent() < deadline { phase += " + scorch"; scorch(g, columns: max(1, budget / 3), until: deadline) }      // (up to ~3 block changes a column)
         return done
     }
     private var bowlNext = 0
@@ -659,7 +659,9 @@ final class CraterJob {
                                             "sandstone", "red_sandstone", "snow_block", "terracotta", "calcite", "blackstone", "basalt"]
                                             .filter { Blocks.has($0) }.map { Blocks.id($0) })
     private static var scorchCache: [Int: [SIMD2<Int16>]] = [:]     // columns within 1.5 radii, nearest first
-    private func scorch(_ g: Game, columns: Int) {
+    // (Nov 4, the worst-case soak: one step's scorch took 15.2 ms of a frame, its columns never looking at the clock;
+    // it stops at the frame's carving deadline now, every 4 columns, as the carving does every 2 blocks.)
+    private func scorch(_ g: Game, columns: Int, until deadline: Double = .infinity) {
         let w = g.world
         let R = r * 1.5
         let ri = Int(ceilf(R))
@@ -674,8 +676,10 @@ final class CraterJob {
         let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
         let coarse = Blocks.id("coarse_dirt"), snowLayer = Blocks.has("snow") ? Blocks.id("snow") : AIR
         let grass = Blocks.id("grass_block"), podzol = Blocks.id("podzol"), dirt = Blocks.id("dirt")
-        var n = columns
+        var n = columns, sinceCheck = 0
         while n > 0 && scorchNext < cols.count {
+            sinceCheck += 1
+            if sinceCheck >= 4 { sinceCheck = 0; if CFAbsoluteTimeGetCurrent() > deadline { break } }
             let o = cols[scorchNext]
             scorchNext += 1
             n -= 1

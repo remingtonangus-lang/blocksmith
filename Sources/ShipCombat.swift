@@ -451,6 +451,7 @@ extension ShipManager {
                     intensity -= 0.225
                 }
             } } }
+            Explosion.lap("ships: rays")            // (Nov 4: the worst-case soak's slowest blast spent 7.8 ms in ships)
             // Progressive damage on capital hulls: plates the blast couldn't break lose pieces on the side facing it
             // (their grid never re-crops, so the chip map stays valid in grid space).
             var chipped: [IVec3] = []
@@ -502,7 +503,8 @@ extension ShipManager {
             // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
             s.blockCount -= destroyed.count
             s.mesh.rebuildAround(s, Array(destroyed) + chipped, device: world.device, queue: meshQueue)
-            if detach { detachLoose(s, around: Array(destroyed)) }
+            Explosion.lap("ships: remove")
+            if detach { detachLoose(s, around: Array(destroyed)); Explosion.lap("ships: detach") }
             return
         }
         // Push: an impulse away from the blast, applied at the blast point.
