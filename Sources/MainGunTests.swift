@@ -294,7 +294,7 @@ enum MainGunTests {
         }
         // (Nov 4: the coil's own thumps; on build 138 a blast's rumble a few blocks off came first in the pad's log and the
         // rise read 0.56 -> 0.13. Anything else that rumbled is counted apart.)
-        let thumps = MainGun.feelLog, others = pm.rumbleLog.count - thumps.count
+        let thumps = MainGun.feelLog, others = max(0, pm.rumbleLog.count - thumps.count)
         let fired = w.ships.shells.filter { $0.kind == 3 }.count == shells0 + 1
         check(started && !again && fired && abs(Float(frames) / 72 - MainGun.chargeTime) < 0.1,
               "maingun: the helm's attack charges the Tidebreaker for \(String(format: "%.2f", Float(frames) / 72)) s, then it fires (a second press while charging does nothing)")
