@@ -223,7 +223,6 @@ extension ShipManager {
             // hung in the sky where it was made. One on its run stays awake until it is gone; so does a sea hunter (rolled
             // in 150 blocks off: past 136 it lay still on the water and never came for him).
             let onRun = (r.role == "dropship" && !r.captured && (capState[r.id]?.phase ?? 0) >= 1) || SeaHunt.isHunter(r)
-                || Reckoning.onHunt(r)              // (Nov 4: the Reckoning's crawler and warship, the same bug)
             let steered = pilots.contains { $0 === s } || (Player.moveOverUnmade && carried.contains { $0 === r })
             // Kinematic (AI-moved) ships don't need the ground under them loaded: they never touch it physically.
             // P376: past the active distance every ship sleeps, capital ships too (they wait in place, drawn).

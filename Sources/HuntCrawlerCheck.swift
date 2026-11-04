@@ -56,8 +56,9 @@ enum HuntCrawlerCheck {
 }
 
 // Nov 4 (bug hunt, the sleeping-dropship bloom): questcheck --huntwarship: the Reckoning with one Stormwarden band 200
-// blocks east of him: its warship comes in 60 behind the band (260 off, past the active distance) and must close on him
-// and have him in her sight within 90 s. Before the fix she slept where she was made (BS_HUNTWAKE=0 shows it).
+// blocks east of him: its warship comes in behind the band and must close on him and have him in her sight within 90 s.
+// (Suspected asleep past the active distance like the raid dropships: she isn't; a 480-block hull's nearest end is well
+// inside it. Kept as a guard.)
 enum HuntWarshipCheck {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         let mobs0 = g.mobs.mobs, victory0 = g.ashVictory, survival0 = g.survival, diff0 = g.difficulty
@@ -86,7 +87,7 @@ enum HuntWarshipCheck {
             g.tick(0.05)
             t += 0.05
             g.player.pos = stand; g.player.vel = .zero
-            guard let c = Reckoning.warshipAt, let s = Reckoning.huntWarship(g, c) else { continue }
+            guard let s = w.ships.capitals.first(where: { $0.role == "warfrigate" && !$0.captured }) else { continue }
             let d = w.ships.boundsDistance(s, stand)
             if first < 0 { first = t; d0 = d }
             nearest = min(nearest, d)
@@ -97,7 +98,7 @@ enum HuntWarshipCheck {
                                   st?.target?.player == true ? ", has him in sight" : ""))
             }
         }
-        let sh = Reckoning.warshipAt.flatMap { Reckoning.huntWarship(g, $0) }
+        let sh = w.ships.capitals.first { $0.role == "warfrigate" && !$0.captured }
         if let s = sh { for x in w.ships.list where x === s || x.root === s { w.ships.remove(x) }; w.ships.capState.removeValue(forKey: s.id) }
         check(sh != nil && first >= 0 && nearest < 180 && sighted >= 0,
               String(format: "huntwarship: the Stormwarden band's warship (in at %.0f s, %.0f blocks off) closes to %.0f and has him in her sight at %.0f s; ",

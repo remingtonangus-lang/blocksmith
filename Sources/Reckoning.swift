@@ -70,13 +70,11 @@ enum Reckoning {
     static var hunts: [Hunt] = []
     static var underground = false      // the player is below the surface (the groups have lost the trail)
     static var crawlerAt: V2?           // P460: where the hunt's Capital Crawler set out (it's found by its home)
-    static var warshipAt: V2?           // Nov 4: ... and the Stormwarden's warship
-    static let wakeHunt = ProcessInfo.processInfo.environment["BS_HUNTWAKE"] != "0"     // (the check's before: =0)
     static var won: Bool { stage == 3 }
     static var groupsLeft: Int { hunts.filter { $0.left > 0 }.count }
     private static var gameID: ObjectIdentifier?
 
-    static func reset() { stage = 0; timer = 0; hunts = []; underground = false; barrageTold = false; crawlerAt = nil; warshipAt = nil }
+    static func reset() { stage = 0; timer = 0; hunts = []; underground = false; barrageTold = false; crawlerAt = nil }
     static func own(_ g: Game) {
         let id = ObjectIdentifier(g)
         if gameID != id { reset(); gameID = id }
@@ -125,17 +123,6 @@ enum Reckoning {
     }
     static func huntCrawler(_ g: Game, _ c: V2) -> Ship? {
         g.world.ships.capitals.first { $0.role == "crawler" && !$0.captured && simd_length(V2(($0.home ?? $0.pos).x - c.x, ($0.home ?? $0.pos).z - c.y)) < 4 }
-    }
-    static func huntWarship(_ g: Game, _ c: V2) -> Ship? {
-        g.world.ships.capitals.first { $0.role == "warfrigate" && !$0.captured && simd_length(V2(($0.home ?? $0.pos).x - c.x, ($0.home ?? $0.pos).z - c.y)) < 4 }
-    }
-    // A hunt's crawler or warship: kept awake past the active distance (ShipPhysics), as a raid's dropship is.
-    static func onHunt(_ s: Ship) -> Bool {
-        guard wakeHunt, stage == 2, !s.captured, s.parent == nil, let h = s.home else { return false }
-        let at = V2(h.x, h.z)
-        if s.role == "crawler", let c = crawlerAt, simd_length(at - c) < 4 { return true }
-        if s.role == "warfrigate", let c = warshipAt, simd_length(at - c) < 4 { return true }
-        return false
     }
     static func isHunter(_ m: Mob) -> Bool { m.posse >= posseBase && m.posse < posseBase + 40 }
     static func members(_ g: Game) -> [Mob] { hunts.flatMap { $0.live }.filter { $0.health > 0 } }
@@ -258,7 +245,6 @@ enum Reckoning {
                 if h.side == .stormwarden && !h.warship && d < 260 {
                     h.warship = true
                     let at = h.pos + simd_normalize(h.pos - p + V2(0.01, 0)) * 60
-                    warshipAt = V2(Float(Int(at.x)), Float(Int(at.y)))
                     g.world.ships.spawnCapital("warfrigate", home: IVec3(Int(at.x), 0, Int(at.y)), yaw: atan2f(-(p.x - at.x), -(p.y - at.y)),
                                                region: nil, faction: .stormwarden)
                     g.onToast?("A Stormwarden warship joins the hunt")
@@ -277,10 +263,6 @@ enum Reckoning {
         }
         // The hunt's crawler drives on him wherever he is on the surface (its target in sight or not); below, it waits.
         if let c = crawlerAt, let s = huntCrawler(g, c), let st = g.world.ships.capState[s.id] { st.goal = down ? nil : g.player.pos }
-        // (Nov 4, bug hunt, the sleeping-dropship bloom: the warship came in 60 blocks behind its band, up to 320 off him,
-        // past the active distance, and slept there; awake, she only circled where she was made. She stays awake on the
-        // hunt and flies at him until he's in her sight.)
-        if wakeHunt, let c = warshipAt, let s = huntWarship(g, c), let st = g.world.ships.capState[s.id] { st.goal = down ? nil : g.player.pos }
         if !down { barrages(g, p, dt) }
         // Bring units in, nearest groups first, while the player is on the surface.
         var alive = hunts.reduce(0) { $0 + $1.live.count }
