@@ -52,7 +52,16 @@ enum MobKind: Int, CaseIterable {
         var aquatic = false       // swims; suffocates on land
     }
 
-    var spec: Spec {
+    // Nov 4 (frame rate, the worst-case soak's profile): every `kind.spec` built its Spec anew, name string and drops
+    // array included, and `hostile` built it six times (1,200 instructions a call, 77,000 calls in 6 s of the mob tick
+    // alone). The specs never change, so they are built once, in case order.
+    private static let specTable: [Spec] = MobKind.allCases.map { $0.builtSpec }
+    private static let hostileTable: [Bool] = MobKind.allCases.map { k in
+        let b = k.builtSpec.behavior
+        return b != .passive && b != .villager && b != .golem && b != .vehicle && b != .snowGolem && b != .animal
+    }
+    var spec: Spec { MobKind.specTable[rawValue] }
+    private var builtSpec: Spec {
         switch self {
         case .cow: return Spec(name: "Cow", halfW: 0.45, height: 1.4, health: 10, speed: 1.0, behavior: .passive,
                                drops: [("beef", 1, 3), ("leather", 1, 3)], xp: 2, call: .mobCow)
@@ -158,7 +167,7 @@ enum MobKind: Int, CaseIterable {
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
-    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle && spec.behavior != .snowGolem && spec.behavior != .animal }
+    var hostile: Bool { MobKind.hostileTable[rawValue] }
     // Farm animals and other peaceful creatures: nobody but the player shoots them (P150).
     var livestock: Bool { spec.behavior == .passive || spec.behavior == .animal }
     // Save / command keys: fixed forever so saves survive display-name changes.
