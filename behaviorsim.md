@@ -1,0 +1,83 @@
+# Behaviour sim
+
+behaviorsim: goal_missed_bed 4, goal_missed_meet 1, goal_missed_work 2, in_wall 52, spinning 5, strayed 1, stuck 19; villager goals reached: bed 10/14, meet 13/14, work 15/17 (29 s)
+## seed 12345: village at -274 -962, 189 mobs tracked
+- mobs flagged per class: goal_missed_bed 1, in_wall 36, spinning 4, strayed 1, stuck 4
+- bat at -299.5 41.8 -938.0: ok
+- bat at -295.6 35.5 -943.4: ok
+- bat at -254.7 19.1 -1002.9: ok
+- bat at -256.2 -1.9 -1030.0: ok
+- chicken at -257.5 69.0 -1076.7: stuck 119; doing when stuck or spinning: bed/stroll/onpath 51, work/stroll/onpath 32, free/stroll/onpath 28
+- minecart at -353.1 73.1 -906.5: in_wall 1
+- elk at -301.2 72.0 -959.0: spinning 2; gave up 13x (-288 71 -1001 air; -302 72 -1005 fern; -302 72 -1008 air); doing when stuck or spinning: spin:bed/heading/standing 1, spin:work/stroll/moving 1
+- minecart at -299.5 74.1 -906.5: in_wall 1
+- minecart at -364.6 74.1 -906.5: in_wall 1
+- minecart at -257.3 76.1 -906.5: in_wall 1
+- minecart at -268.6 76.1 -906.5: in_wall 1
+- minecart at -364.6 74.1 -906.5: in_wall 1
+- minecart at -279.9 76.1 -906.5: in_wall 1
+- minecart at -283.0 75.8 -906.5: in_wall 1
+- minecart at -374.1 74.1 -906.5: in_wall 1
+- minecart at -364.7 74.1 -906.5: in_wall 1
+- minecart at -342.1 72.9 -906.5: in_wall 1
+- minecart at -256.5 77.6 -895.5: in_wall 1
+- minecart at -330.0 73.1 -906.5: in_wall 1
+- elk at -302.3 72.0 -971.6: spinning 1; gave up 17x (-304 72 -1006 snow; -288 71 -1004 air; -293 71 -1004 air); doing when stuck or spinning: spin:work/heading/standing/nopath 1
+- minecart at -384.2 73.1 -906.5: in_wall 1
+- minecart at -273.0 76.1 -906.5: in_wall 1
+- minecart at -384.2 73.1 -906.5: in_wall 1
+- minecart at -374.2 74.1 -906.5: in_wall 1
+- cat at -243.3 70.0 -1000.6: stuck 4; gave up 19x (-251 71 -998 short_grass; -249 71 -998 short_grass; -247 70 -1003 air); doing when stuck or spinning: free/target/onpath/gaveup 2, free/stroll/onpath/gaveup 1, bed/target/nopath/gaveup 1
+- minecart at -256.5 78.1 -890.8: in_wall 1
+- minecart at -289.5 75.1 -906.5: in_wall 1
+- minecart at -342.0 72.8 -906.5: in_wall 1
+- minecart at -245.0 78.1 -890.5: in_wall 1
+- minecart at -353.3 73.1 -906.5: in_wall 1
+- villager at -298.2 71.0 -1013.5: spinning 1; closest to goals: bed 1.6; gave up 30x (-303 72 -1014 air; -307 72 -1019 air; -299 71 -1002 air); doing when stuck or spinning: spin:free/heading/standing 1
+- minecart at -384.3 73.1 -906.5: in_wall 1
+- chicken at -267.7 69.0 -1076.5: stuck 118; gave up 1x (-270 70 -1075 air); doing when stuck or spinning: bed/stroll/onpath/gaveup 51, work/stroll/onpath/gaveup 32, free/stroll/onpath/gaveup 27
+- elk at -290.9 71.0 -967.0: spinning 3; gave up 10x (-301 72 -1002 air; -303 72 -1010 air; -286 71 -1011 air); doing when stuck or spinning: spin:bed/stroll/moving 2, spin:bed/heading/standing 1
+- minecart at -263.4 76.1 -906.5: in_wall 1
+- cat at -295.5 71.0 -940.3: stuck 1; gave up 13x (-252 72 -948 air; -249 72 -951 air; -253 72 -946 air); doing when stuck or spinning: bed/stroll/onpath 1
+- minecart at -374.0 74.1 -906.5: in_wall 1
+- minecart at -364.4 74.1 -906.5: in_wall 1
+- minecart at -330.2 73.1 -906.5: in_wall 1
+- minecart at -256.5 77.1 -902.1: in_wall 1
+
+## seed 777: village at 286 -1794, 118 mobs tracked
+- mobs flagged per class: goal_missed_bed 3, goal_missed_meet 1, goal_missed_work 2, in_wall 16, spinning 1, stuck 15
+- bat at 351.2 39.0 -1863.7: ok
+- bat at 290.5 36.1 -1769.3: ok
+- bat at 196.8 40.1 -1790.7: ok
+- soldier_trooper at 390.1 85.4 -1737.5: ok
+- minecart at 345.9 83.1 -1737.5: in_wall 1
+- rabbit at 195.3 73.0 -1902.7: stuck 62; gave up 13x (265 80 -1748 air; 273 81 -1750 snow; 274 81 -1770 snow); doing when stuck or spinning: bed/stroll/onpath/partial 51, free/stroll/onpath/partial 11
+- rabbit at 315.6 81.0 -1761.2: stuck 1; gave up 108x (335 83 -1731 snow; 330 82 -1737 air; 323 82 -1754 snow); doing when stuck or spinning: bed/stroll/onpath/gaveup 1
+- minecart at 345.9 83.1 -1737.5: in_wall 1
+- soldier_trooper at 346.9 84.4 -1736.6: in_wall 3
+- minecart at 254.8 78.1 -1721.5: in_wall 1
+- pig at 290.7 78.0 -1694.3: stuck 39; gave up 32x (322 82 -1740 snow; 323 82 -1746 snow; 327 82 -1731 snow); doing when stuck or spinning: bed/stroll/onpath 34, free/stroll/onpath 5
+- minecart at 370.5 84.1 -1737.5: in_wall 1
+- minecart at 358.7 84.1 -1737.5: in_wall 1
+- rabbit at 271.5 80.0 -1902.6: stuck 40; gave up 37x (281 81 -1744 snow; 277 81 -1744 snow; 279 81 -1746 air); doing when stuck or spinning: bed/stroll/onpath/gaveup 35, free/stroll/onpath/gaveup 5
+- minecart at 370.5 84.1 -1737.5: in_wall 1
+- rabbit at 336.3 81.0 -1902.7: stuck 65; gave up 22x (323 81 -1919 dirt; 318 82 -1896 snow; 318 82 -1896 snow); doing when stuck or spinning: bed/stroll/onpath/partial 51, free/stroll/onpath/partial 14
+- rabbit at 334.6 81.0 -1902.7: stuck 55; gave up 35x (337 82 -1789 snowy_grass_block; 338 83 -1770 snow; 334 82 -1791 snowy_grass_block); doing when stuck or spinning: bed/stroll/onpath/partial/gaveup 49, free/stroll/onpath/partial/gaveup 5, work/stroll/nopath/gaveup 1
+- soldier_trooper at 342.9 84.4 -1736.6: in_wall 1
+- rabbit at 332.5 81.0 -1902.7: stuck 71; gave up 14x (332 82 -1799 snow; 321 82 -1900 snow; 321 82 -1900 snow); doing when stuck or spinning: bed/stroll/onpath/partial 51, free/stroll/onpath/partial 15, meet/stroll/onpath/partial 5
+- sheep at 247.4 75.0 -1694.4: stuck 61; gave up 28x (221 77 -1736 snow; 226 77 -1735 snow; 237 77 -1731 snow); doing when stuck or spinning: bed/stroll/onpath/gaveup 51, free/stroll/onpath/gaveup 10
+- rabbit at 248.5 77.0 -1902.5: stuck 96; gave up 8x (268 79 -1896 grass_block; 270 79 -1886 snowy_grass_block; 280 80 -1868 snow); doing when stuck or spinning: bed/stroll/onpath 51, work/stroll/onpath 21, free/stroll/onpath 16
+- rabbit at 236.7 75.0 -1902.7: stuck 49; gave up 46x (261 78 -1886 snowy_grass_block; 266 77 -1878 dirt; 261 77 -1889 dirt); doing when stuck or spinning: bed/stroll/onpath 44, free/stroll/onpath 5
+- minecart at 275.7 80.1 -1737.5: in_wall 1
+- soldier_trooper at 344.9 84.4 -1738.4: in_wall 1
+- villager at 265.2 79.0 -1746.5: spinning 10, stuck 1; closest to goals: bed 2.8, work 5.1; gave up 265x (261 79 -1752 air; 247 79 -1749 snow; 268 81 -1752 air); doing when stuck or spinning: spin:bed/heading/standing 6, spin:bed/stroll/moving 3, bed/stroll/onpath/partial/gaveup 1
+- minecart at 382.8 84.1 -1737.5: in_wall 1
+- pig at 293.5 78.0 -1694.3: stuck 87; gave up 10x (309 81 -1741 snow; 299 81 -1742 short_grass; 290 81 -1743 snow); doing when stuck or spinning: bed/stroll/onpath 51, free/stroll/onpath 16, work/stroll/onpath 12
+- minecart at 358.7 84.1 -1737.5: in_wall 1
+- soldier_trooper at 348.9 84.4 -1738.4: in_wall 4, stuck 2; doing when stuck or spinning: bed/target/nopath 2
+- cat at 174.3 73.0 -1752.7: stuck 30; gave up 17x (257 81 -1787 snow; 258 81 -1785 snow; 259 81 -1786 snow); doing when stuck or spinning: bed/stroll/nopath 25, free/stroll/nopath 5
+- minecart at 263.4 80.0 -1737.5: in_wall 1
+- pig at 260.5 76.0 -1694.4: stuck 61; gave up 22x (294 81 -1742 short_grass; 296 80 -1730 air; 287 80 -1734 air); doing when stuck or spinning: bed/stroll/nopath 51, free/stroll/nopath 10
+- minecart at 382.8 84.1 -1737.5: in_wall 1
+- minecart at 257.5 79.1 -1731.6: in_wall 1
+

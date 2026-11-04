@@ -1,0 +1,5 @@
+imagecheck smoke_rd8.png magenta=0.00000 black=0.0001 white=0.0083 std=37.2 hash=8d37c7d809ab07dc
+imagecheck smoke_rd16.png magenta=0.00000 black=0.0001 white=0.0114 std=47.8 hash=606bf039f72c141d
+imagecheck smoke_rd24.png magenta=0.00000 black=0.0001 white=0.0142 std=49.3 hash=7a5c11663021ee2e
+imagecheck smoke_rd24.png magenta=0.00000 black=0.0001 white=0.0007 std=33.5 hash=94259fc8fd269d2d
+imagecheck smoke_rd8.png magenta=0.00000 black=0.0038 white=0.0162 std=59.3 hash=bc787ff3bf36ecf5
