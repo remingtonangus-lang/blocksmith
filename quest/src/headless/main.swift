@@ -2224,6 +2224,10 @@ if CommandLine.arguments.contains("--huntcrawler") {          // P460: the Recko
     HuntCrawlerCheck.run(game, check)
     print(failures == 0 ? "huntcrawler: all checks passed" : "huntcrawler: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--huntwarship") {         // Nov 4: the Reckoning's Stormwarden band brings a warship that comes
+    HuntWarshipCheck.run(game, check)
+    print(failures == 0 ? "huntwarship: all checks passed" : "huntwarship: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --crewfight: P471, a frigate's crew with him on its deck (Sources/CrewFightCheck.swift).
 if CommandLine.arguments.contains("--crewfight") {
     CrewFightCheck.run(game, check)
@@ -3271,14 +3275,20 @@ func leaves(_ name: String, _ body: () -> Void) {
     // (P499: and at no helm and on no mount: a group that left him at a frigate's helm put every later aim and chase
     // view check in the helm's hands.)
     let pilot0 = game.world.ships.pilot, riding0 = game.riding, vrAim0 = game.vrAim
+    // (Nov 4: and with the factions' standing as it was: the friendly-fire squads of the Meridian never fought once a
+    // group before them had left him the Meridian's ally.)
+    let rep0 = FactionRep.encode(), repMap0 = FactionRep.rep, hunters0 = FactionRep.nextHunters
     // Put it all back after the check, so one group's leftover fails that group, not every group after it.
     defer {
         game.player.flying = fly; game.world.ships.encounters = enc; game.survival = surv; game.player.pos = pos; game.player.vel = .zero; game.menu = menu0
         game.world.ships.pilot = pilot0; game.riding = riding0; game.vrAim = vrAim0
+        FactionRep.rep = repMap0; FactionRep.nextHunters = hunters0
     }
     body()
     let moved = simd_length(game.player.pos - pos)
     let helm = game.world.ships.pilot === pilot0 && game.riding === riding0
+    let rep = FactionRep.encode()
+    if rep != rep0 { print("\(name): left the factions' standing at \(rep) (was \(rep0)); put back") }
     check(game.player.flying == fly && game.world.ships.encounters == enc && game.survival == surv && moved < 1 && (game.menu == nil) == menu && helm,
           "\(name): leaves the player and world as it found them (flying \(game.player.flying)/\(fly), encounters \(game.world.ships.encounters)/\(enc), survival \(game.survival)/\(surv), moved \(String(format: "%.1f", moved)), menu \(game.menu == nil ? "none" : "open"), helm \(game.world.ships.pilot?.root.name ?? "none")/\(pilot0?.root.name ?? "none"), riding \(game.riding?.kind.key ?? "none")/\(riding0?.kind.key ?? "none"))")
 }
