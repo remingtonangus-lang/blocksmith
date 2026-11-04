@@ -132,11 +132,46 @@ enum FrigateLayoutCheck {
             }
             // (bloom: the other capital hulls, how many loose pieces they hold, and the cost of joining them)
             for (name, mk) in [("Stormwarden Frigate", { Capital.frigate() }), ("Ironback Crawler", { Capital.crawler() })] as [(String, () -> HullBuilder)] {
+                HullBuilder.keepIslands = true
                 let h = mk()
+                HullBuilder.keepIslands = false
+                // (what floats, by kind, before the join)
+                do {
+                    var seen = [Bool](repeating: false, count: h.blocks.count)
+                    var best: [Int] = []
+                    for i in 0..<h.blocks.count where h.blocks[i] != AIR && !seen[i] {
+                        var stack = [i], comp: [Int] = []
+                        seen[i] = true
+                        while let k = stack.popLast() {
+                            comp.append(k)
+                            let x = k % h.sx, z = (k / h.sx) % h.sz, y = k / (h.sx * h.sz)
+                            for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
+                                let nx = x + dx, ny = y + dy, nz = z + dz
+                                guard nx >= 0 && nx < h.sx && ny >= 0 && ny < h.sy && nz >= 0 && nz < h.sz else { continue }
+                                let j = nx + nz * h.sx + ny * h.sx * h.sz
+                                if !seen[j] && h.blocks[j] != AIR { seen[j] = true; stack.append(j) }
+                            }
+                        }
+                        if comp.count > best.count { best = comp }
+                    }
+                    var main = [Bool](repeating: false, count: h.blocks.count)
+                    for k in best { main[k] = true }
+                    var loose: [String: (Int, IVec3, IVec3)] = [:]
+                    for (i, bl) in h.blocks.enumerated() where bl != AIR && !main[i] {
+                        let c = IVec3(i % h.sx - h.ox, i / (h.sx * h.sz), (i / h.sx) % h.sz)
+                        let e = loose[Blocks.key(bl)] ?? (0, c, c)
+                        loose[Blocks.key(bl)] = (e.0 + 1, IVec3(min(e.1.x, c.x), min(e.1.y, c.y), min(e.1.z, c.z)), IVec3(max(e.2.x, c.x), max(e.2.y, c.y), max(e.2.z, c.z)))
+                    }
+                    for (k, e) in loose.sorted(by: { $0.value.0 > $1.value.0 }).prefix(14) {
+                        print("frigatelayout: \(name) loose \(e.0) \(k), x \(e.1.x)...\(e.2.x) y \(e.1.y)...\(e.2.y) z \(e.1.z)...\(e.2.z)")
+                    }
+                }
                 let t1 = CFAbsoluteTimeGetCurrent()
                 let n = h.joinIslands()
-                print(String(format: "frigatelayout: the %@ (%dx%dx%d) has %d loose pieces' worth of joins (%.0f ms to find and join)", name, h.sx, h.sy, h.sz, n,
+                print(String(format: "frigatelayout: the %@ (%dx%dx%d) as drawn has %d loose pieces (%.0f ms to find and join them, on the builder's worker)", name, h.sx, h.sy, h.sz, n,
                              (CFAbsoluteTimeGetCurrent() - t1) * 1000))
+                let again = h.joinIslands()
+                check(again == 0, "frigatelayout P504: the \(name) as built has no loose piece (\(n) joined, \(again) left)")
             }
             var kinds: [String: Int] = [:]
             for z in 121...154 { for y in 0..<hb.sy { for x in -13...13 {

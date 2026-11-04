@@ -248,8 +248,10 @@ final class HullBuilder {
     // Pieces of the hull that touch the rest only along edges or corners (a skin stepping two blocks a cell): each gets one
     // block of its own kind in an open cell beside it that meets the main hull face to face (stairs count as one flight,
     // as FrigateLayoutCheck counts them). Returns the blocks added.
+    static var keepIslands = false                  // (FrigateLayoutCheck: a hull as built, to list what floats)
     @discardableResult
     func joinIslands() -> Int {
+        if HullBuilder.keepIslands { return 0 }
         let n = sx * sy * sz
         guard let start = blocks.firstIndex(where: { $0 != AIR }) else { return 0 }
         var main = [Bool](repeating: false, count: n)
@@ -578,6 +580,7 @@ enum Capital {
             hb.fill(x, x, 62, 64, z - 1, z + 1, iron)
             hb.pods.append((V3(Float(x + W) + 0.5 + Float(sx) * 1.5, 63.5, Float(z) + 0.5), simd_normalize(V3(Float(sx), 1.2, 0))))
         } }
+        hb.joinIslands()                         // (P512: no piece of the hull hangs on nothing: FrigateLayoutCheck)
         return hb
     }
 
@@ -701,6 +704,7 @@ enum Capital {
             hb.fill(sx * 8, sx * 8, 25, 26, z, z + 1, iron)
             hb.pods.append((V3(Float(sx * 9 + W) + 0.5, 26.5, Float(z) + 1), simd_normalize(V3(Float(sx) * 0.5, 1.5, -0.3))))
         } }
+        hb.joinIslands()                         // (P512: no piece of the hull hangs on nothing: FrigateLayoutCheck)
         return hb
     }
 
