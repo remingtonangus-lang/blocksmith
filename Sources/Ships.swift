@@ -765,6 +765,7 @@ final class ShipManager {
     var mobRiders: [(Mob, Ship)] = []        // per-frame scratch (ShipPhysics.update): riders before the ships move
     var itemRiders: [(ItemEntity, Ship)] = []
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
+    var shellNear: [Mob] = []        // (updateShells: the mobs within reach of one shell's flight this frame)
     var shockwaves: [Shockwave] = []
     var shockDt: Float = 1.0 / 72                // (the last frame's dt: stepBowls tells a wave born this frame)
     var pendingCraters: [V3] = []                    // Tidebreaker hits on ground not loaded yet (MainGun.swift)

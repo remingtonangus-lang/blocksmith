@@ -448,6 +448,7 @@ final class QuestControls {
         game.knockbackScale = QuestSettings.knockback               // Q2c-console-60
         game.vrShake = QuestSettings.blastShake
         game.vrHead = rig.headWorld
+        game.vrHeadYaw = rig.headYaw
         p.rt = trigBtn[1].padValue                         // P303 (c): the game's 0.5 cut follows the trigger's state
         mineToggleUpdate(R, inMenu: inMenu, &p)             // Q2c-console-61
         p.lt = trigBtn[0].padValue                          // use / place (hold to repeat)

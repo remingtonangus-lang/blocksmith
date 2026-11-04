@@ -462,7 +462,11 @@ extension Game {
         if r.dropshipCD <= 0 && r.dropships < 2 && r.broken != true && r.cleared != true {
             r.dropshipCD = 75
             let dir = simd_normalize(V3(r.centre.x - src.x, 0, r.centre.z - src.z) + V3(0.3, 0, 0.7))
-            let from = r.centre + dir * 170 + V3(0, 60, 0)
+            // (Nov 4, ledger 16: 170 off the base, inside the fog past view 11 when he's at it: now past the fog from him)
+            var far: Float = 170
+            let pp = V2(player.pos.x, player.pos.z), need = world.pastFog(0, size: 16)
+            while far < 400 && simd_length(V2(r.centre.x + dir.x * far, r.centre.z + dir.z * far) - pp) < need { far += 20 }
+            let from = r.centre + dir * far + V3(0, 60, 0)
             if world.ships.callDropship(faction: .steelhold, from: from, to: dropZone(r), game: self) {
                 r.dropships += 1
                 b.note("\(r.key) dropship \(r.dropships) called")

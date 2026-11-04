@@ -1727,6 +1727,17 @@ extension ShipManager {
             let dir = to / d
             if d > 40 { want = dir; speed = 9 * fast }
             else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * 0.3); speed = 4 * fast }
+        } else if let goal = st.goal {
+            // Nov 4 (ledger 16): sent for someone (the Reckoning's warship, made past the fog: from there her circle round
+            // home never came near him): fly in, then circle the spot with her near end 120 off until she has him in her
+            // sight. (Circling with her middle 100 off, a 480-block hull hung over him and its own decks hid him from every
+            // gun: --huntwarship, build 138.)
+            let to = V2(goal.x - s.pos.x, goal.z - s.pos.z)
+            let d = max(1, simd_length(to))
+            let dir = to / d
+            let near = boundsDistance(s, goal)
+            if near > 180 { want = dir; speed = 10 * fast }
+            else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * ((near - 120) / 60)); speed = 6 * fast }
         } else if let isle = st.isles?.first {
             // T11: a frigate with a sky isle near its home keeps its own route: a wide circle round the isle, at
             // cruise clearance over its turf (the altitude below counts the isle as ground).
@@ -3479,6 +3490,28 @@ extension ShipManager {
 
 // MARK: Breakaway pieces (block-based damage on capital hulls)
 
+enum DetachLooseTiming {
+    static let oldSearch = ProcessInfo.processInfo.environment["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
+    // detachLoose's cell table (the main thread's blasts only), grown to the largest hull blasted; `base` moves past
+    // each blast's searches, so the table is never cleared (but when it would run past the top).
+    private static var buf: UnsafeMutablePointer<UInt32>? = nil
+    private static var cap = 0
+    static var base: UInt32 = 1
+    static func table(_ n: Int) -> UnsafeMutablePointer<UInt32> {
+        if n > cap || buf == nil {
+            buf?.deallocate()
+            cap = max(n, 1 << 16)
+            buf = UnsafeMutablePointer<UInt32>.allocate(capacity: cap)
+            buf!.initialize(repeating: 0, count: cap)
+            base = 1
+        } else if base > UInt32.max - 1024 {
+            buf!.update(repeating: 0, count: cap)
+            base = 1
+        }
+        return buf!
+    }
+}
+
 extension ShipManager {
     // After a blast on a capital hull: flood out from the cells next to the hole, each search capped at `limit`
     // cells. A search that runs dry before the cap found a piece no longer joined to the hull: it breaks away as a
@@ -3498,25 +3531,68 @@ extension ShipManager {
         // (P461: a small hull, the dropship's 295 blocks, is itself under the limit: one block melted or shot out of
         // it cut the whole craft loose as a wreck. A piece holding half the hull or more is the hull and stays.)
         let limit = min(limit, max(1, s.blockCount / 2))
-        for st in starts where !seen.contains(st) {
-            var comp: [IVec3] = [st]
-            var local = Set<IVec3>([st])
-            var head = 0
-            var open = true
-            while head < comp.count {
-                let c = comp[head]; head += 1
-                for d in dirs {
-                    let n = c + d
-                    if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
-                    let b = g.get(n.x, n.y, n.z)
-                    if b == AIR { continue }
-                    local.insert(n)
-                    comp.append(n)
+        // (Nov 4, the worst-case soak: one shell's blast on a crawler took 11 of its 12 ms here. A search from the far
+        // side of the hole never met the cells an earlier search had already found joined to the hull, and walked its
+        // own 4,000 again, up to 400 times a blast. Every cell already seen is the hull's (a loose piece's search runs
+        // dry, so no later search can reach its cells): meeting one, the search is joined to the hull and stops.)
+        if DetachLooseTiming.oldSearch {
+            for st in starts where !seen.contains(st) {
+                var comp: [IVec3] = [st]
+                var local = Set<IVec3>([st])
+                var head = 0
+                var open = true
+                while head < comp.count {
+                    let c = comp[head]; head += 1
+                    for d in dirs {
+                        let n = c + d
+                        if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
+                        let b = g.get(n.x, n.y, n.z)
+                        if b == AIR { continue }
+                        local.insert(n)
+                        comp.append(n)
+                    }
+                    if comp.count > limit { open = false; break }
                 }
-                if comp.count > limit { open = false; break }
+                seen.formUnion(local)
+                if open && comp.count >= 1 { pieces.append(comp) }
             }
-            seen.formUnion(local)
-            if open && comp.count >= 1 { pieces.append(comp) }
+        } else {
+            // (one table of cell index -> the search that found it, in place of a set per search and their union. Nov 4,
+            // the next profile: as a dictionary it was still 4.6 million instructions a blast on the crawler in game,
+            // the first search's 4,000 cells hashed six times each; now a flat buffer over the grid, reused from blast
+            // to blast: a cell holds base + its search, anything under base is unseen.)
+            let cells = g.sx * g.sy * g.sz
+            let owner = DetachLooseTiming.table(cells)
+            let base = DetachLooseTiming.base
+            var k: UInt32 = 0
+            defer { DetachLooseTiming.base = base + k + 1 }
+            for st in starts {
+                let si = g.index(st.x, st.y, st.z)
+                if owner[si] >= base { continue }
+                k += 1
+                owner[si] = base + k
+                var comp: [IVec3] = [st]
+                var head = 0
+                var open = true
+                search: while head < comp.count {
+                    let c = comp[head]; head += 1
+                    for d in dirs {
+                        let n = c + d
+                        guard g.inside(n.x, n.y, n.z) else { continue }
+                        let ni = g.index(n.x, n.y, n.z)
+                        let o = owner[ni]
+                        if o >= base {
+                            if o == base + k { continue }
+                            open = false; break search             // an earlier search's cell: joined to the hull
+                        }
+                        if g.get(n.x, n.y, n.z) == AIR { continue }
+                        owner[ni] = base + k
+                        comp.append(n)
+                    }
+                    if comp.count > limit { open = false; break }
+                }
+                if open { pieces.append(comp) }
+            }
         }
         guard !pieces.isEmpty else { return }
         let kinds = ShipParts.kinds

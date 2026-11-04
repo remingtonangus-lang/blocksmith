@@ -274,7 +274,9 @@ enum DirectorEvents {
             let lead = (e.s["name"] ?? "The Brand").replacingOccurrences(of: "'s Warband", with: "")
             for i in 0..<n {
                 let k: MobKind = i == 0 ? .brandChampion : (i % 2 == 1 ? .brandKnight : .brandSquire)
-                guard let q = MobManager.groundSpot(g.world, near: around(p, i, 2)) else { continue }
+                // (Nov 4, the trader's llamas' bloom: a member whose spot in the ring missed was left out, a warband short
+                // of its count; it stands at the band's own spot instead, as the hell packs do)
+                let q = MobManager.groundSpot(g.world, near: around(p, i, 2)) ?? p
                 let m = Mob(k, at: q)
                 m.customName = i == 0 ? lead : "Warband Brand"
                 m.aggro = true; m.lockTime = 30

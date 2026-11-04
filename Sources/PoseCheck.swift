@@ -138,6 +138,15 @@ enum PoseCheck {
         }
         var clipped = (0, 0), worst: Float = 0
         defer { print(String(format: "posecheck: weapon clearance: %d of %d poses had the weapon through an arm or the body before clearing; worst after %.2f px", clipped.0, clipped.1, worst)) }
+        // Nov 4: the weapon's clearance measure as it is and as it was (RigClearance.clipFast / clipOld) on every
+        // measure of every pose here: the same numbers, and the time each took.
+        SoldierRig.clipCompare = true; SoldierRig.clipDiff = 0; SoldierRig.clipCompared = 0; SoldierRig.clipTimes = (0, 0)
+        defer {
+            SoldierRig.clipCompare = false
+            let d = SoldierRig.clipDiff, n = SoldierRig.clipCompared, t = SoldierRig.clipTimes
+            check(n > 1000 && d < 1e-4, "clearance measure the same as before", String(format: "%d measures, largest difference %.6f px; %.2f ms in all (before %.2f ms)", n, d, t.fast * 1000, t.old * 1000))
+            print(String(format: "posecheck: clearance measure: %d measures, largest difference %.6f px, %.2f ms in all (before %.2f ms)", n, d, t.fast * 1000, t.old * 1000))
+        }
         for k in kinds {
             let r = Soldier.rank(k) ?? 0
             // (retired guns are no one's to carry: the needle and breaker pistols load as revolvers)

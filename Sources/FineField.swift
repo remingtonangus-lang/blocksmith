@@ -132,6 +132,7 @@ extension World {
             f[FineField.index(fx, fy, fz)] = FineField.upsample(v, raw0: r0, allSame: same, t)       // (corners: bit 0 x, 1 y, 2 z)
         } } }
         c.blocks.fine[sy] = f
+        World.fineMade &+= 1
         return true
     }
 
@@ -409,6 +410,7 @@ extension Mesher {
 struct FinePrefetch { weak var c: Chunk?; let sy: Int; let version: Int }
 extension World {
     static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
+    static var fineMade = 0                              // (sections given their fine samples: the soak's slowest bowl step)
     static func takePrefetched(_ c: Chunk, _ sy: Int) -> Bool {
         guard let i = finePrefetched.firstIndex(where: { $0.c === c && $0.sy == sy }) else { return false }
         let p = finePrefetched.remove(at: i)

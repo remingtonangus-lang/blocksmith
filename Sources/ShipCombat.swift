@@ -242,6 +242,16 @@ extension ShipManager {
             var hit: V3?
             var onHull = false
             var before = start
+            // (Nov 4, callgrind of the worst-case soak: every 0.4-block step of every shell looked through every mob,
+            // 157 of them; the mobs that can be within reach of this frame's flight are picked out once.)
+            shellNear.removeAll(keepingCapacity: true)
+            if let g = game, sh.age > 0.25 {
+                let mid = (start + end) * 0.5
+                for m in g.mobs.mobs where m.health > 0 {
+                    let reach = len * 0.5 + max(0.8, m.halfW + 0.4) + m.height * 0.5 + 0.1
+                    if simd_length_squared(m.pos - mid) < reach * reach { shellNear.append(m) }
+                }
+            }
             for i in 1...n {
                 if i > 1 { before = start + (end - start) * (Float(i - 1) / Float(n)) }
                 let p = start + (end - start) * (Float(i) / Float(n))
@@ -254,7 +264,7 @@ extension ShipManager {
                 if let g = game, sh.age > 0.25 {                   // (clear of the gun crew first)
                     // (P512: never the gun's own crew. A ship's shells fly through its own hull, and a hand at a gun station
                     // inside it took the round from a gun firing across the deck: 4 of 4 dead in the station check.)
-                    if let m = g.mobs.mobs.first(where: { $0.health > 0 && $0.deck?.root.id != sh.owner && simd_length($0.pos + V3(0, $0.height * 0.5, 0) - p) < max(0.8, $0.halfW + 0.4) }) {
+                    if let m = shellNear.first(where: { $0.health > 0 && $0.deck?.root.id != sh.owner && simd_length($0.pos + V3(0, $0.height * 0.5, 0) - p) < max(0.8, $0.halfW + 0.4) }) {
                         // P345: nobody survives a cannon round to the body (a deck gun or a vehicle still only takes the blast).
                         if !sh.gentle && !m.kind.shellProof {
                             if g.world.ships.pilot?.root.id == sh.owner { m.killedByPlayer = true; m.playerHurtAt = g.clock }
@@ -431,6 +441,7 @@ extension ShipManager {
             let lc = s.toLocal(c)
             defer { if s.kinematic && s.parent == nil { wheelBlast(s, lc, power: power) } }     // P511: big wheels wear (after the blast's own cells)
             let g = s.grid
+            let gxF = Float(g.sx), gyF = Float(g.sy), gzF = Float(g.sz)
             var destroyed = Set<IVec3>()
             var shaken: [IVec3: Float] = [:]                // cells that stopped a ray: share of their cost it carried
             for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
@@ -439,6 +450,16 @@ extension ShipManager {
                 var intensity = power * (0.7 + Rand.float(in: 0..<0.6))
                 var p = lc
                 while intensity > 0 {
+                    // (Nov 4, the worst-case soak's profile: most steps of a blast beside a hull are in the open round
+                    // its grid, each with three floors and a lookup; outside the grid is air, and a ray outside it on a
+                    // side it's moving away from never comes back)
+                    if p.x < 0 || p.y < 0 || p.z < 0 || p.x >= gxF || p.y >= gyF || p.z >= gzF {
+                        if (p.x < 0 && d.x <= 0) || (p.x >= gxF && d.x >= 0) || (p.y < 0 && d.y <= 0) || (p.y >= gyF && d.y >= 0)
+                            || (p.z < 0 && d.z <= 0) || (p.z >= gzF && d.z >= 0) { break }
+                        p += d * 0.3
+                        intensity -= 0.225
+                        continue
+                    }
                     let cell = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
                     let b = g.get(cell.x, cell.y, cell.z)
                     if b != AIR {
@@ -451,6 +472,7 @@ extension ShipManager {
                     intensity -= 0.225
                 }
             } } }
+            Explosion.lap("ships: rays")            // (Nov 4: the worst-case soak's slowest blast spent 7.8 ms in ships)
             // Progressive damage on capital hulls: plates the blast couldn't break lose pieces on the side facing it
             // (their grid never re-crops, so the chip map stays valid in grid space).
             var chipped: [IVec3] = []
@@ -498,11 +520,13 @@ extension ShipManager {
             g.set(cell.x, cell.y, cell.z, AIR)
         }
         if pilot === s, let h = s.helm, destroyed.contains(h) { pilot = nil; s.piloted = false }
+        Explosion.lap("ships: cells")
         if s.kinematic {
             // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
             s.blockCount -= destroyed.count
             s.mesh.rebuildAround(s, Array(destroyed) + chipped, device: world.device, queue: meshQueue)
-            if detach { detachLoose(s, around: Array(destroyed)) }
+            Explosion.lap("ships: remesh")
+            if detach { detachLoose(s, around: Array(destroyed)); Explosion.lap("ships: detach") }
             return
         }
         // Push: an impulse away from the blast, applied at the blast point.

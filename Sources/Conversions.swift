@@ -174,8 +174,12 @@ extension Game {
             t.villager = WanderingTrader.data()
             t.persistent = true
             mobs.mobs.append(t)
+            // (Nov 4, bug hunt: each llama had one try at a spot within 4 blocks, and on broken ground, in trees or by
+            // water both missed: the trader came alone (questcheck --mobtests). Now each has eight tries, then his spot.)
             for _ in 0..<2 {
-                guard let lp = groundSpot(x + Rand.int(in: -4...4), z + Rand.int(in: -4...4)) else { continue }
+                var spot: V3? = nil
+                for _ in 0..<8 where spot == nil { spot = groundSpot(x + Rand.int(in: -4...4), z + Rand.int(in: -4...4)) }
+                let lp = spot ?? at
                 let l = Mob(.traderLlama, at: lp)
                 l.target = t
                 l.persistent = true

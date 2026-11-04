@@ -18,6 +18,12 @@ enum Corsairs {
     static var nextCheck: Double = 0
     static var nextRaid: Double = 2400          // (not in a session's first 40 minutes)
     static var landed: Set<Int> = []
+    // (Week item 71 bloom, no pop-in: a raid sloop is made past the fog's end at his view, beyond the active distance
+    // there, so like a sea hunter it stays awake on its way in until its party is ashore: ShipPhysics.)
+    static var raiders: Set<Int> = []
+    static func raiding(_ s: Ship) -> Bool { raiders.contains(s.id) && !landed.contains(s.id) }
+    // Where a raid sloop or a sea hunter comes in: past the fog's end at his view (16 x view - 12), 150 at the least.
+    static func comeIn(_ w: World, least: Float) -> Float { w.pastFog(least) }
     static var raids = 0, parties = 0           // counters (harness)
 
     // A corsair: a soldier of the sea faction with a pirate's name.
@@ -78,12 +84,13 @@ enum Corsairs {
         let dir = V2(cosf(a), sinf(a))
         var shore: V3?
         var r: Float = 6
-        while r <= 110 {
+        let seaR = comeIn(w, least: 90)             // (was 90 at any view: inside the fog from view 7 up)
+        while r <= seaR + 20 {
             let x = Int(floor(p.x + dir.x * r)), z = Int(floor(p.z + dir.y * r))
             guard w.isLoaded(x, z) else { return nil }
             if let s = Submarine.surface(w, x, z) {
                 if shore == nil { shore = V3(Float(x) + 0.5, Float(s + 1), Float(z) + 0.5) }
-                if r >= 90 {
+                if r >= seaR {
                     guard let sh = shore, simd_length(V2(sh.x - p.x, sh.z - p.z)) < 60 else { return nil }
                     // The raid point stands a little off the shore, in water at least four deep.
                     var q = sh
@@ -118,6 +125,7 @@ extension Game {
                 corsairsLand(from: s)
             }
         }
+        if !Corsairs.raiders.isEmpty { Corsairs.raiders = Corsairs.raiders.filter { id in world.ships.list.contains { $0.id == id } } }
         guard live == 0, clock >= Corsairs.nextCheck else { return }
         Corsairs.nextCheck = clock + Corsairs.checkEvery
         guard clock >= Corsairs.nextRaid, survival, difficulty > 0, alive, !Reckoning.won else { return }
@@ -130,6 +138,7 @@ extension Game {
             let yaw = atan2f(-toShore.x, -toShore.y)                     // bow (-Z) toward the shore
             let s = world.ships.spawnVessel("sloop", home: IVec3(Int(floor(sea.x)), Int(sea.y), Int(floor(sea.z))), game: self, yaw: yaw)
             s.home = shore
+            Corsairs.raiders.insert(s.id)
             Corsairs.raids += 1
             Corsairs.nextRaid = clock + Corsairs.cooldown
             FactionRaids.lastAssault = clock

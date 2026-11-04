@@ -98,6 +98,19 @@ enum Explosion {
         Explosion.lap("ships")
         var destroyed = Set<IVec3>()
         var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried
+        // (Nov 4, the worst-case soak's profile: the rays' block reads were a third of a blast, each one looking its
+        // chunk up in the world's table; nearly every step is in the chunk the last one read. As World.block.)
+        var rayKey = (Int.min, Int.min), rayChunk: Chunk? = nil
+        @inline(__always) func rayBlock(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+            if w.frame != nil { return w.block(x, y, z) }
+            if y < 0 { return BEDROCK }
+            if y >= CH { return AIR }
+            let kx = x >> 4, kz = z >> 4
+            if kx != rayKey.0 || kz != rayKey.1 { rayKey = (kx, kz); rayChunk = w.chunkAt(x, z) }
+            guard let c = rayChunk else { return AIR }
+            if c.hollow { return y <= Int(c.height[(x & 15) + (z & 15) * CS]) ? STONE : AIR }
+            return c.blocks[Chunk.index(x & 15, y, z & 15)]
+        }
         // (The rays only find blocks to break or chip: a blast that breaks none skips them, 17 ms at power 8.)
         if breakBlocks { for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
             if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
@@ -108,7 +121,7 @@ enum Explosion {
             var p = c
             while intensity > 0 {
                 let b = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
-                let id = w.block(b.x, b.y, b.z)
+                let id = rayBlock(b.x, b.y, b.z)
                 if id != AIR {
                     let fluid = Blocks.isLiquid(id)
                     let r0 = Blocks.resistance[Int(id)]
@@ -474,6 +487,7 @@ final class CraterJob {
     static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
     private var circuitsNear: Bool?
     private var waitFrames = 0
+    private var fineFrames = 0
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
@@ -524,12 +538,14 @@ final class CraterJob {
         if timed && CraterJob.allowance() <= 0 { return false }
         let began = CFAbsoluteTimeGetCurrent()
         var phase = "wait", removed0 = removed
+        let refills0 = World.refilledAtOnce          // (Nov 4: a shell chunk refilled on the frame thread by an edit)
+        let fine0 = World.fineMade
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
             if timed && took * 1000 > CraterJob.worstStepMs {
                 CraterJob.worstStepMs = took * 1000
-                CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f", phase, removed - removed0, r)
+                CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f, %ld chunks refilled at once, %ld fine sections made", phase, removed - removed0, r, World.refilledAtOnce - refills0, World.fineMade - fine0)
             }
         }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
@@ -542,6 +558,13 @@ final class CraterJob {
                 return false
             }
             waitFrames = -1
+        }
+        // (Nov 4, the worst-case soak: a carving step that took 2 blocks took 10.6 ms: each block of field ground taken
+        // first gives its section its fine samples, 1-2 ms a section. The sections the bowl and its field balls reach
+        // get theirs first, one a frame under the fireball, as the crawler's ruts do: World.prefetchFine.)
+        if blocks != .max && fineFrames < 48 {
+            if w.prefetchFine(center, radius: max(r, Float(depth))) { fineFrames += 1; phase = "fine prefetch"; return false }
+            fineFrames = 48
         }
         if circuitsNear == nil {
             phase = "circuit scan"
@@ -619,6 +642,7 @@ final class CraterJob {
         }
         if (next >= offsets.count || removed >= cap) && !carved {
             carved = true
+            phase = "carving, then the tip check and rim fluids"
             w.queueTipCheck(IVec3(cx, cy, cz), Int(ceil(r)) + 1)        // (P503: what stood over the breach weighed)
             for b in rim { w.scheduleFluid(around: b) }
             rim.removeAll()
@@ -640,7 +664,7 @@ final class CraterJob {
             bowlNext += 1
             return done
         }
-        if carved && budget > 0 && CFAbsoluteTimeGetCurrent() < deadline { phase += " + scorch"; scorch(g, columns: max(1, budget / 3)) }      // (up to ~3 block changes a column)
+        if carved && budget > 0 && CFAbsoluteTimeGetCurrent() < deadline { phase += " + scorch"; scorch(g, columns: max(1, budget / 3), until: deadline) }      // (up to ~3 block changes a column)
         return done
     }
     private var bowlNext = 0
@@ -657,7 +681,9 @@ final class CraterJob {
                                             "sandstone", "red_sandstone", "snow_block", "terracotta", "calcite", "blackstone", "basalt"]
                                             .filter { Blocks.has($0) }.map { Blocks.id($0) })
     private static var scorchCache: [Int: [SIMD2<Int16>]] = [:]     // columns within 1.5 radii, nearest first
-    private func scorch(_ g: Game, columns: Int) {
+    // (Nov 4, the worst-case soak: one step's scorch took 15.2 ms of a frame, its columns never looking at the clock;
+    // it stops at the frame's carving deadline now, every 4 columns, as the carving does every 2 blocks.)
+    private func scorch(_ g: Game, columns: Int, until deadline: Double = .infinity) {
         let w = g.world
         let R = r * 1.5
         let ri = Int(ceilf(R))
@@ -672,8 +698,10 @@ final class CraterJob {
         let blackstone = Blocks.id("blackstone"), basalt = Blocks.id("basalt"), magma = Blocks.id("magma_block")
         let coarse = Blocks.id("coarse_dirt"), snowLayer = Blocks.has("snow") ? Blocks.id("snow") : AIR
         let grass = Blocks.id("grass_block"), podzol = Blocks.id("podzol"), dirt = Blocks.id("dirt")
-        var n = columns
+        var n = columns, sinceCheck = 0
         while n > 0 && scorchNext < cols.count {
+            sinceCheck += 1
+            if sinceCheck >= 4 { sinceCheck = 0; if CFAbsoluteTimeGetCurrent() > deadline { break } }
             let o = cols[scorchNext]
             scorchNext += 1
             n -= 1

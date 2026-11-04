@@ -70,11 +70,16 @@ enum Reckoning {
     static var hunts: [Hunt] = []
     static var underground = false      // the player is below the surface (the groups have lost the trail)
     static var crawlerAt: V2?           // P460: where the hunt's Capital Crawler set out (it's found by its home)
+    static var warshipAt: V2?           // where the hunt's warship was made (it's found by its home)
+    // Nov 4 (ledger 16): the crawler is made where he isn't looking; a spot is looked for once a second, and after
+    // `crawlerWait` seconds of him watching every way it could come, at the farthest spot.
+    static var crawlerTries = 0, crawlerNext: Double = 0
+    static let crawlerWait = 30
     static var won: Bool { stage == 3 }
     static var groupsLeft: Int { hunts.filter { $0.left > 0 }.count }
     private static var gameID: ObjectIdentifier?
 
-    static func reset() { stage = 0; timer = 0; hunts = []; underground = false; barrageTold = false; crawlerAt = nil }
+    static func reset() { stage = 0; timer = 0; hunts = []; underground = false; barrageTold = false; crawlerAt = nil; warshipAt = nil; crawlerTries = 0; crawlerNext = 0 }
     static func own(_ g: Game) {
         let id = ObjectIdentifier(g)
         if gameID != id { reset(); gameID = id }
@@ -112,14 +117,25 @@ enum Reckoning {
         let w = g.world
         let back = atan2f(band.x - p.x, band.y - p.y)
         let rMax = Float(min(w.activeDistance, w.renderDistance) * CS) - 8
-        for r in [min(rMax, simd_length(band - p) + 40), rMax - 20, rMax - 40] where r >= 40 {
+        // Nov 4 (ledger 16): it was made at the first dry spot, in his sight; it must drive on the loaded ground
+        // inside the active distance, so it's never all past the fog (84 long): it's made where he isn't looking.
+        crawlerTries += 1; crawlerNext = g.clock + 1
+        let anyway = crawlerTries > crawlerWait
+        let past = w.pastFog(0, size: 44)
+        for r in (anyway ? [rMax] : [min(rMax, simd_length(band - p) + 40), rMax - 20, rMax - 40]) where r >= 40 {
             for a: Float in [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6, 2.2, -2.2] {
                 let x = Int(floor(p.x + sinf(back + a) * r)), z = Int(floor(p.y + cosf(back + a) * r))
+                if !anyway && r < past && g.inSight(V2(Float(x), Float(z)), halfWidth: 44) { continue }
                 let col = w.gen.column(x, z)
                 if col.height > SEA + 1 && !col.biome.isOcean { return IVec3(x, col.height + 1, z) }
             }
         }
         return nil
+    }
+    // The hunt's warship (her home is where she was made), on her run in.
+    static func huntWarship(_ s: Ship) -> Bool {
+        guard let c = warshipAt, s.role == "warfrigate", !s.captured, let h = s.home else { return false }
+        return abs(h.x - c.x) < 4 && abs(h.z - c.y) < 4
     }
     static func huntCrawler(_ g: Game, _ c: V2) -> Ship? {
         g.world.ships.capitals.first { $0.role == "crawler" && !$0.captured && simd_length(V2(($0.home ?? $0.pos).x - c.x, ($0.home ?? $0.pos).z - c.y)) < 4 }
@@ -229,7 +245,10 @@ enum Reckoning {
                 let again = h.landed && h.dropAgain > 0 && g.clock >= h.dropAgain && h.drops < dropMax && h.left > 0
                 if (first || again) && d < near * 2.2 {
                     let n = first ? min(6, h.waiting.count - 2) : 4
-                    let from = V3(h.pos.x, g.player.pos.y + 40, h.pos.y)
+                    // (Nov 4, ledger 16: was over the band, 58 to 158 off: inside the fog from view 11, often at 8; now in
+                    // along the band's line, past the fog)
+                    let dir = d > 1 ? (h.pos - p) / d : V2(1, 0), far = g.world.pastFog(d, size: 16)
+                    let from = V3(p.x + dir.x * far, g.player.pos.y + 40, p.y + dir.y * far)
                     let who = h.side == .greywall ? "Greywall" : h.side == .capital ? "Capital" : "Stormwarden"
                     if g.world.ships.callDropship(faction: h.side.faction, from: from, to: g.player.pos, game: g, troops: n) {
                         h.landed = true
@@ -244,7 +263,10 @@ enum Reckoning {
                 }
                 if h.side == .stormwarden && !h.warship && d < 260 {
                     h.warship = true
-                    let at = h.pos + simd_normalize(h.pos - p + V2(0.01, 0)) * 60
+                    // (Nov 4, ledger 16: 60 past the band, as near as 80 off with a 480-block hull: she appeared out
+                    // of nothing at any view; now all of her past the fog, and awake on her run in: ShipPhysics onRun)
+                    let at = p + simd_normalize(h.pos - p + V2(0.01, 0)) * g.world.pastFog(d + 60, size: 250)
+                    warshipAt = at
                     g.world.ships.spawnCapital("warfrigate", home: IVec3(Int(at.x), 0, Int(at.y)), yaw: atan2f(-(p.x - at.x), -(p.y - at.y)),
                                                region: nil, faction: .stormwarden)
                     g.onToast?("A Stormwarden warship joins the hunt")
@@ -252,7 +274,7 @@ enum Reckoning {
                 // P460 (Oct 25 17:08, overrun by the Capital's band in the jungle: "there should be a giant crawler"): the
                 // first Capital band to close in brings a Capital Crawler, rolling in from the band's side (on land) and
                 // driving on him.
-                if h.side == .capital && !h.warship && d < 260 && crawlerAt == nil, let at = crawlerSpot(g, h.pos, from: p) {
+                if h.side == .capital && !h.warship && d < 260 && crawlerAt == nil && g.clock >= crawlerNext, let at = crawlerSpot(g, h.pos, from: p) {
                     h.warship = true
                     crawlerAt = V2(Float(at.x) + 0.5, Float(at.z) + 0.5)
                     g.world.ships.spawnCapital("crawler", home: at, yaw: atan2f(-(p.x - Float(at.x)), -(p.y - Float(at.z))),
@@ -263,6 +285,7 @@ enum Reckoning {
         }
         // The hunt's crawler drives on him wherever he is on the surface (its target in sight or not); below, it waits.
         if let c = crawlerAt, let s = huntCrawler(g, c), let st = g.world.ships.capState[s.id] { st.goal = down ? nil : g.player.pos }
+        if warshipAt != nil, let s = g.world.ships.capitals.first(where: { huntWarship($0) }), let st = g.world.ships.capState[s.id] { st.goal = down ? nil : g.player.pos }
         if !down { barrages(g, p, dt) }
         // Bring units in, nearest groups first, while the player is on the surface.
         var alive = hunts.reduce(0) { $0 + $1.live.count }

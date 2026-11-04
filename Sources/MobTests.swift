@@ -321,7 +321,9 @@ enum MobTests {
         // Tables and categories.
         check(Spawns.monsters(.mushroomFields).isEmpty && Spawns.monsters(.deepDark).isEmpty, "spawn no monsters in mushroom fields / deep dark")
         check(Spawns.monsters(.desert).contains { $0.kind == .husk && $0.weight == 80 }, "spawn desert husks 80")
-        check(Spawns.monsters(.snowyPlains).contains { $0.kind == .stray && $0.weight == 80 }, "spawn snowy strays 80")
+        // (P246/P483: the skeleton bowmen, strays among them, stay out of the lists; the walkers came back)
+        check(!Spawns.monsters(.snowyPlains).contains { $0.kind == .stray || $0.kind == .skeleton } && Spawns.monsters(.snowyPlains).contains { $0.kind == .zombie },
+              "spawn snowy: walkers, no bowmen (P483)")
         check(Spawns.monsters(.river).contains { $0.kind == .drowned && $0.weight == 100 }, "spawn river drowned 100")
         check(MobKind.zombie.category == .monster && MobKind.cow.category == .creature && MobKind.bat.category == .ambient
               && MobKind.cod.category == .waterAmbient && MobKind.squid.category == .waterCreature && MobKind.glowSquid.category == .undergroundWater

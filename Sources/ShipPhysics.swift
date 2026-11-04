@@ -222,7 +222,8 @@ extension ShipManager {
             // from 260 blocks off to land troops by him) slept past the active distance (136 blocks at the default 8) and
             // hung in the sky where it was made. One on its run stays awake until it is gone; so does a sea hunter (rolled
             // in 150 blocks off: past 136 it lay still on the water and never came for him).
-            let onRun = (r.role == "dropship" && !r.captured && (capState[r.id]?.phase ?? 0) >= 1) || SeaHunt.isHunter(r)
+            let onRun = (r.role == "dropship" && !r.captured && (capState[r.id]?.phase ?? 0) >= 1) || SeaHunt.isHunter(r) || Corsairs.raiding(r)
+                || Reckoning.huntWarship(r)          // (Nov 4, ledger 16: made past the fog, far past the active distance)
             let steered = pilots.contains { $0 === s } || (Player.moveOverUnmade && carried.contains { $0 === r })
             // Kinematic (AI-moved) ships don't need the ground under them loaded: they never touch it physically.
             // P376: past the active distance every ship sleeps, capital ships too (they wait in place, drawn).

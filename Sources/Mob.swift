@@ -1849,6 +1849,9 @@ struct Part {
 
     // The part's rotation (Ry * Rz * Rx) as a matrix: one set of trig per part instead of per vertex.
     var rotation: simd_float3x3 {
+        // (Nov 4, the worst-case soak's profile: a twelfth of the mob drawing was this trig, most parts unturned; the
+        // product of the three for no turn is the identity)
+        if rotX == 0 && rotY == 0 && rotZ == 0 { return matrix_identity_float3x3 }
         let cx = cosf(rotX), sx = sinf(rotX), cz = cosf(rotZ), sz = sinf(rotZ), cy = cosf(rotY), sy = sinf(rotY)
         let rx = simd_float3x3(V3(1, 0, 0), V3(0, cx, sx), V3(0, -sx, cx))
         let rz = simd_float3x3(V3(cz, sz, 0), V3(-sz, cz, 0), V3(0, 0, 1))

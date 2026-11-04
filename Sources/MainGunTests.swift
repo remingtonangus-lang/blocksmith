@@ -253,7 +253,7 @@ enum MainGunTests {
         let ring = g.particles.list.dropFirst(parts0).filter { $0.layer == puff && $0.glow }.count
         check(predicted != nil && MainGun.aimUpdates == aims0 + 1 && ring >= 21 && aimMs < 4,
               "maingun: the helm shows where the shot will land (a \(ring)-puff ring \(String(format: "%.0f", predicted.map { simd_length($0 - mw0) } ?? -1)) blocks out, predicted in \(String(format: "%.2f", aimMs)) ms)")
-        pm.rumbleLog.removeAll()
+        pm.rumbleLog.removeAll(); MainGun.feelLog.removeAll()
         let shells0 = w.ships.shells.filter { $0.kind == 3 }.count
         let started = w.ships.playerMainGun(s, game: g)
         let again = w.ships.playerMainGun(s, game: g)
@@ -292,12 +292,14 @@ enum MainGunTests {
                 render("maingun_charge", atan2f(-to.x, -to.z), atan2f(to.y, simd_length(V2(to.x, to.z))))
             }
         }
-        let thumps = pm.rumbleLog
+        // (Nov 4: the coil's own thumps; on build 138 a blast's rumble a few blocks off came first in the pad's log and the
+        // rise read 0.56 -> 0.13. Anything else that rumbled is counted apart.)
+        let thumps = MainGun.feelLog, others = max(0, pm.rumbleLog.count - thumps.count)
         let fired = w.ships.shells.filter { $0.kind == 3 }.count == shells0 + 1
         check(started && !again && fired && abs(Float(frames) / 72 - MainGun.chargeTime) < 0.1,
               "maingun: the helm's attack charges the Tidebreaker for \(String(format: "%.2f", Float(frames) / 72)) s, then it fires (a second press while charging does nothing)")
         check(thumps.count >= 6 && (thumps.last ?? 0) > (thumps.first ?? 0) * 1.5 && maxShake > 0.1 && flashes >= 2,
-              "maingun: the charge is felt and seen: \(thumps.count) coil thumps in the controllers (\(String(format: "%.2f -> %.2f", thumps.first ?? 0, thumps.last ?? 0))), shake \(String(format: "%.2f", maxShake)), \(flashes) lights on the barrel")
+              "maingun: the charge is felt and seen: \(thumps.count) coil thumps in the controllers (\(String(format: "%.2f -> %.2f", thumps.first ?? 0, thumps.last ?? 0)); \(others) other rumbles), shake \(String(format: "%.2f", maxShake)), \(flashes) lights on the barrel")
         check((w.ships.mainGunCooldown(s) ?? 0) > MainGun.playerReload - 1 && w.ships.mainGunStatus(s)?.ready == false,
               "maingun: a slow reload (\(String(format: "%.0f", w.ships.mainGunCooldown(s) ?? 0)) s)")
         // The slug's flight and impact; then 4 s of frames timed (Game.tick, which streams the world, as the headset's frame
