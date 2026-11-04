@@ -245,7 +245,7 @@ enum Reckoning {
                 let again = h.landed && h.dropAgain > 0 && g.clock >= h.dropAgain && h.drops < dropMax && h.left > 0
                 if (first || again) && d < near * 2.2 {
                     let n = first ? min(6, h.waiting.count - 2) : 4
-                    // (Nov 4, ledger 16: was over the band, as near as 72 off: inside the fog past view 6; now in
+                    // (Nov 4, ledger 16: was over the band, 58 to 158 off: inside the fog from view 11, often at 8; now in
                     // along the band's line, past the fog)
                     let dir = d > 1 ? (h.pos - p) / d : V2(1, 0), far = g.world.pastFog(d, size: 16)
                     let from = V3(p.x + dir.x * far, g.player.pos.y + 40, p.y + dir.y * far)
