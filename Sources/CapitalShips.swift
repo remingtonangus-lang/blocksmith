@@ -1729,12 +1729,15 @@ extension ShipManager {
             else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * 0.3); speed = 4 * fast }
         } else if let goal = st.goal {
             // Nov 4 (ledger 16): sent for someone (the Reckoning's warship, made past the fog: from there her circle round
-            // home never came near him): fly in, then circle over the spot until she has him in her sight.
+            // home never came near him): fly in, then circle the spot with her near end 120 off until she has him in her
+            // sight. (Circling with her middle 100 off, a 480-block hull hung over him and its own decks hid him from every
+            // gun: --huntwarship, build 138.)
             let to = V2(goal.x - s.pos.x, goal.z - s.pos.z)
             let d = max(1, simd_length(to))
             let dir = to / d
-            if d > 160 { want = dir; speed = 10 * fast }
-            else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * ((d - 100) / 80)); speed = 6 * fast }
+            let near = boundsDistance(s, goal)
+            if near > 180 { want = dir; speed = 10 * fast }
+            else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * ((near - 120) / 60)); speed = 6 * fast }
         } else if let isle = st.isles?.first {
             // T11: a frigate with a sky isle near its home keeps its own route: a wide circle round the isle, at
             // cruise clearance over its turf (the altitude below counts the isle as ground).
