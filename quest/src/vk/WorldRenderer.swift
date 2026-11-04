@@ -555,18 +555,31 @@ final class WorldRenderer {
         // P385: while smoke rises (every 2nd frame) only the landmarks and the smoke are rebuilt, over the horizon ground
         // of the last full build; the ground itself at the standing beat (36 frames), or once the eye moved or the far
         // plane changed. BS_LMSPLIT=0: whole builds, as before.
+        // Nov 4: the smoke beats keep the cones, spires, citadels and town boxes of the last build that made them (lmMid),
+        // as they keep its horizon ground: they change as the ground does, with the eye and the light. Each beat rebuilt
+        // them, 2.3 M instructions every 2nd frame at Stone Gulch for its campfires' smoke (the town soak's dearest
+        // record stage after the ring). An eruption's glowing bombs are opaque and fly: while one erupts, all of it.
         let moved = simd_length_squared(eye - lmEye) > move || far != lmFar
         if moved || lmFrameNo - lmBuilt >= every {
             let full = moved || !WorldRenderer.lmSplit || lmFrameNo - lmFull >= (TickProf.lighter ? 36 : 1)
+            let erupting = game.eruption.map { $0.strength(game.clock) > 0 } ?? false
+            let smokeOnly = !full && lmMidValid && !erupting
             landmarkVerts.removeAll(keepingCapacity: true)
             if !full { landmarkVerts.append(contentsOf: lmHorizon) }
+            if smokeOnly { landmarkVerts.append(contentsOf: lmMid) }
             var smokeStart = 0
             host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
-                                rd: Float(game.world.renderDistance), horizon: full)
+                                rd: Float(game.world.renderDistance), horizon: full, landmarks: !smokeOnly)
             if full {
                 lmHorizon.removeAll(keepingCapacity: true)
                 lmHorizon.append(contentsOf: landmarkVerts[0..<Renderer.horizonEnd])
                 lmEye = eye; lmFar = far; lmFull = lmFrameNo
+            }
+            if !smokeOnly {
+                lmMid.removeAll(keepingCapacity: true)
+                let lo = min(lmHorizon.count, smokeStart)          // (a build that found nothing to draw: no landmarks)
+                lmMid.append(contentsOf: landmarkVerts[lo..<smokeStart])
+                lmMidValid = WorldRenderer.lmSplit && !erupting && smokeStart >= lmHorizon.count
             }
             lmSmokeStart = smokeStart; lmBuilt = lmFrameNo
         }
@@ -587,7 +600,7 @@ final class WorldRenderer {
         landmarkCount = landmarkVerts.count
     }
     private var lmFrameNo = 0, lmBuilt = -100, lmSmokeStart = 0, lmEye = V3(1e9, 0, 0), lmFar: Float = 0
-    private var lmFull = -100, lmHorizon: [SimpleVert] = []
+    private var lmFull = -100, lmHorizon: [SimpleVert] = [], lmMid: [SimpleVert] = [], lmMidValid = false
     static var lmSplit = ProcessInfo.processInfo.environment["BS_LMSPLIT"] != "0"
     private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
     // The build into a buffer none of the frames in flight reads (index), or -1 (drawn from the scratch ring this time).

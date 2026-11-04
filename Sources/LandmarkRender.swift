@@ -90,8 +90,10 @@ extension Renderer {
     // Appends the impostor triangles: opaque ones first, then `smokeStart` marks the blended smoke.
     // P385: `horizon` false leaves the horizon ground out (the Quest keeps the last one and rebuilds only the landmarks
     // and the smoke while smoke rises: the ground was most of a build, redone every second frame by a chimney's smoke).
+    // `landmarks` false (P385 again, Nov 4): the smoke alone (volcano plumes, fires, camp smoke, town glow, a far hit's
+    // dust), for a caller that keeps the cones, spires, citadels and town boxes of its last build.
     func buildLandmarks(_ out: inout [SimpleVert], smokeStart: inout Int, game: Game, eye: V3, far: Float, fog: V3, rd: Float,
-                        horizon: Bool = true) {
+                        horizon: Bool = true, landmarks: Bool = true) {
         smokeStart = 0; Renderer.plumeRising = false; Renderer.horizonEnd = out.count
         guard game.dim.dim == .overworld, let wg = game.world.gen as? WorldGen else { return }
         let vols = wg.terrain.volcanoes(near: eye.x, eye.z, reach: Renderer.landmarkRange)
@@ -185,7 +187,7 @@ extension Renderer {
                 let gh: V3 = g * (1 - gHaze) + fog * gHaze
                 return V4(rk * (1 - f) + gh * f, 1)
             }
-            for ri in 0..<(rings.count - 1) {
+            for ri in 0..<(landmarks ? rings.count - 1 : 0) {
                 let t0 = rings[ri], t1 = rings[ri + 1]
                 for i in 0..<seg {
                     let a0 = ringPoint(t0, i), b0 = ringPoint(t0, i + 1)
@@ -208,7 +210,7 @@ extension Renderer {
             let lava = V4(V3(1.0, 0.36, 0.08) * glowK * (1 - haze * 0.6) + fog * haze * 0.6, 1)
             let ctr = V3(v.x, Float(YOFF) + v.lavaLevel, v.z)
             let tc = v.crater / v.r
-            for i in 0..<seg {
+            for i in 0..<(landmarks ? seg : 0) {
                 let a = ringPoint(tc, i), b = ringPoint(tc, i + 1)
                 let ia = V3(v.x + (a.x - v.x) * 0.8, ctr.y, v.z + (a.z - v.z) * 0.8)
                 let ib = V3(v.x + (b.x - v.x) * 0.8, ctr.y, v.z + (b.z - v.z) * 0.8)
@@ -222,7 +224,7 @@ extension Renderer {
             // Erupting (Eruptions.swift): the plume swells, darkens and boils up faster, its foot lit by the fountain,
             // and glowing bombs arc out of the crater.
             let er: Float = game.eruption.map { $0.v.x == v.x && $0.v.z == v.z ? $0.strength(game.clock) : 0 } ?? 0
-            if er > 0 {
+            if er > 0 && landmarks {                      // (the bombs are opaque: the caller rebuilds all while one erupts)
                 let ct = Float(game.clock.truncatingRemainder(dividingBy: 1000))
                 let bomb = V4(V3(1.0, 0.45, 0.1) * glowK * 1.3 * (1 - haze * 0.5) + fog * haze * 0.5, 1)
                 let bs: Float = max(4, dist * 0.008)
@@ -264,7 +266,7 @@ extension Renderer {
         }
         // Ancient Spires: an eight-sided shaft with a broken crown.
         let grey = V3(0.43, 0.43, 0.44)
-        for sp in spireCache(game) {
+        for sp in landmarks ? spireCache(game) : [] {
             let dist = simd_length(V2(sp.x - eye.x, sp.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.spireRange else { continue }
             let haze: Float = 0.35 + 0.55 * Terrain.smooth(loaded, Renderer.spireRange, dist)
@@ -290,7 +292,7 @@ extension Renderer {
         // at its true depth out to 1024 blocks) rising behind them covered them from above (P483, "I can't see it").
         func at(_ w: V3, _ near: Bool) -> V4 { near ? V4(w - eye, 1) : p(w) }
         let stone = V3(0.9, 0.91, 0.92), trim = V3(0.68, 0.7, 0.73)
-        for (ci, ct) in citadelCache(game).enumerated() {
+        for (ci, ct) in (landmarks ? citadelCache(game) : []).enumerated() {
             let dist = simd_length(V2(ct.x - eye.x, ct.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.citadelRange else { continue }
             let haze: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist), margin: 0.22)
@@ -330,7 +332,7 @@ extension Renderer {
         let tones: [V3] = [V3(0.6, 0.47, 0.33), V3(0.36, 0.24, 0.19), V3(0.9, 0.91, 0.92), V3(0.3, 0.48, 0.58),
                            V3(0.64, 0.66, 0.69), V3(0.55, 0.55, 0.56)]
         _ = townCache(game)
-        for bx in Renderer.townBoxes {
+        for bx in landmarks ? Renderer.townBoxes : [] {
             // (down into the middle ring's coarse ground)
             // (P505: 14 down, into a hillside's fall)
             let lo = V3(Float(bx.min.x), Float(bx.min.y - 14), Float(bx.min.z)), hi = V3(Float(bx.max.x + 1), Float(bx.max.y + 1), Float(bx.max.z + 1))
