@@ -805,7 +805,9 @@ final class ShipManager {
     // Removes a ship with its turrets, or (turrets: false, a hull destroyed under them) sets the turrets loose as
     // ships of their own.
     static var probeId = -1, probeContacts: [String] = [], probeWheels: [String] = []      // (harness: one ship's contacts and wheels)
+    static var onRemove: ((Ship) -> Void)?                  // (host checks: who takes a ship away)
     func remove(_ s: Ship, turrets: Bool = true) {
+        ShipManager.onRemove?(s)
         for t in list where t !== s && t.root === s {
             if turrets { remove(t) } else if t.parent === s { t.parent = nil; t.parentId = nil }
         }

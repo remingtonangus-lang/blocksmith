@@ -4,7 +4,7 @@ Each entry is a bug a player could hit. It was reproduced before the fix (a host
 fixed at its root. Item 5 (bloom) applies to every entry: after each fix, look for the same mistake elsewhere and log what turned
 up. Newest at the bottom.
 
-Count: 6
+Count: 9
 
 | # | Found | Bug | Root cause and fix | Proof | Bloom |
 |---|-------|-----|--------------------|-------|-------|
@@ -14,3 +14,6 @@ Count: 6
 | 4 | Nov 3 | A crewman in a station chair floated 0.4 above the seat | Deck collision lifted it out of the chair's box. A mob at a station is now held to its seat (Mob.swift). | --gunstations: off its chair 0.40 before, 0.00 after | |
 | 5 | Nov 3 | Triple Mount on the range couldn't be used | A Gun Barrel only lengthens a cannon, and that mount had no cannon. Each row now starts at a cannon. | --proving: Triple Mount now taken and fires | |
 | 6 | Nov 3 | FactionRaidsTests expected two dropships, but a raid lands one | The test was out of date. | the raids check | |
+| 7 | Nov 4 | The Stormwarden's mast-top gun had no station: no one could work it while he drove | Its mount has no room within 18 blocks. A last, wide look (40 across, 48 up and down) finds the hull's nearest room for its computer, and the assignment gives a gun with nothing near the nearest free station further off. | --gunstations: 15 of 16 before; the check now asks for every gun | Any other gun without a station: the check now fails on one |
+| 8 | Nov 4 | The Meridian Frigate's stern thrusters floated: 209 glowing cores joined to nothing | Each core sat a block in from the stern over the hollow behind the engine room's bulkhead, with its nozzle ring only at the stern face. The ring now runs a block deep round the core. | --frigatelayout: 263 loose before | The other loose groups (17 hull at z 121, 15 trim on the bridge top, lights, plates) are listed cell by cell for the next pass |
+| 9 | Nov 4 | "balance gear pays" failed at random (Capital Trooper one run, a Gravesworn another) | A trooper's vest takes a blow by where it lands, so one duel's kill time was luck: 4.6 s early and 5.3 s iron on one run, 3.3 s iron on the next. The duel against troopers now takes the middle of seven seeds. | the --render suite | Other single-seed duels: the witch's potion pick already averages three |

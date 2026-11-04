@@ -59,11 +59,22 @@ enum GunStationsCheck {
             hands.append(g.enlist(m))
         }
         let st0 = VehicleGunners.stations
+        Capital.crashLog = []
+        var ran = 0, lostHelm = false
         func run(_ frames: Int, each: () -> Void = {}) {
             for _ in 0..<frames {
                 g.player.pos = s.toWorld(stand); g.player.vel = .zero
                 g.health = 20; g.alive = true
                 g.tick(1.0 / 60)
+                ran += 1
+                // (why a run went wrong: the hull's motion, its crashes, the helm lost)
+                if ran % 30 == 1 || (!Capital.crashLog.isEmpty) || (ships.pilot !== s && !lostHelm) {
+                    print(String(format: "gunstations: frame %d: frigate at %.1f,%.1f,%.1f, speed %.2f, turn %.3f,%.3f,%.3f rad/s, asleep %@, pilot %@", ran,
+                                 s.pos.x, s.pos.y, s.pos.z, simd_length(s.vel), s.angVel.x, s.angVel.y, s.angVel.z, s.asleep ? "yes" : "no",
+                                 ships.pilot === s ? "him" : "none") + (Capital.crashLog.isEmpty ? "" : "; " + Capital.crashLog.joined(separator: ", ")))
+                    Capital.crashLog = []
+                    if ships.pilot !== s { lostHelm = true }
+                }
                 each()
             }
         }
@@ -84,7 +95,9 @@ enum GunStationsCheck {
               String(format: "gunstations: aboard the frigate he commands, %d of 4 hands sit at gun stations (at most %.2f off their chairs)", seated.count, off))
         // A raider out for him off the bow: the hands' guns fire on it while he drives on.
         // (beside the hull's middle, on a stone pad in the air: the crews' foe is sought round the hull's centre)
-        let rp = s.pos + simd_normalize(s.dirToWorld(V3(1, 0, 0)) * V3(1, 0, 1)) * 45
+        // (clear of her side: the Stormwarden is 113 wide, and a pad 45 off her middle sat inside her beam, where she drove
+        // into it)
+        let rp = s.pos + simd_normalize(s.dirToWorld(V3(1, 0, 0)) * V3(1, 0, 1)) * (Float(s.grid.sx) / 2 + 10)
         let rx = Int(floor(rp.x)), ry = Int(floor(rp.y)), rz = Int(floor(rp.z))
         _ = w.loadSync(center: rp, radius: 1)
         for dz in -1...1 { for dx in -1...1 { w.setBlock(rx + dx, ry - 1, rz + dz, STONE) } }

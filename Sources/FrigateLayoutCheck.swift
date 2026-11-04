@@ -97,6 +97,15 @@ enum FrigateLayoutCheck {
                     let j = nx + nz * hb.sx + ny * hb.sx * hb.sz
                     if !seen[j] && hb.blocks[j] != AIR { seen[j] = true; stack.append(j) }
                 }
+                // (a flight of stairs is one piece: each step meets the next along its edge, a block up and a block on)
+                if Blocks.shape[Int(hb.blocks[i])] == "stairs" {
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { for dy in [1, -1] {
+                        let nx = x + dx, ny = y + dy, nz = z + dz
+                        guard nx >= 0 && nx < hb.sx && ny >= 0 && ny < hb.sy && nz >= 0 && nz < hb.sz else { continue }
+                        let j = nx + nz * hb.sx + ny * hb.sx * hb.sz
+                        if !seen[j] && Blocks.shape[Int(hb.blocks[j])] == "stairs" { seen[j] = true; stack.append(j) }
+                    } }
+                }
             }
             let solid = hb.blocks.filter { $0 != AIR }.count
             if joined < solid {
@@ -110,6 +119,15 @@ enum FrigateLayoutCheck {
                 }
                 for (k, e) in loose.sorted(by: { $0.value.0 > $1.value.0 }).prefix(12) {
                     print("frigatelayout: loose \(e.0) \(k), x \(e.1.x)...\(e.2.x) y \(e.1.y)...\(e.2.y) z \(e.1.z)...\(e.2.z)")
+                }
+                // (each loose cell of the smaller groups, with what is round it)
+                var shown = 0
+                for (i, bl) in hb.blocks.enumerated() where bl != AIR && !seen[i] && (loose[Blocks.key(bl)]?.0 ?? 0) <= 20 && shown < 40 {
+                    let c = IVec3(i % hb.sx - hb.ox, i / (hb.sx * hb.sz), (i / hb.sx) % hb.sz)
+                    let round = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)].map { d -> String in
+                        let b = hb.get(c.x + d.0, c.y + d.1, c.z + d.2); return b == AIR ? "-" : Blocks.key(b) }
+                    print("frigatelayout:   \(Blocks.key(bl)) at \(c.x),\(c.y),\(c.z): +x \(round[0]), -x \(round[1]), up \(round[2]), down \(round[3]), +z \(round[4]), -z \(round[5])")
+                    shown += 1
                 }
             }
             var kinds: [String: Int] = [:]

@@ -598,7 +598,9 @@ extension Capital {
                 let d2 = (x - nx) * (x - nx) + (y - ny) * (y - ny)
                 // The glowing core fills the whole nozzle (G8: it was a radius smaller, "two small points at night").
                 if d2 <= rr * rr { hb.set(x, y, L - 1, AIR); hb.set(x, y, L - 2, thr) }                    // recessed glowing core
-                else if d2 <= (rr + 1) * (rr + 1) { hb.set(x, y, L - 1, trim) }                          // nozzle ring
+                // (P512: the ring runs a block deep, the nozzle's wall round its core: the core sat a block in, over the
+                // hollow aft of the engine room's bulkhead, and its 209 blocks joined nothing, his P504 "floating" engines)
+                else if d2 <= (rr + 1) * (rr + 1) { hb.set(x, y, L - 1, trim); hb.set(x, y, L - 2, trim) } // nozzle ring
             } }
         }
         // Navigation lights at the boom tips and the engine block's corners.

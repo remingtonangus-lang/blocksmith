@@ -146,8 +146,22 @@ enum EncounterCheck {
                 blasts += 1
             }
             defer { Explosion.onExplode = nil; if blasts > 0 { print("encounters: \(s.name): \(blasts) blasts in all") } }
+            // (a turret or the hull taken away while it hunts him: by whom)
+            let parts = Set([s.id] + ships.turrets(of: s).map { $0.id })
+            print("encounters: \(s.name) made with \(ships.turrets(of: s).count) turrets, \(s.crewStations.count) crew posts, \(s.blockCount) blocks; mobs within 20: "
+                  + g.mobs.mobs.filter { simd_length($0.pos - s.pos) < 20 }.map { "\($0.kind) \($0.health) deck \($0.deck === s ? "hers" : ($0.deck == nil ? "none" : "other"))" }.joined(separator: ", "))
+            ShipManager.onRemove = { r in
+                guard parts.contains(r.id) else { return }
+                print("encounters: \(s.name): ship \(r.id) (\(r.role), parent \(r.parentId.map(String.init) ?? "none")) removed at frame \(frame)")
+                for l in Thread.callStackSymbols.prefix(8) { print("encounters:    " + l) }
+            }
+            defer { ShipManager.onRemove = nil }
             for f in 0..<Int(secs * 30) {
                 frame = f
+                if f == 1 || f == 10 || f == 60 {
+                    print(String(format: "encounters: %@ frame %d: %d turrets, %d blocks, at %.1f,%.1f,%.1f; ", s.name, f, ships.turrets(of: s).count, s.blockCount, s.pos.x, s.pos.y, s.pos.z)
+                          + g.mobs.mobs.filter { simd_length($0.pos - s.pos) < 20 }.map { "\($0.kind) \($0.health) deck \($0.deck === s ? "hers" : ($0.deck == nil ? "none" : "other")) y \(Int($0.pos.y - s.pos.y))" }.joined(separator: ", "))
+                }
                 if f % 300 == 0 {
                     let ts = ships.turrets(of: s)
                     print(String(format: "encounters: %@ t %2d s: %.0f off, asleep %@, speed %.1f, autopilot %@, %d turrets (%d aimed), crew %d, engaged %@, timer %.1f",
