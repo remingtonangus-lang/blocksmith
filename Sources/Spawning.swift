@@ -373,7 +373,13 @@ extension MobManager {
         if w.dim == .end { return }                        // (P418: the Hollow's voidwalkers are gone)
         let pp = game.player.pos
         guard caveOnly || count(.monster, near: pp) < cap(.monster, w) else { return }
-        let rd = min(w.renderDistance, w.activeDistance, 8)
+        // (Nov 4, the V78 check on the headset build: with him in a cave, the samples near his depth still spread over the
+        // whole ±8 chunks, so in one run of three 13 cave monsters came in 60 s and none within 48 blocks of him; those
+        // samples now come from the 3 chunks round him, so his own caves fill as well as the far ones.)
+        let py = Int(floor(pp.y))
+        let playerUnder = py < w.topY(Int(floor(pp.x)), Int(floor(pp.z))) - 8
+        let nearDepth = playerUnder && Rand.int(in: 0..<2) == 0
+        let rd = nearDepth ? min(w.renderDistance, w.activeDistance, 3) : min(w.renderDistance, w.activeDistance, 8)
         let pcx = floorDiv(Int(floor(pp.x)), CS), pcz = floorDiv(Int(floor(pp.z)), CS)
         let x0 = (pcx + Rand.int(in: -rd...rd)) * CS + Rand.int(in: 0..<CS)
         let z0 = (pcz + Rand.int(in: -rd...rd)) * CS + Rand.int(in: 0..<CS)
@@ -396,9 +402,7 @@ extension MobManager {
             guard let ys = floorBelow(w, x0, top + 1, z0, minY: max(1, top - 8)) else { return }
             y = ys
         } else {
-            let py = Int(floor(pp.y))
-            let playerUnder = py < w.topY(Int(floor(pp.x)), Int(floor(pp.z))) - 8
-            var yr = playerUnder && Rand.int(in: 0..<2) == 0 ? py + Rand.int(in: -16...16) : Rand.int(in: 2...(top + 1))
+            var yr = nearDepth ? py + Rand.int(in: -16...16) : Rand.int(in: 2...(top + 1))
             guard yr >= 3, yr <= top + 1, !w.solidAt(x0, yr, z0) else { return }
             var fall = 0
             while fall < 16 && yr > 3 && !w.solidAt(x0, yr - 1, z0) { yr -= 1; fall += 1 }
