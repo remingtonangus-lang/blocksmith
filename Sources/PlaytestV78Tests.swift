@@ -133,9 +133,18 @@ enum PlaytestV78Tests {
             }
         } } }
         if let c = cave {
-            let r = run(c)
-            check(r.under >= 3 && r.near >= 2, String(format: "spawning: in a cave at y %d, 60 s: %d underground, %d within 64 blocks (want >= 3 and >= 2)", Int(c.y) - 64, r.under, r.near))
-            check(r.close <= 8, "spawning: in a cave, no swarm: \(r.close) monsters within 32 blocks (want <= 8)")
+            // Three runs of 60 s, counted together: the spawner picks chunks evenly over 13 x 13 round the player and H1
+            // keeps cave spawns 34 off, so about a fifth of them land within 64 blocks, some 3 of a run's 15; one run
+            // asked for 2 of those and failed about one time in five by chance alone (1 on build 150). Three runs
+            // expect about 10.
+            var under = 0, near = 0, close = 0, runs: [String] = []
+            for _ in 0..<3 {
+                let r = run(c)
+                under += r.under; near += r.near; close = max(close, r.close)
+                runs.append("\(r.near)/\(r.under)")
+            }
+            check(under >= 9 && near >= 4, "spawning: in a cave at y \(Int(c.y) - 64), 3 x 60 s: \(under) underground, \(near) within 64 blocks (want >= 9 and >= 4; runs near/under: \(runs.joined(separator: " ")))")
+            check(close <= 8, "spawning: in a cave, no swarm: at most \(close) monsters within 32 blocks in a run (want <= 8)")
         } else { check(false, "spawning: no cave found near the spawn to test") }
     }
 }

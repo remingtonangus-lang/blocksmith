@@ -2303,6 +2303,9 @@ enum MobLight {
 enum MobDrawStats {
     static var mobs = 0, near = 0, written = 0, drawn = 0, culled = 0, dropped = 0
     static var path = "none"
+    // BS_MOBBACKCULL=0 draws every face of every part (writeMobVertices: the faces turned away past 16 blocks), for
+    // before/after pictures.
+    static var backCull = ProcessInfo.processInfo.environment["BS_MOBBACKCULL"] != "0"
     static var line: String {
         "mobs \(mobs) (\(near) within 32), \(written) vertices written, \(drawn) drawn via \(path), \(culled) culled, \(dropped) dropped (buffer full)"
     }
@@ -2439,7 +2442,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         // pipeline has no blending or discard, and draws both sides), so a face turned from the eye is behind its box's
         // front faces; the test is on the placed corners, so lying, carcass and mirrored parts are judged as drawn. It
         // was soldiers and vehicles only: a town's or a herd's mobs past 16 blocks wrote all six faces of every part.
-        let cullBack = rag == nil && simd_length_squared(base) > 16 * 16
+        let cullBack = MobDrawStats.backCull && rag == nil && simd_length_squared(base) > 16 * 16
         for pi in 0..<(body.count + worn.count) {
             let p = pi < body.count ? body[pi] : worn[pi - body.count]
             if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
