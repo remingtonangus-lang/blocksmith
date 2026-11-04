@@ -131,7 +131,7 @@ enum Reckoning {
     }
     // A hunt's crawler or warship: kept awake past the active distance (ShipPhysics), as a raid's dropship is.
     static func onHunt(_ s: Ship) -> Bool {
-        guard wakeHunt, !s.captured, s.parent == nil, let h = s.home else { return false }
+        guard wakeHunt, stage == 2, !s.captured, s.parent == nil, let h = s.home else { return false }
         let at = V2(h.x, h.z)
         if s.role == "crawler", let c = crawlerAt, simd_length(at - c) < 4 { return true }
         if s.role == "warfrigate", let c = warshipAt, simd_length(at - c) < 4 { return true }

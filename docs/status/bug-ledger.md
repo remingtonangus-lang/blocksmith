@@ -4,7 +4,7 @@ Each entry is a bug a player could hit. It was reproduced before the fix (a host
 fixed at its root. Item 5 (bloom) applies to every entry: after each fix, look for the same mistake elsewhere and log what turned
 up. Newest at the bottom.
 
-Count: 9
+Count: 10
 
 | # | Found | Bug | Root cause and fix | Proof | Bloom |
 |---|-------|-----|--------------------|-------|-------|
@@ -17,6 +17,7 @@ Count: 9
 | 7 | Nov 4 | The Meridian Frigate's stern thrusters floated: 209 glowing cores joined to nothing | Each core sat a block in from the stern over the hollow behind the engine room's bulkhead, with its nozzle ring only at the stern face. The ring now runs a block deep round the core. | --frigatelayout: 263 loose before | Entry 8 |
 | 8 | Nov 4 | More of the Meridian floated: the sensor dome's cap, a ceiling light under it, a light by the bridge stair, and 20 skin blocks round the engine block's taper | The hull is built as a one-block skin, and where it steps two blocks a cell (the dome, the taper) a skin block met the next only along an edge. The dome is now solid, the stair light sits in the bridge's wall, and HullBuilder.joinIslands gives each loose piece one block beside it that meets the hull. | --frigatelayout: 38 loose after entry 8 | The Stormwarden and the crawler are counted the same way in the check |
 | 9 | Nov 4 | His companions at the gun stations died to their own guns' rounds | A ship's shells fly through its own hull, but still struck the first body on their way: a hand at a station inside the hull, with a gun firing across the deck over it, took a 1,020 hit and then the blast's 9,999. A shell no longer strikes its own ship's crew. | --gunstations: 4 of 4 hands dead in 270 frames before | Companions' own guns: a companion now holds its shot while another of his people stands in the line, as it did for him |
+| 10 | Nov 4 | The Stormwarden Frigate and the Ironback Crawler had loose hull pieces: 1,128 on the Stormwarden (spread over the whole hull, 26,000 blocks in all) and 10 on the crawler (stair flights, window bars, lights) | The same one-block skin as entry 8, met only along edges where it steps. Both hulls now go through HullBuilder.joinIslands on the builder's worker (76 ms for the Stormwarden, off the frame). | --frigatelayout: 1,128 and 10 loose before, 0 after on build 124; --frigatedecks, --frigatecheck (32 checks) and --gunstations still pass | Every capital hull built by HullBuilder is now counted |
 
 ## Check fixes (not counted: bugs in the host checks, not in the game)
 
