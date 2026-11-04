@@ -23,7 +23,7 @@ enum Corsairs {
     static var raiders: Set<Int> = []
     static func raiding(_ s: Ship) -> Bool { raiders.contains(s.id) && !landed.contains(s.id) }
     // Where a raid sloop or a sea hunter comes in: past the fog's end at his view (16 x view - 12), 150 at the least.
-    static func comeIn(_ w: World, least: Float) -> Float { max(least, Float(w.renderDistance * CS) - 4) }
+    static func comeIn(_ w: World, least: Float) -> Float { w.pastFog(least) }
     static var raids = 0, parties = 0           // counters (harness)
 
     // A corsair: a soldier of the sea faction with a pirate's name.

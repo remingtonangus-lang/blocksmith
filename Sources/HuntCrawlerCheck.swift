@@ -27,8 +27,13 @@ enum HuntCrawlerCheck {
         Reckoning.hunts = [Reckoning.Hunt(side: .capital, pos: p + V2(200, 0), waiting: Reckoning.Side.capital.roster)]
         var t: Float = 0, first: Float = -1, d0: Float = -1, nearest = Float.infinity
         var log: [String] = []
+        // (Nov 4, ledger 16: he watches the band coming, east; the crawler must not appear in his sight)
+        let yaw0 = g.player.yaw
+        defer { g.player.yaw = yaw0 }
+        var seenMade = false, offMade: Float = 0
         while t < 60 {
             g.health = 20; g.alive = true
+            g.player.yaw = -.pi / 2
             g.tick(0.05)
             t += 0.05
             g.player.pos = stand; g.player.vel = .zero
@@ -40,7 +45,12 @@ enum HuntCrawlerCheck {
             }
             guard let c = Reckoning.crawlerAt, let s = Reckoning.huntCrawler(g, c) else { continue }
             let d = simd_length(V2(s.pos.x, s.pos.z) - p)
-            if first < 0 { first = t; d0 = d }
+            if first < 0 {
+                first = t; d0 = d
+                seenMade = g.inSight(V2(s.pos.x, s.pos.z), halfWidth: 44)
+                let to = V2(s.pos.x, s.pos.z) - p
+                offMade = acosf(max(-1, min(1, simd_dot(V2(1, 0), to / max(1, simd_length(to)))))) * 180 / .pi
+            }
             nearest = min(nearest, d)
             if Int((t * 20).rounded()) % 200 == 0 {
                 log.append(String(format: "%.0f s: %@ %.0f off%@", t, s.name, d, w.ships.capState[s.id]?.target != nil ? ", has him in sight" : ""))
@@ -49,8 +59,9 @@ enum HuntCrawlerCheck {
         let cr = Reckoning.crawlerAt.flatMap { Reckoning.huntCrawler(g, $0) }
         let name = cr?.name ?? "none"
         if let s = cr { for x in w.ships.list where x === s || x.root === s { w.ships.remove(x) }; w.ships.capState.removeValue(forKey: s.id) }
-        check(cr?.factionValue == .steelhold && first >= 0 && nearest < d0 - 40,
-              String(format: "huntcrawler: the Capital band brings %@ (in at %.0f s, %.0f blocks off), it drives on him to %.0f; ", name, first, d0, nearest)
+        check(cr?.factionValue == .steelhold && first >= 0 && nearest < d0 - 40 && !seenMade,
+              String(format: "huntcrawler: the Capital band brings %@ (in at %.0f s, %.0f blocks off, %.0f degrees off his look at the band: %@), it drives on him to %.0f; ",
+                     name, first, d0, offMade, seenMade ? "IN HIS SIGHT" : "out of his sight", nearest)
                 + log.joined(separator: "; "))
     }
 }
@@ -61,9 +72,14 @@ enum HuntCrawlerCheck {
 // inside it. Kept as a guard.)
 enum HuntWarshipCheck {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
+        // (Nov 4, ledger 16: she was made 60 past the band, a 480-block hull reaching in beside him; now all of her past
+        // the fog, at view 8 and at 12, where she's far past the active distance on her way in)
+        for rd in [8, 12] { run(g, rd: rd, check) }
+    }
+    static func run(_ g: Game, rd: Int, _ check: (Bool, String) -> Void) {
         let mobs0 = g.mobs.mobs, victory0 = g.ashVictory, survival0 = g.survival, diff0 = g.difficulty
         let pos0 = g.player.pos, fly0 = g.player.flying, rd0 = g.world.renderDistance
-        g.world.renderDistance = 8
+        g.world.renderDistance = rd
         defer {
             g.world.renderDistance = rd0
             g.mobs.mobs = mobs0; g.ashVictory = victory0; g.survival = survival0; g.difficulty = diff0
@@ -100,8 +116,9 @@ enum HuntWarshipCheck {
         }
         let sh = w.ships.capitals.first { $0.role == "warfrigate" && !$0.captured }
         if let s = sh { for x in w.ships.list where x === s || x.root === s { w.ships.remove(x) }; w.ships.capState.removeValue(forKey: s.id) }
-        check(sh != nil && first >= 0 && nearest < 180 && sighted >= 0,
-              String(format: "huntwarship: the Stormwarden band's warship (in at %.0f s, %.0f blocks off) closes to %.0f and has him in her sight at %.0f s; ",
-                     first, d0, nearest, sighted) + log.joined(separator: "; "))
+        let fog = Float(rd * CS - 12)
+        check(sh != nil && first >= 0 && d0 > fog && nearest < 180 && sighted >= 0,
+              String(format: "huntwarship at view %d: the Stormwarden band's warship (in at %.0f s, her near end %.0f blocks off, the fog ends %.0f out) closes to %.0f and has him in her sight at %.0f s; ",
+                     rd, first, d0, fog, nearest, sighted) + log.joined(separator: "; "))
     }
 }
