@@ -505,7 +505,11 @@ final class Player {
         w.bodiesSolid = !flying                // P306: step onto the bodies lying about, not through them
         w.mobsSolid = true                     // P311 (a): and never walk through a living mob
         w.foliageSoft = !flying                // P417 (a): through leaves and limbs, not trunks
-        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish)
+        // (Nov 4, the ridecheck board scene: climbing a ladder whose top is flush with the deck, pressed against the rungs'
+        // backing, the body rose past the top and fell back a few hundredths short, over and over, for three minutes: in
+        // the air off the ladder there's no time to build up speed onto the deck. Climbing, it steps up as on the ground:
+        // at the top it steps onto the deck; lower down the rungs above stop the step.)
+        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround || wetish || (climbing && vel.y > 0))
         w.bodiesSolid = false
         w.mobsSolid = false
         w.foliageSoft = false
