@@ -278,6 +278,7 @@ final class Mob {
     // (SoldierRig.build: the drawn rig kept a frame or two past 14 blocks; written only by the mob pass)
     var rigDrawn: SoldierRigOut?
     var rigDrawnLod = 0, rigDrawnAt = 0
+    var muzzleDrawn = V3(0, 0, 0), muzzleDrawnAt = Int.min / 2     // (SoldierRig.muzzleWorld: the drawn rig's muzzle, by tick)
     lazy var vary: MobVary = MobVary.roll(self)          // P55: this one's own speed, strength, toughness, aim
     static let hitFlashTime: Float = 0.14
     static weak var trace: Mob?     // harness: print this mob's physics steps
