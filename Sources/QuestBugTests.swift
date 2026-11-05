@@ -262,8 +262,13 @@ enum QuestBugTests {
             let d = back.map { simd_length($0.pos - game.player.pos) } ?? 999
             let left = game.mobs.stored.values.joined().contains { $0.extra?["bond"] == game.horseBond }
             let run = back.flatMap { $0.bondedHorseAI(0.05, game, dist: d) } ?? 0
+            // (Where he stands: the call doesn't carry below ground, BountyHunters.below.)
+            let px = Int(floor(game.player.pos.x)), py = Int(floor(game.player.pos.y)), pz = Int(floor(game.player.pos.z))
+            let where_ = String(format: "; he stands at %d %d %d, sky light %d, underground %@, land %d, below %@", px, py, pz,
+                                Int(game.world.lightAt(px, py + 1, pz).sky), Mob.underground(game.world, px, py, pz) ? "yes" : "no",
+                                game.world.gen.column(px, pz).height, BountyHunters.below(game) ? "yes" : "no")
             check(called && back != nil && d < 20 && !left && run > 0,
-                  String(format: "horse call from 2,100 blocks: back %@, %.1f blocks from the player, store copy left %@, runs at %.1f", back != nil ? "yes" : "no", d, left ? "yes" : "no", run))
+                  String(format: "horse call from 2,100 blocks: back %@, %.1f blocks from the player, store copy left %@, runs at %.1f", back != nil ? "yes" : "no", d, left ? "yes" : "no", run) + where_)
             game.mobs.mobs.removeAll { $0.bond != 0 }
             game.horseBond = 0; game.horseCall = 0
             game.survival = surv
@@ -434,12 +439,19 @@ enum QuestBugTests {
             let yr = p.pos.y
             _ = run(0.5, hold: false)
             check(p.pos.y < yr - 0.5, String(format: "r3 jetpack: released, the player falls (%.1f -> %.1f)", yr, p.pos.y))
+            // Against a plain jump held as long with nothing on his back (the jump has risen about 1.55 blocks since P417;
+            // this check wanted under 1.5, from the old 1.3-block jump).
+            game.inventory.armor[1] = .empty
+            pad(); standOn()
+            let j0 = p.pos.y
+            let plain = run(1.5, hold: true) - j0
             var empty = ItemStack(jet, 1); empty.damage = Jetpack.tank
             game.inventory.armor[1] = empty
             pad(); standOn()
             let e0 = p.pos.y
             let etop = run(1.5, hold: true)
-            check(etop - e0 < 1.5 && etop - e0 > 0.8, String(format: "r3 jetpack: empty tank holding jump only jumps (%.2f blocks)", etop - e0))
+            check(abs((etop - e0) - plain) < 0.1 && plain > 0.8 && plain < 2,
+                  String(format: "r3 jetpack: empty tank holding jump only jumps (%.2f blocks, a plain jump %.2f)", etop - e0, plain))
             var half = ItemStack(jet, 1); half.damage = 1000
             let coal = ItemStack(Items.id("coal"), 1)
             let rf = Fireworks.craft([half, coal, coal, .empty, .empty, .empty, .empty, .empty, .empty])
