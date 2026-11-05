@@ -159,9 +159,10 @@ enum PlaytestPM9BTests {
         check(cave != nil && n.caveUnder >= 6 && Float(n.caveUnder) >= 0.75 * Float(o.caveUnder),
               "spawning: cave monsters kept: \(o.caveUnder) -> \(n.caveUnder) (want >= 6 and >= 0.75x)")
         let ra = Float(n.animals) / Float(max(1, o.animals))
-        // (a handful of packs of 2-4 round the spawn: 9 -> 5 on one run, 13 -> 10 on the next; the share itself is the
-        // roll check below, over 14,400 chunks, so here only fewer, not more)
-        check(o.animals >= 6 && n.animals <= o.animals, String(format: "spawning: animals in the chunks around the spawn %d -> %d (x%.2f, want fewer)", o.animals, n.animals, ra))
+        // (a handful of packs of 2-4 round the spawn: 9 -> 5, 13 -> 10, 9 -> 11 on three runs, too few to show the scale;
+        // the share itself is the roll check below, over 14,400 chunks)
+        print(String(format: "pm9b: animals in the chunks around the spawn %d -> %d (x%.2f)", o.animals, n.animals, ra))
+        check(o.animals >= 6, "spawning: animal packs come up round the spawn (\(o.animals) animals at full scale)")
         // The pack roll itself (populateChunks' per-chunk roll) over many chunks: the exact share.
         var rolls = (0, 0)
         for cz in -60..<60 { for cx in -60..<60 {
