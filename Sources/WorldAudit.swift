@@ -8,10 +8,10 @@ import simd
 // citadel and Capital city; (3) a safe spawn: feet and head free, solid dry ground, no lava or water within 2 blocks;
 // (4) spawn density: S seconds of Game.tick in survival at noon then at midnight, mobs counted by kind, biome and
 // depth (surface or cave). Prints one line per seed and writes a summary table. Local tool (about 10 s per seed).
+// (Nov 5, bug hunt: the headset build runs it too, `questcheck --worldaudit N`, on the field worlds it makes: `field`.)
 enum WorldAudit {
-    static func run() -> Int32 {
+    static func run(device: MTLDevice, field: Bool = false) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let n = Int(arg("--worldaudit") ?? "") ?? 50
         let out = arg("--out") ?? "snaps/world_audit.md"
         let secs = Double(arg("--secs") ?? "") ?? 30
@@ -23,8 +23,10 @@ enum WorldAudit {
         for i in 0..<n {
             let seed = UInt64(1000 + i * 7919)
             let world = World(seed: seed, device: device, save: nil)
+            if field { FieldTerrain.newWorlds = true; world.makeFieldWorld() }
             world.renderDistance = 4
             let game = Game(world: world, save: nil, persistent: false)
+            if field { game.smoothTerrain = true; SmoothTerrain.use(world: true, world: world) }
             guard let sc = world.gen.structures else { print("worldaudit: no structures"); return 1 }
             let o = Game.spawnOrigin(seed: seed)
             let ox = o.0 * 16 + 8, oz = o.1 * 16 + 8

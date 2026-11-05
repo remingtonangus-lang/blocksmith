@@ -2646,6 +2646,9 @@ if CommandLine.arguments.contains("--coppertest") {
     CircuitWorkshopTests.run(game) { ok, what in print("coppertest: \(ok ? "PASS" : "FAIL") \(what)"); if !ok { f += 1 } }
     print("coppertest: \(f) failed"); exit(f == 0 ? 0 : 1)
 }
+// --worldaudit [N] (Nov 5, bug hunt): the Mac's world-gen audit on the field worlds the headset makes: structure
+// overlaps, distance to the nearest village and Capital, a safe spawn, mob density at noon and midnight.
+if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run(device: device, field: true)) }
 if CommandLine.arguments.contains("--questbugs") { let f = QuestBugTests.run(game); print("questbugs: \(f) failed"); exit(f == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--smoothtest") { let f = SmoothTests.run(game); print("smoothtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--swingtest") { let f = VRMeleeTests.run(game); print("swingtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
