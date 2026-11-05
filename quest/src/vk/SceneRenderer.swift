@@ -158,6 +158,8 @@ final class SceneRenderer {
     // Stats (last frame).
     private(set) var drawCalls = 0
     private(set) var drawnQuads = 0
+    private(set) var drawnDetail = 0, drawnBand = 0     // (the share of drawnQuads in the detail stream, and in leaf far shells)
+    private(set) var skippedInner = 0                    // (inner leaf shells left out between blobMidFrom and blobFarFrom)
     private(set) var visibleCount = 0
     private(set) var cullMs = 0.0
     var caveCulling = true
@@ -1488,10 +1490,25 @@ final class SceneRenderer {
         guard SceneRenderer.drawMerged else { return false }
         return simd_length_squared(q - recEye) >= f * f
     }
+    @inline(__always) private func detailFar(_ c: Chunk, _ sy: Int) -> Bool {
+        let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
+        let q = simd_clamp(recEye, mn, mn + V3(16, 16, 16))
+        let f = min(GroundMerge.farDistance, SceneRenderer.trunkFarFrom)
+        guard SceneRenderer.drawMerged else { return false }
+        return simd_length_squared(q - recEye) >= f * f
+    }
     private(set) var mergedSections = 0
     // P453: how far out the trees switch to their far shell (blocks; the ground's switch, GroundMerge.farDistance,
     // when it is that or more). BS_BLOBFAR=N sets it (BS_BLOBFAR=999: as before).
     static var blobFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBFAR"] ?? "") ?? 64
+    // Nov 5 (P453, "simplify trees"): how far out the detail stream (trunks, limbs, round shapes) switches to its far
+    // copy, the trunks at the mid sides (Mesher.trunkFar); the ground's switch when that is nearer. At 64 it cut 1-2% of
+    // the quads drawn at his jungle and birch spots (nearly every trunk drawn is nearer), at 32 4-10%, and the same
+    // views render alike. BS_TRUNKFROM=N sets it; BS_TRUNKFAR=0 meshes the old copy, drawn past the ground's switch.
+    static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(ProcessInfo.processInfo.environment["BS_TRUNKFROM"] ?? "") ?? 32) : 1e9
+    // Nov 5 (P453 again): from this far out to blobFarFrom the leaf blobs draw their outer cutout shell alone, not the
+    // darker one inside it (the Mesher puts the outer shells first). BS_BLOBMID=999: both shells to blobFarFrom.
+    static var blobMidFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBMID"] ?? "") ?? 24
     static var drawMerged = true                  // (questcheck --view --pixelpair: the full grid everywhere for the left shot)
     func writeRecords(_ s: Slot, eye: V3) {
         recEye = eye
@@ -1582,7 +1599,7 @@ final class SceneRenderer {
                 let fSkip = detail ? sec.detailFarSkip : sec.farSkip, fExtra = detail ? sec.detailFarExtra : sec.farExtra
                 var cutFrom = solid
                 let cutSwitch = !detail && (sec.farCut > 0 || tail > 0)
-                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && (detail ? detailFar(c, sy) : mergedFar(c, sy)) {
                     mergedSections += 1
                     if solid > fSkip {
                         batchCount[k] += 1
@@ -1650,7 +1667,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; batchedSections = 0; indirectUsed = 0; mergedSections = 0
+        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         if tableFrame {
@@ -1674,7 +1691,7 @@ final class SceneRenderer {
                 var first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
                 let fSkip = detail ? sec.detailFarSkip : sec.farSkip, fExtra = detail ? sec.detailFarExtra : sec.farExtra
                 let cutSwitch = !detail && (sec.farCut > 0 || tail > 0)
-                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && (detail ? detailFar(c, sy) : mergedFar(c, sy)) {
                     if pass & 1 == 0 {
                         mergedSections += 1                // P375, P384: the far copies in place of what they stand for
                         if fExtra > 0 { drawSection(s, i, buf, tb, first: quads, count: fExtra, stride: detail ? 16 : 8) }
@@ -2467,7 +2484,7 @@ extension SceneRenderer {
         anyDetail = anyDet
         let mq = Int32(SceneRenderer.maxQuads)
         let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
-        let bf = min(mf, SceneRenderer.blobFarFrom)
+        let bf = min(mf, SceneRenderer.blobFarFrom), tf = min(mf, SceneRenderer.trunkFarFrom), bm = min(bf, SceneRenderer.blobMidFrom)
         for half in 0..<2 {
             let detail = half == 1
             if detail && !anyDet { break }
@@ -2492,15 +2509,16 @@ extension SceneRenderer {
                 let fSkip = detail ? e.dSkip : e.fSkip, fExtra = detail ? e.dExtra : e.fExtra
                 var cutFrom = solid
                 let cutSwitch = !detail && (e.farCut > 0 || tail > 0)
-                var far = false, band = false
+                var far = false, band = false, mid = false
                 if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= mq && mergeOn {
                     // (mergedFar: past the merged ground distance)
                     let ci = tc[v / NSEC]
                     let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
                     let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
                     let d2 = simd_length_squared(qn - re)
-                    far = d2 >= mf * mf
+                    far = d2 >= (detail ? tf * tf : mf * mf)
                     band = !far && !detail && e.bN > 0 && d2 >= bf * bf
+                    mid = !far && !band && !detail && e.bN > 0 && e.bCut >= 2 && e.bCut & 1 == 0 && d2 >= bm * bm
                 }
                 if far {
                     merged += 1
@@ -2529,7 +2547,18 @@ extension SceneRenderer {
                     pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.bN * 6), instanceCount: 1, firstIndex: UInt32(e.bAt * 6),
                                                                          vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
                     cutFrom = min(total, solid + e.bCut)
-                    quadsDrawn += Int(e.bN - (cutFrom - solid))
+                    quadsDrawn += Int(e.bN - (cutFrom - solid)); drawnBand += Int(e.bN)
+                }
+                if mid {
+                    // (the outer shells, then past the inner ones to the rest of the cutout quads)
+                    let outerEnd = min(total, solid + e.bCut / 2)
+                    if outerEnd > solid {
+                        batchCut[k] += 1
+                        pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((outerEnd - solid) * 6), instanceCount: 1,
+                                                                           firstIndex: UInt32(solid * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                    }
+                    cutFrom = min(total, solid + e.bCut)
+                    quadsDrawn -= Int(cutFrom - outerEnd); skippedInner += Int(cutFrom - outerEnd)
                 }
                 if total > cutFrom {
                     batchCut[k] += 1
@@ -2540,6 +2569,7 @@ extension SceneRenderer {
             }
             for pr in keysT { pairK[Int(pr)] = -1 }
             drawnQuads += quadsDrawn; mergedSections += merged
+            if detail { drawnDetail += quadsDrawn }
             self.keysT = keysT; self.batchCount = batchCount; self.batchCut = batchCut
             self.pendingDraws = pendingDraws; self.pendingCut = pendingCut; self.pairK = pairK
             for pass in 0..<2 {
