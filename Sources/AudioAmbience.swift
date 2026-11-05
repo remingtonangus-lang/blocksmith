@@ -35,7 +35,7 @@ final class AudioState {
     var biomeHere: Biome = .plains
     var nearOcean = false
     var armorPrimed = false
-    static var kindTable: [UInt8] = []      // block id -> emitter kind (built once)
+    static let kindTable: [UInt8] = Game.audioKinds()     // block id -> emitter kind (built once, at load: LoadWarm)
 }
 
 final class MusicDirector {
@@ -54,9 +54,13 @@ extension Game {
     // MARK: Emitter table
 
     static func audioKind(_ id: BlockID) -> UInt8 {
-        var t = AudioState.kindTable
-        if t.isEmpty {
-            t = [UInt8](repeating: 0, count: Blocks.count)
+        let t = AudioState.kindTable
+        return Int(id) < t.count ? t[Int(id)] : 0
+    }
+    // (was built on the ambience's first scan, in a game tick)
+    static func audioKinds() -> [UInt8] {
+        do {
+            var t = [UInt8](repeating: 0, count: Blocks.count)
             for i in 0..<Blocks.count {
                 let id = BlockID(i)
                 let k = Blocks.key(Blocks.groupBase[i])
@@ -84,9 +88,8 @@ extension Game {
                 else if k == "corner_lamp" || k == "data_cabinet" { kind = 22 }      // Boreal Station machinery
                 t[i] = kind
             }
-            AudioState.kindTable = t
+            return t
         }
-        return Int(id) < t.count ? t[Int(id)] : 0
     }
 
     // Solid blocks between two points, 0...1 (five or more blocks fully muffle).
@@ -385,8 +388,7 @@ extension Game {
         let cx = Int(floor(eye.x)), cy = Int(floor(eye.y)), cz = Int(floor(eye.z))
         var best: [Int: (V3, Float, Int)] = [:]      // kind -> (pos, dist², count)
         var sculk = 0, moss = 0, drip = 0, leaves = 0
-        // (twice a second: 3,179 cells, read a chunk at a time, through the kind table once)
-        _ = Game.audioKind(AIR)
+        // (twice a second: 3,179 cells, read a chunk at a time)
         let kt = AudioState.kindTable
         world.scanBuilt(cx - 8, cy - 5, cz - 8, cx + 8, cy + 5, cz + 8, ground: true, want: { kt[Int($0)] != 0 }) { x, y, z in
             let b = world.block(x, y, z)
