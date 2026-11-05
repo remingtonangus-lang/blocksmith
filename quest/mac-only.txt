@@ -13,7 +13,6 @@ AudioTests.swift
 Bench.swift
 PadTest.swift
 ShipBench.swift
-ShipTest.swift
 Smoke.swift
 CustomMusic.swift
 MobRenderCheck.swift
