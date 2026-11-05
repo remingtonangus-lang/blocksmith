@@ -93,12 +93,20 @@ enum CraterPlaceCheck {
                 && Float(c0.y) < feet.y + 1.8 && Float(c0.y + 1) > feet.y { continue }
             aimed += 1
             let n0 = g.inventory.held.count
+            g.lastRefusal = ""
+            let feetBefore = p.pos
             g.input.rightClicked = true; g.input.rightDown = true
             g.tick(1.0 / 60)
             g.input.rightClicked = false; g.input.rightDown = false
             if g.inventory.held.count < n0 { placed += 1 } else {
                 let c = t.hit + t.normal
-                missed.append("at \(t.hit.x - cx),\(t.hit.y - gy),\(t.hit.z - cz) face \(t.normal.x),\(t.normal.y),\(t.normal.z): \(Blocks.key(w.block(c.x, c.y, c.z)))")
+                // What the click itself saw (the aim is set again before the tick, but the body can settle on the rim).
+                let now = g.target.map { "\($0.hit.x - cx),\($0.hit.y - gy),\($0.hit.z - cz) face \($0.normal.x),\($0.normal.y),\($0.normal.z)" } ?? "none"
+                let open = g.openCellBefore(t).map { "\($0.x - cx),\($0.y - gy),\($0.z - cz)" } ?? "none"
+                missed.append("at \(t.hit.x - cx),\(t.hit.y - gy),\(t.hit.z - cz) face \(t.normal.x),\(t.normal.y),\(t.normal.z): \(Blocks.key(w.block(c.x, c.y, c.z)))"
+                    + String(format: " (ground there %@; open cell before it %@; at the click aimed %@; refused \"%@\"; feet %.2f %.2f %.2f moved %.2f, on the ground %@)",
+                             w.groundAt(c.x, c.y, c.z) ? "yes" : "no", open, now, g.lastRefusal, p.pos.x - Float(cx), p.pos.y - Float(gy), p.pos.z - Float(cz),
+                             simd_length(p.pos - feetBefore), p.onGround ? "yes" : "no"))
             }
             g.tick(1.0 / 60)
         }

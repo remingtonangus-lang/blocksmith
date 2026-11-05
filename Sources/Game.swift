@@ -345,6 +345,7 @@ final class Game {
     var eatProgress: Float = 0        // seconds held while eating
     var fullToldAt: Double = -100      // Q2c-console-33: the last "You're full"
     var refusedAt: [String: Double] = [:]   // Q2c-console-39: when each placement refusal was last said
+    var lastRefusal = ""                    // (checks: the last refusal, said or not)
     var heldDroppedAt: Double = -100        // Q2c-console-41: the last dropHeld
     var menuNote: (text: String, at: Double)?  // Q2c-console-65: why a slot refused the carried item (over the window)
     // Q2c-console-52: the creature he hurt last (Mob.playerHurtAt within 3 s) as a bar under the boss bars: its name,
@@ -2366,6 +2367,7 @@ final class Game {
     // light tick in the hands, each reason at most every 4 s. P328 (NO TEXT): the reason is never said; `why` keys the
     // repeat guard. Q2c-console-33's "needs a stone pickaxe to drop anything" is gone too: the block drops nothing.
     func placeRefused(_ why: String) {
+        lastRefusal = why
         guard clock - (refusedAt[why] ?? -100) > 4 else { return }
         refusedAt[why] = clock
         sfx(.click, 0.25)

@@ -2649,6 +2649,9 @@ if CommandLine.arguments.contains("--coppertest") {
 // --worldaudit [N] (Nov 5, bug hunt): the Mac's world-gen audit on the field worlds the headset makes: structure
 // overlaps, distance to the nearest village and Capital, a safe spawn, mob density at noon and midnight.
 if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run(device: device, field: true)) }
+// --collisiontest [--strict] (Nov 5, bug hunt): the Mac's collision test for every block shape (Sources/CollisionTest.swift:
+// drops, steps, walk-throughs, box sanity) and the step up under a low ceiling.
+if CommandLine.arguments.contains("--collisiontest") { exit(CollisionTest.run(device: device)) }
 // --physicstest / --capitaltest (Nov 5, bug hunt): the Mac's scripted ship checks (Sources/ShipTest.swift: floating,
 // propulsion, steering, hover, climb, driving, riding the deck, save and load, docking; the capital vessels).
 if CommandLine.arguments.contains("--physicstest") || CommandLine.arguments.contains("--capitaltest") {
