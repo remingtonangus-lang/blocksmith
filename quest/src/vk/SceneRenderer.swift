@@ -1501,10 +1501,11 @@ final class SceneRenderer {
     // P453: how far out the trees switch to their far shell (blocks; the ground's switch, GroundMerge.farDistance,
     // when it is that or more). BS_BLOBFAR=N sets it (BS_BLOBFAR=999: as before).
     static var blobFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBFAR"] ?? "") ?? 64
-    // How far out the detail stream (trunks, limbs, round shapes) switches to its far copy, the trunks at the mid sides
-    // (Mesher.trunkFar); the ground's switch when that is nearer. BS_TRUNKFROM=N sets it; BS_TRUNKFAR=0 meshes the old
-    // copy, drawn past the ground's switch as before.
-    static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(ProcessInfo.processInfo.environment["BS_TRUNKFROM"] ?? "") ?? 64) : 1e9
+    // Nov 5 (P453, "simplify trees"): how far out the detail stream (trunks, limbs, round shapes) switches to its far
+    // copy, the trunks at the mid sides (Mesher.trunkFar); the ground's switch when that is nearer. At 64 it cut 1-2% of
+    // the quads drawn at his jungle and birch spots (nearly every trunk drawn is nearer), at 32 4-10%, and the same
+    // views render alike. BS_TRUNKFROM=N sets it; BS_TRUNKFAR=0 meshes the old copy, drawn past the ground's switch.
+    static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(ProcessInfo.processInfo.environment["BS_TRUNKFROM"] ?? "") ?? 32) : 1e9
     // Nov 5 (P453 again): from this far out to blobFarFrom the leaf blobs draw their outer cutout shell alone, not the
     // darker one inside it (the Mesher puts the outer shells first). BS_BLOBMID=999: both shells to blobFarFrom.
     static var blobMidFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBMID"] ?? "") ?? 24
