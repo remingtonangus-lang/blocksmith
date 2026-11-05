@@ -2040,11 +2040,20 @@ enum Mesher {
                 let farShell = farCopies && !farBlob && SmoothTerrain.triGround
                 if farShell { cutOut = blobCut }                 // (P384: near only, first of the cutout quads)
                 kindNow = MeshKind.blob
+                // (Nov 5, P453 "simplify trees": with a far shell the cutout shells go outer ones first, then the inner
+                // ones, so past SceneRenderer.blobMidFrom the renderer draws the outer half alone. smoothQuads gives every
+                // quad's inner twin right after it.)
+                let inner = sc.blobInner
+                inner.count = 0
+                var bq = 0
                 smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: farBlob ? 1 : 2, world: wo) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                     curCut = !farBlob
+                    if farShell { cutOut = (bq >> 2) & 1 == 1 ? inner : blobCut }
+                    bq += 1
                     blobV += 1
                     vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
                 }
+                for i in 0..<inner.count { blobCut.append(inner.ptr[i]) }
                 cutOut = cut
                 // P384 step 4: far, one solid shell (the outer one: the canopy's outline), drawn per position (triplanar,
                 // like the ground) and simplified to the far bound against its exact surface.
@@ -2424,6 +2433,7 @@ final class MeshScratch {
     // exact positions), and the far mask of the plain faces.
     let bev = GrowBuf<UInt32>(1 << 10), bevFar = GrowBuf<UInt32>(1 << 10)
     let blobCut = GrowBuf<UInt32>(1 << 10), blobFar = GrowBuf<UInt32>(1 << 10), blobExact = GrowBuf<Float>(1 << 10)
+    let blobInner = GrowBuf<UInt32>(1 << 10)    // (Nov 5: the inner cutout shells, put after the outer ones)
     let farMask = UnsafeMutablePointer<Int32>.allocate(capacity: 6 * 16 * 256)
     let detFar = GrowBuf<UInt32>(1 << 12)       // P384: the detail stream's far copy
     let detFarCut = GrowBuf<UInt32>(1 << 8)     // (ledger 25: cutout quads of the far trunks, dropped)
