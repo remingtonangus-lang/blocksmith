@@ -2635,8 +2635,16 @@ if CommandLine.arguments.contains("--mobtests") {
     exit(ok ? 0 : 1)
 }
 // Mac harness suites the questcheck never ran before Nov 4 (bug hunt): --swingtest (VR melee and the bow,
-// VRMeleeTests) and --v78 (the V78 playtest list, PlaytestV78Tests). (QuestBugTests, the PM9 lists, smooth ground, audio
-// and copper suites are Mac-only files, quest/mac-only.txt.)
+// VRMeleeTests) and --v78 (the V78 playtest list, PlaytestV78Tests). (The audio suites are Mac-only files, quest/mac-only.txt.)
+// Nov 5: more of them (bug hunt): --coppertest (copper circuit parity, CopperTests + the workshop), --questbugs (task 20
+// and the PM9 playtest lists), --smoothtest (smooth ground).
+if CommandLine.arguments.contains("--coppertest") {
+    var f = CopperTests.run(game)
+    CircuitWorkshopTests.run(game) { ok, what in print("coppertest: \(ok ? "PASS" : "FAIL") \(what)"); if !ok { f += 1 } }
+    print("coppertest: \(f) failed"); exit(f == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--questbugs") { let f = QuestBugTests.run(game); print("questbugs: \(f) failed"); exit(f == 0 ? 0 : 1) }
+if CommandLine.arguments.contains("--smoothtest") { let f = SmoothTests.run(game); print("smoothtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--swingtest") { let f = VRMeleeTests.run(game); print("swingtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--v78") {
     var f = 0
