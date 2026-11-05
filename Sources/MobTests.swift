@@ -642,6 +642,29 @@ enum MobTests {
             check(got == [true, true], "a conduit gives power at an odd height from the swimmer as at an even one",
                   "3 up: \(got[0]), 4 up: \(got[1])")
         }
+
+        // World.scanBuilt (the conduit's, the shriekers', the murk bloom's, the mines', the ambience's and the piano's
+        // search) finds the cells a cell-by-cell read finds, built and with the ground, across chunk edges.
+        do {
+            let x0 = Int(floor(pos.x)) - 37, z0 = Int(floor(pos.z)) - 29, y0 = Int(floor(pos.y)) - 12
+            let x1 = x0 + 70, z1 = z0 + 58, y1 = y0 + 24
+            var bad = 0, n = [0, 0]
+            var tScan = 0.0, tCells = 0.0
+            for (i, ground) in [false, true].enumerated() {
+                var a = Set<IVec3>(), b = Set<IVec3>()
+                let t0 = Date()
+                world.scanBuilt(x0, y0, z0, x1, y1, z1, ground: ground, want: { $0 != AIR }) { x, y, z in a.insert(IVec3(x, y, z)); return true }
+                let t1 = Date()
+                for y in y0...y1 { for z in z0...z1 { for x in x0...x1 where (ground ? world.block(x, y, z) : world.builtBlock(x, y, z)) != AIR {
+                    b.insert(IVec3(x, y, z))
+                } } }
+                tScan += t1.timeIntervalSince(t0); tCells += Date().timeIntervalSince(t1)
+                bad += a.symmetricDifference(b).count
+                n[i] = b.count
+            }
+            check(bad == 0 && n[1] > 0, "the chunk-at-a-time block scan finds what a cell-by-cell read finds",
+                  "\(bad) cells differ; \(n[0]) built, \(n[1]) with the ground; \(Int(tScan * 1000)) ms against \(Int(tCells * 1000)) ms (both with a set insert a cell)")
+        }
     }
 
     // MARK: Behaviour details

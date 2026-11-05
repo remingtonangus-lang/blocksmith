@@ -148,22 +148,11 @@ extension Game {
             // Nov 5 (the town soak under callgrind: a frame thread second of 30 M instructions, about 8 ms on the host,
             // every second he is in water, conduit or none): the 49-block cube round him was read a block at a time,
             // a chunk lookup each (and only every other layer, so a conduit at an odd height from his feet was never
-            // found). Now each chunk once, its columns' cells read straight, every layer.
+            // found). Now World.scanBuilt: each chunk once, its columns' cells read straight, every layer.
             var found: [IVec3] = []
-            if world.frame == nil {
-                for cz in floorDiv(c.z - 24, CS)...floorDiv(c.z + 24, CS) { for cx in floorDiv(c.x - 24, CS)...floorDiv(c.x + 24, CS) {
-                    guard let ch = world.chunks[ChunkKey(x: cx, z: cz)], !ch.hollow else { continue }
-                    for z in max(c.z - 24, cz * CS)...min(c.z + 24, cz * CS + CS - 1) { for x in max(c.x - 24, cx * CS)...min(c.x + 24, cx * CS + CS - 1) {
-                        let lx = x - cx * CS, lz = z - cz * CS
-                        for y in max(0, c.y - 24)...min(CH - 1, c.y + 24) where ch.blocks.raw(Chunk.index(lx, y, lz)) == conduit {
-                            if abs(x - c.x) + abs(y - c.y) + abs(z - c.z) < 48 { found.append(IVec3(x, y, z)) }
-                        }
-                    } }
-                } }
-            } else {
-                for dy in -24...24 { for dz in -24...24 { for dx in -24...24 where abs(dx) + abs(dy) + abs(dz) < 48 {
-                    if world.builtBlock(c.x + dx, c.y + dy, c.z + dz) == conduit { found.append(IVec3(c.x + dx, c.y + dy, c.z + dz)) }
-                } } }
+            world.scanBuilt(c.x - 24, c.y - 24, c.z - 24, c.x + 24, c.y + 24, c.z + 24, want: { $0 == conduit }) { x, y, z in
+                if abs(x - c.x) + abs(y - c.y) + abs(z - c.z) < 48 { found.append(IVec3(x, y, z)) }
+                return true
             }
             outer: for q in found {
                 let dx = q.x - c.x, dy = q.y - c.y, dz = q.z - c.z
@@ -186,9 +175,7 @@ extension Game {
                 var found = false
                 // (an id table, not each block's name compared three ways: 2,601 blocks a second while he walks deep)
                 let sk = GameBlocks.sculkIDs
-                search: for dy in -4...4 { for dz in -8...8 { for dx in -8...8 where sk[Int(world.builtBlock(c.x + dx, c.y + dy, c.z + dz))] {
-                    found = true; break search
-                } } }
+                world.scanBuilt(c.x - 8, c.y - 4, c.z - 8, c.x + 8, c.y + 4, c.z + 8, want: { sk[Int($0)] }) { _, _, _ in found = true; return false }
                 if found {
                     shriekCooldown = 10
                     warningLevel += 1
@@ -220,8 +207,8 @@ extension Game {
         guard xp > 0, Blocks.has("sculk_catalyst") else { return }
         let cat = Blocks.id("sculk_catalyst")
         let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
-        var near = false
-        for dy in -8...8 { for dz in -8...8 { for dx in -8...8 where world.builtBlock(c.x + dx, c.y + dy, c.z + dz) == cat { near = true } } }
+        var near = false              // (every kill with XP: 4,913 cells, read a chunk at a time)
+        world.scanBuilt(c.x - 8, c.y - 8, c.z - 8, c.x + 8, c.y + 8, c.z + 8, want: { $0 == cat }) { _, _, _ in near = true; return false }
         guard near else { return }
         let sculk = Blocks.id("sculk")
         var n = min(20, xp)

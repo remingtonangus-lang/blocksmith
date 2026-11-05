@@ -385,21 +385,22 @@ extension Game {
         let cx = Int(floor(eye.x)), cy = Int(floor(eye.y)), cz = Int(floor(eye.z))
         var best: [Int: (V3, Float, Int)] = [:]      // kind -> (pos, dist², count)
         var sculk = 0, moss = 0, drip = 0, leaves = 0
-        for y in (cy - 5)...(cy + 5) { for z in (cz - 8)...(cz + 8) { for x in (cx - 8)...(cx + 8) {
+        // (twice a second: 3,179 cells, read a chunk at a time, through the kind table once)
+        _ = Game.audioKind(AIR)
+        let kt = AudioState.kindTable
+        world.scanBuilt(cx - 8, cy - 5, cz - 8, cx + 8, cy + 5, cz + 8, ground: true, want: { kt[Int($0)] != 0 }) { x, y, z in
             let b = world.block(x, y, z)
-            if b == AIR { continue }
             let k = Int(Game.audioKind(b))
-            if k == 0 { continue }
-            if k == 9 { sculk += 1; continue }
-            if k == 10 { moss += 1; continue }
-            if k == 11 { drip += 1; continue }
-            if k == 21 { if y > cy { leaves += 1 }; continue }
+            if k == 9 { sculk += 1; return true }
+            if k == 10 { moss += 1; return true }
+            if k == 11 { drip += 1; return true }
+            if k == 21 { if y > cy { leaves += 1 }; return true }
             var kind = k
             if k == 5 {
                 // Still water only counts at its surface; flowing water everywhere.
                 let above = world.block(x, y + 1, z)
                 let flowing = Blocks.groupBase[Int(b)] != b
-                if !flowing && above != AIR { continue }
+                if !flowing && above != AIR { return true }
                 // Falling water is a waterfall, other flowing water a stream, still water a lake or sea surface.
                 kind = Blocks.key(b) == "water_falling" ? 20 : (flowing ? 19 : 5)
             }
@@ -410,7 +411,8 @@ extension Game {
             } else {
                 best[kind] = (c, d2, 1)
             }
-        } } }
+            return true
+        }
         let names = [1: "fire", 2: "campfire", 3: "furnace", 4: "lava", 5: "water", 6: "portal", 7: "beacon", 8: "spawner", 12: "portal", 13: "anchor", 14: "bubbles",
                      15: "fireflies", 16: "drygrass", 17: "heart", 18: "hive", 19: "river", 20: "waterfall", 22: "stationhum"]
         var out: [String: (pos: V3, count: Int)] = [:]
