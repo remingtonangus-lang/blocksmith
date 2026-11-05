@@ -1,0 +1,266 @@
+natural census: 63 sample chunks in 480 ms
+playthrough: seed 12345, field world
+---- spawn (0.0 s wall, 0 s game)
+meshcache: 0 files, stamp 3506d00654fd827a (blocks 5483, textures 1857 of 1857, build 1793892670)
+PASS spawn: standing on solid ground (grass_block at y 63)
+PASS spawn: not in water or lava
+PASS spawn: alive and healthy
+---- gather + craft (1.4 s wall, 3 s game)
+INFO field aim at 4701 134 1745 (built layer dark_oak_log, density -127): eye 4702.50 134.63 1745.50 (field -3.97) meets 4701 134 1745
+INFO field aim at 4701 126 1744 (built layer dark_oak_log, density -17): eye 4702.50 126.63 1744.50 (field -0.62) meets 4701 126 1744
+INFO field aim at 4683 129 1738 (built layer pale_oak_log, density -127): eye 4684.50 129.63 1738.50 (field -3.97) meets 4683 129 1738
+PASS gather: logs mined by hand (3)
+INFO bulk: +3 pale_oak_log (more trees)
+FAIL craft pale_oak_planks: have 1 pale_oak_log (have 0)
+FAIL craft: 16 pale_oak_planks
+FAIL craft wooden_pickaxe: have 3 pale_oak_planks (have 2)
+FAIL craft: crafting table + wooden pickaxe
+---- stone age (2.2 s wall, 15 s game)
+FAIL hold wooden pickaxe
+INFO field aim at 4698 124 1751 (built layer air, density 5): eye 4699.50 124.63 1751.50 (field -0.50) meets 4698 124 1751 (field at 4698.69 124.52 1751.50, t 0.82)
+INFO field aim at 4698 123 1751 (built layer air, density 5): eye 4699.50 123.63 1751.50 (field -0.60) meets 4698 123 1751 (field at 4698.56 123.51 1751.50, t 0.95)
+INFO field aim at 4698 122 1751 (built layer air, density 5): eye 4699.50 122.63 1751.50 (field -0.62) meets 4698 122 1751 (field at 4698.56 122.51 1751.50, t 0.95)
+FAIL mine: 0 cobblestone with a wooden pickaxe (3 mined; bare hand would take 7.5 s and drop nothing)
+INFO stone at 4698 60 1751, now air; around (up down +x -x +z -z): dirt air air dirt dirt dirt; drops within 24: none
+INFO bulk: +11 cobblestone (more stone)
+PASS craft: stone pickaxe + furnace
+---- iron age (2.8 s wall, 39 s game)
+PASS worldgen: iron ore within 64 blocks of spawn
+PASS rules: wooden pickaxe can't harvest iron ore
+INFO field aim at 4696 121 1754 (built layer air, density 5): eye 4697.50 121.63 1754.50 (field -0.41) meets 4696 121 1754 (field at 4696.69 121.52 1754.50, t 0.82)
+PASS mine: raw iron with a stone pickaxe (1)
+INFO field aim at 4704 122 1755 (built layer air, density 5): eye 4705.50 122.63 1755.50 (field -0.50) meets 4704 122 1755 (field at 4704.69 122.52 1755.50, t 0.82)
+INFO coal from ore: 1
+INFO bulk: +5 raw_iron (more iron ore)
+PASS place: furnace placed with a right click (furnace[south])
+PASS smelt: 6 iron ingots after 103 s
+INFO bulk: +1 flint (gravel)
+PASS craft: iron pickaxe + flint and steel
+---- diamonds (5.6 s wall, 104 s game)
+PASS worldgen: diamond ore within 80 blocks of spawn
+PASS rules: stone pickaxe can't harvest diamond ore
+INFO field aim at 4706 3 1753 (built layer air, density 5): eye 4707.50 3.63 1753.50 (field -0.50) meets 4706 3 1753 (field at 4706.69 3.52 1753.50, t 0.82)
+PASS mine: raw titanium with an iron pickaxe at y -61 (1, 1 ore)
+PASS rules: raw titanium smelts only in a blast furnace
+INFO bulk: +1 blast_furnace (iron and smooth stone)
+PASS smelt: 1 titanium ingots from 1 raw titanium in a blast furnace
+INFO bulk: +4 diamond (more diamonds)
+INFO bulk: +3 string (spiders)
+INFO bulk: +4 flint (gravel)
+INFO bulk: +4 feather (chickens)
+PASS craft: diamond pickaxe, sword, bow, 16 arrows
+INFO bulk: +19 diamond (more diamonds)
+INFO bulk: +5 gold_ingot (gold ore)
+PASS armour: 19 armour points worn
+---- obsidian + portal (8.1 s wall, 111 s game)
+PASS fluids: water on a lava source makes obsidian (got obsidian)
+PASS rules: iron pickaxe can't harvest obsidian
+PASS rules: obsidian takes 14.45 s with a titanium pickaxe (P267) (14.45)
+INFO field aim at 4694 128 1754 (built layer air, density 5): eye 4695.50 128.63 1754.50 (field -0.55) meets 4694 128 1754 (field at 4694.67 128.52 1754.50, t 0.83)
+PASS mine: obsidian with a diamond pickaxe (1)
+INFO bulk: +9 obsidian (more obsidian)
+PASS portal: flint and steel leaves a surface frame cold
+PASS portal: an Ember Charge wakes the frame (nether_portal)
+meshcache: 0 files, stamp 3506d00654fd827a (blocks 5483, textures 1857 of 1857, build 1793892670)
+PASS portal: standing in the portal for 4 s goes to the Emberdeep
+---- emberdeep (17.9 s wall, 133 s game)
+PASS emberdeep: arrived inside a portal
+PASS emberdeep: arrival portal is safe
+PASS emberdeep: nearest fortress 312 blocks from the portal
+PASS fortress: 1 slagthrower spawner(s)
+PASS fortress: the spawner makes slagthrowers
+PASS fortress: 7 cinder rods from 8 slagthrowers in 889 s
+INFO cinder rod rate 0.88 per kill (reference 0.5 without looting)
+INFO bulk: +12 amethyst_shard (amethyst for seeker eyes)
+---- back to the surface (30.2 s wall, 1025 s game)
+PASS portal: back to the Surface through the arrival portal
+PASS portal: returned to the portal we built (0 blocks off)
+---- seeker eyes (31.8 s wall, 1030 s game)
+PASS craft: 12 seeker eyes
+PASS worldgen: nearest stronghold 1727 blocks from the origin (first ring 1280-2816)
+PASS seeker eye: thrown with a right click
+PASS seeker eye: flew 11.6 blocks toward the stronghold
+PASS seeker eye: drops or shatters after its flight
+---- stronghold (31.9 s wall, 1034 s game)
+PASS stronghold G20: on new ground the dais holds a reliquary (2 chests), no hollow gate frames (0); dais at 3640,3738, stronghold 3634...3754, 3706...3766
+PASS stronghold: portal room with 12 hollow gate frames
+INFO stronghold: 0 frames already hold an eye
+PASS hollow gate: 12/12 frames filled with right clicks
+PASS hollow gate: the 3x3 gate opens (9/9)
+---- the hollow (33.6 s wall, 1035 s game)
+meshcache: 0 files, stamp 3506d00654fd827a (blocks 5483, textures 1857 of 1857, build 1793892670)
+PASS hollow gate: stepping in goes to the Hollow
+PASS hollow: arrived on the obsidian platform at 100 49 0
+PASS hollow: standing safely on the platform
+PASS hollow: exactly one Hollow Wyrm (1)
+PASS hollow: 10 hollow crystals on the spikes (10)
+PASS wyrm: 200 health (200)
+INFO fountain at y 58, spikes [76, 79, 82, 85, 88, 91, 94, 97, 100, 103]
+---- crystals (34.5 s wall, 1046 s game)
+PASS crystals: all destroyed (10 by arrow, 0 up close, 0 left)
+INFO crystal explosions cost 10752 health so far (topped up)
+---- hollow wyrm fight (34.5 s wall, 1069 s game)
+PASS wyrm: defeated in 62 s (2 perches, 16 sword hits, 10 arrows for 83 damage, health left 1)
+INFO wyrm fight: player took 96 damage (half-hearts, healed by the test)
+PASS wyrm: death sequence finishes
+FAIL wyrm: 12000 XP (0 points, level 0 -> 0)
+PASS wyrm: gone after dying
+PASS exit portal: active (24 gate blocks)
+PASS egg: the wyrm egg sits on the exit portal (4)
+PASS rift: a hollow rift gateway opened on the ring
+---- egg (34.9 s wall, 1144 s game)
+INFO field aim at -10 122 -2 (built layer air, density 5): eye -8.50 122.63 -1.50 (field -0.59) meets -10 122 -2 (field at -9.43 122.51 -1.50, t 0.94)
+INFO field aim at 4 123 12 (built layer air, density 5): eye 5.50 123.63 12.50 (field -0.66) meets 4 123 12 (field at 4.56 123.51 12.50, t 0.95)
+INFO field aim at 19 123 20 (built layer air, density 5): eye 20.50 123.63 20.50 (field -0.70) meets 19 123 20 (field at 19.56 123.51 20.50, t 0.95)
+INFO field aim at 21 122 12 (built layer air, density 5): eye 22.50 122.63 12.50 (field -0.49) meets 21 122 12 (field at 21.57 122.51 12.50, t 0.94)
+INFO field aim at 23 122 11 (built layer air, density 5): eye 24.50 122.63 11.50 (field -0.47) meets 23 122 11 (field at 23.57 122.51 11.50, t 0.94)
+INFO field aim at 13 122 2 (built layer air, density 5): eye 14.50 122.63 2.50 (field -0.60) meets 13 122 2 (field at 13.57 122.51 2.50, t 0.94)
+INFO field aim at 26 123 7 (built layer air, density 5): eye 27.50 123.63 7.50 (field -0.69) meets 26 123 7 (field at 26.20 123.46 7.50, t 1.31)
+INFO field aim at 38 122 17 (built layer air, density 5): eye 39.50 122.63 17.50 (field -0.50) meets 38 122 17 (field at 38.57 122.51 17.50, t 0.94)
+INFO field aim at 36 123 20 (built layer air, density 4): eye 37.50 123.63 20.50 (field -0.69) meets 36 123 20 (field at 36.20 123.46 20.50, t 1.31)
+INFO field aim at 26 123 18 (built layer air, density 5): eye 27.50 123.63 18.50 (field -0.72) meets 26 123 18 (field at 26.56 123.51 18.50, t 0.95)
+PASS egg: hitting the egg makes it teleport (20 hops)
+FAIL egg: collected by dropping it onto a torch (0)
+INFO egg: last attempt: egg at 26 59 18 on torch over end_stone: no torch spot
+INFO bulk: +1 dragon_egg (egg)
+---- rift (37.8 s wall, 1240 s game)
+INFO bulk: +2 ender_pearl (spare pearls)
+PASS rift: teleports to the far islands (1040 blocks out)
+PASS rift: landed on solid ground (end_stone)
+PASS rift: a return rift near the landing spot
+---- hollow spire (38.0 s wall, 1243 s game)
+PASS spire: nearest hollow spire 1371 blocks from the landing spot (with ship)
+INFO spire: 6 shellsentries
+PASS spire: the ship's hold has a jetpack
+PASS jetpack: 3 s of jump held lifts the player 19 blocks off the spire
+PASS rift: the return rift leads back to the central island (90 blocks out)
+---- save + reload (39.4 s wall, 1248 s game)
+PASS reload: back in the Hollow (end)
+PASS reload: wyrm stays defeated (true, 1 rifts)
+PASS reload: the egg is still in the inventory
+PASS reload: exit portal still open (24)
+meshcache: 276 files, stamp 3506d00654fd827a (blocks 5483, textures 1857 of 1857, build 1793892670)
+PASS reload: no new wyrm appears
+---- credits (39.9 s wall, 1248 s game)
+PASS exit portal: the credits roll
+PASS credits: back on the Surface after the credits
+PASS credits: at the spawn point
+PASS credits: alive at home
+---- blight (41.2 s wall, 1307 s game)
+PASS blight: retired, nothing summons it (P292)
+INFO bulk: +1 nether_star (a Brand Commander's star)
+INFO bulk: +5 glass (sand + furnace)
+INFO bulk: +3 obsidian (obsidian)
+PASS craft: beacon from the Brand Star
+---- deep: through the floor (41.2 s wall, 1307 s game)
+INFO bulk: +1 netherite_pickaxe (Duskium gear)
+INFO bulk: +1 netherite_sword (Duskium gear)
+INFO bulk: +1 golden_helmet (armour)
+INFO bulk: +1 diamond_chestplate (armour)
+INFO bulk: +1 diamond_leggings (armour)
+INFO bulk: +1 diamond_boots (armour)
+PASS armour: 19 armour points worn
+INFO bulk: dug a shaft 124 blocks down to the Wardstone floor
+PASS deep: the bottom of the surface is Wardstone (wardstone)
+INFO field aim at 4709 2 1763 (built layer air, density 8): eye 4710.50 2.63 1763.50 (field -0.48) meets 4709 2 1763 (field at 4709.92 2.55 1763.50, t 0.59)
+INFO field mine at 4709 2 1763: on target 80 of 80 ticks, body moved up to 0.00 in a tick, progress 0.00, no other target
+PASS deep: a Duskium pickaxe can't break the Wardstone
+INFO bulk: +1 ember_charge (a base's command chest)
+meshcache: 0 files, stamp 3506d00654fd827a (blocks 5483, textures 1857 of 1857, build 1793892670)
+PASS deep: an Ember Charge blows the floor and the player drops into the Deep (charge set true, Bottom of the World)
+---- deep: the hell band (59.3 s wall, 1314 s game)
+INFO field aim at 4709 380 1763 (built layer air, density 5): eye 4710.50 380.63 1763.50 (field -0.59) meets 4709 380 1763 (field at 4709.56 380.51 1763.50, t 0.95)
+INFO field aim at 4709 379 1763 (built layer air, density 5): eye 4710.50 379.63 1763.50 (field -0.60) meets 4709 379 1763 (field at 4709.56 379.51 1763.50, t 0.95)
+INFO field aim at 4709 378 1763 (built layer air, density 5): eye 4710.50 378.63 1763.50 (field -0.62) meets 4709 378 1763 (field at 4709.56 378.51 1763.50, t 0.95)
+INFO field aim at 4709 377 1763 (built layer air, density 5): eye 4710.50 377.63 1763.50 (field -0.62) meets 4709 377 1763 (field at 4709.56 377.51 1763.50, t 0.95)
+INFO field aim at 4709 376 1763 (built layer air, density 5): eye 4710.50 376.63 1763.50 (field -0.62) meets 4709 376 1763 (field at 4709.56 376.51 1763.50, t 0.95)
+INFO dug 5 blocks of crust
+PASS deep: in the hell band (Under the Fire Sky)
+PASS deep: the compass points to a Brimstone Keep 499 blocks off
+INFO bulk: rode 499 blocks across the hell band to the keep
+---- deep: the Castellan (60.1 s wall, 1322 s game)
+INFO bulk: fought through 16 of the keep's guards to the strongroom
+PASS deep: the Castellan falls to the sword (98 swings, 69 s)
+PASS deep: Castellan's Fall: the Ember Gate wakes (true) and the Gate Shard is picked up (1)
+---- deep: Sunderite (62.7 s wall, 1395 s game)
+INFO field aim at 5206 226 1796 (built layer sunderite_ore, density -127): eye 5207.50 226.63 1796.50 (field -3.97) meets 5206 226 1796
+INFO field aim at 5212 226 1797 (built layer sunderite_ore, density -127): eye 5213.50 226.63 1797.50 (field -3.97) meets 5212 226 1797
+INFO field aim at 5206 229 1794 (built layer sunderite_ore, density -127): eye 5206.50 229.63 1795.50 (field -3.97) meets 5206 229 1794
+INFO field aim at 5214 229 1798 (built layer sunderite_ore, density -127): eye 5213.50 229.63 1798.50 (field -3.97) meets 5214 229 1798
+PASS deep: Sunderite Ore mined from the strongroom walls (4 ore, 4 Raw Sunderite)
+INFO bulk: +4 raw_sunderite (the rest of the strongroom's ore and its chest)
+INFO bulk: +2 blaze_rod (cinderwisps)
+PASS deep: Raw Sunderite and Cinder Powder make Sunderite Flux (4)
+INFO bulk: +1 blast_furnace (iron and smooth stone)
+PASS deep: Sunderite Flux smelts only in a blast furnace
+INFO bulk: +2 coal (fuel)
+PASS deep: the blast furnace makes 4 Sunderite Ingots in 20 s
+INFO bulk: +1 tnt (gunpowder and sand)
+PASS deep: a Sunderite Pickaxe and a Sunder Charge crafted
+---- deep: through the seal (64.2 s wall, 1448 s game)
+INFO bulk: dug down to the Sealrock beside the keep, walled off from the lava
+PASS deep: the hell band's floor is Sealrock (sealrock)
+INFO field aim at 5249 199 1801 (built layer air, density 8): eye 5250.50 199.63 1801.50 (field -0.59) meets 5249 199 1801 (field at 5249.87 199.55 1801.50, t 0.64)
+INFO field mine at 5249 199 1801: on target 100 of 100 ticks, body moved up to 0.00 in a tick, progress 0.00, no other target
+PASS deep: a Duskium pickaxe can't break Sealrock
+PASS deep: the Sunder Charge blows a shaft through the seal and the player drops through (aim sealrock at 5248,199,1800, menu none, held air, toast 'The Ember Gate in the courtyard wakes'; feet at 191, seal 192...199)
+INFO field aim at 5248 190 1800 (built layer air, density 5): eye 5249.50 190.63 1800.50 (field -0.60) meets 5248 190 1800 (field at 5248.56 190.51 1800.50, t 0.95)
+INFO field aim at 5248 189 1800 (built layer air, density 5): eye 5249.50 189.63 1800.50 (field -0.60) meets 5248 189 1800 (field at 5248.56 189.51 1800.50, t 0.95)
+INFO field aim at 5248 188 1800 (built layer air, density 5): eye 5249.50 188.63 1800.50 (field -0.62) meets 5248 188 1800 (field at 5248.56 188.51 1800.50, t 0.95)
+INFO field aim at 5248 187 1800 (built layer air, density 5): eye 5249.50 187.63 1800.50 (field -0.62) meets 5248 187 1800 (field at 5248.56 187.51 1800.50, t 0.95)
+INFO field aim at 5248 186 1800 (built layer air, density 5): eye 5249.50 186.63 1800.50 (field -0.62) meets 5248 186 1800 (field at 5248.56 186.51 1800.50, t 0.95)
+INFO field aim at 5248 185 1800 (built layer air, density 5): eye 5247.50 185.63 1800.50 (field -0.60) meets 5250 185 1800 (field at 5250.25 185.27 1800.50, t 2.77)
+INFO field mine at 5248 185 1800: on target 0 of 160 ticks, body moved up to 0.00 in a tick, progress 0.00, other target 5253 184 1800 (air)
+INFO dug 5 blocks of the lower crust
+INFO bulk: the rest of the lower crust; out under the vault roof
+PASS deep: down into the Ash Vault (landed true, 0 damage on the way down)
+---- deep: the Marshal (69.1 s wall, 1473 s game)
+INFO bulk: crossed 5547 blocks of the vault to the citadel
+INFO bulk: fought through the Marshal's Guard (55 units)
+PASS deep: the Ash Marshal falls to the sword (89 swings, 62 s)
+PASS deep: the Marshal's fall starts the last battle (stage 1)
+---- deep: the last battle (73.9 s wall, 1539 s game)
+INFO died (You were shot by Ashguard Sharpshooter) at -8 -33 4 in deep; worst frame since the last death -20, armour 0
+INFO bulk: +1 golden_helmet (armour)
+INFO bulk: +1 diamond_chestplate (armour)
+INFO bulk: +1 diamond_leggings (armour)
+INFO bulk: +1 diamond_boots (armour)
+PASS armour: 19 armour points worn
+PASS deep: wave 1, their reserve infantry and half-tracks, comes in (6 units)
+INFO bulk: +1 netherite_sword (a spare sword, the last one was lost on a death)
+INFO wave 1: an Ashguard soldier fought hand to hand (19 swings, down true, health left -4, 2.0 blocks off)
+INFO bulk: the rest of wave 1 (5 units)
+PASS deep: wave 2, their last tank company, comes in (7 units)
+INFO wave 2: an Ashguard soldier fought hand to hand (10 swings, down true, health left -8, 2.2 blocks off)
+INFO bulk: the rest of wave 2 (6 units)
+PASS deep: wave 3, the Behemoth, comes in (6 units)
+INFO wave 3: an Ashguard soldier fought hand to hand (37 swings, down true, health left -3, 2.0 blocks off)
+INFO bulk: the rest of wave 3 (5 units)
+FAIL deep: the last army beaten, the blast door in the command bunker opens (0/9)
+---- deep: the Chancellor (77.5 s wall, 1626 s game)
+INFO bulk: down the bunker stairs
+FAIL deep: the Ash Chancellor waits in his study
+---- advancements (78.0 s wall, 1631 s game)
+PASS advancement nether/obtain_blaze_rod
+PASS advancement end/root
+PASS advancement end/kill_dragon
+PASS advancement end/dragon_egg
+PASS advancement end/enter_end_gateway
+INFO 36 advancements earned: adventure/ash_tank, adventure/ash_vault, adventure/brand_parry, adventure/break_seal, adventure/break_ward, adventure/deep, adventure/deep_hell, adventure/keep_warden, adventure/kill_a_mob, adventure/root, adventure/shoot_arrow, adventure/steelhold_gun, adventure/steelhold_ironclad, adventure/sunderite, end/dragon_egg, end/elytra, end/enter_end_gateway, end/kill_dragon, end/root, enter_the_end, enter_the_nether, follow_ender_eye, form_obsidian, goal/furnace, goal/wood, iron_tools, mine_diamond, nether/find_fortress, nether/obtain_blaze_rod, nether/root, root, shiny_gear, smelt_iron, spine/intro, spine/iron_set, upgrade_tools
+INFO goals in order: wood 0s, root 6s, pickaxe 22s, smelt_iron 41s, spine/iron_set 105s, spine/find_town 111s, adventure/deep_hell 134s, adventure/keep_warden 1320s, adventure/break_seal 1394s, adventure/ash_vault 1456s, adventure/ash_victory 1472s
+PASS first hour: the next goal only moves forward along the path (11 goals seen, 0 steps back)
+FAIL first hour: the run ends with the path walked to the Capital stage (last goal adventure/ash_victory)
+---- summary (78.1 s wall, 1633 s game)
+INFO deaths: 1, damage healed by the test: 12395 half-hearts
+playthrough: 11 failed checks, 1633 s of game time in 78.1 s wall
+  failed: craft pale_oak_planks: have 1 pale_oak_log (have 0)
+  failed: craft: 16 pale_oak_planks
+  failed: craft wooden_pickaxe: have 3 pale_oak_planks (have 2)
+  failed: craft: crafting table + wooden pickaxe
+  failed: hold wooden pickaxe
+  failed: mine: 0 cobblestone with a wooden pickaxe (3 mined; bare hand would take 7.5 s and drop nothing)
+  failed: wyrm: 12000 XP (0 points, level 0 -> 0)
+  failed: egg: collected by dropping it onto a torch (0)
+  failed: deep: the last army beaten, the blast door in the command bunker opens (0/9)
+  failed: deep: the Ash Chancellor waits in his study
+  failed: first hour: the run ends with the path walked to the Capital stage (last goal adventure/ash_victory)

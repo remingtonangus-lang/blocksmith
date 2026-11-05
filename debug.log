@@ -1,0 +1,5 @@
+rerun (debug build): "$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests --posecheck
+(lldb) target create "build/debug/Blocksmith.app/Contents/MacOS/Blocksmith"
+Current executable set to '/Users/runner/work/blocksmith/blocksmith/build/debug/Blocksmith.app/Contents/MacOS/Blocksmith' (arm64).
+(lldb) settings set -- target.run-args  "--snapshot" "snaps/mobtests.png" "--seed" "12345" "--find" "plains" "--yaw" "0" "--pitch" "-30" "--time" "0.3" "--up" "3" "--mobtests" "--posecheck"
+(lldb) run

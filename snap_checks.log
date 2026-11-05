@@ -1,0 +1,1331 @@
+  Blocks: 223 sounds
+  Hostile Mobs: 267 sounds
+  Friendly Mobs: 356 sounds
+  Players: 166 sounds
+  Ambient: 51 sounds
+  Weather: 8 sounds
+  Interface: 5 sounds
+  wrote 37 soundscapes to build/sounds/scapes
+  slowest renders: ashMarchSong 282 ms, frigateDroneLoop 100 ms, frigateInsideLoop 98 ms, strikeRoarLoop 97 ms, warpedLoop 77 ms, windLoop 59 ms
+synthesized 1076 sounds (1250.9 s of audio) in 8872 ms, 0 failed
+files 1113, failing 0; SFX peak > -1 dBFS: 0; clipped files: 0
+wet-sounding dry steps: none
+title  356 notes    136 s  peak 0.65 rms 0.158  "Quiet Forge (Title)"
+day  434 notes    152 s  peak 0.69 rms 0.149  "Quiet Forge (Surface Day)"
+night  169 notes    138 s  peak 0.65 rms 0.145  "Quiet Forge (Surface Night)"
+underground  138 notes    146 s  peak 0.66 rms 0.160  "Quiet Forge (Underground)"
+underwater  145 notes    136 s  peak 0.63 rms 0.157  "Quiet Forge (Underwater)"
+ember  204 notes    121 s  peak 0.70 rms 0.176  "Quiet Forge (Emberdeep)"
+hollow  171 notes    141 s  peak 0.66 rms 0.138  "Quiet Forge (The Hollow)"
+creative  615 notes    145 s  peak 0.73 rms 0.142  "Quiet Forge (Creative)"
+boss 1404 notes    125 s  peak 0.88 rms 0.202  "Quiet Forge (Boss)"
+rain  158 notes    130 s  peak 0.62 rms 0.151  "Quiet Forge (Rain)"
+snow  219 notes    136 s  peak 0.62 rms 0.137  "Quiet Forge (Snowfields)"
+desert  209 notes    122 s  peak 0.61 rms 0.154  "Quiet Forge (Dunes)"
+ocean  239 notes    134 s  peak 0.66 rms 0.161  "Quiet Forge (Open Water)"
+grove  260 notes    114 s  peak 0.56 rms 0.136  "Quiet Forge (Blossom)"
+mountain  169 notes    132 s  peak 0.64 rms 0.167  "Quiet Forge (High Passes)"
+swamp  204 notes    124 s  peak 0.63 rms 0.156  "Quiet Forge (Mire)"
+jungle  287 notes     94 s  peak 0.56 rms 0.136  "Quiet Forge (Canopy)"
+tension  197 notes    104 s  peak 0.64 rms 0.168  "Quiet Forge (The Capital)"
+combat  933 notes     91 s  peak 0.88 rms 0.210  "Quiet Forge (Firefight)"
+vault  465 notes    124 s  peak 0.68 rms 0.196  "Quiet Forge (The Ash Vault)"
+rendered 20 pieces in 1416 ms, 0 failed
+natural census: 63 sample chunks in 770 ms
+audiotest PASS: car: engine heard while driving (speed 0.2, loop:forestday loop:ship1eng0 loop:ship1eng1 loop:ship1wheel)
+audiotest SKIP: car not rolling (speed 0.2, loop:forestday loop:ship1eng0 loop:ship1eng1 loop:ship1wheel)
+audiotest PASS: car: the engine starts once (1 starts)
+audiotest PASS: plane: propellers and wing rush in flight (speed 19.5, loop:mountainwind loop:ship2eng0 loop:ship2eng1 loop:ship2prop0 loop:ship2prop1 loop:ship2rush loop:wind)
+audiotest PASS: frigate: engine drone heard from 120 blocks (loop:mountainwind loop:vessel3)
+audiotest PASS: frigate nearby: tension (level 1)
+audiotest PASS: frigate in gun range: combat music (level 2)
+audiotest PASS: mountain wind on the peaks (loop:mountainwind)
+audiotest PASS: jagged_peaks: the landform wind replaces the plain wind (loop:mountainwind)
+audiotest PASS: tundra wind on the snowy plains (loop:mountainwind loop:tundrawind)
+audiotest PASS: snowy_plains: the landform wind replaces the plain wind (loop:mountainwind loop:tundrawind)
+audiotest PASS: insects over the swamp (loop:swamp loop:swampbugs loop:water)
+audiotest PASS: snow wind while it snows (loop:mountainwind loop:snowwind loop:tundrawind)
+audiotest PASS: no rain patter while it snows (loop:mountainwind loop:snowwind loop:tundrawind)
+audiotest PASS: rain heard in the open on the plains (loop:rain loop:rainleaves)
+audiotest PASS: a waterfall is heard beside it (loop:forestday loop:waterfall)
+audiotest PASS: flowing water is heard as a stream (loop:forestday loop:river loop:waterfall)
+audiotest: 0 failed (3.9 s)
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 1471 ms, upload 433 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 67) sky 15 block 0 in air, daylight 1.0
+imagecheck audiotest.png magenta=0.00000 black=0.0033 white=0.0014 std=34.3 hash=eaf3d886030c3f05
+imagecheck audiotest.png magenta=0.00000 black=0.0033 white=0.0014 std=34.3 hash=eaf3d886030c3f05
+seed 12345  pos 8.5 133.0 56.5  rd 6  chunks 423  (drawn 47)
+gen 4510 ms  mesh(all, parallel) 297 ms  mesh(1 section) 0.46 ms  quads 577098 opaque / 3038 water
+frame (encode+GPU, offscreen, median of 30) 8.05 ms  biome plains
+mesh slabs 40 MB, chunks 423 (block+light arrays 47 MB), Metal allocated 186 MB
+memory: resident 268 MB  (section meshes 34 MB)
+wrote snaps/audiotest.png
+terrainmap seed 12345: 8192 x 8192 blocks every 16 (0.5 s), land 67%, max height 277
+  biomes: plains 9.0%, snowy_taiga 8.0%, forest 7.0%, warm_ocean 6.1%, lukewarm_ocean 6.1%, ocean 5.9%, taiga 5.6%, snowy_plains 5.6%, deep_lukewarm_ocean 5.2%, cold_ocean 4.8%, jungle 3.9%, sparse_jungle 3.0%, beach 2.8%, snowy_slopes 2.6%, savanna 2.4%, meadow 2.3%, desert 2.2%, frozen_ocean 2.0%, old_growth_spruce_taiga 1.7%, grove 1.3%, deep_cold_ocean 1.2%, dark_forest 1.2%, deep_ocean 1.1%, old_growth_pine_taiga 1.0%, frozen_peaks 1.0%, jagged_peaks 0.8%, deep_frozen_ocean 0.7%, mangrove_swamp 0.7%, birch_forest 0.6%, snowy_beach 0.5%, river 0.5%, flower_forest 0.4%, swamp 0.4%, pale_garden 0.3%, stony_peaks 0.3%, savanna_plateau 0.3%, badlands 0.2%, cherry_grove 0.2%, bamboo_jungle 0.2%, windswept_forest 0.2%, old_growth_birch_forest 0.1%, sunflower_plains 0.1%, windswept_gravelly_hills 0.1%, windswept_hills 0.1%, ice_spikes 0.1%, frozen_river 0.0%, eroded_badlands 0.0%, mushroom_fields 0.0%, windswept_savanna 0.0%, wooded_badlands 0.0%, stony_shore 0.0%
+  rivers: 313 segments, 0 flowing uphill, 30 lakes
+terraincheck seed 12345: 0 problems (implausible neighbour pairs + uphill rivers)
+terrainmap seed 777: 8192 x 8192 blocks every 16 (0.4 s), land 55%, max height 262
+  biomes: deep_lukewarm_ocean 12.8%, warm_ocean 9.1%, taiga 8.1%, snowy_plains 7.5%, plains 6.6%, cold_ocean 6.5%, frozen_ocean 5.1%, forest 5.0%, lukewarm_ocean 4.1%, sparse_jungle 3.8%, jungle 3.4%, snowy_taiga 3.3%, ocean 3.2%, desert 2.7%, beach 2.5%, savanna 2.5%, deep_frozen_ocean 1.7%, dark_forest 1.4%, deep_ocean 1.2%, deep_cold_ocean 1.1%, old_growth_spruce_taiga 0.7%, badlands 0.7%, grove 0.6%, meadow 0.6%, mangrove_swamp 0.5%, snowy_slopes 0.5%, frozen_peaks 0.5%, snowy_beach 0.5%, birch_forest 0.4%, river 0.4%, pale_garden 0.4%, swamp 0.4%, bamboo_jungle 0.4%, old_growth_pine_taiga 0.4%, sunflower_plains 0.4%, old_growth_birch_forest 0.3%, jagged_peaks 0.3%, flower_forest 0.3%, stony_peaks 0.1%, savanna_plateau 0.1%, ice_spikes 0.1%, windswept_hills 0.1%, cherry_grove 0.1%, eroded_badlands 0.1%, wooded_badlands 0.0%, windswept_savanna 0.0%, windswept_forest 0.0%, mushroom_fields 0.0%, frozen_river 0.0%, windswept_gravelly_hills 0.0%
+  not in this area: stony_shore
+  rivers: 263 segments, 0 flowing uphill, 18 lakes
+terraincheck seed 777: 0 problems (implausible neighbour pairs + uphill rivers)
+terrainmap seed 424242: 8192 x 8192 blocks every 16 (0.5 s), land 62%, max height 278
+  biomes: taiga 8.0%, plains 7.8%, jungle 7.4%, cold_ocean 7.2%, forest 6.3%, sparse_jungle 5.3%, lukewarm_ocean 5.3%, ocean 4.9%, deep_cold_ocean 4.6%, savanna 4.2%, warm_ocean 4.1%, deep_ocean 3.7%, snowy_plains 3.2%, frozen_ocean 3.1%, deep_frozen_ocean 2.9%, beach 2.6%, desert 2.5%, meadow 2.4%, snowy_taiga 2.3%, deep_lukewarm_ocean 2.1%, dark_forest 1.1%, snowy_slopes 0.9%, grove 0.8%, jagged_peaks 0.7%, mangrove_swamp 0.7%, bamboo_jungle 0.6%, frozen_peaks 0.6%, river 0.6%, badlands 0.6%, cherry_grove 0.5%, snowy_beach 0.5%, flower_forest 0.5%, old_growth_spruce_taiga 0.4%, old_growth_pine_taiga 0.4%, savanna_plateau 0.3%, sunflower_plains 0.2%, stony_peaks 0.2%, pale_garden 0.2%, birch_forest 0.2%, windswept_hills 0.1%, swamp 0.1%, windswept_gravelly_hills 0.1%, ice_spikes 0.0%, old_growth_birch_forest 0.0%, windswept_forest 0.0%, eroded_badlands 0.0%, windswept_savanna 0.0%, mushroom_fields 0.0%, frozen_river 0.0%, stony_shore 0.0%
+  not in this area: wooded_badlands
+  rivers: 365 segments, 0 flowing uphill, 30 lakes
+terraincheck seed 424242: 0 problems (implausible neighbour pairs + uphill rivers)
+terrainmap seed 1: 8192 x 8192 blocks every 16 (0.4 s), land 65%, max height 261
+  biomes: taiga 7.6%, plains 7.5%, jungle 7.0%, sparse_jungle 6.5%, snowy_plains 6.0%, forest 5.9%, warm_ocean 5.5%, ocean 4.9%, deep_cold_ocean 4.5%, snowy_taiga 4.4%, deep_frozen_ocean 4.3%, cold_ocean 4.2%, savanna 4.2%, lukewarm_ocean 4.2%, deep_lukewarm_ocean 3.1%, beach 3.0%, deep_ocean 2.7%, desert 2.6%, dark_forest 1.4%, frozen_ocean 1.3%, meadow 1.3%, bamboo_jungle 1.0%, grove 1.0%, badlands 0.8%, mangrove_swamp 0.7%, river 0.5%, old_growth_pine_taiga 0.4%, old_growth_spruce_taiga 0.4%, snowy_slopes 0.3%, cherry_grove 0.3%, snowy_beach 0.3%, savanna_plateau 0.3%, birch_forest 0.3%, old_growth_birch_forest 0.2%, pale_garden 0.2%, flower_forest 0.2%, jagged_peaks 0.2%, stony_peaks 0.2%, frozen_peaks 0.1%, swamp 0.1%, eroded_badlands 0.1%, sunflower_plains 0.1%, ice_spikes 0.0%, wooded_badlands 0.0%, windswept_hills 0.0%, frozen_river 0.0%, windswept_savanna 0.0%, windswept_forest 0.0%, mushroom_fields 0.0%, stony_shore 0.0%, windswept_gravelly_hills 0.0%
+  rivers: 282 segments, 0 flowing uphill, 37 lakes
+terraincheck seed 1: 0 problems (implausible neighbour pairs + uphill rivers)
+terrainmap seed 98765: 8192 x 8192 blocks every 16 (0.5 s), land 66%, max height 263
+  biomes: taiga 7.6%, jungle 7.2%, plains 6.9%, deep_lukewarm_ocean 6.7%, lukewarm_ocean 6.6%, forest 6.0%, snowy_plains 5.7%, warm_ocean 5.6%, sparse_jungle 5.3%, cold_ocean 5.2%, ocean 4.2%, snowy_taiga 4.1%, beach 2.9%, dark_forest 2.1%, savanna 2.1%, old_growth_spruce_taiga 2.0%, meadow 2.0%, desert 1.9%, deep_ocean 1.9%, frozen_ocean 1.9%, old_growth_pine_taiga 1.5%, deep_frozen_ocean 1.2%, mangrove_swamp 1.0%, deep_cold_ocean 1.0%, snowy_slopes 0.9%, bamboo_jungle 0.7%, frozen_peaks 0.6%, river 0.6%, jagged_peaks 0.6%, grove 0.6%, birch_forest 0.5%, cherry_grove 0.5%, pale_garden 0.4%, old_growth_birch_forest 0.4%, flower_forest 0.2%, snowy_beach 0.2%, swamp 0.2%, ice_spikes 0.2%, sunflower_plains 0.2%, stony_peaks 0.1%, savanna_plateau 0.1%, windswept_hills 0.1%, badlands 0.1%, windswept_forest 0.1%, frozen_river 0.1%, windswept_gravelly_hills 0.0%, mushroom_fields 0.0%, eroded_badlands 0.0%, wooded_badlands 0.0%, windswept_savanna 0.0%, stony_shore 0.0%
+  rivers: 399 segments, 0 flowing uphill, 31 lakes
+terraincheck seed 98765: 0 problems (implausible neighbour pairs + uphill rivers)
+terraincheck total: 0 problems over 5 seeds
+genbench breakdown per chunk: terrain fields 0.10 ms (cold), blocks 13.74 ms, tints 0.04 ms
+genbench seed 12345: 24.53 ms/chunk mean (p95 193.06, max 290.43) single-thread cold, 2.09 ms warm, 146 chunks/s parallel
+genbench water: 1843 water blocks above y 22, 0 beside open air at the same level
+kelpcheck seed 777 around 600 300 (1369 chunks): 54055 water-plant blocks, 0 not under water, 0 at or above sea level
+namecheck.py: 388 names
+namecheck: 388 names, 0 unknown
+PASS fidelity: stone with hand: 7.50 s (reference 7.50 s)
+PASS fidelity: stone with wooden_pickaxe: 1.75 s (reference 1.75 s)
+PASS fidelity: stone with diamond_pickaxe +ench: 0.10 s (reference 0.10 s)
+PASS fidelity: stone with diamond_pickaxe +ench x1.4: 0.10 s (reference 0.10 s)
+PASS fidelity: stone with diamond_pickaxe x0.0027: 160.30 s (reference 160.30 s)
+PASS fidelity: obsidian with diamond_pickaxe: 14.45 s (reference 14.45 s)
+PASS fidelity: dirt with hand: 0.75 s (reference 0.75 s)
+PASS fidelity: oak_log with hand: 3.00 s (reference 3.00 s)
+PASS fidelity: cobweb with diamond_sword: 0.40 s (reference 0.40 s)
+PASS fidelity: oak_leaves with shears: 0.00 s (reference 0.00 s)
+PASS fidelity: white_wool with shears: 0.25 s (reference 0.25 s)
+PASS fidelity: melon with diamond_sword: 1.00 s (reference 1.00 s)
+PASS fidelity: dirt with diamond_sword: 0.75 s (reference 0.75 s)
+PASS fidelity: stone blast resistance 6.0 (reference 6.0)
+PASS fidelity: cobblestone blast resistance 6.0 (reference 6.0)
+PASS fidelity: stone_bricks blast resistance 6.0 (reference 6.0)
+PASS fidelity: deepslate blast resistance 6.0 (reference 6.0)
+PASS fidelity: oak_planks blast resistance 3.0 (reference 3.0)
+PASS fidelity: end_stone blast resistance 9.0 (reference 9.0)
+PASS fidelity: obsidian blast resistance 1200.0 (reference 1200.0)
+PASS fidelity: dirt blast resistance 0.5 (reference 0.5)
+PASS fidelity: glass blast resistance 0.3 (reference 0.3)
+PASS fidelity: coal_ore blast resistance 3.0 (reference 3.0)
+PASS fidelity: iron_block blast resistance 6.0 (reference 6.0)
+PASS fidelity: sandstone blast resistance 0.8 (reference 0.8)
+PASS fidelity: gold_block hardness 3.0 (reference 3.0)
+PASS fidelity: lapis_block hardness 3.0 (reference 3.0)
+PASS fidelity: copper_block hardness 3.0 (reference 3.0)
+PASS fidelity: iron_block hardness 5.0 (reference 5.0)
+PASS fidelity: diamond_block hardness 5.0 (reference 5.0)
+PASS fidelity: oak_planks burns 300 ticks (reference 300)
+PASS fidelity: oak_slab burns 150 ticks (reference 150)
+PASS fidelity: stick burns 100 ticks (reference 100)
+PASS fidelity: coal burns 1600 ticks (reference 1600)
+PASS fidelity: bamboo burns 50 ticks (reference 50)
+PASS fidelity: dried_kelp_block burns 4001 ticks (reference 4001)
+PASS fidelity: white_wool burns 100 ticks (reference 100)
+PASS fidelity: crimson_planks burns 0 ticks (reference 0)
+PASS fidelity: torch burns 0 ticks (reference 0)
+PASS fidelity: lava_bucket burns 20000 ticks (reference 20000)
+PASS fidelity: totem_of_undying stacks to 1 (reference 1)
+PASS fidelity: red_bed stacks to 1 (reference 1)
+PASS fidelity: oak_sign stacks to 16 (reference 16)
+PASS fidelity: ender_pearl stacks to 16 (reference 16)
+PASS fidelity: cobblestone stacks to 64 (reference 64)
+PASS fidelity: nether_quartz_ore drops 1-1 quartz
+PASS fidelity: nether_gold_ore drops 2-6 gold_nugget
+PASS fidelity: bookshelf drops 3-3 book
+PASS fidelity: ender_chest drops 8-8 obsidian
+PASS fidelity: stone drops 1-1 cobblestone
+PASS fidelity: sea_lantern drops 2-3 prismarine_crystals
+PASS fidelity: iron ingot smelting XP 0.7 (reference 0.7)
+PASS fidelity: oak_log fire odds 5/5 (reference 5/5)
+PASS fidelity: oak_planks fire odds 5/20 (reference 5/20)
+PASS fidelity: oak_leaves fire odds 30/60 (reference 30/60)
+PASS fidelity: white_wool fire odds 30/60 (reference 30/60)
+PASS fidelity: bookshelf fire odds 30/20 (reference 30/20)
+PASS fidelity: tnt fire odds 15/100 (reference 15/100)
+PASS fidelity: hay_block fire odds 60/20 (reference 60/20)
+FAIL fidelity: hurt invulnerability: 5, then 3 ignored, then 7 deals 2 (took 4, 1)
+fidelitycheck: 60 checks, 1 FAILED
+snap.sh: line 46: failed (exit 1): "$BIN" --fidelitycheck
+structcheck map village 1315 165 70 (columns from x 1308, rows from z 65):
+  |      #RRR##RR#|
+  |      #RRRRRRR#|
+  |      #RRR#RRR#|
+  |      #RRR#RRR#|
+  |      #####RRRR|
+  |      #P__#RfR#|
+  |      #___#RfR#|
+  |      #____RfR#|
+  |      #_###RRR#|
+  |      #########|
+  |          RRRR |
+  closed by: +x at 3: oak_planks/oak_planks; -x at 1: cobblestone/glass_pane; +z at 4: cobblestone/white_terracotta; -z at 1: oak_planks/oak_planks (structure anchor 1374 94); floor oak_planks, ceiling air; near: chest@0,0,-2 chest@0,0,0
+  terrain here: air; box y 153...187, anchor y 167; holds apple, oak_sapling, vehicle_blueprint, upgrade_blueprint
+structcheck map village 861 89 -2152 (columns from x 854, rows from z -2157):
+  |RRRRRR#RRR##RR#|
+  |RRRRRR#RRRRRRR#|
+  |RRRRRR#RRR#RRR#|
+  |RRRRRR#RRR#RRR#|
+  |RRRRRR#####RRRR|
+  |RRRRRR#P__#RfR#|
+  |RRRRRR#___#RfR#|
+  |RRRRRR#____RfR#|
+  |#####R#_###RRR#|
+  |#####R#########|
+  |#####RRRRRRRRRR|
+  closed by: +x at 3: oak_planks/oak_planks; -x at 1: cobblestone/glass_pane; +z at 4: cobblestone/birch_planks; -z at 1: oak_planks/oak_planks (structure anchor 878 -2098); floor oak_planks, ceiling air; near: chest@0,0,-2 chest@0,0,0
+  terrain here: snowy_grass_block; box y 77...109, anchor y 97; holds oak_sapling, potato, apple, town_pamphlet
+structcheck map pillager_outpost 1414 203 566 (columns from x 1407, rows from z 561):
+  |  RRRRRR#######|
+  |   RRRRRR######|
+  |   RRRRRRR#####|
+  |    RRRRRRRR###|
+  |     R###_###RR|
+  |     R#P____#RR|
+  |     R#_____#RR|
+  |     R#_____#RR|
+  |     R#_____#RR|
+  |     R##___##RR|
+  |     R#######R |
+  closed by: +x at 5: cobblestone/cobblestone; -x at 1: cobblestone/cobblestone; +z at 4: fletching_table/air; -z at 1: mossy_cobblestone/cobblestone (structure anchor 1416 552); floor dark_oak_planks, ceiling air; near: mossy_cobblestone@0,0,-1 mossy_cobblestone@1,0,-1 mossy_cobblestone@-1,0,1 mossy_cobblestone@5,0,3 mossy_cobblestone@3,0,5 mossy_cobblestone@-1,1,2 mossy_cobblestone@-1,1,4
+  terrain here: air; box y 193...231, anchor y 205; holds 
+structcheck map camp_traders -202 70 137 (columns from x -209, rows from z 132):
+  |     R   R   R |
+  |     RR      _ |
+  |       R R     |
+  |      R   R    |
+  |     Rfffff__  |
+  |    RR#P_###   |
+  |     Rfffff__  |
+  |      R   R    |
+  |               |
+  |               |
+  |               |
+  closed by: +x at 2: white_bed[west]/air; -x at 1: hay_block/air; +z at 1: spruce_fence/white_wool; -z at 1: spruce_fence/white_wool (structure anchor -200 136); floor spruce_planks, ceiling white_wool; near: chest@0,-2,-3
+  terrain here: air; box y 61...76, anchor y 68; holds 
+structcheck: trial_chambers at 24 -29 24: start cell 24 -30 24 (bunker_concrete under), reaches 1136 cells (1074 without jumps), 1136 inside the structure up to y -28, box -32...-22
+structcheck: trial_chambers at -552 -38 -408: start cell -552 -39 -408 (bunker_concrete under), reaches 1136 cells (1074 without jumps), 1136 inside the structure up to y -37, box -41...-31
+structcheck: trial_chambers at 184 -24 -392: start cell 184 -25 -392 (bunker_concrete under), reaches 1136 cells (1074 without jumps), 1136 inside the structure up to y -23, box -27...-17
+structcheck: stronghold at 604 2 1619: start cell 604 2 1619 (infested_stone_bricks under), reaches 1184 cells (1081 without jumps), 1184 inside the structure up to y 7, box -10...41
+structcheck: stronghold at -2304 8 -381: start cell -2304 8 -381 (stone_bricks under), reaches 1497 cells (1424 without jumps), 1497 inside the structure up to y 13, box -4...47
+structcheck: stronghold at 1428 23 -1597: start cell 1428 23 -1597 (stone_bricks under), reaches 1387 cells (1285 without jumps), 1387 inside the structure up to y 28, box 11...62
+structcheck: fortress at 136 46 49: start cell 136 46 49 (polished_blackstone under), reaches 3433 cells (1781 without jumps), 2696 inside the structure up to y 66, box 41...75
+structcheck: fortress at -104 43 -239: start cell -104 43 -239 (polished_blackstone under), reaches 2169 cells (1165 without jumps), 2169 inside the structure up to y 63, box 38...72
+structcheck: fortress at 568 50 -95: start cell 568 50 -95 (polished_blackstone under), reaches 3056 cells (1611 without jumps), 2552 inside the structure up to y 70, box 45...79
+structcheck: bastion at 209 34 -330: start cell 209 34 -330 (soul_soil under), reaches 979 cells (559 without jumps), 979 inside the structure up to y 79, box 21...85
+structcheck: bastion at 529 34 102: start cell 529 34 102 (blackstone under), reaches 1040 cells (491 without jumps), 953 inside the structure up to y 79, box 21...85
+structcheck: bastion at -79 34 726: start cell -79 34 726 (basalt under), reaches 960 cells (546 without jumps), 960 inside the structure up to y 79, box 21...85
+structcheck map hell_works 90 43 211 (columns from x 83, rows from z 206):
+  |               |
+  |               |
+  |  #RRRRRR    RR|
+  |  RRRRRRR   RRR|
+  |  ###R###  RRRR|
+  |  ###R#P#RRRRRR|
+  |  ###R###RRRRRR|
+  |  RRRRRRRRRRRRR|
+  |  RRRRRR#RRRRRR|
+  |   fRRRfRRRRRRR|
+  |  RfRRRfRRRRRRR|
+  closed by: +x at 1: iron_bars/iron_bars; -x at 1: iron_bars/iron_bars; +z at 1: iron_bars/iron_bars; -z at 1: iron_bars/iron_bars (structure anchor 88 232); floor polished_blackstone_bricks, ceiling air; near: chest@0,0,0
+  terrain here: air; box y 1...80, anchor y 43; holds golden_sword, upgrade_blueprint, iron_ingot, potion_regeneration
+structcheck: end_city at 400 67 -1216: start cell 400 65 -1216 (end_stone under), reaches 2128 cells (1163 without jumps), 1491 inside the structure up to y 90, box 55...102
+structcheck: end_city at -1136 63 1088: start cell -1136 59 1088 (end_stone under), reaches 1329 cells (197 without jumps), 815 inside the structure up to y 85, box 51...95
+structcheck: end_city at 992 65 1360: start cell 992 62 1360 (end_stone under), reaches 2820 cells (255 without jumps), 1722 inside the structure up to y 88, box 53...100
+structcheck map village 265 79 -1749 (columns from x 258, rows from z -1754):
+  |###R#####R#####|
+  |RRRRRRRR#R#####|
+  |RRRRfffR#R#####|
+  |RRRRRRRR#R#####|
+  |R#####_##R#####|
+  |RRR#___P#R#####|
+  |RRR#___##R#####|
+  |RRR##___#R#####|
+  |#########R#####|
+  |RRRRRRRRRRR####|
+  |RRRRRRRRRRR####|
+  closed by: +x at 1: packed_ice/snow_block; -x at 4: spruce_planks/spruce_planks; +z at 1: blue_bed_head/air; -z at 1: spruce_planks/spruce_planks (structure anchor 286 -1794); floor spruce_planks, ceiling air; near: chest@-5,0,2 chest@-3,0,2
+  terrain here: snowy_grass_block; box y 67...96, anchor y 82; holds 
+structcheck map mansion 3022 79 1944 (columns from x 3015, rows from z 1939):
+  |##########     |
+  |_##_##_###     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_______P_#     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_##_##_###     |
+  |##########     |
+  closed by: +x at 2: dark_oak_planks/dark_oak_planks; +z at 4: red_wool/air; -z at 4: red_wool/air (structure anchor 3016 1921); floor spruce_planks, ceiling dark_oak_planks; near: chest@0,0,0
+  terrain here: air; box y 64...94, anchor y 73; holds compass, arrow, gold_ingot, intercepted_orders
+structcheck map mansion 2094 89 -3880 (columns from x 2087, rows from z -3885):
+  |##########     |
+  |_##_##_###     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_______P_#     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_##_##_###     |
+  |##########     |
+  closed by: +x at 2: dark_oak_planks/dark_oak_planks; +z at 4: red_wool/air; -z at 4: red_wool/air (structure anchor 2088 -3903); floor spruce_planks, ceiling dark_oak_planks; near: chest@0,0,0
+  terrain here: air; box y 74...104, anchor y 83; holds arrow, iron_ingot, gold_nugget, intercepted_orders
+structcheck map mansion -5106 117 1608 (columns from x -5113, rows from z 1603):
+  |##########     |
+  |_##_##_###     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_______P_#     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_##_##_###     |
+  |##########     |
+  closed by: +x at 2: dark_oak_planks/dark_oak_planks; +z at 4: red_wool/air; -z at 4: red_wool/air (structure anchor -5112 1585); floor spruce_planks, ceiling dark_oak_planks; near: chest@0,0,0
+  terrain here: air; box y 102...132, anchor y 111; holds compass, crossbow, gold_nugget, intercepted_orders
+structcheck: trial_chambers at 248 -35 168: start cell 248 -36 168 (bunker_concrete under), reaches 1136 cells (1074 without jumps), 1136 inside the structure up to y -34, box -38...-28
+structcheck: trial_chambers at 168 -35 -296: start cell 168 -36 -296 (bunker_concrete under), reaches 1136 cells (1073 without jumps), 1136 inside the structure up to y -34, box -38...-28
+structcheck: trial_chambers at 792 -27 168: start cell 792 -28 168 (bunker_concrete under), reaches 1136 cells (1075 without jumps), 1136 inside the structure up to y -26, box -30...-20
+structcheck map capital_city -2246 98 -4121 (columns from x -2253, rows from z -4126):
+  |      #________|
+  |      #_#__#__#|
+  |      #_#__#__#|
+  |      #________|
+  |      ##_______|
+  |      #P_______|
+  |      #_#__#__#|
+  |      #_#__#__#|
+  |      #________|
+  |      #########|
+  |               |
+  closed by: -x at 1: capital_curtain/capital_curtain; +z at 4: capital_curtain/capital_curtain; -z at 1: bookshelf/air (structure anchor -2183 -4039); floor capital_stone, ceiling air; near: 
+  terrain here: air; box y 27...138, anchor y 72; holds 
+structcheck map greywall_depot 4652 73 2569 (columns from x 4645, rows from z 2564):
+  |##########fR#RR|
+  |##########fR#RR|
+  |##########fR#RR|
+  |#######_##fR###|
+  |________###RR##|
+  |_______P##fRR##|
+  |________##fRR##|
+  |_______###fRR##|
+  |________##fRR##|
+  |#######_##fRR##|
+  |###########RR##|
+  closed by: +x at 1: bunker_concrete/bunker_concrete; -x at 10: roller_shutter[2]/roller_shutter[2]; +z at 2: chest[west]/air; -z at 3: bunker_concrete/bunker_concrete (structure anchor 4635 2608); floor bunker_floor, ceiling air; near: chest@0,0,0 chest@0,0,2
+  terrain here: dirt; box y 60...96, anchor y 73; holds shotgun_shells, heavy_rounds, shotgun_shells, iron_ingot
+structcheck: stronghold at -712 1 1499: start cell -712 1 1499 (stone_bricks under), reaches 1189 cells (1101 without jumps), 1189 inside the structure up to y 6, box -11...40
+structcheck: stronghold at -960 8 -1521: start cell -960 8 -1521 (mossy_stone_bricks under), reaches 1270 cells (1166 without jumps), 1270 inside the structure up to y 13, box -4...47
+structcheck: stronghold at 2496 9 -113: start cell 2496 9 -113 (stone_bricks under), reaches 1615 cells (1466 without jumps), 1615 inside the structure up to y 14, box -3...48
+structcheck: fortress at 696 50 -383: start cell 696 50 -383 (polished_blackstone under), reaches 2155 cells (1151 without jumps), 2155 inside the structure up to y 70, box 45...79
+structcheck: fortress at -88 41 113: start cell -88 41 113 (polished_blackstone under), reaches 2155 cells (1151 without jumps), 2155 inside the structure up to y 61, box 36...70
+structcheck: fortress at 360 46 673: start cell 360 46 673 (polished_blackstone under), reaches 4852 cells (1842 without jumps), 2689 inside the structure up to y 75, box 41...75
+structcheck: bastion at 193 34 166: start cell 193 34 166 (basalt under), reaches 963 cells (532 without jumps), 963 inside the structure up to y 79, box 21...85
+structcheck: bastion at -415 34 -314: start cell -415 34 -314 (blackstone under), reaches 962 cells (547 without jumps), 962 inside the structure up to y 79, box 21...85
+structcheck: bastion at 241 34 -330: start cell 241 34 -330 (soul_soil under), reaches 963 cells (548 without jumps), 963 inside the structure up to y 79, box 21...85
+structcheck map hell_works 410 44 -109 (columns from x 403, rows from z -114):
+  |               |
+  |               |
+  |  #RRRRRR      |
+  |  RRRRRRR      |
+  |  ###R###    RR|
+  |  ###R#P#   RRR|
+  |  ###R###  RRRR|
+  |  RRRRRRR  RRRR|
+  |  RRRRRR# RRRRR|
+  |   fRRRf  RRRRR|
+  |   fRRRf RRRRRR|
+  closed by: +x at 1: iron_bars/iron_bars; -x at 1: iron_bars/iron_bars; +z at 1: iron_bars/iron_bars; -z at 1: iron_bars/iron_bars (structure anchor 408 -88); floor polished_blackstone_bricks, ceiling air; near: chest@0,0,0
+  terrain here: air; box y 1...81, anchor y 44; holds tech_salvage, tech_salvage, tech_salvage, tech_salvage
+structcheck: end_city at 976 66 464: start cell 976 65 464 (end_stone under), reaches 1275 cells (1033 without jumps), 783 inside the structure up to y 83, box 54...93
+structcheck: end_city at -1152 65 128: start cell -1152 63 128 (end_stone under), reaches 1526 cells (415 without jumps), 792 inside the structure up to y 82, box 53...92
+structcheck: end_city at -1200 62 -1520: start cell -1200 59 -1520 (end_stone under), reaches 2029 cells (732 without jumps), 1406 inside the structure up to y 95, box 50...107
+structcheck map village -1760 104 738 (columns from x -1767, rows from z 733):
+  |RRRRRRRR#######|
+  |RRRRRRRR#######|
+  |RRRRRRRR#######|
+  |RRRRRRRRRRRR###|
+  |RR#########R###|
+  |RR#RRR#P#_#R###|
+  |RR#RfR____#R###|
+  |RR#RfR#___#R###|
+  |RR#RfR#__##R###|
+  |RRRRRR#####R###|
+  |RR#RRR#RRR#R###|
+  closed by: +x at 1: red_bed_head[west]/air; -x at 1: oak_planks/oak_planks; +z at 4: oak_planks/oak_planks; -z at 1: cobblestone/birch_planks (structure anchor -1778 750); floor oak_planks, ceiling air; near: chest@2,0,3 chest@2,0,5
+  terrain here: grass_block; box y 87...121, anchor y 102; holds 
+structcheck map ghost_town -412 91 285 (columns from x -419, rows from z 280):
+  |               |
+  |               |
+  |               |
+  | ___ _         |
+  |  _ _  #       |
+  |  ___ _P       |
+  |     __#       |
+  | ___  _        |
+  |   _ _         |
+  |               |
+  |               |
+  closed by: +z at 1: dark_oak_planks/dark_oak_planks; -z at 1: dark_oak_planks/dark_oak_planks (structure anchor -408 280); floor air, ceiling dark_oak_slab; near: 
+  terrain here: air; box y 73...95, anchor y 84; holds 
+structcheck map mansion -610 82 -3912 (columns from x -617, rows from z -3917):
+  |##########     |
+  |_##_##_###     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_______P_#     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_##_##_###     |
+  |##########     |
+  closed by: +x at 2: dark_oak_planks/dark_oak_planks; +z at 4: red_wool/air; -z at 4: red_wool/air (structure anchor -616 -3935); floor spruce_planks, ceiling dark_oak_planks; near: chest@0,0,0
+  terrain here: air; box y 67...97, anchor y 76; holds intercepted_orders, compass, emerald, gold_nugget
+structcheck map mansion -3394 93 -6520 (columns from x -3401, rows from z -6525):
+  |##########     |
+  |_##_##_###     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_______P_#     |
+  |_________#     |
+  |_________#     |
+  |_________#     |
+  |_##_##_###     |
+  |##########     |
+  closed by: +x at 2: dark_oak_planks/dark_oak_planks; +z at 4: red_wool/air; -z at 4: red_wool/air (structure anchor -3400 -6543); floor spruce_planks, ceiling dark_oak_planks; near: chest@0,0,0
+  terrain here: air; box y 78...108, anchor y 87; holds iron_ingot, arrow, arrow, arrow
+structcheck: trial_chambers at 72 -25 280: start cell 72 -26 280 (bunker_concrete under), reaches 1160 cells (1080 without jumps), 1140 inside the structure up to y -24, box -28...-18
+structcheck: trial_chambers at -312 -23 -488: start cell -312 -24 -488 (bunker_concrete under), reaches 1136 cells (1074 without jumps), 1136 inside the structure up to y -22, box -26...-16
+structcheck: trial_chambers at 168 -38 -392: start cell 168 -39 -392 (bunker_concrete under), reaches 1128 cells (1074 without jumps), 1128 inside the structure up to y -37, box -41...-31
+structcheck map capital_city 459 102 871 (columns from x 452, rows from z 866):
+  |      #________|
+  |      #_#__#__#|
+  |      #_#__#__#|
+  |      #________|
+  |      ##_______|
+  |      #P_______|
+  |      ##_______|
+  |      #_#__#__#|
+  |      #_#__#__#|
+  |      #________|
+  |      #########|
+  closed by: -x at 1: capital_curtain/capital_curtain; +z at 1: bookshelf/air; -z at 1: bookshelf/air (structure anchor 457 953); floor capital_stone, ceiling air; near: 
+  terrain here: air; box y 28...135, anchor y 71; holds 
+structcheck map capital_city 1914 120 535 (columns from x 1907, rows from z 530):
+  |      #________|
+  |      #_#__#__#|
+  |      #_#__#__#|
+  |      #________|
+  |      ##_______|
+  |      #P_______|
+  |      ##_______|
+  |      #_#__#__#|
+  |      #_#__#__#|
+  |      #________|
+  |      #########|
+  closed by: -x at 1: capital_curtain/capital_curtain; +z at 1: bookshelf/air; -z at 1: bookshelf/air (structure anchor 1849 553); floor capital_stone, ceiling air; near: 
+  terrain here: air; box y 40...171, anchor y 93; holds 
+structcheck map capital_city -2469 125 -713 (columns from x -2476, rows from z -718):
+  |      #________|
+  |      #_#__#__#|
+  |      #_#__#__#|
+  |      #________|
+  |      ##_______|
+  |      #P_______|
+  |      ##_______|
+  |      #_#__#__#|
+  |      #_#__#__#|
+  |      #________|
+  |      #########|
+  closed by: -x at 1: capital_curtain/capital_curtain; +z at 1: bookshelf/air; -z at 1: bookshelf/air (structure anchor -2407 -759); floor capital_stone, ceiling air; near: 
+  terrain here: air; box y 37...158, anchor y 83; holds 
+structcheck map greywall_depot -4960 170 5129 (columns from x -4967, rows from z 5124):
+  |RRRRf##########|
+  |###Rf##########|
+  |RR#Rf##########|
+  |RR#Rf##_#######|
+  |RR#R###________|
+  |RR#Rf##P_______|
+  |RR#Rf##________|
+  |###Rf###_______|
+  |##RRf##________|
+  |##RRf##_#######|
+  |##RR###########|
+  closed by: +x at 10: roller_shutter[3]/roller_shutter[3]; -x at 1: bunker_concrete/bunker_concrete; +z at 2: chest[east]/air; -z at 3: bunker_concrete/bunker_concrete (structure anchor -4943 5168); floor bunker_floor, ceiling air; near: chest@0,0,0 chest@0,0,2
+  terrain here: stone; box y 157...193, anchor y 170; holds heavy_rounds, greywall_rounds, iron_ingot, heavy_rounds
+structcheck: stronghold at -2200 -8 -485: start cell -2200 -8 -485 (cracked_stone_bricks under), reaches 907 cells (836 without jumps), 907 inside the structure up to y -3, box -20...31
+structcheck: stronghold at 768 1 2287: start cell 768 1 2287 (stone_bricks under), reaches 1411 cells (1277 without jumps), 1411 inside the structure up to y 6, box -11...40
+structcheck: stronghold at 1648 13 -1721: start cell 1648 13 -1721 (stone_bricks under), reaches 1662 cells (1560 without jumps), 1662 inside the structure up to y 18, box 1...52
+structcheck: fortress at 632 47 273: start cell 632 47 273 (polished_blackstone under), reaches 2168 cells (1164 without jumps), 2166 inside the structure up to y 67, box 42...76
+structcheck: fortress at 664 54 529: start cell 664 54 529 (polished_blackstone under), reaches 2169 cells (1165 without jumps), 2169 inside the structure up to y 74, box 49...83
+structcheck: fortress at 56 51 -623: start cell 56 51 -623 (polished_blackstone under), reaches 2169 cells (1165 without jumps), 2169 inside the structure up to y 71, box 46...80
+structcheck: bastion at 81 34 310: start cell 81 34 310 (blackstone under), reaches 2061 cells (549 without jumps), 1328 inside the structure up to y 79, box 21...85
+structcheck: bastion at -111 34 -74: start cell -111 34 -74 (soul_soil under), reaches 1052 cells (463 without jumps), 907 inside the structure up to y 79, box 21...85
+structcheck: bastion at 369 34 -410: start cell 369 34 -410 (polished_blackstone_bricks under), reaches 938 cells (512 without jumps), 937 inside the structure up to y 79, box 21...85
+structcheck map hell_works 202 45 -157 (columns from x 195, rows from z -162):
+  |               |
+  |               |
+  |  #RRRRRR      |
+  |  RRRRRRR      |
+  |  ###R###      |
+  |  ###R#P#      |
+  |RR###R###      |
+  |RRRRRRRRR      |
+  |RRRRRRRR#      |
+  |RRRfRRRf       |
+  |RRRfRRRf   RRRR|
+  closed by: +x at 1: iron_bars/iron_bars; -x at 1: iron_bars/iron_bars; +z at 1: iron_bars/iron_bars; -z at 1: iron_bars/iron_bars (structure anchor 200 -136); floor polished_blackstone_bricks, ceiling air; near: chest@0,0,0
+  terrain here: air; box y 1...82, anchor y 45; holds tech_salvage, iron_sword, blaze_rod
+structcheck: end_city at 784 64 -816: start cell 784 64 -816 (end_stone under), reaches 1879 cells (1458 without jumps), 1334 inside the structure up to y 92, box 52...104
+structcheck: end_city at 1088 62 96: start cell 1088 64 96 (end_stone under), reaches 2168 cells (1542 without jumps), 1514 inside the structure up to y 90, box 50...102
+structcheck: end_city at 1344 65 -1232: start cell 1344 64 -1232 (end_stone under), reaches 1521 cells (1320 without jumps), 789 inside the structure up to y 82, box 53...92
+structcheck # Structure check
+structcheck 
+structcheck Seeds 12345, 777, 424242, up to 3 per kind. Walk model: steps <= 0.6 walk, <= 1.25 jump, drops <= 3.
+structcheck 
+structcheck | kind | checked | doors | POIs | mobs | issues |
+structcheck |---|---|---|---|---|---|
+structcheck | bastion | 9 | 0 | 18 | 63 | mob_in_block 4, mob_no_floor 5 |
+structcheck | boreal_station | 2 | 30 | 44 | 54 | - |
+structcheck | capital_city | 9 | 0 | 1502 | 583 | poi_unreachable 5 |
+structcheck | desert_well | 1 | 0 | 0 | 0 | - |
+structcheck | end_centre | 3 | 0 | 0 | 30 | - |
+structcheck | end_city | 9 | 0 | 33 | 46 | - |
+structcheck | fortress | 9 | 0 | 81 | 90 | - |
+structcheck | fossil | 1 | 0 | 0 | 0 | - |
+structcheck | frontier_site | 9 | 0 | 55 | 48 | - |
+structcheck | greywall_base | 9 | 61 | 106 | 140 | - |
+structcheck | greywall_depot | 7 | 14 | 32 | 42 | poi_unreachable 12 |
+structcheck | hell_works | 9 | 0 | 135 | 72 | floating 6, poi_unreachable 12 |
+structcheck | mansion | 5 | 0 | 50 | 42 | mob_no_floor 2, poi_unreachable 5 |
+structcheck | military_base | 7 | 41 | 523 | 433 | - |
+structcheck | monument | 9 | 0 | 0 | 117 | - |
+structcheck | ocean_ruin | 9 | 0 | 0 | 9 | - |
+structcheck | pillager_outpost | 8 | 0 | 29 | 54 | mob_trapped 6, poi_unreachable 3 |
+structcheck | shipwreck | 9 | 0 | 0 | 3 | - |
+structcheck | sky_isle | 9 | 0 | 9 | 0 | - |
+structcheck | stronghold | 9 | 0 | 98 | 0 | - |
+structcheck | temple | 9 | 0 | 24 | 1 | - |
+structcheck | trail_ruins | 9 | 0 | 0 | 1 | - |
+structcheck | trial_chambers | 9 | 45 | 368 | 0 | - |
+structcheck | village | 9 | 77 | 322 | 140 | door_needs_jump 2, mob_trapped 7, poi_unreachable 14 |
+structcheck | wild_camp | 9 | 0 | 29 | 7 | - |
+structcheck: 187 instances, 86 issues (door_needs_jump 2, floating 6, mob_in_block 4, mob_no_floor 7, mob_trapped 13, poi_unreachable 54) in 53.5 s
+snap.sh: line 48: failed (exit 2): "$BIN" --structcheck --seeds 12345,777,424242 --per 3 --out snaps/structcheck.md --strict
+camera in solid at 1315 165 67: moved to 1313 165 65
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 1251 ms, upload 414 ms)
+light probe: eye sky 15 block 9 in air; floor+1 (y 162) sky 15 block 5 in air, daylight 1.0
+imagecheck issue_1.png magenta=0.00000 black=0.0000 white=0.0086 std=57.3 hash=872e4b06e34623bd
+imagecheck issue_1.png magenta=0.00000 black=0.0000 white=0.0086 std=57.3 hash=872e4b06e34623bd
+seed 12345  pos 1313.5 229.0 65.5  rd 4  chunks 109  (drawn 31)
+gen 2729 ms  mesh(all, parallel) 171 ms  mesh(1 section) 1.56 ms  quads 245561 opaque / 1126 water
+frame (encode+GPU, offscreen, median of 30) 6.20 ms  biome meadow
+mesh slabs 12 MB, chunks 109 (block+light arrays 15 MB), Metal allocated 170 MB
+memory: resident 226 MB  (section meshes 8 MB)
+wrote snaps/issue_1.png
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 928 ms, upload 360 ms)
+target: cobblestone at 1414 268 565, boxes [(SIMD3<Float>(0.0, 0.0, 0.0), SIMD3<Float>(1.0, 1.0, 1.0))], feet SIMD3<Float>(1414.5, 267.0, 564.5)
+light probe: eye sky 13 block 0 in air; floor+1 (y 203) sky 12 block 0 in snow, daylight 1.0
+imagecheck issue_2.png magenta=0.00000 black=0.0005 white=0.0008 std=33.2 hash=b0a1f9393c59283e
+imagecheck issue_2.png magenta=0.00000 black=0.0005 white=0.0008 std=33.2 hash=b0a1f9393c59283e
+seed 12345  pos 1414.5 267.0 564.5  rd 4  chunks 109  (drawn 28)
+gen 2932 ms  mesh(all, parallel) 154 ms  mesh(1 section) 0.98 ms  quads 244002 opaque / 70 water
+frame (encode+GPU, offscreen, median of 30) 6.13 ms  biome plains
+mesh slabs 12 MB, chunks 109 (block+light arrays 17 MB), Metal allocated 170 MB
+memory: resident 227 MB  (section meshes 7 MB)
+wrote snaps/issue_2.png
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 1103 ms, upload 406 ms)
+target: barrel at -202 134 137, boxes [(SIMD3<Float>(0.0, 0.0, 0.0), SIMD3<Float>(1.0, 1.0, 1.0))], feet SIMD3<Float>(-203.5, 134.0, 137.5)
+light probe: eye sky 15 block 3 in air; floor+1 (y 70) sky 15 block 4 in air, daylight 1.0
+imagecheck issue_3.png magenta=0.00000 black=0.0000 white=0.0008 std=32.8 hash=5603aa83e72ce98c
+imagecheck issue_3.png magenta=0.00000 black=0.0000 white=0.0008 std=32.8 hash=5603aa83e72ce98c
+seed 12345  pos -203.5 134.0 137.5  rd 4  chunks 109  (drawn 27)
+gen 4967 ms  mesh(all, parallel) 121 ms  mesh(1 section) 0.55 ms  quads 230793 opaque / 68 water
+frame (encode+GPU, offscreen, median of 30) 5.90 ms  biome forest
+mesh slabs 8 MB, chunks 109 (block+light arrays 10 MB), Metal allocated 166 MB
+memory: resident 214 MB  (section meshes 7 MB)
+wrote snaps/issue_3.png
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 911 ms, upload 359 ms)
+target: iron_bars at 90 108 212, boxes [(SIMD3<Float>(0.4375, 0.0, 0.4375), SIMD3<Float>(0.5625, 1.0, 0.5625))], feet SIMD3<Float>(90.5, 107.0, 213.5)
+light probe: eye sky 0 block 13 in air; floor+1 (y 43) sky 0 block 12 in air, daylight 1.0
+imagecheck issue_4.png magenta=0.00000 black=0.0118 white=0.0008 std=39.8 hash=7765a3f883bf738e
+imagecheck issue_4.png magenta=0.00000 black=0.0118 white=0.0008 std=39.8 hash=7765a3f883bf738e
+seed 12345  pos 90.5 107.0 213.5  rd 4  chunks 109  (drawn 26)
+gen 60 ms  mesh(all, parallel) 75 ms  mesh(1 section) 0.26 ms  quads 81429 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 4.69 ms  biome basaltDeltas
+mesh slabs 4 MB, chunks 109 (block+light arrays 11 MB), Metal allocated 162 MB
+memory: resident 199 MB  (section meshes 2 MB)
+wrote snaps/issue_4.png
+camera in solid at 92 37 208: moved to 90 39 206
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 905 ms, upload 381 ms)
+light probe: eye sky 0 block 6 in air; floor+1 (y 38) sky 0 block 7 in air, daylight 1.0
+imagecheck issue_5.png magenta=0.00000 black=0.0211 white=0.0008 std=28.6 hash=3d6554c57bace8da
+imagecheck issue_5.png magenta=0.00000 black=0.0211 white=0.0008 std=28.6 hash=3d6554c57bace8da
+seed 12345  pos 90.5 102.0 206.5  rd 4  chunks 109  (drawn 27)
+gen 68 ms  mesh(all, parallel) 76 ms  mesh(1 section) 0.70 ms  quads 81429 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.54 ms  biome basaltDeltas
+mesh slabs 4 MB, chunks 109 (block+light arrays 11 MB), Metal allocated 162 MB
+memory: resident 198 MB  (section meshes 2 MB)
+wrote snaps/issue_5.png
+camera in solid at 185 40 -191: moved to 183 40 -193
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 919 ms, upload 379 ms)
+light probe: eye sky 0 block 3 in air; floor+1 (y 35) sky 0 block 4 in air, daylight 1.0
+imagecheck issue_6.png magenta=0.00000 black=0.0000 white=0.0008 std=33.0 hash=1a4f06ffb6b2b2dc
+imagecheck issue_6.png magenta=0.00000 black=0.0000 white=0.0008 std=33.0 hash=1a4f06ffb6b2b2dc
+seed 12345  pos 183.5 99.0 -192.5  rd 4  chunks 109  (drawn 24)
+gen 68 ms  mesh(all, parallel) 74 ms  mesh(1 section) 0.26 ms  quads 85607 opaque / 8877 water
+frame (encode+GPU, offscreen, median of 30) 3.83 ms  biome crimsonForest
+mesh slabs 4 MB, chunks 109 (block+light arrays 11 MB), Metal allocated 162 MB
+memory: resident 198 MB  (section meshes 3 MB)
+wrote snaps/issue_6.png
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 953 ms, upload 372 ms)
+target: dark_oak_planks at 3022 138 1949, boxes [(SIMD3<Float>(0.0, 0.0, 0.0), SIMD3<Float>(1.0, 1.0, 1.0))], feet SIMD3<Float>(3022.5, 138.0, 1944.5)
+light probe: eye sky 8 block 8 in air; floor+1 (y 74) sky 7 block 7 in air, daylight 1.0
+imagecheck issue_7.png magenta=0.00000 black=0.0013 white=0.0008 std=36.3 hash=124116b60516be95
+imagecheck issue_7.png magenta=0.00000 black=0.0013 white=0.0008 std=36.3 hash=124116b60516be95
+seed 777  pos 3022.5 138.0 1944.5  rd 4  chunks 109  (drawn 25)
+gen 3215 ms  mesh(all, parallel) 144 ms  mesh(1 section) 0.49 ms  quads 286455 opaque / 2644 water
+frame (encode+GPU, offscreen, median of 30) 5.73 ms  biome darkForest
+mesh slabs 12 MB, chunks 109 (block+light arrays 10 MB), Metal allocated 170 MB
+memory: resident 219 MB  (section meshes 9 MB)
+wrote snaps/issue_7.png
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 937 ms, upload 371 ms)
+target: dark_oak_planks at 2094 148 -3875, boxes [(SIMD3<Float>(0.0, 0.0, 0.0), SIMD3<Float>(1.0, 1.0, 1.0))], feet SIMD3<Float>(2094.5, 148.0, -3879.5)
+light probe: eye sky 8 block 8 in air; floor+1 (y 84) sky 7 block 7 in air, daylight 1.0
+imagecheck issue_8.png magenta=0.00000 black=0.0019 white=0.0008 std=36.2 hash=7d6310541df5f354
+imagecheck issue_8.png magenta=0.00000 black=0.0019 white=0.0008 std=36.2 hash=7d6310541df5f354
+seed 777  pos 2094.5 148.0 -3879.5  rd 4  chunks 109  (drawn 25)
+gen 3542 ms  mesh(all, parallel) 137 ms  mesh(1 section) 0.71 ms  quads 298514 opaque / 187 water
+frame (encode+GPU, offscreen, median of 30) 6.09 ms  biome paleGarden
+mesh slabs 12 MB, chunks 109 (block+light arrays 10 MB), Metal allocated 170 MB
+memory: resident 218 MB  (section meshes 9 MB)
+wrote snaps/issue_8.png
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 946 ms, upload 371 ms)
+target: dark_oak_planks at -5106 176 1613, boxes [(SIMD3<Float>(0.0, 0.0, 0.0), SIMD3<Float>(1.0, 1.0, 1.0))], feet SIMD3<Float>(-5105.5, 176.0, 1608.5)
+light probe: eye sky 8 block 8 in air; floor+1 (y 112) sky 7 block 7 in air, daylight 1.0
+imagecheck issue_9.png magenta=0.00000 black=0.0027 white=0.0008 std=37.1 hash=637904745837f821
+imagecheck issue_9.png magenta=0.00000 black=0.0027 white=0.0008 std=37.1 hash=637904745837f821
+seed 777  pos -5105.5 176.0 1608.5  rd 4  chunks 109  (drawn 26)
+gen 2414 ms  mesh(all, parallel) 175 ms  mesh(1 section) 0.61 ms  quads 379070 opaque / 153 water
+frame (encode+GPU, offscreen, median of 30) 4.47 ms  biome darkForest
+mesh slabs 16 MB, chunks 109 (block+light arrays 12 MB), Metal allocated 174 MB
+memory: resident 226 MB  (section meshes 12 MB)
+wrote snaps/issue_9.png
+textures: 2032 layers at 128 px, BC3, 42.4 MB with mips (build 1105 ms, upload 432 ms)
+target: capital_curtain at -2246 158 -4117, boxes [(SIMD3<Float>(0.0, 0.0, 0.0), SIMD3<Float>(1.0, 1.0, 1.0))], feet SIMD3<Float>(-2245.5, 158.0, -4120.5)
+light probe: eye sky 13 block 12 in air; floor+1 (y 94) sky 13 block 11 in air, daylight 1.0
+imagecheck issue_10.png magenta=0.00000 black=0.0000 white=0.0175 std=44.2 hash=cc7b10442e06879c
+imagecheck issue_10.png magenta=0.00000 black=0.0000 white=0.0175 std=44.2 hash=cc7b10442e06879c
+seed 777  pos -2245.5 158.0 -4120.5  rd 4  chunks 109  (drawn 27)
+gen 2031 ms  mesh(all, parallel) 131 ms  mesh(1 section) 0.82 ms  quads 207033 opaque / 5827 water
+frame (encode+GPU, offscreen, median of 30) 4.89 ms  biome oldGrowthBirchForest
+mesh slabs 8 MB, chunks 109 (block+light arrays 10 MB), Metal allocated 166 MB
+memory: resident 217 MB  (section meshes 6 MB)
+wrote snaps/issue_10.png
+behaviorsim in_wall: minecart at -341.76 72.69 -906.50 (half width 1.96, free) overlaps grass_block -344 72 -909, grass_block -343 72 -909, grass_block -342 72 -909, gravel -344 72 -908, gravel -343 72 -908, gravel -344 72 -907
+behaviorsim in_wall: minecart at -351.81 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -361.36 73.49 -906.50 (half width 1.96, free) overlaps grass_block -364 73 -909, grass_block -363 73 -909, gravel -364 73 -908, gravel -363 73 -908, gravel -364 73 -907, gravel -363 73 -907
+behaviorsim in_wall: minecart at -372.66 74.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -383.96 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -395.76 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim spin: sheep at -205.3 75.0 -1001.6, free/heading/standing, goal none, path 1/3, turned 882 deg in 10 s, moved 0.45
+behaviorsim trace: sheep at -205.35 75.00 -1001.65 (spin free/heading/standing), feet in air on dirt, yaw -45
+  path ahead: -205,75,-1003 (air on grass_block); -204,76,-1003 (air on grass_block)
+  state: baby true, panic false, moving false, face goal none, path goal -203.9,76.0,-1002.8
+  around feet (feet/head): 1,0: air/air; -1,0: air/air; 0,1: air/air; 0,-1: air/air
+      pre -205.346,139.000,-1001.645 vel 0.00,-2.80,0.00 -> -205.346,139.000,-1001.645 hit -y- ground 1 speed 0.00 yaw -45
+        node 1/3 at -205,75,-1003, stall 0.0 s, moving no, ai 2.3
+      pre -205.346,139.000,-1001.645 vel 0.00,-2.80,0.00 -> -205.346,139.000,-1001.645 hit -y- ground 1 speed 0.00 yaw -45
+        node 1/3 at -205,75,-1003, stall 0.0 s, moving no, ai 2.2
+      pre -205.346,139.000,-1001.645 vel 0.49,-2.80,-0.50 -> -205.297,139.000,-1001.695 hit -y- ground 1 speed 1.00 yaw -45
+        node 1/3 at -205,75,-1003, stall 0.1 s, moving yes, ai 2.1
+      pre -205.297,139.000,-1001.695 vel 0.83,-2.80,0.02 -> -205.215,139.000,-1001.693 hit -y- ground 1 speed 1.00 yaw -104
+        node 0/3 at -205,75,-1002, stall 0.2 s, moving yes, ai 2.0
+      pre -205.215,139.000,-1001.693 vel 0.92,-2.80,0.19 -> -205.122,139.000,-1001.675 hit -y- ground 1 speed 1.00 yaw -105
+        node 0/3 at -205,75,-1002, stall 0.3 s, moving yes, ai 1.9
+      pre -205.122,139.000,-1001.675 vel 0.95,-2.80,0.25 -> -205.027,139.000,-1001.650 hit -y- ground 1 speed 1.00 yaw -106
+        node 0/3 at -205,75,-1002, stall 0.4 s, moving yes, ai 1.8
+      pre -205.027,139.000,-1001.650 vel 0.96,-2.80,0.27 -> -204.931,139.000,-1001.624 hit -y- ground 1 speed 1.00 yaw -106
+        node 0/3 at -205,75,-1002, stall 0.5 s, moving yes, ai 1.7
+      pre -204.931,139.000,-1001.624 vel 0.96,-2.80,0.27 -> -204.835,139.000,-1001.596 hit -y- ground 1 speed 1.00 yaw -106
+        node 0/3 at -205,75,-1002, stall 0.6 s, moving yes, ai 1.6
+      pre -204.835,139.000,-1001.596 vel 0.96,-2.80,0.27 -> -204.739,139.000,-1001.569 hit -y- ground 1 speed 1.00 yaw -106
+        node 0/3 at -205,75,-1002, stall 0.7 s, moving yes, ai 1.5
+      pre -204.739,139.000,-1001.569 vel 0.99,-2.80,0.12 -> -204.640,139.000,-1001.557 hit -y- ground 1 speed 1.00 yaw -93
+        node 1/3 at -204,76,-1002, stall 0.8 s, moving yes, ai 1.4
+      pre -204.640,139.000,-1001.557 vel 1.00,-2.80,0.08 -> -204.541,139.000,-1001.549 hit -y- ground 1 speed 1.00 yaw -93
+        node 1/3 at -204,76,-1002, stall 0.0 s, moving yes, ai 1.3
+      pre -204.541,139.000,-1001.549 vel 1.00,-2.80,0.06 -> -204.441,139.000,-1001.543 hit -y- ground 1 speed 1.00 yaw -93
+        node 1/3 at -204,76,-1002, stall 0.0 s, moving yes, ai 1.2
+      pre -204.441,139.000,-1001.543 vel 1.00,-2.80,0.06 -> -204.341,139.000,-1001.537 hit -y- ground 1 speed 1.00 yaw -93
+        node 1/3 at -204,76,-1002, stall 0.0 s, moving yes, ai 1.1
+      pre -204.341,139.000,-1001.537 vel 1.00,-2.80,0.06 -> -204.242,139.000,-1001.532 hit -y- ground 1 speed 1.00 yaw -93
+        node 1/3 at -204,76,-1002, stall 0.0 s, moving yes, ai 1.0
+      pre -204.242,139.000,-1001.532 vel 1.00,-2.80,0.06 -> -204.225,139.000,-1001.526 hit xy- ground 1 speed 1.00 yaw -93
+        node 1/3 at -204,76,-1002, stall 0.0 s, moving yes, ai 0.9
+      pre -204.225,139.000,-1001.526 vel 0.70,6.92,0.04 -> -204.225,139.692,-1001.522 hit x-- ground 1 speed 1.00 yaw -92
+        node 1/3 at -204,76,-1002, stall 0.1 s, moving yes, ai 0.8
+      pre -204.225,139.692,-1001.522 vel 0.26,4.12,0.04 -> -204.199,140.103,-1001.518 hit --- ground 0 speed 1.00 yaw -92
+        node 1/3 at -204,76,-1002, stall 0.0 s, moving yes, ai 0.7
+      pre -204.199,140.103,-1001.518 vel 0.45,1.32,0.04 -> -204.154,140.235,-1001.514 hit --- ground 0 speed 1.00 yaw -92
+        node 1/3 at -204,76,-1002, stall 0.0 s, moving yes, ai 0.6
+      pre -204.154,140.235,-1001.514 vel 0.59,-1.48,0.03 -> -204.095,140.086,-1001.510 hit --- ground 0 speed 1.00 yaw -91
+        node 1/3 at -204,76,-1002, stall 0.1 s, moving yes, ai 0.5
+      pre -204.095,140.086,-1001.510 vel 0.70,-4.28,0.03 -> -204.025,140.000,-1001.507 hit -y- ground 0 speed 1.00 yaw -91
+        node 1/3 at -204,76,-1002, stall 0.2 s, moving yes, ai 0.4
+      pre -204.025,140.000,-1001.507 vel 0.91,-2.80,0.02 -> -203.934,140.000,-1001.506 hit -y- ground 1 speed 1.00 yaw -91
+        node 1/3 at -204,76,-1002, stall 0.3 s, moving yes, ai 0.3
+      pre -203.934,140.000,-1001.506 vel 0.97,-2.80,0.01 -> -203.837,140.000,-1001.504 hit -y- ground 1 speed 1.00 yaw -91
+        node 1/3 at -204,76,-1002, stall 0.4 s, moving yes, ai 0.2
+      pre -203.837,140.000,-1001.504 vel 0.99,-2.80,0.01 -> -203.738,140.000,-1001.503 hit -y- ground 1 speed 1.00 yaw -91
+        node 1/3 at -204,76,-1002, stall 0.5 s, moving yes, ai 0.1
+      pre -203.738,140.000,-1001.503 vel 1.00,-2.80,0.01 -> -203.638,140.000,-1001.502 hit -y- ground 1 speed 1.00 yaw -90
+        node 0/2 at -203,76,-1002, stall 0.6 s, moving yes, ai -0.0
+      pre -203.638,140.000,-1001.502 vel 0.30,-2.80,0.00 -> -203.608,140.000,-1001.502 hit -y- ground 1 speed 0.00 yaw -90
+        node 0/2 at -203,76,-1002, stall 0.0 s, moving no, ai 6.6
+      pre -203.608,140.000,-1001.502 vel 0.79,-2.80,0.00 -> -203.529,140.000,-1001.502 hit -y- ground 1 speed 1.00 yaw -90
+        node 0/2 at -203,76,-1002, stall 0.1 s, moving yes, ai 6.5
+      pre -203.529,140.000,-1001.502 vel 0.94,-2.80,0.00 -> -203.435,140.000,-1001.502 hit -y- ground 1 speed 1.00 yaw -90
+        node 0/2 at -203,76,-1002, stall 0.2 s, moving yes, ai 6.4
+      pre -203.435,140.000,-1001.502 vel 0.98,-2.80,0.00 -> -203.337,140.000,-1001.502 hit -y- ground 1 speed 1.00 yaw -90
+        node 0/2 at -203,76,-1002, stall 0.3 s, moving yes, ai 6.3
+      pre -203.337,140.000,-1001.502 vel 0.99,-2.80,0.00 -> -203.238,140.000,-1001.501 hit -y- ground 1 speed 1.00 yaw -90
+        node 0/2 at -203,76,-1002, stall 0.4 s, moving yes, ai 6.2
+      pre -203.238,140.000,-1001.501 vel 1.00,-2.80,0.00 -> -203.138,140.000,-1001.501 hit -y- ground 1 speed 1.00 yaw -90
+        node 0/2 at -203,76,-1002, stall 0.5 s, moving yes, ai 6.1
+behaviorsim trace: villager at -295.23 71.00 -946.70 (work/stroll/nopath/gaveup), feet in air on dark_oak_planks, yaw -65
+  path ahead: 
+  state: baby false, panic false, moving true, face goal -291.5,71.0,-948.5, path goal -291.5,71.0,-948.5
+  around feet (feet/head): 1,0: air/air; -1,0: air/air; 0,1: air/air; 0,-1: spruce_door[5]/spruce_door[13]
+      pre -295.220,135.000,-946.700 vel -0.21,-2.80,-0.76 -> -295.241,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 25
+        node 0/8 at -296,71,-948, stall 0.1 s, moving yes, ai 2.1
+      pre -295.213,135.000,-946.646 vel -0.40,-2.80,-0.77 -> -295.254,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 24
+        node 0/8 at -296,71,-948, stall 0.2 s, moving yes, ai 2.0
+      pre -295.218,135.000,-946.633 vel -0.46,-2.80,-0.77 -> -295.263,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 23
+        node 0/8 at -296,71,-948, stall 0.3 s, moving yes, ai 1.9
+      pre -295.224,135.000,-946.631 vel -0.47,-2.80,-0.77 -> -295.271,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 23
+        node 0/8 at -296,71,-948, stall 0.4 s, moving yes, ai 1.8
+      pre -295.229,135.000,-946.633 vel -0.47,-2.80,-0.78 -> -295.275,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 23
+        node 0/8 at -296,71,-948, stall 0.5 s, moving yes, ai 1.7
+      pre -295.232,135.000,-946.637 vel -0.47,-2.80,-0.78 -> -295.278,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 23
+        node 0/8 at -296,71,-948, stall 0.6 s, moving yes, ai 1.6
+      pre -295.233,135.000,-946.641 vel -0.47,-2.80,-0.78 -> -295.279,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 23
+        node 0/8 at -296,71,-948, stall 0.7 s, moving yes, ai 1.5
+      pre -295.232,135.000,-946.645 vel -0.47,-2.80,-0.77 -> -295.279,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 23
+        node 0/8 at -296,71,-948, stall 0.8 s, moving yes, ai 1.4
+      pre -295.230,135.000,-946.649 vel -0.47,-2.80,-0.77 -> -295.277,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 23
+        node 0/8 at -296,71,-948, stall 0.9 s, moving yes, ai 1.3
+      pre -295.226,135.000,-946.654 vel -0.48,-2.80,-0.77 -> -295.274,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 23
+        node 0/8 at -296,71,-948, stall 1.0 s, moving yes, ai 1.2
+      pre -295.222,135.000,-946.659 vel -0.48,-2.80,-0.77 -> -295.270,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 24
+        node 0/8 at -296,71,-948, stall 1.1 s, moving yes, ai 1.1
+      pre -295.217,135.000,-946.664 vel -0.49,-2.80,-0.77 -> -295.266,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 24
+        node 0/8 at -296,71,-948, stall 1.2 s, moving yes, ai 1.0
+      pre -295.212,135.000,-946.669 vel -0.50,-2.80,-0.76 -> -295.262,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 25
+        node 0/8 at -296,71,-948, stall 1.3 s, moving yes, ai 0.9
+      pre -295.207,135.000,-946.675 vel -0.51,-2.80,-0.76 -> -295.258,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 25
+        node 0/8 at -296,71,-948, stall 1.4 s, moving yes, ai 0.8
+      pre -295.203,135.000,-946.682 vel -0.52,-2.80,-0.76 -> -295.254,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 26
+        node 0/8 at -296,71,-948, stall 1.5 s, moving yes, ai 0.7
+      pre -295.200,135.000,-946.688 vel -0.52,-2.80,-0.76 -> -295.252,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 26
+        node 0/8 at -296,71,-948, stall 1.6 s, moving yes, ai 0.6
+      pre -295.199,135.000,-946.695 vel -0.53,-2.80,-0.76 -> -295.252,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 26
+        node 0/8 at -296,71,-948, stall 1.7 s, moving yes, ai 0.5
+      pre -295.193,135.000,-946.673 vel -0.53,-2.80,-0.76 -> -295.246,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 26
+        node 0/8 at -296,71,-948, stall 1.8 s, moving yes, ai 0.4
+      pre -295.190,135.000,-946.683 vel -0.53,-2.80,-0.75 -> -295.243,135.000,-946.700 hit -yz ground 1 speed 1.20 yaw 26
+        node 0/8 at -296,71,-948, stall 1.9 s, moving yes, ai 0.3
+behaviorsim in_wall: minecart at -336.40 73.06 -906.50 (half width 1.96, work) overlaps 
+behaviorsim in_wall: minecart at -346.45 73.06 -906.50 (half width 1.96, work) overlaps 
+behaviorsim in_wall: minecart at -356.00 73.06 -906.50 (half width 1.96, work) overlaps 
+behaviorsim in_wall: minecart at -367.30 74.06 -906.50 (half width 1.96, work) overlaps 
+behaviorsim in_wall: minecart at -378.60 73.51 -906.50 (half width 1.96, work) overlaps mossy_cobblestone -381 73 -909, cobblestone -380 73 -909, grass_block -379 73 -909, grass_block -378 73 -909, grass_block -377 73 -909, gravel -378 73 -908
+behaviorsim in_wall: minecart at -390.40 73.06 -906.50 (half width 1.96, work) overlaps 
+behaviorsim in_wall: minecart at -343.56 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -353.61 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -363.16 74.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -374.46 74.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -385.76 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -397.56 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -338.18 72.72 -906.50 (half width 1.96, bed) overlaps grass_block -338 72 -909, grass_block -337 72 -909, gravel -338 72 -908, gravel -337 72 -908, gravel -338 72 -907, gravel -337 72 -907
+behaviorsim in_wall: minecart at -348.23 73.06 -906.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at -357.78 73.06 -906.50 (half width 1.96, bed) overlaps spruce_log[z] -360 73 -905
+behaviorsim in_wall: minecart at -369.08 74.06 -906.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at -380.38 73.06 -906.50 (half width 1.96, bed) overlaps mossy_cobblestone -382 73 -909, mossy_cobblestone -381 73 -909, cobblestone -380 73 -909, grass_block -379 73 -909, mossy_cobblestone -381 74 -909
+behaviorsim in_wall: minecart at -392.18 73.06 -906.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at -288.61 75.06 -906.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at -278.56 76.06 -906.50 (half width 1.96, bed) overlaps spruce_log[x] -279 76 -905, spruce_log[x] -278 76 -905, spruce_log[x] -277 76 -905, moss_carpet -277 77 -905
+behaviorsim in_wall: minecart at -269.01 76.06 -906.50 (half width 1.96, bed) overlaps grass_block -271 76 -905, grass_block -270 76 -905, grass_block -269 76 -905, grass_block -268 76 -905
+behaviorsim in_wall: minecart at -257.71 76.06 -906.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at -256.50 77.11 -896.41 (half width 1.96, bed) overlaps grass_block -259 77 -896, grass_block -259 77 -895, gravel -258 77 -895, gravel -257 77 -895, spruce_planks -256 77 -895, snowy_grass_block -255 77 -895
+behaviorsim in_wall: minecart at -250.61 78.06 -890.50 (half width 1.96, bed) overlaps spruce_log[x] -253 78 -889, spruce_log[x] -252 78 -889, spruce_log[x] -251 78 -889, spruce_log[x] -250 78 -889
+behaviorsim in_wall: minecart at -332.85 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -342.90 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -352.45 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -363.75 74.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -375.05 74.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: minecart at -386.85 73.06 -906.50 (half width 1.96, free) overlaps 
+behaviorsim in_wall: cat at -262.86 76.00 -904.55 (half width 0.30, free) overlaps grass_block -264 76 -905, grass_block -263 76 -905
+behaviorsim seed 12345: 201 mobs; in_wall 37, spinning 1, strayed 2, stuck 8
+behaviorsim trace: villager at 262.30 79.00 -1748.70 (work/heading/pathend/partial/gaveup), feet in air on spruce_planks, yaw 69
+  path ahead: 
+  state: baby false, panic false, moving true, face goal none, path goal 257.5,79.0,-1750.5
+  around feet (feet/head): 1,0: air/air; -1,0: spruce_planks/spruce_planks; 0,1: air/air; 0,-1: spruce_planks/spruce_planks
+      pre 262.300,143.000,-1748.700 vel -0.50,-2.80,-0.19 -> 262.300,143.000,-1748.700 hit xyz ground 1 speed 0.76 yaw 69
+        no node (3), stall 0.0 s, moving yes, ai 0.3
+      pre 262.300,143.000,-1748.700 vel -0.50,-2.80,-0.19 -> 262.300,143.000,-1748.700 hit xyz ground 1 speed 0.76 yaw 69
+        no node (3), stall 0.0 s, moving yes, ai 0.2
+      pre 262.300,143.000,-1748.700 vel -0.50,-2.80,-0.19 -> 262.300,143.000,-1748.700 hit xyz ground 1 speed 0.76 yaw 69
+        no node (3), stall 0.0 s, moving yes, ai 0.1
+      pre 262.300,143.000,-1748.700 vel -0.50,-2.80,-0.19 -> 262.300,143.000,-1748.700 hit xyz ground 1 speed 0.76 yaw 69
+        no node (3), stall 0.0 s, moving yes, ai 0.0
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.8
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.7
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.6
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.5
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.4
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.3
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.2
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.1
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 5.0
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 4.9
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 4.8
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 4.7
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 4.6
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 4.5
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 4.4
+      pre 262.300,143.000,-1748.700 vel 0.00,-2.80,0.00 -> 262.300,143.000,-1748.700 hit -y- ground 1 speed 0.00 yaw 69
+        no node (3), stall 0.0 s, moving no, ai 4.3
+behaviorsim in_wall: minecart at 342.83 83.06 -1737.50 (half width 1.96, work) overlaps 
+behaviorsim in_wall: minecart at 355.13 84.06 -1737.50 (half width 1.96, work) overlaps 
+behaviorsim in_wall: minecart at 366.93 84.06 -1737.50 (half width 1.96, work) overlaps 
+behaviorsim in_wall: minecart at 379.73 84.06 -1737.50 (half width 1.96, work) overlaps 
+behaviorsim spin: villager at 262.3 79.9 -1747.1, free/heading/standing, goal none, path 0/0, turned 760 deg in 10 s, moved 0.21
+behaviorsim trace: villager at 262.30 79.88 -1747.06 (spin free/heading/standing), feet in air on spruce_planks, yaw 134
+  path ahead: 
+  state: baby false, panic false, moving false, face goal none, path goal 259.5,79.0,-1747.5
+  around feet (feet/head): 1,0: air/air; -1,0: spruce_planks/spruce_planks; 0,1: chest/air; 0,-1: air/air
+      pre 262.300,143.875,-1747.062 vel 0.00,-2.80,0.00 -> 262.300,143.875,-1747.062 hit -y- ground 1 speed 0.00 yaw 134
+        no node (0), stall 0.0 s, moving no, ai 0.4
+      pre 262.300,143.875,-1747.062 vel 0.00,-2.80,0.00 -> 262.300,143.875,-1747.062 hit -y- ground 1 speed 0.00 yaw 134
+        no node (0), stall 0.0 s, moving no, ai 0.3
+      pre 262.300,143.875,-1747.062 vel 0.00,-2.80,0.00 -> 262.300,143.875,-1747.062 hit -y- ground 1 speed 0.00 yaw 134
+        no node (0), stall 0.0 s, moving no, ai 0.2
+      pre 262.300,143.875,-1747.062 vel 0.00,-2.80,0.00 -> 262.300,143.875,-1747.062 hit -y- ground 1 speed 0.00 yaw 134
+        no node (0), stall 0.0 s, moving no, ai 0.1
+      pre 262.300,143.875,-1747.062 vel -0.49,-2.80,0.22 -> 262.300,143.875,-1747.041 hit xy- ground 1 speed 0.76 yaw 114
+        no node (0), stall 0.1 s, moving yes, ai 7.1
+      pre 262.300,143.875,-1747.041 vel -0.49,-2.80,0.28 -> 262.300,143.875,-1747.013 hit xy- ground 1 speed 0.76 yaw 114
+        no node (0), stall 0.2 s, moving yes, ai 7.0
+      pre 262.300,143.875,-1747.013 vel -0.49,-2.80,0.30 -> 262.300,143.875,-1746.983 hit xy- ground 1 speed 0.76 yaw 113
+        no node (0), stall 0.3 s, moving yes, ai 6.9
+      pre 262.300,143.875,-1746.983 vel -0.49,-2.80,0.30 -> 262.300,143.875,-1746.953 hit xy- ground 1 speed 0.76 yaw 113
+        no node (0), stall 0.4 s, moving yes, ai 6.8
+      pre 262.300,143.875,-1746.953 vel -0.49,-2.80,0.30 -> 262.300,143.875,-1746.924 hit xy- ground 1 speed 0.76 yaw 113
+        no node (0), stall 0.5 s, moving yes, ai 6.7
+      pre 262.300,143.875,-1746.924 vel -0.49,-2.80,0.30 -> 262.300,143.875,-1746.894 hit xy- ground 1 speed 0.76 yaw 113
+        no node (0), stall 0.6 s, moving yes, ai 6.6
+      pre 262.300,143.875,-1746.894 vel -0.49,-2.80,0.29 -> 262.300,143.875,-1746.865 hit xy- ground 1 speed 0.76 yaw 112
+        no node (0), stall 0.7 s, moving yes, ai 6.5
+      pre 262.300,143.875,-1746.865 vel -0.49,-2.80,0.29 -> 262.300,143.875,-1746.836 hit xy- ground 1 speed 0.76 yaw 112
+        no node (0), stall 0.8 s, moving yes, ai 6.4
+      pre 262.300,143.875,-1746.836 vel -0.49,-2.80,0.29 -> 262.300,143.875,-1746.807 hit xy- ground 1 speed 0.76 yaw 112
+        no node (0), stall 0.9 s, moving yes, ai 6.3
+      pre 262.300,143.875,-1746.807 vel -0.65,-2.80,-0.07 -> 262.300,143.875,-1746.815 hit xy- ground 1 speed 0.95 yaw 76
+        no node (0), stall 1.0 s, moving yes, ai 6.2
+      pre 262.300,143.875,-1746.815 vel -0.65,-2.80,-0.18 -> 262.300,143.875,-1746.833 hit xy- ground 1 speed 0.95 yaw 76
+        no node (0), stall 1.1 s, moving yes, ai 6.1
+      pre 262.300,143.875,-1746.833 vel -0.65,-2.80,-0.21 -> 262.300,143.875,-1746.854 hit xy- ground 1 speed 0.95 yaw 77
+        no node (0), stall 1.2 s, moving yes, ai 6.0
+      pre 262.300,143.875,-1746.854 vel -0.65,-2.80,-0.21 -> 262.300,143.875,-1746.875 hit xy- ground 1 speed 0.95 yaw 77
+        no node (0), stall 1.3 s, moving yes, ai 5.9
+      pre 262.300,143.875,-1746.875 vel -0.65,-2.80,-0.21 -> 262.300,143.875,-1746.896 hit xy- ground 1 speed 0.95 yaw 77
+        no node (0), stall 1.4 s, moving yes, ai 5.8
+      pre 262.300,143.875,-1746.896 vel -0.65,-2.80,-0.20 -> 262.300,143.875,-1746.916 hit xy- ground 1 speed 0.95 yaw 78
+        no node (0), stall 1.5 s, moving yes, ai 5.7
+      pre 262.300,143.875,-1746.916 vel -0.65,-2.80,-0.20 -> 262.300,143.875,-1746.936 hit xy- ground 1 speed 0.95 yaw 78
+        no node (0), stall 1.6 s, moving yes, ai 5.6
+      pre 262.300,143.875,-1746.936 vel -0.65,-2.80,-0.19 -> 262.300,143.875,-1746.955 hit xy- ground 1 speed 0.95 yaw 79
+        no node (0), stall 1.7 s, moving yes, ai 5.5
+      pre 262.300,143.875,-1746.955 vel 0.23,-2.80,-0.68 -> 262.323,143.875,-1747.023 hit -y- ground 1 speed 0.95 yaw -20
+        node 0/1 at 262,79,-1748, stall 1.8 s, moving yes, ai 5.4
+      pre 262.323,143.875,-1747.023 vel 0.30,-2.80,-0.83 -> 262.353,143.875,-1747.106 hit -y- ground 1 speed 0.95 yaw -20
+        node 0/1 at 262,79,-1748, stall 1.9 s, moving yes, ai 5.3
+      pre 262.353,143.875,-1747.106 vel 0.32,-2.80,-0.87 -> 262.385,143.875,-1747.194 hit -y- ground 1 speed 0.95 yaw -20
+        node 0/1 at 262,79,-1748, stall 2.0 s, moving yes, ai 5.2
+      pre 262.385,143.875,-1747.194 vel 0.33,-2.80,-0.89 -> 262.419,143.875,-1747.282 hit -y- ground 1 speed 0.95 yaw -21
+        node 0/1 at 262,79,-1748, stall 2.1 s, moving yes, ai 5.1
+      pre 262.419,143.875,-1747.282 vel -0.56,-2.80,-0.32 -> 262.362,143.595,-1747.314 hit --- ground 1 speed 0.95 yaw 86
+        no node (1), stall 2.2 s, moving yes, ai 5.0
+      pre 262.362,143.595,-1747.314 vel -0.60,-5.60,-0.15 -> 262.302,143.035,-1747.329 hit --- ground 0 speed 0.76 yaw 116
+        no node (1), stall 2.3 s, moving yes, ai 4.9
+      pre 262.302,143.035,-1747.329 vel -0.66,-8.40,0.19 -> 262.300,143.000,-1747.310 hit xy- ground 1 speed 0.76 yaw 116
+        no node (1), stall 2.4 s, moving yes, ai 4.8
+      pre 262.300,143.000,-1747.310 vel -0.48,-2.80,0.29 -> 262.300,143.000,-1747.281 hit xy- ground 1 speed 0.76 yaw 116
+        no node (1), stall 2.5 s, moving yes, ai 4.7
+      pre 262.300,143.000,-1747.281 vel -0.48,-2.80,0.32 -> 262.300,143.000,-1747.250 hit xy- ground 1 speed 0.76 yaw 116
+        no node (1), stall 2.6 s, moving yes, ai 4.6
+behaviorsim in_wall: minecart at 341.13 83.06 -1737.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at 353.43 84.06 -1737.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at 365.23 84.06 -1737.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at 378.03 84.06 -1737.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at 283.01 80.06 -1737.50 (half width 1.96, bed) overlaps snowy_grass_block 281 80 -1740
+behaviorsim in_wall: minecart at 270.71 80.06 -1737.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at 258.91 79.06 -1737.50 (half width 1.96, bed) overlaps 
+behaviorsim in_wall: minecart at 257.50 78.06 -1726.11 (half width 1.96, bed) overlaps snowy_grass_block 259 78 -1729, snowy_grass_block 259 78 -1728
+behaviorsim in_wall: soldier_trooper at 256.60 80.26 -1732.29 (half width 0.32, bed) overlaps 
+behaviorsim in_wall: soldier_trooper at 258.40 80.26 -1730.29 (half width 0.32, bed) overlaps 
+behaviorsim in_wall: soldier_trooper at 261.39 80.36 -1739.62 (half width 0.32, bed) overlaps 
+behaviorsim in_wall: soldier_trooper at 260.37 80.36 -1737.13 (half width 0.32, bed) overlaps 
+behaviorsim in_wall: soldier_trooper at 257.79 80.36 -1737.87 (half width 0.32, bed) overlaps 
+behaviorsim in_wall: soldier_trooper at 256.77 80.36 -1735.38 (half width 0.32, bed) overlaps 
+behaviorsim in_wall: soldier_trooper at 310.28 82.25 -1738.40 (half width 0.32, bed) overlaps 
+behaviorsim in_wall: soldier_trooper at 348.89 84.36 -1738.40 (half width 0.32, bed) overlaps 
+behaviorsim in_wall: soldier_trooper at 346.89 84.36 -1736.60 (half width 0.32, bed) overlaps 
+behaviorsim missed bed: villager goal 265 79 -1748 (blue_bed_head), path of 4000 nodes: 6 nodes ending 267 80 -1748; around the goal (floor/feet/head): 1,0: packed_ice/packed_ice/glass_pane; -1,0: spruce_planks/air/air; 0,1: spruce_planks/air/air; 0,-1: spruce_planks/blue_bed/air; round the mob at 267 80 -1754 on snowy_grass_block (feet/head/above): -1,-1: spruce_fence/spruce_fence/lantern; 0,-1: air/air/air; 1,-1: dirt_path/air/air; -1,0: spruce_log/spruce_log/spruce_log; 1,0: snowy_grass_block/air/air; -1,1: snow_block/snow_block/snow_block; 0,1: air/air/air; 1,1: grass_block/air/air
+behaviorsim missed bed: villager goal 259 79 -1748 (blue_bed_head), path of 4000 nodes: 0 nodes ending none; around the goal (floor/feet/head): 1,0: spruce_planks/air/air; -1,0: spruce_planks/air/air; 0,1: spruce_planks/air/air; 0,-1: spruce_planks/blue_bed/air; round the mob at 262 79 -1748 on spruce_planks (feet/head/above): -1,-1: spruce_planks/spruce_planks/spruce_planks; 0,-1: air/air/air; 1,-1: air/air/air; -1,0: spruce_planks/spruce_planks/spruce_planks; 1,0: air/air/air; -1,1: spruce_planks/spruce_planks/spruce_planks; 0,1: chest/air/air; 1,1: air/air/air
+behaviorsim missed work: villager goal 257 79 -1751 (barrel), path of 4000 nodes: 1 nodes ending 262 79 -1749; around the goal (floor/feet/head): 1,0: spruce_planks/air/air; -1,0: packed_ice/packed_ice/snow_block; 0,1: spruce_planks/spruce_planks/spruce_planks; 0,-1: spruce_planks/air/air; round the mob at 262 79 -1748 on spruce_planks (feet/head/above): -1,-1: spruce_planks/spruce_planks/spruce_planks; 0,-1: air/air/air; 1,-1: air/air/air; -1,0: spruce_planks/spruce_planks/spruce_planks; 1,0: air/air/air; -1,1: spruce_planks/spruce_planks/spruce_planks; 0,1: chest/air/air; 1,1: air/air/air
+behaviorsim seed 777: 139 mobs; goal_missed_bed 2, goal_missed_work 1, in_wall 16, spinning 1, stuck 13
+behaviorsim: goal_missed_bed 2, goal_missed_work 1, in_wall 53, spinning 2, strayed 2, stuck 21; villager goals reached: bed 12/14, meet 14/14, work 16/17 (27 s)
+behaviorsim seed 12345: 33 mobs; no flags
+behaviorsim: no flags; villager goals reached: - (15 s)
+gencheck: 288 chunks over 3 seeds: no issues (10.1 s)
+towntest ok   economy: every shop item exists and has a price
+towntest ok   economy: every shop sells 6+ items and buys 5+ (general 23/21, gunsmith 15/18, butcher 12/61, doctor 11/12, stable 11/10, tailor 14/20, blacksmith 22/19, saloon 13/11)
+towntest ok   economy: prices climb with the tiers
+towntest ok   economy: progression (a sidearm = 1500 wheat or 90 iron sold; bread = 10 wheat)
+towntest ok   economy: no buy-craft-sell profit (55 paths checked)
+towntests: barter: cheapest emerald from shop goods 107 c (9 glass_bottle), best emerald back to money 88 c (3 golden_carrot for 3)
+towntest ok   economy: no shop -> barter -> shop profit
+towntest ok   pricing: buy x0.85-1.25, sell x0.375-0.55, neutral x1.00 / x0.50
+towntest ok   pricing: shops refuse below -100 reputation only
+towntest ok   money format $12.05
+towntest FAIL trade: bought 3 bread for $0.90 (wallet $9.01, stock 13/16)
+towntest ok   trade: no sale without the money (That's $0.33 each. You have $0.29.)
+towntest ok   trade: a sold-out item restocks the next day (Sold out of Bread until tomorrow.)
+towntest ok   trade: sold 40 wheat for $1.20 ($0.03 each: $1.20; Sold 40 Wheat for $1.20.)
+towntest ok   trade: the gunsmith won't buy wheat
+towntest ok   trade: worn tools can't be sold
+towntest ok   trade: the doctor patched you up for $2.40
+towntest ok   trade: the wallet is saved ($43.21)
+towntest ok   people: an old-save villager, an egg villager and a newborn are townsfolk after one update (Ezra Ashby craftsman, Edna Quill worker, Wendell Fenwick child)
+towntest ok   people: a librarian opens a cash counter (general) with a Barter button
+towntest ok   people: the Barter button opens the emerald trades (MerchantMenu)
+towntest ok   economy: one emerald is one dollar (the store pays $1.00, sells at $1.20, at any standing)
+towntest ok   economy: 5 emeralds sell for $5.00 at the general store, 2 buy back for $2.40
+towntests: discounted barter (167 of 283 offers cheaper): emerald from shop goods 100 c (4 porkchop), emerald back to money 88 c (3 golden_carrot for 3), emerald round trip x1.00 (compass)
+towntest ok   economy: discounts still apply to most barter (167 of 283 offers cheaper at max standing)
+towntest ok   economy: no money loop at the deepest discounts (emerald from goods 100 c >= $1.00 >= emerald to money 88 c, round trip x1.00)
+towntest ok   economy: bottles -> emerald and emerald -> golden carrots keep their list price (9 bottles, 3 emeralds)
+towntest ok   law: taking from a chest with nobody about isn't noticed
+towntest ok   law: a witnessed theft warns (heat 1.3, standing 0 -> -6)
+towntest ok   law: taking from a chest you placed isn't theft
+towntest ok   law: breaking town crops in sight counts (heat 2.3)
+towntest ok   law: picking grass in town doesn't
+towntest ok   law: repeated theft turns the town (heat 4.0; farmer angry 60 s, elder runs, the sheriff calls his challenge)
+towntest ok   law: prices go up (x1.15) and the keeper won't serve while the town is hostile
+towntest ok   law: the sheriff draws after his challenge
+towntest ok   law: the town calms down when its anger runs out
+towntest ok   law: heat and your placed blocks are saved with the world
+towntest ok   law: taking back what you put in a town chest isn't theft (heat 0.0); swapping it for the town's bread is (1.6)
+towntest ok   law: nothing counts in creative
+towntest ok   law: a townsperson behind a wall doesn't see you (0 offences), the same one in the open does
+towntest ok   law: breaking a town chest with 40 bread costs heat 3.0 (taking them: 3.0)
+towntest ok   law: past the cap your oldest placed blocks are forgotten, the newest kept (4096 kept)
+towntest ok   law: a house lot is the town's; a chest 10 blocks under it and your own build beside the town (-68, -68 from the square) aren't
+towntest ok   sheriff: 12/12 structure sheriffs carry the six-iron, have a man's name and the sheriff's voice
+towntest ok   sheriff: the model builds (60 parts, star and hat)
+towntest ok   sheriff: townsfolk don't summon iron golems
+towntest ok   sheriff: none is sent to villagers living outside a town
+towntest ok   sheriff: a town without one gets a sheriff (Otis Jessup in Dry Springs)
+towntest ok   sheriff: only one is sent
+towntest ok   sheriff: one per town (a second one in Dry Springs serves as deputy)
+towntest FAIL sheriff: shoots an outlaw player in iron with his six-iron (health 20)
+towntest ok   sheriff: a new town puts a sheriff on the square, no iron golem (1 sheriff, 0 golems)
+towntest ok   wallet: shown in town ($12.50) and when it changes ($14.00 +$1.50), hidden otherwise, inside the top of the screen
+towntest ok   voices: 1858/1858 takes packed (35.90 MB), every line voiced (0 missing)
+towntest ok   voices: every take decodes, peaks <= -1 dBFS (loudest -2.0 dBFS), 0.3-6 s, starts and ends at zero (4481 s in all)
+towntest ok   voices: every voice covers its contexts, 6+ different lines per context
+towntest ok   voices: the butcher speaks as a cook, the storekeeper as a keeper
+towntest ok   voices: no line twice running (0 repeats in 30)
+towntest ok   voices: a spoken line plays its take with a caption (Clara: Good to see you. Looking for anything special?)
+towntest ok   voices: no chatter within 20 s of the last line
+towntest ok   voices: a busy town says 2.9 lines a minute (20 townsfolk, 10 min), each greets at most 3 times, all 29 recorded takes (0 murmured)
+towntest ok   voices: a busy town says 2.9 lines a minute (20 townsfolk, 10 min), each greets at most 3 times, all 29 recorded takes (0 murmured)
+towntest ok   honour: standings at their bounds (Outlaw, Outlaw, Disreputable, Disreputable, Neutral, Neutral, Respected, Respected, Honourable, Honourable)
+towntest ok   honour: prices stay inside the shop bounds at every honour, reputation and Friend of the Town
+towntest ok   honour: honourable buys at x0.95, neutral x1.00, outlaw x1.10 (sells x0.525 / x0.500 / x0.450)
+towntest ok   honour: unseen theft costs a third of a witnessed one (-0.5)
+towntest ok   honour: witnessed theft costs 1.5 a point of heat (-2.0 after the unseen one)
+towntest ok   honour: assault costs honour (-2.0 -> -5.0)
+towntest ok   honour: a town that turns on you puts $5.00 on your head (honour -14.5)
+towntest ok   honour: murder costs 15 and adds $15 (honour -29.5, bounty $20.00)
+towntest ok   honour: an old hit or a villager killed outside any town isn't murder
+towntest ok   honour: creative changes nothing
+towntest ok   honour: 20 monsters killed near townsfolk earn 8.0 (the daily cap), not 20
+towntest ok   honour: the next day earns again, a raider counts 2 (8.0 -> 10.0)
+towntest ok   honour: an outlaw killed in the wild earns 3 (10.0 -> 13.0)
+towntest ok   honour: a monster killed far from any town earns nothing
+towntest ok   honour: heat cools 0.011 (honourable 0.022, outlaw 0.006) in 5 s
+towntest ok   bounty: a keeper in a wanted town won't serve you
+towntest ok   bounty: the sheriff won't take $15.00 for a $20.00 bounty
+towntest ok   bounty: paying the sheriff $20.00 clears it, ends the hostility and earns 3 honour (wallet $6.00)
+towntest ok   bounty: once paid, the sheriff lets the old grudge go (reputation 0, anger 0.0)
+towntest ok   bounty: the keeper serves you again once it's paid
+towntest ok   bounty: the law challenges an outlaw on arrival (Silver Rock)
+towntest ok   bounty: lapses after 7 days, not 6 ($5.00 on day 6)
+towntest ok   honour: honour and bounties survive a save round trip
+towntest FAIL hud:  shown in town, on screen
+towntest ok   revolver: gun_revolver is a six-shot handgun (index 7)
+towntest ok   revolver: its own one-handed model with a walnut grip (38 parts)
+towntest ok   revolver: has its own icon
+towntest ok   revolver: gunsmiths sell it and buy it
+towntest ok   revolver: 25.1% of fallen sheriffs drop their six-iron (20,000 rolls)
+towntest ok   revolver: every sheriff carries the six-iron
+towntest ok   revolver: a forced drop comes loaded (6) with 7 cartridges
+towntest ok   revolver: otherwise just cartridges
+towntest ok   frontier: 3 towns, 3 sheriff's offices, 3 with a jail cell behind bars and an iron door, 6 WANTED boards
+towntest ok   frontier: 12/12 shop fronts have a plank boardwalk
+towntest ok   frontier: a town on ground a save already generated keeps its old lots (no office)
+towntest ok   honour gap: a change is logged with its day and reason (5|-4.0|a test of the log)
+towntest ok   honour gap: the log keeps the last 60 (60)
+towntest ok   honour gap: the log survives a save round trip
+towntest FAIL honour gap: the meter pulses on a change (scale 0.00 -> 0.00) and shows the reason
+towntest ok   honour gap: fair trades earn honour, 3.0 a day at most (3.0 after 12)
+towntest ok   honour gap: an outlaw is fought on sight after a 3 s warning (farmer anger 0.0 -> 3.0, elder runs true)
+towntest ok   honour gap: no keeper serves an outlaw
+towntest ok   honour gap: an outlaw surrenders to the law for a $10.00 fine and is Disreputable again (-55.0)
+towntest ok   honour gap: the disreputable are warned off when greeted
+towntest ok   honour gap P50: Zoronia's riches are unknown until a townsperson tells the respected (told: true)
+towntest ok   honour gap: the respected are told where things are ("Word is there's an outlaw camp about 110 blocks west of here.")
+towntest ok   honour gap: the honourable get one gift a town a day (1 given, 1 dropped)
+towntest ok   honour gap: and another the next day
+towntest ok   honour gap: two jobs a day per town, the same all day (deliver 8, hunt 5)
+towntest ok   honour gap: deliveries pay between shop buy and sell prices; all three job kinds come up
+towntest ok   honour gap: a delivery of 8 string pays $0.48 and 4.0 honour (Paid $0.48. Silver Rock won't forget it.)
+towntest ok   honour gap: a hunt counts 5 of 5 kills near town (not far off) and pays
+towntest ok   honour gap: an outlaw job says where he was last seen (Gentleman Bill was last seen 86 blocks east of here. Followed on your HUD and map.)
+towntest ok   honour gap (P474): the taken outlaw is followed (Outlaw: Gentleman Bill, last seen) and marked on the map (3 off)
+towntest ok   honour gap: Gentleman Bill shows up with his gang
+towntest ok   honour gap: he shows up once, and a chicken name-tagged Gentleman Bill doesn't finish the job
+towntest ok   honour gap (P474): the marker follows Gentleman Bill (true), then points to the board (Bounty: collect for Gentleman Bill at Silver Rock's board)
+towntest ok   honour gap: bringing him in pays $10.00
+towntest ok   honour gap: Gentleman Bill dead by other means ends the job unpaid, no respawn (That job is done.)
+towntest ok   honour gap: donations earn 2 honour each, 6 a day (6.0 for $3.00)
+towntest ok   honour gap: the board picks your name (Drifter)
+towntest ok   honour gap: the notice board fits its panel at every scroll (15 rows)
+towntest ok   honour gap: a town's WANTED board shows your poster while you're wanted (WANTED / Kit / Dead or Alive / $15.00)
+towntest ok   honour gap: an outlaw's poster asks $15.00 (bounty + fine); your own WANTED sign is untouched
+towntest ok   honour gap: unseen theft costs at most 10 honour a day (-10.0 after 100)
+towntest FAIL honour gap: the inventory shows your honour and wallet ()
+towntest ok   honour gap: no hunters for someone with a clean name
+towntest ok   honour gap: an outlaw in the wild gets 3 bounty hunters within 44 blocks, already on the trail
+towntest ok   honour gap: at most one posse a day
+towntest ok   honour gap: killing a bounty hunter earns no honour
+towntest ok   honour gap: hunters leave once you're no longer wanted
+towntest ok   honour gap: no bounty hunters on Peaceful
+six-iron table (normal): no armour 0.00 -> 10; leather 0.47 -> 10; golden 0.75 -> 10; chainmail 0.81 -> 10; copper 0.69 -> 10; iron 1.00 -> 8; steel 2.03 -> 3; titanium 2.35 -> 3; Duskium 2.85 -> 3
+towntest ok   iron rule: below iron two rounds kill on normal (no armour 10, leather 10, golden 10, chainmail 10, copper 10)
+towntest ok   iron rule: a full iron set takes 8 a round: three shots kill
+towntest ok   iron rule: steel takes 3 a round: as titanium (P459, P511)
+towntest ok   iron rule: titanium and Duskium take 3 a round, seven to drop him, iron more (P511: 3, 3)
+towntest ok   iron rule: below iron three shots on easy, one on hard; nothing on peaceful; titanium 4 on hard
+towntest ok   iron rule: iron with leather boots counts as iron (0.93), iron with bare feet doesn't (0.85)
+towntest ok   iron rule: on normal a round in leather leaves 10 of 20, the second kills
+towntest ok   iron rule: on hard a round in leather is lethal (the totem took it: 1 left)
+towntest ok   iron rule: Resistance IV and golden hearts don't save you below iron (1 left: the totem did)
+towntest ok   iron rule: a round in iron leaves 12 of 20 (12), in titanium 17 (17: P511, 3 a round)
+towntest ok   iron rule: peaceful, no harm
+towntest ok   six-iron: every sheriff carries it (10/10)
+towntest ok   six-iron: the challenge draws it (63 parts with the gun out)
+towntest ok   six-iron: the first round is a warning over your head (telegraphed true, hit false)
+towntest ok   six-iron: running steadily one way, he leads you (16/20 hit)
+towntest ok   six-iron: he won't fire through a window (aimed false, hit false)
+towntest ok   six-iron: every shot is telegraphed; standing still, 10/10 hit
+towntest ok   six-iron: a step aside dodges it (0/10 hit), crawling too (0/10)
+towntest ok   six-iron: six rounds, then a reload
+towntest ok   six-iron: the model builds mid-duel
+towntest ok   six-iron: on Hard his first round is meant (hit yes), his aim 0.42 s (0.50 on Normal), 0.67 s between rounds (0.80)
+towntest ok   conquest: a deputy down with the sheriff standing changes nothing
+towntest ok   conquest: the sheriff down and no law left, Silver Rock surrenders (hands up, no hostility, no bounty)
+towntest ok   conquest: it costs honour (-20 -> -55)
+towntest ok   conquest: taking from your own town is no crime
+towntest ok   conquest: your town's keepers serve you even with a grudge, x0.85 (x1.25 in a town that won't serve you)
+towntest ok   conquest: the keeper opens the counter for you
+towntest ok   conquest: your townsfolk call you boss
+towntest ok   conquest: tribute on arrival ($18.00 for 3 days, once a visit, $42.00 after 23 days: capped at 7)
+towntest ok   conquest: a town nearby is on edge (heat 3.0, dearer) until the news is 10 days old
+towntest ok   conquest: the town stays yours through a save
+towntest ok   conquest: a save from before it loads
+towntest ok   shop UI: every shop message fits its line uncut
+towntest ok   shop UI: every name fits the 176 px column
+towntest ok   shop UI: nothing drawn outside the panel (8 shops x buy/sell x every scroll)
+towntest ok   shop UI: scroll 1, sell tab true, quantity x5 (118 rows drawn)
+towntest ok   people: no borrowed character names (52 first names, 34 surnames)
+towntest ok   people: 60 townsfolk named (59 different names, 1 town; e.g. Ada Gartside, Ada Kettering, Ada Yardley)
+towntest ok   people: identity is stable for a spot (Pearl Bramwell)
+towntest ok   people: a farmer's day [Blocksmith.Mob.Activity.idle, Blocksmith.Mob.Activity.eat, Blocksmith.Mob.Activity.work, Blocksmith.Mob.Activity.meet, Blocksmith.Mob.Activity.social, Blocksmith.Mob.Activity.idle]
+towntest ok   people: a shopkeeper minds the counter in shop hours [Blocksmith.Mob.Activity.work, Blocksmith.Mob.Activity.work, Blocksmith.Mob.Activity.work, Blocksmith.Mob.Activity.work, Blocksmith.Mob.Activity.idle, Blocksmith.Mob.Activity.idle]
+towntest ok   people: deputies patrol day and night
+towntest ok   people: a Capital citizen works at the desk they were given, carries nothing [Blocksmith.Mob.Activity.idle, Blocksmith.Mob.Activity.eat, Blocksmith.Mob.Activity.work, Blocksmith.Mob.Activity.meet, Blocksmith.Mob.Activity.social, Blocksmith.Mob.Activity.idle]
+towntest ok   people: farmers carry pitchforks, deputies swords, butchers cleavers, smiths hammers; children and elders nothing
+towntest ok   people: every role and shopkeeper has a full model
+towntest ok   variety: test people (farmer, elder)
+towntest ok   variety: farmers are slower (x0.83) and weaker (x0.85) than workers (x1.01, x1.00)
+towntest ok   variety: elders are the slowest (x0.70) and frailest (x0.65) adults
+towntest ok   variety: blacksmiths are strong (x1.54) and tough (x1.45)
+towntest ok   variety: deputies are fast (x1.31, the slowest x1.15 beats the average worker)
+towntest ok   variety: workers differ person to person (speed x0.88-1.12, strength x0.88-1.12)
+towntest ok   variety: the same person always rolls the same
+towntest ok   variety: a child grows up and re-rolls (strength x0.28 -> x0.92)
+towntest ok   variety: a 12-point blow leaves an elder 1, a blacksmith 12 of 20
+towntest ok   variety: a blacksmith's hammer hits for 9, a farmer's pitchfork 5; the deputy draws a six-iron (every 1.60 s)
+towntest ok   variety: in 2 s a deputy walks 2.6 blocks, an elder 1.3
+towntest ok   variety: a blacksmith is built broader (8.6 px) than an elder (7.9 px)
+towntest ok   variety: the crosshair line reads "Ruth Pruitt, blacksmith: strong, tough"
+towntest ok   variety: the line shows for the person you hold your aim on (Ruth Pruitt, after 0.3 s), lingers 0.5 s, not when you look away
+towntest ok   variety: 99/100 farmers read weak or slow at a glance
+towntest ok   variety: a mason who becomes a librarian re-rolls (strength x1.54 -> x1.16)
+towntest ok   hunting: 27 pelts (5 species x poor/good/perfect), 4 legendary pelts and trophies, meat, fish, fur, satchels
+towntest ok   hunting: the butcher buys every pelt, priced poor < good < perfect < legendary (fox 27/90/225 cents)
+towntest ok   hunting: quality rolls poor 579, good 982, perfect 439 of 2000
+towntest ok   hunting: right tools by size (bow/pistol small, rifle medium/large; shotguns and launchers ruin)
+towntest ok   hunting: a perfect fox stays perfect to one arrow (3); shotgun 1, sword 2; a wolf sprayed 6 times 1; a bear in 2 Farsight rounds 3; no hit of yours 1; not your kill leaves no body
+towntest ok   hunting: tamed and baby animals aren't game
+towntest ok   hunting: the body is drawn on its side (top 0.49 vs 1.06 standing, 432 vertices, resting on the ground at 0.11)
+towntest ok   hunting: holding use on a wolf's body skins it in 1.1 s (a Good Wolf Pelt and 2 game meat); letting go starts over
+towntest ok   hunting: the butcher pays $0.21 / $0.70 / $1.75 for a poor / good / perfect wolf pelt
+towntest ok   hunting: a fur coat takes good or perfect pelts (not poor); satchel and saddle recipes
+towntest ok   hunting: a Hunter's Satchel holds 256 (a bundle 64); fur is drawn when worn
+towntest ok   hunting: studying a fox reads "Fox: perfect *** (bow or a pistol)" after 0.4 s of aim
+towntest ok   hunting: 4 legendary dens, seeded per world, [991, 1092, 1299, 1599] blocks out
+towntest ok   hunting: each Hunter's Map marks the next legend's den on the map ([0, 1])
+towntest ok   hunting: The Ashen Wolf: legendary (x1.6, 60 health)
+towntest ok   hunting: a legend's body left to rot drops its pelt and trophy (3 items)
+towntest ok   hunting: a legend always gives its pelt and trophy (Ashen Wolf Pelt, Ashen Fang, Gamey Meat) and stays dead
+towntest ok   hunting: legends, revealed dens and fish records survive a save
+towntest ok   hunting: another world's hunting state is dropped in a new world
+towntest ok   hunting: an animal's quality is saved with it
+towntest ok   hunting: the sea gives ["cod", "pufferfish", "salmon", "tropical_fish"], a lake ["catfish", "perch", "pike", "salmon", "trout"], a warm sea tropical fish 72/400
+towntest ok   hunting: pike weigh 2.0-25.0 lb
+towntest ok   hunting: a big pike lands 40/40 for an angler who eases off on runs, snaps 40/40 reeling non-stop; idle loses it 20/20; a small perch reels straight in 20/20
+towntest ok   hunting: a hooked fish fights on the rod and comes in (trout 1.4 lb in 1 s)
+towntest ok   countries: 49 seat cells, each seat in its own country, 39 distinct names, two-colour flags, two rich minerals, tax 0-15%
+towntest ok   countries: you start in Zoronia, rich in iron and titanium, tax 9%
+towntest ok   countries: a chunk rich in iron and titanium gets 137 more ore blocks, 0 other changes
+towntest ok   countries: raw iron sells for $0.21 where iron is plentiful, $0.39 where it's scarce
+towntest ok   countries: a 15% tax raises bread to $0.35
+towntest ok   countries: no mineral sells for what it costs anywhere (best sell under the cheapest buy and the least cash-in)
+towntest ok   countries: walking from Zoronia into Branarheim: "Entering Branarheim"
+towntest ok   countries: the minimap names the country you're in
+towntest ok   countries: a crime costs 6, a town turning and two dead lawmen make you Branarheim's enemy (-66): its towns are wary
+towntest ok   countries: ten trades raise your standing by 2
+towntest ok   countries: Margard's capital is Vantage (1394, 1058), 464.0 blocks from its seat
+towntest ok   countries: the treaty needs standing 25 ("Needs standing 25 with Margard (now 10)."), then "Signed. Margard is your ally."
+towntest ok   countries: an ally's bread costs $0.30 ($0.33 otherwise)
+towntest ok   countries: customs: an ally charges no duty, a neighbour $0.48 on ten raw iron
+towntest ok   countries: taking Vantage annexes Margard: its other towns are yours and untaxed
+towntest ok   countries: Zoronia and Branarheim have no post spot (water or a town on the line)
+towntest ok   countries: over 60 days around you, 16 wars declared and 17 peaces made
+towntest ok   countries: a war's front moves into Zoronia (215 blocks) and the frontier town goes to Branarheim
+towntest ok   warfront: over 90 days the front ranges 725 blocks (within 655 of the border: yes), the town by it changes hands 0 times, 0 of them straight back
+towntest ok   warfront: the same 20 days end 655 blocks into Zoronia's favour with the player on its side, 655 into Branarheim's with the player on the other
+towntest ok   warfront: the same days replay the same front (-333), and the front and the player's part survive a save
+towntest ok   warfront: the world map draws the front (81 marks); the war table reports it ('Branarheim against Zoronia
+Day 1 of the war.
+
+Zoronia holds ')
+towntest ok   countries: standing, towns and wars survive a save
+towntest ok   countries: the world map draws borders and names (198 lines)
+towntest ok   upgrades: 48 upgrades, each with a part and materials, names unique
+towntest ok   upgrades: 134 items have an upgrade tree
+towntest ok   upgrades: the iron sword's tree: Honed Edge, Silvered Edge, Serrated Edge, Weighted Pommel, Heated Edge, Skinner's Grip, Broad Blade, Reinforced Head, Field Kit, Barbed Edge
+towntest ok   upgrades: the enchanting table is the Upgrade Bench, enchanted books are Upgrade Kits
+towntest ok   upgrades: Honed Edge I on an iron sword costs 1 Iron Ingot, 1 Flint, 1 Tech Salvage; III costs 3 Iron Ingot, 3 Flint, 2 Tech Salvage (no levels: 0)
+towntest ok   upgrades: an advanced part (Field Kit) costs more salvage (1 Iron Ingot, 4 Tech Salvage)
+towntest FAIL upgrades: "Needs the Honed Edge blueprint." then "Needs the Honed Edge blueprint." (5 -> 5 salvage, 20 -> 19 iron and flint)
+towntest ok   upgrades: one edge treatment at a time: "Needs the Silvered Edge blueprint."
+towntest ok   upgrades: creative fits free, up to the maximum (Honed Edge V)
+towntest FAIL upgrades: the bench lists the worn chestplate's 7 parts and fits Padded Lining (Needs the Padded Lining blueprint.)
+towntest ok   upgrades: an old enchanted sword loads as Honed Edge III, Skinner's Grip II, the curse gone
+towntest ok   upgrades: loot never rolls a curse (300 treasure rolls)
+towntest ok   upgrades: every gun model gains its scope, magazine and parts (largest 1620 vertices; the arm buffer holds 2048 with the arm)
+towntest ok   upgrades: an upgraded sword shows an edge line, a grip wrap and a head band (36 vertices) and three icon pips
+towntest ok   defence: an armed townsperson fights a zombie (first blow after 0.0 s, zombie 0/20)
+towntest ok   defence: an elder doesn't fight, keeps away (8.1 blocks)
+towntest ok   defence: hurting a townsperson angers the deputy (30 s) and the child runs (8 s)
+towntest ok   defence: hitting a townsperson who is already fighting you costs no more standing (-12 -> -12)
+towntest ok   defence: the angry deputy hits the player (health 12)
+towntest ok   defence: a pointed gun puts their hands up
+towntest ok   defence P31: a hostage with a monster beside them raises their hands and holds no grudge (0 -> 0)
+towntest FAIL towns: 3 towns hold 3/8 kinds of shop (general 3, saloon 1, tailor 1), 1 deputies
+towntest ok   towns: every shop has its sign (5 signs, 5 shops)
+towntest ok   towns P24: every shop keeps a filled till chest behind the counter (5 tills)
+towntest FAIL towns: every townsperson and keeper spawns on a floor with head room: villager at -318 136 -1061, villager at -306 136 -1053, villager at 866 159 -2066
+towntest ok   town gap: a town on ground saved before the gap pass keeps the crossroads plan (8 towns, plans [0])
+towntest ok   town gap: every biome style lays out all three street plans (plains crossroads 10/main street 14/grid 13; desert crossroads 10/main street 14/grid 13; savanna crossroads 10/main street 14/grid 13; taiga crossroads 10/main street 14/grid 13; snowy crossroads 10/main street 14/grid 13 lots at most)
+town gap: Rook Mill: 35 pieces, size village, box x -72...53 z -33...22, info deputies=1 jailAX=1398 jailAZ=90 jailD=10 jailF=0 jailP354=1 jailR20=0 jailW=13 jailY=234 lots=11 office=1 shops=3 size=1; signs EXCHANGE Emeralds for dollars $1.00 each @6,9; JAIL Sheriff's Office @30,-5; WANTED Dead or Alive Reward $50 @35,-3; Tailor @-37,-7; JAIL @30,-5; Saloon @-37,-5; BANK Savings and Exchange @6,13; General Store @16,-7; EXCHANGE Emeralds for dollars $1.00 each @19,-7; TICKETS Ash & Rook Railw... Fares and times @2,29; NOTICE No guns drawn in town - The Law @35,-5; NOTICE Prisoners fed twice a day - Sheriff @34,-3; Rook Mill Station @-2,29; Welcome to Rook Mill (Village) @-63,-8; WANTED Slim Pike Horse thief $25 @35,-3
+town gap: Copper Flats: 37 pieces, size largeTown, box x -79...70 z -20...7, info deputies=3 jailAX=-254 jailAZ=2422 jailD=10 jailF=1 jailP354=1 jailR20=0 jailW=13 jailY=190 lots=14 office=1 shops=1 size=3; signs WANTED Slim Pike Horse thief $25 @25,-9; TICKETS Greywall & Copp... Fares and times @2,14; Welcome to Copper Flats (Large Town) @-29,6; NOTICE Prisoners fed twice a day - Sheriff @26,-9; General Store @14,-7; WANTED Dead or Alive Reward $50 @25,-9; BANK Savings and Exchange @61,-7; JAIL Sheriff's Office @30,-7; Copper Flats Station @-2,14; JAIL @30,-7; EXCHANGE Emeralds for dollars $1.00 each @17,-7; NOTICE No guns drawn in town - The Law @25,-7; EXCHANGE Emeralds for dollars $1.00 each @66,-7
+town gap: Willow Ridge: 105 pieces, size largeTown, box x -39...30 z -80...82, info deputies=3 jailAX=-2106 jailAZ=-1486 jailD=10 jailF=3 jailP354=1 jailR20=0 jailW=13 jailY=139 lots=27 office=1 shops=8 size=3; signs Blacksmith @12,38; Old fall. Gas beyond. No naked flames! @-34,35; Welcome to Willow Ridge (Large Town) @-4,-74; EXCHANGE Emeralds for dollars $1.00 each @-7,-74; Doctor @11,8; JAIL Sheriff's Office @-7,-54; NOTICE Prisoners fed twice a day - Sheriff @-9,-50; Saloon @-5,-29; BANK Savings and Exchange @-7,-70; Gunsmith @12,66; WANTED Slim Pike Horse thief $25 @-9,-49; EXCHANGE Emeralds for dollars $1.00 each @-5,18; Butcher @11,48; Tailor @-24,58; WANTED Dead or Alive Reward $50 @-9,-49; NOTICE No guns drawn in town - The Law @-7,-49; Stable @12,36; Willow Ridge Mine Shaft No. 1 Two levels Mind the gas @-32,26; General Store @-5,15; Welcome to Willow Ridge (Large Town) @-4,72; JAIL @-7,-54
+towntest FAIL town gap: every town has a bank (banker and BANK sign) and a "Welcome to" sign with the name the map uses (Rook Mill (village): bank 1, bank signs 1, signs 0 (Rook Mill (Village)), 125 wide, 35 pieces; Copper Flats (largeTown): bank 1, bank signs 1, signs 0 (Rook Mill (Village)/Copper Flats (Large Town)), 149 wide, 37 pieces; Willow Ridge (largeTown): bank 1, bank signs 1, signs 0 (Willow Ridge (Large Town)/Willow Ridge (Large Town)), 69 wide, 105 pieces)
+towntest ok   town gap: welcome signs carry a name (Rook Mill (Village), Copper Flats (Large Town), Willow Ridge (Large Town), Willow Ridge (Large Town))
+towntest ok   town gap: street lamps line the frontier streets (94 in 3 towns)
+towntest ok   town gap: the banker works the counter in shop hours, unarmed
+towntest ok   town gap: talking to the banker opens the bank
+towntest ok   town gap: the bank sells emeralds at $1.20 (2 for $2.40)
+towntest ok   town gap: and buys them at $1.00
+towntest ok   town gap: the bank buys an emerald back for less than the cheapest store sells one ($1.00 < $1.20)
+towntest ok   town gap: deposit all puts $8.60 in the bank
+towntest ok   town gap: withdraw $1
+towntest ok   town gap: the bank fits its panel
+towntest ok   town gap: savings earn 1% a day ($2.01 in 2 days on $100), at most $2.00 a day and a week's worth ($14.00)
+towntest ok   town gap: the bank is shut at night
+towntest ok   town gap: the gunsmith's counter has an Upgrade button
+towntest ok   town gap: the upgrades list each gun upgrade's next level (Rework to Fine, Extended Magazine I, Speed Loader I, Stabilising Scope I, Piercing Rounds I, Incendiary Rounds I)
+towntest ok   town gap: buying one fits it ($4.00) and offers the next level (Extended Magazine I fitted for $4.00.)
+towntest ok   town gap: an upgrade you can't afford isn't fitted
+towntest ok   town gap: a fully upgraded gun has nothing left to buy
+towntest ok   town gap: the upgrades fit their panel
+towntest ok   town gap: raiders ride on a town at night (1 waves), not by day, not while you're wanted there
+towntest ok   town gap: a night raid saves as one
+towntest ok   town gap: no second raid on the town within 7 days
+towntest ok   town gap: and another after
+towntest ok   town gap: no purse for a player who didn't fight
+towntest ok   town gap: a won defence pays the town purse and 5 honour
+towntest ok   town gap: a night raid's victory gives no Friend of the Town discount
+towntest ok   town gap: an armed townsperson fights a raider (pitchfork, raider 0/24)
+towntest ok   town gap: a discovered town is marked as Silver Rock and the big map names it
+towntest ok   capitals: 3 city plans hold all 8 shops on 4 market lots, flats and offices (4 markets 9 flats 12 offices; 4 markets 4 flats 3 offices; 4 markets 2 flats 6 offices)
+towntest ok   capitals: the city holds one Ember Charge (1), in the officer's strongbox by the fountain
+towntest ok   capitals: the city holds one keeper of each of the 8 shops (8 kinds) and 8 shop signs
+towntest ok   capitals: "Ostrava Hill", 6 bells, 27 citizens (27 with a desk), 139 beds
+capitals: a tower of 5 storeys, its stair shaft's newel at -790 139 -974
+towntest ok   capitals P499: the city keeps 68 soldiers on watch (0 without a floor and head room)
+towntest ok   capitals P499: a new tower's upper floors are furnished (offices 80 things, was 18; flats 46, was 0); the stair core unchanged (true)
+towntest ok   capitals: every keeper, citizen and desk has a floor and head room
+towntest ok   capitals: lunch guests stay out from behind the bar (0 of 1215 samples beside the barkeep)
+towntest ok   capitals: keepers stay off their counters in shop hours (0 of 1485 samples up on something)
+towntest ok   capitals: 27/27 citizens reach their office desks in work hours
+towntest ok   capitals: 34/34 citizens and keepers asleep in bed at night (0 without a bed)
+capitals: city day sim 7.6 s for 35 people
+towntests: 46.1 s
+snap.sh: line 69: failed (exit 1): "$BIN" --snapshot snaps/towntests.png --seed 12345 --find plains --yaw 0 --pitch -20 --time 0.3 --up 3 --rd 6 --towntests
+collisiontest: 282 shapes; walk_through 16
+snap.sh: line 70: failed (exit 2): "$BIN" --collisiontest --out snaps/collisiontest.md --strict
+agent village: unmet door -284 70 -990, inside -285 -990, bot -275 75 -926
+  through the door (left: outside, right: inside)
+   +8 ....#.s.s
+   +7 ....#s...
+   +6 ....#....
+   +5 ....#....
+   +4 ..._#....
+   +3 ....#....
+   +2 ...,#....
+   +1 ....D....
+   +0 ....D..#.
+   -1 ooo######
+   -2 #########
+   -3 #########
+  along the wall
+   +8 #########
+   +7 #########
+   +6 #########
+   +5 #########
+   +4 #########
+   +3 #########
+   +2 #########
+   +1 ##o#D#o##
+   +0 ####D####
+   -1 #########
+   -2 #########
+   -3 #########
+  paths planned (nodes, 0 = none): 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  trace (1/s): -272,73,-917 -273,73,-921 -273,73,-925 -274,73,-926 -274,74,-926 -275,73,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926 -275,75,-926
+agent village seed 12345/1: 1 violations, 1 unmet goals of 7; goal_failed 1
+agent village: unmet door 261 79 -1760, inside 261 -1761, bot 285 82 -1828
+  through the door (left: outside, right: inside)
+   +8 .......#.
+   +7 ......s.s
+   +6 .....s...
+   +5 ....s....
+   +4 ...s.....
+   +3 ....#....
+   +2 ....#..#.
+   +1 ....D....
+   +0 ___.D....
+   -1 ooo######
+   -2 #########
+   -3 #########
+  along the wall
+   +8 .........
+   +7 .........
+   +6 .........
+   +5 sssssssss
+   +4 #.......#
+   +3 #########
+   +2 #########
+   +1 ##o#D#o##
+   +0 ####D####
+   -1 #########
+   -2 #########
+   -3 #########
+  paths planned (nodes, 0 = none): 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  trace (1/s): 293,82,-1849 292,82,-1849 291,81,-1845 289,81,-1841 288,81,-1837 287,81,-1833 285,81,-1829 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828 285,82,-1828
+agent village seed 777/1: 1 violations, 1 unmet goals of 5; goal_failed 1
+agent village seed 424242/1: 0 violations, 0 unmet goals of 3; 
+agent village: 2 oracle violations, 2 unmet goals over 3 seeds x 1 runs in 13 s
+snap.sh: line 71: failed (exit 3): "$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps --strict
+agent explorer seed 12345/1: 0 violations, 0 unmet goals of 2; tick_spikes 1
+agent explorer seed 777/1: 1 violations, 0 unmet goals of 2; inside_solid 1
+agent explorer: 1 oracle violations, 0 unmet goals over 2 seeds x 1 runs in 6 s
+agent life seed 12345/1: 0 violations, 0 unmet goals of 3; tick_spikes 1
+agent life seed 777/1: 0 violations, 2 unmet goals of 3; 
+agent life: 0 oracle violations, 2 unmet goals over 2 seeds x 1 runs in 9 s
+snap.sh: line 73: failed (exit 3): "$BIN" --agent life --seeds 12345,777 --ticks 6600 --out snaps --strict
+agent cave seed 12345/1: 0 violations, 2 unmet goals of 2; tick_spikes 2
+agent cave seed 777/1: 2 violations, 2 unmet goals of 2; inside_solid 2
+world: view lowered, 16 MB of mesh slabs given back
+agent cave seed 424242/1: 0 violations, 2 unmet goals of 2; 
+agent cave: 2 oracle violations, 6 unmet goals over 3 seeds x 1 runs in 16 s
+agent monkey seed 12345/1: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 12345/2: 3 violations, 0 unmet goals of 0; inside_solid 7
+agent monkey seed 12345/3: 3 violations, 0 unmet goals of 0; inside_solid 15
+agent monkey seed 424242/1: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 424242/2: 1 violations, 0 unmet goals of 0; inside_solid 1
+agent monkey seed 424242/3: 3 violations, 0 unmet goals of 0; inside_solid 6
+agent monkey seed 777/1: 3 violations, 0 unmet goals of 0; inside_solid 33
+agent monkey seed 777/2: 3 violations, 0 unmet goals of 0; inside_solid 24
+agent monkey seed 777/3: 3 violations, 0 unmet goals of 0; inside_solid 48
+agent monkey seed 31337/1: 3 violations, 0 unmet goals of 0; inside_solid 41
+agent monkey seed 31337/2: 3 violations, 0 unmet goals of 0; inside_solid 41
+agent monkey seed 31337/3: 3 violations, 0 unmet goals of 0; inside_solid 44
+agent monkey: 28 oracle violations, 0 unmet goals over 4 seeds x 3 runs in 108 s
+replay determinism: DIFFERENT (end-state hash 15063803165941539156 vs end-state hash 14488003158964512204, snaps/replay_cave_12345_1.jsonl)
+imagecheck: 11 frames, no flags
+snap.sh: 6 failing line(s): 46 48 69 70 71 73

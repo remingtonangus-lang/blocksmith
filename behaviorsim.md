@@ -1,0 +1,79 @@
+# Behaviour sim
+
+behaviorsim: goal_missed_bed 2, goal_missed_work 1, in_wall 53, spinning 2, strayed 2, stuck 21; villager goals reached: bed 12/14, meet 14/14, work 16/17 (27 s)
+## seed 12345: village at -274 -962, 201 mobs tracked
+- mobs flagged per class: in_wall 37, spinning 1, strayed 2, stuck 8
+- minecart at -257.3 76.1 -906.5: in_wall 1
+- bat at -307.8 -5.1 -923.8: ok
+- wolf at -269.2 70.0 -1076.8: stuck 119; doing when stuck or spinning: bed/stroll/onpath 51, work/stroll/onpath 32, free/stroll/onpath 28
+- bat at -317.8 15.8 -948.9: ok
+- minecart at -374.0 74.1 -906.5: in_wall 1
+- minecart at -364.6 74.1 -906.5: in_wall 1
+- minecart at -341.8 72.7 -906.5: in_wall 1
+- wolf at -260.5 69.0 -1076.5: stuck 119; doing when stuck or spinning: bed/stroll/onpath/partial 51, work/stroll/onpath/partial 32, free/stroll/onpath/partial 28
+- minecart at -330.2 73.1 -906.5: in_wall 1
+- villager at -289.5 71.6 -955.5: stuck 1; closest to goals: bed 1.6, meet 0.9; gave up 4x (-296 71 -954 air; -292 71 -949 air; -281 71 -948 air); doing when stuck or spinning: work/stroll/nopath/gaveup 1
+- minecart at -330.3 73.1 -906.5: in_wall 1
+- minecart at -273.0 76.1 -906.5: in_wall 1
+- minecart at -374.3 74.1 -906.5: in_wall 1
+- sheep at -175.9 85.0 -990.5: stuck 62; doing when stuck or spinning: bed/stroll/onpath 51, free/stroll/onpath 11
+- minecart at -330.0 73.1 -906.5: in_wall 1
+- minecart at -384.2 73.1 -906.5: in_wall 1
+- villager at -296.7 73.0 -930.7: stuck 1; closest to goals: bed 1.6; gave up 6x (-296 71 -954 air; -293 71 -949 air; -296 71 -954 air); doing when stuck or spinning: work/stroll/onpath/gaveup 1
+- minecart at -342.0 72.8 -906.5: in_wall 1
+- minecart at -268.6 76.1 -906.5: in_wall 1
+- cat at -263.3 77.1 -905.6: in_wall 1; gave up 1x (-268 73 -921 air)
+- minecart at -342.1 72.9 -906.5: in_wall 1
+- villager at -297.4 71.0 -1013.5: strayed 1; closest to goals: bed 1.6
+- minecart at -384.2 73.1 -906.5: in_wall 1
+- minecart at -289.5 75.1 -906.5: in_wall 1
+- sheep at -175.9 83.0 -1013.5: stuck 74; gave up 2x (-207 78 -997 air; -209 78 -1000 snow); doing when stuck or spinning: bed/stroll/onpath 51, free/stroll/onpath 15, meet/stroll/onpath 8
+- minecart at -353.3 73.1 -906.5: in_wall 1
+- minecart at -256.5 78.1 -890.8: in_wall 1
+- minecart at -374.2 74.1 -906.5: in_wall 1
+- villager at -256.3 69.0 -983.6: strayed 1; closest to goals: meet 1.0, work 1.0
+- minecart at -256.5 77.1 -902.1: in_wall 1
+- minecart at -384.3 73.1 -906.5: in_wall 1
+- minecart at -299.5 74.1 -906.5: in_wall 1
+- sheep at -246.4 70.0 -1017.7: spinning 1; gave up 1x (-207 75 -1000 air); doing when stuck or spinning: spin:free/heading/standing 1
+- minecart at -263.4 76.1 -906.5: in_wall 1
+- minecart at -330.2 73.1 -906.5: in_wall 1
+- minecart at -283.0 75.8 -906.5: in_wall 1
+- wolf at -268.5 70.0 -1078.5: stuck 117; doing when stuck or spinning: bed/stroll/nopath 51, work/stroll/nopath 32, free/stroll/nopath 26
+- wolf at -266.5 69.0 -1077.5: stuck 119; doing when stuck or spinning: bed/stroll/nopath 51, work/stroll/nopath 32, free/stroll/nopath 28
+- minecart at -364.7 74.1 -906.5: in_wall 1
+- minecart at -256.5 77.6 -895.5: in_wall 1
+
+## seed 777: village at 286 -1794, 139 mobs tracked
+- mobs flagged per class: goal_missed_bed 2, goal_missed_work 1, in_wall 16, spinning 1, stuck 13
+- bat at 330.6 38.2 -1861.7: ok
+- bat at 296.8 28.7 -1753.3: ok
+- minecart at 263.4 80.0 -1737.5: in_wall 1
+- minecart at 254.8 78.1 -1721.5: in_wall 1
+- minecart at 382.8 84.1 -1737.5: in_wall 1
+- soldier_trooper at 344.9 84.4 -1738.4: in_wall 1
+- rabbit at 266.5 79.0 -1902.6: stuck 110; doing when stuck or spinning: bed/stroll/onpath/partial 51, work/stroll/onpath/partial 32, free/stroll/onpath/partial 19
+- minecart at 370.5 84.1 -1737.5: in_wall 1
+- minecart at 358.7 84.1 -1737.5: in_wall 1
+- minecart at 370.5 84.1 -1737.5: in_wall 1
+- minecart at 257.5 79.1 -1731.6: in_wall 1
+- villager at 270.6 86.0 -1827.2: stuck 1; closest to goals: bed 1.6, meet 0.8; gave up 10x (283 82 -1803 bell; 280 82 -1819 air; 268 86 -1827 blue_bed_head); doing when stuck or spinning: bed/stroll/onpath 1
+- minecart at 345.9 83.1 -1737.5: in_wall 1
+- horse at 333.0 82.0 -1694.5: stuck 83; gave up 3x (332 83 -1711 snow; 332 83 -1699 snow; 333 83 -1696 air); doing when stuck or spinning: bed/stroll/nopath/gaveup 51, free/stroll/nopath/gaveup 16, meet/stroll/nopath/gaveup 8
+- rabbit at 270.5 79.0 -1902.7: stuck 110; doing when stuck or spinning: bed/stroll/onpath/partial 51, work/stroll/onpath/partial 32, free/stroll/onpath/partial 19
+- rabbit at 299.5 83.0 -1902.8: stuck 86; gave up 3x (286 81 -1826 air; 287 82 -1824 air; 295 82 -1850 air); doing when stuck or spinning: bed/stroll/onpath 51, free/stroll/onpath 17, work/stroll/onpath 10
+- horse at 332.8 82.0 -1694.2: stuck 81; gave up 6x (336 83 -1710 snow; 343 83 -1706 snow; 335 83 -1712 snow); doing when stuck or spinning: bed/stroll/onpath 51, free/stroll/onpath 16, meet/stroll/onpath 8
+- minecart at 275.7 80.1 -1737.5: in_wall 1
+- soldier_trooper at 348.9 84.4 -1738.4: in_wall 4, stuck 2; doing when stuck or spinning: bed/target/nopath 2
+- soldier_trooper at 342.9 84.4 -1736.6: in_wall 1
+- minecart at 382.8 84.1 -1737.5: in_wall 1
+- rabbit at 257.0 78.0 -1902.8: stuck 103; doing when stuck or spinning: bed/stroll/onpath 51, work/stroll/onpath 27, free/stroll/onpath 17
+- rabbit at 314.2 82.0 -1902.8: stuck 87; doing when stuck or spinning: bed/stroll/onpath 51, free/stroll/onpath 17, work/stroll/onpath 11
+- soldier_trooper at 346.9 84.4 -1736.6: in_wall 3
+- villager at 262.5 79.0 -1747.7: spinning 14, stuck 1; closest to goals: bed 2.8, work 5.1; gave up 303x (259 79 -1736 snow; 258 79 -1751 air; 271 81 -1745 snow); doing when stuck or spinning: spin:bed/stroll/moving 4, spin:bed/heading/standing 3, spin:bed/stroll/moving/nopath 3
+- rabbit at 273.5 80.0 -1902.8: stuck 93; doing when stuck or spinning: bed/stroll/onpath 51, free/stroll/onpath 17, work/stroll/onpath 17
+- rabbit at 311.5 83.0 -1902.9: stuck 84; doing when stuck or spinning: bed/stroll/onpath/partial 51, free/stroll/onpath/partial 17, work/stroll/onpath/partial 8
+- minecart at 358.7 84.1 -1737.5: in_wall 1
+- minecart at 345.9 83.1 -1737.5: in_wall 1
+- horse at 335.0 83.0 -1694.2: stuck 84; doing when stuck or spinning: bed/stroll/pathend 51, free/stroll/pathend 16, work/stroll/pathend 9
+

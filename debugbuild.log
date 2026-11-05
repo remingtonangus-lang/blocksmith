@@ -1,0 +1,114 @@
+Sources/AshFront.swift:367:13: warning: immutable value 'glass' was never used; consider replacing with '_' or removing it
+365 |         func X(_ u: Int, _ v: Int) -> Int { s.x + u * (-fz) + v * fx }
+366 |         func Z(_ u: Int, _ v: Int) -> Int { s.z + u * fx + v * fz }
+367 |         let glass = Blocks.id("glass"), bars = Blocks.id("iron_bars"), coal = Blocks.id("coal_block")
+    |             `- warning: immutable value 'glass' was never used; consider replacing with '_' or removing it
+368 |         let fence = Blocks.has("dark_oak_fence") ? Blocks.id("dark_oak_fence") : bars
+369 |         let cobble = Blocks.id("cobblestone"), mossy = Blocks.id("mossy_cobblestone")
+
+Sources/BigStructures.swift:301:113: warning: capture 'gen' was never used
+299 | 
+300 |     static func trialChambers(_ gen: WorldGen) -> StructureType {
+301 |         StructureType(name: "trial_chambers", spacing: 36, separation: 18, salt: 94251327, reach: 3) { [unowned gen] seed, cx, cz in
+    |                                                                                                                 `- warning: capture 'gen' was never used
+302 |             let x = cx * CS + 8, z = cz * CS + 8
+303 |             var rng = SRng(seed)
+
+Sources/EncounterCheck.swift:158:63: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+156 |             ShipManager.onRemove = { r in
+157 |                 guard parts.contains(r.id) else { return }
+158 |                 print("encounters: \(s.name): ship \(r.id) (\(r.role), parent \(r.parentId.map(String.init) ?? "none")) removed at frame \(frame)")
+    |                                                               | |- note: use 'String(describing:)' to silence this warning
+    |                                                               | `- note: provide a default value to avoid this warning
+    |                                                               `- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+159 |                 for l in Thread.callStackSymbols.prefix(8) { print("encounters:    " + l) }
+160 |             }
+
+Sources/Greywall.swift:289:100: warning: immutable value 'barrel' was never used; consider replacing with '_' or removing it
+287 |         let lamp = g("corner_lamp", panel), cab = g("data_cabinet", console), door = g("bulkhead_door", g("iron_door"))
+288 |         let alarm = g("alarm_lamp", lamp), alarmPanel = g("alarm_panel", console), mapTable = g("greywall_map_table", console)
+289 |         let yardB = g("coarse_dirt", DIRT), path = GRAVEL, wool = g("gray_wool", g("white_wool")), barrel = g("barrel", crate)
+    |                                                                                                    `- warning: immutable value 'barrel' was never used; consider replacing with '_' or removing it
+290 |         let ladder = g("ladder"), stairsW = g("bunker_concrete_stairs[west]", con)
+291 |         let slab = g("bunker_concrete_slab", con), steelSlabTop = g("steel_plating_slab[top]", steel)
+
+Sources/GreywallAlarm.swift:183:30: warning: variable 'next' was never mutated; consider changing to 'let' constant
+181 |         guard !st.scanning.isEmpty else { return }
+182 |         for key in Array(st.scanning.keys) {
+183 |             guard var (part, next) = st.scanning[key] else { continue }
+    |                              `- warning: variable 'next' was never mutated; consider changing to 'let' constant
+184 |             guard let done = Greywall.scanColumn(world, &part, next) else { continue }       // (that column not in yet)
+185 |             if done { st.scanning[key] = nil; st.scanned[key] = part } else { st.scanning[key] = (part, next + 1) }
+
+Sources/Journal.swift:162:13: warning: variable 'note' was never mutated; consider changing to 'let' constant
+160 |         // time, where to find it too. A message shown a moment ago (the orders' bearing) keeps its place: the note goes
+161 |         // after it.
+162 |         var note = Journal.tag + title
+    |             `- warning: variable 'note' was never mutated; consider changing to 'let' constant
+163 |         // P296 / NO TEXT (Oct 15): no "where to reread it" hint any more; the journal sits in the inventory beside the
+164 |         // armour, with a badge when something is new.
+
+Sources/Renderer.swift:919:17: warning: variable 'verts' was never mutated; consider changing to 'let' constant
+ 917 |         // Sky bodies (camera-relative, no depth): stars, then the textured sun and moon.
+ 918 |         do {
+ 919 |             var verts: [SimpleVert] = []
+     |                 `- warning: variable 'verts' was never mutated; consider changing to 'let' constant
+ 920 |             let sd = game.sunDir
+ 921 |             let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+
+Sources/Structures.swift:966:17: warning: initialization of immutable value 'k' was never used; consider replacing with assignment to '_' or removing it
+ 964 |         var need: [String] = []
+ 965 |         for i in 0..<c.count where !c[i].isEmpty {
+ 966 |             let k = Items.key(c[i].item)
+     |                 `- warning: initialization of immutable value 'k' was never used; consider replacing with assignment to '_' or removing it
+ 967 |             if let gi = Guns.index(c[i].item) { need.append(Guns.all[gi].ammo) }
+ 968 |         }
+
+Sources/VehicleGunners.swift:110:61: warning: result of call to 'place' is unused
+108 |         // (each one put back on their spot now the hulls have moved this tick: placed before the ship's step, a crewman at
+109 |         // a frigate's station trailed it by a tick's travel, 0.4 blocks at its cruise)
+110 |         for st in keep { if let m = st.mob { VehicleGunners.place(m) } }
+    |                                                             `- warning: result of call to 'place' is unused
+111 |         guard let v = driving else { return }
+112 |         var free = ships.turrets(of: v).filter { !$0.cannons.isEmpty && !VehicleGunners.manned($0) }
+
+Sources/VehicleGunners.swift:126:32: warning: result of call to 'place' is unused
+124 |                 VehicleGunners.seats.append(VehicleGunners.Seat(mob: m, turret: nil, vehicle: v, local: spot, rider: true))
+125 |                 VehicleGunners.riders += 1
+126 |                 VehicleGunners.place(m)
+    |                                `- warning: result of call to 'place' is unused
+127 |                 sfx(.step(.metal), 0.8, at: m.pos)
+128 |             }
+
+Sources/VehicleGunners.swift:140:32: warning: result of call to 'place' is unused
+138 |                                                                 station: true, face: V3(Float(k.x - c.x), 0, Float(k.z - c.z))))
+139 |                 VehicleGunners.stations += 1
+140 |                 VehicleGunners.place(m)
+    |                                `- warning: result of call to 'place' is unused
+141 |                 sfx(.step(.metal), 0.8, at: m.pos)
+142 |                 return
+
+Sources/VehicleGunners.swift:145:28: warning: result of call to 'place' is unused
+143 |             }
+144 |             VehicleGunners.seats.append(VehicleGunners.Seat(mob: m, turret: t, vehicle: v, local: VehicleGunners.stand(t, on: v, world: world)))
+145 |             VehicleGunners.place(m)
+    |                            `- warning: result of call to 'place' is unused
+146 |             sfx(.step(.metal), 0.8, at: m.pos)
+147 |         }
+
+Sources/WalkerModel.swift:50:9: warning: initialization of immutable value 'twitch' was never used; consider replacing with assignment to '_' or removing it
+ 48 |     // Arms: from the bent shoulders, too long, one reaching higher than the other; claw-like fingers.
+ 49 |     let reach: Float = 1.45 + (m.aggro ? 0.1 : 0)
+ 50 |     let twitch = sinf(m.walkPhase * 1.7) * 0.12
+    |         `- warning: initialization of immutable value 'twitch' was never used; consider replacing with assignment to '_' or removing it
+ 51 |     for side: Float in [-1, 1] {
+ 52 |         let sh = bent(side * 4.4, 10.5, 0)
+
+Sources/Structures.swift:649:69: warning: 'missing' mutated after capture by sendable closure
+ 647 |                     lock.lock()
+ 648 |                     let made = cache.index(forKey: k) != nil, busy = planning.contains(k)
+ 649 |                     if !made && !busy { planning.insert(k); missing.append(k) }
+     |                                                                     `- warning: 'missing' mutated after capture by sendable closure
+ 650 |                     lock.unlock()
+ 651 |                     if made, let s = start(t, regionX: rx, regionZ: rz), s.contains(x, y, z) { return s }
+Built build/debug/Blocksmith.app (debug)
