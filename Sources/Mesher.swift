@@ -1986,6 +1986,7 @@ enum Mesher {
         }
         // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks) and rounded organic objects
         // (ShapeOrganic), into the detail stream.
+        var trunkFrom = 0, trunkTo = 0, trunkCtx: DetailContext? = nil      // (the trunks' solid quads in det, for their far copy)
         if detailDraw {
             var ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
                                     lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
@@ -1999,7 +2000,9 @@ enum Mesher {
             var d0 = det.count + detCut.count
             func tally(_ k: Int) { let d = det.count + detCut.count; kv[k] &+= Int32((d - d0) / DetailMesh.wordsPerVertex); d0 = d }
             kv[MeshKind.struck] &+= Int32(d0 / DetailMesh.wordsPerVertex)
+            trunkFrom = det.count; trunkCtx = ctx
             ShapeTrunks.emit(ctx); tally(MeshKind.trunk)
+            trunkTo = det.count
             ShapeOrganic.emit(ctx); tally(MeshKind.organic)
             ShapeSpikes.emit(ctx); ShapeSpikes.emitCrystals(ctx); tally(MeshKind.spike)
             ShapeRails.emit(ctx); tally(MeshKind.rail)
@@ -2227,8 +2230,22 @@ enum Mesher {
         if farCopies && AdaptiveGround.enabled && det.count >= 8 * DetailMesh.wordsPerQuad {
             let df = sc.detFar
             df.count = 0
-            for k in 0..<det.count { df.append(det.ptr[k]) }
-            AdaptiveGround.simplifyDetail(df, from: 0, tol: AdaptiveGround.farTolerance)
+            // Ledger 25 (week item: the jungle's frame rate; P453, "Yeah, sure. Let's try to simplify them somehow"): the
+            // far copy draws from SceneRenderer.trunkFarFrom (64 blocks), so the trunks in it are grown again with the
+            // mid sides (6 round a trunk, 5 round a limb, no joint knobs or tips: a sixth of a pixel off at 64 blocks)
+            // and the rest of the detail stream is copied as it is. Trunks were the biggest share of a jungle's quads
+            // (173k of 425k at his Oct 22 spot), all of them at 9 sides however far off.
+            if trunkFar, let tc = trunkCtx, trunkTo > trunkFrom {
+                for k in 0..<trunkFrom { df.append(det.ptr[k]) }
+                for k in trunkTo..<det.count { df.append(det.ptr[k]) }
+                sc.detFarCut.count = 0
+                let far = DetailContext(out: df, cutOut: sc.detFarCut, R: tc.R, sky: tc.sky, blk: tc.blk, wx0: tc.wx0, wy0: tc.wy0, wz0: tc.wz0,
+                                        lod: 2, sc: tc.sc, srcs: tc.srcs, sy: tc.sy, field: tc.field, skipCells: tc.skipCells)
+                ShapeTrunks.emit(far)
+            } else {
+                for k in 0..<det.count { df.append(det.ptr[k]) }
+                AdaptiveGround.simplifyDetail(df, from: 0, tol: AdaptiveGround.farTolerance)
+            }
             if df.count * 10 <= det.count * 9 {
                 detailFar = Array(UnsafeBufferPointer(start: df.ptr, count: df.count)); detailFarSkip = det.count / DetailMesh.wordsPerQuad
             }
@@ -2277,6 +2294,8 @@ enum Mesher {
     static var farLeaves = ProcessInfo.processInfo.environment["BS_FARLEAF"] != "0"
     // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround); BS_FARGROUND=0 meshes it in full.
     static var farGround = ProcessInfo.processInfo.environment["BS_FARGROUND"] != "0"
+    // Ledger 25: the detail stream's far copy holds the trunks at the mid sides (BS_TRUNKFAR=0: the old simplified copy).
+    static var trunkFar = ProcessInfo.processInfo.environment["BS_TRUNKFAR"] != "0"
     // P384: far copies of more than the ground (bevelled built blocks drawn plain, one simplified shell per leaf blob,
     // the detail stream), drawn by the renderer's far switch past GroundMerge.farDistance. BS_FARCOPY=0: ground only.
     // (Quest only: the Mac's renderer has no far switch.)
@@ -2407,6 +2426,7 @@ final class MeshScratch {
     let blobCut = GrowBuf<UInt32>(1 << 10), blobFar = GrowBuf<UInt32>(1 << 10), blobExact = GrowBuf<Float>(1 << 10)
     let farMask = UnsafeMutablePointer<Int32>.allocate(capacity: 6 * 16 * 256)
     let detFar = GrowBuf<UInt32>(1 << 12)       // P384: the detail stream's far copy
+    let detFarCut = GrowBuf<UInt32>(1 << 8)     // (ledger 25: cutout quads of the far trunks, dropped)
     let drapeNear = GrowBuf<UInt32>(1 << 10), drapeFar = GrowBuf<UInt32>(1 << 10)   // P384: things laid on the ground, near and far
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 

@@ -1489,10 +1489,21 @@ final class SceneRenderer {
         guard SceneRenderer.drawMerged else { return false }
         return simd_length_squared(q - recEye) >= f * f
     }
+    @inline(__always) private func detailFar(_ c: Chunk, _ sy: Int) -> Bool {
+        let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
+        let q = simd_clamp(recEye, mn, mn + V3(16, 16, 16))
+        let f = min(GroundMerge.farDistance, SceneRenderer.trunkFarFrom)
+        guard SceneRenderer.drawMerged else { return false }
+        return simd_length_squared(q - recEye) >= f * f
+    }
     private(set) var mergedSections = 0
     // P453: how far out the trees switch to their far shell (blocks; the ground's switch, GroundMerge.farDistance,
     // when it is that or more). BS_BLOBFAR=N sets it (BS_BLOBFAR=999: as before).
     static var blobFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBFAR"] ?? "") ?? 64
+    // Ledger 25: how far out the detail stream (trunks, limbs, round shapes) switches to its far copy, the trunks at the
+    // mid sides (Mesher.trunkFar); the ground's switch when that is nearer. BS_TRUNKFAR=0 meshes the old copy, drawn past
+    // the ground's switch as before.
+    static var trunkFarFrom: Float = Mesher.trunkFar ? 64 : 1e9
     static var drawMerged = true                  // (questcheck --view --pixelpair: the full grid everywhere for the left shot)
     func writeRecords(_ s: Slot, eye: V3) {
         recEye = eye
@@ -1583,7 +1594,7 @@ final class SceneRenderer {
                 let fSkip = detail ? sec.detailFarSkip : sec.farSkip, fExtra = detail ? sec.detailFarExtra : sec.farExtra
                 var cutFrom = solid
                 let cutSwitch = !detail && (sec.farCut > 0 || tail > 0)
-                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && (detail ? detailFar(c, sy) : mergedFar(c, sy)) {
                     mergedSections += 1
                     if solid > fSkip {
                         batchCount[k] += 1
@@ -1675,7 +1686,7 @@ final class SceneRenderer {
                 var first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
                 let fSkip = detail ? sec.detailFarSkip : sec.farSkip, fExtra = detail ? sec.detailFarExtra : sec.farExtra
                 let cutSwitch = !detail && (sec.farCut > 0 || tail > 0)
-                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && (detail ? detailFar(c, sy) : mergedFar(c, sy)) {
                     if pass & 1 == 0 {
                         mergedSections += 1                // P375, P384: the far copies in place of what they stand for
                         if fExtra > 0 { drawSection(s, i, buf, tb, first: quads, count: fExtra, stride: detail ? 16 : 8) }
@@ -2468,7 +2479,7 @@ extension SceneRenderer {
         anyDetail = anyDet
         let mq = Int32(SceneRenderer.maxQuads)
         let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
-        let bf = min(mf, SceneRenderer.blobFarFrom)
+        let bf = min(mf, SceneRenderer.blobFarFrom), tf = min(mf, SceneRenderer.trunkFarFrom)
         for half in 0..<2 {
             let detail = half == 1
             if detail && !anyDet { break }
@@ -2500,7 +2511,7 @@ extension SceneRenderer {
                     let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
                     let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
                     let d2 = simd_length_squared(qn - re)
-                    far = d2 >= mf * mf
+                    far = d2 >= (detail ? tf * tf : mf * mf)
                     band = !far && !detail && e.bN > 0 && d2 >= bf * bf
                 }
                 if far {
