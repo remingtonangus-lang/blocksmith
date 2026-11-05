@@ -653,6 +653,10 @@ enum ShipTest {
         let cx = Int(vc.x), cz = Int(vc.z)
         levelPad(w, cx, cz, half: 40)
         let cg = w.ships.spawnVessel("carriage", home: IVec3(cx, groundTop(w, cx, cz) + 1, cz), game: g)
+        // (Nov 5: the player watches from beside it. He was left at the frigate's helm 230 blocks off, and since P376 a
+        // vehicle past the active distance sleeps: the carriage never settled or rolled.)
+        g.player.flying = true
+        g.player.pos = V3(vc.x, Float(groundTop(w, cx, cz) + 30), vc.z + 40); g.player.vel = .zero
         run(g, seconds: 3)
         let c0 = cg.pos
         for _ in 0..<6 { w.ships.crewTick(1, game: g); run(g, seconds: 1) }
