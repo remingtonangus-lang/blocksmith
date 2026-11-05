@@ -74,6 +74,7 @@ enum MiningTowns {
                     occupied: inout Set<IVec2Key>, pieces: inout [Piece], seed: UInt64, town: String) -> Mine? {
         guard lots >= minLots else { return nil }
         if let sc = gen.structures, !sc.clear(cx: floorDiv(ox, CS), cz: floorDiv(oz, CS), reach: 7, guardSet: sc.legacyC12) { return nil }
+        let p0 = pieces.count
         var site: (Int, Int, Int, Int, Int)? = nil
         search: for main in [true, false] {
             for e in ends where e.5 == main {
@@ -226,8 +227,24 @@ enum MiningTowns {
                 w.entities.append((sp, be))
             }
         })
+        // Ledger 27 (Nov 5, the world audit: a town's shaft sank 100 blocks into trial chambers): no shaft or drift cuts
+        // into trial chambers or an ancient city; the town goes without its mine instead (on ground no save has seen;
+        // BS_MINEKEEPOFF=0: as before).
+        if keepOff, let sc = gen.structures, sc.clear(cx: floorDiv(sx, CS), cz: floorDiv(sz, CS), reach: 4) {
+            @inline(__always) func hit(_ a: Piece, _ b: Piece) -> Bool {
+                a.min.x <= b.max.x && b.min.x <= a.max.x && a.min.y <= b.max.y && b.min.y <= a.max.y && a.min.z <= b.max.z && b.min.z <= a.max.z
+            }
+            for k in ["trial_chambers", "ancient_city"] {
+                guard let o = sc.nearest(k, x: sx, z: sz, maxRegions: 1) else { continue }
+                if pieces[p0...].contains(where: { p in o.pieces.contains { hit(p, $0) } }) {
+                    pieces.removeSubrange(p0...)
+                    return nil
+                }
+            }
+        }
         return mine
     }
+    static let keepOff = ProcessInfo.processInfo.environment["BS_MINEKEEPOFF"] != "0"
 
     // The expedition stores at the foot of the shaft.
     static let loot: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [

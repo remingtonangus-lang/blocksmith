@@ -2646,6 +2646,20 @@ if CommandLine.arguments.contains("--coppertest") {
     CircuitWorkshopTests.run(game) { ok, what in print("coppertest: \(ok ? "PASS" : "FAIL") \(what)"); if !ok { f += 1 } }
     print("coppertest: \(f) failed"); exit(f == 0 ? 0 : 1)
 }
+// --worldaudit [N] (Nov 5, bug hunt): the Mac's world-gen audit on the field worlds the headset makes: structure
+// overlaps, distance to the nearest village and Capital, a safe spawn, mob density at noon and midnight.
+if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run(device: device, field: true)) }
+// --physicstest / --capitaltest (Nov 5, bug hunt): the Mac's scripted ship checks (Sources/ShipTest.swift: floating,
+// propulsion, steering, hover, climb, driving, riding the deck, save and load, docking; the capital vessels).
+if CommandLine.arguments.contains("--physicstest") || CommandLine.arguments.contains("--capitaltest") {
+    var f = 0
+    // (the Mac runs them at view 8: at this harness's 6 the active distance is 104 blocks, not 136, and the plane, the
+    // runway takeoff and the car outran it and slept mid-check)
+    game.world.renderDistance = 8
+    if CommandLine.arguments.contains("--physicstest") { f += ShipTest.physicsTest(game: game, rd: 8) }
+    if CommandLine.arguments.contains("--capitaltest") { f += ShipTest.capitalTest(game: game, rd: 8) }
+    print("shiptest: \(f) failed"); exit(f == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--questbugs") { let f = QuestBugTests.run(game); print("questbugs: \(f) failed"); exit(f == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--smoothtest") { let f = SmoothTests.run(game); print("smoothtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--swingtest") { let f = VRMeleeTests.run(game); print("swingtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
