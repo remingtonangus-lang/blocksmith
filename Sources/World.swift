@@ -510,7 +510,25 @@ final class World {
             let l = sl[lx + lz * CS + (y & 15) * CSQ]
             return (Int(l >> 4), Int(l & 15))
         }
-        return (y > Int(c.height[lx + lz * CS]) ? 15 : 0, 0)
+        // Ledger 25 (Nov 5): not lit by the mesher yet (ground still streaming in): straight down from the sky through
+        // whatever lets light by (leaves, glass, plants), a level lost a block as the mesher's flood loses it. It was 0
+        // under anything at all, so under a tree's crown a section not yet meshed read pitch dark at noon: monsters came
+        // up there in daylight (the world audit: under oak, spruce and acacia crowns 4 to 11 up) and stayed all day.
+        let h = Int(c.height[lx + lz * CS])
+        if y > h { return (15, 0) }
+        if World.oldUnlit { return (0, 0) }             // (BS_OLDUNLIT=1: as before, for the audit's numbers)
+        let d = h + 1 - y
+        guard d < 15 else { return (0, 0) }
+        let lo = Blocks.lightOpaque
+        for yy in y...h where lo[Int(c.blocks.raw(Chunk.index(lx, yy, lz)))] { return (0, 0) }
+        return (15 - d, 0)
+    }
+
+    static let oldUnlit = ProcessInfo.processInfo.environment["BS_OLDUNLIT"] == "1"
+    // (the world audit: whether the mesher has lit the cell's section yet)
+    func litByMesher(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard y >= 0, y < CH, let c = chunkAt(x, z) else { return false }
+        return c.light[y >> 4] != nil
     }
 
     func topY(_ x: Int, _ z: Int) -> Int {

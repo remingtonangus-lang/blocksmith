@@ -97,7 +97,7 @@ enum WorldAudit {
                     if m.kind.hostile && cave == 0 && frac < 0.5 {
                         let my = Int(floor(m.pos.y)), l = world.lightAt(mx, my, mz), top = world.topY(mx, mz)
                         print("worldaudit: seed \(seed) noon surface \(m.kind) in \(col.biome) at \(mx) \(my - YOFF) \(mz): sky \(l.sky) block \(l.block), "
-                              + "top \(top - my) up (\(Blocks.key(world.block(mx, top, mz)))), ground \(col.height - my) up")
+                              + "top \(top - my) up (\(Blocks.key(world.block(mx, top, mz)))), ground \(col.height - my) up, \(world.litByMesher(mx, my, mz) ? "lit" : "not yet lit")")
                     }
                     byKind["\(label) \(m.kind)", default: 0] += 1
                     byBiome["\(label) \(col.biome) \(m.kind.hostile ? "hostile" : "passive")\(cave == 1 ? " cave" : "")", default: 0] += 1
