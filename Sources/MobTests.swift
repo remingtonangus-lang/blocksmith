@@ -608,7 +608,14 @@ enum MobTests {
                 }
             }
             game.player.pos = p0
-            check(total == 40 && inRock == 0, "skeleton trap horses come up clear of rock", "\(inRock) of \(total) horses in rock")
+            // (before: 1.5 off at the trap's height, as each horse was put until Nov 4, on the same bank)
+            var oldInRock = 0
+            for _ in 0..<40 {
+                let q = V3(Float(bx) + 0.5, Float(by), Float(bz) + 0.5) + V3(Rand.float(in: -1.5...1.5), 0, Rand.float(in: -1.5...1.5))
+                if world.solidAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { oldInRock += 1 }
+            }
+            check(total == 40 && inRock == 0, "skeleton trap horses come up clear of rock",
+                  "\(inRock) of \(total) horses in rock (the old placement: \(oldInRock) of 40)")
             mm.mobs.removeAll()
         }
     }
