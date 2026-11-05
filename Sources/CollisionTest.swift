@@ -96,9 +96,39 @@ enum CollisionTest {
             if through { flag("penetration", "\(key): the walking body overlapped the block") }
             _ = world.setBlockAsync(P.x, P.y, P.z, AIR)
         }
+        // Nov 5 (bug hunt, the capitals night check): a half-block step up under a ceiling with room to stand on the
+        // step but not for the full 0.6 lift (a townsperson, 1.95 tall, stood all night where a street's slab paving met
+        // a full paving block under a birch's leaves 2 blocks over it). Each body walks from a slab onto a full block
+        // under leaves 2 over it, and from the floor onto a slab under a top slab 2 over it.
+        let slabKey = Blocks.has("stone_slab") ? "stone_slab" : "smooth_stone_slab"
+        let slab = Blocks.id(slabKey), slabTop = Blocks.has(slabKey + "[top]") ? Blocks.id(slabKey + "[top]") : slab + 1
+        for (tall, name) in [(Float(1.8), "player"), (Float(1.95), "townsperson")] {
+            for (k, (low, high, roof, roofY)) in [(slab, STONE, LEAVES, 3), (AIR, slab, slabTop, 2)].enumerated() {
+                for z in 2...14 { for x in 2...14 { for y in by...(by + 6) { _ = world.setBlockAsync(x, y, z, AIR) } } }
+                for z in 6...10 {
+                    for x in 3...7 { _ = world.setBlockAsync(x, by, z, low) }
+                    for x in 8...12 { _ = world.setBlockAsync(x, by, z, high); _ = world.setBlockAsync(x, by + roofY, z, roof) }
+                }
+                let startY: Float = Float(by) + (low == AIR ? 0 : 0.5), wantY: Float = Float(by) + (high == slab ? 0.5 : 1)
+                var pos = V3(5.5, startY, 8.5)
+                var vy: Float = 0, onGround = true
+                for _ in 0..<120 {
+                    vy -= 32 / 60
+                    let hit = world.moveBody(&pos, halfW: 0.3, height: tall, V3(3.0 / 60, vy / 60, 0), step: 0.6, onGround: onGround)
+                    if hit.y { if vy < 0 { onGround = true }; vy = 0 } else { onGround = false }
+                }
+                tested += 1
+                let what = k == 0 ? "from a slab onto a full block under leaves 2 over it" : "from the floor onto a slab under a top slab 2 over it"
+                if pos.x < 9 || abs(pos.y - wantY) > 0.01 {
+                    flag("low_ceiling_step", String(format: "%@ (%.2f tall) %@: stopped at x %.2f y %.2f", name, tall, what, pos.x - 8, pos.y - Float(by)))
+                }
+                print(String(format: "collisiontest: %@ (%.2f tall) %@: walked to x %.2f y %.2f", name, tall, what, pos.x - 8, pos.y - Float(by)))
+            }
+        }
+        for z in 2...14 { for x in 2...14 { for y in by...(by + 6) { _ = world.setBlockAsync(x, y, z, AIR) } } }
         let cs = counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         let summary = "collisiontest: \(tested) shapes; \(cs.isEmpty ? "no issues" : cs)"
-        try? (["# Collision test", "", summary, ""] + lines).joined(separator: "\n").write(toFile: arg("--out") ?? "snaps/collisiontest.md", atomically: true, encoding: .utf8)
+        try? (["# Collision test", "", summary, ""] + lines).joined(separator: "\n").write(toFile: CommandLine.arguments.firstIndex(of: "--out").flatMap { $0 + 1 < CommandLine.arguments.count ? CommandLine.arguments[$0 + 1] : nil } ?? "snaps/collisiontest.md", atomically: true, encoding: .utf8)
         print(summary)
         return CommandLine.arguments.contains("--strict") && !counts.isEmpty ? 2 : 0
     }

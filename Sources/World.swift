@@ -525,6 +525,7 @@ final class World {
     }
 
     static let oldUnlit = ProcessInfo.processInfo.environment["BS_OLDUNLIT"] == "1"
+    static let oldStep = ProcessInfo.processInfo.environment["BS_OLDSTEP"] == "1"      // (the full lift only, as before Nov 5)
     // (the world audit: whether the mesher has lit the cell's section yet)
     func litByMesher(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard y >= 0, y < CH, let c = chunkAt(x, z) else { return false }
@@ -1054,8 +1055,19 @@ final class World {
                     if gain > 1e-4 { p = p3; hx = hx2; hz = hz2; hy = true; return true }
                     return false
                 }
-                // Smooth terrain: a one-block step of natural ground is a slope, walked up without a jump.
-                if !tryStep(step) && step < 1 && SmoothTerrain.enabled && naturalStep(box(pos + V3(sd.x, 0, sd.z))) { _ = tryStep(1.01) }
+                if !tryStep(step) {
+                    // Nov 5 (bug hunt, the capitals night check: a townsperson stood all night where the street's slab
+                    // paving meets a full paving block under a birch's leaves 2 blocks over it): the full lift took a
+                    // 1.95-tall body's head into the low ceiling over the step, though it fits standing there. Lifted
+                    // only as high as the step's top (found by dropping a thin box at the full lift over the cell
+                    // ahead), it walks on.
+                    let ahead = pos + V3(sd.x, 0, sd.z)
+                    let lo = V3(ahead.x - halfW, pos.y + step, ahead.z - halfW), hi = V3(ahead.x + halfW, pos.y + step + 0.01, ahead.z + halfW)
+                    let need = step + sweep(lo, hi, axis: 1, -step) + 0.002
+                    if !(!World.oldStep && need > 0.02 && need < step - 0.01 && tryStep(need))
+                        // Smooth terrain: a one-block step of natural ground is a slope, walked up without a jump.
+                        && step < 1 && SmoothTerrain.enabled && naturalStep(box(pos + V3(sd.x, 0, sd.z))) { _ = tryStep(1.01) }
+                }
             }
             pos = p
             bx = bx || hx; by = by || hy; bz = bz || hz
