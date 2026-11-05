@@ -67,12 +67,21 @@ enum QuestBugTests {
             print("questbugs: \(fails) failures")
             return fails
         }
-        DeepTests.run(game, check)
-        FactionTests.run(game, check)
-        MainGunTests.run(game, check)
-        BoardingTests.run(game, check)
-        FindabilityTests.run(game, check)
-        VoiceNoteTests.run(game, check)
+        // (Nov 5, the first run on the headset build: checks after these that drive Game.tick saw nothing happen; what each
+        // group leaves behind that stops a tick is printed)
+        func state(_ after: String) {
+            let p = game.player
+            print(String(format: "questbugs: state after %@: credits %@, menu %@, paused %@, photo %@, health %d, riding %@, dim %@, at %.0f %.0f %.0f",
+                         after, game.credits != nil ? "yes" : "no", game.menu.map { "\(type(of: $0))" } ?? "none", game.paused ? "yes" : "no",
+                         game.cine.active ? "yes" : "no", game.health, game.riding != nil ? "yes" : "no", "\(game.dim.dim)", p.pos.x, p.pos.y, p.pos.z))
+        }
+        state("start")
+        DeepTests.run(game, check); state("deep")
+        FactionTests.run(game, check); state("factions")
+        MainGunTests.run(game, check); state("main gun")
+        BoardingTests.run(game, check); state("boarding")
+        FindabilityTests.run(game, check); state("findability")
+        VoiceNoteTests.run(game, check); state("voice notes")
         // Ore drops with an iron pickaxe, no Fortune (reference: lapis 4-9).
         let pick = ItemStack(Items.id("iron_pickaxe"), 1)
         for (ore, item, lo, hi) in [("lapis_ore", "lapis_lazuli", 4, 9), ("deepslate_lapis_ore", "lapis_lazuli", 4, 9)] {
@@ -200,6 +209,7 @@ enum QuestBugTests {
         check(idle >= 13 && aimParts.contains { abs($0.rotX - 1.45) < 0.01 && $0.color.x > 0.8 && $0.mx.z - $0.mn.z > 13 },
               "skeleton: \(idle) parts, bow string raised while aiming")
         // VR trigger attacks (Game.bufferAttacks): TriggerSpamCheck.swift (also `questcheck --trigger-only`).
+        state("before trigger spam")
         TriggerSpamCheck.run(game, check: check)
         // Round 2 (v63): a bed's head half drops the bed; a saddled horse drops its saddle; the mount screen takes the
         // saddle off; a villager asleep lies on its bed.
