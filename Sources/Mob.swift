@@ -52,7 +52,16 @@ enum MobKind: Int, CaseIterable {
         var aquatic = false       // swims; suffocates on land
     }
 
-    var spec: Spec {
+    // Nov 4 (frame rate, the worst-case soak's profile): every `kind.spec` built its Spec anew, name string and drops
+    // array included, and `hostile` built it six times (1,200 instructions a call, 77,000 calls in 6 s of the mob tick
+    // alone). The specs never change, so they are built once, in case order.
+    private static let specTable: [Spec] = MobKind.allCases.map { $0.builtSpec }
+    private static let hostileTable: [Bool] = MobKind.allCases.map { k in
+        let b = k.builtSpec.behavior
+        return b != .passive && b != .villager && b != .golem && b != .vehicle && b != .snowGolem && b != .animal
+    }
+    var spec: Spec { MobKind.specTable[rawValue] }
+    private var builtSpec: Spec {
         switch self {
         case .cow: return Spec(name: "Cow", halfW: 0.45, height: 1.4, health: 10, speed: 1.0, behavior: .passive,
                                drops: [("beef", 1, 3), ("leather", 1, 3)], xp: 2, call: .mobCow)
@@ -158,7 +167,7 @@ enum MobKind: Int, CaseIterable {
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
-    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle && spec.behavior != .snowGolem && spec.behavior != .animal }
+    var hostile: Bool { MobKind.hostileTable[rawValue] }
     // Farm animals and other peaceful creatures: nobody but the player shoots them (P150).
     var livestock: Bool { spec.behavior == .passive || spec.behavior == .animal }
     // Save / command keys: fixed forever so saves survive display-name changes.
@@ -2294,6 +2303,9 @@ enum MobLight {
 enum MobDrawStats {
     static var mobs = 0, near = 0, written = 0, drawn = 0, culled = 0, dropped = 0
     static var path = "none"
+    // BS_MOBBACKCULL=0 draws every face of every part (writeMobVertices: the faces turned away past 16 blocks), for
+    // before/after pictures.
+    static var backCull = ProcessInfo.processInfo.environment["BS_MOBBACKCULL"] != "0"
     static var line: String {
         "mobs \(mobs) (\(near) within 32), \(written) vertices written, \(drawn) drawn via \(path), \(culled) culled, \(dropped) dropped (buffer full)"
     }
@@ -2426,8 +2438,11 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let heavy = m.kind.ashVehicle
         let far = !m.kind.steelhold && simd_length_squared(base) > (heavy ? 48 * 48 : 64 * 64)
         let tiny: Float = (heavy ? 3 : 1.2) / max(0.25, scale)
-        // Soldiers and vehicles (closed opaque boxes) past 16 blocks: faces turned away are not written (about half).
-        let cullBack = rag == nil && (m.kind.steelhold || heavy) && simd_length_squared(base) > 16 * 16
+        // Past 16 blocks the faces turned away are not written (about half). Every part is a closed opaque box (the mob
+        // pipeline has no blending or discard, and draws both sides), so a face turned from the eye is behind its box's
+        // front faces; the test is on the placed corners, so lying, carcass and mirrored parts are judged as drawn. It
+        // was soldiers and vehicles only: a town's or a herd's mobs past 16 blocks wrote all six faces of every part.
+        let cullBack = MobDrawStats.backCull && rag == nil && simd_length_squared(base) > 16 * 16
         for pi in 0..<(body.count + worn.count) {
             let p = pi < body.count ? body[pi] : worn[pi - body.count]
             if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
@@ -2438,13 +2453,6 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let bi = rag?.bone(p, hj) ?? 0
             let pc: V3 = m.hulk ? Hulks.burn(p.color, m, pi) : simd_mix(p.color * tint, flashCol, V3(repeating: flash * 0.85))
             let pat: Float = m.hulk && p.pattern == 9 ? 4 : p.pattern            // (a hulk's lamps are out)
-            var ctr = V3.zero
-            if cullBack {
-                var q = p.place(p.mn + size * 0.5, rot)
-                if lie { q = V3(q.x, 4 - q.z, q.y) }
-                q *= scale / 16
-                ctr = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
-            }
             let bev = roundable ? MobRound.bevel(p) : 0
             if bev > 0 {
                 if n + MobRound.vertsPerPart > capacity { MobDrawStats.dropped += list.count - idx; return n }
@@ -2496,6 +2504,11 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
                 pts[c] = MobVert(pos: V4(r, pat), color: V4(pc, ground * ((c >> 1) & 1 == 0 ? 0.9 : 1)), local: V4(lp, 0))
             }
+            // The box's centre as drawn: midway between two opposite placed corners (every step above is affine; the
+            // centre placed on its own missed the pose and the carcass turn, so a walking or falling mob's faces were
+            // judged from the wrong point).
+            let c0 = pts[0].pos, c7 = pts[7].pos
+            let ctr = V3(c0.x + c7.x, c0.y + c7.y, c0.z + c7.z) * 0.5
             for f in 0..<6 {
                 // A ragdoll's faces turn with it: shaded by where they face now (the same weights as faceShade).
                 var fs = faceShade[f]

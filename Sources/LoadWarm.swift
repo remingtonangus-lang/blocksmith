@@ -76,5 +76,7 @@ enum LoadWarm {
         _ = WorldObjects.candidate
         _ = WorldObjects.isPost
         _ = WorldObjects.isLight
+        _ = GameBlocks.sculkIDs
+        _ = AudioState.kindTable
     }
 }

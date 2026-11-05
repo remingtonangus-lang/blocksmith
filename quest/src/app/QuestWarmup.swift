@@ -54,8 +54,28 @@ enum QuestWarmup {
         // (Store review, the town soak: the first greeting read the 36 MB voice bank on the frame thread, a 38-56 ms
         // frame on the host; read here, with the loading scene up.)
         TownVoice.ensure()
+        lines()
         print(String(format: "warmup: world: mesh cache %d files %.1f ms, %d rail lines %.1f ms, bases %.1f ms, starts round him %.0f ms", cached, (t0 - tc) * 1000,
                      rails, (t1 - t0) * 1000, (t2 - t1) * 1000, plans))
+    }
+
+    // Nov 4 (the town soak under callgrind: one townsperson's line took 54 M instructions on the frame thread, about
+    // 15 ms on the host): what each line of talk needs to be true (LineTruth.needs: the hour, the weather, a horse...) is
+    // read from its words the first time the line is a candidate, about 1.2 M instructions a line, and a greeting weighs
+    // dozens of candidates; the 2,000-odd lines' needs are read here once, on a worker while the world loads and the
+    // first minutes play (the answers are cached, under LineTruth's lock).
+    static var linesWarmed = false
+    static func lines() {
+        guard !linesWarmed else { return }
+        linesWarmed = true
+        DispatchQueue.global(qos: .utility).async {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            var n = 0
+            for t in TownVoice.takes { _ = LineTruth.needs(t.text); n += 1 }
+            for t in TownLines.all { _ = LineTruth.needs(t); n += 1 }
+            _ = TownLines.pools.count
+            print(String(format: "warmup: %d lines' needs read in %.0f ms (a worker)", n, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+        }
     }
 
     // Store review (the frame soak's "starts planned on the frame thread": the first seconds' town, map-fog, hunting

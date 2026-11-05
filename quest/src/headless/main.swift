@@ -1444,6 +1444,30 @@ if let out = arg("--view"), let ctx = vkctx {
         print("view: rubble on \(Blocks.key(b)) at \(gx) \(gy) \(gz), \(vg.debris.count) pieces")
         vw.remeshArea(x0: gx - 3, z0: gz - 3, x1: gx + 3, z1: gz + 3, y0: gy - 3, y1: gy + 3)
     }
+    // --scene mobs [--mobs K,K,..] [--mobdist D] [--mobturn DEG]: living creatures in a row D blocks ahead (default 24), on
+    // the ground, each turned DEG more than the last (default 40), standing still. The face-culling check: the same
+    // frame with BS_MOBBACKCULL=0 draws every face; the pictures should match and the vertex count halve past 16 blocks.
+    if arg("--scene") == "mobs" {
+        let ahead = V3(-sinf(yaw), 0, -cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
+        let keys = (arg("--mobs") ?? "zombie,cow,villager,spider,chicken,skeleton,pig,wolf,horse,sheep").split(separator: ",").map(String.init)
+        let d = Float(arg("--mobdist") ?? "") ?? 24
+        let turn = (Float(arg("--mobturn") ?? "") ?? 40) * .pi / 180
+        vg.mobs.mobs.removeAll()
+        Rand.seed(7)                     // (each mob's coat, tail swish and the like the same from run to run)
+        for (i, k) in keys.enumerated() {
+            guard let kind = MobKind.named(k) else { print("view: no mob \(k)"); continue }
+            let off = (Float(i) - Float(keys.count - 1) / 2) * 2.2
+            let at = vg.player.pos + ahead * d + right * off
+            let bx = Int(floor(at.x)), bz = Int(floor(at.z))
+            var gy = vw.topY(bx, bz)
+            while gy > 1 && !Blocks.opaque[Int(vw.block(bx, gy, bz))] { gy -= 1 }
+            let m = Mob(kind, at: V3(at.x, Float(gy + 1), at.z))
+            m.yaw = yaw + .pi + Float(i) * turn
+            m.viewDY = vw.smoothGroundOffset(m.pos)
+            vg.mobs.mobs.append(m)
+        }
+        print("view: \(vg.mobs.mobs.count) mobs \(d) blocks ahead, back faces \(MobDrawStats.backCull ? "left out" : "drawn")")
+    }
     // --scene ragdoll [--mobs K,K,..] [--mobdist D]: creatures in a row D blocks ahead (default 5) killed by a blow from
     // the camera, falling as ragdolls (realistic world: with --smooth), settled for --settle s (default 3).
     if arg("--scene") == "ragdoll" {
@@ -1512,6 +1536,7 @@ if let out = arg("--view"), let ctx = vkctx {
             SceneRenderer.drawMerged = true
         }
         try RenderTest.render(game: vg, ctx: ctx, path: out, width: vwid, height: vhei, yaw: yaw, pitch: pitch, fovDeg: vfov)
+        if arg("--scene") == "mobs" { print("view: mob vertices \(RenderTest.lastStats.mobVerts) (\(RenderTest.lastStats.mobsDrawn) mobs in reach)") }
         // FAILURES 4: --voidcount (with QUEST_VOIDPROBE=1 QUEST_SKIP=sky): magenta pixels where a ray goes more than
         // 12 degrees below the horizon (it meets ground within the loaded land on all but a cliff's edge): the gaps
         // the sky shows through. Written marked (OUT-void.png) when there are any.
@@ -2608,6 +2633,15 @@ if CommandLine.arguments.contains("--military-only") {
 if CommandLine.arguments.contains("--mobtests") {
     let ok = MobTests.run(game: game, world: game.world, pos: game.player.pos, rd: 8)
     exit(ok ? 0 : 1)
+}
+// Mac harness suites the questcheck never ran before Nov 4 (bug hunt): --swingtest (VR melee and the bow,
+// VRMeleeTests) and --v78 (the V78 playtest list, PlaytestV78Tests). (QuestBugTests, the PM9 lists, smooth ground, audio
+// and copper suites are Mac-only files, quest/mac-only.txt.)
+if CommandLine.arguments.contains("--swingtest") { let f = VRMeleeTests.run(game); print("swingtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
+if CommandLine.arguments.contains("--v78") {
+    var f = 0
+    PlaytestV78Tests.run(game) { ok, msg in print("v78: \(ok ? "ok  " : "FAIL") \(msg)"); if !ok { f += 1 } }
+    print("v78: \(f) failed"); exit(f == 0 ? 0 : 1)
 }
 // --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
 if CommandLine.arguments.contains("--latency-only") {

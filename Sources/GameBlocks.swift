@@ -145,9 +145,17 @@ extension Game {
         let conduit = Blocks.has("conduit") ? Blocks.id("conduit") : AIR
         if conduit != AIR, player.inWater {
             let c = IVec3(Int(floor(pp.x)), Int(floor(pp.y)), Int(floor(pp.z)))
-            outer: for dy in -24...24 where dy % 2 == 0 { for dz in stride(from: -24, through: 24, by: 1) { for dx in stride(from: -24, through: 24, by: 1) {
-                guard abs(dx) + abs(dy) + abs(dz) < 48, world.builtBlock(c.x + dx, c.y + dy, c.z + dz) == conduit else { continue }
-                let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
+            // Nov 5 (the town soak under callgrind: a frame thread second of 30 M instructions, about 8 ms on the host,
+            // every second he is in water, conduit or none): the 49-block cube round him was read a block at a time,
+            // a chunk lookup each (and only every other layer, so a conduit at an odd height from his feet was never
+            // found). Now World.scanBuilt: each chunk once, its columns' cells read straight, every layer.
+            var found: [IVec3] = []
+            world.scanBuilt(c.x - 24, c.y - 24, c.z - 24, c.x + 24, c.y + 24, c.z + 24, want: { $0 == conduit }) { x, y, z in
+                if abs(x - c.x) + abs(y - c.y) + abs(z - c.z) < 48 { found.append(IVec3(x, y, z)) }
+                return true
+            }
+            outer: for q in found {
+                let dx = q.x - c.x, dy = q.y - c.y, dz = q.z - c.z
                 var frame = 0
                 for fz in -2...2 { for fy in -2...2 { for fx in -2...2 {
                     let k = Blocks.key(world.builtBlock(q.x + fx, q.y + fy, q.z + fz))
@@ -157,7 +165,7 @@ extension Game {
                     applyEffect(.conduitPower, amp: 0, seconds: 13, ambient: true)
                     break outer
                 }
-            } } }
+            }
         }
         // Murk shriekers: walking (not sneaking) near a sensor/shrieker raises the warning level; the 4th shriek calls a deep stalker.
         if survival && !player.sneaking && simd_length(player.vel) > 1 && dim.dim == .overworld && pp.y < Float(YOFF + 10) {
@@ -165,10 +173,9 @@ extension Game {
             if shriekCooldown <= 0 {
                 let c = IVec3(Int(floor(pp.x)), Int(floor(pp.y)), Int(floor(pp.z)))
                 var found = false
-                for dy in -4...4 { for dz in -8...8 { for dx in -8...8 {
-                    let k = Blocks.key(world.builtBlock(c.x + dx, c.y + dy, c.z + dz))
-                    if k == "sculk_shrieker" || k == "sculk_sensor" || k == "calibrated_sculk_sensor" { found = true }
-                } } }
+                // (an id table, not each block's name compared three ways: 2,601 blocks a second while he walks deep)
+                let sk = GameBlocks.sculkIDs
+                world.scanBuilt(c.x - 8, c.y - 4, c.z - 8, c.x + 8, c.y + 4, c.z + 8, want: { sk[Int($0)] }) { _, _, _ in found = true; return false }
                 if found {
                     shriekCooldown = 10
                     warningLevel += 1
@@ -200,8 +207,8 @@ extension Game {
         guard xp > 0, Blocks.has("sculk_catalyst") else { return }
         let cat = Blocks.id("sculk_catalyst")
         let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
-        var near = false
-        for dy in -8...8 { for dz in -8...8 { for dx in -8...8 where world.builtBlock(c.x + dx, c.y + dy, c.z + dz) == cat { near = true } } }
+        var near = false              // (every kill with XP: 4,913 cells, read a chunk at a time)
+        world.scanBuilt(c.x - 8, c.y - 8, c.z - 8, c.x + 8, c.y + 8, c.z + 8, want: { $0 == cat }) { _, _, _ in near = true; return false }
         guard near else { return }
         let sculk = Blocks.id("sculk")
         var n = min(20, xp)
@@ -343,4 +350,9 @@ extension Game {
 enum GameBlocks {
     // Murk shriekers calling a deep stalker: off (Oct 11 playtest P19: a copy of the reference's warden, never asked for).
     static let stalkerCalls = false
+    // Every state of the murk sensors and shriekers, by id (blockSecondTick's scan).
+    static let sculkIDs: [Bool] = (0..<Blocks.collide.count).map { i in
+        let k = Blocks.key(BlockID(i))
+        return k == "sculk_shrieker" || k == "sculk_sensor" || k == "calibrated_sculk_sensor"
+    }
 }

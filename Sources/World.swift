@@ -412,6 +412,39 @@ final class World {
         guard let c = chunkAt(x, z), !c.hollow else { return AIR }
         return c.blocks.raw(Chunk.index(mod(x, CS), y, mod(z, CS)))
     }
+    // Every cell of a box whose block passes `want`, a chunk at a time: one chunk lookup per chunk, its columns read
+    // straight (Nov 5: the lookup was most of a cell-by-cell scan's cost; the conduit search round a swimmer was 30 M
+    // instructions a second). As builtBlock reads cells, or with `ground` as block() does (the field's ground too).
+    // `hit` returns false to stop. Through a ship frame, or when `want` takes what is read outside the chunks (air,
+    // bedrock), cell by cell.
+    func scanBuilt(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, ground: Bool = false,
+                   want: (BlockID) -> Bool, hit: (Int, Int, Int) -> Bool) {
+        let whole = ground || !fieldTerrain             // (rawBlock's reading: builtBlock is block() in block worlds)
+        if frame != nil || want(AIR) || (y0 < 0 && want(BEDROCK)) {
+            for y in y0...y1 { for z in z0...z1 { for x in x0...x1 where want(whole ? block(x, y, z) : builtBlock(x, y, z)) {
+                if !hit(x, y, z) { return }
+            } } }
+            return
+        }
+        let ya = max(0, y0), yb = min(CH - 1, y1)
+        guard ya <= yb else { return }
+        let stone = whole && want(STONE)                // (a shell reads as stone under its heights)
+        for cz in floorDiv(z0, CS)...floorDiv(z1, CS) { for cx in floorDiv(x0, CS)...floorDiv(x1, CS) {
+            guard let ch = chunks[ChunkKey(x: cx, z: cz)], !ch.hollow || stone else { continue }
+            let bx = cx * CS, bz = cz * CS
+            for z in max(z0, bz)...min(z1, bz + CS - 1) { for x in max(x0, bx)...min(x1, bx + CS - 1) {
+                let lx = x - bx, lz = z - bz
+                if ch.hollow {
+                    let top = min(yb, Int(ch.height[lx + lz * CS]))
+                    if top >= ya { for y in ya...top { if !hit(x, y, z) { return } } }
+                } else if whole {
+                    for y in ya...yb where want(ch.blocks[Chunk.index(lx, y, lz)]) { if !hit(x, y, z) { return } }
+                } else {
+                    for y in ya...yb where want(ch.blocks.raw(Chunk.index(lx, y, lz))) { if !hit(x, y, z) { return } }
+                }
+            } }
+        } }
+    }
     // The cell is inside the field's ground (its density > 0); never in block worlds.
     @inline(__always) func groundAt(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard fieldTerrain, frame == nil, y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
