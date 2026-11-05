@@ -158,6 +158,7 @@ final class SceneRenderer {
     // Stats (last frame).
     private(set) var drawCalls = 0
     private(set) var drawnQuads = 0
+    private(set) var drawnDetail = 0, drawnBand = 0     // (the share of drawnQuads in the detail stream, and in leaf far shells)
     private(set) var visibleCount = 0
     private(set) var cullMs = 0.0
     var caveCulling = true
@@ -1650,7 +1651,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; batchedSections = 0; indirectUsed = 0; mergedSections = 0
+        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         if tableFrame {
@@ -2529,7 +2530,7 @@ extension SceneRenderer {
                     pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.bN * 6), instanceCount: 1, firstIndex: UInt32(e.bAt * 6),
                                                                          vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
                     cutFrom = min(total, solid + e.bCut)
-                    quadsDrawn += Int(e.bN - (cutFrom - solid))
+                    quadsDrawn += Int(e.bN - (cutFrom - solid)); drawnBand += Int(e.bN)
                 }
                 if total > cutFrom {
                     batchCut[k] += 1
@@ -2540,6 +2541,7 @@ extension SceneRenderer {
             }
             for pr in keysT { pairK[Int(pr)] = -1 }
             drawnQuads += quadsDrawn; mergedSections += merged
+            if detail { drawnDetail += quadsDrawn }
             self.keysT = keysT; self.batchCount = batchCount; self.batchCut = batchCut
             self.pendingDraws = pendingDraws; self.pendingCut = pendingCut; self.pairK = pairK
             for pass in 0..<2 {
