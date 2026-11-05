@@ -224,7 +224,27 @@ extension TownTests {
         // from when the saloon shut at 0.66, so he stood awake in every run and left the rest a margin of two.)
         let sleepers = people.filter { ["citizen", "shopkeeper"].contains($0.villager?.role ?? "") && $0.villager?.shop != ShopKind.saloon.rawValue }
         var slept = Set<ObjectIdentifier>()
-        run(150) { for m in sleepers where m.lying { slept.insert(ObjectIdentifier(m)) } }
+        // CAPITAL_DEBUG: each sleeper's way to bed, a line a second (printed for those who never lie down).
+        let traceNight = ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil
+        var nightLog: [ObjectIdentifier: [String]] = [:]
+        var second = 0
+        run(150) {
+            for m in sleepers where m.lying { slept.insert(ObjectIdentifier(m)) }
+            if traceNight {
+                for m in sleepers where !slept.contains(ObjectIdentifier(m)) {
+                    let f = m.path.nodes.first.map { "\($0.x),\($0.y),\($0.z)" } ?? "-", l = m.path.nodes.last.map { "\($0.x),\($0.y),\($0.z)" } ?? "-"
+                    nightLog[ObjectIdentifier(m), default: []].append(String(format: "%3ds at %.1f %.1f %.1f yaw %.0f moving %@ path %d/%d %@..%@ partial %@ goal %.1f %.1f %.1f search %@ unreach %.1f stall %.1f",
+                        second, m.pos.x, m.pos.y, m.pos.z, m.yaw * 180 / .pi, m.moving ? "y" : "n", m.path.index, m.path.nodes.count, f, l,
+                        m.path.partial ? "y" : "n", m.path.goal.x, m.path.goal.y, m.path.goal.z, m.path.search == nil ? "n" : "y", m.unreachableTimer, m.path.stallTime))
+                }
+            }
+            second += 1
+        }
+        if traceNight {
+            for m in sleepers where !slept.contains(ObjectIdentifier(m)) {
+                print("  night of \(m.villager?.person ?? "?"):"); for l in nightLog[ObjectIdentifier(m)] ?? [] { print("    " + l) }
+            }
+        }
         let noBed = sleepers.filter { $0.villager?.bed == nil }.count
         let awake = sleepers.filter { !slept.contains(ObjectIdentifier($0)) }.prefix(4).map { m -> String in
             let b = m.villager?.bed.map { String(format: "%.0f", simd_length(V3(Float($0[0]) + 0.5, Float($0[1]), Float($0[2]) + 0.5) - m.pos)) } ?? "no"
