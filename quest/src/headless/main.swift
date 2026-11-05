@@ -1453,6 +1453,7 @@ if let out = arg("--view"), let ctx = vkctx {
         let d = Float(arg("--mobdist") ?? "") ?? 24
         let turn = (Float(arg("--mobturn") ?? "") ?? 40) * .pi / 180
         vg.mobs.mobs.removeAll()
+        Rand.seed(7)                     // (each mob's coat, tail swish and the like the same from run to run)
         for (i, k) in keys.enumerated() {
             guard let kind = MobKind.named(k) else { print("view: no mob \(k)"); continue }
             let off = (Float(i) - Float(keys.count - 1) / 2) * 2.2

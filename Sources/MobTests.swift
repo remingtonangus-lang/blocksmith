@@ -473,18 +473,22 @@ enum MobTests {
         check(!mm.mobs.contains { $0.kind == .ironGolem }, "townsfolk summon no golem (the sheriff replaces it)")
         TownLaw.golemsAllowed = true
         defer { TownLaw.golemsAllowed = false }
+        // (Each call tries 10 random spots within 8 blocks for a golem's room; on the spawn's broken ground, trees and
+        // slopes all 10 can miss, and the game simply calls again at the next gossip. One call each failed one run in
+        // a few (build 154: the summon missed, then the "waits" call made it). Five calls each, as five gossips.)
+        func calls(_ m: Mob) { for _ in 0..<5 { m.spawnGolemIfNeeded(game, needed: 5) } }
         mm.mobs.removeAll { $0 === fifth }
-        four[0].spawnGolemIfNeeded(game, needed: 5)
+        calls(four[0])
         check(!mm.mobs.contains { $0.kind == .ironGolem }, "golem not summoned by four")
         mm.mobs.append(fifth)
-        four[0].spawnGolemIfNeeded(game, needed: 5)
+        for _ in 0..<5 where !mm.mobs.contains(where: { $0.kind == .ironGolem }) { four[0].spawnGolemIfNeeded(game, needed: 5) }
         check(mm.mobs.contains { $0.kind == .ironGolem }, "golem summoned by five sleepers")
         let before = mm.mobs.filter { $0.kind == .ironGolem }.count
-        four[1].spawnGolemIfNeeded(game, needed: 5)
+        calls(four[1])
         check(mm.mobs.filter { $0.kind == .ironGolem }.count == before, "golem summon waits after one appears")
         let sleepless = (0..<5).map { villager($0 - 2, -3) }
         for m in sleepless { m.sleptAt = -1e9 }
-        sleepless[0].spawnGolemIfNeeded(game, needed: 5)
+        calls(sleepless[0])
         check(mm.mobs.filter { $0.kind == .ironGolem }.count == before, "golem needs villagers that slept")
         mm.mobs.removeAll()
     }
