@@ -698,11 +698,13 @@ enum ShipTest {
 
         // Far ships sleep and give their meshes back; they wake when the player returns.
         let fpos = fg.pos
+        // (Nov 5: a frame of the player's own ship update too, as the game runs it: since P414 a ship the player is aboard
+        // stays awake, and he was still counted aboard the frigate he had just left the helm of, 600 blocks off)
         g.player.pos = fpos + V3(600, 0, 0)
-        w.ships.update(1.0 / 60, game: g)
+        run(g, seconds: 1.0 / 60)
         let slept = fg.asleep && fg.mesh.released
         g.player.pos = fpos + V3(20, 10, 0)
-        w.ships.update(1.0 / 60, game: g)
+        run(g, seconds: 1.0 / 60)
         print("physicstest sleep: 600 blocks away asleep+released \(slept), back near awake \(!fg.asleep) meshed \(!fg.mesh.released)")
         check(slept && !fg.asleep && !fg.mesh.released, "far ships sleep and wake")
 

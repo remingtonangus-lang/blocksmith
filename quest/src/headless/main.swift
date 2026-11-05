@@ -2653,6 +2653,9 @@ if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run(device: 
 // propulsion, steering, hover, climb, driving, riding the deck, save and load, docking; the capital vessels).
 if CommandLine.arguments.contains("--physicstest") || CommandLine.arguments.contains("--capitaltest") {
     var f = 0
+    // (the Mac runs them at view 8: at this harness's 6 the active distance is 104 blocks, not 136, and the plane, the
+    // runway takeoff and the car outran it and slept mid-check)
+    game.world.renderDistance = 8
     if CommandLine.arguments.contains("--physicstest") { f += ShipTest.physicsTest(game: game, rd: 8) }
     if CommandLine.arguments.contains("--capitaltest") { f += ShipTest.capitalTest(game: game, rd: 8) }
     print("shiptest: \(f) failed"); exit(f == 0 ? 0 : 1)
