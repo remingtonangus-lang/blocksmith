@@ -133,17 +133,18 @@ enum PlaytestV78Tests {
             }
         } } }
         if let c = cave {
-            // Three runs of 60 s, counted together: the spawner picks chunks evenly over 13 x 13 round the player and H1
-            // keeps cave spawns 34 off, so about a fifth of them land within 64 blocks, some 3 of a run's 15; one run
-            // asked for 2 of those and failed about one time in five by chance alone (1 on build 150). Three runs
-            // expect about 10.
+            // Six runs of 60 s, counted together. The spawner picks columns evenly over 13 x 13 chunks round him and a
+            // height anywhere under each column's top, so cave monsters come up in every cave at every depth, as in the
+            // reference; with H1 keeping them 34 off, few land within 64 blocks of him: 6 of 58, 1 of 55 and 3 of 71 in
+            // three-run sets on builds 154-159 (Nov 4-5; the old comment's "a fifth" was never measured). Six runs
+            // expect about 6 near.
             var under = 0, near = 0, close = 0, runs: [String] = []
-            for _ in 0..<3 {
+            for _ in 0..<6 {
                 let r = run(c)
                 under += r.under; near += r.near; close = max(close, r.close)
                 runs.append("\(r.near)/\(r.under)")
             }
-            check(under >= 9 && near >= 4, "spawning: in a cave at y \(Int(c.y) - 64), 3 x 60 s: \(under) underground, \(near) within 64 blocks (want >= 9 and >= 4; runs near/under: \(runs.joined(separator: " ")))")
+            check(under >= 18 && near >= 2, "spawning: in a cave at y \(Int(c.y) - 64), 6 x 60 s: \(under) underground, \(near) within 64 blocks (want >= 18 and >= 2; runs near/under: \(runs.joined(separator: " ")))")
             check(close <= 8, "spawning: in a cave, no swarm: at most \(close) monsters within 32 blocks in a run (want <= 8)")
         } else { check(false, "spawning: no cave found near the spawn to test") }
     }

@@ -62,8 +62,9 @@ extension Game {
             if Rand.float(in: 0..<1) < 0.45 { saplingAdvance(p, key) }
             return true
         case "red_mushroom", "brown_mushroom":
-            if Rand.float(in: 0..<1) < 0.4 { growTree(p, key) }
-            return true
+            // (P406: no huge mushrooms grow, so nothing can come of it: the bone meal stays in the hand. It was used up,
+            // 40 of 40 on a mushroom on mycelium with nothing grown: the Mac's PM9 check, first run on the headset build.)
+            return false
         case "crimson_fungus", "warped_fungus":
             let crimson = key == "crimson_fungus"
             guard at(p + IVec3(0, -1, 0)) == id(crimson ? "crimson_nylium" : "warped_nylium") else { return false }

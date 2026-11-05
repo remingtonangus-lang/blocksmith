@@ -12,6 +12,9 @@ enum DeepTests {
         war(game, check)
         AshColumns.check(game, check)                            // P509
         DeepExpansionTests.run(game, check)
+        // (a check here that downs the test player opens the death screen; left up, every later check that drives
+        // Game.tick ran with a menu open: Nov 5, seven questbugs checks saw nothing happen)
+        if game.menu is DeathMenu { game.menu = nil; game.alive = true; game.health = 20 }
     }
 
     // The Ashguard fights: on the citadel road (open, levelled) a tank closes in and shells the player, a half-track

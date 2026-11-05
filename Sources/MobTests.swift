@@ -643,6 +643,26 @@ enum MobTests {
                   "3 up: \(got[0]), 4 up: \(got[1])")
         }
 
+        // Ledger 23: a hop peaks the same height whatever beat the mob moves on (every tick at 72 Hz, every 2nd or 4th
+        // past 48 blocks, the harness's 20 Hz); at 8.6 b/s it peaked 1.21, 1.10, 0.89 and 0.46 up, short of a step at
+        // the slow beats. Gravity comes off before each move, as in Mob.update.
+        do {
+            var peaks: [String] = [], old: [String] = []
+            var ok = true
+            for dt: Float in [1.0 / 72, 0.05, 0.1, 0.2] {
+                func peak(_ v0: Float) -> Float {
+                    var v = v0, y: Float = 0, top: Float = 0
+                    while v > 0 || y > 0 { v -= 28 * dt; y += v * dt; top = max(top, y); if y < -1 { break } }
+                    return top
+                }
+                let p = peak(Mob.hopSpeed(dt))
+                peaks.append(String(format: "%.2f", p)); old.append(String(format: "%.2f", peak(8.6)))
+                if p < 1.05 || p > 1.35 { ok = false }
+            }
+            check(ok, "a hop clears a one-block step at every beat a mob moves on",
+                  "peaks at 1/72, 0.05, 0.1 and 0.2 s: \(peaks.joined(separator: ", ")) (at 8.6 b/s: \(old.joined(separator: ", ")))")
+        }
+
         // World.scanBuilt (the conduit's, the shriekers', the murk bloom's, the mines', the ambience's and the piano's
         // search) finds the cells a cell-by-cell read finds, built and with the ground, across chunk edges.
         do {

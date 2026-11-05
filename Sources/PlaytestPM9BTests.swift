@@ -81,7 +81,9 @@ enum PlaytestPM9BTests {
                 guard o > 0 || nn > 0 else { continue }
                 print(String(format: "pm9b-table: | %@ | %@ | %.2f | %.2f |", biome, k, per(o, a.cols), per(nn, b.cols)))
                 line.append(String(format: "%@ %.1f->%.1f", k, per(o, a.cols), per(nn, b.cols)))
-                if k != "short_grass" && k != "cactus" {
+                // (short and tall grass since G18, Oct 11 "plain grass looks barren": patches with tall tufts, its own check
+                // in PlaytestOct11Tests and V78's share check)
+                if k != "short_grass" && k != "tall_grass" && k != "cactus" {
                     check(nn <= o + max(2, o / 10), String(format: "plants: %@ %@ not denser than before (%d -> %d)", biome, k, o, nn))
                 }
             }
@@ -90,15 +92,15 @@ enum PlaytestPM9BTests {
             let ratio = Float(ng) / Float(max(1, og))
             grassOld += per(og, a.cols); grassNew += per(ng, b.cols)
             // Per biome a few dozen blades decide it: 1/8 with room for sampling noise; the sum over biomes below is strict.
-            check(og < 20 || ratio <= 0.2, String(format: "plants: %@ short grass %.1f -> %.1f per chunk (x%.3f, want ~1/8)", biome, per(og, a.cols), per(ng, b.cols), ratio))
+            print(String(format: "pm9b: %@ short grass %.1f -> %.1f per chunk (x%.3f; G18's patches since Oct 11)", biome, per(og, a.cols), per(ng, b.cols), ratio))
             func land(_ n: [String: Int]) -> Int {
                 var t = 0
                 for k in plantKeys { t += n[k] ?? 0 }
-                for k in ["kelp", "seagrass", "bamboo"] { t -= n[k] ?? 0 }
+                for k in ["kelp", "seagrass", "bamboo", "short_grass", "tall_grass"] { t -= n[k] ?? 0 }     // (grass: G18)
                 return t
             }
             let total = land(b.n), before = land(a.n)
-            check(per(total, b.cols) <= 22, String(format: "plants: %@ land plants %.1f -> %.1f per chunk (want <= 22: about one column in 12)", biome, per(before, a.cols), per(total, b.cols)))
+            check(per(total, b.cols) <= 22, String(format: "plants: %@ land plants but grass %.1f -> %.1f per chunk (want <= 22: about one column in 12)", biome, per(before, a.cols), per(total, b.cols)))
             if biome == "desert" {
                 let c = per(b.n["cactus"] ?? 0, b.cols), co = per(a.n["cactus"] ?? 0, a.cols)
                 // One cactus per 256-400 blocks of desert: one every ~16-20 blocks.
@@ -107,7 +109,7 @@ enum PlaytestPM9BTests {
                 check(dead >= 0.3 && dead <= 2.5, String(format: "plants: desert dead bushes %.2f per chunk (want 0.3-2.5)", dead))
             }
         }
-        check(grassNew <= grassOld / 8, String(format: "plants: short grass over all nine biomes %.1f -> %.1f per chunk (x%.3f, want <= 1/8)", grassOld, grassNew, grassNew / max(0.01, grassOld)))
+        print(String(format: "pm9b: short grass over all nine biomes %.1f -> %.1f per chunk (x%.3f; G18's patches since Oct 11)", grassOld, grassNew, grassNew / max(0.01, grassOld)))
     }
 
     // MARK: 4. Spawning
@@ -157,7 +159,10 @@ enum PlaytestPM9BTests {
         check(cave != nil && n.caveUnder >= 6 && Float(n.caveUnder) >= 0.75 * Float(o.caveUnder),
               "spawning: cave monsters kept: \(o.caveUnder) -> \(n.caveUnder) (want >= 6 and >= 0.75x)")
         let ra = Float(n.animals) / Float(max(1, o.animals))
-        check(o.animals >= 6 && ra <= 0.75, String(format: "spawning: animals in the chunks around the spawn %d -> %d (x%.2f, want ~0.5)", o.animals, n.animals, ra))
+        // (a handful of packs of 2-4 round the spawn: 9 -> 5, 13 -> 10, 9 -> 11 on three runs, too few to show the scale;
+        // the share itself is the roll check below, over 14,400 chunks)
+        print(String(format: "pm9b: animals in the chunks around the spawn %d -> %d (x%.2f)", o.animals, n.animals, ra))
+        check(o.animals >= 6, "spawning: animal packs come up round the spawn (\(o.animals) animals at full scale)")
         // The pack roll itself (populateChunks' per-chunk roll) over many chunks: the exact share.
         var rolls = (0, 0)
         for cz in -60..<60 { for cx in -60..<60 {
@@ -167,8 +172,9 @@ enum PlaytestPM9BTests {
             if f < 0.035 * save.7 { rolls.1 += 1 }
         } }
         let rr = Float(rolls.1) / Float(max(1, rolls.0))
-        check(rr >= 0.45 && rr <= 0.55, String(format: "spawning: animal packs over 14400 new chunks %d -> %d (x%.2f, want ~0.5)", rolls.0, rolls.1, rr))
-        check(save.7 == 0.5, "spawning: the game runs at half the surface density (scale \(save.7))")
+        // (P483, Oct 28: "there should be slightly more mobs": the game's scale went from 0.5 to 0.6)
+        check(abs(rr - save.7) <= 0.05, String(format: "spawning: animal packs over 14400 new chunks %d -> %d (x%.2f, want the game's scale %.2f)", rolls.0, rolls.1, rr, save.7))
+        check(save.7 == 0.6, "spawning: the game runs at 0.6 of the surface density (P483; scale \(save.7))")
     }
 
     // MARK: 7. Bone meal
@@ -232,7 +238,6 @@ enum PlaytestPM9BTests {
                 return c
             }, 40, square ? "a 2x2 grows a big tree" : "grows a tree (45% a use, two stages)"))
         }
-        for k in ["red_mushroom", "brown_mushroom"] { plant(k, on: MYCELIUM, tries: 40, expect: "huge mushroom (40%)") }
         plant("crimson_fungus", on: g("crimson_nylium"), tries: 40, expect: "huge fungus on its nylium (40%)")
         plant("warped_fungus", on: g("warped_nylium"), tries: 40, expect: "huge fungus on its nylium (40%)")
         for k in ["crimson_nylium", "warped_nylium", "moss_block", "pale_moss_block"] where Blocks.has(k) {
@@ -297,9 +302,11 @@ enum PlaytestPM9BTests {
         check(fails.isEmpty, "bone meal: \(cases.count) targets grow and use bone meal" + (fails.isEmpty ? "" : "; failed: " + fails.joined(separator: ", ")))
         // Non-targets (Bedrock): nothing happens and no bone meal is used.
         var wrong: [String] = []
-        for k in ["dead_bush", "lily_pad", "vine", "nether_wart", "torchflower", "pitcher_plant", "leaf_litter", "tall_dry_grass", "cactus_flower", "crimson_roots"] where Blocks.has(k) {
+        // (mushrooms since P406: no huge mushrooms, so bone meal does nothing to them)
+        for k in ["dead_bush", "lily_pad", "vine", "nether_wart", "torchflower", "pitcher_plant", "leaf_litter", "tall_dry_grass", "cactus_flower", "crimson_roots",
+                  "red_mushroom", "brown_mushroom"] where Blocks.has(k) {
             reset()
-            let ground: BlockID = k == "nether_wart" ? g("soul_sand") : (k == "lily_pad" ? WATER : (k == "cactus_flower" ? CACTUS : GRASS))
+            let ground: BlockID = k == "nether_wart" ? g("soul_sand") : (k == "lily_pad" ? WATER : (k == "cactus_flower" ? CACTUS : (k.hasSuffix("mushroom") ? MYCELIUM : GRASS)))
             set(c.x, c.y - 1, c.z, ground); set(c.x, c.y, c.z, g(k))
             let r = apply(c, tries: 1)
             rows.append("| \(k) | nothing (Bedrock) | \(r.changed || r.consumed > 0 ? "WRONG" : "nothing") |")
@@ -313,7 +320,9 @@ enum PlaytestPM9BTests {
             set(c.x, c.y - 1, c.z, SAND); set(c.x + 1, c.y - 1, c.z, WATER)
             for y in 0..<start { set(c.x, c.y + y, c.z, g("sugar_cane")) }
             game.inventory.held = ItemStack(meal, 64)
-            let used = game.useItemOnBlock((hit: c, normal: IVec3(0, 1, 0)))
+            _ = game.useItemOnBlock((hit: c, normal: IVec3(0, 1, 0)))
+            // (used = one bone meal gone: since Q2c-console-58 a refused use is still handled, with a note, and keeps it)
+            let used = !(game.inventory.held.item == meal && game.inventory.held.count == 64)
             var h = 0
             while w.block(c.x, c.y + h, c.z) == g("sugar_cane") { h += 1 }
             check(h == 3 && used == (start < 3), "bone meal: sugar cane \(start) tall -> \(h) (want 3), bone meal used \(used)")

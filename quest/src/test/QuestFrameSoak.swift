@@ -433,6 +433,10 @@ enum QuestFrameSoak {
         let plansMs = QuestWarmup.structures(g)                          // (as the game's loading does)
         TownVoice.ensure()                                               // (and this)
         QuestWarmup.lines()                                              // (and the lines' needs, on a worker)
+        // (Nov 5: and the rings' first builds, which the game's loading does too: the soak built the middle ring's
+        // first 17k columns in its first frame, 3.7 G instructions under callgrind, a frame no player has)
+        HorizonRing.shared.request(g, eye: g.player.eye)
+        FarRing.shared.request(g, eye: g.player.eye)
         let loadS = CFAbsoluteTimeGetCurrent() - a0
 
         let scene = try SceneRenderer(ctx: ctx, device: device as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)

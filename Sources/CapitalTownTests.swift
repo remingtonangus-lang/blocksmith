@@ -219,8 +219,10 @@ extension TownTests {
         check(!workers.isEmpty && atWork * 10 >= workers.count * 9,
               "capitals: \(atWork)/\(workers.count) citizens reach their office desks in work hours" + (late.isEmpty ? "" : " (\(late.joined(separator: ", ")))"))
         // Night: citizens and keepers in bed.
-        g.time = 0.67 * DAY_LENGTH        // the saloon closes at 0.66
-        let sleepers = people.filter { ["citizen", "shopkeeper"].contains($0.villager?.role ?? "") }
+        g.time = 0.67 * DAY_LENGTH
+        // (The barkeep minds the saloon all night: P456, "the saloon should always be open". The check counted him
+        // from when the saloon shut at 0.66, so he stood awake in every run and left the rest a margin of two.)
+        let sleepers = people.filter { ["citizen", "shopkeeper"].contains($0.villager?.role ?? "") && $0.villager?.shop != ShopKind.saloon.rawValue }
         var slept = Set<ObjectIdentifier>()
         run(150) { for m in sleepers where m.lying { slept.insert(ObjectIdentifier(m)) } }
         let noBed = sleepers.filter { $0.villager?.bed == nil }.count
@@ -239,6 +241,22 @@ extension TownTests {
                 }
                 print("    next " + m.path.nodes.dropFirst(m.path.index).prefix(4).map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: " "))
                 print("  awake \(m.villager?.person ?? "?") \(m.villager?.role ?? "") \(m.villager?.shop ?? "") at \(m.pos) bed \(m.villager?.bed ?? []) path \(m.path.nodes.count) idx \(m.path.index) partial \(m.path.partial) gaveUp \(m.unreachableTimer)")
+                if let b = m.villager?.bed {
+                    let goal = V3(Float(b[0]) + 0.5, Float(b[1]), Float(b[2]) + 0.5)
+                    for n in [1500, 8000] {
+                        let r = PathFinder.find(w, from: m.pos, to: goal, profile: m.pathProfile(g), maxNodes: n)
+                        let end = r?.last.map { "\($0.x),\($0.y),\($0.z)" } ?? "none"
+                        print("    a path to the bed within \(n) cells: \(r?.count ?? -1) steps, ending \(end)")
+                    }
+                }
+                print("    foe \(m.town.foe.map { "\($0.kind)" } ?? "none") anger \(m.town.anger) handsUp \(m.town.handsUp) out \(m.town.out) brawl \(m.town.brawl) active \(w.activeHere(m.pos)) hurt \(m.hurt) panic \(m.panic)")
+            }
+            // Tick by tick: whether each one lies down and what gets them up again.
+            let watch = sleepers.filter { !slept.contains(ObjectIdentifier($0)) }
+            for i in 0..<12 where !watch.isEmpty {
+                g.player.vel = .zero; g.player.pos = centre + V3(0, 60, 0)
+                g.tick(0.05)
+                print("    tick \(i): " + watch.map { m in String(format: "%@ lying %@ y %.3f z %.3f", m.villager?.person ?? "?", m.lying ? "yes" : "no", m.pos.y, m.pos.z) }.joined(separator: " | "))
             }
         }
         check(!sleepers.isEmpty && slept.count * 10 >= sleepers.count * 9 && noBed * 10 <= sleepers.count,

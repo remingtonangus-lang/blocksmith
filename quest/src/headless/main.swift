@@ -1770,6 +1770,9 @@ game.player.pos = spawn
 game.paused = false
 game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
+// (Nov 5: the game's tick sets this every frame; the suites that never tick first left it at the origin, thousands of
+// blocks off, so nothing near the player ticked: arrows hung in the air, a called horse never ran)
+world.activeCenter = spawn
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
@@ -2635,8 +2638,16 @@ if CommandLine.arguments.contains("--mobtests") {
     exit(ok ? 0 : 1)
 }
 // Mac harness suites the questcheck never ran before Nov 4 (bug hunt): --swingtest (VR melee and the bow,
-// VRMeleeTests) and --v78 (the V78 playtest list, PlaytestV78Tests). (QuestBugTests, the PM9 lists, smooth ground, audio
-// and copper suites are Mac-only files, quest/mac-only.txt.)
+// VRMeleeTests) and --v78 (the V78 playtest list, PlaytestV78Tests). (The audio suites are Mac-only files, quest/mac-only.txt.)
+// Nov 5: more of them (bug hunt): --coppertest (copper circuit parity, CopperTests + the workshop), --questbugs (task 20
+// and the PM9 playtest lists), --smoothtest (smooth ground).
+if CommandLine.arguments.contains("--coppertest") {
+    var f = CopperTests.run(game)
+    CircuitWorkshopTests.run(game) { ok, what in print("coppertest: \(ok ? "PASS" : "FAIL") \(what)"); if !ok { f += 1 } }
+    print("coppertest: \(f) failed"); exit(f == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--questbugs") { let f = QuestBugTests.run(game); print("questbugs: \(f) failed"); exit(f == 0 ? 0 : 1) }
+if CommandLine.arguments.contains("--smoothtest") { let f = SmoothTests.run(game); print("smoothtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--swingtest") { let f = VRMeleeTests.run(game); print("swingtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
 if CommandLine.arguments.contains("--v78") {
     var f = 0
