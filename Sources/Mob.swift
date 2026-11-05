@@ -1435,7 +1435,12 @@ final class Mob {
             // P344 (d): a vehicle never hops (a truck bounced over every bump); it climbs a step on its own (below).
             // P366 (g, "villagers jumping for no reason"): townsfolk bumping a wall, a fence or each other hop only when a
             // one-block step is really there to climb.
-            else if onGround && spec.behavior != .slime && !kind.ashVehicle && (kind != .villager || stepAhead(w)) { vel.y = 8.6 }
+            // Ledger 23: the hop's height hung on the beat it was taken at (gravity is taken off before each move, so a
+            // hop peaks v²/56 - v·dt/2 up): every tick at 72 Hz 1.2, but a calm mob past 48 blocks moves on every 2nd or
+            // 4th tick (P283) and on a slow frame peaked 0.9 or 0.5, short of the step it was hopping (a townsperson in
+            // the capital sat bouncing at her flat's door step all night). The hop now takes the speed that peaks 1.2
+            // up at the beat it moves on.
+            else if onGround && spec.behavior != .slime && !kind.ashVehicle && (kind != .villager || stepAhead(w)) { vel.y = Mob.hopSpeed(dt) }
         }
         if pos.y < -10 { health = 0 }
 
@@ -1801,6 +1806,13 @@ final class Mob {
     }
 
     // A one-block step in front: solid at the feet a little ahead, clear a block higher.
+    // The take-off speed of a hop that peaks `height` up when gravity (28) comes off before each move of `dt`.
+    static func hopSpeed(_ dt: Float, height: Float = 1.2) -> Float {
+        let gd: Float = 28 * dt
+        let disc: Float = gd * gd + 8 * 28 * height
+        return (gd + disc.squareRoot()) / 2
+    }
+
     func stepAhead(_ w: World) -> Bool {
         var f = V3(forward.x, 0, forward.z)
         let l = simd_length(f)
