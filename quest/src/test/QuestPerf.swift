@@ -248,8 +248,16 @@ enum QuestPerf {
                 "\(k >> 32 == 1 ? "bg " : "")\(Blocks.def(BlockID(k >> 16 & 0xFFFF)).name)->\(Blocks.def(BlockID(k & 0xFFFF)).name) \(n)"
             }
             let cells = World.editCells.count, again = World.editCells.values.filter { $0 > 1 }.count
+            // Where the background edits were: under the ground's top (caves), at it, or over it; how far off and how deep.
+            var under = 0, at = 0, over = 0, far: Float = 0, deep = 0
+            for c in World.editCells.keys {
+                let top = g.world.topY(c.x, c.z)
+                if c.y < top - 3 { under += 1; deep = max(deep, top - c.y) } else if c.y <= top + 1 { at += 1 } else { over += 1 }
+                far = max(far, simd_length(V2(Float(c.x) - g.player.pos.x, Float(c.z) - g.player.pos.z)))
+            }
+            let whereLine = cells == 0 ? "" : String(format: "; %d under the ground's top (deepest %d), %d at it, %d over it, farthest %.0f blocks", under, deep, at, over, far)
             World.editTally = [:]; World.editCells = [:]
-            return line + (top.isEmpty ? "" : "\n    edits: " + top.joined(separator: ", ") + "; \(cells) cells, \(again) changed twice or more")
+            return line + (top.isEmpty ? "" : "\n    edits: " + top.joined(separator: ", ") + "; \(cells) cells, \(again) changed twice or more" + whereLine)
         }
         for _ in 0..<90 { try frame(nil, fly: false) }                  // settle (first meshes in, the far ring built)
         for c in w.chunks.values { c.markSaved() }                         // (an autosave just ran: P374's save copies)
