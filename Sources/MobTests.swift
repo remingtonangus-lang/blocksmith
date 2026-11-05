@@ -618,6 +618,30 @@ enum MobTests {
                   "\(inRock) of \(total) horses in rock (the old placement: \(oldInRock) of 40)")
             mm.mobs.removeAll()
         }
+
+        // Conduit power (bug ledger, Nov 5): the search round a swimmer read only every other layer, so a conduit at an
+        // odd height from his feet never gave power. A conduit 3 up in a 16-block tidestone ring, then 4 up.
+        if Blocks.has("conduit") {
+            let bx = Int(floor(pos.x)) - 40, bz = Int(floor(pos.z)), by = Int(floor(pos.y))
+            let conduit = Blocks.id("conduit"), prism = Blocks.id("prismarine")
+            let p0 = game.player.pos, w0 = game.player.inWater
+            var got: [Bool] = []
+            for up in [3, 4] {
+                for dx in -3...3 { for dz in -3...3 { for dy in 0...6 { world.setBlockAsync(bx + dx, by + dy, bz + dz, AIR) } } }
+                for dx in -2...2 { for dz in -2...2 where abs(dx) == 2 || abs(dz) == 2 { world.setBlockAsync(bx + dx, by + up, bz + dz, prism) } }
+                world.setBlockAsync(bx, by + up, bz, conduit)
+                game.effects.remove(.conduitPower)
+                game.player.pos = V3(Float(bx) + 0.5, Float(by), Float(bz) + 0.5)
+                game.player.inWater = true
+                game.blockSecondTick()
+                got.append(game.effects.has(.conduitPower))
+            }
+            for dx in -3...3 { for dz in -3...3 { for dy in 0...6 { world.setBlockAsync(bx + dx, by + dy, bz + dz, AIR) } } }
+            game.player.pos = p0; game.player.inWater = w0
+            game.effects.remove(.conduitPower)
+            check(got == [true, true], "a conduit gives power at an odd height from the swimmer as at an even one",
+                  "3 up: \(got[0]), 4 up: \(got[1])")
+        }
     }
 
     // MARK: Behaviour details
