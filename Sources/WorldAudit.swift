@@ -50,6 +50,9 @@ enum WorldAudit {
                 if s.pieces.contains(where: { p in t.pieces.contains { q in hit(p.min, p.max, q.min, q.max) } }) {
                     ov += 1; overlapPairs[[s.kind, t.kind].sorted().joined(separator: " + "), default: 0] += 1
                     // (Nov 5: which, and where, so an overlap can be looked at)
+                    if let (p, q) = s.pieces.lazy.compactMap({ p in t.pieces.first { q in hit(p.min, p.max, q.min, q.max) }.map { (p, $0) } }).first {
+                        print("worldaudit: seed \(seed) overlap pieces \(s.kind) \(p.min.x),\(p.min.y - YOFF),\(p.min.z)...\(p.max.x),\(p.max.y - YOFF),\(p.max.z) + \(t.kind) \(q.min.x),\(q.min.y - YOFF),\(q.min.z)...\(q.max.x),\(q.max.y - YOFF),\(q.max.z)")
+                    }
                     print("worldaudit: seed \(seed) overlap \(s.kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z) (y \(s.min.y - YOFF)...\(s.max.y - YOFF)) + \(t.kind) at \(t.anchor.x) \(t.anchor.y - YOFF) \(t.anchor.z) (y \(t.min.y - YOFF)...\(t.max.y - YOFF))")
                 }
             } }
