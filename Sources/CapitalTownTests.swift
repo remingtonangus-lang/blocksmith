@@ -227,10 +227,32 @@ extension TownTests {
         // CAPITAL_DEBUG: each sleeper's way to bed, a line a second (printed for those who never lie down).
         let traceNight = ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil
         var nightLog: [ObjectIdentifier: [String]] = [:]
+        var stuckDump: [ObjectIdentifier: String] = [:]
         var second = 0
         run(150) {
             for m in sleepers where m.lying { slept.insert(ObjectIdentifier(m)) }
             if traceNight {
+                // The first time each one stands stalled on its path: the blocks round its next cell and a test step.
+                for m in sleepers where !slept.contains(ObjectIdentifier(m)) && stuckDump[ObjectIdentifier(m)] == nil
+                    && m.path.stallTime > 3 && m.path.index < m.path.nodes.count {
+                    let n = m.path.nodes[m.path.index]
+                    var d = String(format: "    stalled at %.3f %.3f %.3f (on the ground %@) for the cell %d,%d,%d\n", m.pos.x, m.pos.y, m.pos.z, m.onGround ? "yes" : "no", n.x, n.y, n.z)
+                    for y in (n.y - 1)...(n.y + 2) { for z in (n.z - 1)...(n.z + 1) { for x in (n.x - 1)...(n.x + 1) {
+                        let b = w.block(x, y, z)
+                        var bx: [(V3, V3)] = []; w.collisionBoxes(x, y, z, &bx)
+                        guard !bx.isEmpty || Blocks.key(b) != "air" || w.groundAt(x, y, z) else { continue }
+                        d += "      \(x),\(y),\(z) \(Blocks.def(b).name)\(w.groundAt(x, y, z) ? " (ground)" : "") boxes " + bx.map { String(format: "[%.2f %.2f %.2f - %.2f %.2f %.2f]", $0.0.x, $0.0.y, $0.0.z, $0.1.x, $0.1.y, $0.1.z) }.joined(separator: " ") + "\n"
+                    } } }
+                    let to = V3(Float(n.x) + 0.5, m.pos.y, Float(n.z) + 0.5) - m.pos
+                    let dir = simd_length(V2(to.x, to.z)) > 0.01 ? simd_normalize(V3(to.x, 0, to.z)) : V3(0, 0, -1)
+                    var p0 = m.pos
+                    let hit = w.moveBody(&p0, halfW: m.halfW, height: m.height, dir * 0.08, step: 0.6, onGround: true)
+                    let lo = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), hi = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
+                    d += String(format: "      a test step of 0.08 toward it: moved %.3f %.3f %.3f (blocked x %@ y %@ z %@); room to rise %.3f, to fall %.3f",
+                                p0.x - m.pos.x, p0.y - m.pos.y, p0.z - m.pos.z, hit.x ? "y" : "n", hit.y ? "y" : "n", hit.z ? "y" : "n",
+                                w.sweep(lo, hi, axis: 1, 0.6), w.sweep(lo, hi, axis: 1, -0.6))
+                    stuckDump[ObjectIdentifier(m)] = d
+                }
                 for m in sleepers where !slept.contains(ObjectIdentifier(m)) {
                     let f = m.path.nodes.first.map { "\($0.x),\($0.y),\($0.z)" } ?? "-", l = m.path.nodes.last.map { "\($0.x),\($0.y),\($0.z)" } ?? "-"
                     nightLog[ObjectIdentifier(m), default: []].append(String(format: "%3ds at %.1f %.1f %.1f yaw %.0f moving %@ path %d/%d %@..%@ partial %@ goal %.1f %.1f %.1f search %@ unreach %.1f stall %.1f",
@@ -243,6 +265,7 @@ extension TownTests {
         if traceNight {
             for m in sleepers where !slept.contains(ObjectIdentifier(m)) {
                 print("  night of \(m.villager?.person ?? "?"):"); for l in nightLog[ObjectIdentifier(m)] ?? [] { print("    " + l) }
+                if let d = stuckDump[ObjectIdentifier(m)] { print(d) }
             }
         }
         let noBed = sleepers.filter { $0.villager?.bed == nil }.count
