@@ -34,6 +34,9 @@ enum ShapeTrunks {
     static let isLog: [Bool] = (0..<Blocks.count).map { ShapeClass.kind[$0] == .trunk && !isRoot[$0] }
 
     // Window: section-local -M ... 15 + M on each axis (inside the mesher's 48^3 region).
+    // (Nov 5, measuring the near trunks' quads: BS_KNOBS=0 leaves out the knuckles at limb joints, BS_TIPS=0 the tips.)
+    static let knobsOn = ProcessInfo.processInfo.environment["BS_KNOBS"] != "0"
+    static let tipsOn = ProcessInfo.processInfo.environment["BS_TIPS"] != "0"
     static let M = 10
     static let W = 16 + 2 * M
 
@@ -567,7 +570,7 @@ enum ShapeTrunks {
         tube(ctx, a, b, ra, rb, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i))
         // Knuckle where limbs meet, so joints read as wood growing on, not pipes meeting.
         if ctx.lod != 0 { return }
-        if s.kids[i] > 0 { knob(ctx, b, rb * 1.05, bark: bark, sides: sides) }
+        if s.kids[i] > 0 { if ShapeTrunks.knobsOn { knob(ctx, b, rb * 1.05, bark: bark, sides: sides) } }
         else if s.col[i] == 3 {
             // A root: it turns down into the ground.
             let d = simd_normalize(simd_normalize(b - a) + SIMD3(0, -1.3, 0))
@@ -575,6 +578,7 @@ enum ShapeTrunks {
             tube(ctx, b, b + d * 0.55, rb, rb * 0.5, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i) ^ 0x2007)
         } else {
             // A tip: the limb runs on past the block's centre and tapers off.
+            guard ShapeTrunks.tipsOn else { return }
             let d = simd_normalize(b - a)
             tube(ctx, b, b + d * 0.38, rb, 0.02, bark: bark, sides: sides, salt: UInt32(truncatingIfNeeded: i) ^ 0x7177)
         }
