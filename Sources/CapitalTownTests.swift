@@ -241,6 +241,14 @@ extension TownTests {
                 }
                 print("    next " + m.path.nodes.dropFirst(m.path.index).prefix(4).map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: " "))
                 print("  awake \(m.villager?.person ?? "?") \(m.villager?.role ?? "") \(m.villager?.shop ?? "") at \(m.pos) bed \(m.villager?.bed ?? []) path \(m.path.nodes.count) idx \(m.path.index) partial \(m.path.partial) gaveUp \(m.unreachableTimer)")
+                if let b = m.villager?.bed {
+                    let goal = V3(Float(b[0]) + 0.5, Float(b[1]), Float(b[2]) + 0.5)
+                    for n in [1500, 8000] {
+                        let r = PathFinder.find(w, from: m.pos, to: goal, profile: m.pathProfile(g), maxNodes: n)
+                        let end = r?.last.map { "\($0.x),\($0.y),\($0.z)" } ?? "none"
+                        print("    a path to the bed within \(n) cells: \(r?.count ?? -1) steps, ending \(end)")
+                    }
+                }
                 print("    foe \(m.town.foe.map { "\($0.kind)" } ?? "none") anger \(m.town.anger) handsUp \(m.town.handsUp) out \(m.town.out) brawl \(m.town.brawl) active \(w.activeHere(m.pos)) hurt \(m.hurt) panic \(m.panic)")
             }
             // Tick by tick: whether each one lies down and what gets them up again.
