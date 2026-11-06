@@ -175,18 +175,21 @@ enum Depots {
             let ta0 = 34
             for b in 3...41 { put(ta0, 1, b, railB); for a in (ta0 - 1)...(ta0 + 1) { put(a, 0, b, road) } }   // (on ballast: main-line track)
             for b in [2, 42] { put(ta0, 1, b, dark); put(ta0, 2, b, hazard) }
+            // (Ledger 30: the wagons stood a block up, their bogies in the air over the ballast and the side ladder
+            // touching nothing but a corner; the load check found them hanging from the gantry. Now the bogies stand on
+            // the ballast either side of the rail, the frame over it, and the ladder is on the tank's side.)
             for wb in [5, 15, 25] {
                 let len = 8
                 for b in wb..<(wb + len) {
                     let end = b == wb || b == wb + len - 1
-                    if b == wb + 1 || b == wb + len - 2 { put(ta0 - 1, 2, b, dark); put(ta0 + 1, 2, b, dark) }     // bogies
-                    put(ta0, 3, b, steel); put(ta0 - 1, 3, b, steelSlab); put(ta0 + 1, 3, b, steelSlab)
+                    if b == wb + 1 || b == wb + len - 2 { put(ta0 - 1, 1, b, dark); put(ta0 + 1, 1, b, dark) }     // bogies
+                    put(ta0, 2, b, steel); put(ta0 - 1, 2, b, steelSlab); put(ta0 + 1, 2, b, steelSlab)
                     guard !end else { continue }
-                    for a in (ta0 - 1)...(ta0 + 1) { put(a, 4, b, tanker); put(a, 6, b, tanker) }
-                    for a in (ta0 - 2)...(ta0 + 2) { put(a, 5, b, tanker) }
+                    for a in (ta0 - 1)...(ta0 + 1) { put(a, 3, b, tanker); put(a, 5, b, tanker) }
+                    for a in (ta0 - 2)...(ta0 + 2) { put(a, 4, b, tanker) }
                 }
-                put(ta0, 7, wb + len / 2, steel)                         // the dome
-                put(ta0 + 3, 4, wb + len - 2, ladder + wallLowerA)
+                put(ta0, 6, wb + len / 2, steel)                         // the dome
+                put(ta0 + 2, 3, wb + len - 2, ladder + wallLowerA)
             }
             // The loading gantry: a steel tower by the siding, a deck over the wagons, hoses down to the domes.
             for b in 6...36 {
@@ -196,7 +199,7 @@ enum Depots {
             }
             for y in 1...8 { put(31, y, 6, ladder + wallLowerA) }
             put(31, 9, 6, AIR)
-            for wb in [5, 15, 25] { put(ta0, 9, wb + 4, steel); put(ta0, 8, wb + 4, chain) }
+            for wb in [5, 15, 25] { put(ta0, 9, wb + 4, steel); put(ta0, 8, wb + 4, chain); put(ta0, 7, wb + 4, chain) }
             for b in stride(from: 9, through: 33, by: 8) { put(34, 8, b, panel) }
             // Pumps by the road for his vehicles.
             for b in [27, 29] { put(rb + 1, 1, b, pump) }
@@ -317,7 +320,8 @@ enum Depots {
             for db in -1...1 { put(wa - 2, 9, wb + db, AIR) }
             for y in 1...8 { put(wa - 2, y, wb, ladder + wallHigherA) }
             put(wa - 2, 9, wb, AIR)
-            for (da, db) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { put(wa + da, 10, wb + db, steel) }
+            // (Ledger 30: the roof's posts stood on the empty cells inside the sandbags, held by a corner each.)
+            for (da, db) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { put(wa + da, 9, wb + db, steel); put(wa + da, 10, wb + db, steel) }
             for da in -1...1 { for db in -1...1 { put(wa + da, 11, wb + db, steelSlab) } }
             put(wa, 10, wb, lamp)
             // The gate hut.

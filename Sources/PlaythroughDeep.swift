@@ -237,10 +237,25 @@ extension Playthrough {
             info("bulk: the rest of wave \(n + 1) (\(left.count) units)")
             _ = tick(3) { self.game.ashWave == n + 1 || self.game.ashStage == 2 }
         }
-        var open = 0
-        for z in AshFinal.hatchZ { for x in AshFinal.hatchX where world.isAir(x, AshFinal.hatchY, z) { open += 1 } }
-        check(game.ashStage == 2 && open == 9 && game.advancements.contains("adventure/ash_last_battle"),
-              "deep: the last army beaten, the blast door in the command bunker opens (\(open)/9)")
+        info("after the waves: stage \(game.ashStage), wave \(game.ashWave), \(game.lastWar.wave.count) of it listed, \(game.lastWar.vanished) vanished, \(game.lastWar.spawnedWaves) waves sent")
+        // (Check fix 24: since P318 the blast door waits for the player at the console beside it, lit once the army is
+        // broken; the run never used it, so the door stayed shut and the Chancellor's step had nothing to go down to.)
+        func opened() -> Int { var n = 0; for z in AshFinal.hatchZ { for x in AshFinal.hatchX where world.isAir(x, AshFinal.hatchY, z) { n += 1 } }; return n }
+        let shut0 = opened()
+        let con = AshSabotage.consoleAt
+        _ = world.loadSync(center: V3(Float(con.x), Float(con.y), Float(con.z)), radius: 2)
+        holdNothing()
+        game.player.flying = false
+        game.player.pos = V3(Float(con.x) - 0.5, Float(con.y), Float(con.z) + 0.5); game.player.vel = .zero
+        aim(at: center(con))
+        AimAssist.last = nil
+        game.input.rightClicked = true
+        frame(pin: game.player.pos)
+        let useWhy = why()
+        _ = tick(2)
+        let open = opened()
+        check(game.ashStage == 2 && shut0 == 0 && open == 9 && game.advancements.contains("adventure/ash_last_battle"),
+              "deep: the last army beaten, the blast door in the command bunker shut (\(9 - shut0)/9) until its console opens it (\(open)/9; \(useWhy))")
 
         section("deep: the Chancellor")
         let hall = V3(8.5, Float(AshFinal.y0 + 1), 22.5)

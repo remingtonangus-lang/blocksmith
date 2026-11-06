@@ -506,7 +506,8 @@ final class Playthrough {
         check(logs >= 1, "gather: logs mined by hand (\(logs))")
         let logSlot = (0..<36).first { Items.key(inv[$0].item).hasSuffix("_log") }
         let logKey = logSlot.map { Items.key(inv[$0].item) } ?? "oak_log"
-        if logs < 6 { give(logKey, 6 - logs, bulk: "more trees") }
+        // (Check fix 22: a mixed cut, dark oak x2 and pale oak x1, topped up by all logs and crafted one kind short.)
+        if count(logKey) < 6 { give(logKey, 6 - count(logKey), bulk: "more trees") }
         // Planks from whatever wood this was.
         var planks = "oak_planks"
         if let r = Recipes.match([id(logKey), 0, 0, 0, 0, 0, 0, 0, 0], 3, 3) { planks = Items.key(r.result.item) }
@@ -1087,7 +1088,8 @@ final class Playthrough {
         _ = tick(14) { self.game.dragonKilled }
         _ = tick(1)
         check(game.dragonKilled, "wyrm: death sequence finishes")
-        check(totalXP() - pts0 >= 11400, "wyrm: 12000 XP (\(totalXP() - pts0) points, level \(xp0) -> \(game.xpLevel))")
+        // (Check fix 23: P508 took the experience bar out, so addXP keeps nothing while Game.xpOn is off.)
+        if Game.xpOn { check(totalXP() - pts0 >= 11400, "wyrm: 12000 XP (\(totalXP() - pts0) points, level \(xp0) -> \(game.xpLevel))") }
         check(!game.mobs.mobs.contains { $0.kind == .enderDragon }, "wyrm: gone after dying")
         var portal = 0
         for z in -2...2 { for x in -2...2 where key(IVec3(x, fy, z)) == "end_portal" { portal += 1 } }
