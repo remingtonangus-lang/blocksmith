@@ -151,7 +151,9 @@ enum SunkenDreadnought {
         // Companionways: hatches in the main deck and middle deck with ladders down.
         for hx in [-48, -38, 2, 26, 48] {
             set(hx, yMain, 1, WATER); set(hx, yMid, 1, WATER)
-            for y in yLow..<yMain { set(hx, y, 2, ladder) }
+            // (Ledger 34: the ladder stood a cell aside from the hatches with open water behind it; it climbs up through
+            // them now, on a steel post.)
+            for y in yLow...yMain { set(hx, y, 2, steel); set(hx, y, 1, ladder) }
             set(hx, yMain + 1, 2, fence)
         }
 
