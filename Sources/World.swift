@@ -1462,7 +1462,7 @@ final class World {
         s.opaqueQuads = m.opaque.count / 8
         s.solidQuads = m.solidQuads
         s.farSkip = m.farGround.isEmpty ? 0 : m.farSkip; s.farExtra = m.farGround.count / 8
-        s.farCut = m.farCut; s.farTail = m.farTail
+        s.farCut = m.farCut; s.farTail = m.farTail; s.farPlants = m.farPlants
         s.blobFarN = m.farGround.isEmpty ? 0 : Int(m.farParts[2]); s.blobFarAt = Int(m.farParts[0] + m.farParts[1])
         s.blobCutN = s.blobFarN > 0 ? max(0, m.farCut - Int(m.farParts[3])) : 0
         s.transBuf = makeBuffer(m.trans)

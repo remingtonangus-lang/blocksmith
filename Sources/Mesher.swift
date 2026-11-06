@@ -22,6 +22,7 @@ struct SectionMesh {
     var farGround: [UInt32] = []
     var farCut = 0
     var farTail = 0         // P384: the last farTail cutout quads are drawn far only (things laid on the ground)
+    var farPlants = 0       // Nov 6: the farPlants cutout quads before the far tail are small ground plants (Mesher.farPlantT)
     var farParts = SIMD4<Int32>()   // (questcheck --farcheck: the far copy's ground, bevelled and leaf parts; near laid things)
     var detailFarSkip = 0
     var detailFar: [UInt32] = []
@@ -109,6 +110,17 @@ enum Mesher {
     // lay the texture by position as the per-block corners did. Headset shaders only (the Mac's don't read 28 / 29).
     #if QUEST || QUEST_HEADLESS
     static let crossRuns = runMerge && ProcessInfo.processInfo.environment["BS_CROSSRUNS"] != "0"
+    // Nov 6 (frame rate, the standing fill-in): small ground plants (grass tufts, ferns, flowers, dead bushes) go last
+    // of a section's cutout quads, before the far-only tail, counted in MeshResult.plants, so the renderer can leave
+    // them out from SceneRenderer.plantFarFrom (a tuft is under a pixel and a half there at headset resolution). Tall
+    // plants, vines, roots and water plants stay. BS_FARPLANTS=0 for before.
+    static let farPlants = ProcessInfo.processInfo.environment["BS_FARPLANTS"] != "0"
+    static let farPlantKeys: Set<String> = ["short_grass", "grass", "fern", "dead_bush", "bush", "dandelion", "poppy", "blue_orchid",
+        "allium", "azure_bluet", "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "oxeye_daisy", "cornflower",
+        "lily_of_the_valley", "torchflower", "open_eyeblossom", "closed_eyeblossom", "short_dry_grass", "sweet_berry_bush"]
+    static let farPlantT: [Bool] = (0..<Blocks.count).map { i in
+        farPlants && Blocks.defs[i].render == .cross && farPlantKeys.contains(Blocks.key(Blocks.groupBase[i]))
+    }
     #else
     static let crossRuns = false
     #endif
@@ -554,6 +566,9 @@ enum Mesher {
         opq.count = 0; cut.count = 0; trn.count = 0
         var curCut = false
         var kindNow = MeshKind.cube, kv = SIMD16<Int32>()  // (P384 step 1: vertices by kind)
+        var dropNow = false                                 // (Nov 6: a small ground plant's quads: Mesher.farPlantT)
+        let farPlantCut = sc.farPlantCut, farPlantT = Mesher.farPlantT
+        farPlantCut.count = 0
         var groundV = 0, blobV = 0                       // (P283 stats: vertices from the two smooth passes)
         var farSkip = 0, farGround: [UInt32] = []        // P375 (GroundMerge)
         var leafy = false                                // faces between leaf blocks met (lod 0 and 2 differ)
@@ -617,7 +632,9 @@ enum Mesher {
                 // (Nov 6: of the opaque stream's cutout quads, the ones not leaf blobs, and the cubes' and props' share)
                 if curCut && kindNow != MeshKind.blob { kv[7] &+= 1; if kindNow == MeshKind.cube { kv[14] &+= 1 } else if kindNow == MeshKind.model { kv[15] &+= 1 } }
             }
-            if curCut { cutOut.append(w0); cutOut.append(w1) } else { solidOut.append(w0); solidOut.append(w1) }
+            if curCut {
+                if dropNow && cutOut === cut { farPlantCut.append(w0); farPlantCut.append(w1) } else { cutOut.append(w0); cutOut.append(w1) }
+            } else { solidOut.append(w0); solidOut.append(w1) }
         }
         // A smooth ground vertex from the ground passes: u = 31 projects the texture by the quad's face, and v (+ 31 when
         // the overlay bit is set) is the vertex normal code (< 49); P383: f 8...15 is a per-position vertex (u = 30, the
@@ -641,7 +658,7 @@ enum Mesher {
                        runsOn: (Int, Int, Int) -> Bool, cham: (Int, Int) -> Bool) {
             let a = f >> 1, sa = f & 1 == 0 ? 1 : -1, pa = sa > 0 ? 16 : 0
             let base = SIMD3<Int>(bx16, by16, bz16)
-            kindNow = MeshKind.bevel
+            kindNow = MeshKind.bevel; dropNow = false
             if farCopies && !curCut && !isTrans { solidOut = bev }      // (P384: near only)
             defer { kindNow = MeshKind.cube; solidOut = opq }
             func put(_ q: SIMD3<Int>, _ n: SIMD3<Float>, _ l: Int, _ ao: Int) {
@@ -877,7 +894,7 @@ enum Mesher {
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
         let groundStart = opq.count
-        kindNow = MeshKind.ground
+        kindNow = MeshKind.ground; dropNow = false
         if smooth && fieldOn && far && Mesher.farGround {
             // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround).
             coarseGround(R, dens, sc, nearSides: nearSides) { x16, y16, z16, f, tint, layer, ao, l, ncode in
@@ -1101,7 +1118,7 @@ enum Mesher {
         // the field), quads wholly inside the ground left out. Far sections too (P378 step 3: identical far).
         let fluidNets = fieldOn && Mesher.fluidNets            // (every distance: P378 step 3)
         if fluidNets {
-            kindNow = MeshKind.fluid
+            kindNow = MeshKind.fluid; dropNow = false
             for kind in [UInt8(1), UInt8(2), UInt8(3)] {                // (3: fuel, P478)
                 var any = false
                 outer: for y in (C0 - 2)..<(C0 + 20) { for z in (C0 - 2)..<(C0 + 20) { for x in (C0 - 2)..<(C0 + 20) where fkT[Int(R[x + z * RW + y * RL])] == kind { any = true; break outer } } }
@@ -1413,6 +1430,7 @@ enum Mesher {
                     let isTrans = layerT[bi] == translucent
                     curCut = !(rt == rCube && layerT[bi] == solidLayer)
                     kindNow = rt == rCube ? MeshKind.cube : (rt == rCross ? MeshKind.plant : (rt == rLiquid ? MeshKind.fluid : MeshKind.model))
+                    dropNow = farPlantT[bi]
 
                     if anyDmg, let dv = dmg[i], rt == rCube {
                         // A chipped block: its remaining 4x4x4 sub-cubes, faces between them and against undamaged
@@ -2058,6 +2076,8 @@ enum Mesher {
                 let isTrans = layerT[bi] == translucent
                 curCut = true
                 kindNow = MeshKind.plant
+                dropNow = farPlantT[bi]
+                defer { dropNow = false }
                 let layer = Int(texT[bi * 6 + 2])
                 let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
                 let drift = swayOn && driftT[bi], foot = drift && driftFoot(i)
@@ -2141,7 +2161,7 @@ enum Mesher {
                 let farBlob = lod == 1 && Mesher.farLeaves
                 let farShell = farCopies && !farBlob && SmoothTerrain.triGround
                 if farShell { cutOut = blobCut }                 // (P384: near only, first of the cutout quads)
-                kindNow = MeshKind.blob
+                kindNow = MeshKind.blob; dropNow = false
                 // (Nov 5, P453 "simplify trees": with a far shell the cutout shells go outer ones first, then the inner
                 // ones, so past SceneRenderer.blobMidFrom the renderer draws the outer half alone. smoothQuads gives every
                 // quad's inner twin right after it.)
@@ -2176,7 +2196,7 @@ enum Mesher {
             }
         }
         // Merge the collected faces: grow each run along a, then along b while the whole row matches.
-        kindNow = MeshKind.cube
+        kindNow = MeshKind.cube; dropNow = false
         func mergeFaces(_ mk: UnsafeMutablePointer<Int32>) {
             for f in 0..<6 {
                 let axis = f / 2
@@ -2319,7 +2339,7 @@ enum Mesher {
                 parts = SIMD4<Int32>(Int32(farGround.count / 8), 0, 0, 0)
             }
         }
-        opaqueOut.reserveCapacity(opq.count + bev.count + blobCut.count + drapeNear.count + cut.count + farTail * 8)
+        opaqueOut.reserveCapacity(opq.count + bev.count + blobCut.count + drapeNear.count + cut.count + farPlantCut.count + farTail * 8)
         // (P384: the ground, the bevelled faces, the rest of the solid quads; the blobs' cutout shells, the things laid
         // on the ground, the other cutout quads, the far copies of the things laid on the ground)
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr, count: groundEnd))
@@ -2328,6 +2348,7 @@ enum Mesher {
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: blobCut.ptr, count: blobCut.count))
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: drapeNear.ptr, count: drapeNear.count))
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: cut.ptr, count: cut.count))
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: farPlantCut.ptr, count: farPlantCut.count))   // (Nov 6: small plants last)
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: drapeFar.ptr, count: farTail * 8))
         var detailOut = [UInt32]()
         if det.count + detCut.count > 0 {
@@ -2363,7 +2384,7 @@ enum Mesher {
         }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
-                           farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farParts: parts,
+                           farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farPlants: farPlantCut.count / 8, farParts: parts,
                            detailFarSkip: detailFarSkip, detailFar: detailFar, solidFull: solidFull, kinds: kv, ground: groundTris)
     }
 
@@ -2540,6 +2561,7 @@ final class MeshScratch {
     let detFar = GrowBuf<UInt32>(1 << 12)       // P384: the detail stream's far copy
     let detFarCut = GrowBuf<UInt32>(1 << 8)     // (ledger 25: cutout quads of the far trunks, dropped)
     let drapeNear = GrowBuf<UInt32>(1 << 10), drapeFar = GrowBuf<UInt32>(1 << 10)   // P384: things laid on the ground, near and far
+    let farPlantCut = GrowBuf<UInt32>(1 << 10)  // (Nov 6: small ground plants, put last of the cutout quads before the far tail)
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {
