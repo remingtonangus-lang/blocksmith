@@ -35,6 +35,8 @@ enum ShapeTrunks {
 
     // Window: section-local -M ... 15 + M on each axis (inside the mesher's 48^3 region).
     static let M = 10
+    // Nov 6: the far copy's merged trunk runs (BS_TRUNKMERGE=0: a band a block, as before).
+    static let mergeFar = ProcessInfo.processInfo.environment["BS_TRUNKMERGE"] != "0"
     static let W = 16 + 2 * M
 
     final class Scratch {
@@ -193,9 +195,10 @@ enum ShapeTrunks {
         }
 
         // 3. Geometry for the owned logs.
-        // Mid sections (lod 2) use fewer sides and leave out the joint knobs and tips; far ones (lod 1) fewer still.
-        let sides = ctx.lod == 0 ? 9 : (ctx.lod == 2 ? 6 : 5)
-        let limbSides = ctx.lod == 0 ? 6 : (ctx.lod == 2 ? 5 : 4)
+        // Mid sections (lod 2) use fewer sides and leave out the joint knobs and tips; far ones (lod 1) fewer still. The
+        // far copy (lod 3, drawn past SceneRenderer.trunkFarFrom) has the mid sides and straight runs of a trunk merged.
+        let sides = ctx.lod == 0 ? 9 : (ctx.lod == 2 || ctx.lod == 3 ? 6 : 5)
+        let limbSides = ctx.lod == 0 ? 6 : (ctx.lod == 2 || ctx.lod == 3 ? 5 : 4)
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isTrunk[Int(b)] else { continue }
@@ -403,6 +406,23 @@ enum ShapeTrunks {
         let rAbove = above && y + 1 < 16 + M ? s.rad[wi(x, y + 1, z)] * scale : r
         let r0 = (r + rBelow) * 0.5, r1 = (r + rAbove) * 0.5
         let y0 = Float(y), y1 = Float(y + 1)
+        // Nov 6 (frame rate, the jungle): in the far copy (lod 3) a straight run of trunk with trunk over and under every
+        // cell goes up as one band of up to 8 blocks, not a band a block: at his jungle spot 107k of the 154k trunk quads
+        // drawn were 64+ blocks off, and the far sections had no lighter copy (they are mid sections already, 6 sides).
+        var topH = y1, topR = r1
+        if ctx.lod == 3 && ShapeTrunks.mergeFar && below && above {
+            let kind = s.col[i]
+            func plain(_ yy: Int) -> Bool {
+                yy - 1 >= -M && yy + 1 < 16 + M && s.col[wi(x, yy, z)] == kind && s.col[wi(x, yy - 1, z)] != 0 && s.col[wi(x, yy + 1, z)] != 0
+            }
+            var base = y
+            while base - 1 >= 0 && plain(base - 1) { base -= 1 }
+            if (y - base) % 8 != 0 { return }                 // (drawn by its run's first cell)
+            var end = y + 1
+            while end < 16 && end - y < 8 && plain(end) { end += 1 }
+            topH = Float(end)
+            topR = (s.rad[wi(x, end - 1, z)] + s.rad[wi(x, end, z)]) * 0.5 * scale
+        }
         var prof: [(Float, Float)] = []              // (height, radius) from the bottom up
         // PG4: a living trunk whose foot is on another trunk's side (no ground under it) grows out of that trunk: no
         // root flare, its foot sunk into a short bough from the other trunk's centre.
@@ -439,7 +459,7 @@ enum ShapeTrunks {
         // cut end showing the rings, not the rounded tip under a crown.
         let cutTop = !above && living && !isTrunk[Int(ctx.column(x, y + 1, z))] && cutAbove(ctx, x, y, z) >= 0
         if above {
-            prof.append((y1, r1))
+            prof.append((topH, topR))
         } else if living && !cutTop {
             prof.append((y1 - 0.15, r * 0.8)); prof.append((y1 + 0.05, r * 0.45)); prof.append((y1 + 0.15, 0.02))
         } else {

@@ -2249,7 +2249,7 @@ enum Mesher {
                 for k in trunkTo..<det.count { df.append(det.ptr[k]) }
                 sc.detFarCut.count = 0
                 let far = DetailContext(out: df, cutOut: sc.detFarCut, R: tc.R, sky: tc.sky, blk: tc.blk, wx0: tc.wx0, wy0: tc.wy0, wz0: tc.wz0,
-                                        lod: 2, sc: tc.sc, srcs: tc.srcs, sy: tc.sy, field: tc.field, skipCells: tc.skipCells)
+                                        lod: 3, sc: tc.sc, srcs: tc.srcs, sy: tc.sy, field: tc.field, skipCells: tc.skipCells)
                 ShapeTrunks.emit(far)
             } else {
                 for k in 0..<det.count { df.append(det.ptr[k]) }
