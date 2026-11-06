@@ -41,7 +41,8 @@ enum NavalPort {
     }
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: kind, spacing: spacing, separation: separation, salt: 39182447, reach: 7) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: kind, spacing: spacing, separation: separation, salt: 39182447, reach: 7) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             // Ground saved before the ports keeps its coast (a pier half over saved chunks would be cut off).
             if let sc = gen.structures, !sc.clear(cx: cx0, cz: cz0, reach: 7, guardSet: sc.legacyPorts) { return nil }
             let o = Game.spawnOrigin(seed: gen.seed)

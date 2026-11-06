@@ -55,7 +55,8 @@ enum WildCamps {
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             var roll = SRng(seed)
             guard roll.chance(chance) else { return nil }
             if thinnedG12(gen, seed, cx0, cz0) { return nil }

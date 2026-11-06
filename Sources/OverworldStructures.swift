@@ -20,7 +20,8 @@ enum OverworldStructures {
     // MARK: Temples
 
     static func temple(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "temple", spacing: 34, separation: 12, salt: 14357617, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "temple", spacing: 34, separation: 12, salt: 14357617, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let x = cx * CS + 8, z = cz * CS + 8
             let biome = gen.column(x, z).biome
             let y = gen.groundY(x, z)
@@ -374,7 +375,8 @@ enum OverworldStructures {
     // MARK: Marauder outpost
 
     static func outpost(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "pillager_outpost", spacing: 34, separation: 12, salt: 165745296, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "pillager_outpost", spacing: 34, separation: 12, salt: 165745296, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             var rng = SRng(seed)
             guard rng.int(5) == 0 else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8
@@ -533,7 +535,8 @@ enum OverworldStructures {
     // MARK: Ruined portal
 
     static func ruinedPortal(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "ruined_portal", spacing: 40, separation: 15, salt: 34222645, reach: 1) { [unowned gen] seed, cx, cz in
+        StructureType(name: "ruined_portal", spacing: 40, separation: 15, salt: 34222645, reach: 1) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let x = cx * CS + 8, z = cz * CS + 8
             if abs(x) < 64 && abs(z) < 64 { return nil }          // keep the spawn area clear
             let y = gen.groundY(x, z)
@@ -573,7 +576,8 @@ enum OverworldStructures {
     // MARK: Shipwrecks, buried treasure
 
     static func shipwreck(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "shipwreck", spacing: 24, separation: 4, salt: 165745295, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "shipwreck", spacing: 24, separation: 4, salt: 165745295, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             // P190 (Oct 13: "too many ships popping up, make those about eight times as rare"): one start in eight
             // stays (the others' places are unchanged, so a wreck already found is still there).
             guard hashf(cx, cz, 0x5E1C, UInt32(truncatingIfNeeded: seed)) < 0.125 else { return nil }
@@ -685,7 +689,8 @@ enum OverworldStructures {
     static func WATER_IF_BELOW_SEA(_ y: Int) -> BlockID { y <= SEA ? WATER : AIR }
 
     static func buriedTreasure(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "buried_treasure", spacing: 4, separation: 1, salt: 10387320, reach: 0) { [unowned gen] seed, cx, cz in
+        StructureType(name: "buried_treasure", spacing: 4, separation: 1, salt: 10387320, reach: 0) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             var rng = SRng(seed)
             guard rng.int(100) < 6 else { return nil }             // ~1% of beach chunks overall
             let x = cx * CS + 9, z = cz * CS + 9
@@ -700,7 +705,8 @@ enum OverworldStructures {
     // MARK: Mineshafts
 
     static func mineshaft(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "mineshaft", spacing: 16, separation: 1, salt: 30084233, reach: 4) { [unowned gen] seed, cx, cz in
+        StructureType(name: "mineshaft", spacing: 16, separation: 1, salt: 30084233, reach: 4) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let x = cx * CS + 8, z = cz * CS + 8
             // C12: abandoned mineshafts are retired on new ground; the mining towns work real mines instead
             // (MiningTowns.swift). Ground a save had generated before keeps its shafts.
@@ -880,7 +886,8 @@ enum OverworldStructures {
     // MARK: Desert well
 
     static func desertWell(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "desert_well", spacing: 22, separation: 2, salt: 40306, reach: 0) { [unowned gen] seed, cx, cz in
+        StructureType(name: "desert_well", spacing: 22, separation: 2, salt: 40306, reach: 0) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let x = cx * CS + 8, z = cz * CS + 8
             guard gen.column(x, z).biome == .desert else { return nil }
             // P495 (night lane, Oct 30, a desert render: a well's base stood a block proud of the sand on a beach slope,

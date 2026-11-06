@@ -25,7 +25,8 @@ enum Depots {
     static let shutter = "roller_shutter"
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: kind, spacing: Greywall.spacing, separation: Greywall.separation, salt: 77310557, reach: 10) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: kind, spacing: Greywall.spacing, separation: Greywall.separation, salt: 77310557, reach: 10) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             guard let sc = gen.structures, let gt = sc.types.first(where: { $0.name == Greywall.kind }) else { return nil }
             let rx = floorDiv(cx0, Greywall.spacing), rz = floorDiv(cz0, Greywall.spacing)
             guard let base = sc.start(gt, regionX: rx, regionZ: rz), let site = site(gen, sc, base) else { return nil }
