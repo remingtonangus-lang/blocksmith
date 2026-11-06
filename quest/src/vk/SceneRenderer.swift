@@ -164,6 +164,10 @@ final class SceneRenderer {
     // trunkFarFrom the ones in sections with no far copy to switch to)
     static var tallyDetail = false
     private(set) var detailBands = [Int](repeating: 0, count: 4), detailNoFar = 0
+    // (Nov 6, questcheck --perfscenes: the opaque stream's drawn quads by distance band (as detailBands) and part: 0 the
+    // solid quads drawn near (ground, cubes, props), 1 the leaf blobs' cutout shells, 2 their far shells, 3 the rest of
+    // the cutout quads (plants, vines), 4 the far copies past the merged ground distance; index part * 4 + band)
+    private(set) var opaqueParts = [Int](repeating: 0, count: 20)
     private(set) var visibleCount = 0
     private(set) var cullMs = 0.0
     var caveCulling = true
@@ -1671,7 +1675,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0 }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
+        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0; for b in 0..<20 { opaqueParts[b] = 0 } }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         if tableFrame {
@@ -2576,6 +2580,20 @@ extension SceneRenderer {
                     let q = far ? Int(fExtra - fSkip) + Int(total) : Int(total)
                     detailBands[dd < 16 ? 0 : (dd < 32 ? 1 : (dd < 64 ? 2 : 3))] += q
                     if !far && dd >= tf { detailNoFar += q }
+                }
+                if !detail && SceneRenderer.tallyDetail {
+                    let ci = tc[v / NSEC]
+                    let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
+                    let dd = simd_length(simd_clamp(re, mn, mn + V3(16, 16, 16)) - re)
+                    let b = dd < 16 ? 0 : (dd < 32 ? 1 : (dd < 64 ? 2 : 3))
+                    if far { opaqueParts[16 + b] += Int(fExtra) + Int(solid - fSkip) + Int(total - cutFrom) }
+                    else {
+                        opaqueParts[b] += Int(solid)
+                        let leaf = band ? 0 : (mid ? Int(e.bCut / 2) : Int(max(0, min(e.bCut, total - solid))))
+                        opaqueParts[4 + b] += leaf
+                        if band { opaqueParts[8 + b] += Int(e.bN) }
+                        opaqueParts[12 + b] += Int(total - cutFrom) - (band || mid ? 0 : leaf)
+                    }
                 }
                 quadsDrawn += Int(total)
             }
