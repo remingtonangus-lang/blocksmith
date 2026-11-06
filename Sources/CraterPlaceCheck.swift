@@ -87,9 +87,10 @@ enum CraterPlaceCheck {
             p.yaw = yawOff; p.pitch = pitch
             guard let t = g.target, w.groundAt(t.hit.x, t.hit.y, t.hit.z), abs(t.hit.x - cx) <= 8, abs(t.hit.z - cz) <= 8 else { continue }
             // (a block can't go where he stands: an aim at the ground under his own feet isn't one of these. Check fix 29:
-            // the cell the click fills, which on drawn ground is the open cell before the hit along the ray, not always
-            // the one off the hit's face: suite on build 200, one aim of 9 went into his own cell, "You're standing there")
-            let c0 = g.openCellBefore(t) ?? (t.hit + t.normal)
+            // the cell the click fills is the game's own choice (Game.placeCell: on drawn ground it can be the open cell
+            // before the hit along the ray, not the one off the hit's face): suite on build 200, one aim of 9 went into
+            // his own cell, "You're standing there")
+            let c0 = g.placeCell(t, for: STONE)
             let feet = p.pos, half: Float = 0.3
             if Float(c0.x) < feet.x + half && Float(c0.x + 1) > feet.x - half && Float(c0.z) < feet.z + half && Float(c0.z + 1) > feet.z - half
                 && Float(c0.y) < feet.y + 1.8 && Float(c0.y + 1) > feet.y { continue }

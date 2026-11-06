@@ -1856,11 +1856,7 @@ final class Game {
                 return
             }
         }
-        var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
-        // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
-        // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
-        // (a cell drawn small, a slope's corner): the block goes in the last open cell the aim crossed before the ground.
-        if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))], let open = openCellBefore(t) { at = open }
+        var at = placeCell(t, for: blockItem)
         let existing = world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
@@ -2134,6 +2130,16 @@ final class Game {
     }
 
     // P507: the last cell along the aim before the target's hit point that a block can go in (not the target's own).
+    // The cell a block placed at this aim goes into (also what CraterPlaceCheck leaves out when it is his own: check fix 29).
+    func placeCell(_ t: (hit: IVec3, normal: IVec3), for blockItem: BlockID) -> IVec3 {
+        let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
+        var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
+        // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
+        // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
+        // (a cell drawn small, a slope's corner): the block goes in the last open cell the aim crossed before the ground.
+        if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))], let open = openCellBefore(t) { at = open }
+        return at
+    }
     func openCellBefore(_ t: (hit: IVec3, normal: IVec3)) -> IVec3? {
         let o = player.eye, d = player.look
         var s = simd_length(hitPoint(t) - o) - 0.04
