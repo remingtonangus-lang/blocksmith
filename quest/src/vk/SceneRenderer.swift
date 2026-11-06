@@ -160,6 +160,10 @@ final class SceneRenderer {
     private(set) var drawnQuads = 0
     private(set) var drawnDetail = 0, drawnBand = 0     // (the share of drawnQuads in the detail stream, and in leaf far shells)
     private(set) var skippedInner = 0                    // (inner leaf shells left out between blobMidFrom and blobFarFrom)
+    // (harness, perf scenes: the detail stream's quads drawn by distance, 0-16, 16-32, 32-64, 64+ blocks, and of those past
+    // trunkFarFrom the ones in sections with no far copy to switch to)
+    static var tallyDetail = false
+    private(set) var detailBands = [Int](repeating: 0, count: 4), detailNoFar = 0
     private(set) var visibleCount = 0
     private(set) var cullMs = 0.0
     var caveCulling = true
@@ -1667,7 +1671,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; batchedSections = 0; indirectUsed = 0; mergedSections = 0
+        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0 }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         if tableFrame {
@@ -2564,6 +2568,14 @@ extension SceneRenderer {
                     batchCut[k] += 1
                     pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((total - cutFrom) * 6), instanceCount: 1,
                                                                        firstIndex: UInt32(cutFrom * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                }
+                if detail && SceneRenderer.tallyDetail {
+                    let ci = tc[v / NSEC]
+                    let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
+                    let dd = simd_length(simd_clamp(re, mn, mn + V3(16, 16, 16)) - re)
+                    let q = far ? Int(fExtra - fSkip) + Int(total) : Int(total)
+                    detailBands[dd < 16 ? 0 : (dd < 32 ? 1 : (dd < 64 ? 2 : 3))] += q
+                    if !far && dd >= tf { detailNoFar += q }
                 }
                 quadsDrawn += Int(total)
             }
