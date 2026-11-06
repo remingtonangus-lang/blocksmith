@@ -3483,8 +3483,9 @@ if !tickAllocs.isEmpty {
 }
 print(String(format: "ticks: median %.2f ms, p99 %.2f ms, worst %.2f ms", tickMs[tickMs.count / 2], tickMs[tickMs.count * 99 / 100], tickMs.last!))
 let moved = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
+print("walk: from \(p0); every 2 s: " + walkTrace.joined(separator: "; "))
 check(game.player.pos.x.isFinite && game.player.pos.y.isFinite, "player position finite")
-check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved) + (moved > 10 ? "" : " (from \(p0); every 2 s: " + walkTrace.joined(separator: "; ") + ")"))
+check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved))
 check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))"
       + (game.menu == nil ? "" : "; health at the start \(walkHealth0), survival \(game.survival), difficulty \(game.difficulty), hurt: " + (walkHurt.isEmpty ? "nothing" : walkHurt.joined(separator: "; ")))
       + "; mobs within 24: " + game.mobs.mobs.filter { simd_length($0.pos - game.player.pos) < 24 }.map { "\($0.kind)" }.joined(separator: ", "))
