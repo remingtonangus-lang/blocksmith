@@ -89,6 +89,8 @@ enum AdaptiveGround {
     // lens's sharpest; the renderer picks per frame from the exact distance (P375's far switch), so nothing is
     // remeshed as the player moves and near ground always gets the 0.05 block one.
     static var farTolerance: Float = GroundMerge.tol16 / 16
+    // The leaf blobs' far shells (drawn past SceneRenderer.blobFarFrom, 64 blocks): BS_BLOBTOL to try a coarser bound.
+    static var blobFarTolerance: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBTOL"] ?? "") ?? farTolerance
     static var farEnabled = ProcessInfo.processInfo.environment["BS_ADAPTIVE_FAR"] != "0"
 
     // The section's ground (buf[from...], led by nothing else when from == 0) simplified to the near bound in place,

@@ -2067,7 +2067,7 @@ enum Mesher {
                     }
                     solidOut = opq; counting = true
                     if AdaptiveGround.enabled {
-                        AdaptiveGround.simplify(blobFar, from: 0, tol: AdaptiveGround.farTolerance,
+                        AdaptiveGround.simplify(blobFar, from: 0, tol: AdaptiveGround.blobFarTolerance,
                                                 exact: ex.count == blobFar.count / 2 * 3 ? ex.ptr : nil, capture: false, blob: true)
                     }
                 }
