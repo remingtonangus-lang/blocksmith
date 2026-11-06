@@ -45,7 +45,11 @@ enum TripCheck {
             g.health = 20; g.hunger = 20; g.alive = true
             let a = CFAbsoluteTimeGetCurrent()
             g.tick(1.0 / 72)
-            return (CFAbsoluteTimeGetCurrent() - a) * 1000
+            let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
+            // (paced as the headset's frames are: the workers stream the world in real time while he waits; unpaced,
+            // three seconds of ticks ran in a few milliseconds and nothing could arrive)
+            if ms < 1000.0 / 72 { usleep(useconds_t((1000.0 / 72 - ms) * 1000)) }
+            return ms
         }
         // The ground within 2 chunks of him drawn (what the hold waits for: Game.arrivalReady).
         var worstTrip = 0.0, worstAfter = 0.0, longestHold = 0.0
