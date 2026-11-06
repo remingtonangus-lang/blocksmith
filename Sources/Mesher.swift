@@ -34,8 +34,8 @@ struct SectionMesh {
 enum MeshKind {
     static let cube = 0, bevel = 1, model = 2, plant = 3, fluid = 4, ground = 5, blob = 6
     static let trunk = 8, organic = 9, spike = 10, rail = 11, piece = 12, struck = 13
-    static let names = ["cubes", "bevels", "props", "plants", "fluids", "ground", "leaf blobs", "",
-                        "trunks", "round shapes", "spikes", "rails", "pieces", "struck cubes", "", ""]
+    static let names = ["cubes", "bevels", "props", "plants", "fluids", "ground", "leaf blobs", "cut out (not blobs)",
+                        "trunks", "round shapes", "spikes", "rails", "pieces", "struck cubes", "cut-out cubes", "cut-out props"]
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -588,7 +588,11 @@ enum Mesher {
             let w1: UInt32 = uv | (UInt32(layer) << 10) | (UInt32(ao) << 20)
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
             if trans { trn.append(w0); trn.append(w1); return }
-            if counting { kv[kindNow] &+= 1 }
+            if counting {
+                kv[kindNow] &+= 1
+                // (Nov 6: of the opaque stream's cutout quads, the ones not leaf blobs, and the cubes' and props' share)
+                if curCut && kindNow != MeshKind.blob { kv[7] &+= 1; if kindNow == MeshKind.cube { kv[14] &+= 1 } else if kindNow == MeshKind.model { kv[15] &+= 1 } }
+            }
             if curCut { cutOut.append(w0); cutOut.append(w1) } else { solidOut.append(w0); solidOut.append(w1) }
         }
         // A smooth ground vertex from the ground passes: u = 31 projects the texture by the quad's face, and v (+ 31 when

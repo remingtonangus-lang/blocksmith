@@ -1442,7 +1442,18 @@ final class SceneRenderer {
             let low = Int(c.height.min() ?? 0)
             if (sy + 1) * 16 <= low { buried[f] &+= s.kinds; buriedSecs[f] += 1 }
         }
-        return ["within", "past"].enumerated().map { f, n in
+        // (Nov 6: the sections within the far switch past blobFarFrom, 64 blocks, by kind: what the far band draws)
+        var band = SIMD16<Int32>(), bandSecs = 0
+        for i in 0..<min(visible.count, SceneRenderer.recordCap) {
+            let (c, sy, _) = visible[i]
+            if mergedFar(c, sy) { continue }
+            let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
+            let d = simd_length(simd_clamp(recEye, mn, mn + V3(16, 16, 16)) - recEye)
+            if d >= SceneRenderer.blobFarFrom { band &+= c.sections[sy].kinds; bandSecs += 1 }
+        }
+        let bandKinds: [String] = (0..<16).compactMap { k -> String? in MeshKind.names[k].isEmpty ? nil : "\(MeshKind.names[k]) \(band[k])" }
+        let bandLine: String = "from \(Int(SceneRenderer.blobFarFrom)) blocks to the far switch (\(bandSecs) sections): " + bandKinds.joined(separator: ", ")
+        return bandLine + "\n    kinds " + ["within", "past"].enumerated().map { f, n in
             let parts = (0..<16).compactMap { k -> String? in MeshKind.names[k].isEmpty ? nil : "\(MeshKind.names[k]) \(q[f][k])" }
             let bur = (0..<16).compactMap { k -> String? in MeshKind.names[k].isEmpty || buried[f][k] == 0 ? nil : "\(MeshKind.names[k]) \(buried[f][k])" }
             return "\(n) \(Int(GroundMerge.farDistance)) blocks (\(secs[f]) sections): " + parts.joined(separator: ", ")
