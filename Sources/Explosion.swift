@@ -236,51 +236,10 @@ enum Explosion {
             // it the rays happened to miss stayed whole blocks under a dot of drawn rock (the boulders in the bowl): the
             // aim went past them to the bowl's face and the block went into one of them, which refused it without a sound.
             // The ground inside the bowl goes with it (its valuable blocks drop, as the broken ones do).
-            var carved = Set<IVec3>()
-            for (at, rr) in balls {
-                w.carve(at: at, radius: rr, mode: .dig) { p, b in
-                    carved.insert(p)
-                    for s in Explosion.blastDrops(b) { g.drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
-                }
-            }
-            Explosion.lap("bowl")
-            // P508 (questcheck craterplace: 3 to 6 a crater, as the rays fell): round the bowls' edge the field drew some
-            // ground cells as a dot of rock (their middle barely inside it), each a block the eye sees past and a click
-            // refuses; they open as the bowl did.
-            // Nov 4 (bug hunt, the render suite's craterplace: 5 left where qc120 left 2): one scan missed the dots the
-            // shaping made after it (each opened dot's and blasted cell's own hollow thins the field round it), so the
-            // scan runs again over what the last pass shaped, a block wider each time, until none is left (three passes
-            // at most). A dot drops what it holds, as the bowl's cells do.
-            for pass in 0..<3 {
-                var dots: [IVec3] = []
-                let reach = 1.5 + Float(pass)
-                for (at, rr) in balls {
-                    let R = Int(ceil(rr + reach)), ax = Int(floor(at.x)), ay = Int(floor(at.y)), az = Int(floor(at.z))
-                    for y in (ay - R)...(ay + R) { for z in (az - R)...(az + R) { for x in (ax - R)...(ax + R) {
-                        let q = IVec3(x, y, z), mid = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
-                        guard !carved.contains(q), simd_length(mid - at) < rr + reach, w.groundAt(x, y, z),
-                              Blocks.hardness[Int(w.block(x, y, z))] >= 0, w.fieldDensity(at: mid) < 0.12 else { continue }
-                        carved.insert(q); dots.append(q)
-                    } } }
-                }
-                Explosion.lap("rim scan \(dots.count)")
-                if pass > 0 && dots.isEmpty { break }
-                for q in dots {
-                    for s in Explosion.blastDrops(w.block(q.x, q.y, q.z)) { g.drops.spawn(s, at: V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)) }
-                    w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true)
-                }
-                Explosion.lap("dots shaped")
-                // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
-                // surface in to a block and a half past its radius)
-                if pass == 0 {
-                    var n = 0
-                    for b in opened {
-                        let q = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
-                        if !balls.contains(where: { simd_length(q - $0.0) < $0.1 + 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true); n += 1 }
-                    }
-                    Explosion.lap("opened shaped \(n)")
-                }
-            }
+            // Ledger 42: the bowl, the rim passes and the opened cells' shaping are a job (BlastShape); on the headset it
+            // runs on the next frames within the carving allowance, here and in the checks at once.
+            let job = BlastShape(world: w, balls: balls, opened: opened)
+            if BlastShape.deferred && CraterJob.inTick { BlastShape.queue.append(job) } else { while !job.step(g, until: .infinity) {} }
         } else {
             for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
         }
@@ -800,6 +759,109 @@ final class TNTManager {
             let l = world.lightAt(Int(floor(t.pos.x)), Int(floor(t.pos.y + 0.5)), Int(floor(t.pos.z)))
             let light = flash ? 1.6 : max(0.1, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             wr.cube(center: t.pos + V3(0, 0.5, 0) - eye, half: 0.5 * s, yaw: 0, block: tnt, light: light)
+        }
+    }
+}
+
+// Ledger 42 (Nov 6, the taiga24 battle: a shell's crater 16-22 ms of one tick on the host, two in a tick 32-50 ms): about
+// half of it was shaping the ground (the bowl's field balls, three passes over the rim for dots of rock left standing,
+// the opened cells past the bowl). That part is this job: in the game (deferred, set by QuestApp.headsetWorld) it runs
+// a piece at a time on the frames after the blast, within the carving allowance (CraterJob), under the fireball; the
+// host checks run it at once. The steps are the old code's, in its order (BS_OLDBLAST=1: at once on the headset too).
+final class BlastShape {
+    static var deferred = false
+    static var queue: [BlastShape] = []
+    static var worstStepMs = 0.0, worstStep = ""             // (perf scenes)
+    weak var world: World?
+    let balls: [(V3, Float)]
+    let opened: [IVec3]
+    private var carved = Set<IVec3>()
+    private var stage = 0                                     // 0..<balls: a ball; then the rim passes
+    private var pass = 0, scanned = false, dots: [IVec3] = [], next = 0, openedDone = false
+
+    init(world: World, balls: [(V3, Float)], opened: [IVec3]) {
+        self.world = world; self.balls = balls; self.opened = opened
+    }
+
+    // Does pieces until `deadline` (at least one); true when the crater is shaped.
+    func step(_ g: Game, until deadline: Double) -> Bool {
+        guard let w = world, w === g.world else { return true }        // (left for another dimension: dropped)
+        var first = true
+        while first || CFAbsoluteTimeGetCurrent() < deadline {
+            first = false
+            if stage < balls.count {
+                let (at, rr) = balls[stage]
+                w.carve(at: at, radius: rr, mode: .dig) { [self] p, b in
+                    carved.insert(p)
+                    for s in Explosion.blastDrops(b) { g.drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
+                }
+                stage += 1
+                if stage == balls.count { Explosion.lap("bowl") }
+                continue
+            }
+            // P508 (questcheck craterplace: 3 to 6 a crater, as the rays fell): round the bowls' edge the field drew some
+            // ground cells as a dot of rock (their middle barely inside it), each a block the eye sees past and a click
+            // refuses; they open as the bowl did.
+            // Nov 4 (bug hunt, the render suite's craterplace: 5 left where qc120 left 2): one scan missed the dots the
+            // shaping made after it (each opened dot's and blasted cell's own hollow thins the field round it), so the
+            // scan runs again over what the last pass shaped, a block wider each time, until none is left (three passes
+            // at most). A dot drops what it holds, as the bowl's cells do.
+            if pass >= 3 { return true }
+            if !scanned {
+                dots.removeAll(keepingCapacity: true)
+                let reach = 1.5 + Float(pass)
+                for (at, rr) in balls {
+                    let R = Int(ceil(rr + reach)), ax = Int(floor(at.x)), ay = Int(floor(at.y)), az = Int(floor(at.z))
+                    for y in (ay - R)...(ay + R) { for z in (az - R)...(az + R) { for x in (ax - R)...(ax + R) {
+                        let q = IVec3(x, y, z), mid = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                        guard !carved.contains(q), simd_length(mid - at) < rr + reach, w.groundAt(x, y, z),
+                              Blocks.hardness[Int(w.block(x, y, z))] >= 0, w.fieldDensity(at: mid) < 0.12 else { continue }
+                        carved.insert(q); dots.append(q)
+                    } } }
+                }
+                Explosion.lap("rim scan \(dots.count)")
+                if pass > 0 && dots.isEmpty { pass = 3; return true }
+                scanned = true; next = 0
+                continue
+            }
+            if next < dots.count {
+                let q = dots[next]; next += 1
+                for s in Explosion.blastDrops(w.block(q.x, q.y, q.z)) { g.drops.spawn(s, at: V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)) }
+                w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true)
+                if next == dots.count { Explosion.lap("dots shaped") }
+                continue
+            }
+            // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
+            // surface in to a block and a half past its radius)
+            if pass == 0 && !openedDone {
+                if next - dots.count < opened.count {
+                    let b = opened[next - dots.count]; next += 1
+                    let q = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
+                    if !balls.contains(where: { simd_length(q - $0.0) < $0.1 + 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true) }
+                    continue
+                }
+                openedDone = true
+                Explosion.lap("opened shaped")
+            }
+            pass += 1; scanned = false
+        }
+        return false
+    }
+
+    // The game's tick: the queued craters' pieces, oldest first, while the frame's carving allowance lasts (one piece a
+    // tick at least, so a long battle's craters never wait on each other for ever).
+    static func tick(_ g: Game) {
+        var first = true
+        while let j = queue.first {
+            let left = CraterJob.allowance()
+            if !first && left <= 0 { return }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let done = j.step(g, until: t0 + max(0, left))
+            let took = CFAbsoluteTimeGetCurrent() - t0
+            CraterJob.spend(took)
+            if took * 1000 > worstStepMs { worstStepMs = took * 1000; worstStep = "\(queue.count) craters queued" }
+            first = false
+            if done { queue.removeFirst() } else { return }
         }
     }
 }

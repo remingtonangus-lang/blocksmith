@@ -3449,6 +3449,8 @@ final class Game {
         // they take what the tick has left (CraterJob.allowance) and wait out a frame the soldiers ran long.
         w.ships.stepBowls(self)                                // main-gun bowls (MainGun.swift)
         TickProf.mark("ships.shockwaves: bowls")
+        BlastShape.tick(self)                                  // ledger 42: craters shaped over the frames after a blast
+        TickProf.mark("crater shaping")
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load

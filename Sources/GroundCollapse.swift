@@ -68,11 +68,18 @@ enum GroundCollapse {
         if waited < maxWait && !World.deterministic && !Rand.deterministic && CraterJob.allowance() < wantSeconds { waited += 1; return }
         waited = 0
         let began = CFAbsoluteTimeGetCurrent()
-        var seedN = 0, filled = 0, bigs = 0, fillEnd = 0.0
+        var seedN = 0, filled = 0, bigs = 0, fillEnd = 0.0, overEnd = 0.0, rr = 0
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             CraterJob.spend(took)
-            if took * 1000 > worstMs { worstMs = took * 1000; worstWhat = String(format: "%d seeds, %d cells filled, %d past %d; fill %.1f ms", seedN, filled, bigs, maxCells, fillEnd > 0 ? (fillEnd - began) * 1000 : took * 1000) }
+            if took * 1000 > worstMs {
+                let fillMs: Double = fillEnd > 0 ? (fillEnd - began) * 1000 : took * 1000
+                let overMs: Double = overEnd > 0 ? (overEnd - fillEnd) * 1000 : 0
+                let objMs: Double = overEnd > 0 ? (began + took - overEnd) * 1000 : 0
+                worstMs = took * 1000
+                worstWhat = String(format: "%d seeds, %d cells filled, %d past %d; fill %.1f ms, overhangs %.1f ms, objects (r %d) %.1f ms",
+                                   seedN, filled, bigs, maxCells, fillMs, overMs, rr, objMs)
+            }
         }
         guard let (p, r) = w.collapseQueue.popLast() else { return }
         if w.collapseQueue.count > 64 { w.collapseQueue.removeFirst(w.collapseQueue.count - 64) }
@@ -128,8 +135,10 @@ enum GroundCollapse {
         fillEnd = CFAbsoluteTimeGetCurrent()
         // P380 (1): ground near the carve hanging too far for its thickness breaks off; the rest is checked again.
         if GroundSettle.thinOverhangs(g, p, r) { w.collapseQueue.append((p, r + 2)); dropped = true }
+        overEnd = CFAbsoluteTimeGetCurrent()
         // P380 (3): what stood on the ground round the hole settles or falls.
-        GroundSettle.objects(g, p, r + (dropped ? 3 : 0))
+        rr = r + (dropped ? 3 : 0)
+        GroundSettle.objects(g, p, rr)
     }
 
     // A loose piece leaves the field and falls apart into its rock.

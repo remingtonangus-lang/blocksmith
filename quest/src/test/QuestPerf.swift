@@ -267,9 +267,10 @@ enum QuestPerf {
         }
         // What the slowest frames of a phase spent in the armoury, its blasts and the ground falling after them.
         func slowest() -> String {
-            let line = String(format: "    slowest: arms %.1f ms (%@); blast %.1f ms (%@); heavy burst %.1f ms; ground collapse %.1f ms (%@)",
+            let line = String(format: "    slowest: arms %.1f ms (%@); blast %.1f ms (%@); heavy burst %.1f ms; crater shaping %.1f ms (%@); ground collapse %.1f ms (%@)",
                               Armory.worstUpdateMs, Armory.worstUpdateWhat, Explosion.worstMs, Explosion.worstLaps, Armory.worstBurst,
-                              GroundCollapse.worstMs, GroundCollapse.worstWhat)
+                              BlastShape.worstStepMs, BlastShape.worstStep, GroundCollapse.worstMs, GroundCollapse.worstWhat)
+            BlastShape.worstStepMs = 0; BlastShape.worstStep = ""
             Armory.worstUpdateMs = 0; Armory.worstUpdateWhat = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""
             Armory.worstBurst = 0; GroundCollapse.worstMs = 0; GroundCollapse.worstWhat = ""
             return line
