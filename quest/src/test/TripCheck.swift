@@ -64,6 +64,7 @@ enum TripCheck {
                     } }
                     print(String(format: "    held %.1f s: %d chunks loaded, %d jobs pending, made %d, meshed %d sections; within 2: %d of 13 there, %d drawn",
                                  Double(i) / 72, w.chunks.count, w.pendingJobs, w.perf.genChunks, w.perf.meshSections, have, drawn))
+                    for (d, st) in g.dims { print("      \(d): \(st.world.debugState)\(st.world === w ? " (here)" : "")") }
                 }
                 if ms > worst { worst = ms; worstStage = TickProf.summary() }
                 if drawnAt < 0 && g.arrivalReady() { drawnAt = Double(i) / 72 }
