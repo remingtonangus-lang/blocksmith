@@ -199,7 +199,7 @@ enum DeepGapTests {
     struct Duel { let name: String; let toKillPlayer: Float?; let playerKills: Float?; let weapon: String; var rounds: Float = 0; var dealt: Float = 0; var hits: Float = 0 }
     static var lastRounds = 0              // rounds the unit fired dealing its 20 (the last duel's part 1)
     static var lastDealt = 0               // ... and what they dealt (20, or less when 60 s ran out first)
-    static var lastHits = 0                // ... in how many ticks one or more landed (check fix 27)
+    static var lastHits = 0                // ... and how many of them struck the player (check fix 27)
 
     // Duskium armour, food full, normal difficulty; the unit `dist` blocks off on the open vault floor. Returns how long
     // the unit takes to do 20 points of damage to the player (who stands still; their health is topped up each tick)
@@ -223,7 +223,7 @@ enum DeepGapTests {
         }
         // 1. The unit on the player.
         var toKill: Float?
-        let foe0 = Armory.foeFired
+        let foe0 = Armory.foeFired, hits0 = Armory.foeHits
         lastDealt = 0
         lastHits = 0
         if let m = place() {
@@ -235,7 +235,6 @@ enum DeepGapTests {
                 g.player.yaw = atan2f(face.x, face.z) + .pi; g.player.pitch = 0
                 g.tick(0.05)
                 dealt += max(0, 20 - g.health)
-                if g.health < 20 || !g.alive { lastHits += 1 }
                 t += 0.05
                 if !g.alive { g.alive = true; g.health = 20; dealt += 20 }
                 if dealt >= 20 { toKill = t; break }
@@ -248,6 +247,7 @@ enum DeepGapTests {
             }
         }
         lastRounds = Armory.foeFired - foe0
+        lastHits = Armory.foeHits - hits0
         // 2. The player on the unit: aim at its middle and hold the trigger. The unit is held where it stands (it still
         // turns and fires): a pure damage race, the same for every unit (the Marshal charging in and out of the blast
         // swung his time from 44 s to over 180 s between runs).
@@ -375,8 +375,9 @@ enum DeepGapTests {
         // takes several times what one of the Capital's does.)
         // (What the rounds dealt over what was fired, whether or not 60 s ran out first: one seed's slow Kessel dealt 15.)
         func perRound(_ d: Duel?) -> Float { d.map { $0.rounds > 0 ? $0.dealt / $0.rounds : 0 } ?? 0 }
-        // (Check fix 27: what a round fired dealt mixes his round with his aim, and sat on the 2x line between runs: 1.6
-        // against 0.8 on build 192, 2.0 against 0.8 on build 118. What a round that lands deals is the round itself.)
+        // (Check fix 27: what a round fired dealt mixes his round with his aim, and swung across the 2x line between runs:
+        // 1.6 against 0.8 on build 192, 2.0 against 0.8 on build 118, 1.3 against 0.9 on build 197. What a round that
+        // strikes him deals is the round itself, through his armour and the moments after a hit that take nothing.)
         func perHit(_ d: Duel?) -> Float { d.map { $0.hits > 0 ? $0.dealt / $0.hits : 0 } ?? 0 }
         let harder = perHit(rifle) > 2 * perHit(cap)
         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
