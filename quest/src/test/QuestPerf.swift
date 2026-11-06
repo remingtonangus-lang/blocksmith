@@ -42,11 +42,12 @@ enum QuestPerf {
     final class Phase {
         var tick: [Double] = [], record: [Double] = []
         var stages: [String: (sum: Double, worst: Double)] = [:]
-        var sections = 0, draws = 0, quads = 0, frames = 0, detailQ = 0, bandQ = 0, innerQ = 0
+        var sections = 0, draws = 0, quads = 0, frames = 0, detailQ = 0, bandQ = 0, innerQ = 0, detBands = [0, 0, 0, 0], detNoFar = 0
         func add(tick t: Double, record r: Double, scene: SceneRenderer) {
             tick.append(t); record.append(r); frames += 1
             sections += scene.visibleCount; draws += scene.drawCalls; quads += scene.drawnQuads
             detailQ += scene.drawnDetail; bandQ += scene.drawnBand; innerQ += scene.skippedInner
+            for b in 0..<4 { detBands[b] += scene.detailBands[b] }; detNoFar += scene.detailNoFar
             for i in 0..<TickProf.count {
                 let k = TickProf.names[i].description, ms = TickProf.times[i] * 1000
                 let o = stages[k] ?? (0, 0)
@@ -63,6 +64,7 @@ enum QuestPerf {
             let top = stages.sorted { $0.value.sum > $1.value.sum }.prefix(7)
                 .map { "\($0.key) \(String(format: "%.2f", $0.value.sum / Double(n)))/\(String(format: "%.1f", $0.value.worst))" }.joined(separator: ", ")
             return "  \(label): tick \(Phase.stat(tick)) | record \(Phase.stat(record)) | sections \(sections / n), draws \(draws / n), quads \(quads / n) (detail \(detailQ / n), leaf far shells \(bandQ / n), inner leaf shells left out \(innerQ / n))\n"
+                + "    detail by distance: \(detBands.map { String($0 / n) }.joined(separator: " / ")) (0-16 / 16-32 / 32-64 / 64+ blocks); past the trunk far switch with no far copy \(detNoFar / n)\n"
                 + "    tick stages (mean/worst ms): \(top)\n    record stages (ms a frame): \(stagesLine)\n    meshing: \(behind)"
         }
     }
@@ -125,6 +127,7 @@ enum QuestPerf {
     }
 
     static func run(ctx: VkContext) -> Int32 {
+        SceneRenderer.tallyDetail = true
         setvbuf(stdout, nil, _IOLBF, 0)
         World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = QuestApp.leafNear   // (QuestApp)
         SceneRenderer.skipGPU = !CommandLine.arguments.contains("--gpu")
