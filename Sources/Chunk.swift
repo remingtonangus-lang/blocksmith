@@ -55,6 +55,7 @@ final class Section {
     // P453: the leaf blobs' part of the far copy (blobFarN quads from blobFarAt in it) and of the cutout quads (the
     // first blobCutN), so the trees switch to their far shell nearer than the ground does (SceneRenderer.blobFarFrom).
     var blobFarAt = 0, blobFarN = 0, blobCutN = 0
+    var blobOuterN = 0          // (Nov 6: the first blobOuterN of the blobCutN are the outer shells, drawn alone in the mid band)
     var detailFarSkip = 0       // P384: far, the first detailFarSkip detail quads give way to the detailFarExtra stored
     var detailFarExtra = 0      //   after the detail ones in the same buffer
     var transBuf: MeshSlice?

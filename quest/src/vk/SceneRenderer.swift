@@ -1017,6 +1017,7 @@ final class SceneRenderer {
         var flags: UInt32 = 0                  // SecInfo.nonEmpty, .meshed, .deep, .solidFull
         var oPair: Int32 = -1, oVo: Int32 = 0, quads: Int32 = 0, solid: Int32 = 0, fSkip: Int32 = 0, fExtra: Int32 = 0
         var farCut: Int32 = 0, farTail: Int32 = 0, bAt: Int32 = 0, bN: Int32 = 0, bCut: Int32 = 0     // (P453: Section.blobFar*)
+        var bOuter: Int32 = 0                                                                       // (Section.blobOuterN)
         var dPair: Int32 = -1, dVo: Int32 = 0, dQuads: Int32 = 0, dSolid: Int32 = 0, dSkip: Int32 = 0, dExtra: Int32 = 0
         var tPair: Int32 = -1, tVo: Int32 = 0, tQuads: Int32 = 0
         static let nonEmpty: UInt32 = 1, meshed: UInt32 = 2, deep: UInt32 = 4, solidFull: UInt32 = 8
@@ -1907,7 +1908,7 @@ extension SceneRenderer {
                 e.oPair = pairOf(slabOf(b), ts); e.oVo = Int32(b.offset / 8)
                 e.quads = Int32(s.opaqueQuads); e.solid = Int32(s.solidQuads); e.fSkip = Int32(s.farSkip); e.fExtra = Int32(s.farExtra)
                 e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail)
-                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN)
+                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN); e.bOuter = Int32(s.blobOuterN)
             }
             if s.detailQuads > 0, let b = s.detailBuf {
                 e.dPair = pairOf(slabOf(b), ts); e.dVo = Int32(b.offset / 16)
@@ -2537,7 +2538,7 @@ extension SceneRenderer {
                     let d2 = simd_length_squared(qn - re)
                     far = d2 >= (detail ? tf * tf : mf * mf)
                     band = !far && !detail && e.bN > 0 && d2 >= bf * bf
-                    mid = !far && !band && !detail && e.bN > 0 && e.bCut >= 2 && e.bCut & 1 == 0 && d2 >= bm * bm
+                    mid = !far && !band && !detail && e.bN > 0 && e.bOuter > 0 && d2 >= bm * bm
                 }
                 if far {
                     merged += 1
@@ -2570,7 +2571,7 @@ extension SceneRenderer {
                 }
                 if mid {
                     // (the outer shells, then past the inner ones to the rest of the cutout quads)
-                    let outerEnd = min(total, solid + e.bCut / 2)
+                    let outerEnd = min(total, solid + e.bOuter)
                     if outerEnd > solid {
                         batchCut[k] += 1
                         pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((outerEnd - solid) * 6), instanceCount: 1,
@@ -2600,7 +2601,7 @@ extension SceneRenderer {
                     if far { opaqueParts[16 + b] += Int(fExtra) + Int(solid - fSkip) + Int(total - cutFrom) }
                     else {
                         opaqueParts[b] += Int(solid)
-                        let leaf = band ? 0 : (mid ? Int(e.bCut / 2) : Int(max(0, min(e.bCut, total - solid))))
+                        let leaf = band ? 0 : (mid ? Int(e.bOuter) : Int(max(0, min(e.bCut, total - solid))))
                         opaqueParts[4 + b] += leaf
                         if band { opaqueParts[8 + b] += Int(e.bN) }
                         opaqueParts[12 + b] += Int(total - cutFrom) - (band || mid ? 0 : leaf)

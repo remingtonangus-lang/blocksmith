@@ -28,6 +28,7 @@ struct SectionMesh {
     var solidFull = false   // P376 step 5: every cell of the section is opaque (an occluder for SceneRenderer.occlusionCull)
     var kinds = SIMD16<Int32>()   // P384 step 1: quads by kind (MeshKind), for questcheck --perfscenes
     var ground: GroundTris? = nil   // P386: the drawn ground for bodies and rays (GroundFeet.swift)
+    var blobOuter = -1      // (Nov 6: of the leaf blobs' cutout quads, the outer shells' count, first; -1: half of them)
 }
 
 // P384 step 1: what the section's quads are (SectionMesh.kinds; opaque stream 0...7, detail stream 8...13).
@@ -548,6 +549,7 @@ enum Mesher {
         // first of the cutout ones) and their far copies are collected aside (bevFar, blobFar).
         let bev = sc.bev, bevFar = sc.bevFar, blobCut = sc.blobCut, blobFar = sc.blobFar, drapeNear = sc.drapeNear, drapeFar = sc.drapeFar
         bev.count = 0; bevFar.count = 0; blobCut.count = 0; blobFar.count = 0; drapeNear.count = 0; drapeFar.count = 0
+        var blobOuterQ = -1
         let farCopies = Mesher.farCopies && lod != 1
         var solidOut = opq, cutOut = cut, counting = true
         var farMaskUsed = false
@@ -2155,6 +2157,13 @@ enum Mesher {
                     blobV += 1
                     vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
                 }
+                // (Nov 6: with a far shell, the cutout shells simplified to the near bound, each shell on its own: the
+                // leaves' texture is laid by position, so only their outline moves, by up to AdaptiveGround.blobNearTolerance)
+                if farShell && AdaptiveGround.enabled && AdaptiveGround.blobNearTolerance > 0 {
+                    AdaptiveGround.simplify(blobCut, from: 0, tol: AdaptiveGround.blobNearTolerance, capture: false)
+                    AdaptiveGround.simplify(inner, from: 0, tol: AdaptiveGround.blobNearTolerance, capture: false)
+                }
+                blobOuterQ = blobCut.count / 8
                 for i in 0..<inner.count { blobCut.append(inner.ptr[i]) }
                 cutOut = cut
                 // P384 step 4: far, one solid shell (the outer one: the canopy's outline), drawn per position (triplanar,
@@ -2364,7 +2373,7 @@ enum Mesher {
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
                            farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farParts: parts,
-                           detailFarSkip: detailFarSkip, detailFar: detailFar, solidFull: solidFull, kinds: kv, ground: groundTris)
+                           detailFarSkip: detailFarSkip, detailFar: detailFar, solidFull: solidFull, kinds: kv, ground: groundTris, blobOuter: blobOuterQ)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
