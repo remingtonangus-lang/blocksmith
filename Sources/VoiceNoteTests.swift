@@ -61,7 +61,7 @@ enum VoiceNoteTests {
               "voice: 130 s of talk is split into 60 s files (\(long.filter { $0 == .split }.count) splits)")
 
         // Storage cap: oldest files go first.
-        let dir = NSTemporaryDirectory() + "voicecap-\(getpid())"
+        let dir = NSTemporaryDirectory() + "voicecap-\(ProcessInfo.processInfo.processIdentifier)"   // (getpid is not in scope on Android: the APK build failed here from Nov 5, #656)
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
         for (i, n) in ["vn-20261009-100000-000", "vn-20261009-110000-000", "vn-20261009-120000-000"].enumerated() {
