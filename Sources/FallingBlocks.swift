@@ -62,6 +62,7 @@ extension Game {
     }
 
     static let gravityChecksPerTick = 1500
+    static let oldLanding = ProcessInfo.processInfo.environment["BS_OLDLAND"] == "1"
     static var gravitySeconds = 0.0008
 
     // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs
@@ -124,6 +125,16 @@ extension Game {
                     return m == AIR || Blocks.replaceable[Int(m)] || Blocks.isLiquid(m)
                 }
                 var at = IVec3(cell.x, ground && open(cell) ? cell.y : cell.y + 1, cell.z)
+                // Ledger 29: the cell it comes to rest in holds a torch, rail, button, sign or the like (no collision
+                // box, not replaceable): it breaks into its item there (reference; the torch trick that collects the wyrm
+                // egg, or a gravel column dug out over a torch). The stacking above was only for ground and solid
+                // blocks in the way: it lifted the egg onto the torch, so the egg could never be taken (BS_OLDLAND=1).
+                let rest = world.materialAt(at.x, at.y, at.z)
+                if !Game.oldLanding && !open(at) && !Blocks.collide[Int(rest)] {
+                    f.dead = true
+                    for s in Mining.drops(f.block, ItemStack(Items.id("netherite_pickaxe"), 1)) { drops.spawn(s, at: f.pos) }
+                    continue
+                }
                 for _ in 0..<3 where !open(at) { at.y += 1 }
                 f.dead = true
                 let key = Blocks.key(f.block)

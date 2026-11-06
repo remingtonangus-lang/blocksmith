@@ -263,7 +263,9 @@ enum WildCamps {
                 put(-2, 2, dz, hoop); put(0, 2, dz, hoop)
                 put(-2, 3, dz, canopy); put(0, 3, dz, canopy); put(-1, 4, dz, canopy)
             }
-            put(-1, 2, -2, b("barrel")); put(-1, 2, -3, b("hay_block"))
+            // (Ledger 33: a barrel and a bale filled the one-wide aisle from the tail, so neither the bed nor the barrel
+            // could be reached (structcheck); the barrel is set down by the wagon's side.)
+            put(1, 0, -1, b("barrel"))
             bed(-1, 2, 0, "white")                            // (in the wagon, under the canopy)
             put(-2, 1, 3, b("spruce_fence", "oak_fence")); put(0, 1, 3, b("spruce_fence", "oak_fence"))   // the shafts
             put(-1, 2, 2, b("spruce_slab", "spruce_planks"))      // the driver's bench

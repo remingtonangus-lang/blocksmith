@@ -195,7 +195,11 @@ enum Stronghold {
             // Balcony walkway with the library chest.
             w.fill(cx - 4, y + 5, cz - 4, cx + 4, y + 5, cz - 3, Blocks.id("oak_planks"))
             // A ladder up to it against the shelf row underneath (the balcony chest had no way up).
-            for yy in (y + 1)...(y + 5) { w.set(cx, yy, cz - 2, Blocks.id("ladder") + 2) }
+            // (Ledger 32: state 2 put it against the aisle at cx + 1, open air; the shelf it climbs is at cz - 3.)
+            // (Ledger 34: the shelf row stands 3 high and the balcony starts at 5, so the ladder's fourth rung hung on
+            // nothing: a shelf fills the gap.)
+            w.set(cx, y + 4, cz - 3, shelf)
+            for yy in (y + 1)...(y + 5) { w.set(cx, yy, cz - 2, Blocks.id("ladder") + 1) }
             w.chest(cx + 3, y + 6, cz - 4, loot: "stronghold_library", seed: rng.next(), facing: 1)
             w.chest(cx - 3, y + 1, cz + 3, loot: "stronghold_library", seed: rng.next(), facing: 0)
         case .portal:

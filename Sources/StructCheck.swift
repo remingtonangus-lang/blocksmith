@@ -18,6 +18,7 @@ import simd
 //   bed_broken        a bed half without its other half
 //   floating          structure columns (walls, foundations) hanging over air
 //   torch_unsupported a standing torch with nothing under it, or a wall torch with nothing behind it
+//   ladder_unsupported a ladder with nothing behind it
 // Walk model: a two-block-tall body; steps up to 0.6 are walking, up to 1.25 need a jump, drops up to 3;
 // doors and gates count as open, ladders and vines climb. Prints a summary per kind, writes a report
 // (--out FILE, markdown) with every issue's position and a snapshot command to look at it.
@@ -32,18 +33,23 @@ enum StructCheck {
     // Kinds entered from their own start piece (underground or enclosed) rather than from the open surface.
     static let fromInside: Set<String> = ["mineshaft", "stronghold", "ancient_city", "trial_chambers", "end_city", "fortress", "bastion"]
     static let flying: Set<String> = ["ghast", "blaze", "vex", "bat", "allay", "phantom", "wither", "ender_dragon", "shulker", "end_crystal",
-                                      "parrot", "bee", "happy_ghast", "breeze"]
+                                      "parrot", "bee", "happy_ghast", "breeze",
+                                      "searwing"]          // (check fix 25: hell's winged mob, P336)
     static let poiKeys: Set<String> = ["chest", "trapped_chest", "barrel", "lectern", "composter", "smoker", "cartography_table",
                                        "fletching_table", "loom", "stonecutter", "cauldron", "blast_furnace", "smithing_table", "grindstone",
                                        "brewing_stand", "crafting_table", "bell", "furnace", "anvil", "enchanting_table"]
 
     // MARK: Walk model
 
+    static let garageDoor: BlockID = Blocks.has(Depots.shutter) ? Blocks.groupBase[Int(Blocks.id(Depots.shutter))] : 0
+
     static func top(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float {
         let b = w.block(x, y, z)
         let sh = Blocks.shape[Int(b)]
         if sh == "door" { return 0 }
         if Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("_fence_gate") { return 0 }
+        // (Check fix 25: a garage door swings open from its buttons (GarageDoors.swift), like a door.)
+        if Blocks.groupBase[Int(b)] == garageDoor { return 0 }
         return PathFinder.solidTop(w, x, y, z)
     }
 
@@ -378,6 +384,18 @@ enum StructCheck {
                     add("door_needs_jump", p, "reachable only with 1-block jumps; ground round the outer side (rows z-3...z+3): " + grid.joined(separator: " | "))
                 }
             } } }
+            // Check fix 28: another structure's pieces that reach into this one's box (a Greywall base's own depot, built
+            // against its wall, P469: its magazine chests, walked from the depot's own gate by the depot's check, counted as
+            // the base's from the base's side of the fence: poi_unreachable 12).
+            var foreign: [Piece] = []
+            if let reg = w.gen.structures {
+                let ccx = floorDiv((s.min.x + s.max.x) / 2, CS), ccz = floorDiv((s.min.z + s.max.z) / 2, CS)
+                for t in reg.types where t.name != typeName && t.name != kind {
+                    for o in reg.startsNear(cx: ccx, cz: ccz, t) where o.kind != kind {
+                        foreign += o.pieces.filter { $0.max.x >= s.min.x && $0.min.x <= s.max.x && $0.max.z >= s.min.z && $0.min.z <= s.max.z }
+                    }
+                }
+            }
             // Points of interest and beds.
             for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 guard written.contains(key(x, y, z)) else { continue }
@@ -401,6 +419,11 @@ enum StructCheck {
                     return inX && inYZ
                 }
                 if !own { continue }
+                if foreign.contains(where: { (pc: Piece) -> Bool in
+                    let inX: Bool = x >= pc.min.x && x <= pc.max.x
+                    let inYZ: Bool = y >= pc.min.y && y <= pc.max.y && z >= pc.min.z && z <= pc.max.z
+                    return inX && inYZ
+                }) { continue }
                 // A world-gen dungeon's chest inside the box (mossy cobblestone floor, a spawner beside it): not the
                 // structure's own (run 373: a Steelhold foundation closed a dungeon's cave opening).
                 // Another structure's chest inside this box (a desert pyramid's treasure room under a citadel, seed
@@ -431,6 +454,9 @@ enum StructCheck {
                 pois += 1
                 // The desert pyramid's treasure room is reached by digging through the floor pattern, by design.
                 if kind == "desert_pyramid" && base == "chest" { continue }
+                // (Check fix 25: a chest in a barred cell, bars on all four sides, is a deliberate cell broken into: the
+                // Chain Gaol's cells, HellWorks.)
+                if [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy({ Blocks.key(w.materialAt(x + $0.0, y, z + $0.1)) == "iron_bars" }) { continue }
                 var ok = false
                 for dz in -1...1 { for dx in -1...1 where !ok && (dx != 0 || dz != 0) {
                     for dy in [-1, 0, 1] where !ok {
@@ -529,6 +555,22 @@ enum StructCheck {
                 add("torch_unsupported", IVec3(x, y, z), st == 0 ? "standing torch over \(Blocks.key(w.materialAt(x, y - 1, z)))" : "wall torch with nothing behind it")
             }
         } } }
+        // Ladders the structure placed: each needs a block behind it (ledger 30: a depot tank wagon's side ladder hung
+        // on a corner). State f's panel is on side [1, 0, 3, 2][f] (BlocksBuilding), so its back is that side's cell.
+        var ladderIssues = 0
+        for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            guard written.contains(key(x, y, z)) else { continue }
+            let b = w.block(x, y, z)
+            guard Blocks.shape[Int(b)] == "ladder" else { continue }
+            let f = Int(b - Blocks.groupBase[Int(b)])
+            let back: [(Int, Int)] = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+            let (bx, bz) = back[min(3, f)]
+            if !Blocks.collide[Int(w.materialAt(x + bx, y, z + bz))] && ladderIssues < 3 {
+                ladderIssues += 1
+                let sides = [(1, 0, "+x"), (-1, 0, "-x"), (0, 1, "+z"), (0, -1, "-z")].map { "\($0.2) \(Blocks.key(w.materialAt(x + $0.0, y, z + $0.1)))" }
+                add("ladder_unsupported", IVec3(x, y, z), "ladder (state \(f)) with \(Blocks.key(w.materialAt(x + bx, y, z + bz))) behind it; round it \(sides.joined(separator: ", "))")
+            }
+        } } }
         // Structure mobs.
         var mobs = 0
         for (name, pos) in w.pendingMobs where s.contains(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))) {
@@ -545,6 +587,8 @@ enum StructCheck {
             // A villager behind iron bars is a deliberate cell (igloo basement), not a trapped spawn.
             var caged = false
             for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.key(w.materialAt(c.x + dx, c.y, c.z + dz)) == "iron_bars" { caged = true }
+            // (Check fix 25: an outpost's captive stands in a fenced cage two blocks round, by design: OverworldStructures.outpostCamp.)
+            if typeName == "pillager_outpost" || kind == "pillager_outpost" { caged = true }
             if walk && name == "villager" && !caged && !ra.isEmpty, let (sy, _) = standNear(w, c.x, c.y, c.z, up: 0, down: 2), !ra.contains(key(c.x, sy, c.z)) {
                 add("mob_trapped", c, "villager spawn not connected to the village")
             }

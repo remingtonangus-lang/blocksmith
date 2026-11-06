@@ -2818,7 +2818,11 @@ final class Game {
                 guard world.solidAt(bx, by - 1, bz) else { continue }
                 // Hostile mobs from spawners need block light ≤ 11 (cinderwisps and silverfish ignore it in practice).
                 if !kind.hellOwn && world.lightAt(bx, by, bz).block > 11 { continue }
-                let m = Mob(kind, at: V3(Float(bx) + 0.5, sp.y, Float(bz) + 0.5))
+                // Ledger 38: where the roll fell, not the cell's middle (reference). A mob wider than a block (the
+                // Slagthrower, 1.1, the fortress cages' heir since P292) set in a cell's middle reached into all four
+                // cells round it, so on the fortress's bridges and stair platform most rolls hit something and the cage
+                // brought 10 in 20 minutes: 4 cinder rods (playthrough, builds 195 and 197).
+                let m = Mob(kind, at: V3(sp.x, sp.y, sp.z))
                 if m.sized { m.makeSlime(size: 1) }
                 if m.collides(m.pos, world) { continue }
                 mobs.mobs.append(m)

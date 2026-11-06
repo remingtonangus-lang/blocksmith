@@ -71,6 +71,7 @@ final class Armory {
     var hits = 0
     static var fired = 0                 // (harness: rounds the player's side put in the air)
     static var foeFired = 0              // (harness: everyone else's)
+    static var foeHits = 0               // (harness: their rounds that struck the player)
 
     func spawn(_ s0: Slug) {
         guard slugs.count < 600 else { return }
@@ -441,6 +442,7 @@ final class Armory {
         let whole = floorf(s.damage)
         let n = Int(whole) + (Rand.float(in: 0..<1) < s.damage - whole ? 1 : 0)
         g.bulletHit = true
+        if !s.fromPlayer { Armory.foeHits &+= 1 }
         g.sfx(.bulletFlesh, 0.8)
         g.hurtPlayer(max(1, n), from: at - dir * 3, cause: "was shot by \(s.by)", knockback: 0.25, type: .projectile)
         g.bulletHit = false
