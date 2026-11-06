@@ -384,6 +384,18 @@ enum StructCheck {
                     add("door_needs_jump", p, "reachable only with 1-block jumps; ground round the outer side (rows z-3...z+3): " + grid.joined(separator: " | "))
                 }
             } } }
+            // Check fix 28: another structure's pieces that reach into this one's box (a Greywall base's own depot, built
+            // against its wall, P469: its magazine chests, walked from the depot's own gate by the depot's check, counted as
+            // the base's from the base's side of the fence: poi_unreachable 12).
+            var foreign: [Piece] = []
+            if let reg = w.gen.structures {
+                let ccx = floorDiv((s.min.x + s.max.x) / 2, CS), ccz = floorDiv((s.min.z + s.max.z) / 2, CS)
+                for t in reg.types where t.name != typeName && t.name != kind {
+                    for o in reg.startsNear(cx: ccx, cz: ccz, t) where o.kind != kind {
+                        foreign += o.pieces.filter { $0.max.x >= s.min.x && $0.min.x <= s.max.x && $0.max.z >= s.min.z && $0.min.z <= s.max.z }
+                    }
+                }
+            }
             // Points of interest and beds.
             for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 guard written.contains(key(x, y, z)) else { continue }
@@ -407,6 +419,11 @@ enum StructCheck {
                     return inX && inYZ
                 }
                 if !own { continue }
+                if foreign.contains(where: { (pc: Piece) -> Bool in
+                    let inX: Bool = x >= pc.min.x && x <= pc.max.x
+                    let inYZ: Bool = y >= pc.min.y && y <= pc.max.y && z >= pc.min.z && z <= pc.max.z
+                    return inX && inYZ
+                }) { continue }
                 // A world-gen dungeon's chest inside the box (mossy cobblestone floor, a spawner beside it): not the
                 // structure's own (run 373: a Steelhold foundation closed a dungeon's cave opening).
                 // Another structure's chest inside this box (a desert pyramid's treasure room under a citadel, seed
