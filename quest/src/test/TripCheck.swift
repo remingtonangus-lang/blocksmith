@@ -1,5 +1,6 @@
 import Foundation
 import simd
+import Metal
 
 // Nov 6: the perf scenes' vault flight crossed out of the Deep's top and the tick that did it took 10.8 s (build 204,
 // the "deep" stage: Game.crossSeam -> changeDimension, all on the frame). Every way between dimensions goes through
