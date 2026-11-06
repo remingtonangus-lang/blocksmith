@@ -4,7 +4,7 @@ Each entry is a bug a player could hit. It was reproduced before the fix (a host
 fixed at its root. Item 5 (bloom) applies to every entry: after each fix, look for the same mistake elsewhere and log what turned
 up. Newest at the bottom.
 
-Count: 37
+Count: 38
 
 | # | Found | Bug | Root cause and fix | Proof | Bloom |
 |---|-------|-----|--------------------|-------|-------|
@@ -45,6 +45,7 @@ Count: 37
 | 35 | Nov 6 | An outpost on a snowy slope could not be entered (seed 12345 at 1416 568): its rooms, fletching table and the top chest out of reach | The tower's south door had a step laid in front of it, but the ground rising south of the tower stood over the step and against the doorway. The step is cleared to head height, and where the ground outside is higher, steps a block apart come down to it (OverworldStructures.outpostTower; on ground no save has seen). | --structcheck on build 197: pillager_outpost poi_unreachable 3; after: BUILD198O | Other doors that open onto a slope: towers and huts that take their height from one column |
 | 36 | Nov 6 | A Brigand Roost pillager fell 4 blocks when the roost loaded | Half the roosts put a pillager on the west wall's walk, a block inward of the walk's slabs: on air. He stands on the walk now (OriginalSites.swift). | --structcheck on build 197: mansion mob_no_floor 2; after: BUILD198M | Every other roost mob stands on a floor (the check found no more) |
 | 37 | Nov 6 | In a Capital city, the top floor of a seven-floor office tower could not be reached (one tower a city; its desks, bookshelves and barrels) | The stair core's door to each floor goes off the step level with it, or, where that step is on the north side against the face, off the next one. On a seven-floor tower the top floor's level step is the north one, and the stair stopped there, so its door opened off a step that was never laid. The stair runs one step past the top floor now (CapitalCity.swift; on ground no save has seen). | --structcheck on build 197: capital_city poi_unreachable 5 (a barrel four above the floor reached, in every city checked); after: BUILD198C | Every floor below the top had its next step; only seven-floor towers (floors - 1 = 6 mod 8) |
+| 38 | Nov 6 | A fortress's Slagthrower cage was slow: the playthrough got 10 in 20 minutes there, 4 cinder rods (7 wanted) | A spawner set what it made in the middle of the cell its roll fell in. The Slagthrower (the cages' heir since P292) is 1.1 wide, so in a cell's middle it reached into the four cells round it and most rolls on the bridge and round the stair platform hit a fence, a wall or a step. It now stands where the roll fell (reference), so it fits where its body does (Game.spawnerTick; every spawner). | --playthrough on builds 195 and 197: 4 rods from 10 kills in 1200 s; after: BUILD198F | Every spawner (dungeons, the Sunken Dreadnought's, trial spawners keep their own placement) |
 
 ## Check fixes (not counted: bugs in the host checks, not in the game)
 
