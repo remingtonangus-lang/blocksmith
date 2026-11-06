@@ -104,6 +104,18 @@ enum Mesher {
     // in the section. Its sides take the face-projected texture (u = v = 31 in chunk.vert), which repeats per block
     // exactly as faceUV lays it, so the look is the same. BS_RUNMERGE=0 for before.
     static let runMerge = ProcessInfo.processInfo.environment["BS_RUNMERGE"] != "0"
+    // The same for a stack of one still, full-size cross (hanging vines: the jungle's most drawn block, 51k quads at the
+    // perf spot): one tall cross per run, its corners' u = 28 (rising with x) or 29 (falling) and chunk.vert / ship.vert
+    // lay the texture by position as the per-block corners did. Headset shaders only (the Mac's don't read 28 / 29).
+    #if QUEST || QUEST_HEADLESS
+    static let crossRuns = runMerge && ProcessInfo.processInfo.environment["BS_CROSSRUNS"] != "0"
+    #else
+    static let crossRuns = false
+    #endif
+    static let crossRun: [Bool] = (0..<Blocks.count).map { i in
+        Blocks.render[i] == RenderType.cross.rawValue && Blocks.crossSize[i] == 16 && !Blocks.sway[i] && !Blocks.drift[i]
+            && Blocks.layer[i] != RenderLayer.translucent.rawValue && BlockID(i) != pointedDrip
+    }
     static let runBox: [Bool] = (0..<Blocks.count).map { i in
         guard Blocks.render[i] == RenderType.model.rawValue, Blocks.layer[i] != RenderLayer.translucent.rawValue, !ChestJoin.joinable[i],
               Blocks.boxes[i].count == 1, let b = Blocks.boxes[i].first else { return false }
@@ -355,7 +367,7 @@ enum Mesher {
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase, joinT = ChestJoin.joinable
-        let runT = Mesher.runBox
+        let runT = Mesher.runBox, crossRunT = Mesher.crossRun
         let rRail = RenderType.rail.rawValue
         let waterTex = Int(WATER) * 6
         let translucent = RenderLayer.translucent.rawValue
@@ -1462,6 +1474,38 @@ enum Mesher {
                         // floor, so a plant in its first row over a dip stayed up to 3/4 block over the drawn ground: the
                         // section below draws it (after the main loop).
                         if smooth && ly == 0 && plantOnNatural(i) { continue }
+                        if Mesher.crossRuns && crossRunT[bi] && ly < 16 {
+                            // (Nov 6: a run of one still cross: skipped above its first block, drawn whole from there; not
+                            // in a stack that stands on the drawn ground, which the stack offsets below would move)
+                            func joins(_ j: Int, _ jy: Int) -> Bool {
+                                if anyDmg && dmg[j] != nil { return false }
+                                if let sk = objSkip, sk[(x - C0) + (z - C0) * 16 + jy * 256] { return false }
+                                if sc.smValid || drapeOn {
+                                    var g = jy - 1, k = j - RL
+                                    while g > -SmoothTerrain.maxRelax && renderT[Int(R[k])] == rCross { g -= 1; k -= RL }
+                                    if natAt(k) { return false }
+                                }
+                                return true
+                            }
+                            if joins(i, ly) {
+                                if ly > 0 && R[i - RL] == b && joins(i - RL, ly - 1) && skyL[i - RL] == skyL[i] && blkL[i - RL] == blkL[i] { continue }
+                                var n = 1
+                                while ly + n < 16 && R[i + n * RL] == b && joins(i + n * RL, ly + n) && skyL[i + n * RL] == skyL[i] && blkL[i + n * RL] == blkL[i] { n += 1 }
+                                if n > 1 {
+                                    let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                                    let layer = Int(texT[bi * 6 + 2])
+                                    for q in 0..<4 {
+                                        let uCode = q == 0 || q == 3 ? 28 : 29
+                                        for k in 0..<4 {
+                                            let ci = (q * 4 + k) * 3
+                                            vert(isTrans, bx16 + PTab[ci] * 16, by16 + PTab[ci + 1] * n * 16, bz16 + PTab[ci + 2] * 16,
+                                                 6, tintV, uCode, 0, layer, 3, l, false)
+                                        }
+                                    }
+                                    continue
+                                }
+                            }
+                        }
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         // P175: a plant (or a stack of them, cane) on smooth ground stands on the drawn surface, not on the
                         // block top it was rounded from (grass floated over every dip).
