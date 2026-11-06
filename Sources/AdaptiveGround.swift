@@ -93,6 +93,10 @@ enum AdaptiveGround {
     // (Nov 6: 0.375 block is under a pixel's change at the headset's ~20 px a degree from 64 blocks; jungle 289k to 266k
     // quads, birch -9%, forest -8%; 0.5 and 0.75 gained 2% and 1% more). BS_BLOBTOL to try another.
     static var blobFarTolerance: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBTOL"] ?? "") ?? farTolerance * 3
+    // (Nov 6: corner shading on those shells may interpolate 3 levels off, i.e. it doesn't hold a collapse back: taiga
+    // 189k to 172k quads, jungle 239k to 221k, snowy 190k to 178k; 0.10% of the jungle's pixels change at headset
+    // resolution, 0.04% snowy, none in the taiga. BS_BLOBAO=0.5 for before.)
+    static var blobFarAO: Double = Double(ProcessInfo.processInfo.environment["BS_BLOBAO"] ?? "") ?? 3
     static var farEnabled = ProcessInfo.processInfo.environment["BS_ADAPTIVE_FAR"] != "0"
 
     // The section's ground (buf[from...], led by nothing else when from == 0) simplified to the near bound in place,
@@ -174,7 +178,7 @@ enum AdaptiveGround {
     struct GroundGuard: CollapseGuard {
         let words: [UInt64]
         let seams: Bool
-        let lTol = AdaptiveGround.lightTol + 1e-9, oTol = AdaptiveGround.aoTol + 1e-9, mTol = AdaptiveGround.matTol - 1e-9
+        var lTol = AdaptiveGround.lightTol + 1e-9, oTol = AdaptiveGround.aoTol + 1e-9, mTol = AdaptiveGround.matTol - 1e-9
         static let attrMask: UInt64 = (UInt64(0xF8000000) << 32) | UInt64(0xFFFF_FFFF & ~(UInt32(0x3E0) | (1 << 30)))
         @inline(__always) func same(_ a: Int, _ b: Int) -> Bool { seams || words[a] & GroundGuard.attrMask == words[b] & GroundGuard.attrMask }
         @inline(__always) func sky(_ i: Int) -> Double { Double((words[i] >> 22) & 15) }
@@ -493,10 +497,14 @@ enum AdaptiveGround {
             if v[0] != v[2] && v[2] != v[3] && v[0] != v[3] { tris.append(SIMD3(v[0], v[2], v[3])) }
         }
         if tallyPos { tally.lock(); positions += perPos.count; splitPositions += splitPos.count; tally.unlock() }
-        let live = collapse(pos: pos, grid: grid, tris: tris, tol: tol, guard: GroundGuard(words: words, seams: joinSeams))
+        var gg = GroundGuard(words: words, seams: joinSeams)
+        // (Nov 6: a leaf blob's far shell, drawn past 64 blocks, lets its corners' shading (AO) run looser: the AO bound
+        // was what kept the shells from simplifying, a 4-block position bound still left 64k quads at the jungle spot)
+        if blob && tol == blobFarTolerance { gg.oTol = blobFarAO + 1e-9 }
+        let live = collapse(pos: pos, grid: grid, tris: tris, tol: tol, guard: gg)
         let out = pairQuads(live)
         if farTol > 0 {
-            let fq = pairQuads(collapse(pos: pos, grid: grid, tris: live, tol: farTol, guard: GroundGuard(words: words, seams: joinSeams)))
+            let fq = pairQuads(collapse(pos: pos, grid: grid, tris: live, tol: farTol, guard: gg))
             farWords.reserveCapacity(fq.count * 8)
             for q in fq { for k in 0..<4 { let key = words[Int(q[k])]; farWords.append(UInt32(key >> 32)); farWords.append(UInt32(key & 0xFFFF_FFFF)) } }
         }
