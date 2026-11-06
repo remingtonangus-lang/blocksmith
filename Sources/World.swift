@@ -2296,6 +2296,9 @@ final class World {
     func unloadAll() {
         chunks.removeAll()
         lastCenter = nil
+        // (Ledger 40: a world unloaded on a trip and come back to at the same chunk read as "nothing new since the last
+        // scan" (same centre, no results), so World.update scheduled nothing and only the chunks loadSync made were there.)
+        scanCenter = nil; scanEpoch = -1
         fluidPending.removeAll(); lavaPending.removeAll()
     }
 
