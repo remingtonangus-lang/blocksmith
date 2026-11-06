@@ -132,7 +132,7 @@ enum QuestPerf {
     static func run(ctx: VkContext) -> Int32 {
         SceneRenderer.tallyDetail = true
         setvbuf(stdout, nil, _IOLBF, 0)
-        World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = QuestApp.leafNear   // (QuestApp)
+        QuestApp.headsetWorld()                                                       // (as on the headset)
         SceneRenderer.skipGPU = !CommandLine.arguments.contains("--gpu")
         let rds = (arg("--rd") ?? "12,16").split(separator: ",").compactMap { Int($0) }
         let only = arg("--only").map { Set($0.split(separator: ",").map(String.init)) }

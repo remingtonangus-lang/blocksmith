@@ -381,8 +381,7 @@ enum QuestFrameSoak {
 
     static func run(ctx: VkContext) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = QuestApp.leafNear
-        World.editLane = true; GroundSettle.spread = true                           // (QuestApp)
+        QuestApp.headsetWorld()                                                       // (as on the headset)
         // (as the game runs, not the host checks' fixtures: bases planned on workers, the headset's world rules)
         StructureCache.plansOffThread = true
         World.resultsProfile = true                                                // (the slowest single hand-over, per scene)

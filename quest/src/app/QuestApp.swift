@@ -20,6 +20,28 @@ final class QuestApp {
     // leaf blocks). At 6 chunks (96 blocks) a leaf block is ~8 px tall on the Quest 3 and a leaf texture's holes are
     // under a pixel, so the inner faces could only show through holes the mip chain has already closed.
     static var leafNear = 4
+
+    // The world settings the headset plays with. Every host harness that stands in for the headset's frame calls this
+    // too (Nov 6: the perf scenes ran without the edit lane, so a felled tree's sections meshed on the frame thread
+    // there and read as a 155 ms "felling" spike the headset never has; five harnesses meshed leaves at full detail
+    // out to the view's edge, leafNear 99, where the headset uses 4).
+    static func headsetWorld() {
+        World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
+        World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
+        // P339 (Remington, Oct 18 20:10: "everything out to the 24-chunk view looks exactly like the land near him... no
+        // coarse 2-block-lattice LOD, no blur or compression"): every chunk in view is meshed at full detail (no far
+        // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
+        // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
+        World.lodNear = 99
+        World.editLane = true                      // P440: a placed or broken block meshes off the frame
+        GroundSettle.spread = true                 // store review: generation's loose pieces cleared a slice a frame
+        World.leafNear = QuestApp.leafNear
+        // The game plans structure starts on a worker (the headless checks plan them at once, main.swift): in the perf
+        // scenes a Greywall base found in flight was planned in the tick, a 158 ms "bases found" spike, and the town
+        // law tick's lookups 118 ms, neither of which the headset has.
+        StructureCache.plansOffThread = true
+    }
+
     private(set) var dynRes = DynamicResolution()       // P403 7b
     private(set) var game: Game?
     private var worldRenderer: WorldRenderer?
@@ -69,16 +91,7 @@ final class QuestApp {
             self?.rig.needsRecenter = true
             self?.game?.onToast?(QuestSettings.reclined ? "View levelled to your gaze" : "View recentred")
         }
-        World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
-        World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
-        // P339 (Remington, Oct 18 20:10: "everything out to the 24-chunk view looks exactly like the land near him... no
-        // coarse 2-block-lattice LOD, no blur or compression"): every chunk in view is meshed at full detail (no far
-        // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
-        // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
-        World.lodNear = 99
-        World.editLane = true                      // P440: a placed or broken block meshes off the frame
-        GroundSettle.spread = true                 // store review: generation's loose pieces cleared a slice a frame
-        World.leafNear = QuestApp.leafNear
+        QuestApp.headsetWorld()
         PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
         stats.lowerRate = { [weak xr] in
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }

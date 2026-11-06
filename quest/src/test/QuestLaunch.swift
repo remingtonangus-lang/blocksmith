@@ -43,7 +43,7 @@ enum QuestLaunch {
 
     static func run(ctx: VkContext) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = 99   // (QuestApp)
+        QuestApp.headsetWorld()                                                       // (as on the headset)
         SceneRenderer.skipGPU = true
         RandomTickRng.profile = true
         World.resultsProfile = true
