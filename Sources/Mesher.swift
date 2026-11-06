@@ -99,6 +99,17 @@ enum Mesher {
 
     // P508: built cubes on the field's ground get a foot down into it (BS_FEET=0 leaves them off: before/after renders).
     static let blockFeet = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
+    // Nov 6 (jungle perf spot: bamboo was 27k of the 43k cutout quads past 64 blocks): a stack of one thin model (one box,
+    // full height, clear of the cell's sides: bamboo, chains, rods) lit alike all the way up is drawn as one box per run
+    // in the section. Its sides take the face-projected texture (u = v = 31 in chunk.vert), which repeats per block
+    // exactly as faceUV lays it, so the look is the same. BS_RUNMERGE=0 for before.
+    static let runMerge = ProcessInfo.processInfo.environment["BS_RUNMERGE"] != "0"
+    static let runBox: [Bool] = (0..<Blocks.count).map { i in
+        guard Blocks.render[i] == RenderType.model.rawValue, Blocks.layer[i] != RenderLayer.translucent.rawValue, !ChestJoin.joinable[i],
+              Blocks.boxes[i].count == 1, let b = Blocks.boxes[i].first else { return false }
+        return b.y0 == 0 && b.y1 == 16 && b.x0 > 0 && b.x1 < 16 && b.z0 > 0 && b.z1 < 16 && b.x1 > b.x0 && b.z1 > b.z0
+            && b.leanX == 0 && b.leanZ == 0
+    }
 
     // Faces +X,-X,+Y,-Y,+Z,-Z; corners BL,BR,TR,TL counter-clockwise seen from outside.
     static let cornerTable: [Int] = [
@@ -344,6 +355,7 @@ enum Mesher {
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase, joinT = ChestJoin.joinable
+        let runT = Mesher.runBox
         let rRail = RenderType.rail.rawValue
         let waterTex = Int(WATER) * 6
         let translucent = RenderLayer.translucent.rawValue
@@ -1624,6 +1636,48 @@ enum Mesher {
                             }
                         }
                         continue
+                    }
+                    if rt == rModel && Mesher.runMerge && runT[bi] && ly < 16 {
+                        // (Nov 6: a run of one thin model: skipped above its first block, drawn whole from there)
+                        @inline(__always) func joins(_ j: Int, _ jy: Int) -> Bool {
+                            !natAt(j - RL) && !(anyDmg && dmg[j] != nil)
+                                && !(objSkip.map { $0[(x - C0) + (z - C0) * 16 + jy * 256] } ?? false)
+                        }
+                        if joins(i, ly) {
+                            if ly > 0 && R[i - RL] == b && joins(i - RL, ly - 1) && skyL[i - RL] == skyL[i] && blkL[i - RL] == blkL[i] { continue }
+                            var n = 1
+                            while ly + n < 16 && R[i + n * RL] == b && joins(i + n * RL, ly + n) && skyL[i + n * RL] == skyL[i] && blkL[i + n * RL] == blkL[i] { n += 1 }
+                            if n > 1 {
+                                let box = boxesT[bi][0]
+                                let mn = [Int(box.x0), 0, Int(box.z0)], mx = [Int(box.x1), 16, Int(box.z1)]
+                                let lOwn = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                                let iTop = i + (n - 1) * RL, rise = (n - 1) * 16
+                                for f in 0..<6 {
+                                    let at = f == 2 ? iTop : i                  // (the top face is the run's top block's)
+                                    var l = lOwn
+                                    if f == 2 || f == 3 {
+                                        let nb = R[at + offs[f]]
+                                        if opaqueT[Int(nb)] && !smoothOpen(at + offs[f]) && !(anyDmg && dmg[at + offs[f]] != nil) { continue }
+                                        if nb == b && !(anyDmg && (dmg[at] != nil || dmg[at + offs[f]] != nil)) { continue }
+                                        l = max(0, light(x, y + (f == 2 ? n : -1), z))
+                                    }
+                                    let layer = box.tex.isEmpty ? Int(texT[bi * 6 + f]) : Int(box.tex[f])
+                                    for k in 0..<4 {
+                                        let ci = (f * 4 + k) * 3
+                                        let px = CT[ci] == 1 ? mx[0] : mn[0]
+                                        let up = CT[ci + 1] == 1
+                                        let pz = CT[ci + 2] == 1 ? mx[2] : mn[2]
+                                        if f == 2 || f == 3 {
+                                            let (u, v) = faceUV(f, px, up ? 16 : 0, pz)
+                                            vert(isTrans, bx16 + px, by16 + (up ? 16 : 0) + (f == 2 ? rise : 0), bz16 + pz, f, tintV, u, v, layer, 3, l, false)
+                                        } else {
+                                            vert(isTrans, bx16 + px, by16 + (up ? 16 + rise : 0), bz16 + pz, f, tintV, 31, 31, layer, 3, l, false)
+                                        }
+                                    }
+                                }
+                                continue
+                            }
+                        }
                     }
                     if rt == rModel || rt == rConnect {
                         var boxes = boxesT[bi]
