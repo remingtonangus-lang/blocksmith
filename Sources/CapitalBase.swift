@@ -313,8 +313,9 @@ enum CapitalBase {
         // Vault under the hall, by a ladder from the foyer.
         w.fill(X(-6), P1 - 5, Z(10), X(6), P1 - 1, Z(20), white)
         w.fill(X(-5), P1 - 4, Z(11), X(5), P1 - 2, Z(19), AIR)
-        for y in (P1 - 4)...P1 { put(0, y, 20, ladder) }
-        put(0, P1 + 1, 20, AIR)
+        // (Ledger 32: the ladder stood in the vault's end wall, nothing behind it; it is inside now, on that wall.)
+        for y in (P1 - 4)...P1 { put(0, y, 19, ladder) }
+        put(0, P1 + 1, 19, AIR)
         for (dx, dz) in [(-4, 12), (4, 12)] { w.chest(X(dx), P1 - 4, Z(dz), loot: "steelhold_vault", seed: rng.next(), facing: 1) }
         w.chest(X(-4), P1 - 4, Z(18), loot: "steelhold_charge", seed: rng.next(), facing: 0)      // (P504: its one Ember Charge)
         w.safe(X(4), P1 - 4, Z(18), seed: safeSeed &+ 1, facing: 0)                    // P248 (BaseSafes.swift)

@@ -424,6 +424,8 @@ enum OverworldStructures {
                 else { w.set(x, yy, z, wall) }
             } } }
             for yy in by...(by + 4) { w.set(cx + 2, yy, cz + 2, Blocks.id("ladder") + 2) }
+            // (Ledger 32: in the open lookout the ladder stood free over the rail; a post runs up behind it to the platform.)
+            if fl == 3 { for yy in (by + 2)...(by + 4) { w.set(cx + 3, yy, cz + 2, log) } }
             w.mob("soldier_marksman@marauder", V3(Float(cx) + 0.5, Float(by + 1), Float(cz) + 0.5))
         }
         // Furnishing: a fletching table and a barrel of arrows below, bedrolls of hay above.

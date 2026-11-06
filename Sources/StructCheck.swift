@@ -550,7 +550,8 @@ enum StructCheck {
             let (bx, bz) = back[min(3, f)]
             if !Blocks.collide[Int(w.materialAt(x + bx, y, z + bz))] && ladderIssues < 3 {
                 ladderIssues += 1
-                add("ladder_unsupported", IVec3(x, y, z), "ladder with \(Blocks.key(w.materialAt(x + bx, y, z + bz))) behind it")
+                let sides = [(1, 0, "+x"), (-1, 0, "-x"), (0, 1, "+z"), (0, -1, "-z")].map { "\($0.2) \(Blocks.key(w.materialAt(x + $0.0, y, z + $0.1)))" }
+                add("ladder_unsupported", IVec3(x, y, z), "ladder (state \(f)) with \(Blocks.key(w.materialAt(x + bx, y, z + bz))) behind it; round it \(sides.joined(separator: ", "))")
             }
         } } }
         // Structure mobs.

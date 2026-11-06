@@ -318,8 +318,9 @@ enum Depots {
                 if abs(da) == 2 || abs(db) == 2 { put(wa + da, 9, wb + db, bags) }
             } }
             for db in -1...1 { put(wa - 2, 9, wb + db, AIR) }
-            for y in 1...8 { put(wa - 2, y, wb, ladder + wallHigherA) }
-            put(wa - 2, 9, wb, AIR)
+            // (Ledger 32: the ladder climbed between two legs with nothing behind it; it is on a leg now.)
+            for y in 1...8 { put(wa - 2, y, wb - 1, ladder + wallHigherA) }
+            put(wa - 2, 9, wb - 1, AIR)
             // (Ledger 30: the roof's posts stood on the empty cells inside the sandbags, held by a corner each.)
             for (da, db) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { put(wa + da, 9, wb + db, steel); put(wa + da, 10, wb + db, steel) }
             for da in -1...1 { for db in -1...1 { put(wa + da, 11, wb + db, steelSlab) } }
