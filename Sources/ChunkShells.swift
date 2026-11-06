@@ -146,7 +146,7 @@ extension World {
             s.transBuf = cacheBuffer(m.trans); s.transQuads = m.counts[4]
             s.detailBuf = cacheBuffer(m.detail); s.detailQuads = m.counts[5]; s.detailSolid = m.counts[6]
             s.naturalCubes = m.counts[7]; s.groundQuads = m.counts[8]; s.blobQuads = m.counts[9]; s.solidFull = m.counts[10] != 0
-            s.farCut = m.counts[11]; s.detailFarSkip = m.counts[12]; s.detailFarExtra = m.counts[13]; s.farTail = m.counts[14]
+            s.farCut = m.counts[11]; s.detailFarSkip = m.counts[12]; s.detailFarExtra = m.counts[13]; s.farTail = m.counts[14]; s.farPlants = 0
             s.vis = m.vis; s.leafy = m.leafy
             s.meshedVersion = s.version
         }

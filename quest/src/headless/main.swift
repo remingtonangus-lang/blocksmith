@@ -3440,6 +3440,7 @@ var walkHurt: [String] = []
 let walkHealth0 = game.health
 let onDamageWalk0 = Game.onDamage
 var walkFrame = 0
+var walkTrace: [String] = []
 Game.onDamage = { amt, cause in if walkHurt.count < 12 { walkHurt.append("frame \(walkFrame): \(amt) by \(cause)") } }
 for i in 0..<frames {
     walkFrame = i
@@ -3460,6 +3461,12 @@ for i in 0..<frames {
     let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
     tickMs.append(ms)
     slow.append((ms, (b - a) * 1000, i, world.chunks.count, game.mobs.mobs.count))
+    // (Nov 6, build 200: 9.4 blocks where four builds walked 48.7: where he was every 2 s, so a stall shows where and why)
+    if i % 144 == 143 {
+        let q = game.player.pos
+        walkTrace.append(String(format: "%d: %.1f %.1f %.1f%@%@%@", i + 1, q.x, q.y - Float(YOFF), q.z, game.player.onGround ? " ground" : "",
+                                game.player.inWater ? " water" : "", game.menu == nil ? "" : " menu " + String(describing: type(of: game.menu!))))
+    }
 }
 pm.touch = nil
 Game.onDamage = onDamageWalk0
@@ -3476,6 +3483,7 @@ if !tickAllocs.isEmpty {
 }
 print(String(format: "ticks: median %.2f ms, p99 %.2f ms, worst %.2f ms", tickMs[tickMs.count / 2], tickMs[tickMs.count * 99 / 100], tickMs.last!))
 let moved = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
+print("walk: from \(p0); every 2 s: " + walkTrace.joined(separator: "; "))
 check(game.player.pos.x.isFinite && game.player.pos.y.isFinite, "player position finite")
 check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved))
 check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))"

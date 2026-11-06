@@ -37,6 +37,7 @@ enum LoadWarm {
         _ = Mesher.bevelT
         _ = Mesher.iceT
         _ = Mesher.leafT
+        _ = Mesher.farPlantT
         _ = Mob.earth
         _ = NaturalCensus.natural
         _ = NaturalCensus.bulkShare

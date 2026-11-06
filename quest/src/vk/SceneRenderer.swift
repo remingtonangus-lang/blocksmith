@@ -160,6 +160,7 @@ final class SceneRenderer {
     private(set) var drawnQuads = 0
     private(set) var drawnDetail = 0, drawnBand = 0     // (the share of drawnQuads in the detail stream, and in leaf far shells)
     private(set) var skippedInner = 0                    // (inner leaf shells left out between blobMidFrom and blobFarFrom)
+    private(set) var skippedPlants = 0                   // (small ground plants left out past plantFarFrom)
     // (harness, perf scenes: the detail stream's quads drawn by distance, 0-16, 16-32, 32-64, 64+ blocks, and of those past
     // trunkFarFrom the ones in sections with no far copy to switch to)
     static var tallyDetail = false
@@ -1017,6 +1018,7 @@ final class SceneRenderer {
         var flags: UInt32 = 0                  // SecInfo.nonEmpty, .meshed, .deep, .solidFull
         var oPair: Int32 = -1, oVo: Int32 = 0, quads: Int32 = 0, solid: Int32 = 0, fSkip: Int32 = 0, fExtra: Int32 = 0
         var farCut: Int32 = 0, farTail: Int32 = 0, bAt: Int32 = 0, bN: Int32 = 0, bCut: Int32 = 0     // (P453: Section.blobFar*)
+        var pN: Int32 = 0                      // (Nov 6: Section.farPlants)
         var dPair: Int32 = -1, dVo: Int32 = 0, dQuads: Int32 = 0, dSolid: Int32 = 0, dSkip: Int32 = 0, dExtra: Int32 = 0
         var tPair: Int32 = -1, tVo: Int32 = 0, tQuads: Int32 = 0
         static let nonEmpty: UInt32 = 1, meshed: UInt32 = 2, deep: UInt32 = 4, solidFull: UInt32 = 8
@@ -1528,6 +1530,10 @@ final class SceneRenderer {
     // Nov 5 (P453 again): from this far out to blobFarFrom the leaf blobs draw their outer cutout shell alone, not the
     // darker one inside it (the Mesher puts the outer shells first). BS_BLOBMID=999: both shells to blobFarFrom.
     static var blobMidFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBMID"] ?? "") ?? 24
+    // Nov 6 (frame rate): from this far out the small ground plants (Mesher.farPlantT: grass tufts, ferns, flowers), the
+    // last of a section's cutout quads before its far tail, are left out: at 64 blocks a tuft is about a pixel and a half
+    // at headset resolution. BS_PLANTFAR=N sets it (BS_FARPLANTS=0 meshes them in place, as before).
+    static var plantFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_PLANTFAR"] ?? "") ?? 64
     static var drawMerged = true                  // (questcheck --view --pixelpair: the full grid everywhere for the left shot)
     func writeRecords(_ s: Slot, eye: V3) {
         recEye = eye
@@ -1686,7 +1692,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0; for b in 0..<20 { opaqueParts[b] = 0 } }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
+        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; skippedPlants = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0; for b in 0..<20 { opaqueParts[b] = 0 } }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         if tableFrame {
@@ -1906,7 +1912,7 @@ extension SceneRenderer {
             if s.opaqueQuads > 0, let b = s.opaqueBuf {
                 e.oPair = pairOf(slabOf(b), ts); e.oVo = Int32(b.offset / 8)
                 e.quads = Int32(s.opaqueQuads); e.solid = Int32(s.solidQuads); e.fSkip = Int32(s.farSkip); e.fExtra = Int32(s.farExtra)
-                e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail)
+                e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail); e.pN = Int32(s.farPlants)
                 e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN)
             }
             if s.detailQuads > 0, let b = s.detailBuf {
@@ -2504,6 +2510,7 @@ extension SceneRenderer {
         let mq = Int32(SceneRenderer.maxQuads)
         let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
         let bf = min(mf, SceneRenderer.blobFarFrom), tf = min(mf, SceneRenderer.trunkFarFrom), bm = min(bf, SceneRenderer.blobMidFrom)
+        let pf = SceneRenderer.plantFarFrom
         for half in 0..<2 {
             let detail = half == 1
             if detail && !anyDet { break }
@@ -2529,6 +2536,14 @@ extension SceneRenderer {
                 var cutFrom = solid
                 let cutSwitch = !detail && (e.farCut > 0 || tail > 0)
                 var far = false, band = false, mid = false
+                // (Nov 6: the small plants, the last pN quads before the tail, near only and nearer than plantFarFrom)
+                var plantsOut = false
+                if !detail && e.pN > 0 && total == quads - tail {
+                    let ci = tc[v / NSEC]
+                    let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
+                    let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
+                    if simd_length_squared(qn - re) >= pf * pf { plantsOut = true; total -= e.pN; skippedPlants += Int(e.pN) }
+                }
                 if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= mq && mergeOn {
                     // (mergedFar: past the merged ground distance)
                     let ci = tc[v / NSEC]
@@ -2551,7 +2566,7 @@ extension SceneRenderer {
                         pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(fExtra * 6), instanceCount: 1, firstIndex: 0,
                                                                              vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
                     }
-                    if !detail { cutFrom = min(total, solid + e.farCut); total = min(quads, mq) }
+                    if !detail { cutFrom = min(total, solid + e.farCut); if !plantsOut { total = min(quads, mq) } }
                     quadsDrawn += Int(fExtra - fSkip - (cutFrom - solid))
                 } else if solid > 0 {
                     batchCount[k] += 1
@@ -2578,6 +2593,13 @@ extension SceneRenderer {
                     }
                     cutFrom = min(total, solid + e.bCut)
                     quadsDrawn -= Int(cutFrom - outerEnd); skippedInner += Int(cutFrom - outerEnd)
+                }
+                if far && plantsOut && tail > 0 {
+                    // (the far-only tail after the plants left out: its own range)
+                    batchCut[k] += 1
+                    pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(tail * 6), instanceCount: 1,
+                                                                       firstIndex: UInt32((quads - tail) * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                    quadsDrawn += Int(tail)
                 }
                 if total > cutFrom {
                     batchCut[k] += 1
