@@ -2296,9 +2296,10 @@ final class World {
     func unloadAll() {
         // (Ledger 40: the chunks are let go on a worker; freeing some 600 of them, their sections and mesh slices took
         // 2.7-4.9 ms of a trip's frame on the host, build 211. Chunks already die on workers: Chunk.aliveLock.)
-        let gone = chunks
+        // (held in a box the worker empties, so the last reference is always dropped there, never on the frame)
+        let gone = ChunksBox(chunks)
         chunks = [:]
-        DispatchQueue.global(qos: .utility).async { withExtendedLifetime(gone) {} }
+        DispatchQueue.global(qos: .utility).async { gone.all = [:] }
         lastCenter = nil
         // (Ledger 40: a world unloaded on a trip and come back to at the same chunk read as "nothing new since the last
         // scan" (same centre, no results), so World.update scheduled nothing and only the chunks loadSync made were there.)
@@ -2947,4 +2948,10 @@ struct FluidQueue {
         if urgentTaken > 0 { for p in urgentBatch.suffix(n) { insert(p) }; return }
         head -= n
     }
+}
+
+// (World.unloadAll: an unloaded world's chunks, let go on a worker)
+final class ChunksBox: @unchecked Sendable {
+    var all: [ChunkKey: Chunk]
+    init(_ c: [ChunkKey: Chunk]) { all = c }
 }

@@ -460,11 +460,13 @@ enum Structure {
             if comp.count >= wholeMin || tree && comp.count >= 2 { g.topple(comp) } else { crumbs.formUnion(comp) }
         }
         let cells = all.filter { crumbs.contains($0) }
-        for c in cells {
-            let b = w.builtBlock(c.x, c.y, c.z)
-            guard member[Int(b)] else { continue }
-            w.setBlock(c.x, c.y, c.z, AIR)
-            g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+        w.editBatch {                                  // (ledger 44: one remesh for all the crumbs)
+            for c in cells {
+                let b = w.builtBlock(c.x, c.y, c.z)
+                guard member[Int(b)] else { continue }
+                w.setBlock(c.x, c.y, c.z, AIR)
+                g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+            }
         }
         if let c = cells.first {
             let b = g.falling.last?.block ?? STONE

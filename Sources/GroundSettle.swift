@@ -208,11 +208,15 @@ enum GroundSettle {
                 if Felling.felled > before { treeFalls += 1; continue }
             }
             // Anything else falls block by block, lowest first, and lands where it comes down.
-            for c in cells.sorted(by: { $0.y < $1.y }) {
-                let b = w.builtBlock(c.x, c.y, c.z)
-                guard !fallSkip[Int(b)] else { continue }
-                w.setBlock(c.x, c.y, c.z, AIR)
-                g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+            // (Ledger 44: one remesh for the whole piece, editBatch; each block's own took 4.4-4.7 ms for 5-6 pieces of
+            // a crater's rim in the taiga24 battle, build 212.)
+            w.editBatch {
+                for c in cells.sorted(by: { $0.y < $1.y }) {
+                    let b = w.builtBlock(c.x, c.y, c.z)
+                    guard !fallSkip[Int(b)] else { continue }
+                    w.setBlock(c.x, c.y, c.z, AIR)
+                    g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+                }
             }
             objectFalls += 1
         }
