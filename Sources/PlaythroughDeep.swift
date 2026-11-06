@@ -234,6 +234,13 @@ extension Playthrough {
             }
             let left = game.lastWar.wave.filter { $0.health > 0 }
             kill(left)
+            // (Check fix 26: a heavy unit can outlast one bulk blow; the wave is fought down to its last man, as a player
+            // must for the last wave to count as beaten.)
+            var rounds = 0
+            while rounds < 20, case let still = game.lastWar.wave.filter({ $0.health > 0 }), !still.isEmpty {
+                if rounds == 0 { info("still standing after the bulk blow: " + still.map { "\($0.kind) \($0.health)" }.joined(separator: ", ")) }
+                kill(still); _ = tick(0.5); rounds += 1
+            }
             info("bulk: the rest of wave \(n + 1) (\(left.count) units)")
             _ = tick(3) { self.game.ashWave == n + 1 || self.game.ashStage == 2 }
         }
