@@ -123,6 +123,7 @@ enum Mesher {
     }
     #else
     static let crossRuns = false
+    static let farPlantT = [Bool](repeating: false, count: Blocks.count)      // (the Mac draws every plant)
     #endif
     static let crossRun: [Bool] = (0..<Blocks.count).map { i in
         Blocks.render[i] == RenderType.cross.rawValue && Blocks.crossSize[i] == 16 && !Blocks.sway[i] && !Blocks.drift[i]
