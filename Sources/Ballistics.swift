@@ -138,9 +138,21 @@ final class Armory {
         return r.0
     }
 
+    // (perf scenes: the slowest update, split: the naval guns' breaches, the rounds in flight, the blasts among them)
+    static var worstUpdateMs = 0.0, worstUpdateWhat = ""
     func update(_ dt: Float, _ g: Game) {
         let w = g.world
+        let u0 = CFAbsoluteTimeGetCurrent(), det0 = Armory.detonations, n0 = slugs.count
         if g.coop.current == 0 || !g.coop.active { NavalGuns.stepBreaches(g) }
+        let u1 = CFAbsoluteTimeGetCurrent()
+        let blast0 = Explosion.totalMs
+        defer {
+            let ms = (CFAbsoluteTimeGetCurrent() - u0) * 1000
+            if ms > Armory.worstUpdateMs {
+                Armory.worstUpdateMs = ms
+                Armory.worstUpdateWhat = String(format: "breaches %.1f ms, %d rounds in flight, %d blasts %.1f ms", (u1 - u0) * 1000, n0, Armory.detonations - det0, Explosion.totalMs - blast0)
+            }
+        }
         for i in slugs.indices {
             // Split screen: a player's round flies in its shooter's turn (its hit marker, hits and the mob it provokes are
             // theirs); enemy rounds fly in the turn of the seat nearest them (so they can hit player 2 too, like arrows).

@@ -71,10 +71,12 @@ enum Explosion {
         guard lapDepth == 1 else { return }
         let t = CFAbsoluteTimeGetCurrent(); laps += String(format: "%@ %.1f, ", s, (t - lapT) * 1000); lapT = t
     }
+    static var totalMs = 0.0                        // (every outer blast's time, for Armory's slowest update)
     static func lapEnd(_ s: String) {
         lap(s); lapDepth -= 1
         guard lapDepth == 0 else { return }
         let ms = (lapT - lapT0) * 1000
+        totalMs += ms
         if ms > worstMs { worstMs = ms; worstLaps = laps }
     }
 

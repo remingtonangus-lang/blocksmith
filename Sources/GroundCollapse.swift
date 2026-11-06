@@ -54,6 +54,7 @@ enum GroundCollapse {
     // `wantSeconds` left waits, at most `maxWait` frames in a row, so the ground still comes down within a few frames.
     static var wantSeconds = 0.0012, maxWait = 6
     private static var waited = 0
+    static var worstMs = 0.0, worstWhat = ""         // (perf scenes: the slowest check and what it walked)
 
     static func tick(_ g: Game) {
         let w = g.world
@@ -61,7 +62,12 @@ enum GroundCollapse {
         if waited < maxWait && !World.deterministic && !Rand.deterministic && CraterJob.allowance() < wantSeconds { waited += 1; return }
         waited = 0
         let began = CFAbsoluteTimeGetCurrent()
-        defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - began) }
+        var seedN = 0, filled = 0, bigs = 0, fillEnd = 0.0
+        defer {
+            let took = CFAbsoluteTimeGetCurrent() - began
+            CraterJob.spend(took)
+            if took * 1000 > worstMs { worstMs = took * 1000; worstWhat = String(format: "%d seeds, %d cells filled, %d past %d; fill %.1f ms", seedN, filled, bigs, maxCells, fillEnd > 0 ? (fillEnd - began) * 1000 : took * 1000) }
+        }
         guard let (p, r) = w.collapseQueue.popLast() else { return }
         if w.collapseQueue.count > 64 { w.collapseQueue.removeFirst(w.collapseQueue.count - 64) }
         let done = doneMarks, seen = seenMarks
@@ -72,6 +78,7 @@ enum GroundCollapse {
             let s = p + IVec3(dx, dy, dz)
             if w.isGround(s) { seeds.append(s) }
         } } }
+        seedN = seeds.count
         var dropped = false
         var seenList: [IVec3] = []
         for s in seeds {
@@ -92,7 +99,9 @@ enum GroundCollapse {
                 }
             }
             for c in seenList { _ = done.insert(c) }
+            filled += seenList.count
             if big {
+                bigs += 1
                 // P380 (4): past 1,500 cells (or the box) the fill carries on; a piece that closes is truly loose and
                 // falls in lots, a small one whole.
                 if let all = GroundSettle.bigPiece(w, from: s, around: p) {
@@ -107,6 +116,7 @@ enum GroundCollapse {
             drop(g, cells)
             dropped = true
         }
+        fillEnd = CFAbsoluteTimeGetCurrent()
         // P380 (1): ground near the carve hanging too far for its thickness breaks off; the rest is checked again.
         if GroundSettle.thinOverhangs(g, p, r) { w.collapseQueue.append((p, r + 2)); dropped = true }
         // P380 (3): what stood on the ground round the hole settles or falls.

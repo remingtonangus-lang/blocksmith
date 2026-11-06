@@ -746,24 +746,36 @@ final class Game {
 
     // Moves the player to another dimension (saving and unloading the one we leave).
     // syncRadius: chunks loaded before play goes on (P291: a drop into hell loads only the nearest, no loading pause).
+    // (--triptest: where the last dimension change's time went, and the sync radius to try; BS_TRIPSYNC)
+    static var tripLaps = ""
+    static var tripSync = Int(ProcessInfo.processInfo.environment["BS_TRIPSYNC"] ?? "") ?? 4
     func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil) {
+        var lt = CFAbsoluteTimeGetCurrent()
+        Game.tripLaps = ""
+        func lap(_ s: String) { let t = CFAbsoluteTimeGetCurrent(); Game.tripLaps += String(format: "%@ %.1f, ", s, (t - lt) * 1000); lt = t }
         let old = world
         let oldMobs = mobs
         hell.slag.removeAll(); hell.charges.removeAll()      // nothing in flight or burning follows you (HellMobs.swift)
         if persistent { old.saveAll() }
+        lap("save")
         for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
         oldMobs.mobs.removeAll()
         if persistent { oldMobs.save(to: old.save); dim.drops.save(to: old.save) }
+        lap("mobs")
         let rd = old.renderDistance, ad = old.activeDistance
         dim = dimensionState(d)
         world.renderDistance = rd
         world.activeDistance = ad
+        lap("world")
         old.unloadAll()
         particles.list.removeAll()
+        lap("unload")
         player.pos = p
         player.vel = .zero
         player.airPeak = p.y
-        _ = world.loadSync(center: p, radius: min(syncRadius ?? 4, rd))
+        let r = min(syncRadius ?? Game.tripSync, rd)
+        let gm = world.loadSync(center: p, radius: r)
+        lap(String(format: "load r%d (gen %.0f, mesh %.0f)", r, gm.gen * 1000, gm.mesh * 1000))
         onToast?(d.displayName)
     }
 

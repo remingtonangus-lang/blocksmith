@@ -265,7 +265,17 @@ enum QuestPerf {
             World.editTally = [:]; World.editCells = [:]
             return line + (top.isEmpty ? "" : "\n    edits: " + top.joined(separator: ", ") + "; \(cells) cells, \(again) changed twice or more" + whereLine)
         }
+        // What the slowest frames of a phase spent in the armoury, its blasts and the ground falling after them.
+        func slowest() -> String {
+            let line = String(format: "    slowest: arms %.1f ms (%@); blast %.1f ms (%@); heavy burst %.1f ms; ground collapse %.1f ms (%@)",
+                              Armory.worstUpdateMs, Armory.worstUpdateWhat, Explosion.worstMs, Explosion.worstLaps, Armory.worstBurst,
+                              GroundCollapse.worstMs, GroundCollapse.worstWhat)
+            Armory.worstUpdateMs = 0; Armory.worstUpdateWhat = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""
+            Armory.worstBurst = 0; GroundCollapse.worstMs = 0; GroundCollapse.worstWhat = ""
+            return line
+        }
         for _ in 0..<90 { try frame(nil, fly: false) }                  // settle (first meshes in, the far ring built)
+        _ = slowest()
         for c in w.chunks.values { c.markSaved() }                         // (an autosave just ran: P374's save copies)
         _ = wr.takeStages()
         _ = behind()
@@ -275,6 +285,7 @@ enum QuestPerf {
         FarTicks.noteShips()
         let farStand = FarTicks.total - far0
         let standStages = wr.takeStages(), standBehind = behind()
+        let standSlow = slowest()
         let memStand = memory(w, g)
         let quadsStand = scene.quadBreakdown()
         let kindsStand = scene.kindBreakdown()
@@ -297,6 +308,7 @@ enum QuestPerf {
             Mesher.blockTally = [:]
             Mesher.tallyLock.unlock()
         }
+        if turnFrames > 0 { _ = slowest() }                                // (the turn's own: not the flight's)
         let flight = Phase()
         // (he flies over the land, not into the hill in front of him: the flight starts 30 blocks over the highest
         // ground within 64 blocks ahead)
@@ -305,7 +317,9 @@ enum QuestPerf {
             let x = Int(g.player.pos.x - sinf(yaw) * Float(d)), z = Int(g.player.pos.z - cosf(yaw) * Float(d))
             if let c = w.chunkAt(x, z) { top = max(top, Int(c.height[mod(x, CS) + mod(z, CS) * CS])) }
         }
-        g.player.pos.y = Float(top + 30); g.player.vel = V3(0, 0, 0)
+        // (In the Deep the column's top is the roof over the vault: 30 over it was out through the seam to the surface,
+        // a dimension change in the middle of the flight (build 204: a 10.8 s tick). There he flies on 4 over the floor.)
+        g.player.pos.y = g.dim.dim == .deep ? g.player.pos.y + 4 : Float(top + 30); g.player.vel = V3(0, 0, 0)
         let from = g.player.pos
         for i in 0..<flyFrames {
             try frame(flight, fly: true)
@@ -315,9 +329,11 @@ enum QuestPerf {
         FarTicks.noteShips()
         let farFly = FarTicks.total - far0 - farStand
         let flyStages = wr.takeStages(), flyBehind = behind()
+        let flySlow = slowest()
         scene.waitIdle()
         print("perfscene \(sp.name) rd \(rd) (seed \(sp.seed) at \(Int(sp.x)), \(Int(sp.z)); loaded in \(String(format: "%.1f", loadS)) s, \(g.mobs.mobs.count) mobs, \(w.ships.list.count) ships)")
         print(stand.report("standing", stagesLine: standStages, behind: standBehind))
+        print(standSlow)
         print("    quads: \(quadsStand)")
         print("    kinds \(kindsStand)")
         if !blockTop.isEmpty { print("    blocks (meshed): " + blockTop) }
@@ -327,6 +343,7 @@ enum QuestPerf {
         if !turnLine.isEmpty { print(turnLine) }
         print("    " + vertexShare(w))
         print(flight.report(String(format: "flying %.0f b/s", speed), stagesLine: flyStages, behind: flyBehind))
+        print(flySlow)
         print("    " + memory(w, g))
         PadManager.shared.touch = nil
         World.editTally = nil; World.editCells = [:]
