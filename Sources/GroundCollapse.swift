@@ -152,7 +152,10 @@ enum GroundCollapse {
         }
         let mat = mats.max { $0.value < $1.value || $0.value == $1.value && $0.key > $1.key }?.key ?? STONE
         w.collapsing = true
+        let quiet0 = w.circuitQuiet                          // (ledger 45: no circuit marks with no circuit part near)
+        if Explosion.circuitCalm && !w.circuitNear(cells, margin: 3) { w.circuitQuiet = true }
         for c in cells { w.setBlockAsync(c.x, c.y, c.z, AIR) }
+        w.circuitQuiet = quiet0
         w.collapsing = false
         let size = V3(Float(hi.x - lo.x + 1), Float(hi.y - lo.y + 1), Float(hi.z - lo.z + 1))
         let centre = V3(Float(lo.x), Float(lo.y), Float(lo.z)) + size * 0.5

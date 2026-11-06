@@ -177,8 +177,12 @@ extension Game {
             bp.cells[ivSub(c, start)] = world.block(c.x, c.y, c.z)
             lo = IVec3(min(lo.x, c.x - start.x), min(lo.y, c.y - start.y), min(lo.z, c.z - start.z))
         }
+        // (ledger 45: no circuit marks a block when no circuit part is near the tree)
+        let quiet0 = world.circuitQuiet
+        if Explosion.circuitCalm && !world.circuitNear(Array(logs) + Array(leaves), margin: 3) { world.circuitQuiet = true }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in logs { world.setBlockAsync(c.x, c.y, c.z, AIR) }
+        world.circuitQuiet = quiet0
         let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0, name: Felling.name, role: "")
         s.role = nil
         // Local cell (c - start - lo) sits where it stood: world = pos + (l - com).
@@ -235,8 +239,11 @@ extension Game {
         }
         // (taken out quietly: what it leaves behind was checked already)
         world.restoring = true
+        let quiet0 = world.circuitQuiet                      // (ledger 45)
+        if Explosion.circuitCalm && !world.circuitNear(cells + Array(leaves), margin: 3) { world.circuitQuiet = true }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }
+        world.circuitQuiet = quiet0
         world.restoring = false
         let tree = logs.count == cells.count
         let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0,
