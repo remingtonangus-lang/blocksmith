@@ -746,25 +746,66 @@ final class Game {
 
     // Moves the player to another dimension (saving and unloading the one we leave).
     // syncRadius: chunks loaded before play goes on (P291: a drop into hell loads only the nearest, no loading pause).
-    func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil) {
+    // (--triptest: where the last dimension change's time went, and the sync radius to try; BS_TRIPSYNC)
+    static var tripLaps = ""
+    static var tripSync = Int(ProcessInfo.processInfo.environment["BS_TRIPSYNC"] ?? "") ?? 4
+    // Ledger 40 (Nov 6): a trip to another dimension loaded the chunks within 4 of the arrival on the frame: about a
+    // second on the host every time (a portal, the Deep's seam, its gates and lift, the Hollow), more with a portal,
+    // which loaded 2 round the portal it found or built after that. The headset froze for it. There (arrivalHold, set
+    // by QuestApp.headsetWorld) nothing is loaded on the frame: he is held where he arrived, the view black
+    // (blindFog), while the world streams in on the workers, until the chunks within 2 of him are drawn (at most
+    // arrivalMax seconds); then the black opens out over arrivalOpen s. What a trip does on arrival with the ground
+    // (the seam's way cut, a portal found or built, a gate's landing spot) is its `then`, run once that ground is
+    // there (build 210: loading only the arrival's own chunk still took 51-174 ms on the host).
+    static var arrivalHold = false
+    static var arrivalThenMs = 0.0             // (the last trip's arrival work, for --triptest)
+    static let arrivalMax = 4.0, arrivalOpen = 0.45
+    var arrivalSince: Double?                  // the game clock when the hold began
+    var arrivalOpened = -1.0                   // and when it let go
+    var arrivalThen: (() -> Void)?             // the trip's work on arrival, waiting for the ground
+    func arrivalReady() -> Bool {
+        let w = world
+        let cx = floorDiv(Int(floor(player.pos.x)), CS), cz = floorDiv(Int(floor(player.pos.z)), CS)
+        let r = max(0, min(2, w.renderDistance))
+        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
+            guard let c = w.chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.meshedOnce else { return false }
+        } }
+        return true
+    }
+    func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil, then: (() -> Void)? = nil) {
+        var lt = CFAbsoluteTimeGetCurrent()
+        Game.tripLaps = ""
+        func lap(_ s: String) { let t = CFAbsoluteTimeGetCurrent(); Game.tripLaps += String(format: "%@ %.1f, ", s, (t - lt) * 1000); lt = t }
         let old = world
         let oldMobs = mobs
         hell.slag.removeAll(); hell.charges.removeAll()      // nothing in flight or burning follows you (HellMobs.swift)
         if persistent { old.saveAll() }
+        lap("save" + (World.saveLaps.isEmpty ? "" : " (" + World.saveLaps + ")"))
         for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
         oldMobs.mobs.removeAll()
         if persistent { oldMobs.save(to: old.save); dim.drops.save(to: old.save) }
+        lap("mobs")
         let rd = old.renderDistance, ad = old.activeDistance
         dim = dimensionState(d)
         world.renderDistance = rd
         world.activeDistance = ad
+        lap("world")
         old.unloadAll()
         particles.list.removeAll()
+        lap("unload")
         player.pos = p
         player.vel = .zero
         player.airPeak = p.y
-        _ = world.loadSync(center: p, radius: min(syncRadius ?? 4, rd))
         onToast?(d.displayName)
+        if Game.arrivalHold {
+            arrivalSince = clock; arrivalOpened = -1; arrivalThen = then
+            return
+        }
+        arrivalThen = nil
+        let r = min(syncRadius ?? Game.tripSync, rd)
+        let gm = world.loadSync(center: p, radius: r)
+        lap(String(format: "load r%d (gen %.0f, mesh %.0f)", r, gm.gen * 1000, gm.mesh * 1000))
+        then?()
     }
 
     // MARK: Sky
@@ -1087,6 +1128,21 @@ final class Game {
             if menu == nil { openMenu(PauseMenu(game: self)) }
             tickMenu(p, q, dt)
             return
+        }
+        // Ledger 40: just arrived from another dimension, he waits where he is (nothing moves him or anything else)
+        // while the ground round him is drawn; the world streams in above (world.update).
+        if let since = arrivalSince {
+            let ready = arrivalReady()
+            if let then = arrivalThen, ready || clock - since >= Game.arrivalMax {
+                // (the trip's own work once the ground is there; it can move him, so the hold looks again)
+                if !ready { _ = world.loadSync(center: player.pos, radius: 0) }   // (out of time: as before, on the frame)
+                arrivalThen = nil
+                let a = CFAbsoluteTimeGetCurrent()
+                then()
+                Game.arrivalThenMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
+                if clock - since < Game.arrivalMax && !arrivalReady() { return }
+            } else if clock - since < Game.arrivalMax && !ready { return }
+            arrivalSince = nil; arrivalOpened = clock
         }
 
         let fdt = Float(dt)
@@ -3411,6 +3467,8 @@ final class Game {
         // they take what the tick has left (CraterJob.allowance) and wait out a frame the soldiers ran long.
         w.ships.stepBowls(self)                                // main-gun bowls (MainGun.swift)
         TickProf.mark("ships.shockwaves: bowls")
+        BlastShape.tick(self)                                  // ledger 42: craters shaped over the frames after a blast
+        TickProf.mark("crater shaping")
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load

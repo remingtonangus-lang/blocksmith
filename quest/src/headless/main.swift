@@ -112,6 +112,8 @@ if CommandLine.arguments.contains("--turretfreeze") { exit(QuestTurretFreeze.run
 if CommandLine.arguments.contains("--toppletest") { exit(QuestToppleTest.run()) }
 // --planrelease: ledger 39, worlds let go while their structure starts plan on the workers (quest/src/test/PlanReleaseCheck.swift).
 if CommandLine.arguments.contains("--planrelease") { exit(PlanReleaseCheck.run()) }
+// --triptest: a dimension change (the Deep's seam, a portal) timed part by part, and the 3 s after it.
+if CommandLine.arguments.contains("--triptest") { exit(TripCheck.run()) }
 // --spacewarp: P403 7b, the space warp's motion vectors of a moving mob (quest/src/test/SpaceWarpCheck.swift).
 if CommandLine.arguments.contains("--spacewarp"), let ctx = vkctx { exit(SpaceWarpCheck.run(ctx: ctx)) }
 // --launch DIR / --launch-prepare DIR [--rd 24]: the headset's launch path timed stage by stage (P400,

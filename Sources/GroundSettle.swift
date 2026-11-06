@@ -108,7 +108,8 @@ enum GroundSettle {
     // the seeds among them. (Store review, build 96's crawler soak: "ground collapse" up to 8.3 ms of a frame; a
     // rut's every ground seed in natural ground ran its own further fill to the 40-cell reach, the same piece each time.)
     static var lastHeld: [IVec3] = []
-    static func bigPiece(_ w: World, from s: IVec3, around p: IVec3) -> [IVec3]? {
+    // held: cells of ground already found held this check (ledger 41): meeting one, the piece is held too.
+    static func bigPiece(_ w: World, from s: IVec3, around p: IVec3, held: CellMarks? = nil) -> [IVec3]? {
         let seen = bigMarks
         seen.reset(around: p)
         _ = seen.insert(s)
@@ -122,6 +123,10 @@ enum GroundSettle {
             }
             for e in World.allDirs {
                 let n = c + e
+                if let h = held, h.contains(n) {
+                    lastHeld.removeAll(keepingCapacity: true); lastHeld += cells; lastHeld += stack
+                    return nil
+                }
                 if w.isGround(n) && seen.insert(n) { stack.append(n) }
             }
         }
@@ -143,22 +148,34 @@ enum GroundSettle {
     }
 
     private static let objDone = CellSet(capacity: 4096), objSeen = CellSet(capacity: 1024)
+    static var objLaps = ""                          // (perf scenes: the last call's scan, floods and falls)
     static func objects(_ g: Game, _ p: IVec3, _ r: Int) {
         let w = g.world
         let R = r + 2
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var t1 = t0, floodS = 0.0, scanned = 0, nBases = 0, flooded = 0, fell = 0
+        defer {
+            let t3 = CFAbsoluteTimeGetCurrent()
+            let scanMs: Double = (t1 - t0) * 1000, floodMs: Double = floodS * 1000
+            let fallMs: Double = (t3 - t1) * 1000 - floodMs
+            objLaps = String(format: "scan %.1f (%d queued, %d bases), floods %.1f (%d cells), falls %.1f (%d)", scanMs, scanned, nBases, floodMs, flooded, fallMs, fell)
+        }
         var bases: [IVec3] = []
         for y in stride(from: max(1, p.y - R), through: min(CH - 2, p.y + R + 2), by: 1) { for z in (p.z - R)...(p.z + R) { for x in (p.x - R)...(p.x + R) {
             let b = w.builtBlock(x, y, z)
             guard b != AIR, !Blocks.isLiquid(b) else { continue }
             let q = IVec3(x, y, z)
             w.gravityQueue.append(q)                         // plants pop, sand and gravel fall (Game.gravityTick)
+            scanned += 1
             if !fallSkip[Int(b)] && !w.solidAt(x, y - 1, z) { bases.append(q) }
         } } }
+        t1 = CFAbsoluteTimeGetCurrent(); nBases = bases.count
         // (store review: the kept cell sets, as the border flood, instead of hashed Set<IVec3>s merged per base)
         let done = objDone, seen = objSeen
         done.removeAll()
         var seenList: [IVec3] = []
         for s in bases where !done.contains(s) {
+            let tf = CFAbsoluteTimeGetCurrent()
             // The built piece standing here (6-connected solid built blocks, leaves aside), and whether anything holds it.
             seen.removeAll(); seen.insert(s)
             seenList.removeAll(keepingCapacity: true); seenList.append(s)
@@ -179,7 +196,10 @@ enum GroundSettle {
                 if held { break }
             }
             for q in seenList { done.insert(q) }
+            flooded += seenList.count
+            floodS += CFAbsoluteTimeGetCurrent() - tf
             if held { continue }
+            fell += 1
             let logs = cells.filter { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
             if logs.count >= 3, let foot = logs.min(by: { $0.y < $1.y }) {
                 // A tree whose foot is gone: it falls as a felled tree (its crown with it).
@@ -188,11 +208,15 @@ enum GroundSettle {
                 if Felling.felled > before { treeFalls += 1; continue }
             }
             // Anything else falls block by block, lowest first, and lands where it comes down.
-            for c in cells.sorted(by: { $0.y < $1.y }) {
-                let b = w.builtBlock(c.x, c.y, c.z)
-                guard !fallSkip[Int(b)] else { continue }
-                w.setBlock(c.x, c.y, c.z, AIR)
-                g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+            // (Ledger 44: one remesh for the whole piece, editBatch; each block's own took 4.4-4.7 ms for 5-6 pieces of
+            // a crater's rim in the taiga24 battle, build 212.)
+            w.editBatch {
+                for c in cells.sorted(by: { $0.y < $1.y }) {
+                    let b = w.builtBlock(c.x, c.y, c.z)
+                    guard !fallSkip[Int(b)] else { continue }
+                    w.setBlock(c.x, c.y, c.z, AIR)
+                    g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+                }
             }
             objectFalls += 1
         }

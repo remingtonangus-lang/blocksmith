@@ -2294,13 +2294,25 @@ final class World {
 
     // Drops every chunk (after saving) — used when leaving a dimension.
     func unloadAll() {
-        chunks.removeAll()
+        // (Ledger 40: the chunks are let go on a worker; freeing some 600 of them, their sections and mesh slices took
+        // 2.7-4.9 ms of a trip's frame on the host, build 211. Chunks already die on workers: Chunk.aliveLock.)
+        // (held in a box the worker empties, so the last reference is always dropped there, never on the frame)
+        let gone = ChunksBox(chunks)
+        chunks = [:]
+        DispatchQueue.global(qos: .utility).async { gone.all = [:] }
         lastCenter = nil
+        // (Ledger 40: a world unloaded on a trip and come back to at the same chunk read as "nothing new since the last
+        // scan" (same centre, no results), so World.update scheduled nothing and only the chunks loadSync made were there.)
+        scanCenter = nil; scanEpoch = -1
         fluidPending.removeAll(); lavaPending.removeAll()
     }
 
     var savingFalling: [(IVec3, BlockID)] = []       // (P395: Game.saveNow's falling blocks, for saveAll)
+    static var saveLaps = ""                          // (--triptest: where the last saveAll's time went)
     func saveAll(background: Bool = false) {
+        var lt = CFAbsoluteTimeGetCurrent()
+        World.saveLaps = ""
+        func lap(_ s: String) { let t = CFAbsoluteTimeGetCurrent(); let ms = (t - lt) * 1000; if ms >= 0.5 { World.saveLaps += String(format: "%@ %.1f ", s, ms) }; lt = t }
         // Only chunks changed since their last save, written on the background save queue.
         // P395: blocks falling as entities (Game.falling) are saved in the cell each has reached; a save taken mid-fall
         // lost them (the cell they left was saved empty, and the entity isn't kept). The live chunk keeps them falling,
@@ -2319,15 +2331,17 @@ final class World {
             save?.saveChunkAsync(k, c.blocks)
             c.markSaved()
         }
+        lap("chunks")
         for (k, c) in chunks where c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }   // PG1
-        savePieces()
-        saveObjects()                                    // P389
-        Trains.save(self)                                // P337 step 6
-        save?.saveBlockEntities(blockEntities, background: background)
-        redstone.save(background: background)            // W1: pending circuit ticks and edges (circuit.json)
-        save?.savePortals(Array(portals))
-        ships.save(background: background)
-        saveMeshCache()                                  // P400 step 2 (ChunkShells)
+        lap("field")
+        savePieces(); lap("pieces")
+        saveObjects(); lap("objects")                    // P389
+        Trains.save(self); lap("trains")                 // P337 step 6
+        save?.saveBlockEntities(blockEntities, background: background); lap("block entities")
+        redstone.save(background: background); lap("circuits")             // W1: pending circuit ticks and edges (circuit.json)
+        save?.savePortals(Array(portals)); lap("portals")
+        ships.save(background: background); lap("ships")
+        saveMeshCache(); lap("mesh cache")               // P400 step 2 (ChunkShells)
     }
 
     // MARK: Raycast (voxel DDA + per-box tests for partial blocks)
@@ -2934,4 +2948,10 @@ struct FluidQueue {
         if urgentTaken > 0 { for p in urgentBatch.suffix(n) { insert(p) }; return }
         head -= n
     }
+}
+
+// (World.unloadAll: an unloaded world's chunks, let go on a worker)
+final class ChunksBox: @unchecked Sendable {
+    var all: [ChunkKey: Chunk]
+    init(_ c: [ChunkKey: Chunk]) { all = c }
 }

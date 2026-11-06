@@ -40,6 +40,11 @@ final class QuestApp {
         // scenes a Greywall base found in flight was planned in the tick, a 158 ms "bases found" spike, and the town
         // law tick's lookups 118 ms, neither of which the headset has.
         StructureCache.plansOffThread = true
+        // Ledger 40: a trip to another dimension holds him in black while the ground streams in, instead of loading it
+        // on the frame (BS_OLDTRIP=1 for before).
+        Game.arrivalHold = ProcessInfo.processInfo.environment["BS_OLDTRIP"] != "1"
+        // Ledger 42: a blast's crater is shaped over the next frames within the carving allowance (BS_OLDBLAST=1: at once).
+        BlastShape.deferred = ProcessInfo.processInfo.environment["BS_OLDBLAST"] != "1"
     }
 
     private(set) var dynRes = DynamicResolution()       // P403 7b
