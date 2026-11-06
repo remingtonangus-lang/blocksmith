@@ -96,8 +96,6 @@ enum AdaptiveGround {
     // (Nov 6: corner shading on those shells may interpolate 3 levels off, i.e. it doesn't hold a collapse back: taiga
     // 189k to 172k quads, jungle 239k to 221k, snowy 190k to 178k; 0.10% of the jungle's pixels change at headset
     // resolution, 0.04% snowy, none in the taiga. BS_BLOBAO=0.5 for before.)
-    // The leaf blobs' near cutout shells (Nov 6; 0 leaves them as meshed). BS_BLOBNEAR.
-    static var blobNearTolerance: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBNEAR"] ?? "") ?? 0
     static var blobFarAO: Double = Double(ProcessInfo.processInfo.environment["BS_BLOBAO"] ?? "") ?? 3
     static var farEnabled = ProcessInfo.processInfo.environment["BS_ADAPTIVE_FAR"] != "0"
 

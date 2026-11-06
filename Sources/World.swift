@@ -1465,7 +1465,6 @@ final class World {
         s.farCut = m.farCut; s.farTail = m.farTail
         s.blobFarN = m.farGround.isEmpty ? 0 : Int(m.farParts[2]); s.blobFarAt = Int(m.farParts[0] + m.farParts[1])
         s.blobCutN = s.blobFarN > 0 ? max(0, m.farCut - Int(m.farParts[3])) : 0
-        s.blobOuterN = s.blobCutN == 0 ? 0 : (m.blobOuter >= 0 ? min(m.blobOuter, s.blobCutN) : (s.blobCutN & 1 == 0 ? s.blobCutN / 2 : 0))
         s.transBuf = makeBuffer(m.trans)
         s.transQuads = m.trans.count / 8
         s.meshedVersion = version
