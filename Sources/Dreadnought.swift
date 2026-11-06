@@ -167,6 +167,8 @@ enum SunkenDreadnought {
             set(tx - 2, yLow, 0, coal); set(tx + 2, yLow, 0, coal)                                             // powder bags
             fill(tx, yLow, 0, tx, top, 0, chain)                                                              // the hoist
             set(tx, yMid, 0, chain)
+            // (Ledger 34: the ladder beside the hoist hung in the barbette's open water; it climbs a steel post now.)
+            fill(tx - 1, yLow, 1, tx - 1, top - 1, 1, steel)
             fill(tx - 1, yLow, 0, tx - 1, top - 1, 0, ladder)
             for d in [-4, 4] { for y in [yLow, yMid + 1] { fill(tx + d, y, 0, tx + d, y + 1, 0, WATER) } }       // the passage through
             // Gunhouse: armoured box, sloped face, a rangefinder's arms; open to the barbette below.

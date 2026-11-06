@@ -91,7 +91,8 @@ extension OverworldStructures {
         F(7, 15, -5, 8, 15, -4, slab)
         F(7, 10, -5, 8, 10, -4, plank)
         B(7, 11, -5, bell)
-        for dy in 1...11 { B(8, dy, -4, ladder) }
+        // (Ledger 34: the top rung stood in the belfry, its wall open on every side: it ends at the belfry floor.)
+        for dy in 1...10 { B(8, dy, -4, ladder) }
         for dy in 1...2 { B(8, dy, -6, AIR) }                                            // the door from the forecourt
 
         // Inside: pews either side of the aisle facing the altar, the altar, niches and pots on the back wall.

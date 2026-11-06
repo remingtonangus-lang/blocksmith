@@ -384,7 +384,9 @@ enum OverworldStructures {
             let y = gen.groundY(x, z)
             guard y >= SEA else { return nil }
             let s = rng.next()
-            var pieces = [piece(x - 6, y - 8, z - 6, x + 6, y + 30, z + 6) { w in outpostTower(&w, x, y + 1, z, s) }]
+            // (Ledger 35: the ground rising south of the door, two cells out, for the steps down to it.)
+            let rise = (gen.column(x, z - 5).height - y, gen.column(x, z - 6).height - y)
+            var pieces = [piece(x - 6, y - 8, z - 6, x + 6, y + 30, z + 6) { w in outpostTower(&w, x, y + 1, z, s, rise: rise) }]
             // The camp round the tower: a cage with a captive golem, tents, a log pile and archery targets, each on
             // ground within a few blocks of the tower's (skipped on steep or wet ground).
             let camp: [(Int, Int, Int)] = [(0, 11, -6), (1, -11, 6), (2, 9, 9), (3, -9, -8)]
@@ -403,7 +405,7 @@ enum OverworldStructures {
 
     // A four-storey watchtower: cobblestone plinth, birch walls on a dark oak frame with fence-slit windows, an open
     // lookout storey, an overhanging platform with the loot chest under a stepped dark oak roof.
-    static func outpostTower(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
+    static func outpostTower(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64, rise: (Int, Int) = (0, 0)) {
         var rng = SRng(seed)
         let log = Blocks.id("dark_oak_log"), pl = Blocks.id("dark_oak_planks"), cob = COBBLE, fence = Blocks.id("dark_oak_fence")
         let wall = Blocks.id("birch_planks"), mossy = Blocks.has("mossy_cobblestone") ? Blocks.id("mossy_cobblestone") : COBBLE
@@ -464,6 +466,16 @@ enum OverworldStructures {
         w.fill(cx, y + 1, cz - 3, cx, y + 2, cz - 3, AIR)
         let slab = Blocks.has("dark_oak_slab") ? Blocks.id("dark_oak_slab") : (Blocks.has("cobblestone_slab") ? Blocks.id("cobblestone_slab") : cob)
         w.set(cx, y, cz - 4, slab)
+        // Ledger 35: on a slope rising south the ground stood over the step and against the doorway (an outpost on a
+        // snowy slope, seed 12345 1416 568: its rooms and chest unreachable). The step is cleared, and where the ground
+        // outside is higher, steps a block apart come down to it.
+        w.fill(cx, y + 1, cz - 4, cx, y + 3, cz - 4, AIR)
+        if rise.0 >= 1 || rise.1 >= 2 {
+            w.set(cx, y, cz - 5, pl); w.fill(cx, y + 1, cz - 5, cx, y + 3, cz - 5, AIR)
+        }
+        if rise.1 >= 2 {
+            w.set(cx, y + 1, cz - 6, pl); w.fill(cx, y + 2, cz - 6, cx, y + 4, cz - 6, AIR)
+        }
         w.set(cx + 2, top, cz + 2, Blocks.id("ladder") + 2)
         w.chest(cx - 2, top + 1, cz - 2, loot: "pillager_outpost", seed: rng.next(), facing: 1)
         w.mob("soldier_officer@marauder", V3(Float(cx) + 0.5, Float(top + 1), Float(cz) + 0.5))

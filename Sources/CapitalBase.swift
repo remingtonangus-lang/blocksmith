@@ -485,6 +485,9 @@ enum CapitalBase {
             let z0 = oz == 0 ? -1 : oz * 6, z1 = oz == 0 ? 1 : oz * reach
             w.fill(X(min(x0, x1)), ST + 1, Z(min(z0, z1)), X(max(x0, x1)), ST + 3, Z(max(z0, z1)), AIR)
         }
+        // (Ledger 34: the north door cut the white column behind the core's ladder shaft, so its last three rungs before
+        // the terrace hung in the doorway; the door keeps its two side cells.)
+        for y in (ST + 1)...(ST + 3) { put(0, y, -6, white) }
         // Landing pad: a disc cantilevered north off the terrace, a ring and a chevron marking, edge lights, braces.
         let padZ = -21, padR = 10
         columns(-padR - 1, padR + 1, padZ - padR - 1, padZ + padR + 1) { dx, dz in
