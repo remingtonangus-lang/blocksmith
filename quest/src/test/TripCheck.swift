@@ -55,6 +55,16 @@ enum TripCheck {
                 let held = g.arrivalSince != nil
                 let ms = tick()
                 if held { heldFor = Double(i + 1) / 72 }
+                if held && i % 36 == 0 && ProcessInfo.processInfo.environment["BS_TRIPTRACE"] == "1" {
+                    let w = g.world
+                    let cx = floorDiv(Int(floor(g.player.pos.x)), CS), cz = floorDiv(Int(floor(g.player.pos.z)), CS)
+                    var have = 0, drawn = 0
+                    for dz in -2...2 { for dx in -2...2 where dx * dx + dz * dz <= 4 {
+                        if let c = w.chunks[ChunkKey(x: cx + dx, z: cz + dz)] { have += 1; if c.meshedOnce { drawn += 1 } }
+                    } }
+                    print(String(format: "    held %.1f s: %d chunks loaded, %d jobs pending, made %d, meshed %d sections; within 2: %d of 13 there, %d drawn",
+                                 Double(i) / 72, w.chunks.count, w.pendingJobs, w.perf.genChunks, w.perf.meshSections, have, drawn))
+                }
                 if ms > worst { worst = ms; worstStage = TickProf.summary() }
                 if drawnAt < 0 && g.arrivalReady() { drawnAt = Double(i) / 72 }
             }
