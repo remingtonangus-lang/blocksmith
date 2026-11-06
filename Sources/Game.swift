@@ -749,6 +749,25 @@ final class Game {
     // (--triptest: where the last dimension change's time went, and the sync radius to try; BS_TRIPSYNC)
     static var tripLaps = ""
     static var tripSync = Int(ProcessInfo.processInfo.environment["BS_TRIPSYNC"] ?? "") ?? 4
+    // Ledger 40 (Nov 6): a trip to another dimension loaded the chunks within 4 of the arrival on the frame: about a
+    // second on the host every time (a portal, the Deep's seam, its gates and lift, the Hollow), more with a portal,
+    // which loaded 2 round the portal it found or built after that. The headset froze for it. There (arrivalHold, set
+    // by QuestApp.headsetWorld) only the arrival's own chunk is loaded on the frame (its neighbours made, not drawn);
+    // he is held where he arrived, the view black (blindFog), while the rest streams in on the workers, until the
+    // chunks within 2 of him are drawn (at most arrivalMax seconds); then the black opens out over arrivalOpen s.
+    static var arrivalHold = false
+    static let arrivalMax = 4.0, arrivalOpen = 0.45
+    var arrivalSince: Double?                  // the game clock when the hold began
+    var arrivalOpened = -1.0                   // and when it let go
+    func arrivalReady() -> Bool {
+        let w = world
+        let cx = floorDiv(Int(floor(player.pos.x)), CS), cz = floorDiv(Int(floor(player.pos.z)), CS)
+        let r = max(0, min(2, w.renderDistance))
+        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
+            guard let c = w.chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.meshedOnce else { return false }
+        } }
+        return true
+    }
     func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil) {
         var lt = CFAbsoluteTimeGetCurrent()
         Game.tripLaps = ""
@@ -773,9 +792,10 @@ final class Game {
         player.pos = p
         player.vel = .zero
         player.airPeak = p.y
-        let r = min(syncRadius ?? Game.tripSync, rd)
+        let r = Game.arrivalHold ? 0 : min(syncRadius ?? Game.tripSync, rd)
         let gm = world.loadSync(center: p, radius: r)
         lap(String(format: "load r%d (gen %.0f, mesh %.0f)", r, gm.gen * 1000, gm.mesh * 1000))
+        if Game.arrivalHold { arrivalSince = clock; arrivalOpened = -1 }
         onToast?(d.displayName)
     }
 
@@ -1099,6 +1119,12 @@ final class Game {
             if menu == nil { openMenu(PauseMenu(game: self)) }
             tickMenu(p, q, dt)
             return
+        }
+        // Ledger 40: just arrived from another dimension, he waits where he is (nothing moves him or anything else)
+        // while the ground round him is drawn; the world streams in above (world.update).
+        if let since = arrivalSince {
+            if clock - since < Game.arrivalMax && !arrivalReady() { return }
+            arrivalSince = nil; arrivalOpened = clock
         }
 
         let fdt = Float(dt)

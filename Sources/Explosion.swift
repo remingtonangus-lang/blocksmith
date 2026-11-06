@@ -263,19 +263,22 @@ enum Explosion {
                         carved.insert(q); dots.append(q)
                     } } }
                 }
-                Explosion.lap("rim scan")
+                Explosion.lap("rim scan \(dots.count)")
                 if pass > 0 && dots.isEmpty { break }
                 for q in dots {
                     for s in Explosion.blastDrops(w.block(q.x, q.y, q.z)) { g.drops.spawn(s, at: V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)) }
                     w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true)
                 }
+                Explosion.lap("dots shaped")
                 // (the opened cells the bowl doesn't reach their own round hollow, as every one had: a bowl's ball pulls the
                 // surface in to a block and a half past its radius)
                 if pass == 0 {
+                    var n = 0
                     for b in opened {
                         let q = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
-                        if !balls.contains(where: { simd_length(q - $0.0) < $0.1 + 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true) }
+                        if !balls.contains(where: { simd_length(q - $0.0) < $0.1 + 1 }) { w.fieldShape(b.x, b.y, b.z, opened: true); n += 1 }
                     }
+                    Explosion.lap("opened shaped \(n)")
                 }
             }
         } else {

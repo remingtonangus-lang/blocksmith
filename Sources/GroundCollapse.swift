@@ -48,6 +48,12 @@ enum GroundCollapse {
     static let reach = 12
     static let maxCells = 1500
     private static let seenMarks = CellMarks(radius: reach + 1), doneMarks = CellMarks(radius: reach + 1)
+    // Ledger 41 (Nov 6, the taiga24 battle: one check after a shell's crater took 12.7-21 ms, 600 fills from the seeds
+    // round the hole, each running to the box's edge and on through bigPiece, all of them the same ground the first
+    // one had found held). Cells of a piece found held; a fill that meets one is that piece, so held (BS_OLDCOLLAPSE=1:
+    // every seed filled on its own, as before).
+    private static let heldMarks = CellMarks(radius: reach + 1)
+    static let shareHeld = ProcessInfo.processInfo.environment["BS_OLDCOLLAPSE"] != "1"
 
     // Store review (crawler soak, build 103): a check is 1-2.6 ms, and it came on frames already heavy with the drive and
     // the soldiers (ticks of 9-11 ms). It draws on the carving allowance (CraterJob.allowance): a frame with under
@@ -70,8 +76,9 @@ enum GroundCollapse {
         }
         guard let (p, r) = w.collapseQueue.popLast() else { return }
         if w.collapseQueue.count > 64 { w.collapseQueue.removeFirst(w.collapseQueue.count - 64) }
-        let done = doneMarks, seen = seenMarks
-        done.reset(around: p)
+        let done = doneMarks, seen = seenMarks, heldSet = heldMarks
+        done.reset(around: p); heldSet.reset(around: p)
+        let share = shareHeld
         // Seeds: the ground left round the hole (every ground cell within the carve's radius and a cell).
         var seeds: [IVec3] = []
         for dy in -r...r { for dz in -r...r { for dx in -r...r {
@@ -88,13 +95,14 @@ enum GroundCollapse {
             seenList.removeAll(keepingCapacity: true); seenList.append(s)
             var stack = [s], cells: [IVec3] = []
             var held = false, big = false
-            while let c = stack.popLast() {
+            fill: while let c = stack.popLast() {
                 cells.append(c)
                 // (a piece past 1,500 cells, or one reaching past the box, may still be loose: P380 (4))
                 if cells.count > maxCells || abs(c.x - p.x) >= reach || abs(c.y - p.y) >= reach || abs(c.z - p.z) >= reach { big = true; break }
                 if c.y <= 1 || !w.isLoaded(c.x, c.z) { held = true; break }
                 for e in World.allDirs {
                     let n = c + e
+                    if share && heldSet.contains(n) { held = true; break fill }      // (ledger 41: joined to held ground)
                     if !seen.contains(n) && w.isGround(n) { _ = seen.insert(n); seenList.append(n); stack.append(n) }
                 }
             }
@@ -104,15 +112,16 @@ enum GroundCollapse {
                 bigs += 1
                 // P380 (4): past 1,500 cells (or the box) the fill carries on; a piece that closes is truly loose and
                 // falls in lots, a small one whole.
-                if let all = GroundSettle.bigPiece(w, from: s, around: p) {
+                if let all = GroundSettle.bigPiece(w, from: s, around: p, held: share ? heldSet : nil) {
                     for c in all { _ = done.insert(c) }; dropped = true
                     if all.count > maxCells { GroundSettle.dropBig(g, all) } else { drop(g, all) }
                 } else {
-                    for c in GroundSettle.lastHeld { _ = done.insert(c) }      // (held: the seeds in it are too)
+                    for c in GroundSettle.lastHeld { _ = done.insert(c); _ = heldSet.insert(c) }      // (held: the seeds in it are too)
+                    for c in seenList { _ = heldSet.insert(c) }
                 }
                 continue
             }
-            if held { continue }
+            if held { for c in seenList { _ = heldSet.insert(c) }; continue }
             drop(g, cells)
             dropped = true
         }

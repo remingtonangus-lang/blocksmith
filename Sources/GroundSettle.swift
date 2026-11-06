@@ -108,7 +108,8 @@ enum GroundSettle {
     // the seeds among them. (Store review, build 96's crawler soak: "ground collapse" up to 8.3 ms of a frame; a
     // rut's every ground seed in natural ground ran its own further fill to the 40-cell reach, the same piece each time.)
     static var lastHeld: [IVec3] = []
-    static func bigPiece(_ w: World, from s: IVec3, around p: IVec3) -> [IVec3]? {
+    // held: cells of ground already found held this check (ledger 41): meeting one, the piece is held too.
+    static func bigPiece(_ w: World, from s: IVec3, around p: IVec3, held: CellMarks? = nil) -> [IVec3]? {
         let seen = bigMarks
         seen.reset(around: p)
         _ = seen.insert(s)
@@ -122,6 +123,10 @@ enum GroundSettle {
             }
             for e in World.allDirs {
                 let n = c + e
+                if let h = held, h.contains(n) {
+                    lastHeld.removeAll(keepingCapacity: true); lastHeld += cells; lastHeld += stack
+                    return nil
+                }
                 if w.isGround(n) && seen.insert(n) { stack.append(n) }
             }
         }
