@@ -21,12 +21,6 @@ struct PathState {
     var stallPos = V3(0, -9999, 0)            // watchdog: where the mob was when it last made progress
     var stallTime: Float = 0
     var search: PathSearch?                   // a search spread over several ticks (the per-tick time budget ran out)
-    // Nov 6 (bloom of ledger 28): the cell the mob stalled heading for. A search that reads a cell as walkable when the
-    // body can't get there (a ceiling, a box the search doesn't model) sent it back to the same cell after every give-up
-    // (a townsperson stood all night at one step). For a minute after a stall its searches price that cell high, so
-    // another way is taken where there is one (the only way stays the way).
-    var avoid = IVec3(0, -9999, 0)
-    var avoidTime: Float = 0
 }
 
 // One A* search, resumable: PathFinder.run expands nodes until the goal, the node limit or a deadline, so a long
@@ -54,9 +48,6 @@ struct PathProfile {
     var climbs = true
     var range = 48                            // farthest goal searched for (x + z blocks); farther ones aren't tried
     var hurdleCost: Float = 0                  // extra cost to step up onto a one-block ridge (counters, low walls)
-    var avoid = IVec3(0, -9999, 0)             // a cell the mob stalled at lately (PathState.avoid), priced avoidCost
-    static let avoidCost: Float = 40
-    static let avoidOff = ProcessInfo.processInfo.environment["BS_NOAVOID"] == "1"
 }
 
 enum PathFinder {
@@ -337,9 +328,8 @@ enum PathFinder {
             }
             return top
         }
-        let avoid = pr.avoid
         func add(_ i: Int, _ q: IVec3, _ c: Float) {
-            let ng = gCost[i] + c + (q == avoid ? PathProfile.avoidCost : 0)
+            let ng = gCost[i] + c
             let k = key(q)
             if let j = index[k] {
                 if closed[j] || ng >= gCost[j] { return }
@@ -438,7 +428,6 @@ extension Mob {
     // How this mob paths: monsters chasing at high health accept longer drops (reference getMaxFallDistance).
     func pathProfile(_ g: Game) -> PathProfile {
         var pr = PathProfile()
-        pr.avoid = path.avoid
         pr.tall = max(1, min(3, Int(ceilf(height - 0.05))))
         pr.span = halfW > 0.5 ? 2 : 1
         pr.doors = opensDoors || (breaksDoors && g.difficulty == 3)
@@ -495,12 +484,8 @@ extension Mob {
         // P311 (a): pressed up against the player's body is being there, not stuck.
         if progress > 0.75 || path.breakTime > 0 || pressedPlayer { path.stallPos = pos; path.stallTime = 0 } else {
             path.stallTime += dt
-            if path.stallTime > 4 {
-                if path.index < path.nodes.count && !PathProfile.avoidOff { path.avoid = path.nodes[path.index]; path.avoidTime = 60 }
-                path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; dropSearch(); giveUp(target); return
-            }
+            if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; dropSearch(); giveUp(target); return }
         }
-        if path.avoidTime > 0 { path.avoidTime -= dt; if path.avoidTime <= 0 { path.avoid = IVec3(0, -9999, 0) } }
         if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); dropSearch(); return }
         MobManager.stage("path: watchdog")                      // (the soak: an ironclad's path stage was 7 ms, the search's share 1.5)
         // A search still running from an earlier tick: its share of this tick's budget (dropped if the goal has moved
