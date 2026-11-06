@@ -52,7 +52,8 @@ enum FrontierSites {
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: kind, spacing: spacing, separation: separation, salt: 52719133, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: kind, spacing: spacing, separation: separation, salt: 52719133, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             if let sc = gen.structures, !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacySites) { return nil }
             var rng = SRng(seed &+ 0xF207)
             guard rng.chance(chance) else { return nil }

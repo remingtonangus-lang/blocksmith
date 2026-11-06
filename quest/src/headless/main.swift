@@ -110,6 +110,8 @@ if CommandLine.arguments.contains("--freezetest") { exit(QuestFreezeTest.run()) 
 if CommandLine.arguments.contains("--turretfreeze") { exit(QuestTurretFreeze.run()) }
 // --toppletest: what nothing holds falls whole, as itself (P407: a tower past the load fill, a tree on a broken plinth).
 if CommandLine.arguments.contains("--toppletest") { exit(QuestToppleTest.run()) }
+// --planrelease: ledger 39, worlds let go while their structure starts plan on the workers (quest/src/test/PlanReleaseCheck.swift).
+if CommandLine.arguments.contains("--planrelease") { exit(PlanReleaseCheck.run()) }
 // --spacewarp: P403 7b, the space warp's motion vectors of a moving mob (quest/src/test/SpaceWarpCheck.swift).
 if CommandLine.arguments.contains("--spacewarp"), let ctx = vkctx { exit(SpaceWarpCheck.run(ctx: ctx)) }
 // --launch DIR / --launch-prepare DIR [--rd 24]: the headset's launch path timed stage by stage (P400,

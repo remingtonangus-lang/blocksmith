@@ -77,7 +77,8 @@ enum Village {
     }
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "village", spacing: 34, separation: 8, salt: 10387312, reach: 8) { [unowned gen] seed, cx, cz in
+        StructureType(name: "village", spacing: 34, separation: 8, salt: 10387312, reach: 8) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let rx = floorDiv(cx, 34), rz = floorDiv(cz, 34), s32 = UInt32(truncatingIfNeeded: gen.seed)
             if thinned(gen, rx, rz, cx, cz) { return nil }
             if let s = place(gen, seed, cx, cz) { return s }

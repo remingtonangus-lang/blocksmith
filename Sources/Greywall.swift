@@ -169,7 +169,8 @@ enum Greywall {
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: kind, spacing: spacing, separation: separation, salt: 77310491, reach: 4) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: kind, spacing: spacing, separation: separation, salt: 77310491, reach: 4) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let rx = floorDiv(cx0, spacing), rz = floorDiv(cz0, spacing)
             let s32 = UInt32(truncatingIfNeeded: gen.seed)
             let pres = hashf(rx, rz, 9100, s32)

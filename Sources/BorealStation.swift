@@ -333,7 +333,8 @@ enum BorealStation {
         // At most one per 28 x 28-chunk region, on fairly level snowy ground. The region's first candidate, else up to
         // eight more spots in the same placement square (snowy biomes are patchy), never next to another structure,
         // and never on ground a saved world had generated before stations existed.
-        StructureType(name: kind, spacing: 28, separation: 8, salt: 51829377, reach: 3) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: kind, spacing: 28, separation: 8, salt: 51829377, reach: 3) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             func site(_ cx: Int, _ cz: Int) -> Int? {
                 let x = cx * CS + 8, z = cz * CS + 8
                 guard BorealStation.biomes.contains(gen.column(x, z).biome) else { return nil }

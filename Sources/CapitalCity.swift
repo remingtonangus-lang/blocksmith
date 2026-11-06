@@ -100,7 +100,8 @@ enum CapitalCity {
     }
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "capital_city", spacing: 56, separation: 20, salt: 51829403, reach: 8) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: "capital_city", spacing: 56, separation: 20, salt: 51829403, reach: 8) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             // The region's spot, then up to five more in its placement square (36 x 36 chunks, so the spacing holds).
             let rx = floorDiv(cx0, 56), rz = floorDiv(cz0, 56), s32 = UInt32(truncatingIfNeeded: seed)
             for k in 0...5 {

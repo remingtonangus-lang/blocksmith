@@ -186,7 +186,8 @@ enum MilitaryBase {
     static func type(_ gen: WorldGen) -> StructureType {
         // One candidate per 40x40-chunk region (64 left most players never meeting one: Remington playtest 2).
         // The Capital citadel (CapitalBase.swift) under the old key: 113 across, so it reaches 4 chunks from its start.
-        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 6) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 6) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             // Open, fairly flat ground over the whole footprint.
             func site(_ cx: Int, _ cz: Int) -> Int? {
                 let x = cx * CS + 8, z = cz * CS + 8
