@@ -66,6 +66,14 @@ final class MeshArena {
     private var free = [FreeList](repeating: FreeList(), count: MeshArena.sizes.count)
     private var slab: MTLBuffer?
     private var bump = 0
+    // Ledger 43 (Nov 6): a new slab was made on the frame when the last one filled: 20.6 ms for one hand-over of
+    // meshes on the host (--triptest, the Emberdeep's ground coming in), the Vulkan allocation plus the first write
+    // into each of its fresh pages. The next slab is now made on a worker, its pages touched there, once the one in
+    // use is three quarters carved (BS_SLABAHEAD=0: as before).
+    static var ahead = ProcessInfo.processInfo.environment["BS_SLABAHEAD"] != "0"
+    private var spare: MTLBuffer?
+    private var spareAsked = false
+    private(set) var spareUsed = 0
     // P415: each slab's bytes in live slices, so a slab nothing uses any more can be given back (trim).
     private var slabs: [ObjectIdentifier: (buf: MTLBuffer, live: Int)] = [:]
     private(set) var slabBytes = 0
@@ -131,7 +139,8 @@ final class MeshArena {
         if spot == nil {
             if slab == nil || bump + size > slabSize {
                 let t0 = CFAbsoluteTimeGetCurrent()
-                slab = device.makeBuffer(length: slabSize, options: .storageModeShared)
+                if let s = spare { slab = s; spare = nil; spareUsed += 1 }
+                else { slab = device.makeBuffer(length: slabSize, options: .storageModeShared) }
                 if let b = slab { slabs[ObjectIdentifier(b)] = (b, 0) }
                 let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
                 slabCount += 1; slabMsWorst = max(slabMsWorst, ms); slabMsTotal += ms
@@ -139,12 +148,27 @@ final class MeshArena {
                 slabBytes += slabSize
             }
             if let s = slab { spot = (s, bump); bump += size }
+            if MeshArena.ahead && spare == nil && !spareAsked && bump > slabSize / 4 * 3 { spareAsked = true; makeSpare(device) }
         }
         if let sp = spot { slabs[ObjectIdentifier(sp.0)]?.live += MeshArena.sizes[cls] }
         lock.unlock()
         guard let (buf, off) = spot else { return nil }
         memcpy(buf.contents() + off, bytes.baseAddress!, n)
         return MeshSlice(buffer: buf, offset: off, length: n, cls: cls, arena: self)
+    }
+
+    // (the next slab, made and its pages touched off the frame; called with the lock held)
+    private func makeSpare(_ device: MTLDevice) {
+        let size = slabSize
+        DispatchQueue.global(qos: .utility).async { [self] in
+            let b = device.makeBuffer(length: size, options: .storageModeShared)
+            if let b = b {
+                let p = b.contents()
+                var i = 0
+                while i < size { p.storeBytes(of: 0, toByteOffset: i, as: UInt8.self); i += 4096 }
+            }
+            lock.lock(); spare = b; spareAsked = false; lock.unlock()
+        }
     }
 
     fileprivate func release(_ b: MTLBuffer, _ off: Int, _ cls: Int) {

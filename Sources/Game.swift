@@ -780,7 +780,7 @@ final class Game {
         let oldMobs = mobs
         hell.slag.removeAll(); hell.charges.removeAll()      // nothing in flight or burning follows you (HellMobs.swift)
         if persistent { old.saveAll() }
-        lap("save")
+        lap("save" + (World.saveLaps.isEmpty ? "" : " (" + World.saveLaps + ")"))
         for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
         oldMobs.mobs.removeAll()
         if persistent { oldMobs.save(to: old.save); dim.drops.save(to: old.save) }

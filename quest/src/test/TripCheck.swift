@@ -80,6 +80,7 @@ enum TripCheck {
                          name, tripMs, Game.tripLaps, stages, heldFor, worstHeld, Game.arrivalThenMs, worst, worstStage,
                          drawnAt < 0 ? "not in 3 s" : String(format: "after %.2f s", drawnAt), World.resultsWorstMs, World.resultsWorst))
             Game.arrivalThenMs = 0
+            print(String(format: "    mesh slabs: %d made, %d of them ahead on a worker; the slowest made on the frame %.1f ms", MeshArena.shared.slabCount, MeshArena.shared.spareUsed, MeshArena.shared.slabMsWorst))
         }
         func trip(_ name: String, _ go: () -> Void) {
             let a = CFAbsoluteTimeGetCurrent()
