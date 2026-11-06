@@ -752,13 +752,17 @@ final class Game {
     // Ledger 40 (Nov 6): a trip to another dimension loaded the chunks within 4 of the arrival on the frame: about a
     // second on the host every time (a portal, the Deep's seam, its gates and lift, the Hollow), more with a portal,
     // which loaded 2 round the portal it found or built after that. The headset froze for it. There (arrivalHold, set
-    // by QuestApp.headsetWorld) only the arrival's own chunk is loaded on the frame (its neighbours made, not drawn);
-    // he is held where he arrived, the view black (blindFog), while the rest streams in on the workers, until the
-    // chunks within 2 of him are drawn (at most arrivalMax seconds); then the black opens out over arrivalOpen s.
+    // by QuestApp.headsetWorld) nothing is loaded on the frame: he is held where he arrived, the view black
+    // (blindFog), while the world streams in on the workers, until the chunks within 2 of him are drawn (at most
+    // arrivalMax seconds); then the black opens out over arrivalOpen s. What a trip does on arrival with the ground
+    // (the seam's way cut, a portal found or built, a gate's landing spot) is its `then`, run once that ground is
+    // there (build 210: loading only the arrival's own chunk still took 51-174 ms on the host).
     static var arrivalHold = false
+    static var arrivalThenMs = 0.0             // (the last trip's arrival work, for --triptest)
     static let arrivalMax = 4.0, arrivalOpen = 0.45
     var arrivalSince: Double?                  // the game clock when the hold began
     var arrivalOpened = -1.0                   // and when it let go
+    var arrivalThen: (() -> Void)?             // the trip's work on arrival, waiting for the ground
     func arrivalReady() -> Bool {
         let w = world
         let cx = floorDiv(Int(floor(player.pos.x)), CS), cz = floorDiv(Int(floor(player.pos.z)), CS)
@@ -768,7 +772,7 @@ final class Game {
         } }
         return true
     }
-    func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil) {
+    func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil, then: (() -> Void)? = nil) {
         var lt = CFAbsoluteTimeGetCurrent()
         Game.tripLaps = ""
         func lap(_ s: String) { let t = CFAbsoluteTimeGetCurrent(); Game.tripLaps += String(format: "%@ %.1f, ", s, (t - lt) * 1000); lt = t }
@@ -792,11 +796,16 @@ final class Game {
         player.pos = p
         player.vel = .zero
         player.airPeak = p.y
-        let r = Game.arrivalHold ? 0 : min(syncRadius ?? Game.tripSync, rd)
+        onToast?(d.displayName)
+        if Game.arrivalHold {
+            arrivalSince = clock; arrivalOpened = -1; arrivalThen = then
+            return
+        }
+        arrivalThen = nil
+        let r = min(syncRadius ?? Game.tripSync, rd)
         let gm = world.loadSync(center: p, radius: r)
         lap(String(format: "load r%d (gen %.0f, mesh %.0f)", r, gm.gen * 1000, gm.mesh * 1000))
-        if Game.arrivalHold { arrivalSince = clock; arrivalOpened = -1 }
-        onToast?(d.displayName)
+        then?()
     }
 
     // MARK: Sky
@@ -1123,7 +1132,16 @@ final class Game {
         // Ledger 40: just arrived from another dimension, he waits where he is (nothing moves him or anything else)
         // while the ground round him is drawn; the world streams in above (world.update).
         if let since = arrivalSince {
-            if clock - since < Game.arrivalMax && !arrivalReady() { return }
+            let ready = arrivalReady()
+            if let then = arrivalThen, ready || clock - since >= Game.arrivalMax {
+                // (the trip's own work once the ground is there; it can move him, so the hold looks again)
+                if !ready { _ = world.loadSync(center: player.pos, radius: 0) }   // (out of time: as before, on the frame)
+                arrivalThen = nil
+                let a = CFAbsoluteTimeGetCurrent()
+                then()
+                Game.arrivalThenMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
+                if clock - since < Game.arrivalMax && !arrivalReady() { return }
+            } else if clock - since < Game.arrivalMax && !ready { return }
             arrivalSince = nil; arrivalOpened = clock
         }
 

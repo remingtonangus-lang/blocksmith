@@ -43,16 +43,19 @@ extension Game {
             ashHatchOpen = true
             at = V3(8.5, Float(AshFinal.y0 + 1), 21.5)
         }
-        if dim.dim != .deep { changeDimension(to: .deep, at: at, syncRadius: 3) }
-        player.pos = at
-        player.vel = .zero
-        player.airPeak = at.y
-        if step == "bunker" || step == "chancellor" {
-            // The blast door shut again for the bunker step (an earlier try left it open).
-            if step == "bunker" { for z in AshFinal.hatchZ { for x in AshFinal.hatchX { world.setBlock(x, AshFinal.hatchY, z, AshFinal.door) } } }
-            ashHatchTick()
+        let arrive = { [self] in
+            player.pos = at
+            player.vel = .zero
+            player.airPeak = at.y
+            if step == "bunker" || step == "chancellor" {
+                // The blast door shut again for the bunker step (an earlier try left it open).
+                if step == "bunker" { for z in AshFinal.hatchZ { for x in AshFinal.hatchX { world.setBlock(x, AshFinal.hatchY, z, AshFinal.door) } } }
+                ashHatchTick()
+            }
+            if step == "army" { startLastBattle() }
         }
-        if step == "army" { startLastBattle() }
+        // (on the headset the rest waits for the ground there: Game.arrivalThen)
+        if dim.dim != .deep { changeDimension(to: .deep, at: at, syncRadius: 3, then: arrive) } else { arrive() }
         return ["The war's end, at: \(step)"]
     }
 

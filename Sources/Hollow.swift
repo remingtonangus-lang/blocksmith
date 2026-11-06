@@ -130,16 +130,18 @@ extension Game {
     func enterEnd() {
         // The obsidian landing platform at 100, 48, 0 (5x5, cleared above), like the reference game.
         let py = YOFF + 48
-        changeDimension(to: .end, at: V3(100.5, Float(py + 1), 0.5))
-        for z in -2...2 { for x in -2...2 {
-            world.setBlockAsync(100 + x, py, z, OBSIDIAN)
-            for y in 1...3 { world.setBlockAsync(100 + x, py + y, z, AIR) }
-        } }
-        world.setBlock(100, py, 0, OBSIDIAN)
-        player.pos = V3(100.5, Float(py + 1), 0.5)
-        player.yaw = .pi / 2
-        player.vel = .zero
-        player.airPeak = player.pos.y
+        // (the platform waits for the ground there on the headset: Game.arrivalThen)
+        changeDimension(to: .end, at: V3(100.5, Float(py + 1), 0.5)) { [self] in
+            for z in -2...2 { for x in -2...2 {
+                world.setBlockAsync(100 + x, py, z, OBSIDIAN)
+                for y in 1...3 { world.setBlockAsync(100 + x, py + y, z, AIR) }
+            } }
+            world.setBlock(100, py, 0, OBSIDIAN)
+            player.pos = V3(100.5, Float(py + 1), 0.5)
+            player.yaw = .pi / 2
+            player.vel = .zero
+            player.airPeak = player.pos.y
+        }
     }
 
     func returnFromEnd() {

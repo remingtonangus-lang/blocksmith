@@ -19,6 +19,7 @@ enum TripCheck {
         setvbuf(stdout, nil, _IOLBF, 0)
         QuestApp.headsetWorld()
         let rd = Int(arg("--rd") ?? "") ?? 12
+        World.resultsProfile = true                          // (the slowest single hand-over after each trip)
         TextureGen.registerAll()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("triptest-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
         try? FileManager.default.removeItem(at: root)
@@ -54,7 +55,8 @@ enum TripCheck {
         // The ground within 2 chunks of him drawn (what the hold waits for: Game.arrivalReady).
         var worstTrip = 0.0, worstAfter = 0.0, longestHold = 0.0
         func settle(_ name: String, tripMs: Double, stages: String) {
-            var worst = 0.0, worstStage = "-", drawnAt = -1.0, heldFor = 0.0
+            var worst = 0.0, worstStage = "-", drawnAt = -1.0, heldFor = 0.0, worstHeld = 0.0
+            World.resultsWorstMs = 0; World.resultsWorst = "-"
             for i in 0..<(3 * 72) {
                 let held = g.arrivalSince != nil
                 let ms = tick()
@@ -70,12 +72,14 @@ enum TripCheck {
                                  Double(i) / 72, w.chunks.count, w.pendingJobs, w.perf.genChunks, w.perf.meshSections, have, drawn))
                     for (d, st) in g.dims { print("      \(d): \(st.world.debugState)\(st.world === w ? " (here)" : "")") }
                 }
-                if ms > worst { worst = ms; worstStage = TickProf.summary() }
+                if held { worstHeld = max(worstHeld, ms) } else if ms > worst { worst = ms; worstStage = TickProf.summary() }
                 if drawnAt < 0 && g.arrivalReady() { drawnAt = Double(i) / 72 }
             }
             worstTrip = max(worstTrip, tripMs); worstAfter = max(worstAfter, worst); longestHold = max(longestHold, heldFor)
-            print(String(format: "  %@: the trip's tick %.0f ms (%@) [%@]; held %.2f s; then worst tick %.1f ms (%@); ground within 2 chunks drawn %@",
-                         name, tripMs, Game.tripLaps, stages, heldFor, worst, worstStage, drawnAt < 0 ? "not in 3 s" : String(format: "after %.2f s", drawnAt)))
+            print(String(format: "  %@: the trip's tick %.0f ms (%@) [%@]; held %.2f s (worst tick in it %.1f ms, the arrival's work %.1f ms); then worst tick %.1f ms (%@); ground within 2 chunks drawn %@; slowest hand-over %.1f ms (%@)",
+                         name, tripMs, Game.tripLaps, stages, heldFor, worstHeld, Game.arrivalThenMs, worst, worstStage,
+                         drawnAt < 0 ? "not in 3 s" : String(format: "after %.2f s", drawnAt), World.resultsWorstMs, World.resultsWorst))
+            Game.arrivalThenMs = 0
         }
         func trip(_ name: String, _ go: () -> Void) {
             let a = CFAbsoluteTimeGetCurrent()
@@ -101,8 +105,8 @@ enum TripCheck {
 
         print(String(format: "triptest: slowest trip %.0f ms, worst tick after one %.1f ms, longest hold %.2f s (hold %@; a frame on the headset is 13.9 ms)",
                      worstTrip, worstAfter, longestHold, Game.arrivalHold ? "on" : "off"))
-        // With the hold (the headset): no trip's own frame over 150 ms on the host, and every hold let go in time.
-        let ok = !Game.arrivalHold || worstTrip < 150 && longestHold < Game.arrivalMax
+        // With the hold (the headset): no trip's own frame over 50 ms on the host, and every hold let go in time.
+        let ok = !Game.arrivalHold || worstTrip < 50 && longestHold < Game.arrivalMax
         print((ok ? "ok   " : "FAIL ") + "triptest")
         return ok ? 0 : 1
     }
