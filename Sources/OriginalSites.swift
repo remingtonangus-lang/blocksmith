@@ -151,7 +151,8 @@ enum BrigandRoost {
         mob("vindicator", cx - 3, 0, cz - r + 3); mob("vindicator", cx + 3, 0, cz - r + 3)
         mob("vindicator", cx - 3, 0, cz - 3); mob("vindicator", cx + 5, 0, cz + 3)
         mob("pillager", tx, 10, tz); mob("pillager", cx + 6, 0, cz - 11)
-        if rng.chance(0.5) { mob("pillager", cx - r + 2, 4, cz) }
+        // (Ledger 36: on the west wall's walk, the slabs a block in from the wall; one more in he stood on air, 4 up.)
+        if rng.chance(0.5) { mob("pillager", cx - r + 1, 4, cz) }
     }
 }
 
