@@ -123,7 +123,7 @@ enum GroundSettleTests {
             w.setBlock(x, f + 3, z, AIR)
             settle(g, 3)
             var placed = false
-            for yy in f...(f + 4) where w.builtBlock(x, yy, z) == what { placed = true }
+            for yy in f...(f + 4) where w.materialAt(x, yy, z) == what { placed = true }   // (sand in a field world lands as drawn ground)
             return (placed, g.drops.items.filter { Items.key($0.stack.item) == Blocks.key(what) }.count)
         }
         let egg = Blocks.id("dragon_egg"), sand = Blocks.id("sand")      // (sand: gravel can drop flint)
