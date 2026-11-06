@@ -148,22 +148,34 @@ enum GroundSettle {
     }
 
     private static let objDone = CellSet(capacity: 4096), objSeen = CellSet(capacity: 1024)
+    static var objLaps = ""                          // (perf scenes: the last call's scan, floods and falls)
     static func objects(_ g: Game, _ p: IVec3, _ r: Int) {
         let w = g.world
         let R = r + 2
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var t1 = t0, floodS = 0.0, scanned = 0, nBases = 0, flooded = 0, fell = 0
+        defer {
+            let t3 = CFAbsoluteTimeGetCurrent()
+            let scanMs: Double = (t1 - t0) * 1000, floodMs: Double = floodS * 1000
+            let fallMs: Double = (t3 - t1) * 1000 - floodMs
+            objLaps = String(format: "scan %.1f (%d queued, %d bases), floods %.1f (%d cells), falls %.1f (%d)", scanMs, scanned, nBases, floodMs, flooded, fallMs, fell)
+        }
         var bases: [IVec3] = []
         for y in stride(from: max(1, p.y - R), through: min(CH - 2, p.y + R + 2), by: 1) { for z in (p.z - R)...(p.z + R) { for x in (p.x - R)...(p.x + R) {
             let b = w.builtBlock(x, y, z)
             guard b != AIR, !Blocks.isLiquid(b) else { continue }
             let q = IVec3(x, y, z)
             w.gravityQueue.append(q)                         // plants pop, sand and gravel fall (Game.gravityTick)
+            scanned += 1
             if !fallSkip[Int(b)] && !w.solidAt(x, y - 1, z) { bases.append(q) }
         } } }
+        t1 = CFAbsoluteTimeGetCurrent(); nBases = bases.count
         // (store review: the kept cell sets, as the border flood, instead of hashed Set<IVec3>s merged per base)
         let done = objDone, seen = objSeen
         done.removeAll()
         var seenList: [IVec3] = []
         for s in bases where !done.contains(s) {
+            let tf = CFAbsoluteTimeGetCurrent()
             // The built piece standing here (6-connected solid built blocks, leaves aside), and whether anything holds it.
             seen.removeAll(); seen.insert(s)
             seenList.removeAll(keepingCapacity: true); seenList.append(s)
@@ -184,7 +196,10 @@ enum GroundSettle {
                 if held { break }
             }
             for q in seenList { done.insert(q) }
+            flooded += seenList.count
+            floodS += CFAbsoluteTimeGetCurrent() - tf
             if held { continue }
+            fell += 1
             let logs = cells.filter { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
             if logs.count >= 3, let foot = logs.min(by: { $0.y < $1.y }) {
                 // A tree whose foot is gone: it falls as a felled tree (its crown with it).

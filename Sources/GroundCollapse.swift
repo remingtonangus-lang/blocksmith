@@ -78,7 +78,7 @@ enum GroundCollapse {
                 let objMs: Double = overEnd > 0 ? (began + took - overEnd) * 1000 : 0
                 worstMs = took * 1000
                 worstWhat = String(format: "%d seeds, %d cells filled, %d past %d; fill %.1f ms, overhangs %.1f ms, objects (r %d) %.1f ms",
-                                   seedN, filled, bigs, maxCells, fillMs, overMs, rr, objMs)
+                                   seedN, filled, bigs, maxCells, fillMs, overMs, rr, objMs) + (overEnd > 0 ? ": " + GroundSettle.objLaps : "")
             }
         }
         guard let (p, r) = w.collapseQueue.popLast() else { return }
