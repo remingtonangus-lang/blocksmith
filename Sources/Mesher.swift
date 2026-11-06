@@ -34,8 +34,8 @@ struct SectionMesh {
 enum MeshKind {
     static let cube = 0, bevel = 1, model = 2, plant = 3, fluid = 4, ground = 5, blob = 6
     static let trunk = 8, organic = 9, spike = 10, rail = 11, piece = 12, struck = 13
-    static let names = ["cubes", "bevels", "props", "plants", "fluids", "ground", "leaf blobs", "",
-                        "trunks", "round shapes", "spikes", "rails", "pieces", "struck cubes", "", ""]
+    static let names = ["cubes", "bevels", "props", "plants", "fluids", "ground", "leaf blobs", "cut out (not blobs)",
+                        "trunks", "round shapes", "spikes", "rails", "pieces", "struck cubes", "cut-out cubes", "cut-out props"]
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -99,6 +99,29 @@ enum Mesher {
 
     // P508: built cubes on the field's ground get a foot down into it (BS_FEET=0 leaves them off: before/after renders).
     static let blockFeet = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
+    // Nov 6 (jungle perf spot: bamboo was 27k of the 43k cutout quads past 64 blocks): a stack of one thin model (one box,
+    // full height, clear of the cell's sides: bamboo, chains, rods) lit alike all the way up is drawn as one box per run
+    // in the section. Its sides take the face-projected texture (u = v = 31 in chunk.vert), which repeats per block
+    // exactly as faceUV lays it, so the look is the same. BS_RUNMERGE=0 for before.
+    static let runMerge = ProcessInfo.processInfo.environment["BS_RUNMERGE"] != "0"
+    // The same for a stack of one still, full-size cross (hanging vines: the jungle's most drawn block, 51k quads at the
+    // perf spot): one tall cross per run, its corners' u = 28 (rising with x) or 29 (falling) and chunk.vert / ship.vert
+    // lay the texture by position as the per-block corners did. Headset shaders only (the Mac's don't read 28 / 29).
+    #if QUEST || QUEST_HEADLESS
+    static let crossRuns = runMerge && ProcessInfo.processInfo.environment["BS_CROSSRUNS"] != "0"
+    #else
+    static let crossRuns = false
+    #endif
+    static let crossRun: [Bool] = (0..<Blocks.count).map { i in
+        Blocks.render[i] == RenderType.cross.rawValue && Blocks.crossSize[i] == 16 && !Blocks.sway[i] && !Blocks.drift[i]
+            && Blocks.layer[i] != RenderLayer.translucent.rawValue && BlockID(i) != pointedDrip
+    }
+    static let runBox: [Bool] = (0..<Blocks.count).map { i in
+        guard Blocks.render[i] == RenderType.model.rawValue, Blocks.layer[i] != RenderLayer.translucent.rawValue, !ChestJoin.joinable[i],
+              Blocks.boxes[i].count == 1, let b = Blocks.boxes[i].first else { return false }
+        return b.y0 == 0 && b.y1 == 16 && b.x0 > 0 && b.x1 < 16 && b.z0 > 0 && b.z1 < 16 && b.x1 > b.x0 && b.z1 > b.z0
+            && b.leanX == 0 && b.leanZ == 0
+    }
 
     // Faces +X,-X,+Y,-Y,+Z,-Z; corners BL,BR,TR,TL counter-clockwise seen from outside.
     static let cornerTable: [Int] = [
@@ -344,6 +367,7 @@ enum Mesher {
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase, joinT = ChestJoin.joinable
+        let runT = Mesher.runBox, crossRunT = Mesher.crossRun
         let rRail = RenderType.rail.rawValue
         let waterTex = Int(WATER) * 6
         let translucent = RenderLayer.translucent.rawValue
@@ -588,7 +612,11 @@ enum Mesher {
             let w1: UInt32 = uv | (UInt32(layer) << 10) | (UInt32(ao) << 20)
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
             if trans { trn.append(w0); trn.append(w1); return }
-            if counting { kv[kindNow] &+= 1 }
+            if counting {
+                kv[kindNow] &+= 1
+                // (Nov 6: of the opaque stream's cutout quads, the ones not leaf blobs, and the cubes' and props' share)
+                if curCut && kindNow != MeshKind.blob { kv[7] &+= 1; if kindNow == MeshKind.cube { kv[14] &+= 1 } else if kindNow == MeshKind.model { kv[15] &+= 1 } }
+            }
             if curCut { cutOut.append(w0); cutOut.append(w1) } else { solidOut.append(w0); solidOut.append(w1) }
         }
         // A smooth ground vertex from the ground passes: u = 31 projects the texture by the quad's face, and v (+ 31 when
@@ -1446,6 +1474,38 @@ enum Mesher {
                         // floor, so a plant in its first row over a dip stayed up to 3/4 block over the drawn ground: the
                         // section below draws it (after the main loop).
                         if smooth && ly == 0 && plantOnNatural(i) { continue }
+                        if Mesher.crossRuns && crossRunT[bi] && ly < 16 {
+                            // (Nov 6: a run of one still cross: skipped above its first block, drawn whole from there; not
+                            // in a stack that stands on the drawn ground, which the stack offsets below would move)
+                            func joins(_ j: Int, _ jy: Int) -> Bool {
+                                if anyDmg && dmg[j] != nil { return false }
+                                if let sk = objSkip, sk[(x - C0) + (z - C0) * 16 + jy * 256] { return false }
+                                if sc.smValid || drapeOn {
+                                    var g = jy - 1, k = j - RL
+                                    while g > -SmoothTerrain.maxRelax && renderT[Int(R[k])] == rCross { g -= 1; k -= RL }
+                                    if natAt(k) { return false }
+                                }
+                                return true
+                            }
+                            if joins(i, ly) {
+                                if ly > 0 && R[i - RL] == b && joins(i - RL, ly - 1) && skyL[i - RL] == skyL[i] && blkL[i - RL] == blkL[i] { continue }
+                                var n = 1
+                                while ly + n < 16 && R[i + n * RL] == b && joins(i + n * RL, ly + n) && skyL[i + n * RL] == skyL[i] && blkL[i + n * RL] == blkL[i] { n += 1 }
+                                if n > 1 {
+                                    let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                                    let layer = Int(texT[bi * 6 + 2])
+                                    for q in 0..<4 {
+                                        let uCode = q == 0 || q == 3 ? 28 : 29
+                                        for k in 0..<4 {
+                                            let ci = (q * 4 + k) * 3
+                                            vert(isTrans, bx16 + PTab[ci] * 16, by16 + PTab[ci + 1] * n * 16, bz16 + PTab[ci + 2] * 16,
+                                                 6, tintV, uCode, 0, layer, 3, l, false)
+                                        }
+                                    }
+                                    continue
+                                }
+                            }
+                        }
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         // P175: a plant (or a stack of them, cane) on smooth ground stands on the drawn surface, not on the
                         // block top it was rounded from (grass floated over every dip).
@@ -1620,6 +1680,48 @@ enum Mesher {
                             }
                         }
                         continue
+                    }
+                    if rt == rModel && Mesher.runMerge && runT[bi] && ly < 16 {
+                        // (Nov 6: a run of one thin model: skipped above its first block, drawn whole from there)
+                        @inline(__always) func joins(_ j: Int, _ jy: Int) -> Bool {
+                            !natAt(j - RL) && !(anyDmg && dmg[j] != nil)
+                                && !(objSkip.map { $0[(x - C0) + (z - C0) * 16 + jy * 256] } ?? false)
+                        }
+                        if joins(i, ly) {
+                            if ly > 0 && R[i - RL] == b && joins(i - RL, ly - 1) && skyL[i - RL] == skyL[i] && blkL[i - RL] == blkL[i] { continue }
+                            var n = 1
+                            while ly + n < 16 && R[i + n * RL] == b && joins(i + n * RL, ly + n) && skyL[i + n * RL] == skyL[i] && blkL[i + n * RL] == blkL[i] { n += 1 }
+                            if n > 1 {
+                                let box = boxesT[bi][0]
+                                let mn = [Int(box.x0), 0, Int(box.z0)], mx = [Int(box.x1), 16, Int(box.z1)]
+                                let lOwn = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                                let iTop = i + (n - 1) * RL, rise = (n - 1) * 16
+                                for f in 0..<6 {
+                                    let at = f == 2 ? iTop : i                  // (the top face is the run's top block's)
+                                    var l = lOwn
+                                    if f == 2 || f == 3 {
+                                        let nb = R[at + offs[f]]
+                                        if opaqueT[Int(nb)] && !smoothOpen(at + offs[f]) && !(anyDmg && dmg[at + offs[f]] != nil) { continue }
+                                        if nb == b && !(anyDmg && (dmg[at] != nil || dmg[at + offs[f]] != nil)) { continue }
+                                        l = max(0, light(x, y + (f == 2 ? n : -1), z))
+                                    }
+                                    let layer = box.tex.isEmpty ? Int(texT[bi * 6 + f]) : Int(box.tex[f])
+                                    for k in 0..<4 {
+                                        let ci = (f * 4 + k) * 3
+                                        let px = CT[ci] == 1 ? mx[0] : mn[0]
+                                        let up = CT[ci + 1] == 1
+                                        let pz = CT[ci + 2] == 1 ? mx[2] : mn[2]
+                                        if f == 2 || f == 3 {
+                                            let (u, v) = faceUV(f, px, up ? 16 : 0, pz)
+                                            vert(isTrans, bx16 + px, by16 + (up ? 16 : 0) + (f == 2 ? rise : 0), bz16 + pz, f, tintV, u, v, layer, 3, l, false)
+                                        } else {
+                                            vert(isTrans, bx16 + px, by16 + (up ? 16 + rise : 0), bz16 + pz, f, tintV, 31, 31, layer, 3, l, false)
+                                        }
+                                    }
+                                }
+                                continue
+                            }
+                        }
                     }
                     if rt == rModel || rt == rConnect {
                         var boxes = boxesT[bi]
