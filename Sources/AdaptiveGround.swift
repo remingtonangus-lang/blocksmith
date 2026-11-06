@@ -93,7 +93,10 @@ enum AdaptiveGround {
     // (Nov 6: 0.375 block is under a pixel's change at the headset's ~20 px a degree from 64 blocks; jungle 289k to 266k
     // quads, birch -9%, forest -8%; 0.5 and 0.75 gained 2% and 1% more). BS_BLOBTOL to try another.
     static var blobFarTolerance: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBTOL"] ?? "") ?? farTolerance * 3
-    static var blobFarAO: Double = Double(ProcessInfo.processInfo.environment["BS_BLOBAO"] ?? "") ?? aoTol
+    // (Nov 6: corner shading on those shells may interpolate 3 levels off, i.e. it doesn't hold a collapse back: taiga
+    // 189k to 172k quads, jungle 239k to 221k, snowy 190k to 178k; 0.10% of the jungle's pixels change at headset
+    // resolution, 0.04% snowy, none in the taiga. BS_BLOBAO=0.5 for before.)
+    static var blobFarAO: Double = Double(ProcessInfo.processInfo.environment["BS_BLOBAO"] ?? "") ?? 3
     static var farEnabled = ProcessInfo.processInfo.environment["BS_ADAPTIVE_FAR"] != "0"
 
     // The section's ground (buf[from...], led by nothing else when from == 0) simplified to the near bound in place,
