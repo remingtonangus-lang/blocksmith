@@ -782,8 +782,9 @@ extension Explosion {
 
 extension World {
     // Any circuit part (Circuit.kinds) in the box round these cells, `margin` wider: a chunk at a time (scanBuilt).
-    func circuitNear(_ cells: [IVec3], margin: Int) -> Bool {
-        guard let f = cells.first else { return false }
+    func circuitNear<S: Sequence>(_ cells: S, margin: Int) -> Bool where S.Element == IVec3 {
+        var it = cells.makeIterator()
+        guard let f = it.next() else { return false }
         var lo = f, hi = f
         for c in cells { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
         var found = false
