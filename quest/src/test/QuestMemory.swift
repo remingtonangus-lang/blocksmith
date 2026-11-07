@@ -27,6 +27,14 @@ enum QuestMemory {
         return (Double(l.split(separator: " ").dropFirst().first ?? "0") ?? 0) / 1024
     }
     static func mb(_ n: Int) -> String { String(format: "%.0f", Double(n) / 1_048_576) }
+    // (week item 10) Resident memory once the allocator has handed its free pages back: what is really held, as against
+    // the high water a freed allocation leaves in the resident figure.
+    static func trimmedResident() -> Double {
+        #if os(Linux)
+        _ = malloc_trim(0)
+        #endif
+        return status("VmRSS")
+    }
 
     // The parts the game can count, MB.
     static func breakdown(_ g: Game) -> String {
@@ -176,8 +184,13 @@ enum QuestMemory {
             // streams in and old land leaves; a dig and a placed block every 10 s; the game's own autosave each minute.
             // A minute that got under 100 blocks (a cliff, the sea) ends with a step 200 blocks on.
             let minutes = Int(arg("--minutes") ?? "") ?? 20
+            // --realtime (week item 10, two-hour session): frames at the headset's 72 a second of wall time, so the land
+            // streams in round him as it does in play (flat out, two hours took ten minutes and the world round him
+            // thinned to 13-140 chunks of its 2,085).
+            let realtime = CommandLine.arguments.contains("--realtime")
+            var due = CFAbsoluteTimeGetCurrent()
             game.player.flying = false
-            var samples: [Double] = []
+            var samples: [Double] = [], trimmed: [Double] = []
             let dirt = Blocks.id("dirt")
             for m in 0..<minutes {
                 let start = game.player.pos
@@ -202,6 +215,11 @@ enum QuestMemory {
                         }
                     }
                     f.frame()
+                    if realtime {
+                        due += 1.0 / 72
+                        let wait = due - CFAbsoluteTimeGetCurrent()
+                        if wait > 0 { usleep(useconds_t(wait * 1_000_000)) } else if wait < -0.5 { due = CFAbsoluteTimeGetCurrent() }
+                    }
                 }
                 if simd_length(V2(game.player.pos.x - start.x, game.player.pos.z - start.z)) < 100 {
                     let p = game.player.pos + V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)) * 200
@@ -211,18 +229,20 @@ enum QuestMemory {
                         game.player.vel = .zero
                     }
                 }
-                let r = status("VmRSS")
-                samples.append(r)
+                let r = status("VmRSS"), t = trimmedResident()
+                samples.append(r); trimmed.append(t)
                 let p = game.player.pos
-                print(String(format: "memory: minute %d at %.0f, %.0f: resident %.0f MB, peak %.0f MB, %d chunks, meshes %@ MB, audio %@ MB",
-                             m + 1, p.x, p.z, r, status("VmHWM"), game.world.chunks.count, mb(MeshArena.shared.slabBytes),
-                             mb((game.sound?.bank.cachedBytes ?? 0) + (game.sound?.clipBytes ?? 0))))
+                print(String(format: "memory: minute %d at %.0f, %.0f: resident %.0f MB (%.0f held), peak %.0f MB, %d chunks, meshes %@ MB, audio %@ MB (%d let go), %d mobs, %d items",
+                             m + 1, p.x, p.z, r, t, status("VmHWM"), game.world.chunks.count, mb(MeshArena.shared.slabBytes),
+                             mb((game.sound?.bank.cachedBytes ?? 0) + (game.sound?.clipBytes ?? 0)), game.sound?.clipsLetGo ?? 0,
+                             game.mobs.mobs.count, game.drops.items.count))
             }
             PadManager.shared.touch = nil
             print("memory: after \(minutes) minutes: " + breakdown(game))
             let tail = samples.suffix(max(1, samples.count / 2))
-            print(String(format: "MEMSIM %d min: peak %.0f MB, resident %.0f MB; second half %.0f..%.0f MB", minutes, status("VmHWM"),
-                         samples.last ?? 0, tail.min() ?? 0, tail.max() ?? 0))
+            let held = trimmed.suffix(max(1, trimmed.count / 2))
+            print(String(format: "MEMSIM %d min: peak %.0f MB, resident %.0f MB; second half %.0f..%.0f MB; held (allocator trimmed) %.0f MB, second half %.0f..%.0f MB",
+                         minutes, status("VmHWM"), samples.last ?? 0, tail.min() ?? 0, tail.max() ?? 0, trimmed.last ?? 0, held.min() ?? 0, held.max() ?? 0))
         }
         withExtendedLifetime((img, target, panel)) {}
         scene.waitIdle()

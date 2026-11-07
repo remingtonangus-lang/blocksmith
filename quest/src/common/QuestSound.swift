@@ -46,6 +46,28 @@ final class SoundEngine {
     // (P401 harness: the one-shot clips held as PCM)
     var clipCount: Int { clips.count }
     var clipBytes: Int { clips.values.reduce(0) { $0 + $1.reduce(0) { $0 + $1.data.count * 4 } } }
+    // Week item 10 (two-hour session, questcheck --memsim --minutes 120): every sound heard stayed held as PCM for the
+    // rest of the session, 33 MB of audio at the start and 133 MB after two hours (90 sounds), more with every new one
+    // heard. Past `clipBudget` the sounds heard longest ago are let go (a voice playing one keeps its clip; heard again,
+    // it is made again in the background and plays as soon as it is, as on its first time). BS_CLIPBUDGET=0: no budget.
+    static let clipBudget: Int = {
+        if let v = ProcessInfo.processInfo.environment["BS_CLIPBUDGET"], let mb = Int(v) { return mb <= 0 ? Int.max : mb << 20 }
+        return 64 << 20
+    }()
+    private var heldBytes = 0
+    private var lastHeard: [Snd: Double] = [:]
+    private(set) var clipsLetGo = 0                // (harness)
+    private func keepUnderBudget(_ keep: Snd) {
+        guard heldBytes > SoundEngine.clipBudget else { return }
+        let held = lastHeard.filter { $0.key != keep && clips[$0.key] != nil }.sorted { $0.value < $1.value }
+        for (s, _) in held {
+            if heldBytes <= SoundEngine.clipBudget * 3 / 4 { break }
+            if let list = clips.removeValue(forKey: s) { heldBytes -= list.reduce(0) { $0 + $1.data.count * 4 } }
+            lastHeard[s] = nil
+            bank.release(s)
+            clipsLetGo += 1
+        }
+    }
 
     private(set) var music: MusicStream?
     private(set) var disc: MusicStream?
@@ -173,7 +195,7 @@ final class SoundEngine {
     // MARK: One-shots
 
     private func clip(_ s: Snd, variant v: Int) -> QuestClip? {
-        if let list = clips[s], !list.isEmpty { return list[v % list.count] }
+        if let list = clips[s], !list.isEmpty { lastHeard[s] = CFAbsoluteTimeGetCurrent(); return list[v % list.count] }
         var list: [QuestClip] = []
         for k in 0..<bank.takeCount(s) {             // recorded takes when Resources/Sounds/real has them (RealSounds.swift)
             let data = bank.clip(s, variant: k)
@@ -182,6 +204,9 @@ final class SoundEngine {
         if case .voice = s {} else {              // voice takes stay uncached (TownVoice: hundreds, each heard now and then)
             clips[s] = list
             bank.evict(s)
+            heldBytes += list.reduce(0) { $0 + $1.data.count * 4 }
+            lastHeard[s] = CFAbsoluteTimeGetCurrent()
+            keepUnderBudget(s)
         }
         return list.isEmpty ? nil : list[v % list.count]
     }

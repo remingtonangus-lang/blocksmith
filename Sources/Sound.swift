@@ -507,6 +507,10 @@ final class SoundBank {
     func evict(_ s: Snd) {
         lock.lock(); clips[s] = nil; evicted.insert(s); lock.unlock()
     }
+    // The engine let its copy go too (the Quest's clip budget): the next prewarm makes and keeps it again.
+    func release(_ s: Snd) {
+        lock.lock(); evicted.remove(s); lock.unlock()
+    }
 
     var cachedCount: Int { lock.lock(); defer { lock.unlock() }; return clips.count }
     var cachedBytes: Int {
