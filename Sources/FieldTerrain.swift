@@ -637,14 +637,18 @@ extension World {
     // Might the field's ground reach into cell (x, y, z) (local index i in chunk c)? It or one of its six neighbours is
     // inside the ground.
     @inline(__always) func fieldNear(_ c: Chunk, _ x: Int, _ y: Int, _ z: Int, _ i: Int) -> Bool {
-        let st = c.blocks
-        guard st.isField else { return false }
-        if st.ground(i) || (y > 0 && st.ground(i - CSQ)) || (y < CH - 1 && st.ground(i + CSQ)) { return true }
+        // (Item 7, build 237's worst-case profile: 813k calls, each copying the chunk's block store and so retaining and
+        // releasing its three arrays, 3% of the scene. The chunk's own cells are read in place and first, then the
+        // neighbour chunks' edge cells; the same answer.)
+        guard c.blocks.isField else { return false }
         let lx = i & 15, lz = (i >> 4) & 15
-        if lx > 0 { if st.ground(i - 1) { return true } } else if let n = chunkAt(x - 1, z), n.blocks.ground(i + 15) { return true }
-        if lx < 15 { if st.ground(i + 1) { return true } } else if let n = chunkAt(x + 1, z), n.blocks.ground(i - 15) { return true }
-        if lz > 0 { if st.ground(i - CS) { return true } } else if let n = chunkAt(x, z - 1), n.blocks.ground(i + 15 * CS) { return true }
-        if lz < 15 { if st.ground(i + CS) { return true } } else if let n = chunkAt(x, z + 1), n.blocks.ground(i - 15 * CS) { return true }
+        if c.blocks.ground(i) || (y > 0 && c.blocks.ground(i - CSQ)) || (y < CH - 1 && c.blocks.ground(i + CSQ))
+            || (lx > 0 && c.blocks.ground(i - 1)) || (lx < 15 && c.blocks.ground(i + 1))
+            || (lz > 0 && c.blocks.ground(i - CS)) || (lz < 15 && c.blocks.ground(i + CS)) { return true }
+        if lx == 0, let n = chunkAt(x - 1, z), n.blocks.ground(i + 15) { return true }
+        if lx == 15, let n = chunkAt(x + 1, z), n.blocks.ground(i - 15) { return true }
+        if lz == 0, let n = chunkAt(x, z - 1), n.blocks.ground(i + 15 * CS) { return true }
+        if lz == 15, let n = chunkAt(x, z + 1), n.blocks.ground(i - 15 * CS) { return true }
         return false
     }
 
