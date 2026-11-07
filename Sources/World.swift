@@ -1404,14 +1404,23 @@ final class World {
     struct WearZone { var id: Int; var x0: Int, z0: Int, x1: Int, z1: Int; var until: Double }
     private static var zones: [WearZone] = []
     private static let zoneLock = NSLock()
+    // Frame rate (the collapse soak's profile, build 234): every section version bump (27 for a block cleared on its
+    // own, World.setBlockAsync) asked this under the lock, and compared vehicleWear's string, with no vehicle wearing
+    // anything: a quarter of clearing a block. The latest zone's end is kept beside the list, so with none live the
+    // answer needs no lock (BS_OLDWEAR=1: as before).
+    private static var zonesUntil = -Double.infinity
+    static let oldWear = ProcessInfo.processInfo.environment["BS_OLDWEAR"] == "1"
+    static let wearOn = vehicleWear != "0"
     static func wearZone(_ id: Int, cx0: Int, cz0: Int, cx1: Int, cz1: Int) {
         zoneLock.lock()
         let z = WearZone(id: id, x0: cx0 - 2, z0: cz0 - 2, x1: cx1 + 2, z1: cz1 + 2, until: frameNow + wearGap * 2)
         if let i = zones.firstIndex(where: { $0.id == id }) { zones[i] = z } else { zones.append(z) }
         zones.removeAll { $0.until < frameNow }
+        zonesUntil = zones.reduce(-Double.infinity) { max($0, $1.until) }
         zoneLock.unlock()
     }
     static func inWearZone(_ cx: Int, _ cz: Int) -> Bool {
+        if !oldWear && zonesUntil < frameNow { return false }
         zoneLock.lock(); defer { zoneLock.unlock() }
         for z in zones where z.until >= frameNow && cx >= z.x0 && cx <= z.x1 && cz >= z.z0 && cz <= z.z1 { return true }
         return false
@@ -1445,7 +1454,7 @@ final class World {
     @inline(__always) private var settleNearGap: Double {
         simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast ? World.settleGap : World.settleNear
     }
-    @inline(__always) private func worn(_ c: Chunk) -> Bool { c.vehicleWorn && !c.urgent && World.vehicleWear != "0" }
+    @inline(__always) private func worn(_ c: Chunk) -> Bool { c.vehicleWorn && !c.urgent && (World.oldWear ? World.vehicleWear != "0" : World.wearOn) }
     // P511 (build 80, his spot: worn chunks still took both workers, 15 s of meshing in 12 s, whole columns at 200 ms a
     // job, and no new land was generated at all): a worn chunk also waits while another worn chunk's job is out, so one
     // worker at most is ever on the crawler's wear and the other brings the land in.

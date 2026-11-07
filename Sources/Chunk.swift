@@ -80,7 +80,7 @@ final class Section {
             if World.vehicleEdits { o.vehicleWorn = true; o.wornAt = World.frameNow }
             if World.ramEdits { o.urgent = true; if World.meshLog { World.noteUrgent("ram") } }
             else if !World.backgroundEdits {
-                if World.vehicleWear != "0" && (World.frameNow - o.wornAt < World.wearGap * 2 || World.inWearZone(o.cx, o.cz)) { o.vehicleWorn = true }
+                if (World.oldWear ? World.vehicleWear != "0" : World.wearOn) && (World.frameNow - o.wornAt < World.wearGap * 2 || World.inWearZone(o.cx, o.cz)) { o.vehicleWorn = true }
                 else { o.urgent = true; if World.meshLog { World.noteUrgent(World.vehicleEdits ? "edit in wear" : "edit") } }
             }
             o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
