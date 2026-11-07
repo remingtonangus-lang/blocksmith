@@ -49,7 +49,9 @@ final class SoundEngine {
     // Week item 10 (two-hour session, questcheck --memsim --minutes 120): every sound heard stayed held as PCM for the
     // rest of the session, 33 MB of audio at the start and 133 MB after two hours (90 sounds), more with every new one
     // heard. Past `clipBudget` the sounds heard longest ago are let go (a voice playing one keeps its clip; heard again,
-    // it is made again in the background and plays as soon as it is, as on its first time). BS_CLIPBUDGET=0: no budget.
+    // it is made again in the background and plays as soon as it is, as on its first time). The bank's float copies of
+    // sounds made ahead of use and never heard grew the same way (warm groups); they are held to half the budget, the
+    // oldest let go first, never the common sounds (SoundBank.trim, from update). BS_CLIPBUDGET=0: no budget.
     static let clipBudget: Int = {
         if let v = ProcessInfo.processInfo.environment["BS_CLIPBUDGET"], let mb = Int(v) { return mb <= 0 ? Int.max : mb << 20 }
         return 64 << 20
@@ -368,7 +370,11 @@ final class SoundEngine {
         music?.update(dt)
         disc?.update(dt)
         questTracks.volume = AudioSettings.volume(.master) * AudioSettings.volume(.music) * musicDuck
+        // (item 10: the bank's copies of sounds made ahead of use and not heard yet, held to half the clip budget)
+        trimClock += dt
+        if trimClock >= 2 { trimClock = 0; if SoundEngine.clipBudget < Int.max { bank.trim(to: SoundEngine.clipBudget / 2) } }
     }
+    private var trimClock: Float = 0
 
     var loopCount: Int { loops.count }
 

@@ -235,9 +235,10 @@ enum QuestMemory {
                 let r = status("VmRSS"), t = trimmedResident()
                 samples.append(r); trimmed.append(t)
                 let p = game.player.pos
-                print(String(format: "memory: minute %d at %.0f, %.0f: resident %.0f MB (%.0f held), peak %.0f MB, %d chunks, meshes %@ MB, audio %@ MB (%d let go), %d mobs, %d items",
+                print(String(format: "memory: minute %d at %.0f, %.0f: resident %.0f MB (%.0f held), peak %.0f MB, %d chunks, meshes %@ MB, audio %@ MB (heard %@, made ahead %@; %d let go, %d trimmed), %d mobs, %d items",
                              m + 1, p.x, p.z, r, t, status("VmHWM"), game.world.chunks.count, mb(MeshArena.shared.slabBytes),
-                             mb((game.sound?.bank.cachedBytes ?? 0) + (game.sound?.clipBytes ?? 0)), game.sound?.clipsLetGo ?? 0,
+                             mb((game.sound?.bank.cachedBytes ?? 0) + (game.sound?.clipBytes ?? 0)), mb(game.sound?.clipBytes ?? 0),
+                             mb(game.sound?.bank.cachedBytes ?? 0), game.sound?.clipsLetGo ?? 0, game.sound?.bank.trimmed ?? 0,
                              game.mobs.mobs.count, game.drops.items.count))
             }
             PadManager.shared.touch = nil

@@ -315,6 +315,10 @@ final class SoundBank {
     private var evicted = Set<Snd>()          // held as PCM by the engine: a late prewarm must not cache it again
     private var recorded = Set<Snd>()         // played from a recording (RealSounds.swift), not synthesized
     private let lock = NSLock()
+    private var bytes = 0                     // (item 10: what `clips` holds, kept as it changes)
+    private var cachedAt: [Snd: Double] = [:]
+    private(set) var trimmed = 0              // (harness: sounds whose unheard copy was let go)
+    private static func size(_ vs: [[Float]]) -> Int { vs.reduce(0) { $0 + $1.count * 4 } }
 
     // Everything with a fixed identity (note blocks are open-ended and made on demand).
     static var allSounds: [Snd] {
@@ -482,7 +486,13 @@ final class SoundBank {
         var vs: [[Float]] = []
         let rec = RealSounds.load(s)                 // a recording dropped in Resources/Sounds/real wins (SND2)
         if let r = rec { vs = r } else { for v in 0..<SoundBank.variants(for: s) { vs.append(SoundBank.render(s, variant: v)) } }
-        lock.lock(); if !evicted.contains(s) { clips[s] = vs }; if rec != nil { recorded.insert(s) }; lock.unlock()
+        lock.lock()
+        if !evicted.contains(s) {
+            if let old = clips[s] { bytes -= SoundBank.size(old) }
+            clips[s] = vs; bytes += SoundBank.size(vs); cachedAt[s] = CFAbsoluteTimeGetCurrent()
+        }
+        if rec != nil { recorded.insert(s) }
+        lock.unlock()
         return vs[variant % vs.count]
     }
 
@@ -505,7 +515,10 @@ final class SoundBank {
 
     // Drops a sound's float copy once the engine holds it as PCM buffers (halves resident audio memory).
     func evict(_ s: Snd) {
-        lock.lock(); clips[s] = nil; evicted.insert(s); lock.unlock()
+        lock.lock()
+        if let old = clips.removeValue(forKey: s) { bytes -= SoundBank.size(old) }
+        cachedAt[s] = nil; evicted.insert(s)
+        lock.unlock()
     }
     // The engine let its copy go too (the Quest's clip budget): the next prewarm makes and keeps it again.
     func release(_ s: Snd) {
@@ -513,11 +526,20 @@ final class SoundBank {
     }
 
     var cachedCount: Int { lock.lock(); defer { lock.unlock() }; return clips.count }
-    var cachedBytes: Int {
+    var cachedBytes: Int { lock.lock(); defer { lock.unlock() }; return bytes }
+    // Week item 10: sounds made ahead of use (each warm group: a new place, a fight, a vehicle) stayed as float copies
+    // for the rest of the session when never heard, ~100 MB after two hours. Lets the oldest of them go until `limit`
+    // bytes are left (never the common sounds); the next prewarm or play makes them again.
+    func trim(to limit: Int) {
         lock.lock(); defer { lock.unlock() }
-        var n = 0
-        for vs in clips.values { for v in vs { n += v.count * 4 } }
-        return n
+        guard bytes > limit else { return }
+        let keep = Set(SoundBank.commonSounds)
+        for (s, _) in cachedAt.sorted(by: { $0.value < $1.value }) where !keep.contains(s) && !pending.contains(s) {
+            if bytes <= limit { break }
+            if let old = clips.removeValue(forKey: s) { bytes -= SoundBank.size(old) }
+            cachedAt[s] = nil
+            trimmed += 1
+        }
     }
 
     // 16-bit mono WAV (used by the headless harness to check the synth).
