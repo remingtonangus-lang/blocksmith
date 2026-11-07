@@ -363,6 +363,14 @@ enum OverworldStructures {
             // The ladder after the room: laid first, the lab's ceiling covered the shaft (structcheck, run 368: both
             // basements' chest and cauldron unreachable).
             for yy in (by + 1)...(y - 2) { w.set(cx, yy, cz - 2, Blocks.id("ladder") + 1) }
+            // Above the lab the shaft runs through whatever ground is there: on a slope or over a cave its rungs hung with
+            // air behind them and its sides open onto the hillside (structcheck, seed 31337 at -968 67 -1866). Lined in
+            // the lab's brick where the ground leaves a gap.
+            if by + 4 <= y - 2 {
+                for yy in (by + 4)...(y - 2) { for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
+                    if !Blocks.collide[Int(w.get(cx + dx, yy, cz - 2 + dz))] { w.set(cx + dx, yy, cz - 2 + dz, Blocks.id("stone_bricks")) }
+                } } }
+            }
             w.chest(cx + 2, by, cz + 2, loot: "igloo_chest", seed: rng.next(), facing: 0)
             w.set(cx + 2, by, cz, Blocks.id("cauldron"))
             // The villager's cell: the west column behind iron bars.
