@@ -3456,13 +3456,16 @@ final class Game {
         tnts.update(Float(dt), game: self)
         TickProf.mark("tnt")
         particles.update(Float(dt), world)
+        TickProf.mark("particles")
         objectsTick()                           // P389: finished cuts swapped in, their pieces thrown
+        TickProf.mark("particles: cut objects")
         debris.tick(Float(dt), world: world)    // (R15: ragdolls fall in block worlds too)
+        TickProf.mark("particles: debris")
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
         updateFlashes(Float(dt))
         shake = max(0, shake - Float(dt) * 1.3)
-        TickProf.mark("particles")
+        TickProf.mark("particles: ambient")
         // Store review (build 109's citadel soak): the carving and the checks after it run here, after the mobs, so
         // they take what the tick has left (CraterJob.allowance) and wait out a frame the soldiers ran long.
         w.ships.stepBowls(self)                                // main-gun bowls (MainGun.swift)
