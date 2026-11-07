@@ -747,11 +747,15 @@ final class World {
             let i = Chunk.index(mod(x, CS), y, mod(z, CS))
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
-        } else {
-            if let s = frame, fieldTerrain, let top = s.frameGroundTop(x, y, z, self) {
+        } else if let s = frame {
+            // (item 7, build 238's worst-case profile: the frame was taken twice a cell, here and again in block(); a
+            // ship is reference counted the slow way (weak links to it), 1.4% of the scene for the second take)
+            if fieldTerrain, let top = s.frameGroundTop(x, y, z, self) {
                 if top > 0.02 { out.append((V3(Float(x), Float(y), Float(z)), V3(Float(x + 1), Float(y) + top, Float(z + 1)))) }
                 return
             }
+            b = Int(s.frameBlock(x, y, z, self))
+        } else {
             b = Int(block(x, y, z))
         }
         if plain && !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
