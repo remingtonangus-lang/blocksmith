@@ -257,6 +257,12 @@ enum StructCheck {
     static let slices = CommandLine.arguments.contains("--slices")
     static func printSlice(_ w: World, _ p: IVec3, label: String, r: Int = 8) {
         print("slice: \(label) at \(p.x) \(p.y - YOFF) \(p.z) (rows +z down, columns +x right, x from \(p.x - r), z from \(p.z - r))")
+        var parts: [String: Int] = [:]                      // the '+' cells' blocks at its level and the one over it
+        for dy in 0...1 { for z in (p.z - r)...(p.z + r) { for x in (p.x - r)...(p.x + r) {
+            let b = w.block(x, p.y + dy, z), i = Int(b)
+            if Blocks.collide[i] && !Blocks.fullCollide[i] && !PathFinder.isDoor(b) && !PathFinder.climbable(b) { parts[Blocks.key(Blocks.groupBase[i]), default: 0] += 1 }
+        } } }
+        print("slice:  '+' there: " + parts.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
         for dy in stride(from: 2, through: -2, by: -1) {
             print("slice:  y \(p.y + dy - YOFF)\(dy == 0 ? " (its level)" : "")")
             for z in (p.z - r)...(p.z + r) {
