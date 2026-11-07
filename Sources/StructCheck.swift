@@ -250,10 +250,40 @@ enum StructCheck {
 
     // MARK: One instance
 
+    // --slices: each unreachable door or point of interest printed as top-down maps of the cells round it (two levels
+    // under its feet to two over), one character a cell, so a flag can be read without a render. '#' collides fully,
+    // '+' collides in part (slabs, fences, panes, stairs), 'D' door, 'H' ladder, '~' fluid, '.' open; the flagged cell is
+    // shown as '@' over its own character's place.
+    static let slices = CommandLine.arguments.contains("--slices")
+    static func printSlice(_ w: World, _ p: IVec3, label: String, r: Int = 8) {
+        print("slice: \(label) at \(p.x) \(p.y - YOFF) \(p.z) (rows +z down, columns +x right, x from \(p.x - r), z from \(p.z - r))")
+        for dy in stride(from: 2, through: -2, by: -1) {
+            print("slice:  y \(p.y + dy - YOFF)\(dy == 0 ? " (its level)" : "")")
+            for z in (p.z - r)...(p.z + r) {
+                var row = ""
+                for x in (p.x - r)...(p.x + r) {
+                    if x == p.x && z == p.z && dy == 0 { row += "@"; continue }
+                    let b = w.block(x, p.y + dy, z)
+                    let i = Int(b)
+                    if PathFinder.isDoor(b) { row += "D" }
+                    else if PathFinder.climbable(b) { row += "H" }
+                    else if Blocks.fluidKind[i] != 0 { row += "~" }
+                    else if Blocks.fullCollide[i] { row += "#" }
+                    else if Blocks.collide[i] { row += "+" }
+                    else { row += "." }
+                }
+                print("slice:   " + row)
+            }
+        }
+    }
+
     static func check(_ w: World, _ s: StructureStart, typeName: String, seed: UInt64) -> (issues: [Issue], doors: Int, pois: Int, mobs: Int) {
         var out: [Issue] = []
         let kind = s.kind
-        func add(_ cls: String, _ p: IVec3, _ d: String) { out.append(Issue(cls: cls, kind: kind, seed: seed, pos: p, detail: d)) }
+        func add(_ cls: String, _ p: IVec3, _ d: String) {
+            out.append(Issue(cls: cls, kind: kind, seed: seed, pos: p, detail: d))
+            if slices && cls.hasSuffix("unreachable") { printSlice(w, p, label: "\(kind) \(cls) seed \(seed)") }
+        }
         let margin = 6
         let lo = IVec3(s.min.x - margin, max(1, s.min.y - 4), s.min.z - margin)
         let hi = IVec3(s.max.x + margin, min(CH - 4, s.max.y + 4), s.max.z + margin)
