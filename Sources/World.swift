@@ -167,6 +167,8 @@ final class World {
     }
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
+        ChunkKey.oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
+        World.oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
         World.aliveLock.lock(); World.alive += 1; World.aliveLock.unlock()
         self.seed = seed
         self.dim = dim
@@ -2599,7 +2601,7 @@ final class World {
     // (BS_OLDTORCHES=1: as before, the standing torch only, and torches go into pools: the check's before.)
     static let oldTorches = ProcessInfo.processInfo.environment["BS_OLDTORCHES"] == "1"
     static let oldSections = ProcessInfo.processInfo.environment["BS_OLDSECTIONS"] == "1"
-    static let oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
+    static var oldLookups = false             // (set in init from BS_OLDLOOKUPS: no swift_once check on each read)
     static let washedAway: [Bool] = (0..<Blocks.count).map { i in
         if oldTorches { return BlockID(i) == TORCH }
         return Blocks.shape[i] == "torch" || World.washedKeys.contains(Blocks.key(Blocks.groupBase[i]))

@@ -42,7 +42,9 @@ struct ChunkKey: Hashable {
     // two thirds of those finds' cost, 13% of the worst-case soak's instructions. The table's own seed is mixed into one
     // 64-bit word by a fixed mixer instead (the same buckets spread; nothing outside the process sees them).
     // BS_OLDHASH=1: the standard hash.
-    static let oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
+    // (a plain static var with a literal start is set up at load, not on first use: a `static let` read from the
+    // environment cost a swift_once check in every hash, 5.6M a run; World.init reads BS_OLDHASH)
+    static var oldHash = false
     func hash(into h: inout Hasher) { h.combine(x); h.combine(z) }
     func _rawHashValue(seed: Int) -> Int {
         if ChunkKey.oldHash { var h = Hasher(); h.combine(seed); h.combine(x); h.combine(z); return h.finalize() }
