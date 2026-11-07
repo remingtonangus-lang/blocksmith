@@ -140,6 +140,10 @@ enum FrontierSites {
         if site != "stilt_hamlet" { WildCamps.level(&w, x, y, z, seed, r: reach - 1, flatR: Float(reach) - 4.5) }
         func put(_ dx: Int, _ dy: Int, _ dz: Int, _ blk: BlockID) { let (px, pz) = f.p(dx, dz); w.set(px, f.y + dy, pz, blk) }
         func get(_ dx: Int, _ dy: Int, _ dz: Int) -> BlockID { let (px, pz) = f.p(dx, dz); return w.get(px, f.y + dy, pz) }
+        // A fallen board (a bottom slab) lifts whoever steps on it half a block: in a doorway, under the wall over the door, it
+        // left no room to pass (structcheck seed 13: a ghost town smithy's anvil, furnace and chest out of reach). Boards
+        // fall only where there is open air two cells up; elsewhere it is brush.
+        func headroom(_ dx: Int, _ dz: Int) -> Bool { !Blocks.collide[Int(get(dx, 1, dz))] && !Blocks.collide[Int(get(dx, 2, dz))] }
         func down(_ dx: Int, _ dy: Int, _ dz: Int, _ blk: BlockID) { let (px, pz) = f.p(dx, dz); w.groundDown(px, f.y + dy, pz, blk, minY: f.y - 16) }
         func chest(_ dx: Int, _ dy: Int, _ dz: Int, _ table: String) {
             let (px, pz) = f.p(dx, dz)
@@ -283,7 +287,7 @@ enum FrontierSites {
             }
             for i in 0..<rng.range(6, 14) {
                 let dx = Int(hashf(i, 1, 7, s32) * Float(2 * half)) - half, dz = Int(hashf(i, 2, 7, s32) * Float(2 * half)) - half
-                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 ? slab : brush) }
+                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 && headroom(dx, dz) ? slab : brush) }
             }
 
         case "ghost_town":
@@ -332,7 +336,7 @@ enum FrontierSites {
             put(0, 3, 14, b("chain", "oak_fence"))
             for i in 0..<10 {
                 let dx = Int(hashf(i, 1, 7, s32) * 30) - 15, dz = Int(hashf(i, 2, 7, s32) * 30) - 15
-                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 ? slab : brush) }
+                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 && headroom(dx, dz) ? slab : brush) }
             }
 
         case "homestead":
