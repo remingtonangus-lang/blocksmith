@@ -456,7 +456,7 @@ enum Village {
                 }
             }
         }
-        let cut = r20
+        let cut = r20, plazaLamps = !l52
         for cols in colsByRoad {
             let xs = cols.map { $0.0 }, zs = cols.map { $0.1 }, yv = cols.map { $0.2 }
             let half = halfSteps, lampSet = lamps
@@ -470,7 +470,10 @@ enum Village {
                     if cut { for k in 1...2 where Village.streetCut.contains(w.get(x, y + k, z)) { w.set(x, y + k, z, AIR) } }
                     if half.contains(IVec2Key(x, z)) { w.set(x, y + 1, z, m.slab); continue }
                     // Lamp posts now and then along the edge (frontier towns: street lamps at a steady spacing).
-                    if lampSet.contains(IVec2Key(x, z)) || hash3(x, y, z, 0x1A4F) % 97 == 0 {
+                    // Ledger 54: none on the square, where the sheriff, his deputies and the cat stand (a lamp post at the
+                    // square's corner held the sheriff in its fence: structcheck seed 101, 820 115 -300).
+                    let onSquare = abs(x - ox) <= 5 && abs(z - oz) <= 5
+                    if (plazaLamps || !onSquare) && (lampSet.contains(IVec2Key(x, z)) || hash3(x, y, z, 0x1A4F) % 97 == 0) {
                         w.set(x, y + 1, z, m.fence); w.set(x, y + 2, z, m.fence); w.set(x, y + 3, z, Blocks.id("lantern"))
                     }
                 }
