@@ -43,7 +43,14 @@ enum QuestPerf {
         var tick: [Double] = [], record: [Double] = []
         var stages: [String: (sum: Double, worst: Double)] = [:]
         var sections = 0, draws = 0, quads = 0, frames = 0, detailQ = 0, bandQ = 0, innerQ = 0, plantQ = 0, detBands = [0, 0, 0, 0], detNoFar = 0, parts = [Int](repeating: 0, count: 20)
+        var worstWhat = "-", over = 0                    // (the worst tick's four costliest stages; ticks over a headset frame)
         func add(tick t: Double, record r: Double, scene: SceneRenderer) {
+            if t > (tick.max() ?? 0) {
+                var top: [(String, Double)] = []
+                for i in 0..<TickProf.count { top.append((TickProf.names[i].description, TickProf.times[i] * 1000)) }
+                worstWhat = top.sorted { $0.1 > $1.1 }.prefix(4).map { String(format: "%@ %.1f", $0.0, $0.1) }.joined(separator: " + ")
+            }
+            if t > 1000.0 / 72 { over += 1 }
             tick.append(t); record.append(r); frames += 1
             sections += scene.visibleCount; draws += scene.drawCalls; quads += scene.drawnQuads
             detailQ += scene.drawnDetail; bandQ += scene.drawnBand; innerQ += scene.skippedInner; plantQ += scene.skippedPlants
@@ -68,7 +75,7 @@ enum QuestPerf {
                 + "    detail by distance: \(detBands.map { String($0 / n) }.joined(separator: " / ")) (0-16 / 16-32 / 32-64 / 64+ blocks); past the trunk far switch with no far copy \(detNoFar / n)\n"
                 + "    opaque by distance (0-16 / 16-32 / 32-64 / 64+): " + ["solid", "leaf shells", "leaf far shells", "other cutout", "far copies"].enumerated()
                     .map { (k, name) in "\(name) " + (0..<4).map { String(parts[k * 4 + $0] / n) }.joined(separator: "/") }.joined(separator: ", ") + "\n"
-                + "    tick stages (mean/worst ms): \(top)\n    record stages (ms a frame): \(stagesLine)\n    meshing: \(behind)"
+                + "    tick stages (mean/worst ms): \(top)\n    worst tick: \(worstWhat); \(over) of \(n) ticks over 13.9 ms\n    record stages (ms a frame): \(stagesLine)\n    meshing: \(behind)"
         }
     }
 

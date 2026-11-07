@@ -188,6 +188,13 @@ enum Explosion {
         // of a millisecond each on the host: a heavy shell's 450 cells were a 170 ms frame); the bowl carved below
         // shapes the hole as a whole, and only the cells past it get their own. BS_BLASTSHAPE=1: a hollow a cell.
         w.batchShape = Explosion.batchShape && w.fieldTerrain
+        // Ledger 45: each removed block marked the circuit cells round it (Circuit.blockChanged, about 17k instructions a
+        // block: 28% of the taiga24 battle's block clearing under callgrind, build 213), circuit or none. With no circuit
+        // part within reach of the cells and the crater's shaping, the removal and the shaping go without the marks, as
+        // a naval gun's crater already did (CraterJob).
+        let quiet0 = w.circuitQuiet
+        let calm = Explosion.circuitCalm && !destroyed.isEmpty && !w.circuitNear(destroyed, margin: 6)
+        if calm { w.circuitQuiet = true }
         var opened: [IVec3] = []
         for b in destroyed {
             let id = w.block(b.x, b.y, b.z)
@@ -203,7 +210,8 @@ enum Explosion {
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
         w.batchShape = false
-        Explosion.lap("removal \(destroyed.count)")
+        w.circuitQuiet = quiet0
+        Explosion.lap("removal \(destroyed.count)" + (calm ? " (no circuit near)" : ""))
         for b in destroyed { w.scheduleFluid(around: b) }
         // P507 (Nov 1 12:20:36, "shooting one of the fuel pylons should cause the thing to explode"): a blast lights the fuel
         // in its reach (a holed storage tank, a pool, a drum's spill); the fire runs on through the rest (World.igniteFuel).
@@ -238,7 +246,7 @@ enum Explosion {
             // The ground inside the bowl goes with it (its valuable blocks drop, as the broken ones do).
             // Ledger 42: the bowl, the rim passes and the opened cells' shaping are a job (BlastShape); on the headset it
             // runs on the next frames within the carving allowance, here and in the checks at once.
-            let job = BlastShape(world: w, balls: balls, opened: opened)
+            let job = BlastShape(world: w, balls: balls, opened: opened, quiet: calm)
             if BlastShape.deferred && CraterJob.inTick { BlastShape.queue.append(job) } else { while !job.step(g, until: .infinity) {} }
         } else {
             for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
@@ -768,6 +776,33 @@ final class TNTManager {
 // the opened cells past the bowl). That part is this job: in the game (deferred, set by QuestApp.headsetWorld) it runs
 // a piece at a time on the frames after the blast, within the carving allowance (CraterJob), under the fireball; the
 // host checks run it at once. The steps are the old code's, in its order (BS_OLDBLAST=1: at once on the headset too).
+extension Circuit {
+    static let takesOnly: Set<K> = [.lamp, .piston, .stickyPiston, .pistonHead, .dispenser, .dropper, .hopper, .note, .door, .trapdoor,
+                                    .gate, .tnt, .bell, .ironDoor, .ironTrapdoor, .rail, .poweredRail, .activatorRail, .copperBulb, .crafter]
+    static let drives: [Bool] = kinds.map { $0 != .none && !takesOnly.contains($0) }
+}
+
+extension Explosion {
+    static var circuitCalm = ProcessInfo.processInfo.environment["BS_OLDCIRCUIT"] != "1"
+}
+
+extension World {
+    // Any circuit part that makes or carries power (Circuit.drives) in the box round these cells, `margin` wider: a chunk
+    // at a time (scanBuilt). Parts that only take power (doors, gates, rails, lamps, pistons...) change only through a
+    // part that makes or carries it beside them, so a box with none of those needs no marks (build 214: the taiga24
+    // battle's craters near a railway and a camp's gates were still marked cell by cell).
+    func circuitNear<S: Sequence>(_ cells: S, margin: Int) -> Bool where S.Element == IVec3 {
+        var it = cells.makeIterator()
+        guard let f = it.next() else { return false }
+        var lo = f, hi = f
+        for c in cells { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
+        var found = false
+        scanBuilt(lo.x - margin, lo.y - margin, lo.z - margin, hi.x + margin, hi.y + margin, hi.z + margin,
+                  want: { Circuit.drives[Int($0)] }) { _, _, _ in found = true; return false }
+        return found
+    }
+}
+
 final class BlastShape {
     static var deferred = false
     static var queue: [BlastShape] = []
@@ -778,14 +813,18 @@ final class BlastShape {
     private var carved = Set<IVec3>()
     private var stage = 0                                     // 0..<balls: a ball; then the rim passes
     private var pass = 0, scanned = false, dots: [IVec3] = [], next = 0, openedDone = false
+    let quiet: Bool                                           // (no circuit part near: ledger 45)
 
-    init(world: World, balls: [(V3, Float)], opened: [IVec3]) {
-        self.world = world; self.balls = balls; self.opened = opened
+    init(world: World, balls: [(V3, Float)], opened: [IVec3], quiet: Bool = false) {
+        self.world = world; self.balls = balls; self.opened = opened; self.quiet = quiet
     }
 
     // Does pieces until `deadline` (at least one); true when the crater is shaped.
     func step(_ g: Game, until deadline: Double) -> Bool {
         guard let w = world, w === g.world else { return true }        // (left for another dimension: dropped)
+        let quiet0 = w.circuitQuiet
+        if quiet { w.circuitQuiet = true }
+        defer { w.circuitQuiet = quiet0 }
         var first = true
         while first || CFAbsoluteTimeGetCurrent() < deadline {
             first = false
