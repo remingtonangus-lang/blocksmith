@@ -12,6 +12,7 @@ import simd
 // rays and every World.fieldDensity(at:) query. The cells (BlockStore.fd) stay what they were (cell solidity, drops,
 // light and the game's block queries are unchanged).
 enum FineField {
+    static var gridColumns = ProcessInfo.processInfo.environment["BS_OLDFINECOLS"] != "1"   // (World.fineColumns)
     static let n = 32, count = 32 * 32 * 32
     static var enabled = ProcessInfo.processInfo.environment["BS_FINE"] != "0"
     @inline(__always) static func index(_ fx: Int, _ fy: Int, _ fz: Int) -> Int { fx + fz * 32 + fy * 1024 }
@@ -226,7 +227,6 @@ extension World {
     // ground, every cell it looked at reading 144 points here, each eight samples through a chunk lookup (and a coarse
     // sample's eight more). The 144 points all lie between the same 4 x 4 x 4 samples round the cell: read once, then
     // interpolated exactly as fineDensity does. FineField.gridColumns false: the old way.)
-    static var gridColumns = ProcessInfo.processInfo.environment["BS_OLDFINECOLS"] != "1"
     func fineColumns(_ x: Int, _ y: Int, _ z: Int, _ out: UnsafeMutablePointer<Float>) {
         guard FineField.gridColumns else { fineColumnsPointwise(x, y, z, out); return }
         withUnsafeTemporaryAllocation(of: Float.self, capacity: 64) { S in
