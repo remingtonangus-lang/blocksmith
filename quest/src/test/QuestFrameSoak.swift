@@ -537,7 +537,7 @@ enum QuestFrameSoak {
         }
         let frames = secs * 72
         let warm = 3 * 72                                                    // (the first 3 s: first meshes in, not counted)
-        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; Felling.worstMs = 0; Felling.worstSplit = ""; Structure.dropWorstMs = 0; Structure.dropWorst = ""; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks
+        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; Felling.worstMs = 0; Felling.worstSplit = ""; Structure.dropWorstMs = 0; Structure.dropWorst = ""; Structure.crumbMs = 0; Structure.crumbN = 0; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks
         let t0 = CFAbsoluteTimeGetCurrent()
         var mobsPeak = 0, shellsPeak = 0
         var stages: [String: (Double, Double)] = [:]
@@ -619,7 +619,8 @@ enum QuestFrameSoak {
         if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
         if StructureTip.worstMs > 0 { print(String(format: "    slowest collapse check: %.1f ms (%@)", StructureTip.worstMs, StructureTip.worstSplit)) }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
-        if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@)", Structure.dropWorstMs, Structure.dropWorst)) }
+        if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@); crumbs %d blocks in %.1f ms, %.1f us a block", Structure.dropWorstMs, Structure.dropWorst,
+                                                    Structure.crumbN, Structure.crumbMs, Structure.crumbN > 0 ? Structure.crumbMs * 1000 / Double(Structure.crumbN) : 0)) }
         if CraterJob.worstStepMs > 0 { print(String(format: "    slowest bowl step: %.1f ms (%@)", CraterJob.worstStepMs, CraterJob.worstStep)) }
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
