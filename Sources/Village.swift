@@ -59,6 +59,7 @@ enum Village {
         var frontier = false      // frontier town fittings (FrontierTown.swift): boardwalks, the sheriff's office
         var r20 = false           // the office is R20's stone jail (TownJail.swift)
         var p354 = false          // P354's homes, workshops and three-cell jail (TownHomes.swift)
+        var l52 = false           // ledger 52: the family house's table clear of the bedroom door (TownHomes.homeLot)
     }
 
     static func size(_ k: Kind) -> (Int, Int) {
@@ -145,8 +146,10 @@ enum Village {
             let p478 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP478) } ?? true)
             // P499: a town whose every lot went to a shop still gets its office and bank, and a sign further off.
             let p499 = gap && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP499) } ?? true)
+            // Ledger 52: the family house's dining table clear of the door to its second bedroom (TownHomes.homeLot).
+            let l52 = p354 && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyL52) } ?? true)
             let first = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide, streets: streets,
-                               townSize: size, r20: r20, p354: p354, p478: p478, p499: p499)
+                               townSize: size, r20: r20, p354: p354, p478: p478, p499: p499, l52: l52)
             // P466: a hamlet or village on new ground is laid out bigger (TownSizes.biggerSpec); whether there is a place
             // here at all is still the old layout's say, so the bigger plan doesn't add towns (it would add five times as
             // many hamlets: most old ones had too few lots and were never built).
@@ -154,12 +157,12 @@ enum Village {
             // the guard looks further round it).
             if p474, first != nil,
                let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
-                                streets: streets, townSize: newSize, r20: r20, p354: p354, p478: p478, biggest: true, p499: p499) { return big }
+                                streets: streets, townSize: newSize, r20: r20, p354: p354, p478: p478, biggest: true, p499: p499, l52: l52) { return big }
             guard first != nil, let sz = size, sz.rawValue != 2,
                   gen.structures.map({ sz.rawValue < 2 ? $0.clear(cx: cx, cz: cz, reach: 8, guardSet: $0.legacyP466)
                                                        : $0.clear(cx: cx, cz: cz, reach: 14, guardSet: $0.legacyP456) }) ?? true,
                   let big = layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: frontier, townsGap: gap, wide: wide,
-                                   streets: streets, townSize: size, r20: r20, p354: p354, bigger: true, p478: p478, p499: p499) else { return first }
+                                   streets: streets, townSize: size, r20: r20, p354: p354, bigger: true, p478: p478, p499: p499, l52: l52) else { return first }
             return big
         }
     }
@@ -180,7 +183,7 @@ enum Village {
 
     static func layout(_ gen: WorldGen, seed: UInt64, ox: Int, oz: Int, cy: Int, style: Style, frontier: Bool = true, townsGap: Bool? = nil,
                        wide: Bool = false, streets: Bool = false, townSize: TownSize? = nil, r20: Bool = false, p354: Bool = false, bigger: Bool = false,
-                       p478: Bool = false, biggest: Bool = false, p499: Bool = false) -> StructureStart? {
+                       p478: Bool = false, biggest: Bool = false, p499: Bool = false, l52: Bool = false) -> StructureStart? {
         let sz = townSize.map { (biggest ? TownSizes.biggestSpec : (bigger ? TownSizes.biggerSpec : TownSizes.spec))[$0.rawValue] }
         func scaled(_ n: Int) -> Int { sz.map { max(8, Int(Float(n) * $0.length)) } ?? n }
         let gap = townsGap ?? frontier
@@ -364,6 +367,7 @@ enum Village {
                     let floorY = kind == .smithy ? street : street + 1
                     var lot = Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: job)
                     lot.p354 = p354
+                    lot.l52 = l52
                     lots.append(lot)
                     lotFrom.append((ri, s))
                 }
@@ -452,7 +456,7 @@ enum Village {
                 }
             }
         }
-        let cut = r20
+        let cut = r20, plazaLamps = !l52
         for cols in colsByRoad {
             let xs = cols.map { $0.0 }, zs = cols.map { $0.1 }, yv = cols.map { $0.2 }
             let half = halfSteps, lampSet = lamps
@@ -466,7 +470,10 @@ enum Village {
                     if cut { for k in 1...2 where Village.streetCut.contains(w.get(x, y + k, z)) { w.set(x, y + k, z, AIR) } }
                     if half.contains(IVec2Key(x, z)) { w.set(x, y + 1, z, m.slab); continue }
                     // Lamp posts now and then along the edge (frontier towns: street lamps at a steady spacing).
-                    if lampSet.contains(IVec2Key(x, z)) || hash3(x, y, z, 0x1A4F) % 97 == 0 {
+                    // Ledger 54: none on the square, where the sheriff, his deputies and the cat stand (a lamp post at the
+                    // square's corner held the sheriff in its fence: structcheck seed 101, 820 115 -300).
+                    let onSquare = abs(x - ox) <= 5 && abs(z - oz) <= 5
+                    if (plazaLamps || !onSquare) && (lampSet.contains(IVec2Key(x, z)) || hash3(x, y, z, 0x1A4F) % 97 == 0) {
                         w.set(x, y + 1, z, m.fence); w.set(x, y + 2, z, m.fence); w.set(x, y + 3, z, Blocks.id("lantern"))
                     }
                 }

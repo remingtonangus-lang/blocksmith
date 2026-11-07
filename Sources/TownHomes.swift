@@ -62,7 +62,9 @@ extension Village {
             wall(1, 4, l.w - 2, 4, h: 3, door: [(2, 4), (l.w - 3, 4)])
             wall(du, 5, du, l.d - 2, h: 3, door: [])
             b.set(&w, 1, 0, 1, stove); b.set(&w, 2, 0, 1, smoker); b.set(&w, 1, 0, 3, barrel); b.set(&w, 1, 1, 3, barrel)
-            table(&w, b, m, 6, 8, v: 2)
+            // Ledger 52: the table one along (u 5...7), so its chairs (v 3) leave the cell before the door at (l.w - 3, 4)
+            // free; at u 6...8 a chair stood in that doorway and the second bedroom, its chest and villager were shut in.
+            if l.l52 { table(&w, b, m, 5, 7, v: 2) } else { table(&w, b, m, 6, 8, v: 2) }
             b.set(&w, l.w - 2, 0, 1, shelf)
             b.set(&w, du - 1, 2, 3, b.wallTorch(facing: 1)); b.set(&w, du + 1, 2, 3, b.wallTorch(facing: 1))
             bed(&w, b, m, u: 1, v: 5); bed(&w, b, m, u: 3, v: 5)

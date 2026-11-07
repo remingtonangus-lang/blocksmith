@@ -400,6 +400,8 @@ enum OverworldStructures {
             // The camp round the tower: a cage with a captive golem, tents, a log pile and archery targets, each on
             // ground within a few blocks of the tower's (skipped on steep or wet ground).
             let camp: [(Int, Int, Int)] = [(0, 11, -6), (1, -11, 6), (2, 9, 9), (3, -9, -8)]
+            // Ledger 53: on ground no save had generated before it, steps down from the tent's aprons (below).
+            let l53 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL52) } ?? true
             for (kind, dx, dz) in camp {
                 let fx = x + dx, fz = z + dz
                 // The 2D column height (groundY samples 3D density down the column: four of them per outpost start
@@ -407,7 +409,10 @@ enum OverworldStructures {
                 let fy = gen.column(fx, fz).height
                 guard fy >= SEA && abs(fy - y) <= 4 else { continue }
                 let fs = rng.next()
-                pieces.append(piece(fx - 3, fy - 5, fz - 4, fx + 3, fy + 5, fz + 4) { w in outpostCamp(&w, kind, fx, fy + 1, fz, fs) })
+                let reachZ = l53 && kind == 1 ? 8 : 4
+                pieces.append(piece(fx - 3, fy - (l53 ? 9 : 5), fz - reachZ, fx + 3, fy + 5, fz + reachZ) { w in
+                    outpostCamp(&w, kind, fx, fy + 1, fz, fs, steps: l53)
+                })
             }
             return StructureStart(kind: "pillager_outpost", pieces: pieces, anchor: IVec3(x, y + 4, z - 16))
         }
@@ -493,7 +498,7 @@ enum OverworldStructures {
     }
 
     // Camp pieces round an outpost: 0 cage (a captive villager), 1 tent, 2 log pile, 3 archery targets.
-    static func outpostCamp(_ w: inout StructWriter, _ kind: Int, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
+    static func outpostCamp(_ w: inout StructWriter, _ kind: Int, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64, steps: Bool = false) {
         let pl = Blocks.id("dark_oak_planks"), fence = Blocks.id("dark_oak_fence"), log = Blocks.id("dark_oak_log")
         switch kind {
         case 0:
@@ -518,6 +523,15 @@ enum OverworldStructures {
                 w.groundDown(x, y - 1, z, DIRT, minY: y - 5)
                 for yy in y...(y + 2) { w.set(x, yy, z, AIR) }
             } }
+            // Ledger 53: the tent stands on the column's 2D height, and where the true ground fell away (a ridge, a cliff
+            // top) its aprons stood two or more over it, so the table inside could not be reached (structcheck seed 11,
+            // -883 164 1823). Steps go down a block at a time from each apron to the ground; where the ground is that high
+            // already, groundDown leaves it.
+            if steps {
+                for s in [-1, 1] { for k in 1...4 { for x in (cx - 1)...(cx + 1) {
+                    w.groundDown(x, y - 1 - k, cz + s * (3 + k), DIRT, minY: y - 1 - k)
+                } } }
+            }
             // A dark ridge pole along the peak (the bare wool A-frame read as white steps: run 408 outpost). No end
             // posts: they stood in the one-block entrances (structcheck: every tent's table unreachable, run 410).
             let ridge = Blocks.has("dark_oak_log[z]") ? Blocks.id("dark_oak_log[z]") : log
