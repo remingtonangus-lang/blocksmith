@@ -222,15 +222,50 @@ extension World {
 
     // fieldBoxes for a cell whose ground reads fine samples: the 4 x 4 quarter-block columns, each solid between the
     // lowest and highest of 9 points up its centre line inside the ground (the fine field as the mesh draws it).
+    // (Store review, the crawler and citadel soaks: one step of a mob's path search took 4-6 ms over cratered or rutted
+    // ground, every cell it looked at reading 144 points here, each eight samples through a chunk lookup (and a coarse
+    // sample's eight more). The 144 points all lie between the same 4 x 4 x 4 samples round the cell: read once, then
+    // interpolated exactly as fineDensity does. FineField.gridColumns false: the old way.)
+    static var gridColumns = ProcessInfo.processInfo.environment["BS_OLDFINECOLS"] != "1"
     func fineColumns(_ x: Int, _ y: Int, _ z: Int, _ out: UnsafeMutablePointer<Float>) {
+        guard FineField.gridColumns else { fineColumnsPointwise(x, y, z, out); return }
+        withUnsafeTemporaryAllocation(of: Float.self, capacity: 64) { S in
+            let bx = 2 * x - 1, by = 2 * y - 1, bz = 2 * z - 1
+            for k in 0..<4 { for j in 0..<4 { for i in 0..<4 { S[i + j * 4 + k * 16] = fineSample(bx + i, by + k, bz + j) } } }
+            @inline(__always) func s(_ fx: Int, _ fy: Int, _ fz: Int) -> Float {
+                let i = fx - bx, k = fy - by, j = fz - bz
+                if i >= 0 && i < 4 && j >= 0 && j < 4 && k >= 0 && k < 4 { return S[i + j * 4 + k * 16] }
+                return fineSample(fx, fy, fz)                    // (far from the origin, where a float's step is coarse)
+            }
+            // fineDensity(at:), its samples taken from S.
+            func dens(_ p: V3) -> Float {
+                let q = p * 2 - 0.5
+                let x0 = Int(floor(q.x)), y0 = Int(floor(q.y)), z0 = Int(floor(q.z))
+                let tx = q.x - Float(x0), ty = q.y - Float(y0), tz = q.z - Float(z0)
+                let c000 = s(x0, y0, z0), c100 = s(x0 + 1, y0, z0)
+                let c010 = s(x0, y0 + 1, z0), c110 = s(x0 + 1, y0 + 1, z0)
+                let c001 = s(x0, y0, z0 + 1), c101 = s(x0 + 1, y0, z0 + 1)
+                let c011 = s(x0, y0 + 1, z0 + 1), c111 = s(x0 + 1, y0 + 1, z0 + 1)
+                let a = c000 + (c100 - c000) * tx, b = c010 + (c110 - c010) * tx
+                let c = c001 + (c101 - c001) * tx, d = c011 + (c111 - c011) * tx
+                let e = a + (b - a) * ty, f = c + (d - c) * ty
+                return e + (f - e) * tz
+            }
+            columns(x, y, z, out, dens)
+        }
+    }
+    func fineColumnsPointwise(_ x: Int, _ y: Int, _ z: Int, _ out: UnsafeMutablePointer<Float>) {
+        columns(x, y, z, out) { fineDensity(at: $0) }
+    }
+    @inline(__always) private func columns(_ x: Int, _ y: Int, _ z: Int, _ out: UnsafeMutablePointer<Float>, _ density: (V3) -> Float) {
         for v in 0..<4 { for u in 0..<4 {
             let px = Float(x) + (Float(u) + 0.5) / 4, pz = Float(z) + (Float(v) + 0.5) / 4
             var lo: Float = -1, hi: Float = -1
-            var prev = fineDensity(at: V3(px, Float(y), pz)), prevT: Float = 0
+            var prev = density(V3(px, Float(y), pz)), prevT: Float = 0
             if prev > 0 { lo = 0; hi = 0 }
             for s in 1...8 {
                 let t = Float(s) / 8
-                let d = fineDensity(at: V3(px, Float(y) + t, pz))
+                let d = density(V3(px, Float(y) + t, pz))
                 if d > 0 {
                     if lo < 0 { lo = prev > 0 ? prevT : prevT + (t - prevT) * prev / (prev - d) }
                     hi = t
