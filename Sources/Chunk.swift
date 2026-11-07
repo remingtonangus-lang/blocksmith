@@ -42,7 +42,9 @@ struct ChunkKey: Hashable {
     // two thirds of those finds' cost, 13% of the worst-case soak's instructions. The table's own seed is mixed into one
     // 64-bit word by a fixed mixer instead (the same buckets spread; nothing outside the process sees them).
     // BS_OLDHASH=1: the standard hash.
-    static let oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
+    // (a plain static var with a literal start is set up at load, not on first use: a `static let` read from the
+    // environment cost a swift_once check in every hash, 5.6M a run; World.init reads BS_OLDHASH)
+    static var oldHash = false
     func hash(into h: inout Hasher) { h.combine(x); h.combine(z) }
     func _rawHashValue(seed: Int) -> Int {
         if ChunkKey.oldHash { var h = Hasher(); h.combine(seed); h.combine(x); h.combine(z); return h.finalize() }
@@ -404,6 +406,7 @@ final class Chunk {
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
     }
     weak var world: World?         // the world it is installed in (its dirty list; set by World.install)
+    var prefetchMark = 0           // (World.notePrefetched: told apart from a later chunk at the same address)
 
     // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s
     // while the smoke test flew, runs 605-634). Chunks die on worker threads too, hence the lock.

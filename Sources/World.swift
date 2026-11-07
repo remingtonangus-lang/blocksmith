@@ -167,6 +167,8 @@ final class World {
     }
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
+        ChunkKey.oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
+        World.oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
         World.aliveLock.lock(); World.alive += 1; World.aliveLock.unlock()
         self.seed = seed
         self.dim = dim
@@ -2481,13 +2483,14 @@ final class World {
         if fieldTerrain && fieldDensity(at: origin) > 0 {
             while fieldFrom < maxDist && fieldDensity(at: origin + dir * fieldFrom) > 0 { fieldFrom += 0.05 }
         }
+        var cur = ChunkCursor(self)          // (item 7: one chunk find per chunk crossed, not per cell; BS_OLDLOOKUPS=1 per cell)
         while t <= maxDist {
             var b: BlockID = AIR
             // PG2 rewrite: in a field world the ray meets the ground where the field crosses zero (the drawn surface), and
             // the cell it names is the ground cell there; built blocks are targeted as blocks. (P377 step 2: the cell
             // is read through the built layer only.)
             if !fieldTerrain || y < 0 || y >= CH { b = block(x, y, z) }
-            else if let c = chunkAt(x, z) {
+            else if let c = World.oldLookups ? chunkAt(x, z) : cur.chunk(x, z) {
                 let i = Chunk.index(mod(x, CS), y, mod(z, CS))
                 let end = min(tmx, tmy, tmz, maxDist)
                 if fieldNear(c, x, y, z, i), max(t, fieldFrom) <= end, var h = fieldRaySegment(origin, dir, from: max(t, fieldFrom), to: end) {
@@ -2598,7 +2601,7 @@ final class World {
     // (BS_OLDTORCHES=1: as before, the standing torch only, and torches go into pools: the check's before.)
     static let oldTorches = ProcessInfo.processInfo.environment["BS_OLDTORCHES"] == "1"
     static let oldSections = ProcessInfo.processInfo.environment["BS_OLDSECTIONS"] == "1"
-    static let oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
+    static var oldLookups = false             // (set in init from BS_OLDLOOKUPS: no swift_once check on each read)
     static let washedAway: [Bool] = (0..<Blocks.count).map { i in
         if oldTorches { return BlockID(i) == TORCH }
         return Blocks.shape[i] == "torch" || World.washedKeys.contains(Blocks.key(Blocks.groupBase[i]))
