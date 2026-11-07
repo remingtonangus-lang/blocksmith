@@ -179,6 +179,7 @@ final class World: LifeLinked {
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
         ChunkKey.oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
+        IVec3.oldHash = ProcessInfo.processInfo.environment["BS_OLDCELLHASH"] == "1"
         World.oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
         World.aliveLock.lock(); World.alive += 1; World.aliveLock.unlock()
         self.seed = seed

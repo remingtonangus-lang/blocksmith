@@ -11,6 +11,22 @@ struct IVec3: Hashable {
     var z: Int
     init(_ x: Int, _ y: Int, _ z: Int) { self.x = x; self.y = y; self.z = z }
     static func + (a: IVec3, b: IVec3) -> IVec3 { IVec3(a.x + b.x, a.y + b.y, a.z + b.z) }
+    // Item 8 (Nov 8): sets and tables of cells (blasts' rays over a hull, collapse checks, loose-piece searches) spent
+    // ~3% of the worst-case soak in the standard hash (a SipHash per find). The table's seed and the three coordinates
+    // are mixed into one 64-bit word by a fixed mixer instead, as ChunkKey's (BS_OLDCELLHASH=1: the standard hash;
+    // World.init reads it).
+    static var oldHash = false
+    func hash(into h: inout Hasher) { h.combine(x); h.combine(y); h.combine(z) }
+    func _rawHashValue(seed: Int) -> Int {
+        if IVec3.oldHash { var h = Hasher(); h.combine(seed); h.combine(x); h.combine(y); h.combine(z); return h.finalize() }
+        var v = UInt64(UInt(bitPattern: x)) &* 0x9E37_79B9_7F4A_7C15
+        v ^= UInt64(UInt(bitPattern: y)) &* 0xC2B2_AE3D_27D4_EB4F
+        v ^= UInt64(UInt(bitPattern: z)) &* 0x1656_67B1_9E37_79F9
+        v ^= UInt64(UInt(bitPattern: seed))
+        v = (v ^ (v >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        v = (v ^ (v >> 27)) &* 0x94D0_49BB_1331_11EB
+        return Int(Int64(bitPattern: v ^ (v >> 31)))
+    }
 }
 
 func perspectiveRH(fovy: Float, aspect: Float, near: Float, far: Float) -> float4x4 {
