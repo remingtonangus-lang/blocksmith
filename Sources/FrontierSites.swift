@@ -74,6 +74,9 @@ enum FrontierSites {
             // P478: on ground no save had generated before it, a ghost town lays itself out from its seed (build) on
             // a wider levelled patch.
             let p478 = site == "ghost_town" && (gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyP478) } ?? true)
+            // Ledger 49: pueblo tiers on the roof below, ladders facing off their walls, ghost town boards out of doorways (on
+            // ground no save had generated before it: a site half built the old way would not meet itself).
+            let l49 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL49) } ?? true
             let reach = p478 ? ghostReach : reachBlocks
             let r = reach - 1
             let y: Int
@@ -98,7 +101,7 @@ enum FrontierSites {
             let s = rng.next(), rot = rng.int(4)
             let st = StructureStart(kind: site, pieces: [Piece(min: IVec3(x - reach, y - 10, z - reach),
                                                                max: IVec3(x + reach, y + 12, z + reach)) { w in
-                build(&w, site, bio, x, y, z, rot, s, p478: p478)
+                build(&w, site, bio, x, y, z, rot, s, p478: p478, l49: l49)
             }], anchor: IVec3(x, y + 1, z))
             return st
         }
@@ -132,7 +135,7 @@ enum FrontierSites {
     }
 
     static func build(_ w: inout StructWriter, _ site: String, _ bio: Biome, _ x: Int, _ y: Int, _ z: Int, _ rot: Int, _ seed: UInt64,
-                      p478: Bool = false) {
+                      p478: Bool = false, l49: Bool = true) {
         var rng = SRng(seed)
         let f = WildCamps.Frame(x: x, y: y + 1, z: z, rot: rot)
         let s32 = UInt32(truncatingIfNeeded: seed)
@@ -287,7 +290,7 @@ enum FrontierSites {
             }
             for i in 0..<rng.range(6, 14) {
                 let dx = Int(hashf(i, 1, 7, s32) * Float(2 * half)) - half, dz = Int(hashf(i, 2, 7, s32) * Float(2 * half)) - half
-                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 && headroom(dx, dz) ? slab : brush) }
+                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 && (!l49 || headroom(dx, dz)) ? slab : brush) }
             }
 
         case "ghost_town":
@@ -336,7 +339,7 @@ enum FrontierSites {
             put(0, 3, 14, b("chain", "oak_fence"))
             for i in 0..<10 {
                 let dx = Int(hashf(i, 1, 7, s32) * 30) - 15, dz = Int(hashf(i, 2, 7, s32) * 30) - 15
-                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 && headroom(dx, dz) ? slab : brush) }
+                if get(dx, 0, dz) == AIR && Blocks.collide[Int(get(dx, -1, dz))] { put(dx, 0, dz, i % 3 == 0 && (!l49 || headroom(dx, dz)) ? slab : brush) }
             }
 
         case "homestead":
@@ -418,7 +421,10 @@ enum FrontierSites {
                 }
             }
             walk(0, 0, -8, -4); walk(0, 0, 7, -3); walk(0, 0, 0, 5)
-            for dy in -6...(deck - 1) where get(3, dy, 0) == AIR || get(3, dy, 0) == WATER { put(3, dy, 0, b("ladder") + f.north) }
+            // The ladder down to the water on a post of its own under the landing's edge (it faced north with nothing
+            // behind it, the landing's stilts being at its corners).
+            if l49 { down(2, deck - 2, 0, log) }
+            for dy in -6...(deck - 1) where get(3, dy, 0) == AIR || get(3, dy, 0) == WATER { put(3, dy, 0, b("ladder") + (l49 ? f.facing(1) : f.north)) }
             for (dx, dz) in [(-2, -2), (2, 2)] { put(dx, deck, dz, fence); put(dx, deck + 1, dz, b("lantern", "torch")) }
             // Lily pads on open water round about.
             for i in 0..<16 {
@@ -433,7 +439,12 @@ enum FrontierSites {
             // Three tiers stepping back from the plaza (toward local -z): each a row of rooms over the one before.
             let tiers: [(Int, Int, Int, Int)] = [(-12, 12, -12, -4), (-10, 10, -12, -7), (-7, 7, -12, -10)]   // x0, x1, z0, z1
             for (t, (x0, x1, z0, z1)) in tiers.enumerated() {
-                let base = t * 3
+                // Each tier stands on the roof of the one before (its floor that roof, its walls from a cell over it). At
+                // t * 3 a tier's walls and open rooms took the place of the roof under them: the rooms below opened up
+                // into the ones above, the walls hung over them, and the terrace cleared below (`base` on the step-back)
+                // was the lower roof itself, a hole two rows wide where the plaza's camper fell through (structcheck
+                // seeds 99 and 4242: floating, mob_no_floor).
+                let base = t * (l49 ? 4 : 3)
                 for dz in z0...z1 { for dx in x0...x1 {
                     let edge = dx == x0 || dx == x1 || dz == z0 || dz == z1
                     for dy in 0...2 {
@@ -446,7 +457,9 @@ enum FrontierSites {
                 // Doorways onto the plaza or the roof below, beam ends poking out, a ladder up each face.
                 for dx in stride(from: x0 + 2, to: x1, by: 5) { put(dx, base, z1, AIR); put(dx, base + 1, z1, AIR) }
                 for dx in stride(from: x0 + 1, to: x1, by: 3) { put(dx, base + 2, z1 + 1, beam) }
-                if t < 2 { for dy in 0...3 { put(x0 + 3, base + dy, z1 + 1, ladder + f.north) } }
+                // (On the wall to its local north, so it faces south: as `f.north` it faced the wall, its back on the open
+                // terrace: structcheck seeds 99 and 4242, every pueblo's ladders.)
+                if t < 2 { for dy in 0...3 { put(x0 + 3, base + dy, z1 + 1, ladder + (l49 ? f.facing(2) : f.north)) } }
                 // Clear the step-back terrace: the roof below stays open.
                 for dz in (z1 + 1)...(z1 + 2) where t > 0 { for dx in x0...x1 { put(dx, base, dz, AIR) } }
             }
@@ -460,7 +473,7 @@ enum FrontierSites {
             for dz in 2...7 { for dx in 5...9 where (dx + dz) % 2 == 0 { put(dx, 3, dz, b("dark_oak_slab", "oak_slab")) } }
             put(7, 0, 4, b("barrel")); put(-6, 0, 6, b("hay_block")); put(-7, 0, 6, b("barrel"))
             mob("villager:camper", 4, 0, 0)
-            mob("villager:camper", -3, 3, -6)
+            mob("villager:camper", -3, l49 ? 4 : 3, -6)                       // (on the first roof, in front of the second tier)
             mob("donkey", -6, 0, 8)
 
         default: break

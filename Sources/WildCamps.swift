@@ -159,6 +159,9 @@ enum WildCamps {
         }
         // The facing offset (north, south, west, east = 0...3) of a block facing local north (-z).
         var north: BlockID { BlockID([0, 3, 1, 2][rot]) }
+        // The facing offset of a block facing local direction d (0 north -z, 1 east +x, 2 south +z, 3 west -x). A ladder
+        // faces away from what holds it: one on a wall to its local north faces south (facing(2)).
+        func facing(_ d: Int) -> BlockID { BlockID([0, 3, 1, 2][(d + rot) % 4]) }
         // A log lying along the local x axis (true) or z axis.
         func log(_ wood: String, alongX: Bool) -> BlockID {
             let ax = alongX == (rot % 2 == 0) ? "x" : "z"
