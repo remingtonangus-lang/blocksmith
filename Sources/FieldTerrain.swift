@@ -462,6 +462,21 @@ extension World {
         guard let c = chunkAt(x, z), c.blocks.isField else { return -4 }
         return FieldTerrain.f(c.blocks.density(Chunk.index(mod(x, CS), y, mod(z, CS))))
     }
+    // As fieldDensity(x, y, z), with the cell's chunk already looked up (`ch`: chunkAt(x, z)).
+    @inline(__always) func fieldDensity(_ ch: Chunk?, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        if y < 0 { return 4 }
+        if y >= CH { return -4 }
+        guard let ch, ch.blocks.isField else { return -4 }
+        return FieldTerrain.f(ch.blocks.density(Chunk.index(x & 15, y, z & 15)))
+    }
+    // The four chunks of the cells (x0 or x0 + 1, z0 or z0 + 1), each looked up once: (x0 z0, x0+1 z0, x0 z0+1, x0+1 z0+1).
+    @inline(__always) func cornerChunks(_ x0: Int, _ z0: Int) -> (Chunk?, Chunk?, Chunk?, Chunk?) {
+        let a = chunkAt(x0, z0)
+        let sameX = (x0 >> 4) == ((x0 + 1) >> 4), sameZ = (z0 >> 4) == ((z0 + 1) >> 4)
+        let b = sameX ? a : chunkAt(x0 + 1, z0), c = sameZ ? a : chunkAt(x0, z0 + 1)
+        let e = sameX ? c : (sameZ ? b : chunkAt(x0 + 1, z0 + 1))
+        return (a, b, c, e)
+    }
 
     // The ground's density at a point (blocks, + inside): trilinear between the eight cell centres round it, or between
     // the fine samples where the ground was edited (P377 step 1, FineField.swift).
@@ -472,10 +487,21 @@ extension World {
         let qx = p.x - 0.5, qy = p.y - 0.5, qz = p.z - 0.5
         let x0 = Int(floor(qx)), y0 = Int(floor(qy)), z0 = Int(floor(qz))
         let tx = qx - Float(x0), ty = qy - Float(y0), tz = qz - Float(z0)
-        let c000 = fieldDensity(x0, y0, z0), c100 = fieldDensity(x0 + 1, y0, z0)
-        let c010 = fieldDensity(x0, y0 + 1, z0), c110 = fieldDensity(x0 + 1, y0 + 1, z0)
-        let c001 = fieldDensity(x0, y0, z0 + 1), c101 = fieldDensity(x0 + 1, y0, z0 + 1)
-        let c011 = fieldDensity(x0, y0 + 1, z0 + 1), c111 = fieldDensity(x0 + 1, y0 + 1, z0 + 1)
+        let c000: Float, c100: Float, c010: Float, c110: Float, c001: Float, c101: Float, c011: Float, c111: Float
+        if World.oldLookups {
+            c000 = fieldDensity(x0, y0, z0); c100 = fieldDensity(x0 + 1, y0, z0)
+            c010 = fieldDensity(x0, y0 + 1, z0); c110 = fieldDensity(x0 + 1, y0 + 1, z0)
+            c001 = fieldDensity(x0, y0, z0 + 1); c101 = fieldDensity(x0 + 1, y0, z0 + 1)
+            c011 = fieldDensity(x0, y0 + 1, z0 + 1); c111 = fieldDensity(x0 + 1, y0 + 1, z0 + 1)
+        } else {
+            // Item 7 (callgrind of the worst-case soak, build 235: this was the most chunk lookups of any caller, a
+            // debris piece's ground contact reading it): the eight corners' chunks, looked up once each (one, mostly).
+            let (a, b, c, e) = cornerChunks(x0, z0)
+            c000 = fieldDensity(a, x0, y0, z0); c100 = fieldDensity(b, x0 + 1, y0, z0)
+            c010 = fieldDensity(a, x0, y0 + 1, z0); c110 = fieldDensity(b, x0 + 1, y0 + 1, z0)
+            c001 = fieldDensity(c, x0, y0, z0 + 1); c101 = fieldDensity(e, x0 + 1, y0, z0 + 1)
+            c011 = fieldDensity(c, x0, y0 + 1, z0 + 1); c111 = fieldDensity(e, x0 + 1, y0 + 1, z0 + 1)
+        }
         let a = c000 + (c100 - c000) * tx, b = c010 + (c110 - c010) * tx
         let c = c001 + (c101 - c001) * tx, d = c011 + (c111 - c011) * tx
         let e = a + (b - a) * ty, f = c + (d - c) * ty

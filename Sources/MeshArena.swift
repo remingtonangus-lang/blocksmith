@@ -101,13 +101,21 @@ final class MeshArena {
         return (s.0, s.1)
     }
 
-    func alloc(_ device: MTLDevice, _ bytes: UnsafeRawBufferPointer) -> MeshSlice? {
-        let n = bytes.count
+    // (more: a second run of bytes copied straight after the first, so a section's near and far parts are not first
+    // joined into a new array: World.apply's `opaque + farGround` was 1.6% of the worst-case soak's instructions)
+    func alloc(_ device: MTLDevice, _ bytes: UnsafeRawBufferPointer, _ more: UnsafeRawBufferPointer? = nil) -> MeshSlice? {
+        let n0 = bytes.count, n1 = more?.count ?? 0, n = n0 + n1
         if n == 0 { return nil }
         var cls = MeshArena.sizeClass(n)
         let size = MeshArena.sizes[cls]
         if size < n || size > slabSize / 4 {
-            guard let b = device.makeBuffer(bytes: bytes.baseAddress!, length: n, options: .storageModeShared) else { return nil }
+            if n1 == 0 {
+                guard let b = device.makeBuffer(bytes: bytes.baseAddress!, length: n, options: .storageModeShared) else { return nil }
+                return MeshSlice(buffer: b, offset: 0, length: n, cls: -1, arena: self)
+            }
+            guard let b = device.makeBuffer(length: n, options: .storageModeShared) else { return nil }
+            if n0 > 0 { memcpy(b.contents(), bytes.baseAddress!, n0) }
+            memcpy(b.contents() + n0, more!.baseAddress!, n1)
             return MeshSlice(buffer: b, offset: 0, length: n, cls: -1, arena: self)
         }
         let completed = MeshArena.fences.completed
@@ -153,7 +161,8 @@ final class MeshArena {
         if let sp = spot { slabs[ObjectIdentifier(sp.0)]?.live += MeshArena.sizes[cls] }
         lock.unlock()
         guard let (buf, off) = spot else { return nil }
-        memcpy(buf.contents() + off, bytes.baseAddress!, n)
+        if n0 > 0 { memcpy(buf.contents() + off, bytes.baseAddress!, n0) }
+        if n1 > 0 { memcpy(buf.contents() + off + n0, more!.baseAddress!, n1) }
         return MeshSlice(buffer: buf, offset: off, length: n, cls: cls, arena: self)
     }
 

@@ -295,13 +295,21 @@ enum GroundSettle {
                 // (store review, callgrind of the soak: each seed filled its 400 cells into hashed sets, 1.8M instructions
                 // a chunk, the whole 0.8 ms budget of every frame while land came in; ground that reaches ground an
                 // earlier seed found held is held too, and those were most of them)
+                // (item 7, callgrind of the worst-case soak: a chunk lookup a cell and six more for its neighbours;
+                // the chunk is kept between cells now, BS_OLDLOOKUPS=1 as before)
+                var k = ChunkCursor(w)
+                @inline(__always) func ground(_ n: IVec3) -> Bool {
+                    if World.oldLookups { return w.isGround(n) }
+                    guard n.y >= 0 && n.y < CH, let c = k.chunk(n.x, n.z) else { return false }
+                    return c.blocks.ground(Chunk.index(n.x & 15, n.y, n.z & 15))
+                }
                 flood: while let q = stack.popLast() {
                     cells.append(q)
                     if q.y <= 1 || cells.count >= 400 { held = true; break }
-                    guard let cq = w.chunkAt(q.x, q.z), !cq.hollow else { held = true; break }
+                    guard let cq = World.oldLookups ? w.chunkAt(q.x, q.z) : k.chunk(q.x, q.z), !cq.hollow else { held = true; break }
                     for e in World.allDirs {
                         let n = q + e
-                        if seen.contains(n) || !w.isGround(n) { continue }
+                        if seen.contains(n) || !ground(n) { continue }
                         if done.contains(n) { held = true; break flood }        // (a loose piece's cells went: ground no more)
                         seen.insert(n); seenList.append(n); stack.append(n)
                     }

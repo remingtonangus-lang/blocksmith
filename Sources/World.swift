@@ -1378,6 +1378,12 @@ final class World {
         if words.isEmpty { return nil }
         return words.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
     }
+    // (two parts written one after the other into one slice, without joining the arrays first; BS_OLDLOOKUPS=1 joins them)
+    private func makeBuffer(_ a: [UInt32], _ b: [UInt32]) -> MeshSlice? {
+        if b.isEmpty { return makeBuffer(a) }
+        if World.oldLookups { return makeBuffer(a + b) }
+        return a.withUnsafeBytes { pa in b.withUnsafeBytes { pb in MeshArena.shared.alloc(device, pa, pb) } }
+    }
 
     // P446 (Oct 25, new land: "it's literally trying to render it from the bottom up"; a village half drawn for 20 s): a
     // mesh made for a section that changed while it was made (water settling, grass, a neighbour's border, a door) was
@@ -1476,7 +1482,7 @@ final class World {
             guard World.keepStale && version > s.meshedVersion else { return }
             World.staleDrawn &+= 1
         }
-        s.opaqueBuf = makeBuffer(m.farGround.isEmpty ? m.opaque : m.opaque + m.farGround)
+        s.opaqueBuf = makeBuffer(m.opaque, m.farGround)
         s.opaqueQuads = m.opaque.count / 8
         s.solidQuads = m.solidQuads
         s.farSkip = m.farGround.isEmpty ? 0 : m.farSkip; s.farExtra = m.farGround.count / 8
@@ -1488,7 +1494,7 @@ final class World {
         s.meshedVersion = version
         s.vis = m.vis
         s.leafy = m.leafy
-        s.detailBuf = makeBuffer(m.detailFar.isEmpty ? m.detail : m.detail + m.detailFar)
+        s.detailBuf = makeBuffer(m.detail, m.detailFar)
         s.detailQuads = m.detail.count / DetailMesh.wordsPerQuad
         s.detailFarSkip = m.detailFar.isEmpty ? 0 : m.detailFarSkip; s.detailFarExtra = m.detailFar.count / DetailMesh.wordsPerQuad
         s.detailSolid = m.detailSolid
@@ -2410,9 +2416,24 @@ final class World {
         let len = simd_length(d)
         if len < 0.01 { return true }
         let steps = Int(len / 0.25) + 1
-        for i in 1..<steps {
-            let p = a + d * (Float(i) / Float(steps))
-            if opaqueAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { return false }     // (P377 step 2: the ground by its field)
+        if World.oldLookups {
+            for i in 1..<steps {
+                let p = a + d * (Float(i) / Float(steps))
+                if opaqueAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { return false }     // (P377 step 2: the ground by its field)
+            }
+        } else {
+            // Item 7 (callgrind of the worst-case soak, build 235: chunk lookups a fifth of the tick, sight lines 14% of
+            // them): each step read the cell's chunk twice, four steps a cell. The chunk is kept between steps and a
+            // cell already read is not read again (BS_OLDLOOKUPS=1: as before).
+            var k = ChunkCursor(self)
+            var last = IVec3(Int.min, 0, 0)
+            for i in 1..<steps {
+                let p = a + d * (Float(i) / Float(steps))
+                let q = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+                if q == last { continue }
+                last = q
+                if Blocks.opaque[Int(k.built(q.x, q.y, q.z))] || k.ground(q.x, q.y, q.z) { return false }
+            }
         }
         // P434 (a): a ship's hull (a frigate's deck and doors) hides what is behind it too.
         if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: -1) != nil { return false }
@@ -2426,9 +2447,13 @@ final class World {
         let len = simd_length(d)
         if len < 0.01 { return true }
         let steps = Int(len / 0.2) + 1
+        var last = IVec3(Int.min, 0, 0)
         for i in 1..<steps {
             let p = a + d * (Float(i) / Float(steps))
-            let id = Int(block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))
+            let q = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+            if q == last && !World.oldLookups { continue }        // (item 7: a cell already read, five steps a cell)
+            last = q
+            let id = Int(block(q.x, q.y, q.z))
             if Blocks.collide[id] && Blocks.fluidKind[id] == 0 { return false }
         }
         if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: -1) != nil { return false }      // (P434 a)
@@ -2573,6 +2598,7 @@ final class World {
     // (BS_OLDTORCHES=1: as before, the standing torch only, and torches go into pools: the check's before.)
     static let oldTorches = ProcessInfo.processInfo.environment["BS_OLDTORCHES"] == "1"
     static let oldSections = ProcessInfo.processInfo.environment["BS_OLDSECTIONS"] == "1"
+    static let oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
     static let washedAway: [Bool] = (0..<Blocks.count).map { i in
         if oldTorches { return BlockID(i) == TORCH }
         return Blocks.shape[i] == "torch" || World.washedKeys.contains(Blocks.key(Blocks.groupBase[i]))

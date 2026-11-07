@@ -36,6 +36,22 @@ enum CullNotes {
 struct ChunkKey: Hashable {
     let x: Int
     let z: Int
+
+    // Item 7 (Nov 7): the world's chunk table is asked for a chunk hundreds of thousands of times a second (mobs' sight
+    // lines and steps, debris, the ground field); the standard hash (a SipHash per find: seed, two combines, finalize) was
+    // two thirds of those finds' cost, 13% of the worst-case soak's instructions. The table's own seed is mixed into one
+    // 64-bit word by a fixed mixer instead (the same buckets spread; nothing outside the process sees them).
+    // BS_OLDHASH=1: the standard hash.
+    static let oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
+    func hash(into h: inout Hasher) { h.combine(x); h.combine(z) }
+    func _rawHashValue(seed: Int) -> Int {
+        if ChunkKey.oldHash { var h = Hasher(); h.combine(seed); h.combine(x); h.combine(z); return h.finalize() }
+        var v = UInt64(UInt32(truncatingIfNeeded: x)) | (UInt64(UInt32(truncatingIfNeeded: z)) << 32)
+        v ^= UInt64(UInt(bitPattern: seed)) &* 0x9E37_79B9_7F4A_7C15
+        v = (v ^ (v >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        v = (v ^ (v >> 27)) &* 0x94D0_49BB_1331_11EB
+        return Int(Int64(bitPattern: v ^ (v >> 31)))
+    }
 }
 
 // Counts section invalidations (main thread): World.update skips its scheduling scan while nothing changed.
