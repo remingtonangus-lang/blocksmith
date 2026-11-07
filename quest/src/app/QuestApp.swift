@@ -777,7 +777,7 @@ final class FrameStats {
     // Auto Render Distance inputs besides the timings: a menu or pause in the window, a save, a dimension change,
     // and the chunks generated (a loading burst: fast flight, a raise's new ring).
     private var busyFrames = 0, lastSaves = -1, lastGen = -1
-    @WeakLink private var lastWorld: World?
+    @WeakLink private var lastWorld: World? = nil
     // Set by QuestApp: asks the runtime for 72 Hz; true when the rate changed.
     var lowerRate: (() -> Bool)?
     // Set by QuestApp: the world renderer's record split since the last line (WorldRenderer.takeStages).

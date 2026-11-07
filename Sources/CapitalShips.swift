@@ -205,7 +205,7 @@ struct VehicleWheel {
 struct CapTarget {
     var point: V3
     var vel: V3
-    @WeakLink var ship: Ship?
+    @WeakLink var ship: Ship? = nil
     weak var mob: Mob?
     var player = false
     var seat = 0                      // split screen: which player (frigates engaged only player 1)

@@ -27,7 +27,7 @@ final class BugNotes {
     var forcedMode: Mode?                           // harness
     var mode: Mode { forcedMode ?? Mode(rawValue: Settings.shared.bugNotes) ?? .off }
 
-    @WeakLink var game: Game?
+    @WeakLink var game: Game? = nil
     private var engine: AVAudioEngine?
     private(set) var listening = false              // mic running
     private(set) var recording = false              // inside a note

@@ -141,7 +141,7 @@ enum GarageDoors {
     // MARK: Moving
 
     final class Move {
-        @WeakLink var ship: Ship?
+        @WeakLink var ship: Ship? = nil
         let door: Door
         let opening: Bool
         var t: Float                                     // 0 shut, 1 stowed

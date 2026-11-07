@@ -35,7 +35,7 @@ final class AshFormation {
     var hunting = false
     var huntTick: Float = 0
     var formTick: Float = 0
-    @WeakLink var game: Game?
+    @WeakLink var game: Game? = nil
     init(kind: Kind, origin: V2, dir: V2, start: Float, length: Float, game: Game) {
         self.kind = kind; self.origin = origin; self.dir = dir; self.perp = V2(-dir.y, dir.x)
         self.s = start; self.length = length; self.game = game

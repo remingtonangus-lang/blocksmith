@@ -300,7 +300,7 @@ final class Ship: LifeLinked {
     var autopilot: V3?               // throttle, steer, climb when no player steers (harness, crews)
 
     // Turrets: a ship mounted on another on a vertical-axis bearing (a Turret Ring), placed by its parent.
-    @WeakLink var parent: Ship?
+    @WeakLink var parent: Ship? = nil
     var children: [Ship] = []        // turrets riding on this ship (refreshed every frame by the manager)
     var parentId: Int?
     var mountLocal = V3(0, 0, 0)     // bearing point in the parent's space
@@ -754,7 +754,7 @@ final class ShipManager {
     // The player's motion relative to the deck it rides (ShipPlay.shipPlayerUpdate): kept in the ship's frame from
     // tick to tick so the deck's own acceleration and turning never leak into it (riders slid and were shoved as a
     // crawler sped up and turned); only outside pushes (knockback, blasts) change it, seen as p.vel != riderOut.
-    @WeakLink var riderShip: Ship?
+    @WeakLink var riderShip: Ship? = nil
     var riderVel = V3(0, 0, 0)       // ship space
     var riderOut = V3(0, 0, 0)       // the world velocity handed out last tick
     var riderStamp = 0               // ShipManager.update count; riderAt: the stamp when the rider was last moved

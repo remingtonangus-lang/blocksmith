@@ -15,7 +15,7 @@ import simd
 // aboard as a rider, on a free standing spot of the hull nearest its helm, rides there as he drives, and fires their own
 // gun from it at what is out for him (Mob.companionAI); they climb down as the gunners do.
 enum VehicleGunners {
-    struct Seat { weak var mob: Mob?; @WeakLink var turret: Ship?; @WeakLink var vehicle: Ship?; var local: V3; var rider = false
+    struct Seat { weak var mob: Mob?; @WeakLink var turret: Ship? = nil; @WeakLink var vehicle: Ship? = nil; var local: V3; var rider = false
                   var station = false; var face = V3(0, 0, -1) }     // (P512: at the gun's station in the hull, facing its console)
     static var seats: [Seat] = []
     static let board: Float = 32

@@ -132,7 +132,7 @@ final class ModelMind: VillagerMind {
         if let g = ModelMind.game { var c = VillagerMinds.context(m, g); c.dayFraction = f; ask(look * 2 + 1, c, .plan) }
         return scripted
     }
-    @WeakLink static var game: Game?
+    @WeakLink static var game: Game? = nil
 
     private func ask(_ key: Int, _ c: VillagerContext, _ task: VillagerMinds.Task) {
         guard let b = backend, !asking.contains(key), asking.count < 4 else { return }

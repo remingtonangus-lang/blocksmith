@@ -11,7 +11,7 @@ final class LightHalos {
     struct Halo { var pos: V3; var color: V3; var size: Float; var alpha: Float }
     private(set) var list: [Halo] = []
     private var at = -10.0
-    @WeakLink private var world: World?
+    @WeakLink private var world: World? = nil
 
     // Per block state: the glow colour (warm flame by default; soul fire blue, lava orange, circuit red, sea light cyan).
     // P255 (Oct 14 12:05, "a little gleam from the lights there, that doesn't look very good"): flat electric lights (the

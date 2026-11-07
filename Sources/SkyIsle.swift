@@ -162,7 +162,7 @@ enum GrappleLine {
 
     final class Hook {
         var at: V3                               // world point (block hooks)
-        @WeakLink var ship: Ship?
+        @WeakLink var ship: Ship? = nil
         var local: V3 = .zero                    // ship-space point (ship hooks)
         var time: Float = 0
         init(at: V3) { self.at = at }

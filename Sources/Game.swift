@@ -320,7 +320,7 @@ final class Game: LifeLinked {
     var grapple: GrappleLine.Hook?           // a Grapple Line's hook, reeling the player in (SkyIsle.swift, C7)
     var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
     var attackQueued: Float = 0
-    @WeakLink var commandeerHint: Ship?     // the vessel whose helm last creaked at him (ShipPlay.commandeerHintTick)
+    @WeakLink var commandeerHint: Ship? = nil     // the vessel whose helm last creaked at him (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseGrave: HorseGrave?        // P259: where and when the bonded horse died (Riding.swift)
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)

@@ -14,7 +14,7 @@ import simd
 // Everything runs on the 20 Hz game tick; delays are in game ticks (1 sparkstone tick = 2).
 final class Circuit {
     unowned let w: World
-    @WeakLink var game: Game?
+    @WeakLink var game: Game? = nil
     private(set) var now = 0
     private var scheduled: [(at: Int, p: IVec3)] = []
     private var scheduledSet = Set<IVec3>()

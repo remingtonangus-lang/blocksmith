@@ -103,7 +103,7 @@ enum Goals {
     static var shownAt: Double = -100
     static var lastCheck: Double = -100
     static var current: Goal?
-    @WeakLink static var shownGame: Game?
+    @WeakLink static var shownGame: Game? = nil
     static var bars = 0                    // boss / alarm bars on screen last frame (Renderer)
     static func tick(_ g: Game) {
         if g !== shownGame { shownGame = g; shownID = nil; current = nil; lastCheck = -100 }     // a world loaded: show it again
