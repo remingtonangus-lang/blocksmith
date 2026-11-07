@@ -1378,6 +1378,12 @@ final class World {
         if words.isEmpty { return nil }
         return words.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
     }
+    // (two parts written one after the other into one slice, without joining the arrays first; BS_OLDLOOKUPS=1 joins them)
+    private func makeBuffer(_ a: [UInt32], _ b: [UInt32]) -> MeshSlice? {
+        if b.isEmpty { return makeBuffer(a) }
+        if World.oldLookups { return makeBuffer(a + b) }
+        return a.withUnsafeBytes { pa in b.withUnsafeBytes { pb in MeshArena.shared.alloc(device, pa, pb) } }
+    }
 
     // P446 (Oct 25, new land: "it's literally trying to render it from the bottom up"; a village half drawn for 20 s): a
     // mesh made for a section that changed while it was made (water settling, grass, a neighbour's border, a door) was
@@ -1476,7 +1482,7 @@ final class World {
             guard World.keepStale && version > s.meshedVersion else { return }
             World.staleDrawn &+= 1
         }
-        s.opaqueBuf = makeBuffer(m.farGround.isEmpty ? m.opaque : m.opaque + m.farGround)
+        s.opaqueBuf = makeBuffer(m.opaque, m.farGround)
         s.opaqueQuads = m.opaque.count / 8
         s.solidQuads = m.solidQuads
         s.farSkip = m.farGround.isEmpty ? 0 : m.farSkip; s.farExtra = m.farGround.count / 8
@@ -1488,7 +1494,7 @@ final class World {
         s.meshedVersion = version
         s.vis = m.vis
         s.leafy = m.leafy
-        s.detailBuf = makeBuffer(m.detailFar.isEmpty ? m.detail : m.detail + m.detailFar)
+        s.detailBuf = makeBuffer(m.detail, m.detailFar)
         s.detailQuads = m.detail.count / DetailMesh.wordsPerQuad
         s.detailFarSkip = m.detailFar.isEmpty ? 0 : m.detailFarSkip; s.detailFarExtra = m.detailFar.count / DetailMesh.wordsPerQuad
         s.detailSolid = m.detailSolid
