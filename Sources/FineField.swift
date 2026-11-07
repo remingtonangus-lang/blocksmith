@@ -151,9 +151,7 @@ extension World {
                 for sy in s0...s1 where c0.blocks.fine[sy] == nil {
                     let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0
                     guard c.blocks.isField, ensureFine(c, sy) else { continue }
-                    World.finePrefetched.removeAll { $0.c == nil }
-                    if World.finePrefetched.count > 64 { World.finePrefetched.removeFirst(World.finePrefetched.count - 64) }  // (never carved: let go)
-                    World.finePrefetched.append(FinePrefetch(c: c, sy: sy, version: c.sections[sy].version))
+                    World.notePrefetched(c, sy)
                     return true
                 }
             }
@@ -438,16 +436,26 @@ extension Mesher {
     }
 }
 
-// A section prefetchFine made: the chunk itself (weak: an ObjectIdentifier outlives its chunk and comes back for the
-// next one made at that address) and the section's version then. It counts as fresh only while both still hold: any
-// edit since (a placed block's ensureFine, another carve) bumps the version, and a fresh section a sphere leaves as it
-// was is let go, which would throw that edit's fine ground away.
-struct FinePrefetch { weak var c: Chunk?; let sy: Int; let version: Int }
+// A section prefetchFine made: the chunk (its identity and a mark it was given then: an ObjectIdentifier outlives its
+// chunk and comes back for the next one made at that address, which starts unmarked) and the section's version then.
+// It counts as fresh only while both still hold: any edit since (a placed block's ensureFine, another carve) bumps the
+// version, and a fresh section a sphere leaves as it was is let go, which would throw that edit's fine ground away.
+// (Item 7: it held the chunk weakly, and a weak reference gives its object a side table for life: every retain and
+// release of the chunks round a blast or a rut, the busiest chunks there are, took the slow path, part of the 6% of the
+// worst-case soak's instructions in slow reference counting.)
+struct FinePrefetch { let c: ObjectIdentifier; let mark: Int; let sy: Int; let version: Int }
 extension World {
     static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
     static var fineMade = 0                              // (sections given their fine samples: the soak's slowest bowl step)
+    static var prefetchMarks = 0                         // (main thread)
+    static func notePrefetched(_ c: Chunk, _ sy: Int) {
+        if c.prefetchMark == 0 { prefetchMarks += 1; c.prefetchMark = prefetchMarks }
+        if finePrefetched.count >= 64 { finePrefetched.removeFirst(finePrefetched.count - 63) }  // (never carved: let go)
+        finePrefetched.append(FinePrefetch(c: ObjectIdentifier(c), mark: c.prefetchMark, sy: sy, version: c.sections[sy].version))
+    }
     static func takePrefetched(_ c: Chunk, _ sy: Int) -> Bool {
-        guard let i = finePrefetched.firstIndex(where: { $0.c === c && $0.sy == sy }) else { return false }
+        let id = ObjectIdentifier(c)
+        guard c.prefetchMark != 0, let i = finePrefetched.firstIndex(where: { $0.c == id && $0.mark == c.prefetchMark && $0.sy == sy }) else { return false }
         let p = finePrefetched.remove(at: i)
         return p.version == c.sections[sy].version
     }

@@ -406,6 +406,7 @@ final class Chunk {
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
     }
     weak var world: World?         // the world it is installed in (its dirty list; set by World.install)
+    var prefetchMark = 0           // (World.notePrefetched: told apart from a later chunk at the same address)
 
     // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s
     // while the smoke test flew, runs 605-634). Chunks die on worker threads too, hence the lock.
