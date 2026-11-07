@@ -185,7 +185,7 @@ enum Elevators {
         var to = 0, from = 0
         var timer: Float = 0
         var travelled: Float = 0, speed: Float = 0
-        weak var ship: Ship?
+        @WeakLink var ship: Ship?
         var pos0 = V3(0, 0, 0)
         var cells: [(IVec3, BlockID)] = []   // the car's blocks, relative to its front-left floor cell
         var wait: [(Chunk, Int, Int)] = []

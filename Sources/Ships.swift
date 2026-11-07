@@ -179,7 +179,9 @@ struct ShipBucket {
     var height: Float       // vertical extent (for the submerged fraction)
 }
 
-final class Ship {
+final class Ship: LifeLinked {
+    lazy var lifeLink = LifeLink(self)    // (item 8: WeakLink.swift)
+    deinit { lifeLink.object = nil }
     let id: Int
     var grid: ShipGrid
     var blockEntities: [IVec3: BlockEntity] = [:]     // ship space
@@ -298,7 +300,7 @@ final class Ship {
     var autopilot: V3?               // throttle, steer, climb when no player steers (harness, crews)
 
     // Turrets: a ship mounted on another on a vertical-axis bearing (a Turret Ring), placed by its parent.
-    weak var parent: Ship?
+    @WeakLink var parent: Ship?
     var children: [Ship] = []        // turrets riding on this ship (refreshed every frame by the manager)
     var parentId: Int?
     var mountLocal = V3(0, 0, 0)     // bearing point in the parent's space
@@ -740,6 +742,8 @@ final class Ship {
 // MARK: Manager (one per World / dimension)
 
 final class ShipManager {
+    let gate = JobGate()                  // (item 8: background builds reach the manager through it, not a weak reference)
+    deinit { gate.close() }
     unowned let world: World
     static var quarantined = 0               // ship steps that produced NaN (ShipPhysics.step puts the pose back)
     private(set) var list: [Ship] = []
@@ -750,7 +754,7 @@ final class ShipManager {
     // The player's motion relative to the deck it rides (ShipPlay.shipPlayerUpdate): kept in the ship's frame from
     // tick to tick so the deck's own acceleration and turning never leak into it (riders slid and were shoved as a
     // crawler sped up and turned); only outside pushes (knockback, blasts) change it, seen as p.vel != riderOut.
-    weak var riderShip: Ship?
+    @WeakLink var riderShip: Ship?
     var riderVel = V3(0, 0, 0)       // ship space
     var riderOut = V3(0, 0, 0)       // the world velocity handed out last tick
     var riderStamp = 0               // ShipManager.update count; riderAt: the stamp when the rider was last moved

@@ -238,7 +238,7 @@ enum GroundSettle {
     static var spread = false, stepSeconds = 0.0008
     private static var queued: [ChunkKey] = []
     private static var queuedSet = Set<ChunkKey>()
-    private static weak var queuedWorld: World?
+    @WeakLink private static var queuedWorld: World?
     static func borderStep(_ w: World) {
         guard spread, !queued.isEmpty else { return }
         if queuedWorld !== w { queued.removeAll(); queuedSet.removeAll(); queuedWorld = w; return }

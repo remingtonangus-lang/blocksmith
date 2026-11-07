@@ -332,7 +332,7 @@ final class Mob {
     var fleeGoal: V3?               // where it runs from a threat, kept about a second (not re-aimed every tick)
     var fleeTime: Float = 0
     var bedWalk: V3?                // villager: heading to its bed tonight (villagerNight -> villagerDay)
-    static weak var world: World?   // the world mobs are updating in (stroll targets)
+    @WeakLink static var world: World?   // the world mobs are updating in (stroll targets)
     var path = PathState()          // ground navigation (Pathfinding.swift)
     var faceGoal: V3?               // what face() last aimed at during this update
     var aiTimer: Float
@@ -505,7 +505,7 @@ final class Mob {
     var mountOffset: V3?            // P470: where on its mount a rider stands (blocks, the mount's own frame), not on its back
     var trainPitch: Float = 0       // P470: a train car's tilt up a grade (its nose up, positive)
     var livery: UInt8 = 0           // P470: a train car's paint (Trains.swift)
-    weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
+    @WeakLink var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
     var crewPost: V3?               // capital crew: its post in the ship's frame, held while the vehicle runs
     var crewRoute: [V3] = []        // capital crew: ship-space waypoints it walks (troops leaving by the ramp)
     var crewFree = false            // crew of a disabled vehicle: fights where it likes aboard, never off a ledge

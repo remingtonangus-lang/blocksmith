@@ -21,7 +21,7 @@ final class Shell {
     var fuseY: Float = -1000
     var life: Float = 10
     // Missiles steer toward their target (a ship, a mob or the player) and burst near it.
-    weak var seekShip: Ship?
+    @WeakLink var seekShip: Ship?
     weak var seekMob: Mob?
     var seekPlayer = false
     var seekPoint: V3?

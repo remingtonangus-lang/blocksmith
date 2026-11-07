@@ -15,7 +15,7 @@ enum Felling {
     static let maxLogs = 260, maxLeaves = 900
     static let carryMax = 24
     final class Fall {
-        weak var ship: Ship?
+        @WeakLink var ship: Ship?
         var age: Float = 0
         var still: Float = 0
         var landed = false
@@ -30,7 +30,7 @@ enum Felling {
         init(_ s: Ship) { ship = s }
     }
     static var falls: [Fall] = []
-    static weak var carried: Ship?
+    @WeakLink static var carried: Ship?
     static var felled = 0                        // (counter)
     static var toppled = 0                       // (counter: P407's whole pieces)
     static var letLate = 0                       // (counter: bodies let go at the 4 s limit with the world not yet redrawn)

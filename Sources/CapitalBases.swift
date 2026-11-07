@@ -149,7 +149,7 @@ final class BaseWatch {
     // One watch per Game (the harness and the app each make one game).
     // Held by a weak reference, not an ObjectIdentifier: a new game allocated where a freed one lived got the old
     // game's watch (stale station operations and alarms in the harness).
-    private weak var owner: Game?
+    @WeakLink private var owner: Game?
     private static var current: BaseWatch?
     static func of(_ g: Game) -> BaseWatch {
         if let c = current, c.owner === g { return c }

@@ -26,7 +26,7 @@ enum Spine {
     static func active(_ g: Game) -> Bool { HudExtras.enabled && !paused && g.survival }
 
     // Live (not saved).
-    static weak var game: Game?
+    @WeakLink static var game: Game?
     static var lastTick: Double = -100
     static var seenTaken = -1
     static var targetGoal: String?

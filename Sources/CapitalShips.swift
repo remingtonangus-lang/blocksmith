@@ -205,7 +205,7 @@ struct VehicleWheel {
 struct CapTarget {
     var point: V3
     var vel: V3
-    weak var ship: Ship?
+    @WeakLink var ship: Ship?
     weak var mob: Mob?
     var player = false
     var seat = 0                      // split screen: which player (frigates engaged only player 1)
@@ -1195,9 +1195,10 @@ extension ShipManager {
             installCapital(work())
             return
         }
-        DispatchQueue.global(qos: .utility).async { [weak self] in
+        DispatchQueue.global(qos: .utility).async { [unowned(unsafe) self, gate = self.gate] in    // (item 8: not weak)
             let built = work()
-            guard let self else { return }
+            guard gate.enter() else { return }
+            defer { gate.leave() }
             self.capitalLock.lock()
             self.capitalReady.append(built)
             self.capitalLock.unlock()
@@ -3021,9 +3022,10 @@ extension ShipManager {
         }
         g.sfx(.engineStart, 1, at: at)
         if sync { installCapital(work()); return true }
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        DispatchQueue.global(qos: .userInitiated).async { [unowned(unsafe) self, gate = self.gate] in    // (item 8: not weak)
             let built = work()
-            guard let self else { return }
+            guard gate.enter() else { return }
+            defer { gate.leave() }
             self.capitalLock.lock()
             self.capitalReady.append(built)
             self.capitalLock.unlock()

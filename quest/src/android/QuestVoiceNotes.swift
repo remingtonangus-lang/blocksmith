@@ -43,7 +43,7 @@ final class BugNotes {
     private var pending: ((Bool) -> Void)?
     private var pendingAt = 0.0, pendingPaused = false, permPoll = 0.0
     private var firstLaunch = false, setupAt = 0.0
-    private weak var game: Game?
+    @WeakLink private var game: Game?
     private let events = VoiceEvents()
     private var open: String?
     private var talkUntil = 0.0                 // P399: a checklist row's voice note holds push-to-talk until then

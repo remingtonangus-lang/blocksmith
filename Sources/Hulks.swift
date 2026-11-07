@@ -13,7 +13,7 @@ enum Hulks {
     static let most = 16
     static let leave: Float = 200
     static let smokeTime: Float = 60
-    static weak var game: Game?               // (the debris pool for a skinned hull's pieces, ShipCombat.splitIfNeeded)
+    @WeakLink static var game: Game?               // (the debris pool for a skinned hull's pieces, ShipCombat.splitIfNeeded)
     private static var worldAt: ObjectIdentifier?
     static var made = 0                       // (counter)
 
