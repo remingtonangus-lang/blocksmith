@@ -100,11 +100,20 @@ extension World {
         // (a level of cells: the four round the column at cell height yl, mixed along x as coarseDensity mixes them)
         var lvA = Int.min, lvB = Int.min
         var aX0: Float = 0, aX1: Float = 0, bX0: Float = 0, bX1: Float = 0
+        // (item 7, callgrind of the worst-case soak: four chunk lookups a level; the column's chunks are looked up once)
+        let corners: (Chunk?, Chunk?, Chunk?, Chunk?) = World.oldLookups ? (nil, nil, nil, nil) : cornerChunks(x0, z0)
+        let (k00, k10, k01, k11) = corners
         @inline(__always) func level(_ yl: Int) -> (Float, Float) {
             if yl == lvA { return (aX0, aX1) }
             if yl == lvB { return (bX0, bX1) }
-            let c00 = fieldDensity(x0, yl, z0), c10 = fieldDensity(x0 + 1, yl, z0)
-            let c01 = fieldDensity(x0, yl, z0 + 1), c11 = fieldDensity(x0 + 1, yl, z0 + 1)
+            let c00: Float, c10: Float, c01: Float, c11: Float
+            if World.oldLookups {
+                c00 = fieldDensity(x0, yl, z0); c10 = fieldDensity(x0 + 1, yl, z0)
+                c01 = fieldDensity(x0, yl, z0 + 1); c11 = fieldDensity(x0 + 1, yl, z0 + 1)
+            } else {
+                c00 = fieldDensity(k00, x0, yl, z0); c10 = fieldDensity(k10, x0 + 1, yl, z0)
+                c01 = fieldDensity(k01, x0, yl, z0 + 1); c11 = fieldDensity(k11, x0 + 1, yl, z0 + 1)
+            }
             let r = (c00 + (c10 - c00) * tx, c01 + (c11 - c01) * tx)
             lvB = lvA; bX0 = aX0; bX1 = aX1
             lvA = yl; aX0 = r.0; aX1 = r.1
