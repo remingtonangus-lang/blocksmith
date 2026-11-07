@@ -776,12 +776,21 @@ final class TNTManager {
 // the opened cells past the bowl). That part is this job: in the game (deferred, set by QuestApp.headsetWorld) it runs
 // a piece at a time on the frames after the blast, within the carving allowance (CraterJob), under the fireball; the
 // host checks run it at once. The steps are the old code's, in its order (BS_OLDBLAST=1: at once on the headset too).
+extension Circuit {
+    static let takesOnly: Set<K> = [.lamp, .piston, .stickyPiston, .pistonHead, .dispenser, .dropper, .hopper, .note, .door, .trapdoor,
+                                    .gate, .tnt, .bell, .ironDoor, .ironTrapdoor, .rail, .poweredRail, .activatorRail, .copperBulb, .crafter]
+    static let drives: [Bool] = kinds.map { $0 != .none && !takesOnly.contains($0) }
+}
+
 extension Explosion {
     static var circuitCalm = ProcessInfo.processInfo.environment["BS_OLDCIRCUIT"] != "1"
 }
 
 extension World {
-    // Any circuit part (Circuit.kinds) in the box round these cells, `margin` wider: a chunk at a time (scanBuilt).
+    // Any circuit part that makes or carries power (Circuit.drives) in the box round these cells, `margin` wider: a chunk
+    // at a time (scanBuilt). Parts that only take power (doors, gates, rails, lamps, pistons...) change only through a
+    // part that makes or carries it beside them, so a box with none of those needs no marks (build 214: the taiga24
+    // battle's craters near a railway and a camp's gates were still marked cell by cell).
     func circuitNear<S: Sequence>(_ cells: S, margin: Int) -> Bool where S.Element == IVec3 {
         var it = cells.makeIterator()
         guard let f = it.next() else { return false }
@@ -789,7 +798,7 @@ extension World {
         for c in cells { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
         var found = false
         scanBuilt(lo.x - margin, lo.y - margin, lo.z - margin, hi.x + margin, hi.y + margin, hi.z + margin,
-                  want: { Circuit.kinds[Int($0)] != .none }) { _, _, _ in found = true; return false }
+                  want: { Circuit.drives[Int($0)] }) { _, _, _ in found = true; return false }
         return found
     }
 }
