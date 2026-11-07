@@ -34,6 +34,7 @@ enum Felling {
     static var felled = 0                        // (counter)
     static var toppled = 0                       // (counter: P407's whole pieces)
     static var letLate = 0                       // (counter: bodies let go at the 4 s limit with the world not yet redrawn)
+    static var worstMs = 0.0, worstSplit = ""   // (the soak: the slowest topple and its parts)
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
     // (P504) Two cells of one trunk's section: within its 2x2 (a block apart on each axis at most).
@@ -210,6 +211,16 @@ extension Game {
     static let toppledName = "Toppled"
     func topple(_ cells: [IVec3], away awayDir: V3? = nil) {
         guard let start = cells.min(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) else { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var tCopy = t0, tTake = t0, tSpawn = t0
+        defer {
+            let t4 = CFAbsoluteTimeGetCurrent(), ms = (t4 - t0) * 1000
+            if ms > Felling.worstMs {
+                Felling.worstMs = ms
+                Felling.worstSplit = String(format: "%d blocks: crown and copy %.1f, taken out %.1f, body made %.1f, held %.1f", cells.count,
+                                            (tCopy - t0) * 1000, (tTake - tCopy) * 1000, (tSpawn - tTake) * 1000, (t4 - tSpawn) * 1000)
+            }
+        }
         let logs = cells.filter { CapitalBase.isLog(world.block($0.x, $0.y, $0.z)) }
         var leaves: Set<IVec3> = []
         if !logs.isEmpty {
@@ -237,6 +248,7 @@ extension Game {
             bp.cells[ivSub(c, start)] = world.block(c.x, c.y, c.z)
             lo = IVec3(min(lo.x, c.x - start.x), min(lo.y, c.y - start.y), min(lo.z, c.z - start.z))
         }
+        tCopy = CFAbsoluteTimeGetCurrent()
         // (taken out quietly: what it leaves behind was checked already)
         world.restoring = true
         let quiet0 = world.circuitQuiet                      // (ledger 45)
@@ -245,6 +257,7 @@ extension Game {
         for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0
         world.restoring = false
+        tTake = CFAbsoluteTimeGetCurrent()
         let tree = logs.count == cells.count
         let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0,
                                   name: tree ? Felling.name : Game.toppledName, role: "")
@@ -253,6 +266,7 @@ extension Game {
         s.prevPos = s.pos
         s.updateBounds()
         s.initialBlocks = s.blockCount
+        tSpawn = CFAbsoluteTimeGetCurrent()
         var away = awayDir ?? V3(s.pos.x - player.pos.x, 0, s.pos.z - player.pos.z)      // (P507: a crawler's push, its way)
         if simd_length(away) < 0.1 { away = V3(-sinf(player.yaw), 0, -cosf(player.yaw)) }
         away = simd_normalize(away)
