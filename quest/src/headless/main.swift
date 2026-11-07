@@ -2228,6 +2228,10 @@ if CommandLine.arguments.contains("--gunners") {
     print(failures == 0 ? "gunners: all checks passed" : "gunners: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --fuelcheck: P478's fuel liquid (Sources/FuelCheck.swift).
+if CommandLine.arguments.contains("--torchwater") {            // ledger 55: torches give way to water and lava, none go in
+    TorchWaterCheck.run(game, check)
+    print(failures == 0 ? "torchwater: all checks passed" : "torchwater: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--fuelcheck") {
     FuelCheck.run(game, check)
     print(failures == 0 ? "fuelcheck: all checks passed" : "fuelcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2742,6 +2746,7 @@ ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift 
 RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
 BrushCheck.run(game, check)                            // P511: through bushes and limbs at his full pace
 ClamberCheck.run(game, check)                          // P511: up and over a ledge too high to jump onto
+TorchWaterCheck.run(game, check)                       // ledger 55: torches give way to water and lava, none go in
 CrawlerInteriorCheck.run(check)                         // P511: the crawler's insides dense, a motor at every wheel
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }

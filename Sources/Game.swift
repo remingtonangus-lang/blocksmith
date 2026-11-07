@@ -730,6 +730,13 @@ final class Game {
         Trains.load(w)                                      // P337 step 6
         w.redstone.game = self
         w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+        // Ledger 55: a torch a flow takes drops as an item; lava burns it with a hiss.
+        w.onWashedAway = { [weak self] p, b, fluid in
+            guard let self else { return }
+            let at = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
+            if Blocks.fluidKind[Int(fluid)] == Blocks.fluidKind[Int(LAVA)] { self.sfx(.fizz, 0.5, at: at); return }
+            for s in Mining.drops(b, .empty) { self.drops.spawn(s, at: at) }
+        }
         // P478: fuel catching: a whoomp, at most every 0.3 s however many cells catch.
         var lastWhoomp = 0.0
         w.onFuelLit = { [weak self] p in
@@ -1917,6 +1924,11 @@ final class Game {
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
             else if useNow { placeRefused("Something is in the way") }                        // (P507: never a silent click)
+            return
+        }
+        // Ledger 55 (week item 62): no torch goes into water or lava (it would stand in the pool; a flow takes it).
+        if World.washedAway[Int(blockItem)] && Blocks.isLiquid(existing) && !World.oldTorches {
+            if useNow { placeRefused(Blocks.fluidKind[Int(existing)] == Blocks.fluidKind[Int(LAVA)] ? "Torches can't go in lava" : "Torches can't go in water") }
             return
         }
         var id = blockItem
