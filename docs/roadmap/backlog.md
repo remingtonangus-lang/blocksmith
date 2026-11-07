@@ -71,7 +71,7 @@ Approved:
 58. Blueprints: save a build and place copies.
 59. Strength for every material: weight and connection strength for every block.
 60. Built things sit on the ground (trailer bug: houses floating off slopes).
-61. No falling blocks in house building (Oct 31 notes).
+61. No falling blocks in house building (Oct 31 notes). [Nov 7, lane 2: his Oct 31 16:21 note was a building sawn in half by a turret, all of it falling, then a crash (the crash was P502, fixed in #645). questcheck --framesoak --only collapse now blows five stone houses out from under; ledger 56 cut the loose blocks' cost by 40% and the scene holds frame rate.]
 62. Placement sanity: no torches in lava or other impossible placements (trailer bug).
 63. Zero void gaps: an automated void count in every soak, held at zero.
 64. More bases in hell: varied, with potions and a potion material.

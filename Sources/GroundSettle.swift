@@ -210,6 +210,9 @@ enum GroundSettle {
             // Anything else falls block by block, lowest first, and lands where it comes down.
             // (Ledger 44: one remesh for the whole piece, editBatch; each block's own took 4.4-4.7 ms for 5-6 pieces of
             // a crater's rim in the taiga24 battle, build 212.)
+            // (Item 61, ledger 45's bloom: with no circuit part near, without the circuit's marks round each cell.)
+            let quiet0 = w.circuitQuiet
+            if Explosion.circuitCalm && !w.circuitNear(cells, margin: 3) { w.circuitQuiet = true }
             w.editBatch {
                 for c in cells.sorted(by: { $0.y < $1.y }) {
                     let b = w.builtBlock(c.x, c.y, c.z)
@@ -218,6 +221,7 @@ enum GroundSettle {
                     g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
                 }
             }
+            w.circuitQuiet = quiet0
             objectFalls += 1
         }
     }

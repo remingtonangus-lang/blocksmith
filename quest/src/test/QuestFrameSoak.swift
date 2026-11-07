@@ -359,6 +359,71 @@ enum QuestFrameSoak {
         return sc
     }
 
+    // Item 61 and item 8 (his Oct 31 16:21 note, a turret's shells through a building: "I literally saw the building in
+    // half and it was all trying to fall", and the game crashed): five three-storey stone houses on corner pillars in a
+    // row 26 blocks in front of him on the plains, one blown out from under every 7 s (two pillars, then its wall high
+    // up), the load checks finding what no longer stands and the pieces coming down whole or block by block.
+    static func collapseScene() -> Setup {
+        let base = moving("collapse", "", seed: biomeSeed, x: 0, y: 70, z: 0, yaw: 0, pitch: -5, fly: false)
+        var houses: [IVec3] = []                       // (each house's south-west corner on the ground)
+        let side = 12, legs = 5, storeys = 3
+        return Setup(name: "collapse", what: "item 61: five stone houses on pillars blown out from under, one every 7 s, 26 blocks in front of him",
+                     seed: biomeSeed, at: base.at, prepare: { g in
+            goTo(g, biome: "plains")
+            base.prepare(g)
+            g.player.yaw = 0; g.player.pitch = -5 * .pi / 180
+            let w = g.world, bricks = Blocks.id("stone_bricks"), planks = Blocks.id("oak_planks"), glass = Blocks.has("glass") ? Blocks.id("glass") : AIR
+            let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z))
+            Felling.toppled = 0; Structure.fallen = 0
+            w.editBatch {
+                for i in 0..<5 {
+                    let x0 = px - 40 + i * 16, z0 = pz - 26 - side
+                    var gy = 0
+                    for z in z0..<(z0 + side) { for x in x0..<(x0 + side) { gy = max(gy, w.topY(x, z)) } }
+                    let floorY = gy + legs
+                    houses.append(IVec3(x0, gy, z0))
+                    // (the four corner pillars, 2 x 2, from the ground up to the first floor)
+                    for (cx, cz) in [(x0, z0), (x0 + side - 2, z0), (x0, z0 + side - 2), (x0 + side - 2, z0 + side - 2)] {
+                        for z in cz...(cz + 1) { for x in cx...(cx + 1) {
+                            var y = w.topY(x, z) + 1
+                            while y < floorY { w.setBlock(x, y, z, bricks); y += 1 }
+                        } }
+                    }
+                    for st in 0..<storeys {
+                        let fy = floorY + st * 4
+                        for z in z0..<(z0 + side) { for x in x0..<(x0 + side) {
+                            let rim = x == x0 || x == x0 + side - 1 || z == z0 || z == z0 + side - 1
+                            w.setBlock(x, fy, z, rim ? bricks : planks)
+                            if rim {
+                                for y in 1...3 {
+                                    let win = y == 2 && (x - x0) % 4 == 2 || y == 2 && (z - z0) % 4 == 2
+                                    w.setBlock(x, fy + y, z, win ? glass : bricks)
+                                }
+                            }
+                        } }
+                    }
+                    let roof = floorY + storeys * 4
+                    for z in z0..<(z0 + side) { for x in x0..<(x0 + side) { w.setBlock(x, roof, z, bricks) } }
+                }
+            }
+            print("framesoak: \(houses.count) houses on pillars, \(storeys) storeys over \(legs - 1)-block legs")
+        }, step: { g, f in
+            g.player.vel.x = 0; g.player.vel.z = 0                                    // (he stands and watches)
+            g.health = 20; g.alive = true
+            // (house i: its two near pillars at 2 s + 7 s x i, its near wall's top storey half a second later)
+            let t = f - 5 * 72, i = t / (7 * 72), k = t % (7 * 72)
+            guard t >= 0, i < houses.count else { return }
+            let h = houses[i], top = Float(h.y + legs + storeys * 4 - 2)
+            let near = Float(h.z + side - 1)
+            if k == 0 { Explosion.explode(at: V3(Float(h.x) + 1, Float(h.y) + 2, near), power: 4, game: g) }
+            if k == 18 { Explosion.explode(at: V3(Float(h.x + side) - 1, Float(h.y) + 2, near), power: 4, game: g) }
+            if k == 36 { Explosion.explode(at: V3(Float(h.x) + Float(side) / 2, top, near), power: 4, game: g) }
+            if f == 5 * 72 + houses.count * 7 * 72 - 1 || k == 7 * 72 - 1 {
+                print("framesoak: collapse after house \(i + 1): \(Structure.fallen) blocks fell, \(Felling.toppled) pieces came down whole, \(g.falling.count) falling now")
+            }
+        })
+    }
+
     static var more: [Setup] {
         [biomeScene("desert", "walking through the middle of a desert", biome: "desert", fly: false),
          biomeScene("snowstorm", "walking the snowy plains in a snow storm (item 14: the snow slowdown)", biome: "snowy_plains", fly: false, storm: true),
@@ -372,7 +437,7 @@ enum QuestFrameSoak {
          townScene("city", "walking into the capital city, its garrison about", kind: "capital_city"),
          hollowScene(), frigateScene(),
          trainScene(.cargo, name: "freight"), trainScene(.troop, name: "troops"),
-         seaHuntScene(), worstScene()]
+         seaHuntScene(), worstScene(), collapseScene()]
     }
 
     static var scenes: [Setup] { ordinary + [crawlerScene(parkedBy: false), crawlerScene(parkedBy: true), navalScene(), trainScene(), hellScene(), battleScene()] + more }
@@ -472,7 +537,7 @@ enum QuestFrameSoak {
         }
         let frames = secs * 72
         let warm = 3 * 72                                                    // (the first 3 s: first meshes in, not counted)
-        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks
+        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; Felling.worstMs = 0; Felling.worstSplit = ""; Structure.dropWorstMs = 0; Structure.dropWorst = ""; Structure.crumbMs = 0; Structure.crumbN = 0; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks
         let t0 = CFAbsoluteTimeGetCurrent()
         var mobsPeak = 0, shellsPeak = 0
         var stages: [String: (Double, Double)] = [:]
@@ -553,6 +618,9 @@ enum QuestFrameSoak {
             .map { "\($0.key) \(String(format: "%.1f", $0.value.1))" }.joined(separator: ", "))
         if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
         if StructureTip.worstMs > 0 { print(String(format: "    slowest collapse check: %.1f ms (%@)", StructureTip.worstMs, StructureTip.worstSplit)) }
+        if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
+        if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@); crumbs %d blocks in %.1f ms, %.1f us a block", Structure.dropWorstMs, Structure.dropWorst,
+                                                    Structure.crumbN, Structure.crumbMs, Structure.crumbN > 0 ? Structure.crumbMs * 1000 / Double(Structure.crumbN) : 0)) }
         if CraterJob.worstStepMs > 0 { print(String(format: "    slowest bowl step: %.1f ms (%@)", CraterJob.worstStepMs, CraterJob.worstStep)) }
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }

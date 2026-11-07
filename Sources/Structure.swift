@@ -452,20 +452,43 @@ enum Structure {
     // P407 (Oct 22 22:06, "it turned into square blocks there when I broke it, and it fell"): a tree, or a piece of
     // `wholeMin` blocks or more, comes down whole, as one body drawn with its own mesh (Game.topple); crumbs fall block by block.
     static let wholeMin = 12
+    static var dropWorstMs = 0.0, dropWorst = ""         // (the soak: the slowest drop and its parts)
+    static var crumbMs = 0.0, crumbN = 0                  // (the soak: the crumbs' clearing, all of it)
     static func drop(_ g: Game, _ all: [IVec3]) {
         let w = g.world
-        var crumbs = Set<IVec3>()
-        for comp in components(all) {
-            let tree = comp.contains { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
-            if comp.count >= wholeMin || tree && comp.count >= 2 { g.topple(comp) } else { crumbs.formUnion(comp) }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var tSplit = t0, tWhole = t0, wholes = 0, nCrumbs = 0
+        defer {
+            let t3 = CFAbsoluteTimeGetCurrent(), ms = (t3 - t0) * 1000
+            crumbMs += (t3 - tWhole) * 1000
+            if ms > dropWorstMs {
+                dropWorstMs = ms
+                dropWorst = String(format: "%d blocks: pieces %.1f, %d whole %.1f, %d crumbs %.1f", all.count, (tSplit - t0) * 1000, wholes,
+                                   (tWhole - tSplit) * 1000, nCrumbs, (t3 - tWhole) * 1000)
+            }
         }
+        var crumbs = Set<IVec3>()
+        let comps = components(all)
+        tSplit = CFAbsoluteTimeGetCurrent()
+        for comp in comps {
+            let tree = comp.contains { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
+            if comp.count >= wholeMin || tree && comp.count >= 2 { g.topple(comp); wholes += 1 } else { crumbs.formUnion(comp) }
+        }
+        tWhole = CFAbsoluteTimeGetCurrent()
         let cells = all.filter { crumbs.contains($0) }
+        nCrumbs = cells.count
+        // (item 61, ledger 45's bloom: with no circuit part near, the crumbs go without the circuit's marks round each
+        // cell, as a blast's crater, a felled tree and dropped ground do)
+        let quiet0 = w.circuitQuiet
+        if Explosion.circuitCalm && !cells.isEmpty && !w.circuitNear(cells, margin: 3) { w.circuitQuiet = true }
+        defer { w.circuitQuiet = quiet0 }
         w.editBatch {                                  // (ledger 44: one remesh for all the crumbs)
             for c in cells {
                 let b = w.builtBlock(c.x, c.y, c.z)
                 guard member[Int(b)] else { continue }
                 w.setBlock(c.x, c.y, c.z, AIR)
                 g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+                crumbN += 1
             }
         }
         if let c = cells.first {

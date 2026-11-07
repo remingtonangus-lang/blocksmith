@@ -589,13 +589,22 @@ final class World {
         // neighbour only on their border); the rest follows on a worker ahead of the queue.
         let r = SmoothTerrain.enabled || fieldTerrain ? 2 : 1
         let cell = (lo: IVec3(x, y, z), hi: IVec3(x, y, z))
-        for dz in -r...r {
-            for dx in -r...r {
-                for dy in -r...r {
-                    let yy = y + dy
-                    guard yy >= 0 && yy < CH, let n = chunkAt(x + dx, z + dz) else { continue }
-                    let sy = yy >> 4
-                    if !sync.contains(where: { $0.0 === n && $0.1 == sy }) { sync.append((n, sy)) }
+        // Item 61 (the collapse soak, build 232): the sections within r of the block, found column by column (at most 4
+        // chunk lookups); it looked up the chunk of each of the 125 cells round it, 135 lookups a block cleared, the most
+        // of a building's crumbs' and a blast's cost. The same sections in the same order (BS_OLDSECTIONS=1: as before).
+        if World.oldSections {
+            for dz in -r...r { for dx in -r...r { for dy in -r...r {
+                let yy = y + dy
+                guard yy >= 0 && yy < CH, let n = chunkAt(x + dx, z + dz) else { continue }
+                let sy = yy >> 4
+                if !sync.contains(where: { $0.0 === n && $0.1 == sy }) { sync.append((n, sy)) }
+            } } }
+        } else {
+            let s0 = max(0, y - r) >> 4, s1 = min(CH - 1, y + r) >> 4
+            for cz in floorDiv(z - r, CS)...floorDiv(z + r, CS) {
+                for cx in floorDiv(x - r, CS)...floorDiv(x + r, CS) {
+                    guard let n = chunkAt(cx * CS, cz * CS) else { continue }
+                    for sy in s0...s1 { sync.append((n, sy)) }
                 }
             }
         }
@@ -2554,6 +2563,7 @@ final class World {
     // field's wheat stood in the water's edge, dry).
     // (BS_OLDTORCHES=1: as before, the standing torch only, and torches go into pools: the check's before.)
     static let oldTorches = ProcessInfo.processInfo.environment["BS_OLDTORCHES"] == "1"
+    static let oldSections = ProcessInfo.processInfo.environment["BS_OLDSECTIONS"] == "1"
     static let washedAway: [Bool] = (0..<Blocks.count).map { i in
         if oldTorches { return BlockID(i) == TORCH }
         return Blocks.shape[i] == "torch" || World.washedKeys.contains(Blocks.key(Blocks.groupBase[i]))
