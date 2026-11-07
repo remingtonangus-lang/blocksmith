@@ -730,6 +730,13 @@ final class Game {
         Trains.load(w)                                      // P337 step 6
         w.redstone.game = self
         w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+        // Ledger 55: a torch a flow takes drops as an item; lava burns it with a hiss.
+        w.onWashedAway = { [weak self] p, b, fluid in
+            guard let self else { return }
+            let at = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
+            if Blocks.fluidKind[Int(fluid)] == Blocks.fluidKind[Int(LAVA)] { self.sfx(.fizz, 0.5, at: at); return }
+            for s in Mining.drops(b, .empty) { self.drops.spawn(s, at: at) }
+        }
         // P478: fuel catching: a whoomp, at most every 0.3 s however many cells catch.
         var lastWhoomp = 0.0
         w.onFuelLit = { [weak self] p in
@@ -1917,6 +1924,12 @@ final class Game {
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
             else if useNow { placeRefused("Something is in the way") }                        // (P507: never a silent click)
+            return
+        }
+        // Ledger 55 (week item 62): no torch (nor wire, a repeater...) goes into water or lava (it would stand in the pool).
+        if World.washedAway[Int(blockItem)] && Blocks.isLiquid(existing) && !World.oldTorches {
+            let what = Blocks.shape[Int(blockItem)] == "torch" || Blocks.key(blockItem) == "redstone_torch" ? "Torches" : "That"
+            if useNow { placeRefused(Blocks.fluidKind[Int(existing)] == Blocks.fluidKind[Int(LAVA)] ? "\(what) can't go in lava" : "\(what) can't go in water") }
             return
         }
         var id = blockItem
@@ -3456,13 +3469,16 @@ final class Game {
         tnts.update(Float(dt), game: self)
         TickProf.mark("tnt")
         particles.update(Float(dt), world)
+        TickProf.mark("particles")
         objectsTick()                           // P389: finished cuts swapped in, their pieces thrown
+        TickProf.mark("particles: cut objects")
         debris.tick(Float(dt), world: world)    // (R15: ragdolls fall in block worlds too)
+        TickProf.mark("particles: debris")
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
         updateFlashes(Float(dt))
         shake = max(0, shake - Float(dt) * 1.3)
-        TickProf.mark("particles")
+        TickProf.mark("particles: ambient")
         // Store review (build 109's citadel soak): the carving and the checks after it run here, after the mobs, so
         // they take what the tick has left (CraterJob.allowance) and wait out a frame the soldiers ran long.
         w.ships.stepBowls(self)                                // main-gun bowls (MainGun.swift)

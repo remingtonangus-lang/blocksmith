@@ -2543,8 +2543,24 @@ final class World {
     private func fluidCanEnter(_ id: BlockID, level: Int, kind: UInt8) -> Bool {
         let l = Int(Blocks.fluidLevel[Int(id)])
         if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 && l < 8 && l > level }
-        return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
+        return id == AIR || Blocks.replaceable[Int(id)] || World.washedAway[Int(id)]
     }
+
+    // Ledger 55 (week item 62, "no torches in lava"): every torch, standing or on a wall (torch, soul, copper, signal),
+    // gives way to water and lava as the reference's do. Only the standing torch did (TORCH), so a wall torch, a soul
+    // or copper torch or a signal torch stood on in a flow or a lava pool. The game drops what a flow takes
+    // (onWashedAway); lava burns it. The same for the other small things the reference's water washes off: crops,
+    // copper wire, repeaters and comparators, tripwire and cobwebs (a flow stopped at them as at a wall: a flooded
+    // field's wheat stood in the water's edge, dry).
+    // (BS_OLDTORCHES=1: as before, the standing torch only, and torches go into pools: the check's before.)
+    static let oldTorches = ProcessInfo.processInfo.environment["BS_OLDTORCHES"] == "1"
+    static let washedAway: [Bool] = (0..<Blocks.count).map { i in
+        if oldTorches { return BlockID(i) == TORCH }
+        return Blocks.shape[i] == "torch" || World.washedKeys.contains(Blocks.key(Blocks.groupBase[i]))
+    }
+    static let washedKeys: Set<String> = ["redstone_torch", "wheat", "carrots", "potatoes", "beetroots", "torchflower_crop", "pitcher_crop",
+                                           "redstone_wire", "repeater", "comparator", "tripwire", "cobweb"]
+    var onWashedAway: ((IVec3, BlockID, BlockID) -> Void)?     // (the cell, the torch the fluid took, the fluid)
 
     // Steps from q to the nearest spot fluid could fall from (a passable cell over a passable or flowing one), searching
     // passable cells up to `reach` away and never back through the source; 1000 when there is none.
@@ -2576,7 +2592,7 @@ final class World {
             let id = fluidCell(c.x, c.y, c.z)
             let l = Int(Blocks.fluidLevel[Int(id)])
             if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 }
-            return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH || shallowGround(c.x, c.y, c.z)
+            return id == AIR || Blocks.replaceable[Int(id)] || World.washedAway[Int(id)] || shallowGround(c.x, c.y, c.z)
         }
         func hole(_ c: IVec3) -> Bool { c.y > 0 && passable(IVec3(c.x, c.y - 1, c.z)) }
         if hole(q) { return 0 }
@@ -2601,9 +2617,13 @@ final class World {
     }
 
     private func setFluid(_ p: IVec3, _ id: BlockID) {
+        let was = builtBlock(p.x, p.y, p.z)
         BlockStore.keepGround = fieldTerrain
         defer { BlockStore.keepGround = false }
-        if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
+        if setBlockAsync(p.x, p.y, p.z, id) {
+            scheduleFluid(around: p)
+            if World.washedAway[Int(was)] { onWashedAway?(p, was, id) }
+        }
     }
 
     // Waterlogged states whose shape closes the floor (bottom slabs and stairs): their water can't pour down.
