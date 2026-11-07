@@ -386,8 +386,8 @@ extension ShipManager {
     // and heavy gun shells (Armory) flew straight through hulls.
     func segmentHit(_ o: V3, _ d: V3, _ len: Float, except: Int) -> (Float, Ship)? {
         let lo = simd_min(o, o + d * len), hi = simd_max(o, o + d * len)
-        for s in list where s.root.id != except && s.root.trainCar == nil && hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
-            && lo.y < s.worldMax.y && hi.z > s.worldMin.z && lo.z < s.worldMax.z {
+        for s in list where hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
+            && lo.y < s.worldMax.y && hi.z > s.worldMin.z && lo.z < s.worldMax.z && s.root.id != except && s.root.trainCar == nil {
             let n = max(1, Int(ceil(len / 0.4)))
             for i in 0...n {
                 let t = len * Float(i) / Float(n)
@@ -424,8 +424,10 @@ extension ShipManager {
 
     // Whether a world point is inside a solid block of a ship other than the root `except`.
     func shipBlock(at p: V3, except: Int) -> Bool {
-        for s in list where s.root.id != except && p.x > s.worldMin.x && p.x < s.worldMax.x && p.y > s.worldMin.y && p.y < s.worldMax.y
-            && p.z > s.worldMin.z && p.z < s.worldMax.z {
+        // (item 7, the worst-case soak: the hull's box first, then its root: finding the root walks weak parent links,
+        // 3,400 instructions a call over every ship and turret, 2% of the soak; the same answer)
+        for s in list where p.x > s.worldMin.x && p.x < s.worldMax.x && p.y > s.worldMin.y && p.y < s.worldMax.y
+            && p.z > s.worldMin.z && p.z < s.worldMax.z && s.root.id != except {
             let l = s.toLocal(p)
             if Blocks.collide[Int(s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))))] { return true }
         }
@@ -436,8 +438,8 @@ extension ShipManager {
     // like in the world; blocks they get through are destroyed (dropping with chance 1/power); the hull is pushed.
     func blast(at c: V3, power: Float, game: Game?, resistCap: Float = .infinity) {
         let reach = power * 2 + 1
-        for s in list where s.root.trainCar == nil && c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
-            && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach {
+        for s in list where c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
+            && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach && s.root.trainCar == nil {
             let lc = s.toLocal(c)
             defer { if s.kinematic && s.parent == nil { wheelBlast(s, lc, power: power) } }     // P511: big wheels wear (after the blast's own cells)
             let g = s.grid
@@ -576,8 +578,8 @@ extension ShipManager {
 
     func tear(at c: V3, radius: Float, except: Int, game: Game?) -> Int {
         var total = 0
-        for s in list where s.root.id != except && s.root.trainCar == nil && c.x > s.worldMin.x - radius && c.x < s.worldMax.x + radius && c.y > s.worldMin.y - radius
-            && c.y < s.worldMax.y + radius && c.z > s.worldMin.z - radius && c.z < s.worldMax.z + radius {
+        for s in list where c.x > s.worldMin.x - radius && c.x < s.worldMax.x + radius && c.y > s.worldMin.y - radius
+            && c.y < s.worldMax.y + radius && c.z > s.worldMin.z - radius && c.z < s.worldMax.z + radius && s.root.id != except && s.root.trainCar == nil {
             let lc = s.toLocal(c)
             let ri = Int(ceilf(radius))
             var destroyed = Set<IVec3>()

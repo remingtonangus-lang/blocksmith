@@ -293,9 +293,9 @@ extension ShipManager {
     var aboardOrPilot: Ship? { pilot ?? aboard }
     // A depth charge within reach of any hull but its own sets off (ShipCombat).
     func nearHull(_ p: V3, except: Int, reach: Float) -> Bool {
-        for s in list where s.root.id != except {
+        for s in list {
             if p.x > s.worldMin.x - reach && p.x < s.worldMax.x + reach && p.y > s.worldMin.y - reach && p.y < s.worldMax.y + reach
-                && p.z > s.worldMin.z - reach && p.z < s.worldMax.z + reach { return true }
+                && p.z > s.worldMin.z - reach && p.z < s.worldMax.z + reach && s.root.id != except { return true }
         }
         return false
     }
