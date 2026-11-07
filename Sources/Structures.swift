@@ -331,7 +331,7 @@ final class StructureCache {
     var legacyP511: Set<Int64> = []              // ground saved before P511 turned a railway's ends in loops (RailLoops.swift)
     var legacyP512: Set<Int64> = []              // ground saved before P512's wider loops at ends P511's didn't fit (RailLoops.swift)
     var legacyL49: Set<Int64> = []               // ground saved before ledger 49 (pueblo tiers on the roof below, frontier ladders, ghost town boards)
-    var legacyL52: Set<Int64> = []               // ground saved before ledger 52 (the family house's table clear of the bedroom door)
+    var legacyL52: Set<Int64> = []               // ground saved before ledger 52-53 (the family house's table clear of the bedroom door, outpost tent steps)
     var legacyP475: Set<Int64> = []              // ground saved before P475 fenced Boreal Stations in chain link with a gate
     var legacyP470: Set<Int64> = []              // ground saved before P470 let two stations make a line (Railways.plan)
     var legacyP469: Set<Int64> = []              // ground saved before P469 gave depot bases their compounds (Depots.swift)
