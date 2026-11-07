@@ -226,7 +226,7 @@ extension Game {
             if !advancements.contains("adventure/proving_run") && inside("trial_chambers") { achieve("trial_chambers") }
         }
         // Biomes visited.
-        let b = world.biome(Int(floor(player.pos.x)), Int(floor(player.pos.z)))
+        let b = world.gen.column(Int(floor(player.pos.x)), Int(floor(player.pos.z))).biome
         if dim.dim == .overworld && visitedBiomes.insert("\(b)").inserted && visitedBiomes.count >= 40 { achieve("biomes40") }
     }
 

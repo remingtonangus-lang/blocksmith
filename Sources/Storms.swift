@@ -39,7 +39,7 @@ extension Game {
         guard dim.dim == .overworld, alive else { Storms.strength = max(0, Storms.strength - dt * 0.3); return }
         let p = player.pos
         let ix = Int(floor(p.x)), iy = Int(floor(p.y + 1)), iz = Int(floor(p.z))
-        let biome = world.biome(ix, iz)
+        let biome = world.gen.column(ix, iz).biome
         let pr = precipitation(ix, iy, iz)
         var want = 0
         if weather.rain > 0.3 {

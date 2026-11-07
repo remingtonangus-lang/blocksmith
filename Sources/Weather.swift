@@ -47,7 +47,7 @@ extension Game {
     // Precipitation at a column: 0 none, 1 rain, 2 snow.
     func precipitation(_ x: Int, _ y: Int, _ z: Int) -> Int {
         guard wetWorld else { return 0 }
-        let b = world.biome(x, z)
+        let b = world.gen.column(x, z).biome
         if b == .desert || b.isBadlands || b == .savanna || b == .savannaPlateau || b == .windsweptSavanna { return 0 }
         return Seasons.snows(b, at: y) ? 2 : 1            // C9: winter snow over the temperate biomes
     }
@@ -179,7 +179,7 @@ extension Game {
             let y = Int(c.height[lx + lz * CS])
             guard y > 0 && y < CH - 1 else { continue }
             let top = world.materialAt(x, y, z)
-            let biome = world.biome(x, z)
+            let biome = world.gen.column(x, z).biome
             guard Seasons.snows(biome, at: y) else {
                 seasonalMelt(x, y, z, top, biome)            // C9: seasonal snow and ice melt
                 // Rain fills cauldrons (1 in 20).

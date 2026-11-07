@@ -7,7 +7,7 @@ extension Game {
     static let fuelFog = V3(0.26, 0.16, 0.03)         // P478: with the eye inside fuel
     var underwaterFog: V3 {
         let p = player.eye
-        let w = world.biome(Int(floor(p.x)), Int(floor(p.z))).info.water
+        let w = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome.info.water
         let c = V3(Float((w >> 16) & 255), Float((w >> 8) & 255), Float(w & 255)) / 255
         let light = dim.dim.hasSky ? 0.12 + 0.88 * daylight : 0.5
         if player.headInFuel { return Game.fuelFog * (0.4 + 0.6 * min(1, light)) }      // P478: inside fuel, dark amber

@@ -195,7 +195,7 @@ extension Game {
             let top = world.builtBlock(x, y, z)
             let capped = top != ice && world.builtBlock(x, y + 1, z) == snow
             guard top == ice || top == snow || capped else { continue }
-            let biome = world.biome(x, z)
+            let biome = world.gen.column(x, z).biome
             guard Rand.float(in: 0..<1) < p, seasonalCover(x, y, z, top, biome) else { continue }
             if capped { world.setBlockAsync(x, y + 1, z, AIR); changed += 1 }
             else if top == snow { world.setBlockAsync(x, y, z, AIR); changed += 1 }

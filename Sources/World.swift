@@ -1954,26 +1954,6 @@ final class World {
         var field: [Int32: UInt16] = [:]     // PG1: saved terrain field edits (TerrainField.swift)
         var ground: FieldData? = nil         // PG1 rewrite: the chunk's density field (field worlds, FieldTerrain.swift)
         var cached: MeshCache.Entry? = nil   // P376: a shell's meshes read from the disk cache (ChunkShells)
-        var biomes: [UInt8] = []             // ledger 46: each column's biome (Biome raw value), worked out on the worker
-    }
-
-    // Ledger 46 (Nov 7): the biome under a column, from the chunk when it is loaded (its column biomes are worked out on
-    // the worker that makes it), else from the generator. The frame's own lookups (rain or snow per cell, the random
-    // ticks' grass and snow, the sky's air, the ambience, the advancements) asked the generator, and its node memo is
-    // shared with the workers making far land: flying, the nodes under him were pushed out and remade on the frame
-    // (computeNode: 23% of the random and precipitation ticks and 56% of weather and advancements under callgrind,
-    // build 216; the weather stage's 3-4 ms ticks).
-    @inline(__always) func biome(_ x: Int, _ z: Int) -> Biome {
-        if World.storedBiomes, let c = chunkAt(x, z), c.biomes.count == CSQ,
-           let b = Biome(rawValue: Int(c.biomes[mod(x, CS) + mod(z, CS) * CS])) { return b }
-        return gen.column(x, z).biome
-    }
-    static var storedBiomes = ProcessInfo.processInfo.environment["BS_GENBIOME"] != "1"
-    static func columnBiomes(_ gen: TerrainGenerator, _ k: ChunkKey) -> [UInt8] {
-        var out = [UInt8](repeating: 0, count: CSQ)
-        let x0 = k.x * CS, z0 = k.z * CS
-        for lz in 0..<CS { for lx in 0..<CS { out[lx + lz * CS] = UInt8(truncatingIfNeeded: gen.column(x0 + lx, z0 + lz).biome.rawValue) } }
-        return out
     }
 
     // Fluid cells beside or over air: scheduled for a fluid update on install so underground sources spill into caves
@@ -2116,7 +2096,7 @@ final class World {
             return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
                             emitMask: BlockStore.emitMask(of: merged), springs: World.springs(merged, k, heights), field: field,
-                            ground: g, biomes: World.columnBiomes(gen, k))
+                            ground: g)
         }
         _ = PlantSupport.dropFloating(&blocks)
         let heights = Chunk.computeHeights(blocks)
@@ -2128,11 +2108,11 @@ final class World {
             let f = FieldTerrain.split(&blocks, cx: k.x, cz: k.z, gen: gen)
             return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
-                            emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f, biomes: World.columnBiomes(gen, k))
+                            emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f)
         }
         return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
-                        emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field, biomes: World.columnBiomes(gen, k))
+                        emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field)
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -2172,7 +2152,6 @@ final class World {
         c.modified = p.fromDisk
         if p.fromDisk { c.markSaved() }
         c.fieldEdits = p.field
-        c.biomes = p.biomes
         if !p.fromDisk, let gd = p.ground { c.borderSeeds = gd.borderSeeds }     // P380 (2)
         chunks[k] = c
         let t1 = prof ? CFAbsoluteTimeGetCurrent() : 0
