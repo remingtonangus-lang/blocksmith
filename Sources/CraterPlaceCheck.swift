@@ -47,6 +47,25 @@ enum CraterPlaceCheck {
         let floorY = top(cx, cz)
         check(gy - floorY >= 2 && hidden <= 4,
               "craterplace: three rockets blow a bowl \(gy - floorY) deep in his ground at \(cx) \(gy - 64) \(cz) (\(bowlCells) cells open); \(hidden) ground cells left whole inside it under a dot of drawn rock (want at most 4, round its rim)")
+        // The bowl's ground as bodies meet it (fieldBoxes' fine columns): read from the 4 x 4 x 4 samples round each cell,
+        // the same to the bit as read point by point, and how long each takes.
+        do {
+            var a = [Float](repeating: 0, count: 32), b = [Float](repeating: 0, count: 32)
+            var cells = 0, differ = 0
+            var tGrid = 0.0, tPoint = 0.0
+            for y in (gy - 7)...(gy + 3) { for z in (cz - 8)...(cz + 8) { for x in (cx - 8)...(cx + 8) {
+                guard w.fineNear(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) else { continue }
+                cells += 1
+                let t0 = CFAbsoluteTimeGetCurrent()
+                a.withUnsafeMutableBufferPointer { w.fineColumns(x, y, z, $0.baseAddress!) }
+                let t1 = CFAbsoluteTimeGetCurrent()
+                b.withUnsafeMutableBufferPointer { w.fineColumnsPointwise(x, y, z, $0.baseAddress!) }
+                tGrid += t1 - t0; tPoint += CFAbsoluteTimeGetCurrent() - t1
+                if zip(a, b).contains(where: { $0.bitPattern != $1.bitPattern }) { differ += 1 }
+            } } }
+            check(cells > 500 && differ == 0, String(format: "craterplace: the bowl's fine ground columns read from each cell's 64 samples match the point-by-point read in %ld of %ld cells (%.1f us a cell, %.1f point by point)",
+                                                    cells - differ, cells, tGrid * 1e6 / Double(max(1, cells)), tPoint * 1e6 / Double(max(1, cells))))
+        }
         // From the rim: stone in hand, clicks round the bowl's face. Each one aimed at the ground puts a block down.
         let stone = Items.id("stone")
         g.inventory.held = ItemStack(stone, 64)
