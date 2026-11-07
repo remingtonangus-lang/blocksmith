@@ -1926,9 +1926,10 @@ final class Game {
             else if useNow { placeRefused("Something is in the way") }                        // (P507: never a silent click)
             return
         }
-        // Ledger 55 (week item 62): no torch goes into water or lava (it would stand in the pool; a flow takes it).
+        // Ledger 55 (week item 62): no torch (nor wire, a repeater...) goes into water or lava (it would stand in the pool).
         if World.washedAway[Int(blockItem)] && Blocks.isLiquid(existing) && !World.oldTorches {
-            if useNow { placeRefused(Blocks.fluidKind[Int(existing)] == Blocks.fluidKind[Int(LAVA)] ? "Torches can't go in lava" : "Torches can't go in water") }
+            let what = Blocks.shape[Int(blockItem)] == "torch" || Blocks.key(blockItem) == "redstone_torch" ? "Torches" : "That"
+            if useNow { placeRefused(Blocks.fluidKind[Int(existing)] == Blocks.fluidKind[Int(LAVA)] ? "\(what) can't go in lava" : "\(what) can't go in water") }
             return
         }
         var id = blockItem

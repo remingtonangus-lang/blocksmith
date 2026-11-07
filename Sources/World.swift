@@ -2548,14 +2548,18 @@ final class World {
 
     // Ledger 55 (week item 62, "no torches in lava"): every torch, standing or on a wall (torch, soul, copper, signal),
     // gives way to water and lava as the reference's do. Only the standing torch did (TORCH), so a wall torch, a soul
-    // or copper torch or a signal torch stood on in a flow or a lava pool. The game drops the torch a flow takes
-    // (onWashedAway); lava burns it.
+    // or copper torch or a signal torch stood on in a flow or a lava pool. The game drops what a flow takes
+    // (onWashedAway); lava burns it. The same for the other small things the reference's water washes off: crops,
+    // copper wire, repeaters and comparators, tripwire and cobwebs (a flow stopped at them as at a wall: a flooded
+    // field's wheat stood in the water's edge, dry).
     // (BS_OLDTORCHES=1: as before, the standing torch only, and torches go into pools: the check's before.)
     static let oldTorches = ProcessInfo.processInfo.environment["BS_OLDTORCHES"] == "1"
     static let washedAway: [Bool] = (0..<Blocks.count).map { i in
         if oldTorches { return BlockID(i) == TORCH }
-        return Blocks.shape[i] == "torch" || Blocks.key(Blocks.groupBase[i]) == "redstone_torch"
+        return Blocks.shape[i] == "torch" || World.washedKeys.contains(Blocks.key(Blocks.groupBase[i]))
     }
+    static let washedKeys: Set<String> = ["redstone_torch", "wheat", "carrots", "potatoes", "beetroots", "torchflower_crop", "pitcher_crop",
+                                           "redstone_wire", "repeater", "comparator", "tripwire", "cobweb"]
     var onWashedAway: ((IVec3, BlockID, BlockID) -> Void)?     // (the cell, the torch the fluid took, the fluid)
 
     // Steps from q to the nearest spot fluid could fall from (a passable cell over a passable or flowing one), searching

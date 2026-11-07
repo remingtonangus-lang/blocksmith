@@ -34,10 +34,15 @@ enum TorchWaterCheck {
         if let b = id("redstone_torch[2]") { kinds.append(("redstone_torch on a wall", b)) }
         let giving = kinds.filter { World.washedAway[Int($0.1)] }.count
         check(kinds.count >= 6 && giving == kinds.count, "torchwater: every torch kind gives way to fluids (\(giving) of \(kinds.count) kinds)")
+        // (and the other small things the reference's water washes off: ripe wheat, carrots, copper wire, a repeater, a
+        // comparator, tripwire, a cobweb)
+        for (k, st) in [("wheat", 7), ("carrots", 7), ("redstone_wire", 0), ("repeater", 0), ("comparator", 0), ("tripwire", 0), ("cobweb", 0)] {
+            if let b = id(k) { kinds.append((k, b + BlockID(st))) }
+        }
 
         for (fluid, lava) in [(WATER, false), (LAVA, true)] {
-            var taken = 0, items = 0
-            var stood: [String] = []
+            var taken = 0, dropped = 0, droppers = 0
+            var stood: [String] = [], dry: [String] = []
             for (name, b) in kinds {
                 tray()
                 // The torch on the floor at (6, 7); a wall torch there hangs on a stone post south of it, at (6, 8).
@@ -49,12 +54,16 @@ enum TorchWaterCheck {
                 for _ in 0..<(lava ? 30 : 20) { w.fluidTick(lava: lava) }
                 let now = w.block(tx, by + 1, tz)
                 if !World.washedAway[Int(now)] && Blocks.isLiquid(now) { taken += 1 } else { stood.append("\(name): \(Blocks.key(now))") }
-                items += g.drops.items.filter { Items.def($0.stack.item).block.map { World.washedAway[Int($0)] } == true }.count
+                // (what breaking it by hand drops: a cobweb by hand drops nothing)
+                if !Mining.drops(b, .empty).isEmpty {
+                    droppers += 1
+                    if !g.drops.items.isEmpty { dropped += 1 } else { dry.append(name) }
+                } else if !g.drops.items.isEmpty { dropped += 1 }
             }
-            check(taken == kinds.count, "torchwater: \(lava ? "lava" : "water") runs into every torch's cell and takes it (\(taken) of \(kinds.count))"
+            check(taken == kinds.count, "torchwater: \(lava ? "lava" : "water") runs into every torch's (and crop's, wire's...) cell and takes it (\(taken) of \(kinds.count))"
                   + (stood.isEmpty ? "" : "; still standing: " + stood.joined(separator: ", ")))
-            if lava { check(items == 0, "torchwater: a torch the lava takes burns (\(items) torch items dropped)") }
-            else { check(items >= kinds.count, "torchwater: a torch the water takes drops as an item (\(items) of \(kinds.count))") }
+            if lava { check(dropped == 0, "torchwater: what the lava takes burns (\(dropped) of \(kinds.count) left an item)") }
+            else { check(dropped == droppers, "torchwater: what the water takes drops as items (\(dropped) of \(droppers))" + (dry.isEmpty ? "" : "; none from " + dry.joined(separator: ", "))) }
         }
 
         // Held torches clicked at the floor under a pool: refused, the pool left whole.
