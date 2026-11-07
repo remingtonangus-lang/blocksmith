@@ -616,6 +616,7 @@ enum QuestFrameSoak {
             .map { "\($0.key) \(String(format: "%.2f/%.1f", $0.value.0 / n, $0.value.1))" }.joined(separator: ", "))
         print("    tick stages by worst (ms): " + stages.sorted { $0.value.1 > $1.value.1 }.prefix(8)
             .map { "\($0.key) \(String(format: "%.1f", $0.value.1))" }.joined(separator: ", "))
+        if ProcessInfo.processInfo.environment["BS_RCPROBE"] == "1" { print("    side tables: " + RefcountProbe.census(g)) }
         if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
         if StructureTip.worstMs > 0 { print(String(format: "    slowest collapse check: %.1f ms (%@)", StructureTip.worstMs, StructureTip.worstSplit)) }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
