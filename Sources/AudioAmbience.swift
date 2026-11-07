@@ -264,7 +264,7 @@ extension Game {
             ask("battle", .battleLoop, 0.4 * (1 - a.cave))            // P457: the war goes on somewhere out there
         case .deep where !DeepGen.inHell(p.y): ask("bed", .basaltLoop, 0.4)
         case .nether, .deep:
-            let b = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
+            let b = world.biome(Int(floor(p.x)), Int(floor(p.z)))
             let s: Snd
             switch b {
             case .soulSandValley: s = .soulValleyLoop
@@ -333,11 +333,11 @@ extension Game {
         a.biomeTimer -= dt
         if a.biomeTimer <= 0 {
             a.biomeTimer = 2
-            a.biomeHere = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
+            a.biomeHere = world.biome(Int(floor(p.x)), Int(floor(p.z)))
             // Surf: any ocean column within 24 blocks.
             var ocean = false
             for (dx, dz) in [(24, 0), (-24, 0), (0, 24), (0, -24), (16, 16), (-16, -16), (16, -16), (-16, 16), (0, 0)] {
-                let b = world.gen.column(Int(floor(p.x)) + dx, Int(floor(p.z)) + dz).biome
+                let b = world.biome(Int(floor(p.x)) + dx, Int(floor(p.z)) + dz)
                 if [.ocean, .deepOcean, .warmOcean, .lukewarmOcean, .deepLukewarmOcean, .coldOcean, .deepColdOcean].contains(b) { ocean = true; break }
             }
             a.nearOcean = ocean

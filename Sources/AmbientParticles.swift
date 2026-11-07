@@ -134,7 +134,7 @@ extension Game {
     func emberMotes(_ dt: Float) {
         guard inHell, particles.list.count < ParticleManager.cap - 200 else { return }
         let p = player.pos
-        let biome = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
+        let biome = world.biome(Int(floor(p.x)), Int(floor(p.z)))
         let rate: Float = biome == .soulSandValley ? 70 : (biome == .netherWastes ? 14 : 35)
         var n = Int(rate * dt)
         if Rand.float(in: 0..<1) < rate * dt - Float(n) { n += 1 }

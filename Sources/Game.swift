@@ -1745,7 +1745,7 @@ final class Game {
             if brushProgress >= 2.5 {
                 brushProgress = 0
                 let k = Blocks.key(world.materialAt(t.hit.x, t.hit.y, t.hit.z))
-                let biome = world.gen.column(t.hit.x, t.hit.z).biome
+                let biome = world.biome(t.hit.x, t.hit.z)
                 let table = biome == .desert ? "archaeology_desert" : (biome.isOcean ? "archaeology_ocean" : "archaeology_trail")
                 let tmp = ItemContainer(3)
                 var rng = SRng(Rand.u64(in: 1...UInt64.max))

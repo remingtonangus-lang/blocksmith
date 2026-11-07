@@ -80,7 +80,7 @@ extension Game {
             s.biomeTimer = 0.5
             if dim.dim == .overworld {
                 let p = player.pos
-                let (t, h, c) = SkyState.air(world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome)
+                let (t, h, c) = SkyState.air(world.biome(Int(floor(p.x)), Int(floor(p.z))))
                 s.targetTint = t; s.targetHaze = h; s.targetCover = c
             } else {
                 s.targetTint = V3(1, 1, 1); s.targetHaze = 0; s.targetCover = 0.45

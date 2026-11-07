@@ -403,6 +403,7 @@ final class Chunk {
     var cullWatched = false          // held by the Quest's cull table: changes are noted (CullNotes)
 
     var borderSeeds: [Int] = []                      // P380 (2): small pieces at the side, checked once the neighbours exist
+    var biomes: [UInt8] = []                         // ledger 46: each column's biome (World.biome), made on the worker
     init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32], field: FieldData? = nil) {
         Chunk.aliveLock.lock(); Chunk.alive += 1; Chunk.aliveLock.unlock()
         self.cx = cx
