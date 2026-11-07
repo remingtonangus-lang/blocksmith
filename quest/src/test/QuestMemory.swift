@@ -15,6 +15,9 @@ import CVulkan
 //                                                              memory each minute (a leak shows as growth)
 // Peak resident memory is the kernel's high-water mark (VmHWM). Meta checks an app's PSS against its limit; for one
 // process with nothing shared that is its resident set.
+#if os(Linux)
+@_silgen_name("malloc_trim") private func questMallocTrim(_ pad: Int) -> Int32     // (glibc; the host's harness)
+#endif
 enum QuestMemory {
     static func arg(_ k: String) -> String? {
         guard let i = CommandLine.arguments.firstIndex(of: k), i + 1 < CommandLine.arguments.count else { return nil }
@@ -31,7 +34,7 @@ enum QuestMemory {
     // the high water a freed allocation leaves in the resident figure.
     static func trimmedResident() -> Double {
         #if os(Linux)
-        _ = malloc_trim(0)
+        _ = questMallocTrim(0)
         #endif
         return status("VmRSS")
     }
