@@ -77,7 +77,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") || CommandLine.arguments.contains("--framesoak")
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? arg("--cine") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") || CommandLine.arguments.contains("--framesoak")
     || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare")
     || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") || CommandLine.arguments.contains("--streamtest") ? "" : nil)
 var vkctx: VkContext?
@@ -100,6 +100,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < Command
 }
 // --perfscenes [--rd 12,16] [--only NAME,...] [--blockworld]: the Quest frame's CPU side in the playtest scenes (P283,
 // quest/src/test/QuestPerf.swift).
+// --cine SHOTS.json --out DIR: scripted trailer footage through the Quest renderer (quest/src/headless/Cinema.swift).
+if arg("--cine") != nil, let ctx = vkctx { exit(Cinema.run(ctx: ctx)) }
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
 // --framesoak [--only crawler,citadel,naval,train,hell,battle] [--seconds 40] [--rd 10]: the store review's frame rate
 // (VRC.Quest.Performance.1) in the heavy scenes of play, frame by frame in real time (quest/src/test/QuestFrameSoak.swift).
