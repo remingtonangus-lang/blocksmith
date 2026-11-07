@@ -414,9 +414,14 @@ enum FrontierSites {
             func walk(_ ax: Int, _ az: Int, _ bx: Int, _ bz: Int) {
                 let n = max(abs(bx - ax), abs(bz - az))
                 guard n > 0 else { return }
+                var last = (ax, az)
                 for i in 0...n {
                     let px = ax + (bx - ax) * i / n, pz = az + (bz - az) * i / n
                     put(px, deck - 1, pz, plank)
+                    // A step in both x and z met the last board only at a corner: nobody walks that over the water
+                    // (structcheck seeds 7 and 12, every hut off a slanting walk out of reach). A board between.
+                    if l49 && px != last.0 && pz != last.1 { put(px, deck - 1, last.1, plank) }
+                    last = (px, pz)
                     if i % 4 == 2 { down(px, deck - 2, pz, fence) }
                 }
             }
