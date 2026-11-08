@@ -33,8 +33,9 @@ enum OverworldStructures {
                 // The whole footprint in the desert (one stood half on grassland at a biome edge: blind critic, run 417).
                 for (dx, dz) in [(-11, -15), (11, -15), (-11, 11), (11, 11)] where gen.column(x + dx, z + dz).biome != .desert { return nil }
                 let mission = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyP360) } ?? true   // P360
+                let l63 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL62) } ?? true   // ledger 63
                 return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 15, x + 11, y + 16, z + 11) { w in
-                    if mission { dustMission(&w, x, y, z, s) } else { desertPyramid(&w, x, y, z, s) } }],
+                    if mission { dustMission(&w, x, y, z, s, l63: l63) } else { desertPyramid(&w, x, y, z, s) } }],
                                       anchor: IVec3(x, y + 1, z - 17))
             case .jungle, .bambooJungle, .sparseJungle:
                 // P429 (Oct 24: "jungle temples are too common"): two grid cells in five keep one.
