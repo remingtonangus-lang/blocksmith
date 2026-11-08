@@ -5,7 +5,7 @@ import simd
 // Owns all loaded chunks of one dimension. Generation and meshing run on a concurrent background
 // queue; results are applied on the main thread in update(). Chunk block arrays are Swift
 // copy-on-write values, so handing snapshots to worker threads is safe.
-final class World {
+final class World: LifeLinked {
     var damage: [IVec3: UInt8] = [:]      // progressive block damage (chip, damageList)
     var bites: [IVec3: [Bite]] = [:]      // realistic world: where blows struck a block (Craters.swift; biteList)
     let gen: TerrainGenerator
@@ -159,7 +159,15 @@ final class World {
     // a worker thread: hence the lock (as Chunk.alive).
     static let aliveLock = NSLock()
     private(set) static var alive = 0
-    static let registry = NSHashTable<World>.weakObjects()
+    // (the live worlds, for the bench's leak check; links, not weak references: WeakLink.swift)
+    private static var links: [LifeLink] = []
+    private static let linksLock = NSLock()            // (not aliveLock: a link let go here may end a world, whose deinit takes that)
+    static var live: [World] {
+        linksLock.lock(); defer { linksLock.unlock() }
+        links.removeAll { $0.object == nil }
+        return links.compactMap { $0.object as? World }
+    }
+    lazy var lifeLink = LifeLink(self)         // (item 8: WeakLink.swift)
     deinit { World.aliveLock.lock(); World.alive -= 1; World.aliveLock.unlock() }
     var debugState: String {
         lock.lock(); let gr = genResults.count, mr = meshResults.count; lock.unlock()     // workers append under the lock
@@ -168,6 +176,7 @@ final class World {
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
         ChunkKey.oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
+        IVec3.oldHash = ProcessInfo.processInfo.environment["BS_OLDCELLHASH"] == "1"
         World.oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
         World.aliveLock.lock(); World.alive += 1; World.aliveLock.unlock()
         self.seed = seed
@@ -234,7 +243,7 @@ final class World {
             dg.ground.guardSet.chunks = save.structureGuard(file: "structure-guard-p326.txt")      // AshFront.swift
         }
         if dim == .deep { AshWar.setFront((gen as? DeepGen)?.ground.guardSet ?? DeepGuard()) }   // (P326's sites: off old ground)
-        World.registry.add(self)
+        World.linksLock.lock(); World.links.removeAll { $0.object == nil }; World.links.append(lifeLink); World.linksLock.unlock()
     }
 
     // Chunks to load: the meshed disc grown by one chunk (every meshed chunk needs its 8 neighbours).
@@ -747,11 +756,15 @@ final class World {
             let i = Chunk.index(mod(x, CS), y, mod(z, CS))
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
-        } else {
-            if let s = frame, fieldTerrain, let top = s.frameGroundTop(x, y, z, self) {
+        } else if let s = frame {
+            // (item 7, build 238's worst-case profile: the frame was taken twice a cell, here and again in block(); a
+            // ship is reference counted the slow way (weak links to it), 1.4% of the scene for the second take)
+            if fieldTerrain, let top = s.frameGroundTop(x, y, z, self) {
                 if top > 0.02 { out.append((V3(Float(x), Float(y), Float(z)), V3(Float(x + 1), Float(y) + top, Float(z + 1)))) }
                 return
             }
+            b = Int(s.frameBlock(x, y, z, self))
+        } else {
             b = Int(block(x, y, z))
         }
         if plain && !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
@@ -1237,8 +1250,8 @@ final class World {
         for key in edited { editLatest[key] = ticket }
         lock.unlock()
         let lane = edited.count <= 4 ? World.quickQueue : World.editQueue
-        lane.async { [weak self] in
-            guard let self else { return }
+        lane.async { [me = weakLink] in              // (item 8: a link, not a weak reference: WeakLink.swift)
+            guard let self = me.wrappedValue else { return }
             let out = builds.map { b in
                 b { k, sy in
                     let key = World.sectionKey(k, sy)
@@ -1936,8 +1949,9 @@ final class World {
             jobs += 1
             if wornJob { lock.lock(); wornOut += 1; lock.unlock(); wornBusy = true }
             // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
-            let job: () -> Void = { [weak self] in
-                guard let self else { return }
+            // (Item 8: by link, not a weak reference, which sent all the World's reference counting down the slow path.)
+            let job: () -> Void = { [me = weakLink] in
+                guard let self = me.wrappedValue else { return }
                 let t0 = CFAbsoluteTimeGetCurrent()
                 var out: [(Int, Int, SectionMesh)] = []
                 for (sy, v) in list { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond))) }
@@ -2071,8 +2085,8 @@ final class World {
         genInFlight.insert(k)
         jobs += 1
         let mc = shell ? meshCache : nil
-        let job: () -> Void = { [weak self] in
-            guard let self else { return }
+        let job: () -> Void = { [me = weakLink] in        // (item 8: see meshing's job)
+            guard let self = me.wrappedValue else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var r: Produced
             if let e = mc?.read(k) { r = Produced(blocks: [], height: [], tint: [], fromDisk: false, entities: [], mobs: []); r.cached = e }

@@ -79,6 +79,8 @@ final class MeshArena {
     private(set) var slabBytes = 0
     private(set) var slabCount = 0, slabMsWorst = 0.0, slabMsTotal = 0.0     // (P400 harness: new slabs and their cost)
 
+    // Bytes in live slices (memsim: against slabBytes, how much of the slabs is used).
+    var liveBytes: Int { lock.lock(); defer { lock.unlock() }; return slabs.values.reduce(0) { $0 + $1.live } }
     // Bytes sitting in free lists (fragmentation), for --bench.
     var freeBytes: Int {
         lock.lock(); defer { lock.unlock() }

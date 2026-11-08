@@ -807,7 +807,7 @@ final class BlastShape {
     static var deferred = false
     static var queue: [BlastShape] = []
     static var worstStepMs = 0.0, worstStep = ""             // (perf scenes)
-    weak var world: World?
+    @WeakLink var world: World? = nil
     let balls: [(V3, Float)]
     let opened: [IVec3]
     private var carved = Set<IVec3>()

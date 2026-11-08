@@ -405,7 +405,7 @@ final class Chunk {
     var lod = 0 {                  // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
     }
-    weak var world: World?         // the world it is installed in (its dirty list; set by World.install)
+    @WeakLink var world: World? = nil         // the world it is installed in (its dirty list; set by World.install)
     var prefetchMark = 0           // (World.notePrefetched: told apart from a later chunk at the same address)
 
     // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s

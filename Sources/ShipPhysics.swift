@@ -133,7 +133,7 @@ private struct Contact {
     var n: V3
     var pen: Float
     var acc: Float = 0
-    weak var other: Ship?
+    @WeakLink var other: Ship? = nil
 }
 
 extension ShipManager {

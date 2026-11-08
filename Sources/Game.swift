@@ -3,7 +3,7 @@ import simd
 
 let DAY_LENGTH: Double = 1200 // seconds per full day/night cycle (20 minutes, like the reference game)
 
-final class Game {
+final class Game: LifeLinked {
     // The dimension the player is in; other dimensions are kept (unloaded) in `dims`.
     private(set) var dim: DimensionState
     private(set) var dims: [Dim: DimensionState] = [:]
@@ -320,7 +320,7 @@ final class Game {
     var grapple: GrappleLine.Hook?           // a Grapple Line's hook, reeling the player in (SkyIsle.swift, C7)
     var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
     var attackQueued: Float = 0
-    weak var commandeerHint: Ship?     // the vessel whose helm last creaked at him (ShipPlay.commandeerHintTick)
+    @WeakLink var commandeerHint: Ship? = nil     // the vessel whose helm last creaked at him (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseGrave: HorseGrave?        // P259: where and when the bonded horse died (Riding.swift)
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
@@ -490,6 +490,7 @@ final class Game {
     var padConnected = false
 
     static var alive = 0            // live Game objects (leak check in --bench)
+    lazy var lifeLink = LifeLink(self)    // (item 8: WeakLink.swift)
     deinit { Game.alive -= 1 }
 
     init(world: World, save: SaveManager?, persistent: Bool) {
@@ -501,8 +502,8 @@ final class Game {
         self.save = save
         self.persistent = persistent
         if persistent { Blueprints.known = []; Blueprints.seedPending = false }      // a new world knows none (P138; a load sets them)
-        onToast = { [weak self] s in
-            guard let self else { return }
+        onToast = { [me = weakLink] s in              // (item 8: a link, not a weak reference: WeakLink.swift)
+            guard let self = me.wrappedValue else { return }
             self.logMessage(s)                                         // (the journal gets every one at once, in order)
             // Q2c-console-12: the message showing keeps the HUD until it has been readable (Game.readFor); newer ones
             // wait their turn (toastQueueTick). A line that extends the one showing (the journal's note) replaces it.
@@ -729,24 +730,24 @@ final class Game {
         w.loadObjects()                                     // P389 (WorldObjects)
         Trains.load(w)                                      // P337 step 6
         w.redstone.game = self
-        w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+        w.onFluidEvent = { [me = weakLink] p in me.wrappedValue?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
         // Ledger 55: a torch a flow takes drops as an item; lava burns it with a hiss.
-        w.onWashedAway = { [weak self] p, b, fluid in
-            guard let self else { return }
+        w.onWashedAway = { [me = weakLink] p, b, fluid in
+            guard let self = me.wrappedValue else { return }
             let at = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
             if Blocks.fluidKind[Int(fluid)] == Blocks.fluidKind[Int(LAVA)] { self.sfx(.fizz, 0.5, at: at); return }
             for s in Mining.drops(b, .empty) { self.drops.spawn(s, at: at) }
         }
         // P478: fuel catching: a whoomp, at most every 0.3 s however many cells catch.
         var lastWhoomp = 0.0
-        w.onFuelLit = { [weak self] p in
+        w.onFuelLit = { [me = weakLink] p in
             let now = CFAbsoluteTimeGetCurrent()
             guard now - lastWhoomp > 0.3 else { return }
             lastWhoomp = now
-            self?.sfx(.fireball, 0.7, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+            me.wrappedValue?.sfx(.fireball, 0.7, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         }
-        w.onIgnite = { [weak self] p, b in
-            guard let self else { return }
+        w.onIgnite = { [me = weakLink] p, b in
+            guard let self = me.wrappedValue else { return }
             if Blocks.key(b) == "tnt" { self.world.setBlockAsync(p.x, p.y, p.z, AIR); self.tnts.prime(at: p) }
         }
     }
@@ -2392,14 +2393,14 @@ final class Game {
                 let m = DoubleChestMenu(game: self, a: first.container, b: second.container)
                 m.title = "Large Trapped Chest"
                 world.redstone.setTrapped(p, 1); world.redstone.setTrapped(q, 1)
-                m.closed = { [weak self] in self?.world.redstone.setTrapped(p, 0); self?.world.redstone.setTrapped(q, 0) }
+                m.closed = { [me = weakLink] in me.wrappedValue?.world.redstone.setTrapped(p, 0); me.wrappedValue?.world.redstone.setTrapped(q, 0) }
                 openMenu(m)
                 return
             }
             let m = ChestMenu(game: self, entity: be)
             m.title = "Trapped Chest"
             world.redstone.setTrapped(p, 1)
-            m.closed = { [weak self] in self?.world.redstone.setTrapped(p, 0) }
+            m.closed = { [me = weakLink] in me.wrappedValue?.world.redstone.setTrapped(p, 0) }
             openMenu(m)
         case _ where k.hasSuffix("shulker_box"):
             let be = world.entity(p, .shulker)

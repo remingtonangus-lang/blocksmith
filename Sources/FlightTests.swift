@@ -10,7 +10,7 @@ import simd
 //              stalls when slowed nose-high and recovers by itself (nose drops, speed comes back)
 enum FlightTests {
     static var failures: [String] = []
-    static weak var game: Game?
+    @WeakLink static var game: Game? = nil
     static func check(_ ok: Bool, _ name: String, _ detail: @autoclosure () -> String = "") {
         let d = detail()
         print("flighttest \(ok ? "ok  " : "FAIL") \(name)\(d.isEmpty ? "" : ": " + d)")

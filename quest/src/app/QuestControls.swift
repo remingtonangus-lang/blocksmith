@@ -253,7 +253,7 @@ final class QuestControls {
     private var panelYaw: Float { panelYawT + app.rig.bodyYaw }
 
     // The ship the player rides (aboard or at the helm): its turns turn the rig, its motion drives the vignette.
-    private weak var carryShip: Ship?
+    @WeakLink private var carryShip: Ship? = nil
     private var carryYaw: Float = 0
     private var carryRot = simd_quatf()
     private var carryVel = V3.zero
