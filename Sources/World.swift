@@ -537,19 +537,17 @@ final class World: LifeLinked {
 
     // Ledger 64: the light for something drawn where it lies (a particle, a dropped item, an arrow in the ground). A field
     // world's surface runs above its cell's floor, so a thing lying on it is often inside a ground cell, which lets no
-    // light by: it drew at the 15% floor, near black (the void shots: a trail of black squares where he walked, the dust
-    // his steps kicked up lying on the sand). A cell that lets no light by reads the first open cell above it, up to 4
-    // up (an open cell's own light stands: a cave stays dark). BS_OLDOPENLIGHT=1: the cell's own light, as before.
+    // light by: it drew at the 15% light floor, near black (the void shots: a trail of black squares where he walked, the
+    // dust his steps kicked up lying on the sand). A cell reading no light at all reads the cell above it, or the one
+    // above that, as the debris pieces already did. (Light only, no look at what the cell is: block() in a field world
+    // works the ground out from the field, and asking it for every particle every frame took the worst scene's particle
+    // drawing from 0.12 to 0.63 ms.) BS_OLDOPENLIGHT=1: the cell's own light, as before.
     static let oldOpenLight = ProcessInfo.processInfo.environment["BS_OLDOPENLIGHT"] == "1"
-    // (Only a cell reading no light at all looks at what the cell is: block() in a field world works the ground out from
-    // the field, and asking it of every particle every frame made the worst scene's particle drawing 0.12 -> 0.63 ms.)
     func lightOpen(_ x: Int, _ y: Int, _ z: Int) -> (sky: Int, block: Int) {
         let l = lightAt(x, y, z)
         if World.oldOpenLight || l.sky > 0 || l.block > 0 { return l }
-        var oy = y
-        let lo = Blocks.lightOpaque
-        for _ in 0..<4 where oy >= 0 && oy < CH - 1 && lo[Int(block(x, oy, z))] { oy += 1 }
-        return oy == y ? l : lightAt(x, oy, z)
+        let a = lightAt(x, y + 1, z)
+        return a.sky > 0 || a.block > 0 ? a : lightAt(x, y + 2, z)
     }
     static let oldUnlit = ProcessInfo.processInfo.environment["BS_OLDUNLIT"] == "1"
     static let oldStep = ProcessInfo.processInfo.environment["BS_OLDSTEP"] == "1"      // (the full lift only, as before Nov 5)
