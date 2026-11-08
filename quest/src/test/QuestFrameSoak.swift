@@ -210,10 +210,15 @@ enum QuestFrameSoak {
 
     // The middle of `biome` on `seed`'s world, the player moved there and the land loaded round him.
     // (spiralling out from spawn in 48-block steps, the column and eight points 40 out all in it: well inside, not its edge)
+    // (Nov 8: at the soak seed no swamp or badlands 80 blocks across lies within 3,400 blocks, and both scenes walked
+    // the world's middle instead, under their names. A second, wider search takes a biome 48 blocks across.)
     static func findBiome(_ gen: TerrainGenerator, _ want: String) -> V3? {
+        findBiome(gen, want, reach: 40, steps: 20000) ?? findBiome(gen, want, reach: 24, steps: 120000)
+    }
+    static func findBiome(_ gen: TerrainGenerator, _ want: String, reach r: Int, steps: Int) -> V3? {
         var x = 0, z = 0, dx = 0, dz = -1
-        let probes: [(Int, Int)] = [(0, 0), (40, 0), (-40, 0), (0, 40), (0, -40), (40, 40), (-40, 40), (40, -40), (-40, -40)]
-        for _ in 0..<20000 {
+        let probes: [(Int, Int)] = [(0, 0), (r, 0), (-r, 0), (0, r), (0, -r), (r, r), (-r, r), (r, -r), (-r, -r)]
+        for _ in 0..<steps {
             let wx = x * 48 + 8, wz = z * 48 + 8
             if probes.allSatisfy({ gen.column(wx + $0.0, wz + $0.1).biome.name == want }) {
                 return V3(Float(wx) + 0.5, Float(max(gen.column(wx, wz).height, SEA) + 1), Float(wz) + 0.5)
@@ -224,7 +229,7 @@ enum QuestFrameSoak {
         return nil
     }
     static func goTo(_ g: Game, biome: String) {
-        guard let p = findBiome(g.world.gen, biome) else { print("framesoak: no \(biome) found"); return }
+        guard let p = findBiome(g.world.gen, biome) else { print("framesoak: no \(biome) found within 8,000 blocks: this scene walks the world's middle"); return }
         g.player.pos = p
         _ = g.world.loadSync(center: p, radius: g.world.renderDistance)
         print(String(format: "framesoak: %@ at %.0f %.0f", biome, p.x, p.z))

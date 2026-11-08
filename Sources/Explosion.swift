@@ -460,8 +460,10 @@ final class CraterJob {
     private var circuitsNear: Bool?
     private var waitFrames = 0
     private var fineFrames = 0
+    private var leanFetch = true
     // (the soak's count of fine sections a bowl step made beyond its one prefetched section)
     static var finesUnfetched = 0, stepsUnfetched = 0, unfetchedPhases: [String: Int] = [:]
+    static let oldFetch = ProcessInfo.processInfo.environment["BS_OLDBOWLFETCH"] == "1"
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
@@ -514,13 +516,21 @@ final class CraterJob {
         var phase = "wait", removed0 = removed
         let refills0 = World.refilledAtOnce          // (Nov 4: a shell chunk refilled on the frame thread by an edit)
         let fine0 = World.fineMade
+        if World.fineWhy { World.fineLog.removeAll(keepingCapacity: true) }
+        var fetchedNow = false                       // (a lean prefetch beside this step's carving)
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
             // (sections given their fine samples by a step that was not a prefetch: one at a time or not, a frame's cost)
-            if timed && World.fineMade - fine0 > (phase.hasSuffix("fine prefetch") ? 1 : 0) {
+            if timed && World.fineMade - fine0 > (phase.hasSuffix("fine prefetch") || fetchedNow ? 1 : 0) {
                 CraterJob.finesUnfetched += World.fineMade - fine0; CraterJob.stepsUnfetched += 1
                 CraterJob.unfetchedPhases[phase, default: 0] += World.fineMade - fine0
+                if World.fineWhy {
+                    let ccx = floorDiv(Int(floor(center.x)), CS), ccz = floorDiv(Int(floor(center.z)), CS), csy = Int(floor(center.y)) >> 4
+                    let made = World.fineLog.map { "(\(Int($0.x) - ccx),\(Int($0.y) - csy),\(Int($0.z) - ccz))" }.joined(separator: " ")
+                    print(String(format: "fine why: %@ at %.0f %.0f %.0f r %.1f depth %d shear %.2f %.2f turned %@ prefetch frames %d: made %@ (chunk dx, section dy, chunk dz)",
+                                 phase, center.x, center.y, center.z, r, depth, shear.x, shear.y, axes == nil ? "no" : "yes", fineFrames, made))
+                }
             }
             if timed && took * 1000 > CraterJob.worstStepMs {
                 CraterJob.worstStepMs = took * 1000
@@ -544,6 +554,17 @@ final class CraterJob {
         if blocks != .max && fineFrames < 48 {
             if w.prefetchFine(center, radius: max(r, Float(depth))) { fineFrames += 1; phase = "fine prefetch"; return false }
             fineFrames = 48
+        }
+        // (Nov 8, the citadel and worst-case soaks with BS_FINEWHY=1: the crawler's deep bowls (26 down, leaning 1.2 blocks
+        // a layer along the shot) still made 13 sections a scene during the carving, two chunks along the shot and one or
+        // two sections down, past the box above. A leaning or turned bowl's sections down its axis get theirs one a step
+        // beside the carving, which takes the nearest cells first and reaches those last; waiting for them first held the
+        // bowl back over a second. BS_OLDBOWLFETCH=1 for before.)
+        if blocks != .max && leanFetch && !CraterJob.oldFetch && (axes != nil || shear.x != 0 || shear.y != 0) {
+            let dir: V3 = axes.map { -$0.1 } ?? V3(shear.x, -1, shear.y)
+            var made = false
+            for k in 1...4 where !made { made = w.prefetchFine(center + dir * (Float(depth) * Float(k) / 4), radius: r) }
+            if made { fetchedNow = true } else { leanFetch = false }
         }
         if circuitsNear == nil {
             phase = "circuit scan"

@@ -134,6 +134,7 @@ extension World {
         } } }
         c.blocks.fine[sy] = f
         World.fineMade &+= 1
+        if World.fineWhy { World.fineLog.append(SIMD3(Int32(c.cx), Int32(sy), Int32(c.cz))) }
         return true
     }
 
@@ -447,6 +448,9 @@ struct FinePrefetch { let c: ObjectIdentifier; let mark: Int; let sy: Int; let v
 extension World {
     static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
     static var fineMade = 0                              // (sections given their fine samples: the soak's slowest bowl step)
+    // (BS_FINEWHY=1, the soak: which sections a bowl step made past its prefetch, printed by CraterJob)
+    static let fineWhy = ProcessInfo.processInfo.environment["BS_FINEWHY"] == "1"
+    static var fineLog: [SIMD3<Int32>] = []
     static var prefetchMarks = 0                         // (main thread)
     static func notePrefetched(_ c: Chunk, _ sy: Int) {
         if c.prefetchMark == 0 { prefetchMarks += 1; c.prefetchMark = prefetchMarks }
