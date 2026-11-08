@@ -5,21 +5,13 @@ import Foundation
 // takes the runtime's slow path. The worst-case soak's callgrind put 7% of all instructions there; BS_RCPROBE=1 named
 // the objects: the World, the Game, the ShipManager and the ships with riders or turrets (RefcountProbe.swift).
 //
-// `@WeakLink var x: T?` reads like `weak var x: T?`, from any thread: the holder keeps a strong reference to the
-// object's small LifeLink, which holds the object `unowned` (its allocation, not its life: the unowned count sits in
-// the object's own reference-count word, no side table) and hands out a strong reference only while the object is
-// not going away (the runtime's swift_tryRetain, as a weak load does). A closure takes `[me = weakLink]` in place of
-// `[weak self]`.
-@_silgen_name("swift_tryRetain") private func swiftTryRetain(_ object: UnsafeMutableRawPointer) -> Bool
-
+// `@WeakLink var x: T?` reads like `weak var x: T?`: the holder keeps a strong reference to the object's small LifeLink,
+// the object clears it first thing in its deinit, and the holder reads nil from then on. Clearing is not atomic with
+// the last release, so it is for objects read on the thread that lets them go (the game thread); a worker's job
+// reaches the World or the ShipManager through a JobGate instead.
 final class LifeLink {
-    private unowned(safe) let keep: AnyObject       // (never read: it only keeps the allocation while links exist)
-    private let address: UnsafeMutableRawPointer
-    init(_ o: AnyObject) { keep = o; address = Unmanaged.passUnretained(o).toOpaque() }
-    var object: AnyObject? {
-        guard swiftTryRetain(address) else { return nil }
-        return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue()
-    }
+    unowned(unsafe) var object: AnyObject?
+    init(_ o: AnyObject) { object = o }
 }
 
 protocol LifeLinked: AnyObject { var lifeLink: LifeLink { get } }
@@ -35,5 +27,40 @@ protocol LifeLinked: AnyObject { var lifeLink: LifeLink { get } }
 }
 
 extension LifeLinked {
+    // For a closure: `{ [me = weakLink] in me.wrappedValue?.... }` in place of `[weak self]`.
     var weakLink: WeakLink<Self> { WeakLink(wrappedValue: self) }
+}
+
+// A worker's job that uses an object without holding it (`[unowned(unsafe) self, gate]`) runs between enter() and
+// leave(); the object's deinit calls close() first, which turns new jobs away and waits for the ones running. (A job
+// that itself let the object go would deinit it on its own thread: close() does not wait for that thread's own jobs.)
+final class JobGate {
+    private let cond = NSCondition()
+    private var closed = false
+    private var running: [UInt: Int] = [:]          // jobs inside, by thread
+    private var inside = 0
+    private static func me() -> UInt { UInt(bitPattern: Unmanaged.passUnretained(Thread.current).toOpaque()) }
+
+    func enter() -> Bool {
+        cond.lock(); defer { cond.unlock() }
+        if closed { return false }
+        inside += 1
+        running[JobGate.me(), default: 0] += 1
+        return true
+    }
+    func leave() {
+        cond.lock()
+        inside -= 1
+        let t = JobGate.me()
+        if let n = running[t], n > 1 { running[t] = n - 1 } else { running[t] = nil }
+        cond.broadcast()
+        cond.unlock()
+    }
+    func close() {
+        cond.lock()
+        closed = true
+        let mine = running[JobGate.me()] ?? 0
+        while inside > mine { cond.wait() }
+        cond.unlock()
+    }
 }
