@@ -103,6 +103,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < Command
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
 // --framesoak [--only crawler,citadel,naval,train,hell,battle] [--seconds 40] [--rd 10]: the store review's frame rate
 // (VRC.Quest.Performance.1) in the heavy scenes of play, frame by frame in real time (quest/src/test/QuestFrameSoak.swift).
+// Each scene ends with a void count (week item 63: eight probe shots, the sky through the ground; --novoids skips it).
 if CommandLine.arguments.contains("--framesoak"), let ctx = vkctx { exit(QuestFrameSoak.run(ctx: ctx)) }
 // --freezetest [--rd 8]: the Oct 23 base freezes (a bulkhead door opened, a wall block broken), frame by frame (P416).
 if CommandLine.arguments.contains("--freezetest") { exit(QuestFreezeTest.run()) }
@@ -1546,26 +1547,8 @@ if let out = arg("--view"), let ctx = vkctx {
         // the sky shows through. Written marked (OUT-void.png) when there are any.
         if CommandLine.arguments.contains("--voidcount") {
             var img = RenderTest.lastRGBA
-            let tw = tanf(vfov * .pi / 360), th = tw * Float(vhei) / Float(vwid)
-            let cp = cosf(pitch), sp = sinf(pitch), lim = sinf(-12 * .pi / 180)
-            var holes = 0, below = 0, backstop = 0, rows = Set<Int>(), cols = Set<Int>()
-            var marks: [(Int, Int)] = []
-            for eye in 0..<2 { for y in 0..<vhei {
-                let vy = (1 - 2 * (Float(y) + 0.5) / Float(vhei)) * th
-                for x in 0..<vwid {
-                    let vx = (2 * (Float(x) + 0.5) / Float(vwid) - 1) * tw
-                    let wy = (cp * vy + sp) / sqrtf(vx * vx + vy * vy + 1)
-                    guard wy < lim else { continue }
-                    below += 1
-                    let i = ((y * vwid * 2) + eye * vwid + x) * 4
-                    // (pure green: only the horizon's fog floor, Renderer.buildHorizon, met the ray: no hole the sky
-                    // shows through any more, but no ground either; counted apart)
-                    if i + 2 < img.count, img[i] < 25, img[i + 1] > 235, img[i + 2] < 25 { backstop += 1 }
-                    guard i + 2 < img.count, img[i] > 235, img[i + 1] < 25, img[i + 2] > 235 else { continue }
-                    holes += 1; rows.insert(y / 8); cols.insert((eye * vwid + x) / 8)
-                    if marks.count < 4000 { marks.append((eye * vwid + x, y)) }
-                }
-            } }
+            let vc = RenderTest.countVoid(img, width: vwid, height: vhei, eyes: 2, fovDeg: vfov, pitch: pitch)
+            let holes = vc.holes, below = vc.below, backstop = vc.backstop, rows = vc.rows, cols = vc.cols, marks = vc.marks
             print(String(format: "voidcount: %d of %d pixels below the horizon show through (%.4f%%), in %d by %d cells of 8 px; seed %@ at %.1f %.1f %.1f look %.0f %.0f",
                          holes, below, Double(holes) * 100 / Double(max(1, below)), cols.count, rows.count, arg("--seed") ?? "?",
                          vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0)
@@ -2052,6 +2035,19 @@ if let out = arg("--figureshot") {
     print("figureshot: \(pre) set, preview \(cw)x\(chh) px at \(minX),\(minY) -> \(out)")
     exit(0)
 }
+// --vaultride N (Nov 8: the Ash Vault rail ride check rolled 0 blocks once in a suite run on build 255): the ride alone,
+// N times, from the overworld each time, as the suite does it.
+if let n = Int(arg("--vaultride") ?? "") {
+    var bad = 0
+    for i in 0..<n {
+        let home = game.player.pos
+        AshVaultGapTests.ride(game) { ok, what in if !ok { bad += 1; print("FAIL run \(i + 1): \(what)") } else if i == 0 { print("ok   \(what)") } }
+        game.changeDimension(to: .overworld, at: home); _ = game.world.loadSync(center: home, radius: 2)
+        game.mobs.mobs.removeAll()
+    }
+    print("vaultride: \(n - bad) of \(n) rolled up the line"); exit(bad == 0 ? 0 : 1)
+}
+
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
     // (--links: only the P510 links and the ride through)

@@ -331,7 +331,7 @@ final class ProjectileManager {
             let side = simd_length(simd_cross(d, V3(0, 1, 0))) > 0.01 ? simd_normalize(simd_cross(d, V3(0, 1, 0))) : V3(1, 0, 0)
             let up = simd_cross(side, d)
             let c = a.pos - eye
-            let l = world.lightAt(Int(floor(a.pos.x)), Int(floor(a.pos.y)), Int(floor(a.pos.z)))
+            let l = world.lightOpen(Int(floor(a.pos.x)), Int(floor(a.pos.y)), Int(floor(a.pos.z)))      // (ledger 64: the tip stands in the ground)
             let light = max(0.1, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             // Two crossed quads along the flight direction; the sprite's diagonal is the shaft.
             let isTrident = a.trident != nil

@@ -477,6 +477,54 @@ enum QuestFrameSoak {
 
     static func pct(_ a: [Double], _ p: Int) -> Double { a.isEmpty ? 0 : a.sorted()[min(a.count - 1, a.count * p / 100)] }
 
+    // Week item 63 ("zero void gaps: an automated void count in every soak, held at zero"; FAILURES 4): once a scene's
+    // frames are done, eight probe shots from where it ended (four quarters round him, 25 and 50 degrees down; the frame
+    // cleared to magenta with no sky drawn, RenderTest.countVoid) count the pixels below the horizon that the sky shows
+    // through. Not in the Hollow, whose islands hang over open sky. --novoids leaves it out.
+    static func voidCheck(_ g: Game, ctx: VkContext, scene: SceneRenderer, wr: WorldRenderer) -> (holes: Int, below: Int, backstop: Int, worst: String)? {
+        guard g.dim.dim != .end, !CommandLine.arguments.contains("--novoids") else { return nil }
+        // (the soak drops its frames' GPU commands, SceneRenderer.skipGPU: these shots are drawn; build 257's were not, and
+        // read back whatever the buffer's memory held before)
+        let probe0 = WorldRenderer.voidProbe, skip0 = WorldRenderer.debugSkip, gpu0 = SceneRenderer.skipGPU
+        let pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
+        WorldRenderer.voidProbe = true; WorldRenderer.debugSkip.insert("sky"); SceneRenderer.skipGPU = false
+        defer {
+            WorldRenderer.voidProbe = probe0; WorldRenderer.debugSkip = skip0; SceneRenderer.skipGPU = gpu0
+            g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0
+        }
+        let size = 256, fov: Float = 90
+        guard let rig = try? RenderTest.ShotRig(game: g, scene: scene, wr: wr, ctx: ctx, width: size, height: size, fovDeg: fov, ring: true) else { return nil }
+        let eye = g.player.eye
+        var holes = 0, below = 0, backstop = 0, worst = (0, "")
+        var first = true
+        ParticleManager.drawnCount = 0; ParticleManager.darkCount = 0
+        defer { print("    void shots: particles drawn \(ParticleManager.drawnCount), with no light at all \(ParticleManager.darkCount) (ledger 64)") }
+        for down in [25, 50] as [Float] { for k in 0..<4 {
+            let yaw = yaw0 + Float(k) * .pi / 2, pitch = -down * .pi / 180
+            guard let img = try? rig.grab(eye: eye, yaw: yaw, pitch: pitch, frames: first ? 3 : 2) else { continue }
+            first = false
+            let c = RenderTest.countVoid(img, width: size, height: size, eyes: 1, fovDeg: fov, pitch: pitch)
+            holes += c.holes; below += c.below; backstop += c.backstop
+            // (BS_VOIDSHOTS=DIR: every shot saved there, each hole ringed in green)
+            if let dir = ProcessInfo.processInfo.environment["BS_VOIDSHOTS"] {
+                var m = img
+                for (mx, my) in c.marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {
+                    let x = mx + dx, y = my + dy
+                    guard x >= 0, y >= 0, x < size, y < size else { continue }
+                    let i = (y * size + x) * 4
+                    m[i] = 0; m[i + 1] = 255; m[i + 2] = 0
+                } } }
+                let path = String(format: "%@/void-%.0f-%.0f-%.0f.png", dir, eye.x, eye.z, yaw * 180 / .pi + down * 1000)
+                try? PNG.encode(rgba: m, width: size, height: size).write(to: URL(fileURLWithPath: path))
+            }
+            if c.holes > worst.0 {
+                // (as questcheck --view takes it: --at the feet, internal y; --look yaw is the player's yaw negated)
+                worst = (c.holes, String(format: "--at %.1f,%.1f,%.1f --look %.0f,%.0f: %d", pos0.x, pos0.y, pos0.z, -yaw * 180 / .pi, -down, c.holes))
+            }
+        } }
+        return (holes, below, backstop, worst.1)
+    }
+
     static func scene(_ sc: Setup, rd: Int, secs: Int, ctx: VkContext) throws -> (Bool, String) {
         let device = sharedSystemDevice
         TextureGen.registerAll()
@@ -604,6 +652,7 @@ enum QuestFrameSoak {
             if due > now { usleep(useconds_t((due - now) * 1_000_000)) }
         }
         scene.waitIdle()
+        let voids = voidCheck(g, ctx: ctx, scene: scene, wr: wr)
         let n = Double(max(1, cpu.count))
         let mean = cpu.reduce(0, +) / n
         print(String(format: "framesoak %@ (%@): loaded in %.1f s (starts round him %.0f ms); %d frames; peak %d mobs, %d shells in flight, %d ships",
@@ -641,6 +690,10 @@ enum QuestFrameSoak {
         }
         Structure.tally = nil
         if !StructureCache.framePlans.isEmpty { print("    starts planned on the frame thread: " + StructureCache.framePlans.joined(separator: ", ")) }
+        if let v = voids {
+            print(String(format: "    voids (week item 63): %d of %d pixels below the horizon show the sky through, in 8 views from where the soak ended%@; fog floor only %d",
+                         v.holes, v.below, v.holes > 0 ? " (most at " + v.worst + ")" : "", v.backstop))
+        }
         print("    record stages (ms a frame): " + wr.takeStages())
         print(String(format: "    slowest hand-over of a finished job: %.1f ms (%@)", World.resultsWorstMs, World.resultsWorst))
         // What the slow frames were doing: the most common slowest stage, and the five slowest frames.
@@ -654,10 +707,11 @@ enum QuestFrameSoak {
         }
         PadManager.shared.touch = nil
         withExtendedLifetime((img, targets, wr)) {}
-        let ok = Double(misses) / n < 0.005 && longest < 3
-        let line = String(format: "%@ %@: mean %.1f ms, p99 %.1f, worst %.0f; %d misses (%.2f%%), longest run %d; quads p95 %.0fk",
-                          ok ? "ok  " : "SLOW", sc.name, mean * questFactor, pct(cpu, 99) * questFactor, (cpu.max() ?? 0) * questFactor,
-                          misses, Double(misses) * 100 / n, longest, pct(quads, 95) / 1000)
+        let fast = Double(misses) / n < 0.005 && longest < 3, holes = voids?.holes ?? 0
+        let ok = fast && holes == 0
+        let line = String(format: "%@ %@: mean %.1f ms, p99 %.1f, worst %.0f; %d misses (%.2f%%), longest run %d; quads p95 %.0fk%@",
+                          ok ? "ok  " : (fast ? "VOID" : "SLOW"), sc.name, mean * questFactor, pct(cpu, 99) * questFactor, (cpu.max() ?? 0) * questFactor,
+                          misses, Double(misses) * 100 / n, longest, pct(quads, 95) / 1000, voids.map { "; voids \($0.holes)" } ?? "")
         return (ok, line)
     }
 }

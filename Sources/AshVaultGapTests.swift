@@ -157,8 +157,9 @@ enum AshVaultGapTests {
         g.mobs.mobs.append(cart)
         g.riding = cart
         cart.vel = V3(0, 0, -3)
-        var e: Float = 0, off = false
+        var e: Float = 0, off = false, held = 0
         while e < 12 {
+            if g.arrivalSince != nil { held += 1 }
             g.tick(0.05)
             w.pendingMobs.removeAll()
             if !Rails.isRail(w.block(6, AshWar.ground + 1, Int(floor(cart.pos.z)))) { off = true }
@@ -166,7 +167,13 @@ enum AshVaultGapTests {
         }
         g.riding = nil
         let went = -57.5 - cart.pos.z
-        check(went > 40 && !off && abs(cart.pos.x - 6.5) < 0.2, String(format: "ash vault rail: a cart from the citadel halt rolls %.0f blocks up the north line in 12 s (on the rails %@)", went, off ? "no" : "yes"))
+        // (Nov 8: it rolled 0 blocks once in a suite run on build 255, as in builds 41 and 42: what held it is said)
+        let kept = g.mobs.mobs.contains { $0 === cart }
+        check(went > 40 && !off && abs(cart.pos.x - 6.5) < 0.2, String(format: "ash vault rail: a cart from the citadel halt rolls %.0f blocks up the north line in 12 s (on the rails %@)%@", went, off ? "no" : "yes",
+                                                                 went > 40 ? "" : String(format: "; still among the mobs %@, %d ticks held on arrival, cart speed %.2f, riding %@; menu %@, credits %@, paused %@, photo mode %@",
+                                                                                         kept ? "yes" : "no", held, simd_length(cart.vel), g.riding === cart ? "it" : "none",
+                                                                                         g.menu.map { String(describing: type(of: $0)) } ?? "none", g.credits.map { String(format: "%.1f s", $0) } ?? "none",
+                                                                                         g.paused ? "yes" : "no", g.cine.active ? "on" : "off")))
     }
 
     static func war(_ g: Game, _ check: (Bool, String) -> Void) {

@@ -76,6 +76,8 @@ final class WorldRenderer {
     // drawn over it (QUEST_SKIP=sky), so every gap in what is drawn shows as magenta.
     static var voidProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
     static var debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
+    // (and within the entities pass, QUEST_SKIPENT=drops,debris,particles,shadows,halos,weather,... leaves those writers out)
+    static let entitySkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIPENT"] ?? "").split(separator: ",").map(String.init))
 
     let ships: ShipDraw
     // Volcano and Ancient Spire impostors past the render distance (Sources/LandmarkRender.swift on the HUD host).
@@ -731,32 +733,32 @@ final class WorldRenderer {
         let look = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
         let right = V3(cosf(yaw), 0, -sinf(yaw))
         let up = simd_normalize(simd_cross(right, look))
-        let w = game.world, daylight = game.daylight
-        game.drops.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, time: Float(game.clock))
-        game.projectiles.write(&wr, eye: eye, world: w, daylight: daylight)
-        game.tnts.write(&wr, eye: eye, world: w, daylight: daylight)
+        let w = game.world, daylight = game.daylight, es = WorldRenderer.entitySkip
+        if !es.contains("drops") { game.drops.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, time: Float(game.clock)) }
+        if !es.contains("projectiles") { game.projectiles.write(&wr, eye: eye, world: w, daylight: daylight) }
+        if !es.contains("tnts") { game.tnts.write(&wr, eye: eye, world: w, daylight: daylight) }
         game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
         game.writeFangs(&wr, eye: eye)
         game.writeBeams(&wr, eye: eye)
-        game.writeFalling(&wr, eye: eye)
-        w.ships.writeShells(&wr, eye: eye)
-        game.writeDecor(&wr, eye: eye)
+        if !es.contains("falling") { game.writeFalling(&wr, eye: eye) }
+        if !es.contains("shells") { w.ships.writeShells(&wr, eye: eye) }
+        if !es.contains("decor") { game.writeDecor(&wr, eye: eye) }
         game.writeBobber(&wr, eye: eye, right: right, up: -up)
         game.writeLeads(&wr, eye: eye)
         game.writeBanners(&wr, eye: eye)
         game.writeRockets(&wr, eye: eye)
-        game.writeArms(&wr, eye: eye)
+        if !es.contains("arms") { game.writeArms(&wr, eye: eye) }
         game.writeLecternBooks(&wr, eye: eye)
         game.writeShelves(&wr, eye: eye)
-        game.writeFelled(&wr, eye: eye)                                       // (P297 d: round felled trunks)
-        game.debris.write(&wr, eye: eye, world: w, daylight: daylight)      // (R15: ragdolls and debris in every world)
+        if !es.contains("felled") { game.writeFelled(&wr, eye: eye) }   // (P297 d: round felled trunks)
+        if !es.contains("debris") { game.debris.write(&wr, eye: eye, world: w, daylight: daylight) }   // (R15: ragdolls and debris in every world)
         let tp0 = CFAbsoluteTimeGetCurrent()
-        game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight)
+        if !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight) }
         particleSec = CFAbsoluteTimeGetCurrent() - tp0
         let nItems = wr.n
-        game.writeShadows(&wr, eye: eye)
-        game.writeHalos(&wr, eye: eye, right: right, up: -up)          // SH1 light halos
-        game.writeWeather(&wr, eye: eye)
+        if !es.contains("shadows") { game.writeShadows(&wr, eye: eye) }
+        if !es.contains("halos") { game.writeHalos(&wr, eye: eye, right: right, up: -up) }   // SH1 light halos
+        if !es.contains("weather") { game.writeWeather(&wr, eye: eye) }
         if let m = game.mining, game.mineProgress > 0, w.damageLevel(m) == 0, game.targetGround?.cell != m {      // (P297 b: not on polygon ground)
             let layer = HudTex.destroy(Int(game.mineProgress * 10))
             let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye

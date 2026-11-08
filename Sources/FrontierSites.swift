@@ -77,6 +77,8 @@ enum FrontierSites {
             // Ledger 49: pueblo tiers on the roof below, ladders facing off their walls, ghost town boards out of doorways (on
             // ground no save had generated before it: a site half built the old way would not meet itself).
             let l49 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL49) } ?? true
+            // Ledger 62: log wall plates under the homestead's eaves (on ground no save had generated before it).
+            let l62 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL62) } ?? true
             let reach = p478 ? ghostReach : reachBlocks
             let r = reach - 1
             let y: Int
@@ -101,7 +103,7 @@ enum FrontierSites {
             let s = rng.next(), rot = rng.int(4)
             let st = StructureStart(kind: site, pieces: [Piece(min: IVec3(x - reach, y - 10, z - reach),
                                                                max: IVec3(x + reach, y + 12, z + reach)) { w in
-                build(&w, site, bio, x, y, z, rot, s, p478: p478, l49: l49)
+                build(&w, site, bio, x, y, z, rot, s, p478: p478, l49: l49, l62: l62)
             }], anchor: IVec3(x, y + 1, z))
             return st
         }
@@ -135,7 +137,7 @@ enum FrontierSites {
     }
 
     static func build(_ w: inout StructWriter, _ site: String, _ bio: Biome, _ x: Int, _ y: Int, _ z: Int, _ rot: Int, _ seed: UInt64,
-                      p478: Bool = false, l49: Bool = true) {
+                      p478: Bool = false, l49: Bool = true, l62: Bool = true) {
         var rng = SRng(seed)
         let f = WildCamps.Frame(x: x, y: y + 1, z: z, rot: rot)
         let s32 = UInt32(truncatingIfNeeded: seed)
@@ -350,6 +352,10 @@ enum FrontierSites {
             shell(-10, -3, -12, -6, 3, wall: log, corner: log, floor: plank, roof: plank, door: (-3, -9), ruin: 0, roofRuin: 0)
             for dx in -10...(-3) { for (dz, dy) in [(-12, 3), (-11, 4), (-10, 4), (-9, 5), (-9, 4), (-8, 4), (-7, 4), (-6, 3)] { put(dx, dy, dz, dy == 5 ? slab : plank) } }
             for dx in -10...(-3) { put(dx, 3, -9, f.log(wd == "dark_oak" ? "oak" : wd, alongX: true)) }   // a ridge beam from gable to gable carries the roof (P388)
+            // Ledger 62: log wall plates along both eaves, two logs deep, carry the ceiling's sides onto the walls. Boards
+            // there handed a joint 130 sideways where a plank joint holds 100 (--loadcheck: a roof plank fell when
+            // anything near the cabin changed).
+            if l62 { for dx in -10...(-3) { for dz in [-12, -11, -7, -6] { put(dx, 3, dz, f.log(wd == "dark_oak" ? "oak" : wd, alongX: true)) } } }
             for dz in -11...(-7) { put(-11, 3, dz, stairs) }
             put(-9, 0, -11, b("furnace")); put(-8, 0, -11, b("crafting_table")); chest(-4, 0, -11, "homestead")
             // The homesteader's bed (P454, Oct 25 13:58: "There should be a bed inside the homesteads"), along the back

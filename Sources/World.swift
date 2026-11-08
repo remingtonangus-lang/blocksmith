@@ -535,6 +535,20 @@ final class World: LifeLinked {
         return (15 - d, 0)
     }
 
+    // Ledger 64: the light for something drawn where it lies (a particle, a dropped item, an arrow in the ground). A field
+    // world's surface runs above its cell's floor, so a thing lying on it is often inside a ground cell, which lets no
+    // light by: it drew at the 15% floor, near black (the void shots: a trail of black squares where he walked, the dust
+    // his steps kicked up lying on the sand). A cell that lets no light by reads the first open cell above it, up to 4
+    // up (an open cell's own light stands: a cave stays dark). BS_OLDOPENLIGHT=1: the cell's own light, as before.
+    static let oldOpenLight = ProcessInfo.processInfo.environment["BS_OLDOPENLIGHT"] == "1"
+    func lightOpen(_ x: Int, _ y: Int, _ z: Int) -> (sky: Int, block: Int) {
+        var y = y
+        if !World.oldOpenLight {
+            let lo = Blocks.lightOpaque
+            for _ in 0..<4 where y >= 0 && y < CH - 1 && lo[Int(block(x, y, z))] { y += 1 }
+        }
+        return lightAt(x, y, z)
+    }
     static let oldUnlit = ProcessInfo.processInfo.environment["BS_OLDUNLIT"] == "1"
     static let oldStep = ProcessInfo.processInfo.environment["BS_OLDSTEP"] == "1"      // (the full lift only, as before Nov 5)
     // (the world audit: whether the mesher has lit the cell's section yet)
