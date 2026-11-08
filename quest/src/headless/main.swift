@@ -2035,6 +2035,19 @@ if let out = arg("--figureshot") {
     print("figureshot: \(pre) set, preview \(cw)x\(chh) px at \(minX),\(minY) -> \(out)")
     exit(0)
 }
+// --vaultride N (Nov 8: the Ash Vault rail ride check rolled 0 blocks once in a suite run on build 255): the ride alone,
+// N times, from the overworld each time, as the suite does it.
+if let n = Int(arg("--vaultride") ?? "") {
+    var bad = 0
+    for i in 0..<n {
+        let home = game.player.pos
+        AshVaultGapTests.ride(game) { ok, what in if !ok { bad += 1; print("FAIL run \(i + 1): \(what)") } else if i == 0 { print("ok   \(what)") } }
+        game.changeDimension(to: .overworld, at: home); _ = game.world.loadSync(center: home, radius: 2)
+        game.mobs.mobs.removeAll()
+    }
+    print("vaultride: \(n - bad) of \(n) rolled up the line"); exit(bad == 0 ? 0 : 1)
+}
+
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
     // (--links: only the P510 links and the ride through)
