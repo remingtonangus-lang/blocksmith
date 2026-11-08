@@ -28,6 +28,7 @@ final class QuestApp {
     static func headsetWorld() {
         World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
         World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
+        DebrisWorld.budget = (Double(ProcessInfo.processInfo.environment["BS_DEBRISMS"] ?? "") ?? 1.5) / 1000   // a frame's debris sub-steps stop past 1.5 ms
         // P339 (Remington, Oct 18 20:10: "everything out to the 24-chunk view looks exactly like the land near him... no
         // coarse 2-block-lattice LOD, no blur or compression"): every chunk in view is meshed at full detail (no far
         // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged

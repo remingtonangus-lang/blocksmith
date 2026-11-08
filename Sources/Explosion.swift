@@ -460,6 +460,8 @@ final class CraterJob {
     private var circuitsNear: Bool?
     private var waitFrames = 0
     private var fineFrames = 0
+    // (the soak's count of fine sections a bowl step made beyond its one prefetched section)
+    static var finesUnfetched = 0, stepsUnfetched = 0, unfetchedPhases: [String: Int] = [:]
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
@@ -515,6 +517,11 @@ final class CraterJob {
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
+            // (sections given their fine samples by a step that was not a prefetch: one at a time or not, a frame's cost)
+            if timed && World.fineMade - fine0 > (phase.hasSuffix("fine prefetch") ? 1 : 0) {
+                CraterJob.finesUnfetched += World.fineMade - fine0; CraterJob.stepsUnfetched += 1
+                CraterJob.unfetchedPhases[phase, default: 0] += World.fineMade - fine0
+            }
             if timed && took * 1000 > CraterJob.worstStepMs {
                 CraterJob.worstStepMs = took * 1000
                 CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f, %ld chunks refilled at once, %ld fine sections made", phase, removed - removed0, r, World.refilledAtOnce - refills0, World.fineMade - fine0)
@@ -632,6 +639,11 @@ final class CraterJob {
             let rr = 0.85 * r * sqrtf(max(0.05, 1 - k * k))
             phase = "field ball"
             let along: V3 = axes.map { -$0.1 * t } ?? V3(shear.x * t, -t, shear.y * t)
+            // (Nov 8, every soak scene on build 245: a citadel ball took 5.1 ms of one frame, giving 3 sections their
+            // fine samples at once: the prefetch under the fireball covers a box of the bowl's radius or depth and
+            // stops after 48 frames, and the lower balls reach past it. Each ball's own sections get theirs first,
+            // one a frame, as the prefetch's do.)
+            if timed && w.prefetchFine(center + along, radius: rr) { phase = "field ball: fine prefetch"; return done }
             _ = w.carve(at: center + along, radius: rr, mode: .shape)
             bowlNext += 1
             return done
