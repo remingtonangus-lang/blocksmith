@@ -462,6 +462,7 @@ final class CraterJob {
     private var fineFrames = 0
     // (the soak's count of fine sections a bowl step made beyond its one prefetched section)
     static var finesUnfetched = 0, stepsUnfetched = 0, unfetchedPhases: [String: Int] = [:]
+    static let oldFetch = ProcessInfo.processInfo.environment["BS_OLDBOWLFETCH"] == "1"
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
@@ -548,9 +549,20 @@ final class CraterJob {
         // (Nov 4, the worst-case soak: a carving step that took 2 blocks took 10.6 ms: each block of field ground taken
         // first gives its section its fine samples, 1-2 ms a section. The sections the bowl and its field balls reach
         // get theirs first, one a frame under the fireball, as the crawler's ruts do: World.prefetchFine.)
-        if blocks != .max && fineFrames < 48 {
-            if w.prefetchFine(center, radius: max(r, Float(depth))) { fineFrames += 1; phase = "fine prefetch"; return false }
-            fineFrames = 48
+        // (Nov 8, the citadel and worst-case soaks with BS_FINEWHY=1: the crawler's deep bowls (26 down, leaning 1.2 blocks a
+        // layer along the shot) still made 13 sections a scene during the carving, two chunks along the shot and one or two
+        // sections down: the box round the impact reached as far above as below, and as far back as forward, so its 48
+        // frames ran out on air and on the side away from the shot before the bowl's own sections. The prefetch follows the
+        // bowl now: boxes of its radius down its leaning (or turned) axis, at most 96 frames. BS_OLDBOWLFETCH=1 for before.)
+        let cap = CraterJob.oldFetch ? 48 : 96
+        if blocks != .max && fineFrames < cap {
+            var made = false
+            if CraterJob.oldFetch { made = w.prefetchFine(center, radius: max(r, Float(depth))) } else {
+                let dir: V3 = axes.map { -$0.1 } ?? V3(shear.x, -1, shear.y)
+                for k in 0...4 where !made { made = w.prefetchFine(center + dir * (Float(depth) * Float(k) / 4), radius: r) }
+            }
+            if made { fineFrames += 1; phase = "fine prefetch"; return false }
+            fineFrames = cap
         }
         if circuitsNear == nil {
             phase = "circuit scan"
