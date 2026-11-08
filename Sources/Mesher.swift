@@ -105,6 +105,7 @@ enum Mesher {
     // in the section. Its sides take the face-projected texture (u = v = 31 in chunk.vert), which repeats per block
     // exactly as faceUV lays it, so the look is the same. BS_RUNMERGE=0 for before.
     static let runMerge = ProcessInfo.processInfo.environment["BS_RUNMERGE"] != "0"
+    static let drapeMerge = ProcessInfo.processInfo.environment["BS_DRAPEMERGE"] != "0"     // (Nov 8: drapeRect, below)
     // The same for a stack of one still, full-size cross (hanging vines: the jungle's most drawn block, 51k quads at the
     // perf spot): one tall cross per run, its corners' u = 28 (rising with x) or 29 (falling) and chunk.vert / ship.vert
     // lay the texture by position as the per-block corners did. Headset shaders only (the Mac's don't read 28 / 29).
@@ -1007,6 +1008,36 @@ enum Mesher {
             let farDrape = farCopies && !trans && curCut
             if farDrape { cutOut = drapeNear }
             func pieces() {
+                // Nov 8 (frame rate: wildflowers were the capital's most drawn block, 42k quads, 16 a cell): where every
+                // corner of the 4/16 pieces lies on the plane of the rectangle's four corners (flat ground, an even slope),
+                // the pieces are that one quad exactly (the same points, light and texture: faceUV runs with position),
+                // and it is drawn as one. BS_DRAPEMERGE=0 for before.
+                if Mesher.drapeMerge && (x1 - x0 > st || z1 - z0 > st), let a = y16(x0, z0), let b = y16(x1, z0), let c = y16(x0, z1), let d = y16(x1, z1),
+                   d - c == b - a {
+                    let dx = x1 - x0, dz = z1 - z0
+                    var flat = true
+                    var px = x0
+                    scan: while true {
+                        var pz = z0
+                        while true {
+                            let onX: Int = (b - a) * (px - x0) * dz, onZ: Int = (c - a) * (pz - z0) * dx, base: Int = a * dx * dz
+                            guard let h = y16(px, pz), h * dx * dz == base + onX + onZ else { flat = false; break scan }
+                            if pz == z1 { break }
+                            pz = min(z1, (pz / st + 1) * st)
+                        }
+                        if px == x1 { break }
+                        px = min(x1, (px / st + 1) * st)
+                    }
+                    if flat {
+                        for k in 0..<4 {
+                            let ci = (2 * 4 + k) * 3
+                            let qx = CT[ci] == 1 ? x1 : x0, qz = CT[ci + 2] == 1 ? z1 : z0
+                            let (u, v) = uv(qx, qz)
+                            vert(trans, lx * 16 + qx, y16(qx, qz) ?? ly * 16 + lift16, lz * 16 + qz, 2, tint, u, v, layer, 3, l, false)
+                        }
+                        return
+                    }
+                }
                 var xa = x0
                 while xa < x1 {
                     let xb = min(x1, (xa / st + 1) * st)
