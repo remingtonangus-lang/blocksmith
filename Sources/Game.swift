@@ -491,7 +491,7 @@ final class Game: LifeLinked {
 
     static var alive = 0            // live Game objects (leak check in --bench)
     lazy var lifeLink = LifeLink(self)    // (item 8: WeakLink.swift)
-    deinit { Game.alive -= 1 }
+    deinit { lifeLink.clear(); Game.alive -= 1 }
 
     init(world: World, save: SaveManager?, persistent: Bool) {
         Game.alive += 1

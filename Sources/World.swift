@@ -168,7 +168,7 @@ final class World: LifeLinked {
         return links.compactMap { $0.object as? World }
     }
     lazy var lifeLink = LifeLink(self)         // (item 8: WeakLink.swift)
-    deinit { World.aliveLock.lock(); World.alive -= 1; World.aliveLock.unlock() }
+    deinit { lifeLink.clear(); World.aliveLock.lock(); World.alive -= 1; World.aliveLock.unlock() }
     var debugState: String {
         lock.lock(); let gr = genResults.count, mr = meshResults.count; lock.unlock()     // workers append under the lock
         return "jobs \(jobs), queue ops \(workQueue.pending), gen in flight \(genInFlight.count), results \(gr)/\(mr), chunks \(chunks.count)"
