@@ -110,12 +110,17 @@ extension RenderTest {
         let game: Game, scene: SceneRenderer, wr: WorldRenderer, img: VkImg, targets: [RenderTarget], readback: VkBuf
         let width: Int, height: Int, proj: float4x4, far: Float
         // `ring`: the far plane as the headset's (the F4 middle ring's reach too), for the void count's shots.
-        init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, ring: Bool = false) throws {
-            self.game = game; self.width = width; self.height = height
-            scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
+        convenience init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, ring: Bool = false) throws {
+            let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
             try scene.uploadTextures()
-            wr = WorldRenderer(scene: scene, game: game)
+            let wr = WorldRenderer(scene: scene, game: game)
             wr.landmarkHost = Renderer(game: game)
+            try self.init(game: game, scene: scene, wr: wr, ctx: ctx, width: width, height: height, fovDeg: fovDeg, ring: ring)
+        }
+        // On a renderer already running (the frame soak's own: a second renderer beside it read back other memory).
+        init(game: Game, scene: SceneRenderer, wr: WorldRenderer, ctx: VkContext, width: Int, height: Int, fovDeg: Float, ring: Bool = false) throws {
+            self.game = game; self.width = width; self.height = height
+            self.scene = scene; self.wr = wr
             img = try VkImg(ctx, width: width, height: height, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
                             usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_SRC_BIT.rawValue)
             targets = [try scene.makeTarget(image: img.image, width: width, height: height),

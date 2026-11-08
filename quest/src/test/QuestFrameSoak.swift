@@ -481,14 +481,14 @@ enum QuestFrameSoak {
     // frames are done, eight probe shots from where it ended (four quarters round him, 25 and 50 degrees down; the frame
     // cleared to magenta with no sky drawn, RenderTest.countVoid) count the pixels below the horizon that the sky shows
     // through. Not in the Hollow, whose islands hang over open sky. --novoids leaves it out.
-    static func voidCheck(_ g: Game, ctx: VkContext) -> (holes: Int, below: Int, backstop: Int, worst: String)? {
+    static func voidCheck(_ g: Game, ctx: VkContext, scene: SceneRenderer, wr: WorldRenderer) -> (holes: Int, below: Int, backstop: Int, worst: String)? {
         guard g.dim.dim != .end, !CommandLine.arguments.contains("--novoids") else { return nil }
         let probe0 = WorldRenderer.voidProbe, skip0 = WorldRenderer.debugSkip
         let pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
         WorldRenderer.voidProbe = true; WorldRenderer.debugSkip.insert("sky")
         defer { WorldRenderer.voidProbe = probe0; WorldRenderer.debugSkip = skip0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0 }
         let size = 256, fov: Float = 90
-        guard let rig = try? RenderTest.ShotRig(game: g, ctx: ctx, width: size, height: size, fovDeg: fov, ring: true) else { return nil }
+        guard let rig = try? RenderTest.ShotRig(game: g, scene: scene, wr: wr, ctx: ctx, width: size, height: size, fovDeg: fov, ring: true) else { return nil }
         let eye = g.player.eye
         var holes = 0, below = 0, backstop = 0, worst = (0, "")
         var first = true
@@ -498,8 +498,8 @@ enum QuestFrameSoak {
             first = false
             let c = RenderTest.countVoid(img, width: size, height: size, eyes: 1, fovDeg: fov, pitch: pitch)
             holes += c.holes; below += c.below; backstop += c.backstop
-            // (BS_VOIDSHOTS=DIR: a shot with holes saved there, each hole ringed in green)
-            if c.holes > 0, let dir = ProcessInfo.processInfo.environment["BS_VOIDSHOTS"] {
+            // (BS_VOIDSHOTS=DIR: every shot saved there, each hole ringed in green)
+            if let dir = ProcessInfo.processInfo.environment["BS_VOIDSHOTS"] {
                 var m = img
                 for (mx, my) in c.marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {
                     let x = mx + dx, y = my + dy
@@ -645,7 +645,7 @@ enum QuestFrameSoak {
             if due > now { usleep(useconds_t((due - now) * 1_000_000)) }
         }
         scene.waitIdle()
-        let voids = voidCheck(g, ctx: ctx)
+        let voids = voidCheck(g, ctx: ctx, scene: scene, wr: wr)
         let n = Double(max(1, cpu.count))
         let mean = cpu.reduce(0, +) / n
         print(String(format: "framesoak %@ (%@): loaded in %.1f s (starts round him %.0f ms); %d frames; peak %d mobs, %d shells in flight, %d ships",
