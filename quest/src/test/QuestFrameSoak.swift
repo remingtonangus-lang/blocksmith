@@ -497,6 +497,16 @@ enum QuestFrameSoak {
         let eye = g.player.eye
         var holes = 0, below = 0, backstop = 0, worst = (0, "")
         var first = true
+        DebrisField.drawnCount = 0; DebrisField.unlitCount = 0; DebrisField.unlitAt = []
+        defer {
+            if DebrisField.unlitCount > 0 || ProcessInfo.processInfo.environment["BS_VOIDSHOTS"] != nil {
+                let at = DebrisField.unlitAt.map { p in
+                    let x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))
+                    return String(format: "%.1f %.1f %.1f", p.x, p.y, p.z) + " in " + (0...2).map { Blocks.key(g.world.block(x, y + $0, z)) }.joined(separator: "/")
+                }
+                print("    void shots: debris pieces drawn \(DebrisField.drawnCount), with no light at all \(DebrisField.unlitCount)" + (at.isEmpty ? "" : " (" + at.joined(separator: "; ") + ")"))
+            }
+        }
         for down in [25, 50] as [Float] { for k in 0..<4 {
             let yaw = yaw0 + Float(k) * .pi / 2, pitch = -down * .pi / 180
             guard let img = try? rig.grab(eye: eye, yaw: yaw, pitch: pitch, frames: first ? 3 : 2) else { continue }
