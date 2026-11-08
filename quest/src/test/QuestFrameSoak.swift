@@ -498,6 +498,18 @@ enum QuestFrameSoak {
             first = false
             let c = RenderTest.countVoid(img, width: size, height: size, eyes: 1, fovDeg: fov, pitch: pitch)
             holes += c.holes; below += c.below; backstop += c.backstop
+            // (BS_VOIDSHOTS=DIR: a shot with holes saved there, each hole ringed in green)
+            if c.holes > 0, let dir = ProcessInfo.processInfo.environment["BS_VOIDSHOTS"] {
+                var m = img
+                for (mx, my) in c.marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {
+                    let x = mx + dx, y = my + dy
+                    guard x >= 0, y >= 0, x < size, y < size else { continue }
+                    let i = (y * size + x) * 4
+                    m[i] = 0; m[i + 1] = 255; m[i + 2] = 0
+                } } }
+                let path = String(format: "%@/void-%.0f-%.0f-%.0f.png", dir, eye.x, eye.z, yaw * 180 / .pi + down * 1000)
+                try? PNG.encode(rgba: m, width: size, height: size).write(to: URL(fileURLWithPath: path))
+            }
             if c.holes > worst.0 {
                 // (as questcheck --view takes it: --at the feet, internal y; --look yaw is the player's yaw negated)
                 worst = (c.holes, String(format: "--at %.1f,%.1f,%.1f --look %.0f,%.0f: %d", pos0.x, pos0.y, pos0.z, -yaw * 180 / .pi, -down, c.holes))
