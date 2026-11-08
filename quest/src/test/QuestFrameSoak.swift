@@ -483,10 +483,15 @@ enum QuestFrameSoak {
     // through. Not in the Hollow, whose islands hang over open sky. --novoids leaves it out.
     static func voidCheck(_ g: Game, ctx: VkContext, scene: SceneRenderer, wr: WorldRenderer) -> (holes: Int, below: Int, backstop: Int, worst: String)? {
         guard g.dim.dim != .end, !CommandLine.arguments.contains("--novoids") else { return nil }
-        let probe0 = WorldRenderer.voidProbe, skip0 = WorldRenderer.debugSkip
+        // (the soak drops its frames' GPU commands, SceneRenderer.skipGPU: these shots are drawn; build 257's were not, and
+        // read back whatever the buffer's memory held before)
+        let probe0 = WorldRenderer.voidProbe, skip0 = WorldRenderer.debugSkip, gpu0 = SceneRenderer.skipGPU
         let pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
-        WorldRenderer.voidProbe = true; WorldRenderer.debugSkip.insert("sky")
-        defer { WorldRenderer.voidProbe = probe0; WorldRenderer.debugSkip = skip0; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0 }
+        WorldRenderer.voidProbe = true; WorldRenderer.debugSkip.insert("sky"); SceneRenderer.skipGPU = false
+        defer {
+            WorldRenderer.voidProbe = probe0; WorldRenderer.debugSkip = skip0; SceneRenderer.skipGPU = gpu0
+            g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0
+        }
         let size = 256, fov: Float = 90
         guard let rig = try? RenderTest.ShotRig(game: g, scene: scene, wr: wr, ctx: ctx, width: size, height: size, fovDeg: fov, ring: true) else { return nil }
         let eye = g.player.eye
