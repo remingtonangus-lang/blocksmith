@@ -7,9 +7,6 @@ import simd
 // that tumbles, lands on the drawn ground (WorldGround), settles and fades. Pieces show the block's own texture on its
 // outer faces, exactly the part they came from, and darker fresh material where they broke.
 final class DebrisField {
-    static let oldLight = ProcessInfo.processInfo.environment["BS_OLDDEBRISLIGHT"] == "1"
-    // (pieces drawn, and those that found no light at all and drew in the fill alone: the soak's void shots print them)
-    static var drawnCount = 0, unlitCount = 0, unlitAt: [V3] = []
     let bodies: DebrisWorld
     private let ws = Fracture.Workspace()
     private var scratch: [Fracture.Poly] = []
@@ -180,12 +177,6 @@ final class DebrisField {
             var l = world.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
             // (a piece lying in a field world's ground cell reads no light there: the open cell above lights it)
             if l.sky == 0 && l.block == 0 { l = world.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 1.1)), Int(floor(pos.z))) }
-            // (a piece sunk a little further: the first lit cell up to 4 above it; BS_OLDDEBRISLIGHT=1 before)
-            if l.sky == 0 && l.block == 0 && !DebrisField.oldLight {
-                for dy in 2...4 { l = world.lightAt(Int(floor(pos.x)), Int(floor(pos.y)) + dy, Int(floor(pos.z))); if l.sky > 0 || l.block > 0 { break } }
-            }
-            DebrisField.drawnCount += 1
-            if l.sky == 0 && l.block == 0 { DebrisField.unlitCount += 1; if DebrisField.unlitAt.count < 4 { DebrisField.unlitAt.append(pos) } }
             let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))
             let fill: Float = max(0.08, MobLight.fill * near)
             let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
