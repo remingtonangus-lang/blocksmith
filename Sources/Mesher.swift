@@ -113,13 +113,22 @@ enum Mesher {
     // Nov 6 (frame rate, the standing fill-in): small ground plants (grass tufts, ferns, flowers, dead bushes) go last
     // of a section's cutout quads, before the far-only tail, counted in MeshResult.plants, so the renderer can leave
     // them out from SceneRenderer.plantFarFrom (a tuft is under a pixel and a half there at headset resolution). Tall
-    // plants, vines, roots and water plants stay. BS_FARPLANTS=0 for before.
+    // plants, vines and roots stay (water plants too, until Nov 8: below). BS_FARPLANTS=0 for before.
     static let farPlants = ProcessInfo.processInfo.environment["BS_FARPLANTS"] != "0"
     static let farPlantKeys: Set<String> = ["short_grass", "grass", "fern", "dead_bush", "bush", "dandelion", "poppy", "blue_orchid",
         "allium", "azure_bluet", "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "oxeye_daisy", "cornflower",
         "lily_of_the_valley", "torchflower", "open_eyeblossom", "closed_eyeblossom", "short_dry_grass", "sweet_berry_bush"]
+    // Nov 8 (the soak's deep-ocean flight drew 165k quads, 40k of them seagrass and kelp past 64 blocks): water plants go
+    // with them. Past 64 blocks a seagrass tuft is as small as a grass one, and a kelp strand a pixel and a half wide;
+    // both are seen only through the water, which water.frag draws over the bed with its column's depth band (kelp and
+    // seagrass count as water there): over 5+ deep water a strand at 64 shows through at a few percent, and past 76
+    // not at all. BS_FARWATERPLANTS=0 keeps them, as before.
+    static let farWaterPlants = farPlants && ProcessInfo.processInfo.environment["BS_FARWATERPLANTS"] != "0"
+    static let farWaterPlantKeys: Set<String> = ["seagrass", "kelp"]
     static let farPlantT: [Bool] = (0..<Blocks.count).map { i in
-        farPlants && Blocks.defs[i].render == .cross && farPlantKeys.contains(Blocks.key(Blocks.groupBase[i]))
+        guard farPlants && Blocks.defs[i].render == .cross else { return false }
+        let k = Blocks.key(Blocks.groupBase[i])
+        return farPlantKeys.contains(k) || farWaterPlants && farWaterPlantKeys.contains(k)
     }
     #else
     static let crossRuns = false
