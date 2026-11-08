@@ -6,35 +6,28 @@ import Foundation
 // the objects: the World, the Game, the ShipManager and the ships with riders or turrets (RefcountProbe.swift).
 //
 // `@WeakLink var x: T?` reads like `weak var x: T?`, from any thread. The holder keeps a strong reference to the
-// object's small LifeLink; the object clears the link first thing in its deinit. A read takes the link's lock, takes a
-// strong reference and then looks at the object's reference-count word: if the object had already begun going away
-// (its last reference let go on another thread, before its deinit reached the link) the read gives the reference back
-// and returns nil, as a weak load does. The deinit's clear waits for a read under way, so the object's memory is still
-// there while a read looks at it. A closure takes `[me = weakLink]` in place of `[weak self]`.
+// object's small LifeLink, which holds the object `unowned`: that keeps its allocation (not its life) while links
+// exist, counted in the object's own reference-count word (no side table). A read takes a strong reference, then looks
+// at that word: if the object's deinit has begun (its last reference let go, on any thread) it gives the reference back
+// and returns nil, as a weak load does. A closure takes `[me = weakLink]` in place of `[weak self]`.
+// (Nov 8: a first link cleared in the deinit raced the last release on a worker, build 241's suite crashed; the
+// runtime's own swift_tryRetain is reserved and returned false through @_silgen_name, build 243; a lock round each
+// read cost 3% of the worst-case soak, build 244.)
 final class LifeLink {
-    private let lock = NSLock()
-    private var target: UnsafeMutableRawPointer?        // (the object's address, not a reference)
-    init(_ o: AnyObject) { target = Unmanaged.passUnretained(o).toOpaque() }
+    private unowned(safe) let keep: AnyObject       // (never read: it keeps the allocation while links exist)
+    private let address: UnsafeMutableRawPointer
+    init(_ o: AnyObject) { keep = o; address = Unmanaged.passUnretained(o).toOpaque() }
     var object: AnyObject? {
-        lock.lock(); defer { lock.unlock() }
-        guard let p = target else { return nil }
-        return LifeLink.take(p)
+        LifeLink.retain(address)                    // (not inlined: the look below can't move above it)
+        // The 64-bit runtimes' inline count word: bit 32 = deinit begun (a test reads 0x100000003 in a deinit); bit
+        // 63 = the count lives elsewhere (a side table: a `weak` reference was made to it after all), when this
+        // can't tell and says alive. Taken after the last release, the bit is already set; taken before, there was
+        // no last release.
+        let bits = address.load(fromByteOffset: MemoryLayout<Int>.size, as: UInt64.self)
+        if bits >> 63 == 0 && (bits >> 32) & 1 != 0 { Unmanaged<AnyObject>.fromOpaque(address).release(); return nil }
+        return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue()
     }
-    // (the object's deinit)
-    func clear() { lock.lock(); target = nil; lock.unlock() }
-
-    // Takes a strong reference, then looks at the 64-bit runtimes' inline reference-count word: bit 32 = deinit begun
-    // (the reference is given back: nil); bit 63 = the count lives elsewhere (a side table: a `weak` reference was made
-    // to it after all), when this can't tell and says alive. Taken after the last release, the bit is already set;
-    // taken before, there was no last release. (Never inlined or optimized: the look stays after the take.)
-    @inline(never) @_optimize(none)
-    private static func take(_ p: UnsafeMutableRawPointer) -> AnyObject? {
-        let u = Unmanaged<AnyObject>.fromOpaque(p)
-        _ = u.retain()
-        let bits = p.load(fromByteOffset: MemoryLayout<Int>.size, as: UInt64.self)
-        if bits >> 63 == 0 && (bits >> 32) & 1 != 0 { u.release(); return nil }
-        return u.takeRetainedValue()
-    }
+    @inline(never) private static func retain(_ p: UnsafeMutableRawPointer) { _ = Unmanaged<AnyObject>.fromOpaque(p).retain() }
 }
 
 protocol LifeLinked: AnyObject { var lifeLink: LifeLink { get } }
