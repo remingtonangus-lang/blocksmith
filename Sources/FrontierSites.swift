@@ -243,6 +243,10 @@ enum FrontierSites {
                             put(sx, dy, dz, dz == doorZ && dy == tall + 1 ? b("bell", "oak_fence") : (dz == doorZ && dy < tall + 3 ? AIR : plank))
                         } }
                         put(sx, tall + 3, doorZ, slab)
+                        // (Nov 8, --loadcheck: the steeple's side boards stood over the church's open inside, held only by
+                        // the roof slabs beside them, and where the wind had taken those the top boards would fall: seed 777
+                        // at 1411 75 -1313. Two posts inside the door carry it down to the floor.)
+                        for dy in 0..<tall { put(sx, dy, doorZ - 1, log); put(sx, dy, doorZ + 1, log) }
                     }
                     // Porch boards and posts on the street side, broken here and there.
                     let px = side < 0 ? x1 + 1 : x0 - 1
