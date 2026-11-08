@@ -314,6 +314,7 @@ final class StructureCache {
             legacyP512 = SaveManager.guarding?.structureGuard(file: "structure-guard-p512.txt") ?? []
             legacyL49 = SaveManager.guarding?.structureGuard(file: "structure-guard-l49.txt") ?? []
             legacyL52 = SaveManager.guarding?.structureGuard(file: "structure-guard-l52.txt") ?? []
+            legacyL62 = SaveManager.guarding?.structureGuard(file: "structure-guard-l62.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
@@ -332,6 +333,7 @@ final class StructureCache {
     var legacyP512: Set<Int64> = []              // ground saved before P512's wider loops at ends P511's didn't fit (RailLoops.swift)
     var legacyL49: Set<Int64> = []               // ground saved before ledger 49 (pueblo tiers on the roof below, frontier ladders, ghost town boards)
     var legacyL52: Set<Int64> = []               // ground saved before ledger 52-54 (family house table, outpost tent steps, no lamps on the town square)
+    var legacyL62: Set<Int64> = []               // ground saved before ledger 62 (log wall plates under the homestead's eaves)
     var legacyP475: Set<Int64> = []              // ground saved before P475 fenced Boreal Stations in chain link with a gate
     var legacyP470: Set<Int64> = []              // ground saved before P470 let two stations make a line (Railways.plan)
     var legacyP469: Set<Int64> = []              // ground saved before P469 gave depot bases their compounds (Depots.swift)
