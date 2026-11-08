@@ -514,6 +514,7 @@ final class CraterJob {
         var phase = "wait", removed0 = removed
         let refills0 = World.refilledAtOnce          // (Nov 4: a shell chunk refilled on the frame thread by an edit)
         let fine0 = World.fineMade
+        if World.fineWhy { World.fineLog.removeAll(keepingCapacity: true) }
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
@@ -521,6 +522,12 @@ final class CraterJob {
             if timed && World.fineMade - fine0 > (phase.hasSuffix("fine prefetch") ? 1 : 0) {
                 CraterJob.finesUnfetched += World.fineMade - fine0; CraterJob.stepsUnfetched += 1
                 CraterJob.unfetchedPhases[phase, default: 0] += World.fineMade - fine0
+                if World.fineWhy {
+                    let ccx = floorDiv(Int(floor(center.x)), CS), ccz = floorDiv(Int(floor(center.z)), CS), csy = Int(floor(center.y)) >> 4
+                    let made = World.fineLog.map { "(\(Int($0.x) - ccx),\(Int($0.y) - csy),\(Int($0.z) - ccz))" }.joined(separator: " ")
+                    print(String(format: "fine why: %@ at %.0f %.0f %.0f r %.1f depth %d shear %.2f %.2f turned %@ prefetch frames %d: made %@ (chunk dx, section dy, chunk dz)",
+                                 phase, center.x, center.y, center.z, r, depth, shear.x, shear.y, axes == nil ? "no" : "yes", fineFrames, made))
+                }
             }
             if timed && took * 1000 > CraterJob.worstStepMs {
                 CraterJob.worstStepMs = took * 1000
