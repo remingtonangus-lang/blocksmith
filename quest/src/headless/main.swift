@@ -2876,13 +2876,9 @@ do {
     }
     let used = a.liveBytes, held = a.slabBytes
     live.removeAll()
-    // (the trim in play keeps one empty slab, the trim after a lowered view none)
-    let empties = a.emptySlabs
-    let first = a.trim(keep: 1), left = a.emptySlabs
-    let back = first + a.trim()
-    check(bad == 0 && a.liveBytes == 0 && a.freeBytes == 0 && back == held - a.slabSize && empties == held / a.slabSize - 1
-          && left == min(1, empties) && a.emptySlabs == 0,
-          "mesh slices made and freed at random never overlap (\(bad) overwritten; \(used >> 10) KB live in \(held >> 10) KB at the end, then every slab but the one in use given back whole: \(empties) empty, \(left) kept by the trim in play)")
+    let back = a.trim()
+    check(bad == 0 && a.liveBytes == 0 && a.freeBytes == 0 && back == held - a.slabSize,
+          "mesh slices made and freed at random never overlap (\(bad) overwritten; \(used >> 10) KB live in \(held >> 10) KB at the end, then every slab but the one in use given back whole)")
 }
 // With --render: hell's own mobs lined up on the arena HellMobsTests fought on (hell_mobs.png next to the PNG).
 if let path = renderPath, !path.isEmpty, let ctx = vkctx, let c = HellMobsTests.arena {

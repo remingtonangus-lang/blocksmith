@@ -100,14 +100,6 @@ final class MeshArena {
         lock.lock(); defer { lock.unlock() }
         return slabs.values.reduce(0) { n, s in s.starts.values.reduce(n) { $0 + $1.len } }
     }
-    // Slabs with no live slice (memsim: what the periodic trim can give back).
-    var emptySlabs: Int { lock.lock(); defer { lock.unlock() }; return slabs.values.reduce(0) { $0 + ($1.live <= 0 && $1 !== slab ? 1 : 0) } }
-    // Nov 8 (item 10, a real-time hour's memsim): slabs left wholly empty were given back only when the view was lowered,
-    // so the mesh memory sat at its high mark (544 MB with 77-398 MB live). World.update trims every ~8 s in play,
-    // keeping one empty slab. BS_SLABTRIM=0 for before.
-    static var trimsInPlay = ProcessInfo.processInfo.environment["BS_SLABTRIM"] != "0"
-    private(set) var trimmedInPlay = 0
-
     // The largest free run (memsim: whether the free bytes are in pieces).
     var largestFree: Int {
         lock.lock(); defer { lock.unlock() }
@@ -249,17 +241,14 @@ final class MeshArena {
 
     // P415: gives back every slab no live slice uses (and no frame in flight may still read): after the view distance
     // is lowered, the far meshes' memory goes back to the system instead of waiting in the free lists. Returns bytes.
-    // keep: how many empty slabs stay for the next meshes (the periodic trim in play keeps one, so walking back and
-    // forth past a slab's worth of meshes does not make and free a 32 MB buffer each time).
-    @discardableResult func trim(keep: Int = 0) -> Int {
+    @discardableResult func trim() -> Int {
         let completed = MeshArena.fences.completed
         lock.lock(); defer { lock.unlock() }
         var empty = Set<ObjectIdentifier>()
         for (id, s) in slabs where s.live <= 0 && s !== slab && !s.starts.values.contains(where: { $0.after > completed }) {
             empty.insert(id)
         }
-        if empty.count <= keep { return 0 }
-        for _ in 0..<keep { empty.removeFirst() }
+        if empty.isEmpty { return 0 }
         for c in 0..<free.count where free[c].items.count > free[c].head {
             let kept = free[c].items[free[c].head...].filter { !empty.contains(ObjectIdentifier($0.0.buf)) }
             free[c].items = Array(kept); free[c].head = 0
@@ -269,5 +258,4 @@ final class MeshArena {
         slabBytes -= bytes
         return bytes
     }
-    func trimInPlay() { trimmedInPlay += trim(keep: 1) }
 }
