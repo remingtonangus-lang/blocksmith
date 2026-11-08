@@ -460,6 +460,10 @@ final class CraterJob {
     private var circuitsNear: Bool?
     private var waitFrames = 0
     private var fineFrames = 0
+    // (the soak's count of fine sections a bowl step made beyond its one prefetched section; BS_OLDBOWLFETCH=1: the
+    // leaning and turned bowls' prefetch off, as before Nov 8)
+    static var finesUnfetched = 0, stepsUnfetched = 0
+    static let oldFetch = ProcessInfo.processInfo.environment["BS_OLDBOWLFETCH"] == "1"
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
 
@@ -515,6 +519,10 @@ final class CraterJob {
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
+            // (sections given their fine samples by a step that was not a prefetch: one at a time or not, a frame's cost)
+            if timed && World.fineMade - fine0 > (phase.hasSuffix("fine prefetch") ? 1 : 0) {
+                CraterJob.finesUnfetched += World.fineMade - fine0; CraterJob.stepsUnfetched += 1
+            }
             if timed && took * 1000 > CraterJob.worstStepMs {
                 CraterJob.worstStepMs = took * 1000
                 CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f, %ld chunks refilled at once, %ld fine sections made", phase, removed - removed0, r, World.refilledAtOnce - refills0, World.fineMade - fine0)
@@ -536,6 +544,14 @@ final class CraterJob {
         // get theirs first, one a frame under the fireball, as the crawler's ruts do: World.prefetchFine.)
         if blocks != .max && fineFrames < 48 {
             if w.prefetchFine(center, radius: max(r, Float(depth))) { fineFrames += 1; phase = "fine prefetch"; return false }
+            // (Nov 8, the worst-case soak on build 247: a carving step still made 4 fine sections at once. A leaning
+            // bowl shifts up to 1.2 blocks a layer along the shot and a turned one runs along it, past the box above;
+            // the ball round its middle, out to the rim, gets them too.)
+            let dir: V3 = axes.map { -$0.1 } ?? V3(shear.x, -1, shear.y)
+            let lean = (axes != nil || shear.x != 0 || shear.y != 0) && !CraterJob.oldFetch
+            if lean && w.prefetchFine(center + dir * (Float(depth) / 2), radius: r + simd_length(dir) * Float(depth) / 2 + 1) {
+                fineFrames += 1; phase = "fine prefetch"; return false
+            }
             fineFrames = 48
         }
         if circuitsNear == nil {
