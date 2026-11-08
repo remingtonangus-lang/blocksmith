@@ -1611,6 +1611,7 @@ final class World: LifeLinked {
         shellClock &+= 1
         if trimIn > 0 { trimIn -= 1; if trimIn == 0 { let b = MeshArena.shared.trim(); if b > 0 { print("world: view lowered, \(b >> 20) MB of mesh slabs given back") } } }
         if shellClock % 120 == 0 { reshell() }        // P376: chunks meshed since the last move become shells
+        if shellClock % 600 == 300 && MeshArena.trimsInPlay { MeshArena.shared.trimInPlay() }   // (item 10: empty slabs back)
 
         let extra: ChunkKey? = extraCenter.map { ChunkKey(x: floorDiv(Int(floor($0.x)), CS), z: floorDiv(Int(floor($0.z)), CS)) }
         // Offset of a chunk from the nearer centre (Chebyshev), for LOD.
