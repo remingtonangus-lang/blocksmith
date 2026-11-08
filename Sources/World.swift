@@ -541,13 +541,15 @@ final class World: LifeLinked {
     // his steps kicked up lying on the sand). A cell that lets no light by reads the first open cell above it, up to 4
     // up (an open cell's own light stands: a cave stays dark). BS_OLDOPENLIGHT=1: the cell's own light, as before.
     static let oldOpenLight = ProcessInfo.processInfo.environment["BS_OLDOPENLIGHT"] == "1"
+    // (Only a cell reading no light at all looks at what the cell is: block() in a field world works the ground out from
+    // the field, and asking it of every particle every frame made the worst scene's particle drawing 0.12 -> 0.63 ms.)
     func lightOpen(_ x: Int, _ y: Int, _ z: Int) -> (sky: Int, block: Int) {
-        var y = y
-        if !World.oldOpenLight {
-            let lo = Blocks.lightOpaque
-            for _ in 0..<4 where y >= 0 && y < CH - 1 && lo[Int(block(x, y, z))] { y += 1 }
-        }
-        return lightAt(x, y, z)
+        let l = lightAt(x, y, z)
+        if World.oldOpenLight || l.sky > 0 || l.block > 0 { return l }
+        var oy = y
+        let lo = Blocks.lightOpaque
+        for _ in 0..<4 where oy >= 0 && oy < CH - 1 && lo[Int(block(x, oy, z))] { oy += 1 }
+        return oy == y ? l : lightAt(x, oy, z)
     }
     static let oldUnlit = ProcessInfo.processInfo.environment["BS_OLDUNLIT"] == "1"
     static let oldStep = ProcessInfo.processInfo.environment["BS_OLDSTEP"] == "1"      // (the full lift only, as before Nov 5)
