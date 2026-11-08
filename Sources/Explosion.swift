@@ -632,6 +632,11 @@ final class CraterJob {
             let rr = 0.85 * r * sqrtf(max(0.05, 1 - k * k))
             phase = "field ball"
             let along: V3 = axes.map { -$0.1 * t } ?? V3(shear.x * t, -t, shear.y * t)
+            // (Nov 8, every soak scene on build 245: a citadel ball took 5.1 ms of one frame, giving 3 sections their
+            // fine samples at once: the prefetch under the fireball covers a box of the bowl's radius or depth and
+            // stops after 48 frames, and the lower balls reach past it. Each ball's own sections get theirs first,
+            // one a frame, as the prefetch's do.)
+            if timed && w.prefetchFine(center + along, radius: rr) { phase = "field ball: fine prefetch"; return done }
             _ = w.carve(at: center + along, radius: rr, mode: .shape)
             bowlNext += 1
             return done

@@ -2843,6 +2843,43 @@ var quads = 0, sections = 0
 for c in world.chunks.values { for s in c.sections where !s.empty { quads += s.opaqueQuads + s.transQuads; sections += 1 } }
 check(quads > 10_000, "terrain meshed: \(sections) sections, \(quads) quads")
 check(MeshArena.shared.slabBytes > 0, "mesh arena holds \(MeshArena.shared.slabBytes >> 20) MB of host slabs")
+// Ledger 60 (item 10): freed mesh space joins up again. A slab of 1 KB slices freed holds 4 KB slices afterwards
+// without a new slab, and slices freed and made at random never overlap.
+do {
+    MeshArena.frameCompleted(MeshArena.frameSubmitted())                 // (no frame in flight for this test arena)
+    let a = MeshArena(slabSize: 1 << 20)
+    var fill = [UInt8](repeating: 0, count: 8192)
+    func make(_ n: Int, _ v: UInt8) -> MeshSlice? {
+        for i in 0..<n { fill[i] = v }
+        return fill.withUnsafeBytes { a.alloc(device, UnsafeRawBufferPointer(rebasing: $0[0..<n])) }
+    }
+    var small: [MeshSlice] = []
+    for i in 0..<1000 { if let m = make(1000, UInt8(i & 255)) { small.append(m) } }
+    let slabsBefore = a.slabCount
+    small.removeAll()
+    var big: [MeshSlice] = []
+    for i in 0..<240 { if let m = make(4000, UInt8(i & 255)) { big.append(m) } }
+    check(small.isEmpty && big.count == 240 && a.slabCount == slabsBefore,
+          "freed mesh slices join up: 1,000 1 KB slices freed hold 240 4 KB ones (\(slabsBefore) -> \(a.slabCount) slabs, largest free run \(a.largestFree >> 10) KB)")
+    big.removeAll()
+    var rng: UInt64 = 0x9E37_79B9_7F4A_7C15
+    func next() -> Int { rng = rng &* 6364136223846793005 &+ 1442695040888963407; return Int(rng >> 33) }
+    var live: [(MeshSlice, UInt8)] = []
+    var bad = 0
+    for round in 0..<40 {
+        for _ in 0..<200 { let v = UInt8(next() & 255); if let m = make(64 + next() % 8000, v) { live.append((m, v)) } }
+        live.removeAll { _ in (next() + round) % 2 == 0 }
+        for (m, v) in live {
+            let p = m.buffer.contents().advanced(by: m.offset).assumingMemoryBound(to: UInt8.self)
+            for i in Swift.stride(from: 0, to: m.length, by: 61) where p[i] != v { bad += 1; break }
+        }
+    }
+    let used = a.liveBytes, held = a.slabBytes
+    live.removeAll()
+    let back = a.trim()
+    check(bad == 0 && a.liveBytes == 0 && a.freeBytes == 0 && back == held - a.slabSize,
+          "mesh slices made and freed at random never overlap (\(bad) overwritten; \(used >> 10) KB live in \(held >> 10) KB at the end, then every slab but the one in use given back whole)")
+}
 // With --render: hell's own mobs lined up on the arena HellMobsTests fought on (hell_mobs.png next to the PNG).
 if let path = renderPath, !path.isEmpty, let ctx = vkctx, let c = HellMobsTests.arena {
     let home = game.player.pos, wasFly = game.player.flying
