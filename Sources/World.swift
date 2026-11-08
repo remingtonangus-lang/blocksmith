@@ -161,17 +161,14 @@ final class World: LifeLinked {
     private(set) static var alive = 0
     // (the live worlds, for the bench's leak check; links, not weak references: WeakLink.swift)
     private static var links: [LifeLink] = []
+    private static let linksLock = NSLock()            // (not aliveLock: a link let go here may end a world, whose deinit takes that)
     static var live: [World] {
-        aliveLock.lock(); defer { aliveLock.unlock() }
+        linksLock.lock(); defer { linksLock.unlock() }
         links.removeAll { $0.object == nil }
         return links.compactMap { $0.object as? World }
     }
-    lazy var lifeLink = LifeLink(self)
-    let gate = JobGate()                       // worker jobs reach the world through it (WeakLink.swift)
-    deinit {
-        gate.close()
-        World.aliveLock.lock(); lifeLink.object = nil; World.alive -= 1; World.links.removeAll { $0.object == nil }; World.aliveLock.unlock()
-    }
+    lazy var lifeLink = LifeLink(self)         // (item 8: WeakLink.swift)
+    deinit { World.aliveLock.lock(); World.alive -= 1; World.aliveLock.unlock() }
     var debugState: String {
         lock.lock(); let gr = genResults.count, mr = meshResults.count; lock.unlock()     // workers append under the lock
         return "jobs \(jobs), queue ops \(workQueue.pending), gen in flight \(genInFlight.count), results \(gr)/\(mr), chunks \(chunks.count)"
@@ -246,7 +243,7 @@ final class World: LifeLinked {
             dg.ground.guardSet.chunks = save.structureGuard(file: "structure-guard-p326.txt")      // AshFront.swift
         }
         if dim == .deep { AshWar.setFront((gen as? DeepGen)?.ground.guardSet ?? DeepGuard()) }   // (P326's sites: off old ground)
-        World.aliveLock.lock(); World.links.append(lifeLink); World.aliveLock.unlock()
+        World.linksLock.lock(); World.links.removeAll { $0.object == nil }; World.links.append(lifeLink); World.linksLock.unlock()
     }
 
     // Chunks to load: the meshed disc grown by one chunk (every meshed chunk needs its 8 neighbours).
@@ -1253,9 +1250,8 @@ final class World: LifeLinked {
         for key in edited { editLatest[key] = ticket }
         lock.unlock()
         let lane = edited.count <= 4 ? World.quickQueue : World.editQueue
-        lane.async { [unowned(unsafe) self, gate = self.gate] in       // (item 8: the gate, not a weak reference)
-            guard gate.enter() else { return }
-            defer { gate.leave() }
+        lane.async { [me = weakLink] in              // (item 8: a link, not a weak reference: WeakLink.swift)
+            guard let self = me.wrappedValue else { return }
             let out = builds.map { b in
                 b { k, sy in
                     let key = World.sectionKey(k, sy)
@@ -1952,12 +1948,10 @@ final class World: LifeLinked {
             c.meshJobsOut += 1
             jobs += 1
             if wornJob { lock.lock(); wornOut += 1; lock.unlock(); wornBusy = true }
-            // Not strong: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
-            // Not weak either (item 8: a weak reference sends all the World's reference counting down the slow path):
-            // the World's deinit waits at its gate for a job inside, and turns away jobs not started.
-            let job: () -> Void = { [unowned(unsafe) self, gate = self.gate] in
-                guard gate.enter() else { return }
-                defer { gate.leave() }
+            // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
+            // (Item 8: by link, not a weak reference, which sent all the World's reference counting down the slow path.)
+            let job: () -> Void = { [me = weakLink] in
+                guard let self = me.wrappedValue else { return }
                 let t0 = CFAbsoluteTimeGetCurrent()
                 var out: [(Int, Int, SectionMesh)] = []
                 for (sy, v) in list { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond))) }
@@ -2091,9 +2085,8 @@ final class World: LifeLinked {
         genInFlight.insert(k)
         jobs += 1
         let mc = shell ? meshCache : nil
-        let job: () -> Void = { [unowned(unsafe) self, gate = self.gate] in        // (item 8: see meshing's job)
-            guard gate.enter() else { return }
-            defer { gate.leave() }
+        let job: () -> Void = { [me = weakLink] in        // (item 8: see meshing's job)
+            guard let self = me.wrappedValue else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var r: Produced
             if let e = mc?.read(k) { r = Produced(blocks: [], height: [], tint: [], fromDisk: false, entities: [], mobs: []); r.cached = e }

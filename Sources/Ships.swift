@@ -181,7 +181,6 @@ struct ShipBucket {
 
 final class Ship: LifeLinked {
     lazy var lifeLink = LifeLink(self)    // (item 8: WeakLink.swift)
-    deinit { lifeLink.object = nil }
     let id: Int
     var grid: ShipGrid
     var blockEntities: [IVec3: BlockEntity] = [:]     // ship space
@@ -741,9 +740,8 @@ final class Ship: LifeLinked {
 
 // MARK: Manager (one per World / dimension)
 
-final class ShipManager {
-    let gate = JobGate()                  // (item 8: background builds reach the manager through it, not a weak reference)
-    deinit { gate.close() }
+final class ShipManager: LifeLinked {
+    lazy var lifeLink = LifeLink(self)    // (item 8: background builds reach the manager by link, not a weak reference)
     unowned let world: World
     static var quarantined = 0               // ship steps that produced NaN (ShipPhysics.step puts the pose back)
     private(set) var list: [Ship] = []

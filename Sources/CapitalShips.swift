@@ -1195,10 +1195,9 @@ extension ShipManager {
             installCapital(work())
             return
         }
-        DispatchQueue.global(qos: .utility).async { [unowned(unsafe) self, gate = self.gate] in    // (item 8: not weak)
+        DispatchQueue.global(qos: .utility).async { [me = weakLink] in    // (item 8: by link: WeakLink.swift)
             let built = work()
-            guard gate.enter() else { return }
-            defer { gate.leave() }
+            guard let self = me.wrappedValue else { return }
             self.capitalLock.lock()
             self.capitalReady.append(built)
             self.capitalLock.unlock()
@@ -3022,10 +3021,9 @@ extension ShipManager {
         }
         g.sfx(.engineStart, 1, at: at)
         if sync { installCapital(work()); return true }
-        DispatchQueue.global(qos: .userInitiated).async { [unowned(unsafe) self, gate = self.gate] in    // (item 8: not weak)
+        DispatchQueue.global(qos: .userInitiated).async { [me = weakLink] in    // (item 8: by link: WeakLink.swift)
             let built = work()
-            guard gate.enter() else { return }
-            defer { gate.leave() }
+            guard let self = me.wrappedValue else { return }
             self.capitalLock.lock()
             self.capitalReady.append(built)
             self.capitalLock.unlock()
