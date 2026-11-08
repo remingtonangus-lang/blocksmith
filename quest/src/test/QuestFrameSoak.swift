@@ -497,6 +497,8 @@ enum QuestFrameSoak {
         let eye = g.player.eye
         var holes = 0, below = 0, backstop = 0, worst = (0, "")
         var first = true
+        ParticleManager.drawnCount = 0; ParticleManager.darkCount = 0
+        defer { print("    void shots: particles drawn \(ParticleManager.drawnCount), with no light at all \(ParticleManager.darkCount) (ledger 64)") }
         for down in [25, 50] as [Float] { for k in 0..<4 {
             let yaw = yaw0 + Float(k) * .pi / 2, pitch = -down * .pi / 180
             guard let img = try? rig.grab(eye: eye, yaw: yaw, pitch: pitch, frames: first ? 3 : 2) else { continue }

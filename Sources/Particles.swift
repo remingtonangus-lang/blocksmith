@@ -27,6 +27,8 @@ final class ParticleManager {
     static var glowBoost: Float = 1
     // Active light flashes (explosions, muzzle flashes...) so smoke near them is lit, set by the renderer.
     static var flashes: [LightFlash] = []
+    // (particles drawn, and those drawn with no light at all: the soak's void shots print them, ledger 64)
+    static var drawnCount = 0, darkCount = 0
 
     func add(_ p: Particle) { if list.count < ParticleManager.cap { list.append(p) } }
 
@@ -195,7 +197,9 @@ final class ParticleManager {
         let amb = world.dim.ambient
         for p in list {
             let c = p.pos - eye
-            let l = world.lightAt(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
+            let l = world.lightOpen(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
+            ParticleManager.drawnCount += 1
+            if l.sky == 0 && l.block == 0 && !p.glow { ParticleManager.darkCount += 1 }
             // Same dimension ambient lift as terrain (Emberdeep ash would otherwise be black).
             let base = max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             var light = p.glow ? ParticleManager.glowBoost : base + (1 - base) * amb
