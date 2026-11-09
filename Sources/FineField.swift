@@ -300,6 +300,11 @@ extension Mesher {
     // drawn from its cells (`fineBeyond` from World.fineBeyond says what lies past the 3x3 chunks), the ground's two
     // outer half-block cells pin onto the vertex the cells draw there (the nearest of the cells' vertices the half-block
     // cell lies in), so the border is the very polyline the neighbour draws: no slit, no overlap.
+    // (meshbench only: where the half-block ground's time goes; main thread)
+    static var fineTiming = false
+    static var fineT = (pre: 0.0, fill: 0.0, quads: 0.0, subs: 0, empty: 0, adaptive: 0.0)
+    static var oldFineFill = ProcessInfo.processInfo.environment["BS_OLDFINEFILL"] == "1"
+    static var oldFineLookup = ProcessInfo.processInfo.environment["BS_OLDFINELOOKUP"] == "1"
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
                            exact: GrowBuf<Float>? = nil, fineBeyond: [UInt32] = [], _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let vs = sc.fineScratch
@@ -327,6 +332,9 @@ extension Mesher {
             if sy < NSEC - 1 && !fineSection(n9, sy: sy + 1) { coarse |= 32 }
         }
         // The cells' own vertices (the ones the neighbour draws there: the same in every section that meshes them).
+        let timing = Mesher.fineTiming
+        var tA = timing ? CFAbsoluteTimeGetCurrent() : 0
+        defer { if timing { Mesher.fineT.quads += CFAbsoluteTimeGetCurrent() - tA } }
         if coarse != 0 {
             smoothQuads(R, sc, dmg: [:], stored: dens, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles) { _, _, _, _, _, _, _, _, _ in }
         }
@@ -336,60 +344,103 @@ extension Mesher {
         let lo = max(0, C0 - SmoothTerrain.maxRelax - 4), hi = min(RW - 1, C0 + 21 + SmoothTerrain.maxRelax)
         vR.initialize(repeating: AIR, count: RL * RH)
         vD.initialize(repeating: FieldTerrain.outside, count: RL * RH)
+        // The fine samples of the 3x3 chunks' sections below, at and above this one, looked up once: looked up for every
+        // half-block sample (a dictionary find, a SipHash of the section number) they were a fifth of every instruction
+        // the mesh workers ran in the worst-case soak (callgrind, build 265). BS_OLDFINELOOKUP=1: a find a sample.
+        let fineT: [[Int8]?] = (0..<27).map { k in
+            let t = sy + k / 9 - 1
+            return t >= 0 && t < NSEC ? n9[k % 9].fine[t] : nil
+        }
+        let oldLookup = Mesher.oldFineLookup
+        if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.pre += t - tA; tA = t }
+        // The half block at fine, section-local gx, gy, gz: what it is, its density (half-block units) and its light.
+        @inline(__always) func half(_ gx: Int, _ gy: Int, _ gz: Int) -> (BlockID, Int8, UInt8, UInt8) {
+            let src = ri(gx >> 1, gy >> 1, gz >> 1)
+            var d: Int8
+            let ni = (gx >> 5) + 1 + ((gz >> 5) + 1) * 3
+            if let f = oldLookup ? n9[ni].fine[sy + (gy >> 5)] : fineT[ni + ((gy >> 5) + 1) * 9] {
+                d = f[FineField.index(gx & 31, gy & 31, gz & 31)]
+            } else {
+                let bx = (gx - 1) >> 1, by = (gy - 1) >> 1, bz = (gz - 1) >> 1
+                let t = SIMD3<Float>(gx & 1 == 0 ? 0.75 : 0.25, gy & 1 == 0 ? 0.75 : 0.25, gz & 1 == 0 ? 0.75 : 0.25)
+                var c = SIMD8<Float>()
+                let r0 = dens[ri(bx, by, bz)]
+                var same = true
+                for k in 0..<8 {
+                    let r = dens[ri(bx + (k & 1), by + ((k >> 1) & 1), bz + (k >> 2))]
+                    c[k] = Float(r)
+                    if r != r0 { same = false }
+                }
+                d = FineField.upsample(c, raw0: r0, allSame: same, t)
+            }
+            // (distances in half blocks: twice as many units)
+            let dv: Int8 = d == FieldTerrain.inside || d == FieldTerrain.outside ? d : Int8(max(-126, min(126, Int(d) * 2)))
+            // The half block's own: ground where its sample is inside (the cell's ground material, or the one it had
+            // before it was dug), open where it is outside; a built block stays what it is.
+            let rb = R[src]
+            let cellGround = dens[src] > 0 && natT[Int(rb)]
+            var b = rb
+            if d > 0 && !cellGround && (rb == AIR || !opaqueT[Int(rb)]) {
+                // (the ground beside it, under it first: grass reaching up into the open cell over it stays grass)
+                b = DIRT
+                var found = false
+                let around: [Int] = [-RL, 1, -1, RW, -RW, RL]
+                for o in around where dens[src + o] > 0 && natT[Int(R[src + o])] { b = R[src + o]; found = true; break }
+                if !found {
+                    let bx: Int = gx >> 1, by: Int = sy * 16 + (gy >> 1), bz: Int = gz >> 1
+                    let ni: Int = (bx >> 4) + 1 + ((bz >> 4) + 1) * 3
+                    let st = n9[ni]
+                    var m = 0
+                    if by >= 0 && by < CH { m = Int(st.material(Chunk.index(bx & 15, by, bz & 15))) }
+                    if m != 0 { b = FieldMat.blocks[m] }
+                }
+            } else if d <= 0 && cellGround {
+                b = AIR
+            }
+            var sl = sky[src], bl = blk[src]
+            if !loT[Int(b)] && loT[Int(rb)] {
+                // (open inside a cell the light flood took as solid: the light of the open cells beside it)
+                for o in [1, -1, RW, -RW, RL, -RL] where !loT[Int(R[src + o])] { sl = max(sl, sky[src + o]); bl = max(bl, blk[src + o]) }
+            }
+            return (b, dv, sl, bl)
+        }
+        // Each eighth's region reaches maxRelax + 4 half blocks past its own 16, so the eight overlapped: every half block
+        // was worked out about three times (a fifth of the mesher's time in dug ground). Now once each, over the 50^3 box
+        // all eight read (fine -8...41 on each axis), copied row by row into each eighth's region. BS_OLDFINEFILL=1: before.
+        let fW = hi - lo + 1 + 16, fL = fW * fW, g0 = lo - C0
+        let oldFill = Mesher.oldFineFill
+        precondition(fW == MeshScratch.fineFillW)
+        if !oldFill {
+            let FF = vs.fill, FR = FF.r, FD = FF.d, FS = FF.s, FB = FF.b
+            var k = 0
+            for gy in g0..<(g0 + fW) { for gz in g0..<(g0 + fW) { for gx in g0..<(g0 + fW) {
+                let h = half(gx, gy, gz)
+                FR[k] = h.0; FD[k] = h.1; FS[k] = h.2; FB[k] = h.3
+                k += 1
+            } } }
+        }
         for v in 0..<8 {
             let vx = v & 1, vy = (v >> 1) & 1, vz = v >> 2
-            for ry in lo...hi { for rz in lo...hi { for rx in lo...hi {
-                let gx = rx - C0 + vx * 16, gy = ry - C0 + vy * 16, gz = rz - C0 + vz * 16     // fine, section-local
-                let j = rx + rz * RW + ry * RL
-                let src = ri(gx >> 1, gy >> 1, gz >> 1)
-                var d: Int8
-                if let f = n9[(gx >> 5) + 1 + ((gz >> 5) + 1) * 3].fine[sy + (gy >> 5)] {
-                    d = f[FineField.index(gx & 31, gy & 31, gz & 31)]
-                } else {
-                    let bx = (gx - 1) >> 1, by = (gy - 1) >> 1, bz = (gz - 1) >> 1
-                    let t = SIMD3<Float>(gx & 1 == 0 ? 0.75 : 0.25, gy & 1 == 0 ? 0.75 : 0.25, gz & 1 == 0 ? 0.75 : 0.25)
-                    var c = SIMD8<Float>()
-                    let r0 = dens[ri(bx, by, bz)]
-                    var same = true
-                    for k in 0..<8 {
-                        let r = dens[ri(bx + (k & 1), by + ((k >> 1) & 1), bz + (k >> 2))]
-                        c[k] = Float(r)
-                        if r != r0 { same = false }
-                    }
-                    d = FineField.upsample(c, raw0: r0, allSame: same, t)
-                }
-                // (distances in half blocks: twice as many units)
-                vD[j] = d == FieldTerrain.inside || d == FieldTerrain.outside ? d : Int8(max(-126, min(126, Int(d) * 2)))
-                // The half block's own: ground where its sample is inside (the cell's ground material, or the one it had
-                // before it was dug), open where it is outside; a built block stays what it is.
-                let rb = R[src]
-                let cellGround = dens[src] > 0 && natT[Int(rb)]
-                var b = rb
-                if d > 0 && !cellGround && (rb == AIR || !opaqueT[Int(rb)]) {
-                    // (the ground beside it, under it first: grass reaching up into the open cell over it stays grass)
-                    b = DIRT
-                    var found = false
-                    let around: [Int] = [-RL, 1, -1, RW, -RW, RL]
-                    for o in around where dens[src + o] > 0 && natT[Int(R[src + o])] { b = R[src + o]; found = true; break }
-                    if !found {
-                        let bx: Int = gx >> 1, by: Int = sy * 16 + (gy >> 1), bz: Int = gz >> 1
-                        let ni: Int = (bx >> 4) + 1 + ((bz >> 4) + 1) * 3
-                        let st = n9[ni]
-                        var m = 0
-                        if by >= 0 && by < CH { m = Int(st.material(Chunk.index(bx & 15, by, bz & 15))) }
-                        if m != 0 { b = FieldMat.blocks[m] }
-                    }
-                } else if d <= 0 && cellGround {
-                    b = AIR
-                }
-                vR[j] = b
-                var sl = sky[src], bl = blk[src]
-                if !loT[Int(b)] && loT[Int(rb)] {
-                    // (open inside a cell the light flood took as solid: the light of the open cells beside it)
-                    for o in [1, -1, RW, -RW, RL, -RL] where !loT[Int(R[src + o])] { sl = max(sl, sky[src + o]); bl = max(bl, blk[src + o]) }
-                }
-                vSky[j] = sl; vBlk[j] = bl
-            } } }
+            if oldFill {
+                for ry in lo...hi { for rz in lo...hi { for rx in lo...hi {
+                    let h = half(rx - C0 + vx * 16, ry - C0 + vy * 16, rz - C0 + vz * 16)     // fine, section-local
+                    let j = rx + rz * RW + ry * RL
+                    vR[j] = h.0; vD[j] = h.1; vSky[j] = h.2; vBlk[j] = h.3
+                } } }
+            } else {
+                let n = hi - lo + 1, FF = vs.fill
+                for ry in lo...hi { for rz in lo...hi {
+                    let j = lo + rz * RW + ry * RL
+                    let k = vx * 16 + (rz - lo + vz * 16) * fW + (ry - lo + vy * 16) * fL
+                    (vR + j).update(from: FF.r + k, count: n)
+                    (vD + j).update(from: FF.d + k, count: n)
+                    (vSky + j).update(from: FF.s + k, count: n)
+                    (vBlk + j).update(from: FF.b + k, count: n)
+                } }
+            }
+            if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.fill += t - tA; tA = t }
+            var emitted = 0
+            defer { if timing { Mesher.fineT.subs += 1; if emitted == 0 { Mesher.fineT.empty += 1 } } }
             let e0 = exact?.count ?? 0
             let off = SIMD3<Float>(Float(vx * 16), Float(vy * 16), Float(vz * 16))
             let pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = coarse == 0 ? nil : { hx, hy, hz, p in
@@ -422,6 +473,7 @@ extension Mesher {
                 return (best * 16).rounded(.toNearestOrAwayFromZero) / 16 * 2 - off
             }
             smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact, pin: pin) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                emitted += 1
                 emit((x16 + vx * 256) >> 1, (y16 + vy * 256) >> 1, (z16 + vz * 256) >> 1, f, tint, layer, ao, l, ncode)
             }
             // (P383: the unsnapped positions, scaled back from half blocks like the snapped ones)
@@ -432,6 +484,7 @@ extension Mesher {
                     ex.ptr[i + 2] = (ex.ptr[i + 2] + Float(vz * 16)) * 0.5
                 }
             }
+            if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.quads += t - tA; tA = t }
         }
         sc.smValid = false
     }

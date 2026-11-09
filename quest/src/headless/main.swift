@@ -935,6 +935,41 @@ if let out = arg("--view"), let ctx = vkctx {
         }
         (SmoothTerrain.enabled, SmoothTerrain.fromField) = was
         Mesher.detailMeshes = detailWas
+        // The ground drawn at half blocks (fine samples, as round a dug or blasted spot): the 5x5 chunks' sections that
+        // draw any ground given their fine samples, then meshed with the samples looked up the old way and the new.
+        if vw.fieldTerrain && FineField.enabled {
+            var fineSecs = 0
+            for dz in -2...2 { for dx in -2...2 {
+                guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
+                for sy in 0..<NSEC {
+                    var nat = 0
+                    for y in sy * 16..<(sy * 16 + 16) where y < CH { for i in 0..<CS * CS where c.blocks.ground(Chunk.index(i % CS, y, i / CS)) { nat += 1 } }
+                    if nat > 0 && nat < 16 * CS * CS && vw.ensureFine(c, sy) { fineSecs += 1 }
+                }
+            } }
+            let oldWas = (Mesher.oldFineLookup, Mesher.oldFineFill)
+            for rep in 0..<3 { for mode in 0..<3 {
+                let old = mode == 0
+                Mesher.oldFineLookup = old; Mesher.oldFineFill = mode < 2
+                Mesher.fineTiming = true; Mesher.fineT = (0, 0, 0, 0, 0, 0)
+                var ms = 0.0, quads = 0, sum: UInt64 = 0xCBF29CE484222325
+                for dz in -2...2 { for dx in -2...2 {
+                    guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
+                    for sy in 0..<NSEC where Mesher.fineSection(nb.0, sy: sy) {
+                        let t0 = CFAbsoluteTimeGetCurrent()
+                        let m = Mesher.buildSection(nb.0, nb.1, sy: sy, site: vw.smoothSite(c), chunk: (c.cx, c.cz))
+                        ms += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                        quads += m.opaque.count / 8
+                        for w in m.opaque { sum = (sum ^ UInt64(w)) &* 0x100000001B3 }
+                    }
+                } }
+                let ft = Mesher.fineT
+                print(String(format: "meshbench fine (%@, run %d): %.1f ms, %d sections given fine samples, %d quads (words' hash %016llx); half-block ground: cells' pass %.1f, filling %.1f, quads %.1f ms, %d of %d eighths drew nothing; simplified in %.1f ms",
+                             ["old lookup and fill", "new lookup, old fill", "new lookup and fill"][mode], rep + 1, ms, fineSecs, quads, sum, ft.pre * 1000, ft.fill * 1000, ft.quads * 1000, ft.empty, ft.subs, ft.adaptive * 1000))
+                Mesher.fineTiming = false
+            } }
+            (Mesher.oldFineLookup, Mesher.oldFineFill) = oldWas
+        }
     }
     // --dig N: a plus-shaped pit N deep dug into the ground 6 blocks ahead (P142: digging leaves a dent in smooth land).
     if let n = Int(arg("--dig") ?? "") {
