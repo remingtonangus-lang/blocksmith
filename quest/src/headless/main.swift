@@ -1820,10 +1820,15 @@ if CommandLine.arguments.contains("--loadtest") {
     let left = built.filter { world.builtBlock($0.0.x, $0.0.y, $0.0.z) == $0.1 }.count
     print(String(format: "loadtest in play: %d checks (worst %.2f ms), %d blocks fell, %d crushed on landing, %d of %d built blocks still where they were built (10 s of ticks in %.1f s)",
                  Structure.checks, Structure.worstMs, Structure.fallen, Structure.crushed, left, built.count, CFAbsoluteTimeGetCurrent() - t1))
+    if Structure.loadVerify { print(Structure.verifyLine) }
     exit(0)
 }
 // --loadcheck: P388 (5), every generated structure type's pieces checked whole (Sources/StructureTests.swift).
-if CommandLine.arguments.contains("--loadcheck") { exit(Structure.loadCheck(device: device)) }
+if CommandLine.arguments.contains("--loadcheck") {
+    let rc = Structure.loadCheck(device: device)
+    if Structure.loadVerify { print(Structure.verifyLine) }
+    exit(rc)
+}
 // --settletest: P380 ground and object physics in field worlds (Sources/GroundSettleTests.swift).
 if CommandLine.arguments.contains("--settletest") {
     GroundSettleTests.run(game, check: check)
