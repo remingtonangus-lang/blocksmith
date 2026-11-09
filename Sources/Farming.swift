@@ -28,7 +28,9 @@ extension Game {
                 guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
                 let blocks = c.blocks, x0 = c.cx * CS, z0 = c.cz * CS
                 let hmax = max(0, c.heightMax)
-                for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) {
+                // (Nov 9: sections holding nothing that ticks are passed over: BlockStore.tickMask. BS_OLDRTSCAN=1: all)
+                let mask = RandomTickRng.oldScan ? ~0 : blocks.tickMask
+                for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) where mask & (1 << UInt32(sy)) != 0 {
                     for _ in 0..<3 {
                         // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).
                         let r = Int(truncatingIfNeeded: rng.next() >> 20)
@@ -74,6 +76,7 @@ extension Game {
             if track {
                 // (the frame soak: the dearest frame of random ticks, split into the draws and the ticks)
                 let tEnd = CFAbsoluteTimeGetCurrent(), all = (tEnd - tStart) * 1000
+                RandomTickRng.drawCpu += cDrawn - cStart; RandomTickRng.drawTicks += 1
                 if all > RandomTickRng.frameWorstMs {
                     RandomTickRng.frameWorstMs = all
                     RandomTickRng.frameWorst = String(format: "draws %.2f ms (own CPU %.2f, %d hits), %d ticks %.2f ms (slowest %.2f); own CPU in all %.2f ms",
@@ -738,5 +741,7 @@ enum RandomTickRng {
     static var profile = false, worstMs = 0.0, worstWhat = ""   // (P400 harness)
     static var track = false                                     // (the frame soak's SOAK_MOBPROF: the slowest one, timed as it runs)
     static var frameWorstMs = 0.0, frameWorst = ""                 // (and the dearest frame of them, split)
+    static var drawCpu = 0.0, drawTicks = 0                         // (and the draws' own CPU in all, over that many game ticks)
+    static let oldScan = ProcessInfo.processInfo.environment["BS_OLDRTSCAN"] == "1"
     static var frameSeconds = 0.0012                    // (store review: a frame's random ticks at most this long)
 }

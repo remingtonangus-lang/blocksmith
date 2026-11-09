@@ -159,6 +159,39 @@ struct BlockStore {
     // Bit per 16-high section that may hold a light-emitting block (all set = unknown). The mesher skips the
     // block-light pass when no section around the one it meshes has one (most of the surface).
     var emitMask: UInt32 = ~0
+    // Nov 9 (the soak's random ticks: 0.5-0.9 ms of the frame thread's own time every game tick, picking ~15,000
+    // scattered cells, most in buried stone where nothing ticks): bit per 16-high section that may hold a block that
+    // takes random ticks (Blocks.randomTicks, the ground's material counted as its block), all set = unknown. Made exact
+    // by the chunk workers; a write only ever adds its section (Game.randomTicks skips the clear ones).
+    var tickMask: UInt32 = ~0
+    static func tickMask(of blocks: [BlockID]) -> UInt32 {
+        let rt = Blocks.randomTicks
+        var m: UInt32 = 0
+        var i = 0
+        while i < blocks.count {
+            if rt[Int(blocks[i])] {
+                let sec = i / section
+                m |= 1 << UInt32(sec)
+                i = (sec + 1) * section
+                continue
+            }
+            i += 1
+        }
+        return m
+    }
+    // (harness: a section whose bit is clear but that holds a ticking cell; must never happen)
+    func tickMaskMisses() -> Int {
+        let rt = Blocks.randomTicks, mats = FieldMat.blocks
+        var miss = 0
+        for sec in 0..<min(32, (storedCount + BlockStore.section - 1) / BlockStore.section) where tickMask & (1 << UInt32(sec)) == 0 {
+            for i in (sec * BlockStore.section)..<((sec + 1) * BlockStore.section) {
+                var b = raw(i)
+                if b == AIR && ground(i) { b = mats[Int(material(i))] }
+                if rt[Int(b)] { miss += 1; break }
+            }
+        }
+        return miss
+    }
 
     // Exact emitter mask of a full block array (chunk workers).
     static func emitMask(of blocks: [BlockID]) -> UInt32 {
@@ -237,6 +270,7 @@ struct BlockStore {
                 let m = FieldMat.index[Int(newValue)]
                 if m != 0 {
                     if Blocks.emit[Int(newValue)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
+                    if Blocks.randomTicks[Int(newValue)] { tickMask |= 1 << UInt32(i / BlockStore.section) }
                     // (Ground turned into other ground, grass creeping onto dirt or dying back, keeps its shape: it filled
                     // the cell out to a full block, a little bump in the slope wherever the grass went.)
                     setDensity(i, ground(i) ? density(i) : max(density(i), FieldTerrain.cellIn), material: m)
@@ -255,6 +289,7 @@ struct BlockStore {
             }
             data[i] = newValue
             if Blocks.emit[Int(newValue)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
+            if Blocks.randomTicks[Int(newValue)] { tickMask |= 1 << UInt32(i / BlockStore.section) }
         }
     }
 
@@ -273,6 +308,7 @@ struct BlockStore {
         if follow && !fine.isEmpty && fd[i] != d { FineField.follow(&fine, i, from: fd[i], to: d) }
         fd[i] = d
         if let m { fm[i] = m }
+        if d > 0 && Blocks.randomTicks[Int(FieldMat.blocks[Int(fm[i])])] { tickMask |= 1 << UInt32(i / BlockStore.section) }
     }
 
     // Full-height copy of what the cells read as (tree growth scratch, the co-op wire).

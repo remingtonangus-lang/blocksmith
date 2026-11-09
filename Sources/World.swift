@@ -2004,6 +2004,7 @@ final class World: LifeLinked {
         var mobs: [(String, V3)]
         var tracked: [IVec3] = []            // circuit components needing periodic work (found off the main thread)
         var emitMask: UInt32 = ~0            // sections holding light emitters (BlockStore.emitMask)
+        var tickMask: UInt32 = ~0            // sections holding random-ticking cells (BlockStore.tickMask)
         var springs: [IVec3] = []            // fluid cells open to air (World.springs: flow once loaded)
         var field: [Int32: UInt16] = [:]     // PG1: saved terrain field edits (TerrainField.swift)
         var ground: FieldData? = nil         // PG1 rewrite: the chunk's density field (field worlds, FieldTerrain.swift)
@@ -2147,10 +2148,12 @@ final class World: LifeLinked {
             var merged = blocks
             FieldTerrain.merge(&merged, g)
             let heights = Chunk.computeHeights(merged)
-            return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
-                            fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
-                            emitMask: BlockStore.emitMask(of: merged), springs: World.springs(merged, k, heights), field: field,
-                            ground: g)
+            var r = Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
+                             emitMask: BlockStore.emitMask(of: merged), springs: World.springs(merged, k, heights), field: field,
+                             ground: g)
+            r.tickMask = BlockStore.tickMask(of: merged)
+            return r
         }
         _ = PlantSupport.dropFloating(&blocks)
         let heights = Chunk.computeHeights(blocks)
@@ -2160,13 +2163,17 @@ final class World: LifeLinked {
             // PG1: the host's chunk (a co-op guest of a field world) becomes the field and the built layer.
             let merged = blocks
             let f = FieldTerrain.split(&blocks, cx: k.x, cz: k.z, gen: gen)
-            return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
-                            fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
-                            emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f)
+            var r = Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
+                             emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f)
+            r.tickMask = BlockStore.tickMask(of: merged)
+            return r
         }
-        return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
-                        fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
-                        emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field)
+        var r = Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
+                         emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field)
+        r.tickMask = BlockStore.tickMask(of: blocks)
+        return r
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -2203,6 +2210,7 @@ final class World: LifeLinked {
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint, field: p.ground)
         c.world = self
         c.blocks.emitMask = p.emitMask
+        c.blocks.tickMask = p.tickMask
         c.modified = p.fromDisk
         if p.fromDisk { c.markSaved() }
         c.fieldEdits = p.field

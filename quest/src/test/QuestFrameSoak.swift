@@ -598,7 +598,7 @@ enum QuestFrameSoak {
         // weigh on the mob tick being measured)
         let mobProf = ProcessInfo.processInfo.environment["SOAK_MOBPROF"] == "1"
         MobManager.profileOn = mobProf
-        RandomTickRng.track = mobProf; RandomTickRng.worstMs = 0; RandomTickRng.worstWhat = ""; RandomTickRng.frameWorstMs = 0; RandomTickRng.frameWorst = ""
+        RandomTickRng.track = mobProf; RandomTickRng.worstMs = 0; RandomTickRng.worstWhat = ""; RandomTickRng.frameWorstMs = 0; RandomTickRng.frameWorst = ""; RandomTickRng.drawCpu = 0; RandomTickRng.drawTicks = 0
         defer { MobManager.profileOn = false; RandomTickRng.track = false }
         var worstMob = (0.0, "")
         for f in 0..<(frames + warm) {
@@ -688,6 +688,18 @@ enum QuestFrameSoak {
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
         if RandomTickRng.frameWorstMs > 0 && mobProf { print(String(format: "    dearest frame of random ticks: %.1f ms (%@)", RandomTickRng.frameWorstMs, RandomTickRng.frameWorst)) }
+        if mobProf {
+            // (BlockStore.tickMask: every loaded chunk's sections passed over must hold nothing that ticks)
+            var sections = 0, skipped = 0, misses = 0
+            for c in w.chunks.values where !c.hollow {
+                let top = min(NSEC - 1, (max(0, c.heightMax) + 1) >> 4)
+                sections += top + 1
+                for sy in 0...top where c.blocks.tickMask & (1 << UInt32(sy)) == 0 { skipped += 1 }
+                misses += c.blocks.tickMaskMisses()
+            }
+            print(String(format: "    random tick sections: %d of %d passed over (nothing in them ticks); passed over but holding a ticking cell: %d; the draws' own CPU %.3f ms a game tick (%d ticks)",
+                         skipped, sections, misses, RandomTickRng.drawTicks > 0 ? RandomTickRng.drawCpu / Double(RandomTickRng.drawTicks) : 0, RandomTickRng.drawTicks))
+        }
         if let t = Structure.tally, !t.isEmpty {
             let top = t.sorted { $0.value > $1.value }.prefix(6).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
             print(String(format: "    building checks: %d run, %.1f ms in the fills (worst %.2f ms); queued by %@", Structure.checks - checks0, Structure.totalMs - loadMs0, Structure.worstMs, top))
