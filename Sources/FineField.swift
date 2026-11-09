@@ -300,6 +300,7 @@ extension Mesher {
     // drawn from its cells (`fineBeyond` from World.fineBeyond says what lies past the 3x3 chunks), the ground's two
     // outer half-block cells pin onto the vertex the cells draw there (the nearest of the cells' vertices the half-block
     // cell lies in), so the border is the very polyline the neighbour draws: no slit, no overlap.
+    static let oldFineLookup = ProcessInfo.processInfo.environment["BS_OLDFINELOOKUP"] == "1"
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
                            exact: GrowBuf<Float>? = nil, fineBeyond: [UInt32] = [], _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let vs = sc.fineScratch
@@ -336,6 +337,14 @@ extension Mesher {
         let lo = max(0, C0 - SmoothTerrain.maxRelax - 4), hi = min(RW - 1, C0 + 21 + SmoothTerrain.maxRelax)
         vR.initialize(repeating: AIR, count: RL * RH)
         vD.initialize(repeating: FieldTerrain.outside, count: RL * RH)
+        // The fine samples of the 3x3 chunks' sections below, at and above this one, looked up once: looked up for every
+        // half-block sample (a dictionary find, a SipHash of the section number) they were a fifth of every instruction
+        // the mesh workers ran in the worst-case soak (callgrind, build 265). BS_OLDFINELOOKUP=1: a find a sample.
+        let fineT: [[Int8]?] = (0..<27).map { k in
+            let t = sy + k / 9 - 1
+            return t >= 0 && t < NSEC ? n9[k % 9].fine[t] : nil
+        }
+        let oldLookup = Mesher.oldFineLookup
         for v in 0..<8 {
             let vx = v & 1, vy = (v >> 1) & 1, vz = v >> 2
             for ry in lo...hi { for rz in lo...hi { for rx in lo...hi {
@@ -343,7 +352,8 @@ extension Mesher {
                 let j = rx + rz * RW + ry * RL
                 let src = ri(gx >> 1, gy >> 1, gz >> 1)
                 var d: Int8
-                if let f = n9[(gx >> 5) + 1 + ((gz >> 5) + 1) * 3].fine[sy + (gy >> 5)] {
+                let ni = (gx >> 5) + 1 + ((gz >> 5) + 1) * 3
+                if let f = oldLookup ? n9[ni].fine[sy + (gy >> 5)] : fineT[ni + ((gy >> 5) + 1) * 9] {
                     d = f[FineField.index(gx & 31, gy & 31, gz & 31)]
                 } else {
                     let bx = (gx - 1) >> 1, by = (gy - 1) >> 1, bz = (gz - 1) >> 1
