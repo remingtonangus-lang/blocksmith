@@ -112,6 +112,7 @@ final class WorldRenderer {
         self.scene = scene
         self.game = game
         ships = ShipDraw(scene: scene)
+        Renderer.shellOnGPU = ProcessInfo.processInfo.environment["BS_OLDSHELL"] != "1"     // (simple.vert puts them on it)
     }
 
     // Skylight around the eye, smoothed (Renderer.updateCave): fog and sky darken underground, and the eye darkness
@@ -561,8 +562,13 @@ final class WorldRenderer {
         // as they keep its horizon ground: they change as the ground does, with the eye and the light. Each beat rebuilt
         // them, 2.3 M instructions every 2nd frame at Stone Gulch for its campfires' smoke (the town soak's dearest
         // record stage after the ring). An eruption's glowing bombs are opaque and fly: while one erupts, all of it.
-        let moved = simd_length_squared(eye - lmEye) > move || far != lmFar
-        if moved || lmFrameNo - lmBuilt >= every {
+        // Nov 9 (item 7): with the shell on the GPU (Renderer.shellOnGPU) the opaque part is in world terms and holds
+        // while the eye moves: the whole build waits for 12 blocks of travel (its hazes, faces turned to the eye and
+        // what stands past the loaded land), the smoke alone (still projected here) for the old distance.
+        let gpu = Renderer.shellOnGPU
+        let moved = simd_length_squared(eye - lmEye) > (gpu ? 144 : move) || far != lmFar
+        let smokeMoved = gpu && lmHadSmoke && simd_length_squared(eye - lmSmokeEye) > move
+        if moved || smokeMoved || lmFrameNo - lmBuilt >= every {
             let full = moved || !WorldRenderer.lmSplit || lmFrameNo - lmFull >= (TickProf.lighter ? 36 : 1)
             let erupting = game.eruption.map { $0.strength(game.clock) > 0 } ?? false
             let smokeOnly = !full && lmMidValid && !erupting
@@ -584,6 +590,7 @@ final class WorldRenderer {
                 lmMidValid = WorldRenderer.lmSplit && !erupting && smokeStart >= lmHorizon.count
             }
             lmSmokeStart = smokeStart; lmBuilt = lmFrameNo
+            lmSmokeEye = eye; lmHadSmoke = landmarkVerts.count > smokeStart
         }
         let smokeStart = lmSmokeStart
         let stride = MemoryLayout<SimpleVert>.stride
@@ -602,6 +609,7 @@ final class WorldRenderer {
         landmarkCount = landmarkVerts.count
     }
     private var lmFrameNo = 0, lmBuilt = -100, lmSmokeStart = 0, lmEye = V3(1e9, 0, 0), lmFar: Float = 0
+    private var lmSmokeEye = V3(1e9, 0, 0), lmHadSmoke = false
     private var lmFull = -100, lmHorizon: [SimpleVert] = [], lmMid: [SimpleVert] = [], lmMidValid = false
     static var lmSplit = ProcessInfo.processInfo.environment["BS_LMSPLIT"] != "0"
     private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
