@@ -32,10 +32,13 @@ final class WorldRenderer {
     func takeStages() -> String {
         let n = Double(max(1, stageFrames))
         let parts = zip(WorldRenderer.stageNames, stageSums).map { "\($0) " + String(format: "%.2f", $1 * 1000 / n) }
-        let extra = String(format: " | table re-read %.1f columns a frame, occluder raster %.2f ms a frame; taken back from the workers: mobs %d, raster %d of %d frames",
-                           Double(tableReads) / n, rasterSum / n, mobWork.takeTookBack(), scene.occWork.takeTookBack(), stageFrames)
+        let extra = String(format: " | table re-read %.1f columns a frame, occluder raster %.2f ms a frame; taken back from the workers: mobs %d, raster %d of %d frames; landmark builds: %d full, %d mid, %d smoke, %.0f vertices, %.2f ms a frame",
+                           Double(tableReads) / n, rasterSum / n, mobWork.takeTookBack(), scene.occWork.takeTookBack(), stageFrames,
+                           lmTally[0], lmTally[1], lmTally[2], Double(lmVertSum) / Double(max(1, lmTally[0] + lmTally[1] + lmTally[2])),
+                           lmBuildMs / n)
         for i in stageSums.indices { stageSums[i] = 0; stagePrev[i] = 0 }
         stageFrames = 0; stageWorst = 0; tableReads = 0; rasterSum = 0
+        lmTally = [0, 0, 0]; lmVertSum = 0; lmBuildMs = 0
         return parts.joined(separator: ", ") + extra
     }
     // P385 step 3: the mobs' vertices are written on a worker while the frame thread culls and draws the terrain (they read the
@@ -591,6 +594,8 @@ final class WorldRenderer {
             }
             lmSmokeStart = smokeStart; lmBuilt = lmFrameNo
             lmSmokeEye = eye; lmHadSmoke = landmarkVerts.count > smokeStart
+            lmTally[full ? 0 : smokeOnly ? 2 : 1] += 1; lmVertSum += landmarkVerts.count
+            lmBuildMs += (CFAbsoluteTimeGetCurrent() - t0) * 1000
         }
         let smokeStart = lmSmokeStart
         let stride = MemoryLayout<SimpleVert>.stride
@@ -610,6 +615,7 @@ final class WorldRenderer {
     }
     private var lmFrameNo = 0, lmBuilt = -100, lmSmokeStart = 0, lmEye = V3(1e9, 0, 0), lmFar: Float = 0
     private var lmSmokeEye = V3(1e9, 0, 0), lmHadSmoke = false
+    private var lmTally = [0, 0, 0], lmVertSum = 0, lmBuildMs = 0.0   // builds (full, landmarks + smoke, smoke) for the soak
     private var lmFull = -100, lmHorizon: [SimpleVert] = [], lmMid: [SimpleVert] = [], lmMidValid = false
     static var lmSplit = ProcessInfo.processInfo.environment["BS_LMSPLIT"] != "0"
     private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
