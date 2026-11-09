@@ -947,9 +947,10 @@ if let out = arg("--view"), let ctx = vkctx {
                     if nat > 0 && nat < 16 * CS * CS && vw.ensureFine(c, sy) { fineSecs += 1 }
                 }
             } }
-            let oldWas = Mesher.oldFineLookup
-            for rep in 0..<3 { for old in [true, false] {
-                Mesher.oldFineLookup = old
+            let oldWas = (Mesher.oldFineLookup, Mesher.oldFineFill)
+            for rep in 0..<3 { for mode in 0..<3 {
+                let old = mode == 0
+                Mesher.oldFineLookup = old; Mesher.oldFineFill = mode < 2
                 Mesher.fineTiming = true; Mesher.fineT = (0, 0, 0, 0, 0)
                 var ms = 0.0, quads = 0
                 for dz in -2...2 { for dx in -2...2 {
@@ -962,11 +963,11 @@ if let out = arg("--view"), let ctx = vkctx {
                     }
                 } }
                 let ft = Mesher.fineT
-                print(String(format: "meshbench fine (%@ lookup, run %d): %.1f ms, %d sections given fine samples, %d quads; half-block ground: cells' pass %.1f, filling %.1f, quads %.1f ms, %d of %d eighths drew nothing",
-                             old ? "old" : "new", rep + 1, ms, fineSecs, quads, ft.pre * 1000, ft.fill * 1000, ft.quads * 1000, ft.empty, ft.subs))
+                print(String(format: "meshbench fine (%@, run %d): %.1f ms, %d sections given fine samples, %d quads; half-block ground: cells' pass %.1f, filling %.1f, quads %.1f ms, %d of %d eighths drew nothing",
+                             ["old lookup and fill", "new lookup, old fill", "new lookup and fill"][mode], rep + 1, ms, fineSecs, quads, ft.pre * 1000, ft.fill * 1000, ft.quads * 1000, ft.empty, ft.subs))
                 Mesher.fineTiming = false
             } }
-            Mesher.oldFineLookup = oldWas
+            (Mesher.oldFineLookup, Mesher.oldFineFill) = oldWas
         }
     }
     // --dig N: a plus-shaped pit N deep dug into the ground 6 blocks ahead (P142: digging leaves a dent in smooth land).

@@ -2526,6 +2526,13 @@ final class GrowBuf<T> {
 }
 
 // Per-thread meshing scratch memory (kept in the thread dictionary; worker threads reuse theirs).
+final class FineFill {
+    let r = UnsafeMutablePointer<BlockID>.allocate(capacity: MeshScratch.fineFillN)
+    let d = UnsafeMutablePointer<Int8>.allocate(capacity: MeshScratch.fineFillN)
+    let s = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.fineFillN)
+    let b = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.fineFillN)
+    deinit { r.deallocate(); d.deallocate(); s.deallocate(); b.deallocate() }
+}
 final class MeshScratch {
     let region = UnsafeMutablePointer<BlockID>.allocate(capacity: Mesher.RL * Mesher.RH)
     let sky = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)
@@ -2560,6 +2567,9 @@ final class MeshScratch {
     let dens = UnsafeMutablePointer<Int8>.allocate(capacity: Mesher.RL * Mesher.RH)    // PG1: the region's field densities
     lazy var field = SmoothField()
     lazy var fineScratch = MeshScratch()        // P377 step 1: the half-block region Mesher.fineGround meshes
+    // (fineScratch's own: every half block the eight eighths read, worked out once; Mesher.fineGround)
+    static let fineFillW = 42 + 2 * SmoothTerrain.maxRelax, fineFillN = fineFillW * fineFillW * fineFillW
+    lazy var fill = FineFill()
     lazy var drape = GroundDrape()              // P382: the section's drawn ground, for things lying on it
     let groundExact = GrowBuf<Float>(1 << 14)   // P383: the ground vertices' unsnapped positions (x, y, z a vertex)
     // P384: near-only bevelled faces and their far plain faces, the leaf blobs' cutout shells and far shell (and its
