@@ -265,6 +265,10 @@ enum GroundSettle {
         for dz in -1...1 { for dx in -1...1 { borderCheckNow(w, ChunkKey(x: k.x + dx, z: k.z + dz)) } }
     }
     private static let borderDone = CellSet(capacity: 8192), borderSeen = CellSet(capacity: 1024)
+    static let oldBorderFill = ProcessInfo.processInfo.environment["BS_OLDBORDERFILL"] == "1"
+    static let borderVerify = ProcessInfo.processInfo.environment["BS_BORDERVERIFY"] == "1"
+    static var borderVerified = 0, borderDiffs = 0
+    static var borderSeconds = 0.0, borderSeedsRun = 0          // (the soak's tally: time in the checks, seeds)
     // One chunk's waiting seeds, if all eight neighbours are in.
     private static func borderCheckNow(_ w: World, _ kk: ChunkKey) {
         // P488: generation's own leftovers, not an edit: the sections round what is taken out mesh in the queue's order
@@ -280,21 +284,23 @@ enum GroundSettle {
             guard ready else { return }
             let seeds = c.borderSeeds
             c.borderSeeds = []
+            let t0 = CFAbsoluteTimeGetCurrent()
+            defer { borderSeconds += CFAbsoluteTimeGetCurrent() - t0; borderSeedsRun += seeds.count }
             // (store review, callgrind of the battle soak: still 12M instructions a chunk, most of it hashing cells into
             // Set<IVec3> and merging them; open-addressed cell sets kept between calls, frame thread only)
             let done = borderDone, seen = borderSeen
             done.removeAll()
             var seenList: [IVec3] = []
-            for i in seeds {
-                let s = IVec3(kk.x * CS + i & 15, i / CSQ, kk.z * CS + (i >> 4) & 15)
-                guard !done.contains(s), w.isGround(s) else { continue }
+            // One seed's fill: whether its piece is held; `cells` holds its cells (all of them when it is not). (The
+            // peaks flight's callgrind: 11% of the checks was the fill's arrays growing from empty, 361,000 times;
+            // their buffers are kept between seeds now.)
+            var stack: [IVec3] = [], cells: [IVec3] = []
+            stack.reserveCapacity(512); cells.reserveCapacity(512); seenList.reserveCapacity(512)
+            func fill(_ s: IVec3, seenCap: Bool, _ seenList: inout [IVec3], _ stack: inout [IVec3], _ cells: inout [IVec3]) -> Bool {
                 seen.removeAll(); seen.insert(s)
                 seenList.removeAll(keepingCapacity: true); seenList.append(s)
-                var stack = [s], cells: [IVec3] = []
-                var held = false
-                // (store review, callgrind of the soak: each seed filled its 400 cells into hashed sets, 1.8M instructions
-                // a chunk, the whole 0.8 ms budget of every frame while land came in; ground that reaches ground an
-                // earlier seed found held is held too, and those were most of them)
+                stack.removeAll(keepingCapacity: true); stack.append(s)
+                cells.removeAll(keepingCapacity: true)
                 // (item 7, callgrind of the worst-case soak: a chunk lookup a cell and six more for its neighbours;
                 // the chunk is kept between cells now, BS_OLDLOOKUPS=1 as before)
                 var k = ChunkCursor(w)
@@ -303,16 +309,38 @@ enum GroundSettle {
                     guard n.y >= 0 && n.y < CH, let c = k.chunk(n.x, n.z) else { return false }
                     return c.blocks.ground(Chunk.index(n.x & 15, n.y, n.z & 15))
                 }
-                flood: while let q = stack.popLast() {
+                while let q = stack.popLast() {
                     cells.append(q)
-                    if q.y <= 1 || cells.count >= 400 { held = true; break }
-                    guard let cq = World.oldLookups ? w.chunkAt(q.x, q.z) : k.chunk(q.x, q.z), !cq.hollow else { held = true; break }
+                    if q.y <= 1 || cells.count >= 400 { return true }
+                    guard let cq = World.oldLookups ? w.chunkAt(q.x, q.z) : k.chunk(q.x, q.z), !cq.hollow else { return true }
                     for e in World.allDirs {
                         let n = q + e
                         if seen.contains(n) || !ground(n) { continue }
-                        if done.contains(n) { held = true; break flood }        // (a loose piece's cells went: ground no more)
+                        if done.contains(n) { return true }        // (a loose piece's cells went: ground no more)
                         seen.insert(n); seenList.append(n); stack.append(n)
                     }
+                    if seenCap && seenList.count >= 400 { return true }
+                }
+                return false
+            }
+            for i in seeds {
+                let s = IVec3(kk.x * CS + i & 15, i / CSQ, kk.z * CS + (i >> 4) & 15)
+                guard !done.contains(s), w.isGround(s) else { continue }
+                // (store review, callgrind of the soak: each seed filled its 400 cells into hashed sets, 1.8M instructions
+                // a chunk, the whole 0.8 ms budget of every frame while land came in; ground that reaches ground an
+                // earlier seed found held is held too, and those were most of them)
+                // Nov 9 (item 7, callgrind of the peaks flight: 40% of taking chunks in, nearly all held fills walking
+                // their 400 cells): a piece is held once 400 cells of it are seen, not filled. Seen cells are ground joined
+                // to it, so the piece has 400 or more either way and the fill would have reached 400 before running out:
+                // the same pieces go, a held fill stops after about a quarter of the cells. BS_OLDBORDERFILL=1 fills to
+                // 400 as before; BS_BORDERVERIFY=1 fills both ways and compares (borderVerified / borderDiffs).
+                var held = fill(s, seenCap: !oldBorderFill, &seenList, &stack, &cells)
+                if borderVerify {
+                    let c1 = cells
+                    let h0 = fill(s, seenCap: false, &seenList, &stack, &cells)      // (the old way's outcome and marks go on)
+                    borderVerified += 1
+                    if h0 != held || (!h0 && c1 != cells) { borderDiffs += 1 }
+                    held = h0
                 }
                 for q in seenList { done.insert(q) }
                 if held { continue }

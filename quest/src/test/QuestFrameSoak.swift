@@ -607,6 +607,7 @@ enum QuestFrameSoak {
             g.input.keys.removeAll(keepingCapacity: true)
             g.input.captured = true
             sc.step(g, f)
+            if f == warm { GroundSettle.borderSeconds = 0; GroundSettle.borderSeedsRun = 0 }
             let a = CFAbsoluteTimeGetCurrent()
             let ta = threadMs()
             g.tick(dt)
@@ -677,6 +678,12 @@ enum QuestFrameSoak {
         if Structure.loadVerify { print("    " + Structure.verifyLine) }
         if World.storeVerify { print("    " + World.storeVerifyLine); World.storeVerified = 0; World.storeVerifyDiffs = 0 }
         if World.uploadVerify { print("    " + World.uploadVerifyLine); World.uploadVerified = 0; World.uploadVerifyDiffs = 0 }
+        print(String(format: "    loose-ground checks on new chunks: %.3f ms a frame, %d seeds", GroundSettle.borderSeconds * 1000 / Double(max(1, frames)), GroundSettle.borderSeedsRun))
+        GroundSettle.borderSeconds = 0; GroundSettle.borderSeedsRun = 0
+        if GroundSettle.borderVerify {
+            print("    border verify: \(GroundSettle.borderVerified) loose-ground seeds filled both ways, \(GroundSettle.borderDiffs) differ")
+            GroundSettle.borderVerified = 0; GroundSettle.borderDiffs = 0
+        }
         if SoldierRig.clearVerify { print("    soldier clears run both ways (BS_CLEARVERIFY): \(SoldierRig.clearVerified), differing \(SoldierRig.clearVerifyDiffs)"); SoldierRig.clearVerified = 0; SoldierRig.clearVerifyDiffs = 0 }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
         if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@); crumbs %d blocks in %.1f ms, %.1f us a block", Structure.dropWorstMs, Structure.dropWorst,
