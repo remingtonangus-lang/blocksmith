@@ -260,20 +260,27 @@ enum Structure {
         }
         defer { if useGrid { for q in cells { grid[slot(q)] = -1 } } }
         var cur = ChunkCursor(w)
+        let K = nbrs.count
         for d in [IVec3(0, 0, 0)] + nbrs {
             let q = p + d
             if find(q) == nil, let m = part(&cur, q.x, q.y, q.z) { add(q, m) }
         }
         // Breadth first, nearest blocks first; where the fill stops (more than `limit` blocks, or `out` away) the blocks it
         // didn't get past are taken as held: a big building's far walls stand, so the check is of what's near the change.
+        // (Nov 9, the per-instruction profile: two fifths of a check went in `find`'s bounds checks and slot sums for
+        // each block's 18 neighbours. Every block the fill reaches is within out + 1 of p and its neighbours within
+        // out + 2: inside the grid when that's within gridR, so a neighbour's slot is its block's plus a fixed offset.)
+        let quick = !old && useGrid && out + 2 <= gridR
+        let off: [Int] = nbrs.map { $0.x + $0.y * gridW + $0.z * gridW * gridW }
         var head = 0
         while head < cells.count {
             let c = cells[head]
             if cells.count > limit || abs(c.x - p.x) > out || abs(c.y - p.y) > out || abs(c.z - p.z) > out { break }
             head += 1
-            for d in nbrs {
-                let q = c + d
-                if find(q) != nil { continue }
+            let base = quick ? slot(c) : 0
+            for k in 0..<K {
+                let q = c + nbrs[k]
+                if quick { if grid[base + off[k]] >= 0 { continue } } else if find(q) != nil { continue }
                 guard cur.loaded(q.x, q.z) else { if collect { res.all = cells }; return res }
                 if let m = part(&cur, q.x, q.y, q.z) { add(q, m) }
             }
@@ -282,7 +289,7 @@ enum Structure {
         res.cells = cells.count
         res.capped = head < cells.count
         if collect { res.all = cells }
-        let n = cells.count, K = nbrs.count
+        let n = cells.count
         var alive = [Bool](repeating: true, count: n)
         var root = [Bool](repeating: false, count: n)
         // Each block's neighbours in the piece, once (-1: none), in the order of `nbrs`.
@@ -292,7 +299,12 @@ enum Structure {
             if helm[Int(cur.built(c.x, c.y, c.z))] { res.cells = 0; return res }
             if i >= head { root[i] = true }
             else { for d in allDirs where anchor(&cur, c.x + d.x, c.y + d.y, c.z + d.z) { root[i] = true; break } }
-            for k in 0..<K { if let j = find(c + nbrs[k]) { nb[i * K + k] = Int32(j) } }
+            if quick {
+                let base = slot(c)
+                for k in 0..<K { nb[i * K + k] = grid[base + off[k]] }      // (-1 where none, as the table starts)
+            } else {
+                for k in 0..<K { if let j = find(c + nbrs[k]) { nb[i * K + k] = Int32(j) } }
+            }
         }
         // What a joint holds against a face joint: along an edge `edgeJoint` sideways, `slopeJoint` on a slope.
         let jf: [Float] = nbrs.map { abs($0.x) + abs($0.y) + abs($0.z) == 1 ? 1 : $0.y == 0 ? edgeJoint : slopeJoint }
@@ -326,6 +338,7 @@ enum Structure {
         }
         // The cheapest way down from each block (buckets by cost: steps cost 0, 1, weakStep or weakStep + 1).
         func routeFrom(_ from: [Bool]) -> [Int] {
+            if !old { return routeQuick(from) }
             var d = [Int](repeating: Int.max, count: n)
             var buckets = [[Int]](repeating: [], count: weakStep + 2)
             var left = 0
@@ -344,6 +357,38 @@ enum Structure {
                     }
                 }
                 c += 1
+            }
+            return d
+        }
+        // (the same search: the buckets as lists in one pool, not an array of arrays checked for sharing at every
+        // push (a sixth of the check in the profile), and the bucket a step lands in without a division)
+        func routeQuick(_ from: [Bool]) -> [Int] {
+            var d = [Int](repeating: Int.max, count: n)
+            let B = (stepCost.max() ?? 1) + weakStep + 1     // (a step lands at most this far on: its bucket is free again)
+            var top = [Int](repeating: -1, count: B)       // each bucket's last entry in the pool
+            var pv: [Int] = [], pn: [Int] = []              // the pool: a block, the entry under it
+            pv.reserveCapacity(2 * n); pn.reserveCapacity(2 * n)
+            var left = 0
+            for i in 0..<n where alive[i] && from[i] { d[i] = 0; pv.append(i); pn.append(top[0]); top[0] = pv.count - 1; left += 1 }
+            var c = 0, s = 0
+            while left > 0 {
+                while top[s] >= 0 {
+                    let e = top[s]; top[s] = pn[e]
+                    let i = pv[e]
+                    left -= 1
+                    guard d[i] == c else { continue }
+                    for k in 0..<K {
+                        let j = Int(nb[i * K + k])
+                        guard j >= 0, alive[j] else { continue }
+                        let step = stepCost[k] + weakCost(i, j), nd = c + step
+                        if nd < d[j] {
+                            d[j] = nd
+                            var t = s + step; if t >= B { t -= B }
+                            pv.append(j); pn.append(top[t]); top[t] = pv.count - 1; left += 1
+                        }
+                    }
+                }
+                c += 1; s += 1; if s == B { s = 0 }
             }
             return d
         }
@@ -588,6 +633,7 @@ enum Structure {
         let held = looseHeld, seen = looseSeen
         held.removeAll()
         var cur = ChunkCursor(w)
+        let K = nbrs.count
         for d in [IVec3(0, 0, 0)] + nbrs {
             let s0 = p + d
             guard !held.contains(s0), part(&cur, s0.x, s0.y, s0.z) != nil else { continue }
