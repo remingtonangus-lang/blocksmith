@@ -598,7 +598,7 @@ enum QuestFrameSoak {
         // weigh on the mob tick being measured)
         let mobProf = ProcessInfo.processInfo.environment["SOAK_MOBPROF"] == "1"
         MobManager.profileOn = mobProf
-        RandomTickRng.track = mobProf; RandomTickRng.worstMs = 0; RandomTickRng.worstWhat = ""
+        RandomTickRng.track = mobProf; RandomTickRng.worstMs = 0; RandomTickRng.worstWhat = ""; RandomTickRng.frameWorstMs = 0; RandomTickRng.frameWorst = ""
         defer { MobManager.profileOn = false; RandomTickRng.track = false }
         var worstMob = (0.0, "")
         for f in 0..<(frames + warm) {
@@ -687,6 +687,7 @@ enum QuestFrameSoak {
         }
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
+        if RandomTickRng.frameWorstMs > 0 && mobProf { print(String(format: "    dearest frame of random ticks: %.1f ms (%@)", RandomTickRng.frameWorstMs, RandomTickRng.frameWorst)) }
         if let t = Structure.tally, !t.isEmpty {
             let top = t.sorted { $0.value > $1.value }.prefix(6).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
             print(String(format: "    building checks: %d run, %.1f ms in the fills (worst %.2f ms); queued by %@", Structure.checks - checks0, Structure.totalMs - loadMs0, Structure.worstMs, top))

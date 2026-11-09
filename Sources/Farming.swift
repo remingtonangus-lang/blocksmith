@@ -17,6 +17,8 @@ extension Game {
         // through a local (each draw paid an exclusivity check on the global and on the chunk's storage, some 9000 a
         // game tick at render distance 8+, and it was one of the Quest frame's dearest stages); the hits run once the
         // copy is gone, so a tick that changes a block never copies the chunk's storage.
+        let track = RandomTickRng.track
+        let tStart = track ? CFAbsoluteTimeGetCurrent() : 0
         var rng = RandomTickRng.state
         var hits = RandomTickRng.hits
         RandomTickRng.hits = []
@@ -55,18 +57,31 @@ extension Game {
             // one frame in his jungle: questcheck --framesoak jungle.)
             // (A seeded run, Rand.deterministic: no clock in it, so a replay or a harness duel draws the same numbers
             // however busy the host is: the main-gun suite's Gravesworn duel went 7.2 s to 9.8 s with the host's load.)
+            let tDrawn = track ? CFAbsoluteTimeGetCurrent() : 0
             let deadline = Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + RandomTickRng.frameSeconds
-            var k = 0
-            let track = RandomTickRng.track
+            var k = 0, frameWorst = 0.0
+            // (Nov 9: the clock was read every 8th tick, so a run of slow ones (a grass block spreading, 0.3-1.2 ms each)
+            // could go 8 ticks past the allowance; it is read after each now, a few nanoseconds a tick.
+            // BS_OLDRTCLOCK=1: every 8th, as before)
+            let every = RandomTickRng.oldClock ? 7 : 0
             for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {     // (an earlier tick may have changed it)
                 let t0 = track ? CFAbsoluteTimeGetCurrent() : 0
                 randomTick(p, b)
                 if track {
                     let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                    frameWorst = max(frameWorst, ms)
                     if ms > RandomTickRng.worstMs { RandomTickRng.worstMs = ms; RandomTickRng.worstWhat = "\(Blocks.key(b)) at \(p.x) \(p.y) \(p.z)" }
                 }
                 k += 1
-                if k & 7 == 0 && CFAbsoluteTimeGetCurrent() > deadline { break }
+                if k & every == 0 && CFAbsoluteTimeGetCurrent() > deadline { break }
+            }
+            if track {
+                // (the frame soak: the dearest frame of random ticks, split into the draws and the ticks)
+                let tEnd = CFAbsoluteTimeGetCurrent(), all = (tEnd - tStart) * 1000
+                if all > RandomTickRng.frameWorstMs {
+                    RandomTickRng.frameWorstMs = all
+                    RandomTickRng.frameWorst = String(format: "draws %.2f ms (%d hits), %d ticks %.2f ms (slowest %.2f)", (tDrawn - tStart) * 1000, hits.count, k, (tEnd - tDrawn) * 1000, frameWorst)
+                }
             }
         }
         RandomTickRng.hits = hits
@@ -725,5 +740,7 @@ enum RandomTickRng {
     static var hits: [(IVec3, BlockID)] = []          // (Game.randomTicks' reused list)
     static var profile = false, worstMs = 0.0, worstWhat = ""   // (P400 harness)
     static var track = false                                     // (the frame soak's SOAK_MOBPROF: the slowest one, timed as it runs)
+    static var frameWorstMs = 0.0, frameWorst = ""                 // (and the dearest frame of them, split)
+    static let oldClock = ProcessInfo.processInfo.environment["BS_OLDRTCLOCK"] == "1"
     static var frameSeconds = 0.0012                    // (store review: a frame's random ticks at most this long)
 }
