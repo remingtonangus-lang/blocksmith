@@ -684,6 +684,10 @@ enum QuestFrameSoak {
             print("    border verify: \(GroundSettle.borderVerified) loose-ground seeds filled both ways, \(GroundSettle.borderDiffs) differ")
             GroundSettle.borderVerified = 0; GroundSettle.borderDiffs = 0
         }
+        if WorldRenderer.smokeVerify {
+            print("    landmark smoke verify: \(WorldRenderer.smokeChecked) smoke beats kept the opaque part, \(WorldRenderer.smokeDiffs) differ from rebuilding it")
+            WorldRenderer.smokeChecked = 0; WorldRenderer.smokeDiffs = 0
+        }
         if SoldierRig.clearVerify { print("    soldier clears run both ways (BS_CLEARVERIFY): \(SoldierRig.clearVerified), differing \(SoldierRig.clearVerifyDiffs)"); SoldierRig.clearVerified = 0; SoldierRig.clearVerifyDiffs = 0 }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
         if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@); crumbs %d blocks in %.1f ms, %.1f us a block", Structure.dropWorstMs, Structure.dropWorst,

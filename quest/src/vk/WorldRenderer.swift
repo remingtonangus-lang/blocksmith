@@ -575,34 +575,68 @@ final class WorldRenderer {
             let full = moved || !WorldRenderer.lmSplit || lmFrameNo - lmFull >= (TickProf.lighter ? 36 : 1)
             let erupting = game.eruption.map { $0.strength(game.clock) > 0 } ?? false
             let smokeOnly = !full && lmMidValid && !erupting
-            landmarkVerts.removeAll(keepingCapacity: true)
-            if !full { landmarkVerts.append(contentsOf: lmHorizon) }
-            if smokeOnly { landmarkVerts.append(contentsOf: lmMid) }
-            var smokeStart = 0
-            host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
-                                rd: Float(game.world.renderDistance), horizon: full, landmarks: !smokeOnly)
-            if full {
-                lmHorizon.removeAll(keepingCapacity: true)
-                lmHorizon.append(contentsOf: landmarkVerts[0..<Renderer.horizonEnd])
-                lmEye = eye; lmFar = far; lmFull = lmFrameNo
+            // Nov 9 (item 7): a smoke beat leaves the opaque part where it is, in the live buffer of the last build that
+            // made it (the same vertices as lmHorizon + lmMid, which the beat copied back in front of the smoke and then
+            // into a buffer again: 22,000 vertices every 2nd frame while a volcano smokes or the crawler's shells raise
+            // dust over a far citadel), and only the smoke goes into a small buffer of its own. BS_OLDLMSMOKE=1: as before.
+            if smokeOnly && WorldRenderer.smokeApart && lmLive >= 0 && lmSmokeStart > 0 {
+                lmSmokeVerts.removeAll(keepingCapacity: true)
+                var none = 0
+                host.buildLandmarks(&lmSmokeVerts, smokeStart: &none, game: game, eye: eye, far: far, fog: fogColor,
+                                    rd: Float(game.world.renderDistance), horizon: false, landmarks: false)
+                if WorldRenderer.smokeVerify, let b = lmBufs[lmLive], let mp = b.mapped {
+                    let opaque = lmHorizon + lmMid
+                    let same = opaque.count == lmSmokeStart && opaque.withUnsafeBytes { memcmp(mp, $0.baseAddress!, $0.count) == 0 }
+                    WorldRenderer.smokeChecked += 1; if !same { WorldRenderer.smokeDiffs += 1 }
+                }
+                lmSmokeLive = lmStoreSmoke(lmSmokeVerts)
+                lmBuilt = lmFrameNo; lmSmokeEye = eye; lmHadSmoke = !lmSmokeVerts.isEmpty
+                lmTally[2] += 1; lmVertSum += lmSmokeVerts.count
+                lmBuildMs += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                lmSmokeOwn = true
+            } else {
+                lmSmokeOwn = false
+                landmarkVerts.removeAll(keepingCapacity: true)
+                if !full { landmarkVerts.append(contentsOf: lmHorizon) }
+                if smokeOnly { landmarkVerts.append(contentsOf: lmMid) }
+                var smokeStart = 0
+                host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
+                                    rd: Float(game.world.renderDistance), horizon: full, landmarks: !smokeOnly)
+                if full {
+                    lmHorizon.removeAll(keepingCapacity: true)
+                    lmHorizon.append(contentsOf: landmarkVerts[0..<Renderer.horizonEnd])
+                    lmEye = eye; lmFar = far; lmFull = lmFrameNo
+                }
+                if !smokeOnly {
+                    lmMid.removeAll(keepingCapacity: true)
+                    let lo = min(lmHorizon.count, smokeStart)          // (a build that found nothing to draw: no landmarks)
+                    lmMid.append(contentsOf: landmarkVerts[lo..<smokeStart])
+                    lmMidValid = WorldRenderer.lmSplit && !erupting && smokeStart >= lmHorizon.count
+                }
+                lmSmokeStart = smokeStart; lmBuilt = lmFrameNo
+                lmSmokeEye = eye; lmHadSmoke = landmarkVerts.count > smokeStart
+                lmTally[full ? 0 : smokeOnly ? 2 : 1] += 1; lmVertSum += landmarkVerts.count
+                lmBuildMs += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                lmLive = TickProf.lighter ? lmStore(landmarkVerts) : -1
             }
-            if !smokeOnly {
-                lmMid.removeAll(keepingCapacity: true)
-                let lo = min(lmHorizon.count, smokeStart)          // (a build that found nothing to draw: no landmarks)
-                lmMid.append(contentsOf: landmarkVerts[lo..<smokeStart])
-                lmMidValid = WorldRenderer.lmSplit && !erupting && smokeStart >= lmHorizon.count
-            }
-            lmSmokeStart = smokeStart; lmBuilt = lmFrameNo
-            lmSmokeEye = eye; lmHadSmoke = landmarkVerts.count > smokeStart
-            lmTally[full ? 0 : smokeOnly ? 2 : 1] += 1; lmVertSum += landmarkVerts.count
-            lmBuildMs += (CFAbsoluteTimeGetCurrent() - t0) * 1000
         }
         let smokeStart = lmSmokeStart
+        if lmSmokeOwn, let b = lmBufs[lmLive] {
+            lmUsed[lmLive] = lmFrameNo
+            scene.drawBuffer(s, "simpleSolid", b.buffer, offset: 0, count: smokeStart)
+            if lmSmokeLive >= 0, let sb = lmSmokeBufs[lmSmokeLive] {
+                lmSmokeUsed[lmSmokeLive] = lmFrameNo
+                landmarkSmoke = (sb.buffer, 0, lmSmokeVerts.count)
+            } else if let off = scene.push(s, lmSmokeVerts) {
+                landmarkSmoke = (nil, off, lmSmokeVerts.count)
+            }
+            landmarkCount = smokeStart + lmSmokeVerts.count
+            return
+        }
         let stride = MemoryLayout<SimpleVert>.stride
         // P283: a build goes into one of three vertex buffers of its own (one out of use for 3 frames: both frames in
         // flight are done with it) and is drawn from there until the next, instead of copying the whole shell into the
         // frame's scratch ring every frame (0.4 ms of each frame's record on the replay).
-        if lmBuilt == lmFrameNo { lmLive = TickProf.lighter ? lmStore(landmarkVerts) : -1 }
         if lmLive >= 0, let b = lmBufs[lmLive] {
             lmUsed[lmLive] = lmFrameNo
             if smokeStart > 0 { scene.drawBuffer(s, "simpleSolid", b.buffer, offset: 0, count: smokeStart) }
@@ -619,6 +653,24 @@ final class WorldRenderer {
     private var lmFull = -100, lmHorizon: [SimpleVert] = [], lmMid: [SimpleVert] = [], lmMidValid = false
     static var lmSplit = ProcessInfo.processInfo.environment["BS_LMSPLIT"] != "0"
     private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
+    private var lmSmokeVerts: [SimpleVert] = [], lmSmokeOwn = false
+    private var lmSmokeBufs: [VkBuf?] = [nil, nil, nil], lmSmokeUsed = [-10, -10, -10], lmSmokeLive = -1
+    static let smokeApart = ProcessInfo.processInfo.environment["BS_OLDLMSMOKE"] != "1"
+    static let smokeVerify = ProcessInfo.processInfo.environment["BS_LMSMOKEVERIFY"] == "1"
+    static var smokeChecked = 0, smokeDiffs = 0             // (BS_LMSMOKEVERIFY: smoke beats whose kept opaque part differed)
+    // The smoke alone into a buffer of its own (as lmStore), or -1 (pushed to the scratch ring each frame).
+    private func lmStoreSmoke(_ verts: [SimpleVert]) -> Int {
+        guard !verts.isEmpty else { return -1 }
+        let bytes = verts.count * MemoryLayout<SimpleVert>.stride
+        guard let k = (0..<3).first(where: { $0 != lmSmokeLive && lmFrameNo - lmSmokeUsed[$0] >= 3 }) else { return -1 }
+        if lmSmokeBufs[k] == nil || lmSmokeBufs[k]!.size < bytes {
+            lmSmokeBufs[k] = nil
+            lmSmokeBufs[k] = try? VkBuf(scene.ctx, size: max(bytes * 5 / 4, 1 << 16), usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true)
+        }
+        guard let b = lmSmokeBufs[k], let p = b.mapped else { return -1 }
+        verts.withUnsafeBytes { src in _ = memcpy(p, src.baseAddress!, bytes) }
+        return k
+    }
     // The build into a buffer none of the frames in flight reads (index), or -1 (drawn from the scratch ring this time).
     private func lmStore(_ verts: [SimpleVert]) -> Int {
         guard !verts.isEmpty else { return -1 }
