@@ -96,6 +96,7 @@ enum Explosion {
         let own = g.bases.quiet
         let lying = g.drops.items.count                    // (what this blast spills itself is thrown, not burnt: P452)
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
+        Explosion.lap("heard")
         w.ships.blast(at: c, power: power, game: g, resistCap: resistCap)          // ship blocks (ShipCombat.swift)
         Explosion.lap("ships")
         var destroyed = Set<IVec3>()
