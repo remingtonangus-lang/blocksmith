@@ -697,9 +697,9 @@ enum QuestFrameSoak {
                 sections += top + 1
                 for sy in 0...top where c.blocks.tickMask & (1 << UInt32(sy)) == 0 { skipped += 1 }
                 misses += c.blocks.tickMaskMisses()
-                fluidMisses += c.blocks.fluidMaskMisses()
+                fluidMisses += c.blocks.fluidEdgeMisses()
             }
-            print("    fluid sections passed over by the border springs but holding a fluid: \(fluidMisses)")
+            print("    fluid cells on a chunk side its border springs pass over: \(fluidMisses)")
             print(String(format: "    random tick sections: %d of %d passed over (nothing in them ticks); passed over but holding a ticking cell: %d; the draws' own CPU %.3f ms a game tick (%d ticks)",
                          skipped, sections, misses, RandomTickRng.drawTicks > 0 ? RandomTickRng.drawCpu / Double(RandomTickRng.drawTicks) : 0, RandomTickRng.drawTicks))
         }

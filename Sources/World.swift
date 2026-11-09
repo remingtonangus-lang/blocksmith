@@ -2028,7 +2028,7 @@ final class World: LifeLinked {
         var s = r.ground.map { BlockStore(r.blocks, field: $0) } ?? BlockStore(r.blocks)
         s.emitMask = r.emitMask
         s.tickMask = r.tickMask
-        if !oldSprings { s.fluidMask = BlockStore.fluidMask(of: r.blocks) }
+        if !oldSprings { s.fluidEdges = BlockStore.fluidEdges(of: r.blocks) }
         r.store = s
         if !storeVerify {
             r.blocks = []
@@ -2042,7 +2042,7 @@ final class World: LifeLinked {
             var s = p.ground.map { BlockStore(p.blocks, field: $0) } ?? BlockStore(p.blocks)
             s.emitMask = p.emitMask
             s.tickMask = p.tickMask
-            if !oldSprings && !oldStore { s.fluidMask = BlockStore.fluidMask(of: p.blocks) }
+            if !oldSprings && !oldStore { s.fluidEdges = BlockStore.fluidEdges(of: p.blocks) }
             return s
         }
         guard let s = p.store else { return made() }
@@ -2089,14 +2089,16 @@ final class World: LifeLinked {
     // Fluid on one side of a chunk border with air on the other (World.springs sees one chunk's interior only): lava at
     // a chunk's edge facing a cave in the next chunk stood still for good (Oct 11 playtest P18 at 12:42: "lava that should
     // be spilling into me, but isn't"). Checked as each chunk joins its loaded neighbours, up to the taller column + 2.
-    // Nov 9: a pair of cells where neither is a fluid does nothing, so sections neither chunk's fluidMask marks are passed
-    // over (all four sides of most chunks: no fluid at all). BS_OLDSPRINGS=1: every cell, as before.
+    // Nov 9: a pair of cells where neither is a fluid does nothing, so sections where neither chunk has a fluid on the
+    // facing side (BlockStore.fluidEdges) are passed over: most sides of most chunks. BS_OLDSPRINGS=1: every cell.
     static let oldSprings = ProcessInfo.processInfo.environment["BS_OLDSPRINGS"] == "1"
     func borderSprings(_ c: Chunk) {
         let fk = Blocks.fluidKind
         for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
             guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
-            let mask = World.oldSprings ? ~0 : c.blocks.fluidMask | n.blocks.fluidMask
+            // (c's side facing n, and n's facing c: x 15 against x 0, z 15 against z 0)
+            let cs = dx == 1 ? 0 : dx == -1 ? 1 : dz == 1 ? 2 : 3, ns = cs ^ 1
+            let mask: UInt32 = World.oldSprings ? ~0 : c.blocks.fluidEdges[cs] | n.blocks.fluidEdges[ns]
             guard mask != 0 else { continue }
             for i in 0..<CS {
                 // The facing columns: c's edge (lx, lz) and n's (nx, nz).
