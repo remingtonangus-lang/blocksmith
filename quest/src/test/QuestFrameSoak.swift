@@ -590,7 +590,7 @@ enum QuestFrameSoak {
         }
         let frames = secs * 72
         let warm = 3 * 72                                                    // (the first 3 s: first meshes in, not counted)
-        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; Felling.worstMs = 0; Felling.worstSplit = ""; Structure.dropWorstMs = 0; Structure.dropWorst = ""; Structure.crumbMs = 0; Structure.crumbN = 0; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; CraterJob.finesUnfetched = 0; CraterJob.stepsUnfetched = 0; CraterJob.unfetchedPhases = [:]; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks
+        World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; Felling.worstMs = 0; Felling.worstSplit = ""; Structure.dropWorstMs = 0; Structure.dropWorst = ""; Structure.crumbMs = 0; Structure.crumbN = 0; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; CraterJob.finesUnfetched = 0; CraterJob.stepsUnfetched = 0; CraterJob.unfetchedPhases = [:]; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks, loadMs0 = Structure.totalMs; Structure.worstMs = 0
         let t0 = CFAbsoluteTimeGetCurrent()
         var mobsPeak = 0, shellsPeak = 0
         var stages: [String: (Double, Double)] = [:]
@@ -674,6 +674,7 @@ enum QuestFrameSoak {
         if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
         if StructureTip.worstMs > 0 { print(String(format: "    slowest collapse check: %.1f ms (%@)", StructureTip.worstMs, StructureTip.worstSplit)) }
         if StructureTip.tipVerify { print("    tip checks run both ways (BS_TIPVERIFY): \(StructureTip.verified), differing \(StructureTip.verifyDiffs)") }
+        if Structure.loadVerify { print("    " + Structure.verifyLine) }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
         if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@); crumbs %d blocks in %.1f ms, %.1f us a block", Structure.dropWorstMs, Structure.dropWorst,
                                                     Structure.crumbN, Structure.crumbMs, Structure.crumbN > 0 ? Structure.crumbMs * 1000 / Double(Structure.crumbN) : 0)) }
@@ -687,7 +688,7 @@ enum QuestFrameSoak {
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
         if let t = Structure.tally, !t.isEmpty {
             let top = t.sorted { $0.value > $1.value }.prefix(6).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
-            print("    building checks: \(Structure.checks - checks0) run; queued by \(top)")
+            print(String(format: "    building checks: %d run, %.1f ms in the fills (worst %.2f ms); queued by %@", Structure.checks - checks0, Structure.totalMs - loadMs0, Structure.worstMs, top))
         }
         Structure.tally = nil
         if !StructureCache.framePlans.isEmpty { print("    starts planned on the frame thread: " + StructureCache.framePlans.joined(separator: ", ")) }
