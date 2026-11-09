@@ -72,13 +72,37 @@ extension SoldierRig {
         }
         return r
     }
-    static func clipFast(_ p: SoldierPose, _ gm: GunModel, poleL: V3?, poleR: V3?) -> (depth: Float, push: V3, armL: Float, armR: Float, torso: Float) {
+    // The weapon's 13 samples (as gunSamples) into `pts`.
+    @inline(__always) static func samples(_ p: SoldierPose, _ gm: GunModel, into pts: UnsafeMutableBufferPointer<V3>) {
         let rot = gunRotation(p)
         @inline(__always) func at(_ local: V3) -> V3 { p.gunAt + rot * ((local - gm.grip) * gm.scale) }
+        for i in 0...10 { pts[i] = at(gm.butt + (gm.muzzle - gm.butt) * (Float(i) / 10)) }
+        pts[11] = at(gm.magAt)
+        pts[12] = at(gm.grip)
+    }
+    // How deep the weapon sinks into one arm (clipFast's armL or armR) with its elbow toward `pole`: the same steps.
+    @inline(__always) static func armDepth(_ s: V3, _ target: V3, pole: V3, shoulderedButt: Bool, _ pts: UnsafeMutableBufferPointer<V3>) -> Float {
+        let reachIn = armR + gunR
+        let (e, h) = ik(s, target, upperArm, foreArm, pole: pole)
+        var per: Float = 0
+        for i in 0..<13 {
+            let q = pts[i]
+            if simd_length(q - h) < 3.0 { continue }
+            if i == 0 && shoulderedButt && simd_length(q - s) < 3.2 { continue }
+            for seg in 0..<2 {
+                let a = seg == 0 ? s : e, b = seg == 0 ? e : h
+                let (c, t) = closest(q, a, b)
+                if seg == 1 && t > 0.75 { continue }
+                let d = simd_length(q - c)
+                let pen = reachIn - d
+                if pen > 0 { per = max(per, pen) }
+            }
+        }
+        return per
+    }
+    static func clipFast(_ p: SoldierPose, _ gm: GunModel, poleL: V3?, poleR: V3?) -> (depth: Float, push: V3, armL: Float, armR: Float, torso: Float) {
         return withUnsafeTemporaryAllocation(of: V3.self, capacity: 13) { pts -> (depth: Float, push: V3, armL: Float, armR: Float, torso: Float) in
-            for i in 0...10 { pts[i] = at(gm.butt + (gm.muzzle - gm.butt) * (Float(i) / 10)) }
-            pts[11] = at(gm.magAt)
-            pts[12] = at(gm.grip)
+            samples(p, gm, into: pts)
             var depth: Float = 0, push = V3(0, 0, 0)
             var perL: Float = 0, perR: Float = 0, body: Float = 0
             let shoulderedButt = gm.shouldered
@@ -222,9 +246,31 @@ extension SoldierRig {
         clearKept[key] = (clearFrame - phase, p.gunAt - g0, p.poleL, p.poleR)
     }
 
-    // Swing the elbows round the weapon, then move the weapon (and the hands on it) clear.
+    // Nov 9 (callgrind of the battle soak's mob drawing: this was a fifth of it, the near soldiers measured every
+    // frame): each of the 14 elbow tries a round measured the whole clip (the weapon's samples turned again, both
+    // arms and the torso twice) for one arm's depth. A try now measures only that arm, on samples and a shoulder
+    // worked out once a side (the pole moves neither): the same numbers, so the same choices (BS_OLDCLEAR=1: as
+    // before; BS_CLEARVERIFY=1: every clear run both ways and the poses compared).
+    static let oldClear = ProcessInfo.processInfo.environment["BS_OLDCLEAR"] == "1"
+    static let clearVerify = ProcessInfo.processInfo.environment["BS_CLEARVERIFY"] == "1"
+    static var clearVerified = 0, clearVerifyDiffs = 0
     static func clear(_ p: inout SoldierPose, _ gm: GunModel) {
+        guard clearVerify else { clearOnce(&p, gm, old: oldClear); return }
+        var o = p
+        clearOnce(&o, gm, old: true)
+        clearOnce(&p, gm, old: false)
+        clearVerified += 1
+        @inline(__always) func same(_ a: V3?, _ b: V3?) -> Bool { a == nil ? b == nil : (b != nil && a! == b!) }
+        if !(o.gunAt == p.gunAt && o.poleL == p.poleL && o.poleR == p.poleR && same(o.handL, p.handL) && same(o.handR, p.handR)
+             && o.gunPitch == p.gunPitch && o.gunYaw == p.gunYaw && o.gunRoll == p.gunRoll && o.armL == p.armL && o.armR == p.armR) {
+            clearVerifyDiffs += 1
+            if clearVerifyDiffs <= 5 { print("clearverify: DIFFERS: gun \(o.gunAt) vs \(p.gunAt), poles \(o.poleL) \(o.poleR) vs \(p.poleL) \(p.poleR)") }
+        }
+    }
+    // Swing the elbows round the weapon, then move the weapon (and the hands on it) clear.
+    private static func clearOnce(_ p: inout SoldierPose, _ gm: GunModel, old: Bool) {
         guard clip(p, gm).depth > 0.25 else { return }
+        let quick = !old && !clipOldEnv && !clipCompare        // (the arm measure is clipFast's)
         for _ in 0..<6 {
             for side in [-1, 1] as [Float] {
                 let left = side < 0
@@ -233,10 +279,22 @@ extension SoldierRig {
                 let tries = [cur, V3(side, -0.6, 0.2), V3(side, 0, 0), V3(side, -1, -0.4), V3(side * 0.4, -1, 0.6),
                              V3(side, 0.4, 0.3), V3(side * 0.6, -0.3, -1)]
                 var best = cur, bestD = Float.greatestFiniteMagnitude
-                for t in tries {
-                    let c = left ? clip(p, gm, poleL: t) : clip(p, gm, poleR: t)
-                    let d = left ? c.armL : c.armR
-                    if d < bestD - 0.05 { best = t; bestD = d }
+                if quick {
+                    let pp = p
+                    withUnsafeTemporaryAllocation(of: V3.self, capacity: 13) { pts in
+                        samples(pp, gm, into: pts)
+                        let (s, target, _) = armTarget(pp, side: side)
+                        for t in tries {
+                            let d = armDepth(s, target, pole: t, shoulderedButt: gm.shouldered, pts)
+                            if d < bestD - 0.05 { best = t; bestD = d }
+                        }
+                    }
+                } else {
+                    for t in tries {
+                        let c = left ? clip(p, gm, poleL: t) : clip(p, gm, poleR: t)
+                        let d = left ? c.armL : c.armR
+                        if d < bestD - 0.05 { best = t; bestD = d }
+                    }
                 }
                 if left { p.poleL = best } else { p.poleR = best }
             }
