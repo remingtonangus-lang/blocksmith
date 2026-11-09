@@ -232,6 +232,11 @@ struct BlockStore {
         }
     }
 
+    // (World.storeVerify: the same layers, edits and masks)
+    func sameStore(_ o: BlockStore) -> Bool {
+        data == o.data && fd == o.fd && fm == o.fm && fine == o.fine && emitMask == o.emitMask && tickMask == o.tickMask
+    }
+
     var count: Int { CSQ * CH }             // logical size
     var storedCount: Int { max(data.count, fd.count) }     // everything at or above this index is AIR
     var storedBytes: (blocks: Int, field: Int) { (data.capacity * 2, fd.capacity + fm.capacity) }   // (P374 perfscenes)
@@ -458,11 +463,14 @@ final class Chunk {
     var cullWatched = false          // held by the Quest's cull table: changes are noted (CullNotes)
 
     var borderSeeds: [Int] = []                      // P380 (2): small pieces at the side, checked once the neighbours exist
-    init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32], field: FieldData? = nil) {
+    convenience init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32], field: FieldData? = nil) {
+        self.init(cx: cx, cz: cz, store: field.map { BlockStore(blocks, field: $0) } ?? BlockStore(blocks), height: height, tint: tint)
+    }
+    init(cx: Int, cz: Int, store: BlockStore, height: [Int16], tint: [UInt32]) {
         Chunk.aliveLock.lock(); Chunk.alive += 1; Chunk.aliveLock.unlock()
         self.cx = cx
         self.cz = cz
-        self.blocks = field.map { BlockStore(blocks, field: $0) } ?? BlockStore(blocks)
+        self.blocks = store
         self.height = height
         heightMax = Int(height.max() ?? -1)
         self.tint = tint

@@ -2009,7 +2009,49 @@ final class World: LifeLinked {
         var field: [Int32: UInt16] = [:]     // PG1: saved terrain field edits (TerrainField.swift)
         var ground: FieldData? = nil         // PG1 rewrite: the chunk's density field (field worlds, FieldTerrain.swift)
         var cached: MeshCache.Entry? = nil   // P376: a shell's meshes read from the disk cache (ChunkShells)
+        var store: BlockStore? = nil         // Nov 9: the chunk's block store, made on the worker (World.storeOnWorker)
     }
+
+    // Nov 9 (the soak flying over jagged peaks at the creative sprint: taking new chunks in cost 0.45-0.49 ms of the
+    // frame thread every frame): the chunk's BlockStore was made in install, on the frame thread. Making it scans each
+    // layer down from the top for its highest filled cell (field worlds: ~60,000 cells of air in the built layer and as
+    // many over the ground in the field) and copies the layers: 92% of install's instructions in a callgrind of the
+    // flight. The worker that made the chunk makes its store now, and lets go of the full arrays there (freeing them
+    // was the frame's too). BS_OLDSTORE=1: made in install, as before; BS_STOREVERIFY=1: both, compared (the soak prints
+    // the tally).
+    static let oldStore = ProcessInfo.processInfo.environment["BS_OLDSTORE"] == "1"
+    static let storeVerify = ProcessInfo.processInfo.environment["BS_STOREVERIFY"] == "1"
+    static var storeVerified = 0, storeVerifyDiffs = 0
+    private static func withStore(_ r: Produced) -> Produced {
+        guard !oldStore, r.cached == nil else { return r }
+        var r = r
+        var s = r.ground.map { BlockStore(r.blocks, field: $0) } ?? BlockStore(r.blocks)
+        s.emitMask = r.emitMask
+        s.tickMask = r.tickMask
+        r.store = s
+        if !storeVerify {
+            r.blocks = []
+            if r.ground != nil { r.ground!.fd = []; r.ground!.fm = []; r.ground!.fine = [:] }
+        }
+        return r
+    }
+    // The store install and refill use: the worker's, or made here (BS_OLDSTORE=1); with BS_STOREVERIFY=1 both, compared.
+    static func store(of p: Produced) -> BlockStore {
+        func made() -> BlockStore {
+            var s = p.ground.map { BlockStore(p.blocks, field: $0) } ?? BlockStore(p.blocks)
+            s.emitMask = p.emitMask
+            s.tickMask = p.tickMask
+            return s
+        }
+        guard let s = p.store else { return made() }
+        if storeVerify {
+            let o = made()
+            storeVerified += 1
+            if !s.sameStore(o) { storeVerifyDiffs += 1 }
+        }
+        return s
+    }
+    static var storeVerifyLine: String { "store verify: \(storeVerified) chunk stores made both ways, \(storeVerifyDiffs) differ" }
 
     // Fluid cells beside or over air: scheduled for a fluid update on install so underground sources spill into caves
     // as waterfalls (reference: aquifer fluid ticks on generation) instead of standing as a wall of water until something
@@ -2153,7 +2195,7 @@ final class World: LifeLinked {
                              emitMask: BlockStore.emitMask(of: merged), springs: World.springs(merged, k, heights), field: field,
                              ground: g)
             r.tickMask = BlockStore.tickMask(of: merged)
-            return r
+            return World.withStore(r)
         }
         _ = PlantSupport.dropFloating(&blocks)
         let heights = Chunk.computeHeights(blocks)
@@ -2167,13 +2209,13 @@ final class World: LifeLinked {
                              fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
                              emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f)
             r.tickMask = BlockStore.tickMask(of: merged)
-            return r
+            return World.withStore(r)
         }
         var r = Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                          fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
                          emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field)
         r.tickMask = BlockStore.tickMask(of: blocks)
-        return r
+        return World.withStore(r)
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -2207,10 +2249,8 @@ final class World: LifeLinked {
         let prof = World.resultsProfile
         let t0 = prof ? CFAbsoluteTimeGetCurrent() : 0
         if p.ground != nil { fieldStamp &+= 1 }              // (cached field collision at its border reads it now)
-        let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint, field: p.ground)
+        let c = Chunk(cx: k.x, cz: k.z, store: World.store(of: p), height: p.height, tint: p.tint)
         c.world = self
-        c.blocks.emitMask = p.emitMask
-        c.blocks.tickMask = p.tickMask
         c.modified = p.fromDisk
         if p.fromDisk { c.markSaved() }
         c.fieldEdits = p.field
