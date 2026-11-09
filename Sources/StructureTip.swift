@@ -84,7 +84,30 @@ enum StructureTip {
     // held by the world, or into unloaded ground or a docked vessel); then level by level up the hole, the part of it
     // over the level joined to the hole (two towers met below the level are two pieces there) is weighed.
     static func check(_ w: World, at p: IVec3, r: Int) -> [IVec3]? { var n = 0; return check(w, at: p, r: r, count: &n) }
+    // Nov 9 (frame rate, the worst-case soak: a 6,381-block citadel piece took 3.2-4.5 ms of the frame thread's own time
+    // in every run): the fill asked the world again for every open or natural cell each time it met one (up to 18
+    // times), and the footings asked it again for the blocks under each block, most of them blocks of the piece itself.
+    // Each cell the fill meets that isn't of the piece is marked in the grid now (cleared after), and a block under
+    // another that is of the piece is known to be built on without asking (no block the piece can hold is ground,
+    // water or bedrock: `partAnchors`). BS_TIPOLD=1: as before; BS_TIPVERIFY=1: both, every difference printed.
+    static let tipOld = ProcessInfo.processInfo.environment["BS_TIPOLD"] == "1"
+    static let tipVerify = ProcessInfo.processInfo.environment["BS_TIPVERIFY"] == "1"
+    static var verified = 0, verifyDiffs = 0
+    static let partAnchors: Bool = (0..<Blocks.count).contains { i in
+        Structure.table[i] != nil && (Blocks.isLiquid(BlockID(i)) || Blocks.hardness[i] < 0 && Blocks.collide[i])
+    }
     static func check(_ w: World, at p: IVec3, r: Int, count: inout Int) -> [IVec3]? {
+        if tipVerify {
+            var n0 = 0
+            let a = check(w, at: p, r: r, count: &n0, marks: false)
+            let b = check(w, at: p, r: r, count: &count, marks: true)
+            verified += 1
+            if a != b || n0 != count { verifyDiffs += 1; print("tipverify: DIFFERS at \(p) r \(r): \(n0) vs \(count) cells, \(a?.count ?? -1) vs \(b?.count ?? -1) tipping") }
+            return b
+        }
+        return check(w, at: p, r: r, count: &count, marks: !tipOld && !partAnchors)
+    }
+    static func check(_ w: World, at p: IVec3, r: Int, count: inout Int, marks: Bool) -> [IVec3]? {
         let began = CFAbsoluteTimeGetCurrent()
         fillAt = 0; groundAt = 0
         defer {
@@ -103,10 +126,16 @@ enum StructureTip {
         var k = ChunkCursor(w)
         var cells: [IVec3] = [], mats: [Structure.Mat] = []
         var links: [Float] = []                                   // per cell: the bonds of its joints out past `side`
-        defer { for q in cells { grid[slot(q)] = -1 } }
+        var open: [Int32] = []                                    // (marks: the cells met that aren't of the piece, -2)
+        defer { for q in cells { grid[slot(q)] = -1 }; for i in open { grid[Int(i)] = -1 } }
         func add(_ q: IVec3) -> Bool {
-            guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY, grid[slot(q)] < 0,
-                  let m = Structure.part(&k, q.x, q.y, q.z) else { return true }
+            guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY else { return true }
+            let si = slot(q)
+            guard grid[si] == -1 else { return true }
+            guard let m = Structure.part(&k, q.x, q.y, q.z) else {
+                if marks { grid[si] = -2; open.append(Int32(si)) }
+                return true
+            }
             if Structure.helm[Int(k.built(q.x, q.y, q.z))] { return false }
             grid[slot(q)] = Int32(cells.count)
             cells.append(q); mats.append(m); links.append(0)
@@ -148,8 +177,11 @@ enum StructureTip {
             let c = cells[i]
             for d in Structure.nbrs where d.y == -1 {
                 let q = c + d
+                // (a block of the piece: built on, never ground; a cell the fill met that isn't: not built on)
+                let g: Int32 = marks && q.y >= floorY && abs(q.x - p.x) <= side && abs(q.z - p.z) <= side ? grid[slot(q)] : -1
+                if g >= 0 { onBlock[i] = true; continue }
                 if Structure.anchor(&k, q.x, q.y, q.z) { ground[i] = true; break }
-                if Structure.part(&k, q.x, q.y, q.z) != nil { onBlock[i] = true }
+                if g == -1 && Structure.part(&k, q.x, q.y, q.z) != nil { onBlock[i] = true }
             }
             if !ground[i] { for d in World.allDirs where d.y == 0 && Structure.anchor(&k, c.x + d.x, c.y, c.z + d.z) { ground[i] = true; break } }
         }
