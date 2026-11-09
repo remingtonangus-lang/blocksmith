@@ -935,6 +935,35 @@ if let out = arg("--view"), let ctx = vkctx {
         }
         (SmoothTerrain.enabled, SmoothTerrain.fromField) = was
         Mesher.detailMeshes = detailWas
+        // The ground drawn at half blocks (fine samples, as round a dug or blasted spot): the 5x5 chunks' sections that
+        // draw any ground given their fine samples, then meshed with the samples looked up the old way and the new.
+        if vw.fieldTerrain && FineField.enabled {
+            var fineSecs = 0
+            for dz in -2...2 { for dx in -2...2 {
+                guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
+                for sy in 0..<NSEC {
+                    var nat = 0
+                    for y in sy * 16..<(sy * 16 + 16) where y < CH { for i in 0..<CS * CS where c.blocks.ground(Chunk.index(i % CS, y, i / CS)) { nat += 1 } }
+                    if nat > 0 && nat < 16 * CS * CS && vw.ensureFine(c, sy) { fineSecs += 1 }
+                }
+            } }
+            let oldWas = Mesher.oldFineLookup
+            for rep in 0..<3 { for old in [true, false] {
+                Mesher.oldFineLookup = old
+                var ms = 0.0, quads = 0
+                for dz in -2...2 { for dx in -2...2 {
+                    guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
+                    for sy in 0..<NSEC where Mesher.fineSection(nb.0, sy: sy) {
+                        let t0 = CFAbsoluteTimeGetCurrent()
+                        let m = Mesher.buildSection(nb.0, nb.1, sy: sy, site: vw.smoothSite(c), chunk: (c.cx, c.cz))
+                        ms += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                        quads += m.opaque.count / 8
+                    }
+                } }
+                print(String(format: "meshbench fine (%@ lookup, run %d): %.1f ms, %d sections given fine samples, %d quads", old ? "old" : "new", rep + 1, ms, fineSecs, quads))
+            } }
+            Mesher.oldFineLookup = oldWas
+        }
     }
     // --dig N: a plus-shaped pit N deep dug into the ground 6 blocks ahead (P142: digging leaves a dent in smooth land).
     if let n = Int(arg("--dig") ?? "") {
