@@ -673,6 +673,7 @@ enum QuestFrameSoak {
         if ProcessInfo.processInfo.environment["BS_RCPROBE"] == "1" { print("    side tables: " + RefcountProbe.census(g)) }
         if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
         if StructureTip.worstMs > 0 { print(String(format: "    slowest collapse check: %.1f ms (%@)", StructureTip.worstMs, StructureTip.worstSplit)) }
+        if StructureTip.tipVerify { print("    tip checks run both ways (BS_TIPVERIFY): \(StructureTip.verified), differing \(StructureTip.verifyDiffs)") }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
         if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@); crumbs %d blocks in %.1f ms, %.1f us a block", Structure.dropWorstMs, Structure.dropWorst,
                                                     Structure.crumbN, Structure.crumbMs, Structure.crumbN > 0 ? Structure.crumbMs * 1000 / Double(Structure.crumbN) : 0)) }

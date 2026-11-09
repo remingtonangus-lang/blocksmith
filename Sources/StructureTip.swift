@@ -84,7 +84,30 @@ enum StructureTip {
     // held by the world, or into unloaded ground or a docked vessel); then level by level up the hole, the part of it
     // over the level joined to the hole (two towers met below the level are two pieces there) is weighed.
     static func check(_ w: World, at p: IVec3, r: Int) -> [IVec3]? { var n = 0; return check(w, at: p, r: r, count: &n) }
+    // Nov 9 (frame rate, the worst-case soak: a 6,381-block citadel piece took 3.2-4.5 ms of the frame thread's own time
+    // in every run): the fill asked the world again for every open or natural cell each time it met one (up to 18
+    // times), and the footings asked it again for the blocks under each block, most of them blocks of the piece itself.
+    // Each cell the fill meets that isn't of the piece is marked in the grid now (cleared after), and a block under
+    // another that is of the piece is known to be built on without asking (no block the piece can hold is ground,
+    // water or bedrock: `partAnchors`). BS_TIPOLD=1: as before; BS_TIPVERIFY=1: both, every difference printed.
+    static let tipOld = ProcessInfo.processInfo.environment["BS_TIPOLD"] == "1"
+    static let tipVerify = ProcessInfo.processInfo.environment["BS_TIPVERIFY"] == "1"
+    static var verified = 0, verifyDiffs = 0
+    static let partAnchors: Bool = (0..<Blocks.count).contains { i in
+        Structure.table[i] != nil && (Blocks.isLiquid(BlockID(i)) || Blocks.hardness[i] < 0 && Blocks.collide[i])
+    }
     static func check(_ w: World, at p: IVec3, r: Int, count: inout Int) -> [IVec3]? {
+        if tipVerify {
+            var n0 = 0
+            let a = check(w, at: p, r: r, count: &n0, marks: false)
+            let b = check(w, at: p, r: r, count: &count, marks: true)
+            verified += 1
+            if a != b || n0 != count { verifyDiffs += 1; print("tipverify: DIFFERS at \(p) r \(r): \(n0) vs \(count) cells, \(a?.count ?? -1) vs \(b?.count ?? -1) tipping") }
+            return b
+        }
+        return check(w, at: p, r: r, count: &count, marks: !tipOld && !partAnchors)
+    }
+    static func check(_ w: World, at p: IVec3, r: Int, count: inout Int, marks: Bool) -> [IVec3]? {
         let began = CFAbsoluteTimeGetCurrent()
         fillAt = 0; groundAt = 0
         defer {
@@ -103,10 +126,16 @@ enum StructureTip {
         var k = ChunkCursor(w)
         var cells: [IVec3] = [], mats: [Structure.Mat] = []
         var links: [Float] = []                                   // per cell: the bonds of its joints out past `side`
-        defer { for q in cells { grid[slot(q)] = -1 } }
+        var open: [Int32] = []                                    // (marks: the cells met that aren't of the piece, -2)
+        defer { for q in cells { grid[slot(q)] = -1 }; for i in open { grid[Int(i)] = -1 } }
         func add(_ q: IVec3) -> Bool {
-            guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY, grid[slot(q)] < 0,
-                  let m = Structure.part(&k, q.x, q.y, q.z) else { return true }
+            guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY else { return true }
+            let si = slot(q)
+            guard grid[si] == -1 else { return true }
+            guard let m = Structure.part(&k, q.x, q.y, q.z) else {
+                if marks { grid[si] = -2; open.append(Int32(si)) }
+                return true
+            }
             if Structure.helm[Int(k.built(q.x, q.y, q.z))] { return false }
             grid[slot(q)] = Int32(cells.count)
             cells.append(q); mats.append(m); links.append(0)
@@ -148,8 +177,11 @@ enum StructureTip {
             let c = cells[i]
             for d in Structure.nbrs where d.y == -1 {
                 let q = c + d
+                // (a block of the piece: built on, never ground; a cell the fill met that isn't: not built on)
+                let g: Int32 = marks && q.y >= floorY && abs(q.x - p.x) <= side && abs(q.z - p.z) <= side ? grid[slot(q)] : -1
+                if g >= 0 { onBlock[i] = true; continue }
                 if Structure.anchor(&k, q.x, q.y, q.z) { ground[i] = true; break }
-                if Structure.part(&k, q.x, q.y, q.z) != nil { onBlock[i] = true }
+                if g == -1 && Structure.part(&k, q.x, q.y, q.z) != nil { onBlock[i] = true }
             }
             if !ground[i] { for d in World.allDirs where d.y == 0 && Structure.anchor(&k, c.x + d.x, c.y, c.z + d.z) { ground[i] = true; break } }
         }
@@ -163,15 +195,26 @@ enum StructureTip {
         var byLevel = [[Int32]](repeating: [], count: maxY - floorY + 1)
         for i in 0..<n { byLevel[cells[i].y - floorY].append(Int32(i)) }
         let nearIdx = (0..<n).filter { near(cells[$0]) }
-        var parent = [Int32](repeating: -1, count: n)
-        var size = [Int32](repeating: 0, count: n)
-        var weight = [Float](repeating: 0, count: n), mx = [Float](repeating: 0, count: n), mz = [Float](repeating: 0, count: n)
-        var gFeet = [Int32](repeating: 0, count: n), gHold = [Float](repeating: 0, count: n)
-        var gLo = [SIMD2<Int32>](repeating: SIMD2(Int32.max, Int32.max), count: n), gHi = [SIMD2<Int32>](repeating: SIMD2(Int32.min, Int32.min), count: n)
-        var linkHead = [Int32](repeating: -1, count: n), linkTail = [Int32](repeating: -1, count: n), linkNext = [Int32](repeating: -1, count: n)
-        var lvStamp = [Int32](repeating: Int32.min, count: n), evStamp = [Int32](repeating: Int32.min, count: n)
-        var lvFeet = [Int32](repeating: 0, count: n), lvHold = [Float](repeating: 0, count: n)
-        var lvLo = [SIMD2<Int32>](repeating: .zero, count: n), lvHi = [SIMD2<Int32>](repeating: .zero, count: n)
+        // (Nov 9, callgrind of the worst-case soak: as arrays captured by find and union, every write to them took a
+        // uniqueness check through the closures' boxes, and finding the pieces' roots was 60% of the check: buffers now,
+        // the same values)
+        var bufs: [UnsafeMutableRawPointer] = []
+        defer { for b in bufs { b.deallocate() } }
+        func buf<T>(_ v: T) -> UnsafeMutablePointer<T> {
+            let b = UnsafeMutablePointer<T>.allocate(capacity: n)
+            b.initialize(repeating: v, count: n)
+            bufs.append(UnsafeMutableRawPointer(b))
+            return b
+        }
+        let parent = buf(Int32(-1))
+        let size = buf(Int32(0))
+        let weight = buf(Float(0)), mx = buf(Float(0)), mz = buf(Float(0))
+        let gFeet = buf(Int32(0)), gHold = buf(Float(0))
+        let gLo = buf(SIMD2<Int32>(Int32.max, Int32.max)), gHi = buf(SIMD2<Int32>(Int32.min, Int32.min))
+        let linkHead = buf(Int32(-1)), linkTail = buf(Int32(-1)), linkNext = buf(Int32(-1))
+        let lvStamp = buf(Int32.min), evStamp = buf(Int32.min)
+        let lvFeet = buf(Int32(0)), lvHold = buf(Float(0))
+        let lvLo = buf(SIMD2<Int32>.zero), lvHi = buf(SIMD2<Int32>.zero)
         func find(_ i: Int32) -> Int32 {
             var a = i
             while parent[Int(a)] != a { let gp = parent[Int(parent[Int(a)])]; parent[Int(a)] = gp; a = gp }

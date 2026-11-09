@@ -66,10 +66,21 @@ enum Explosion {
     // (--turretfreeze: the slowest blast, stage by stage; nested blasts count in the outer one)
     static let batchShape = ProcessInfo.processInfo.environment["BS_BLASTSHAPE"] != "1"
     static var lapT = 0.0, lapT0 = 0.0, lapDepth = 0, laps = "", worstMs = 0.0, worstLaps = ""
-    static func lapStart() { lapDepth += 1; if lapDepth == 1 { lapT = CFAbsoluteTimeGetCurrent(); lapT0 = lapT; laps = "" } }
+    // (Nov 9: the thread's own CPU time too: a lap whose wall time is well over it was the host's scheduler taking the
+    // core, as when a mesh job queued wakes a worker, not the game's work; such laps say "own" and their CPU time)
+    static var lapC = 0.0
+    @inline(__always) static func threadMs() -> Double {
+        var ts = timespec()
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts)
+        return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6
+    }
+    static func lapStart() { lapDepth += 1; if lapDepth == 1 { lapT = CFAbsoluteTimeGetCurrent(); lapT0 = lapT; lapC = threadMs(); laps = "" } }
     static func lap(_ s: String) {
         guard lapDepth == 1 else { return }
-        let t = CFAbsoluteTimeGetCurrent(); laps += String(format: "%@ %.1f, ", s, (t - lapT) * 1000); lapT = t
+        let t = CFAbsoluteTimeGetCurrent(), c = threadMs()
+        let ms = (t - lapT) * 1000, own = c - lapC
+        laps += ms - own > 0.5 ? String(format: "%@ %.1f (own %.1f), ", s, ms, own) : String(format: "%@ %.1f, ", s, ms)
+        lapT = t; lapC = c
     }
     static var totalMs = 0.0                        // (every outer blast's time, for Armory's slowest update)
     static func lapEnd(_ s: String) {
@@ -96,6 +107,7 @@ enum Explosion {
         let own = g.bases.quiet
         let lying = g.drops.items.count                    // (what this blast spills itself is thrown, not burnt: P452)
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
+        Explosion.lap("heard")
         w.ships.blast(at: c, power: power, game: g, resistCap: resistCap)          // ship blocks (ShipCombat.swift)
         Explosion.lap("ships")
         var destroyed = Set<IVec3>()

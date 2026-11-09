@@ -441,7 +441,7 @@ extension ShipManager {
         for s in list where c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
             && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach && s.root.trainCar == nil {
             let lc = s.toLocal(c)
-            defer { if s.kinematic && s.parent == nil { wheelBlast(s, lc, power: power) } }     // P511: big wheels wear (after the blast's own cells)
+            defer { if s.kinematic && s.parent == nil { wheelBlast(s, lc, power: power); Explosion.lap("ships: wheels") } }     // P511: big wheels wear (after the blast's own cells)
             let g = s.grid
             let gxF = Float(g.sx), gyF = Float(g.sy), gzF = Float(g.sz)
             var destroyed = Set<IVec3>()
@@ -474,7 +474,7 @@ extension ShipManager {
                     intensity -= 0.225
                 }
             } } }
-            Explosion.lap("ships: rays")            // (Nov 4: the worst-case soak's slowest blast spent 7.8 ms in ships)
+            Explosion.lap("ships: rays \(s.grid.sx)x\(s.grid.sy)x\(s.grid.sz)")            // (Nov 4: the worst-case soak's slowest blast spent 7.8 ms in ships)
             // Progressive damage on capital hulls: plates the blast couldn't break lose pieces on the side facing it
             // (their grid never re-crops, so the chip map stays valid in grid space).
             var chipped: [IVec3] = []
@@ -493,8 +493,9 @@ extension ShipManager {
                     chipped.append(cell)
                 }
             }
+            Explosion.lap("ships: chip map")
             if destroyed.isEmpty {
-                if !chipped.isEmpty { s.mesh.rebuildAround(s, chipped, device: world.device, queue: meshQueue) }
+                if !chipped.isEmpty { s.mesh.rebuildAround(s, chipped, device: world.device, queue: meshQueue); Explosion.lap("ships: chips") }
                 continue
             }
             removeCells(s, destroyed, chipped: chipped, center: c, power: power, game: game)
