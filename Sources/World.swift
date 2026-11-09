@@ -1266,7 +1266,7 @@ final class World: LifeLinked {
         let lane = edited.count <= 4 ? World.quickQueue : World.editQueue
         lane.async { [me = weakLink] in              // (item 8: a link, not a weak reference: WeakLink.swift)
             guard let self = me.wrappedValue else { return }
-            let out = builds.map { b in
+            var out = builds.map { b in
                 b { k, sy in
                     let key = World.sectionKey(k, sy)
                     self.lock.lock(); defer { self.lock.unlock() }
@@ -1275,6 +1275,7 @@ final class World: LifeLinked {
                     return false
                 }
             }
+            for i in out.indices { for j in out[i].1.indices { self.upload(&out[i].1[j].2) } }      // (Nov 9: World.upload)
             self.lock.lock()
             for key in edited where self.editLatest[key] == ticket { self.editLatest[key] = nil }
             self.meshResults.append(contentsOf: out)
@@ -1503,6 +1504,35 @@ final class World: LifeLinked {
         return true
     }
     static var staleMeshes = 0, staleDrawn = 0      // (harness --streamtest: meshes for a changed section; of them drawn)
+    // Nov 9 (after #688, a callgrind of the peaks flight: a third of what was left of taking chunks in on the frame thread
+    // was World.apply copying each finished mesh into the mesh slabs): the mesh worker copies its meshes into slices
+    // itself (MeshArena.alloc takes its lock only to find the room; the copy is outside it) and lets go of the word
+    // arrays there; apply only hangs the slices on the section. A mesh thrown away later gives its slices back as
+    // before. BS_OLDUPLOAD=1: copied in apply; BS_UPLOADVERIFY=1: both, the slices' bytes compared (the soak prints it).
+    static let oldUpload = ProcessInfo.processInfo.environment["BS_OLDUPLOAD"] == "1"
+    static let uploadVerify = ProcessInfo.processInfo.environment["BS_UPLOADVERIFY"] == "1"
+    static var uploadVerified = 0, uploadVerifyDiffs = 0
+    static var uploadVerifyLine: String { "upload verify: \(uploadVerified) section meshes copied both ways, \(uploadVerifyDiffs) differ" }
+    // (a mesh worker, on a mesh it just made)
+    func upload(_ m: inout SectionMesh) {
+        guard !World.oldUpload else { return }
+        var u = SectionMesh.Uploaded()
+        u.opaqueWords = m.opaque.count; u.farWords = m.farGround.count; u.transWords = m.trans.count
+        u.detailWords = m.detail.count; u.detailFarWords = m.detailFar.count
+        u.opaque = makeBuffer(m.opaque, m.farGround)
+        u.trans = makeBuffer(m.trans)
+        u.detail = makeBuffer(m.detail, m.detailFar)
+        m.uploaded = u
+        if !World.uploadVerify { m.opaque = []; m.farGround = []; m.trans = []; m.detail = []; m.detailFar = [] }
+    }
+    private static func sameBytes(_ sl: MeshSlice?, _ a: [UInt32], _ b: [UInt32] = []) -> Bool {
+        guard let sl else { return a.isEmpty && b.isEmpty }
+        guard sl.length == (a.count + b.count) * 4 else { return false }
+        let p = sl.buffer.contents() + sl.offset
+        let sa = a.isEmpty || a.withUnsafeBytes { memcmp(p, $0.baseAddress!, $0.count) == 0 }
+        let sb = b.isEmpty || b.withUnsafeBytes { memcmp(p + a.count * 4, $0.baseAddress!, $0.count) == 0 }
+        return sa && sb
+    }
     private func apply(_ m: SectionMesh, to c: Chunk, sy: Int, version: Int) {
         let s = c.sections[sy]
         if let l = m.light { c.light[sy] = l }
@@ -1511,21 +1541,31 @@ final class World: LifeLinked {
             guard World.keepStale && version > s.meshedVersion else { return }
             World.staleDrawn &+= 1
         }
-        s.opaqueBuf = makeBuffer(m.opaque, m.farGround)
-        s.opaqueQuads = m.opaque.count / 8
+        let up = m.uploaded
+        if let up, World.uploadVerify {
+            World.uploadVerified += 1
+            if !World.sameBytes(up.opaque, m.opaque, m.farGround) || !World.sameBytes(up.trans, m.trans) || !World.sameBytes(up.detail, m.detail, m.detailFar) {
+                World.uploadVerifyDiffs += 1
+            }
+        }
+        let opaqueW = up?.opaqueWords ?? m.opaque.count, farW = up?.farWords ?? m.farGround.count
+        let transW = up?.transWords ?? m.trans.count
+        let detailW = up?.detailWords ?? m.detail.count, detailFarW = up?.detailFarWords ?? m.detailFar.count
+        s.opaqueBuf = up.map { $0.opaque } ?? makeBuffer(m.opaque, m.farGround)
+        s.opaqueQuads = opaqueW / 8
         s.solidQuads = m.solidQuads
-        s.farSkip = m.farGround.isEmpty ? 0 : m.farSkip; s.farExtra = m.farGround.count / 8
+        s.farSkip = farW == 0 ? 0 : m.farSkip; s.farExtra = farW / 8
         s.farCut = m.farCut; s.farTail = m.farTail; s.farPlants = m.farPlants
-        s.blobFarN = m.farGround.isEmpty ? 0 : Int(m.farParts[2]); s.blobFarAt = Int(m.farParts[0] + m.farParts[1])
+        s.blobFarN = farW == 0 ? 0 : Int(m.farParts[2]); s.blobFarAt = Int(m.farParts[0] + m.farParts[1])
         s.blobCutN = s.blobFarN > 0 ? max(0, m.farCut - Int(m.farParts[3])) : 0
-        s.transBuf = makeBuffer(m.trans)
-        s.transQuads = m.trans.count / 8
+        s.transBuf = up.map { $0.trans } ?? makeBuffer(m.trans)
+        s.transQuads = transW / 8
         s.meshedVersion = version
         s.vis = m.vis
         s.leafy = m.leafy
-        s.detailBuf = makeBuffer(m.detail, m.detailFar)
-        s.detailQuads = m.detail.count / DetailMesh.wordsPerQuad
-        s.detailFarSkip = m.detailFar.isEmpty ? 0 : m.detailFarSkip; s.detailFarExtra = m.detailFar.count / DetailMesh.wordsPerQuad
+        s.detailBuf = up.map { $0.detail } ?? makeBuffer(m.detail, m.detailFar)
+        s.detailQuads = detailW / DetailMesh.wordsPerQuad
+        s.detailFarSkip = detailFarW == 0 ? 0 : m.detailFarSkip; s.detailFarExtra = detailFarW / DetailMesh.wordsPerQuad
         s.detailSolid = m.detailSolid
         s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads; s.naturalCubes = m.naturalCubes; s.solidFull = m.solidFull
         s.kinds = m.kinds
@@ -1968,7 +2008,11 @@ final class World: LifeLinked {
                 guard let self = me.wrappedValue else { return }
                 let t0 = CFAbsoluteTimeGetCurrent()
                 var out: [(Int, Int, SectionMesh)] = []
-                for (sy, v) in list { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond))) }
+                for (sy, v) in list {
+                    var m = Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)
+                    self.upload(&m)
+                    out.append((sy, v, m))
+                }
                 let el = CFAbsoluteTimeGetCurrent() - t0
                 if World.meshLog { print(String(format: "meshlog: %@ d%d lod%d low%d secs %@ %.1f ms", why, dist, lod, lowSec, list.map { String($0.0) }.joined(separator: ","), el * 1000)) }
                 self.lock.lock()
@@ -2028,7 +2072,7 @@ final class World: LifeLinked {
         var s = r.ground.map { BlockStore(r.blocks, field: $0) } ?? BlockStore(r.blocks)
         s.emitMask = r.emitMask
         s.tickMask = r.tickMask
-        if !oldSprings { s.fluidMask = BlockStore.fluidMask(of: r.blocks) }
+        if !oldSprings { s.fluidEdges = BlockStore.fluidEdges(of: r.blocks) }
         r.store = s
         if !storeVerify {
             r.blocks = []
@@ -2042,7 +2086,7 @@ final class World: LifeLinked {
             var s = p.ground.map { BlockStore(p.blocks, field: $0) } ?? BlockStore(p.blocks)
             s.emitMask = p.emitMask
             s.tickMask = p.tickMask
-            if !oldSprings && !oldStore { s.fluidMask = BlockStore.fluidMask(of: p.blocks) }
+            if !oldSprings && !oldStore { s.fluidEdges = BlockStore.fluidEdges(of: p.blocks) }
             return s
         }
         guard let s = p.store else { return made() }
@@ -2089,14 +2133,16 @@ final class World: LifeLinked {
     // Fluid on one side of a chunk border with air on the other (World.springs sees one chunk's interior only): lava at
     // a chunk's edge facing a cave in the next chunk stood still for good (Oct 11 playtest P18 at 12:42: "lava that should
     // be spilling into me, but isn't"). Checked as each chunk joins its loaded neighbours, up to the taller column + 2.
-    // Nov 9: a pair of cells where neither is a fluid does nothing, so sections neither chunk's fluidMask marks are passed
-    // over (all four sides of most chunks: no fluid at all). BS_OLDSPRINGS=1: every cell, as before.
+    // Nov 9: a pair of cells where neither is a fluid does nothing, so sections where neither chunk has a fluid on the
+    // facing side (BlockStore.fluidEdges) are passed over: most sides of most chunks. BS_OLDSPRINGS=1: every cell.
     static let oldSprings = ProcessInfo.processInfo.environment["BS_OLDSPRINGS"] == "1"
     func borderSprings(_ c: Chunk) {
         let fk = Blocks.fluidKind
         for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
             guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
-            let mask = World.oldSprings ? ~0 : c.blocks.fluidMask | n.blocks.fluidMask
+            // (c's side facing n, and n's facing c: x 15 against x 0, z 15 against z 0)
+            let cs = dx == 1 ? 0 : dx == -1 ? 1 : dz == 1 ? 2 : 3, ns = cs ^ 1
+            let mask: UInt32 = World.oldSprings ? ~0 : c.blocks.fluidEdges[cs] | n.blocks.fluidEdges[ns]
             guard mask != 0 else { continue }
             for i in 0..<CS {
                 // The facing columns: c's edge (lx, lz) and n's (nx, nz).
