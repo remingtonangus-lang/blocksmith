@@ -923,8 +923,10 @@ enum Mesher {
                 groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
             }
             if AdaptiveGround.enabled && adaptiveOK {
+                let t0 = Mesher.fineTiming ? CFAbsoluteTimeGetCurrent() : 0
                 groundV -= AdaptiveGround.mesh(opq, from: g0, exact: ex.count == (opq.count - g0) / 2 * 3 ? ex.ptr : nil,
                                                farSkip: &farSkip, farGround: &farGround) * 4    // P381, P383
+                if Mesher.fineTiming { Mesher.fineT.adaptive += CFAbsoluteTimeGetCurrent() - t0 }
             }
         } else if smooth {
             // (P381: the adaptive ground replaces the pixel-error merge in field worlds.)

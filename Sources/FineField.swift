@@ -302,7 +302,7 @@ extension Mesher {
     // cell lies in), so the border is the very polyline the neighbour draws: no slit, no overlap.
     // (meshbench only: where the half-block ground's time goes; main thread)
     static var fineTiming = false
-    static var fineT = (pre: 0.0, fill: 0.0, quads: 0.0, subs: 0, empty: 0)
+    static var fineT = (pre: 0.0, fill: 0.0, quads: 0.0, subs: 0, empty: 0, adaptive: 0.0)
     static var oldFineFill = ProcessInfo.processInfo.environment["BS_OLDFINEFILL"] == "1"
     static var oldFineLookup = ProcessInfo.processInfo.environment["BS_OLDFINELOOKUP"] == "1"
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
