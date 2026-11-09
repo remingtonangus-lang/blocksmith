@@ -691,13 +691,15 @@ enum QuestFrameSoak {
         if RandomTickRng.frameWorstMs > 0 && mobProf { print(String(format: "    dearest frame of random ticks: %.1f ms (%@)", RandomTickRng.frameWorstMs, RandomTickRng.frameWorst)) }
         if mobProf {
             // (BlockStore.tickMask: every loaded chunk's sections passed over must hold nothing that ticks)
-            var sections = 0, skipped = 0, misses = 0
+            var sections = 0, skipped = 0, misses = 0, fluidMisses = 0
             for c in w.chunks.values where !c.hollow {
                 let top = min(NSEC - 1, (max(0, c.heightMax) + 1) >> 4)
                 sections += top + 1
                 for sy in 0...top where c.blocks.tickMask & (1 << UInt32(sy)) == 0 { skipped += 1 }
                 misses += c.blocks.tickMaskMisses()
+                fluidMisses += c.blocks.fluidMaskMisses()
             }
+            print("    fluid sections passed over by the border springs but holding a fluid: \(fluidMisses)")
             print(String(format: "    random tick sections: %d of %d passed over (nothing in them ticks); passed over but holding a ticking cell: %d; the draws' own CPU %.3f ms a game tick (%d ticks)",
                          skipped, sections, misses, RandomTickRng.drawTicks > 0 ? RandomTickRng.drawCpu / Double(RandomTickRng.drawTicks) : 0, RandomTickRng.drawTicks))
         }

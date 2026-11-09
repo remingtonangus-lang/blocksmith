@@ -2028,6 +2028,7 @@ final class World: LifeLinked {
         var s = r.ground.map { BlockStore(r.blocks, field: $0) } ?? BlockStore(r.blocks)
         s.emitMask = r.emitMask
         s.tickMask = r.tickMask
+        if !oldSprings { s.fluidMask = BlockStore.fluidMask(of: r.blocks) }
         r.store = s
         if !storeVerify {
             r.blocks = []
@@ -2041,6 +2042,7 @@ final class World: LifeLinked {
             var s = p.ground.map { BlockStore(p.blocks, field: $0) } ?? BlockStore(p.blocks)
             s.emitMask = p.emitMask
             s.tickMask = p.tickMask
+            if !oldSprings && !oldStore { s.fluidMask = BlockStore.fluidMask(of: p.blocks) }
             return s
         }
         guard let s = p.store else { return made() }
@@ -2087,17 +2089,22 @@ final class World: LifeLinked {
     // Fluid on one side of a chunk border with air on the other (World.springs sees one chunk's interior only): lava at
     // a chunk's edge facing a cave in the next chunk stood still for good (Oct 11 playtest P18 at 12:42: "lava that should
     // be spilling into me, but isn't"). Checked as each chunk joins its loaded neighbours, up to the taller column + 2.
+    // Nov 9: a pair of cells where neither is a fluid does nothing, so sections neither chunk's fluidMask marks are passed
+    // over (all four sides of most chunks: no fluid at all). BS_OLDSPRINGS=1: every cell, as before.
+    static let oldSprings = ProcessInfo.processInfo.environment["BS_OLDSPRINGS"] == "1"
     func borderSprings(_ c: Chunk) {
         let fk = Blocks.fluidKind
         for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
             guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
+            let mask = World.oldSprings ? ~0 : c.blocks.fluidMask | n.blocks.fluidMask
+            guard mask != 0 else { continue }
             for i in 0..<CS {
                 // The facing columns: c's edge (lx, lz) and n's (nx, nz).
                 let lx = dx == 1 ? 15 : (dx == -1 ? 0 : i), lz = dz == 1 ? 15 : (dz == -1 ? 0 : i)
                 let nx = dx == 0 ? lx : 15 - lx, nz = dz == 0 ? lz : 15 - lz
                 let top = min(CH - 1, max(Int(c.height[lx + lz * CS]), Int(n.height[nx + nz * CS])) + 2)
                 guard top > 1 else { continue }
-                for y in 1...top {
+                for y in 1...top where mask & (1 << UInt32(y >> 4)) != 0 {
                     // (The built layer, and the field's ground as a filled cell: P377 step 2.)
                     let ia = Chunk.index(lx, y, lz), ib = Chunk.index(nx, y, nz)
                     let a = c.blocks.raw(ia), b = n.blocks.raw(ib)

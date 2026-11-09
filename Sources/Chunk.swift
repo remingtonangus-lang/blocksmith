@@ -179,6 +179,34 @@ struct BlockStore {
         }
         return m
     }
+    // Nov 9 (taking a chunk in, World.borderSprings: its four sides against the neighbours' read every cell up to the
+    // taller column, ~12,000 pairs, nearly all neither one a fluid): bit per 16-high section that may hold a fluid (the
+    // built layer: the ground never is one), all set = unknown. Made exact by the chunk workers; a write only ever adds.
+    var fluidMask: UInt32 = ~0
+    static func fluidMask(of blocks: [BlockID]) -> UInt32 {
+        let fk = Blocks.fluidKind
+        var m: UInt32 = 0
+        var i = 0
+        while i < blocks.count {
+            if fk[Int(blocks[i])] != 0 {
+                let sec = i / section
+                m |= 1 << UInt32(sec)
+                i = (sec + 1) * section
+                continue
+            }
+            i += 1
+        }
+        return m
+    }
+    // (harness: a section whose bit is clear but that holds a fluid; must never happen)
+    func fluidMaskMisses() -> Int {
+        let fk = Blocks.fluidKind
+        var miss = 0
+        for sec in 0..<min(32, (data.count + BlockStore.section - 1) / BlockStore.section) where fluidMask & (1 << UInt32(sec)) == 0 {
+            for i in (sec * BlockStore.section)..<min(data.count, (sec + 1) * BlockStore.section) where fk[Int(data[i])] != 0 { miss += 1; break }
+        }
+        return miss
+    }
     // (harness: a section whose bit is clear but that holds a ticking cell; must never happen)
     func tickMaskMisses() -> Int {
         let rt = Blocks.randomTicks, mats = FieldMat.blocks
@@ -217,6 +245,7 @@ struct BlockStore {
         data = keep >= full.count ? full : Array(full[0..<keep])
         // Whole sections only (the mesher copies stored rows a section at a time): a short input is padded with air.
         if data.count < keep { data.append(contentsOf: repeatElement(AIR, count: keep - data.count)) }
+        if data.isEmpty { fluidMask = 0 }        // (a shell's store, or nothing built: no fluid anywhere)
     }
 
     init(_ full: [BlockID], field: FieldData) {
@@ -234,7 +263,7 @@ struct BlockStore {
 
     // (World.storeVerify: the same layers, edits and masks)
     func sameStore(_ o: BlockStore) -> Bool {
-        data == o.data && fd == o.fd && fm == o.fm && fine == o.fine && emitMask == o.emitMask && tickMask == o.tickMask
+        data == o.data && fd == o.fd && fm == o.fm && fine == o.fine && emitMask == o.emitMask && tickMask == o.tickMask && fluidMask == o.fluidMask
     }
 
     var count: Int { CSQ * CH }             // logical size
@@ -293,6 +322,7 @@ struct BlockStore {
                 data.append(contentsOf: repeatElement(AIR, count: need - data.count))
             }
             data[i] = newValue
+            if Blocks.fluidKind[Int(newValue)] != 0 { fluidMask |= 1 << UInt32(i / BlockStore.section) }
             if Blocks.emit[Int(newValue)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
             if Blocks.randomTicks[Int(newValue)] { tickMask |= 1 << UInt32(i / BlockStore.section) }
         }
