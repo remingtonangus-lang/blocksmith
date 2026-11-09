@@ -29,6 +29,11 @@ struct SectionMesh {
     var solidFull = false   // P376 step 5: every cell of the section is opaque (an occluder for SceneRenderer.occlusionCull)
     var kinds = SIMD16<Int32>()   // P384 step 1: quads by kind (MeshKind), for questcheck --perfscenes
     var ground: GroundTris? = nil   // P386: the drawn ground for bodies and rays (GroundFeet.swift)
+    var uploaded: Uploaded? = nil   // Nov 9: the words already copied into mesh slices by the worker (World.upload)
+    struct Uploaded {
+        var opaque: MeshSlice?, trans: MeshSlice?, detail: MeshSlice?
+        var opaqueWords = 0, farWords = 0, transWords = 0, detailWords = 0, detailFarWords = 0
+    }
 }
 
 // P384 step 1: what the section's quads are (SectionMesh.kinds; opaque stream 0...7, detail stream 8...13).
