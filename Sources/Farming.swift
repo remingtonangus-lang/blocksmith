@@ -17,6 +17,8 @@ extension Game {
         // through a local (each draw paid an exclusivity check on the global and on the chunk's storage, some 9000 a
         // game tick at render distance 8+, and it was one of the Quest frame's dearest stages); the hits run once the
         // copy is gone, so a tick that changes a block never copies the chunk's storage.
+        let track = RandomTickRng.track
+        let tStart = track ? CFAbsoluteTimeGetCurrent() : 0, cStart = track ? Explosion.threadMs() : 0
         var rng = RandomTickRng.state
         var hits = RandomTickRng.hits
         RandomTickRng.hits = []
@@ -26,7 +28,9 @@ extension Game {
                 guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
                 let blocks = c.blocks, x0 = c.cx * CS, z0 = c.cz * CS
                 let hmax = max(0, c.heightMax)
-                for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) {
+                // (Nov 9: sections holding nothing that ticks are passed over: BlockStore.tickMask. BS_OLDRTSCAN=1: all)
+                let mask = RandomTickRng.oldScan ? ~0 : blocks.tickMask
+                for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) where mask & (1 << UInt32(sy)) != 0 {
                     for _ in 0..<3 {
                         // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).
                         let r = Int(truncatingIfNeeded: rng.next() >> 20)
@@ -55,18 +59,29 @@ extension Game {
             // one frame in his jungle: questcheck --framesoak jungle.)
             // (A seeded run, Rand.deterministic: no clock in it, so a replay or a harness duel draws the same numbers
             // however busy the host is: the main-gun suite's Gravesworn duel went 7.2 s to 9.8 s with the host's load.)
+            let tDrawn = track ? CFAbsoluteTimeGetCurrent() : 0, cDrawn = track ? Explosion.threadMs() : 0
             let deadline = Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + RandomTickRng.frameSeconds
-            var k = 0
-            let track = RandomTickRng.track
+            var k = 0, frameWorst = 0.0
             for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {     // (an earlier tick may have changed it)
                 let t0 = track ? CFAbsoluteTimeGetCurrent() : 0
                 randomTick(p, b)
                 if track {
                     let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                    frameWorst = max(frameWorst, ms)
                     if ms > RandomTickRng.worstMs { RandomTickRng.worstMs = ms; RandomTickRng.worstWhat = "\(Blocks.key(b)) at \(p.x) \(p.y) \(p.z)" }
                 }
                 k += 1
                 if k & 7 == 0 && CFAbsoluteTimeGetCurrent() > deadline { break }
+            }
+            if track {
+                // (the frame soak: the dearest frame of random ticks, split into the draws and the ticks)
+                let tEnd = CFAbsoluteTimeGetCurrent(), all = (tEnd - tStart) * 1000
+                RandomTickRng.drawCpu += cDrawn - cStart; RandomTickRng.drawTicks += 1
+                if all > RandomTickRng.frameWorstMs {
+                    RandomTickRng.frameWorstMs = all
+                    RandomTickRng.frameWorst = String(format: "draws %.2f ms (own CPU %.2f, %d hits), %d ticks %.2f ms (slowest %.2f); own CPU in all %.2f ms",
+                                                      (tDrawn - tStart) * 1000, cDrawn - cStart, hits.count, k, (tEnd - tDrawn) * 1000, frameWorst, Explosion.threadMs() - cStart)
+                }
             }
         }
         RandomTickRng.hits = hits
@@ -725,5 +740,8 @@ enum RandomTickRng {
     static var hits: [(IVec3, BlockID)] = []          // (Game.randomTicks' reused list)
     static var profile = false, worstMs = 0.0, worstWhat = ""   // (P400 harness)
     static var track = false                                     // (the frame soak's SOAK_MOBPROF: the slowest one, timed as it runs)
+    static var frameWorstMs = 0.0, frameWorst = ""                 // (and the dearest frame of them, split)
+    static var drawCpu = 0.0, drawTicks = 0                         // (and the draws' own CPU in all, over that many game ticks)
+    static let oldScan = ProcessInfo.processInfo.environment["BS_OLDRTSCAN"] == "1"
     static var frameSeconds = 0.0012                    // (store review: a frame's random ticks at most this long)
 }
