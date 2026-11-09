@@ -675,6 +675,7 @@ enum QuestFrameSoak {
         if StructureTip.worstMs > 0 { print(String(format: "    slowest collapse check: %.1f ms (%@)", StructureTip.worstMs, StructureTip.worstSplit)) }
         if StructureTip.tipVerify { print("    tip checks run both ways (BS_TIPVERIFY): \(StructureTip.verified), differing \(StructureTip.verifyDiffs)") }
         if Structure.loadVerify { print("    " + Structure.verifyLine) }
+        if World.storeVerify { print("    " + World.storeVerifyLine); World.storeVerified = 0; World.storeVerifyDiffs = 0 }
         if SoldierRig.clearVerify { print("    soldier clears run both ways (BS_CLEARVERIFY): \(SoldierRig.clearVerified), differing \(SoldierRig.clearVerifyDiffs)"); SoldierRig.clearVerified = 0; SoldierRig.clearVerifyDiffs = 0 }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
         if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@); crumbs %d blocks in %.1f ms, %.1f us a block", Structure.dropWorstMs, Structure.dropWorst,
@@ -690,13 +691,15 @@ enum QuestFrameSoak {
         if RandomTickRng.frameWorstMs > 0 && mobProf { print(String(format: "    dearest frame of random ticks: %.1f ms (%@)", RandomTickRng.frameWorstMs, RandomTickRng.frameWorst)) }
         if mobProf {
             // (BlockStore.tickMask: every loaded chunk's sections passed over must hold nothing that ticks)
-            var sections = 0, skipped = 0, misses = 0
+            var sections = 0, skipped = 0, misses = 0, fluidMisses = 0
             for c in w.chunks.values where !c.hollow {
                 let top = min(NSEC - 1, (max(0, c.heightMax) + 1) >> 4)
                 sections += top + 1
                 for sy in 0...top where c.blocks.tickMask & (1 << UInt32(sy)) == 0 { skipped += 1 }
                 misses += c.blocks.tickMaskMisses()
+                fluidMisses += c.blocks.fluidMaskMisses()
             }
+            print("    fluid sections passed over by the border springs but holding a fluid: \(fluidMisses)")
             print(String(format: "    random tick sections: %d of %d passed over (nothing in them ticks); passed over but holding a ticking cell: %d; the draws' own CPU %.3f ms a game tick (%d ticks)",
                          skipped, sections, misses, RandomTickRng.drawTicks > 0 ? RandomTickRng.drawCpu / Double(RandomTickRng.drawTicks) : 0, RandomTickRng.drawTicks))
         }

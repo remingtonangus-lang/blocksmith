@@ -115,9 +115,7 @@ extension World {
 
     func refill(_ c: Chunk, _ p: Produced) {
         guard c.hollow, p.cached == nil else { return }
-        c.blocks = p.ground.map { BlockStore(p.blocks, field: $0) } ?? BlockStore(p.blocks)
-        c.blocks.emitMask = p.emitMask
-        c.blocks.tickMask = p.tickMask
+        c.blocks = World.store(of: p)
         // (P401: only a refill the cached collision columns can have read clears them: refills stream in the shell band
         // all the time at view 24, and clearing the whole cache with each one made every mob's moves and path searches
         // rebuild their ground columns, 20-28 ms ticks by Stone Gulch)
