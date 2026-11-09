@@ -950,6 +950,7 @@ if let out = arg("--view"), let ctx = vkctx {
             let oldWas = Mesher.oldFineLookup
             for rep in 0..<3 { for old in [true, false] {
                 Mesher.oldFineLookup = old
+                Mesher.fineTiming = true; Mesher.fineT = (0, 0, 0, 0, 0)
                 var ms = 0.0, quads = 0
                 for dz in -2...2 { for dx in -2...2 {
                     guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
@@ -960,7 +961,10 @@ if let out = arg("--view"), let ctx = vkctx {
                         quads += m.opaque.count / 8
                     }
                 } }
-                print(String(format: "meshbench fine (%@ lookup, run %d): %.1f ms, %d sections given fine samples, %d quads", old ? "old" : "new", rep + 1, ms, fineSecs, quads))
+                let ft = Mesher.fineT
+                print(String(format: "meshbench fine (%@ lookup, run %d): %.1f ms, %d sections given fine samples, %d quads; half-block ground: cells' pass %.1f, filling %.1f, quads %.1f ms, %d of %d eighths drew nothing",
+                             old ? "old" : "new", rep + 1, ms, fineSecs, quads, ft.pre * 1000, ft.fill * 1000, ft.quads * 1000, ft.empty, ft.subs))
+                Mesher.fineTiming = false
             } }
             Mesher.oldFineLookup = oldWas
         }

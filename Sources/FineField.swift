@@ -300,6 +300,9 @@ extension Mesher {
     // drawn from its cells (`fineBeyond` from World.fineBeyond says what lies past the 3x3 chunks), the ground's two
     // outer half-block cells pin onto the vertex the cells draw there (the nearest of the cells' vertices the half-block
     // cell lies in), so the border is the very polyline the neighbour draws: no slit, no overlap.
+    // (meshbench only: where the half-block ground's time goes; main thread)
+    static var fineTiming = false
+    static var fineT = (pre: 0.0, fill: 0.0, quads: 0.0, subs: 0, empty: 0)
     static var oldFineLookup = ProcessInfo.processInfo.environment["BS_OLDFINELOOKUP"] == "1"
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
                            exact: GrowBuf<Float>? = nil, fineBeyond: [UInt32] = [], _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
@@ -328,6 +331,9 @@ extension Mesher {
             if sy < NSEC - 1 && !fineSection(n9, sy: sy + 1) { coarse |= 32 }
         }
         // The cells' own vertices (the ones the neighbour draws there: the same in every section that meshes them).
+        let timing = Mesher.fineTiming
+        var tA = timing ? CFAbsoluteTimeGetCurrent() : 0
+        defer { if timing { Mesher.fineT.quads += CFAbsoluteTimeGetCurrent() - tA } }
         if coarse != 0 {
             smoothQuads(R, sc, dmg: [:], stored: dens, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles) { _, _, _, _, _, _, _, _, _ in }
         }
@@ -345,6 +351,7 @@ extension Mesher {
             return t >= 0 && t < NSEC ? n9[k % 9].fine[t] : nil
         }
         let oldLookup = Mesher.oldFineLookup
+        if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.pre += t - tA; tA = t }
         for v in 0..<8 {
             let vx = v & 1, vy = (v >> 1) & 1, vz = v >> 2
             for ry in lo...hi { for rz in lo...hi { for rx in lo...hi {
@@ -400,6 +407,9 @@ extension Mesher {
                 }
                 vSky[j] = sl; vBlk[j] = bl
             } } }
+            if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.fill += t - tA; tA = t }
+            var emitted = 0
+            defer { if timing { Mesher.fineT.subs += 1; if emitted == 0 { Mesher.fineT.empty += 1 } } }
             let e0 = exact?.count ?? 0
             let off = SIMD3<Float>(Float(vx * 16), Float(vy * 16), Float(vz * 16))
             let pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = coarse == 0 ? nil : { hx, hy, hz, p in
@@ -432,6 +442,7 @@ extension Mesher {
                 return (best * 16).rounded(.toNearestOrAwayFromZero) / 16 * 2 - off
             }
             smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact, pin: pin) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                emitted += 1
                 emit((x16 + vx * 256) >> 1, (y16 + vy * 256) >> 1, (z16 + vz * 256) >> 1, f, tint, layer, ao, l, ncode)
             }
             // (P383: the unsnapped positions, scaled back from half blocks like the snapped ones)
@@ -442,6 +453,7 @@ extension Mesher {
                     ex.ptr[i + 2] = (ex.ptr[i + 2] + Float(vz * 16)) * 0.5
                 }
             }
+            if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.quads += t - tA; tA = t }
         }
         sc.smValid = false
     }
