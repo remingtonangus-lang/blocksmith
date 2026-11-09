@@ -195,15 +195,26 @@ enum StructureTip {
         var byLevel = [[Int32]](repeating: [], count: maxY - floorY + 1)
         for i in 0..<n { byLevel[cells[i].y - floorY].append(Int32(i)) }
         let nearIdx = (0..<n).filter { near(cells[$0]) }
-        var parent = [Int32](repeating: -1, count: n)
-        var size = [Int32](repeating: 0, count: n)
-        var weight = [Float](repeating: 0, count: n), mx = [Float](repeating: 0, count: n), mz = [Float](repeating: 0, count: n)
-        var gFeet = [Int32](repeating: 0, count: n), gHold = [Float](repeating: 0, count: n)
-        var gLo = [SIMD2<Int32>](repeating: SIMD2(Int32.max, Int32.max), count: n), gHi = [SIMD2<Int32>](repeating: SIMD2(Int32.min, Int32.min), count: n)
-        var linkHead = [Int32](repeating: -1, count: n), linkTail = [Int32](repeating: -1, count: n), linkNext = [Int32](repeating: -1, count: n)
-        var lvStamp = [Int32](repeating: Int32.min, count: n), evStamp = [Int32](repeating: Int32.min, count: n)
-        var lvFeet = [Int32](repeating: 0, count: n), lvHold = [Float](repeating: 0, count: n)
-        var lvLo = [SIMD2<Int32>](repeating: .zero, count: n), lvHi = [SIMD2<Int32>](repeating: .zero, count: n)
+        // (Nov 9, callgrind of the worst-case soak: as arrays captured by find and union, every write to them took a
+        // uniqueness check through the closures' boxes, and finding the pieces' roots was 60% of the check: buffers now,
+        // the same values)
+        var bufs: [UnsafeMutableRawPointer] = []
+        defer { for b in bufs { b.deallocate() } }
+        func buf<T>(_ v: T) -> UnsafeMutablePointer<T> {
+            let b = UnsafeMutablePointer<T>.allocate(capacity: n)
+            b.initialize(repeating: v, count: n)
+            bufs.append(UnsafeMutableRawPointer(b))
+            return b
+        }
+        let parent = buf(Int32(-1))
+        let size = buf(Int32(0))
+        let weight = buf(Float(0)), mx = buf(Float(0)), mz = buf(Float(0))
+        let gFeet = buf(Int32(0)), gHold = buf(Float(0))
+        let gLo = buf(SIMD2<Int32>(Int32.max, Int32.max)), gHi = buf(SIMD2<Int32>(Int32.min, Int32.min))
+        let linkHead = buf(Int32(-1)), linkTail = buf(Int32(-1)), linkNext = buf(Int32(-1))
+        let lvStamp = buf(Int32.min), evStamp = buf(Int32.min)
+        let lvFeet = buf(Int32(0)), lvHold = buf(Float(0))
+        let lvLo = buf(SIMD2<Int32>.zero), lvHi = buf(SIMD2<Int32>.zero)
         func find(_ i: Int32) -> Int32 {
             var a = i
             while parent[Int(a)] != a { let gp = parent[Int(parent[Int(a)])]; parent[Int(a)] = gp; a = gp }
