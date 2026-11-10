@@ -163,7 +163,7 @@ enum RoutCheck {
             let creeperSeen = MobManager.inPlainSight(cr, g)
             g.player.yaw = yaw0; g.player.pitch = pitch0
             check(seen && (MobManager.oldDespawn ? tookSeen : !tookSeen) && tookAway && creeperSeen,
-                  String(format: "despawn: a wandering soldier %.0f blocks off in plain sight (%@) %@; turned away, %@; a creeper 30 blocks ahead counts as seen (%@)",
+                  String(format: "despawn: a wandering soldier %.0f blocks off in plain sight (%@) %@; turned away, %@; a monster 30 blocks ahead counts as seen (%@)",
                          d, seen ? "seen" : "not seen", tookSeen ? "is taken out" : "stays", tookAway ? "he goes" : "he stays", creeperSeen ? "yes" : "no"))
         }
         // A patrol of three losing two: no rout (under five).
