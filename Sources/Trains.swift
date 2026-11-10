@@ -239,7 +239,7 @@ enum Trains {
             if let tr = trains[t.id] { tr.delay = t.delay; tr.robbedDay = t.robbedDay; tr.wrecked = t.wrecked }
         }
     }
-    static func save(_ w: World) {
+    static func save(_ w: World, background: Bool = false) {
         guard let s = w.save else { return }
         for tr in trains.values where tr.track.dim == w.dim && !tr.track.through {
             saved[tr.track.id] = SavedTrain(id: tr.track.id, delay: tr.delay, robbedDay: tr.robbedDay, wrecked: tr.wrecked)
@@ -247,7 +247,7 @@ enum Trains {
         let mine = saved.values.filter { v in trains[v.id].map { $0.track.dim == w.dim } ?? true }
             .filter { $0.delay != 0 || $0.robbedDay >= 0 || $0.wrecked }
         if mine.isEmpty && !FileManager.default.fileExists(atPath: s.dir.appendingPathComponent("trains.json").path) { return }
-        SaveIO.storeJSON(mine.sorted { $0.id < $1.id }, to: s.dir.appendingPathComponent("trains.json"))
+        SaveIO.write(mine.sorted { $0.id < $1.id }, to: s.dir.appendingPathComponent("trains.json"), background: SaveIO.queued(background))
     }
 
     // MARK: Ticking

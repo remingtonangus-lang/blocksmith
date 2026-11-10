@@ -182,8 +182,8 @@ final class SaveManager {
         return a.filter { $0.count == 3 }.map { IVec3($0[0], $0[1], $0[2]) }
     }
 
-    func savePortals(_ p: [IVec3]) {
-        SaveIO.storeJSON(p.map { [$0.x, $0.y, $0.z] }, to: dir.appendingPathComponent("portals.json"))
+    func savePortals(_ p: [IVec3], background: Bool = false) {
+        SaveIO.write(p.map { [$0.x, $0.y, $0.z] }, to: dir.appendingPathComponent("portals.json"), background: SaveIO.queued(background))
     }
 
     func chunkURL(_ k: ChunkKey) -> URL { chunkDir.appendingPathComponent("c.\(k.x).\(k.z).lz") }
@@ -418,6 +418,12 @@ enum SaveIO {
 
     // F1: work for the save queue (encoding from value snapshots the frame thread no longer touches).
     static func run(_ work: @escaping () -> Void) { queue.async(execute: work) }
+    // Nov 10 (a launch's first autosave, timed by parts): the autosave wrote the portals, trains, free pieces, world
+    // objects, falling blocks and three of the ships' files right on the frame, each flushed to the storage (2-5 ms for
+    // the portals alone on the cloud host, every minute). They go on the save queue now, like the chunks and the meta.
+    // BS_OLDSAVESYNC=1: written on the frame as before.
+    static let oldSync = ProcessInfo.processInfo.environment["BS_OLDSAVESYNC"] == "1"
+    @inline(__always) static func queued(_ background: Bool) -> Bool { background && !oldSync }
     // A value snapshot written as JSON: on the save queue (the autosave) or right here (quit, pause, world switch).
     static func write<T: Encodable>(_ value: T, to url: URL, background: Bool) {
         if background { writeJSON(value, to: url); return }

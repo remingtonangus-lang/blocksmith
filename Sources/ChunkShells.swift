@@ -283,10 +283,19 @@ final class MeshCache {
 
     func write(_ k: ChunkKey, _ c: Chunk, occ: Int) {
         // The buffers stay alive in this closure until written (their slab space is reused only after).
-        let secs = c.sections.map { s in (s.opaqueBuf, s.transBuf, s.detailBuf,
-                                          [s.opaqueQuads, s.solidQuads, s.farSkip, s.farExtra, s.transQuads, s.detailQuads, s.detailSolid,
-                                           s.naturalCubes, s.groundQuads, s.blobQuads, s.solidFull ? 1 : 0,
-                                           s.farCut, s.detailFarSkip, s.detailFarExtra, s.farTail], s.vis, s.leafy) }
+        // (Nov 10, the autosave timed by parts: a tuple and a 15-count array per section, 24 a chunk, for every chunk of
+        // the shell band was up to 4 ms of the save on the frame; flat arrays, four a chunk, the same file)
+        let n = c.sections.count
+        var bufs = [MeshSlice?](), counts = [Int](), viss = [UInt64](), leafs = [Bool]()
+        bufs.reserveCapacity(n * 3); counts.reserveCapacity(n * MeshCache.countsPerSection); viss.reserveCapacity(n); leafs.reserveCapacity(n)
+        for s in c.sections {
+            bufs.append(s.opaqueBuf); bufs.append(s.transBuf); bufs.append(s.detailBuf)
+            counts.append(s.opaqueQuads); counts.append(s.solidQuads); counts.append(s.farSkip); counts.append(s.farExtra)
+            counts.append(s.transQuads); counts.append(s.detailQuads); counts.append(s.detailSolid); counts.append(s.naturalCubes)
+            counts.append(s.groundQuads); counts.append(s.blobQuads); counts.append(s.solidFull ? 1 : 0); counts.append(s.farCut)
+            counts.append(s.detailFarSkip); counts.append(s.detailFarExtra); counts.append(s.farTail)
+            viss.append(s.vis); leafs.append(s.leafy)
+        }
         let height = c.height, tint = c.tint, modified = c.modified
         let u = url(k), stamp = self.stamp
         lock.lock(); have.insert(k); lock.unlock()
@@ -305,11 +314,12 @@ final class MeshCache {
             u32(UInt32(bitPattern: Int32(occ))); u32(modified ? 1 : 0)
             height.withUnsafeBytes { d.append(contentsOf: $0) }
             tint.withUnsafeBytes { d.append(contentsOf: $0) }
-            u32(UInt32(secs.count))
-            for (o, t, de, counts, vis, leafy) in secs {
-                for n in counts { u32(UInt32(n)) }
-                u64(vis); u32(leafy ? 1 : 0)
-                slice(o); slice(t); slice(de)
+            u32(UInt32(n))
+            let per = MeshCache.countsPerSection
+            for i in 0..<n {
+                for j in 0..<per { u32(UInt32(counts[i * per + j])) }
+                u64(viss[i]); u32(leafs[i] ? 1 : 0)
+                slice(bufs[i * 3]); slice(bufs[i * 3 + 1]); slice(bufs[i * 3 + 2])
             }
             do { try Data(d).write(to: u, options: .atomic) } catch { lock.lock(); have.remove(k); lock.unlock(); return }
             lock.lock(); bytes += d.count; let over = bytes > MeshCache.capBytes; lock.unlock()

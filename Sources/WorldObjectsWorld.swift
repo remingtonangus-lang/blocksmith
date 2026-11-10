@@ -397,11 +397,11 @@ extension World {
         objectReg.load(self, list)
     }
 
-    func saveObjects() {
+    func saveObjects(background: Bool = false) {
         // (P394: cells and drops a swap-in left for the next frames go first, so the save holds them)
         while !objectReg.later.isEmpty { objectReg.later.removeFirst()() }
         guard objectReg.dirty, let s = save else { return }
         objectReg.dirty = false
-        SaveIO.storeJSON(objectReg.saved(), to: s.dir.appendingPathComponent("objects.json"))
+        SaveIO.write(objectReg.saved(), to: s.dir.appendingPathComponent("objects.json"), background: SaveIO.queued(background))
     }
 }

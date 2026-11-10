@@ -177,6 +177,7 @@ enum QuestLaunch {
         if let mc = game.world.meshCache { print("launch: mesh cache reads \(mc.reads), refused \(mc.refused)") }
         print(String(format: "launch: while filling: worst tick %.1f ms (%d over 13.9), worst record %.1f ms (%d over 13.9)", worstTick, slowTick, worstRecord, slowRecord))
         print(String(format: "launch: worst tick's stages (%.1f s in): ", worstTickAt) + worstTickWhy)
+        print(String(format: "launch: slowest save on the frame %.1f ms: ", Game.saveWorstMs) + Game.saveWorstLaps)
         print(String(format: "launch: worst record's stages (%.1f s in): ", worstRecordAt) + worstRecordWhy)
         print(String(format: "launch: slowest random tick %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat))
         print("launch: slow ticks by their slowest stage: " + slowWhy.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
