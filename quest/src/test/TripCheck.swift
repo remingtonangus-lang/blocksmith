@@ -103,6 +103,10 @@ enum TripCheck {
         trip("a portal back to the surface") { g.travelThroughPortal() }
         // The Deep a second time (its world kept from the first trip, as in play).
         trip("down the seam again") { g.player.pos.y = 0.3; g.player.vel = .zero; g.crossSeam(down: true) }
+        // The Hollow, and its rifts (the code reader's Nov 10 batch, 4: a rift loaded where it threw him on the frame).
+        trip("into the Hollow") { g.enterEnd() }
+        trip("a rift out to the far islands") { g.player.pos = V3(3.5, g.player.pos.y, 0.5); g.gatewayTeleport() }
+        trip("a rift back to the middle") { g.gatewayTeleport() }
 
         print(String(format: "triptest: slowest trip %.0f ms, worst tick after one %.1f ms, longest hold %.2f s (hold %@; a frame on the headset is 13.9 ms)",
                      worstTrip, worstAfter, longestHold, Game.arrivalHold ? "on" : "off"))

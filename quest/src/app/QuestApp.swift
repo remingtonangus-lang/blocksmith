@@ -107,7 +107,7 @@ final class QuestApp {
         stats.dynResProbe = { [weak self] in self?.dynRes.lastProbe ?? 0 }
         stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && !(self?.xr.foveated ?? true) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
-        startLoading()
+        startLoading(WorldRequest(survival: true))       // (code reader Nov 10, batch 2.1: a buyer's first world was Creative: no camp, no goals)
     }
 
     // MARK: Loading

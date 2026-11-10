@@ -80,6 +80,7 @@ final class QuestRig {
         if needsRecenter {
             needsRecenter = false
             recenters += 1
+            satDown = false
             anchor = V3(trackingHead.x, 0, trackingHead.z)
             // Standing or seated, the current head height becomes the game's eye height (ducking still lowers the view).
             // S6: standing with a measured height (first-launch setup), that height is the eye height instead, so a
@@ -147,6 +148,23 @@ final class QuestRig {
     }
     private var heaveY: Float?
     private var crouchDip: Float = 0
+
+    // Standing play, sat down (QuestControls.roomScale): the head where it is now becomes the eye height, until he
+    // stands again (or recentres).
+    private(set) var satDown = false
+    private var standOffset: Float = 0, standPivot: Float = 0
+    func sitAt(_ h: Float) {
+        guard !satDown else { return }
+        standOffset = heightOffset; standPivot = pivotY
+        heightOffset = QuestRig.eyeHeight - h; pivotY = h
+        satDown = true
+        print(String(format: "rig: sat down, head %.2f m: the view is raised to the eye height", h))
+    }
+    func standAgain() {
+        guard satDown else { return }
+        heightOffset = standOffset; pivotY = standPivot
+        satDown = false
+    }
 
     // Loading scene: raw tracking space (no player yet).
     func updateLoading(xr: XRInput) {

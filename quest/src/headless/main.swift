@@ -2243,6 +2243,10 @@ if CommandLine.arguments.contains("--musictakes") {             // P457: several
     MusicTakesCheck.run(game, check)
     print(failures == 0 ? "musictakes: all checks passed" : "musictakes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--reader") {                // the code reader's Nov 10 batch: helm and TNT stalls
+    ReaderChecks.run(game, check)
+    print(failures == 0 ? "reader: all checks passed" : "reader: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--lookout") {               // the code reader's Nov 10 batch, 1: no endless deck range
     CrewLookout.check(game, check)
     print(failures == 0 ? "lookout: all checks passed" : "lookout: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

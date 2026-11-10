@@ -741,6 +741,7 @@ final class Ship: LifeLinked {
 // MARK: Manager (one per World / dimension)
 
 final class ShipManager: LifeLinked {
+    static let oldAssemble = ProcessInfo.processInfo.environment["BS_OLDASSEMBLE"] == "1"
     lazy var lifeLink = LifeLink(self)    // (item 8: background builds reach the manager by link, not a weak reference)
     unowned let world: World
     static var quarantined = 0               // ship steps that produced NaN (ShipPhysics.step puts the pose back)
@@ -917,7 +918,7 @@ final class ShipManager: LifeLinked {
         let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
         // Connected cells from start, not entering `taken`, never going up out of a turret ring, never down out of a
         // wheel or a track (it rests on the ground), never below `floor`. Overflow: the cells seen when it passed the limit.
-        func collect(_ start: IVec3, _ taken: Set<IVec3>, floor: Int = Int.min) -> (cells: [IVec3], over: Bool) {
+        func collect(_ start: IVec3, _ taken: Set<IVec3>, floor: Int = Int.min, limit: Int = limit) -> (cells: [IVec3], over: Bool) {
             var seen = Set<IVec3>([start])
             var queue = [start]
             var head = 0
@@ -959,10 +960,17 @@ final class ShipManager: LifeLinked {
         if wheelY == nil && (first.over || first.cells.count > 2000) {
             var below: [Int: Int] = [:]
             for c in first.cells { below[c.y, default: 0] += 1 }
+            // (The code reader's Nov 10 batch, 3: a helm on or against a big building stalled the frame about a second
+            // before "Too big to move", every try: each of these 25 floors searched up to 60,000 cells. A floor passes
+            // only when the vehicle above it is under an eighth of the layer under it (less 200), so the search above
+            // a floor stops there, and a floor with 200 cells or fewer under it can't pass at all: the same answer.
+            // BS_OLDASSEMBLE=1: every floor searched in full, as before.)
             for fy in stride(from: h.y, through: h.y - 24, by: -1) {
-                let upper = collect(h, [], floor: fy)
+                let b = below[fy - 1] ?? 0
+                if !ShipManager.oldAssemble && b <= 200 { continue }
+                let upper = collect(h, [], floor: fy, limit: ShipManager.oldAssemble ? limit : (b - 200) / 8 + 1)
                 if upper.over { continue }
-                if (below[fy - 1] ?? 0) > upper.cells.count * 8 + 200 { first = upper; break }
+                if b > upper.cells.count * 8 + 200 { first = upper; break }
             }
         }
         guard !first.over else { return (nil, tooBig) }

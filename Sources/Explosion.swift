@@ -800,9 +800,29 @@ final class TNTManager {
             if hit.z { t.vel.z = 0 }
             if t.fuse <= 0 { boom.append(t.pos + V3(0, 0.49, 0)) }
         }
-        list.removeAll { $0.fuse <= 0 }
-        for p in boom { Explosion.explode(at: p, power: 4, game: g, decay: false) }
+        // (The code reader's Nov 10 batch, 2: a big stack went off all in one frame, a full explosion for every block
+        // whose fuse ran out, and a chain primes everything in reach with 0.5-1.5 s fuses: the frame rate dropped for
+        // about a second. Now the blasts of a frame stop once 3 ms have gone (always one); the rest, fuse spent, go off
+        // in the next frames in the order they were lit. BS_OLDTNT=1: all at once.)
+        if TNTManager.oldAll || boom.count <= 1 {
+            list.removeAll { $0.fuse <= 0 }
+            for p in boom { Explosion.explode(at: p, power: 4, game: g, decay: false) }
+            return
+        }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var gone = 0
+        for t in list where t.fuse <= 0 && g.world.activeHere(t.pos) {
+            if gone > 0 && (CFAbsoluteTimeGetCurrent() - t0) * 1000 > TNTManager.frameMs { break }
+            t.fuse = -.infinity                                    // (marked: gone)
+            gone += 1
+            Explosion.explode(at: t.pos + V3(0, 0.49, 0), power: 4, game: g, decay: false)
+        }
+        list.removeAll { $0.fuse == -.infinity }
+        TNTManager.deferred += boom.count - gone
     }
+    static let oldAll = ProcessInfo.processInfo.environment["BS_OLDTNT"] == "1"
+    static var frameMs = 3.0
+    static var deferred = 0                                        // (harness: blasts moved to a later frame)
 
     func write(_ wr: inout EntityWriter, eye: V3, world: World, daylight: Float) {
         let tnt = Blocks.id("tnt")
