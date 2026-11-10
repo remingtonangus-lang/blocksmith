@@ -232,7 +232,7 @@ enum FieldTerrain {
             let y1 = min(CH - 1, y0 + 15)
             // Uniform rows (with the rows just above and below): nothing to refine unless a border cliff might need it.
             var anySolid = false, anyOpen = false
-            for y in max(0, y0 - 1)...min(CH - 1, y1 + 1) {
+            for y in thru(max(0, y0 - 1), min(CH - 1, y1 + 1)) {
                 for c in 0..<CSQ { if fd[c + y * CSQ] > 0 { anySolid = true } else { anyOpen = true }; if anySolid && anyOpen { break } }
                 if anySolid && anyOpen { break }
             }
@@ -625,7 +625,7 @@ extension World {
         for (c, sy) in touched {
             for dz in -1...1 { for dx in -1...1 {
                 guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
-                for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) where !all.contains(where: { $0.0 === n && $0.1 == s }) { all.append((n, s)) }
+                for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) where !all.contains(where: { $0.0 === n && $0.1 == s }) { all.append((n, s)) }
             } }
         }
         for (n, s) in all { n.sections[s].version += 1 }

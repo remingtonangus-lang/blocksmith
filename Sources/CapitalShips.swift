@@ -309,7 +309,7 @@ final class HullBuilder {
         return added
     }
     func fill(_ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int, _ z0: Int, _ z1: Int, _ b: BlockID) {
-        for y in min(y0, y1)...max(y0, y1) { for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) { set(x, y, z, b) } } }
+        for y in thru(min(y0, y1), max(y0, y1)) { for z in thru(min(z0, z1), max(z0, z1)) { for x in thru(min(x0, x1), max(x0, x1)) { set(x, y, z, b) } } }
     }
     func grid(_ x: Int, _ y: Int, _ z: Int) -> IVec3 { IVec3(x + ox, y, z) }
 }
@@ -1138,7 +1138,7 @@ extension ShipManager {
             }
             if cap, Blocks.has("frigate_reactor") {
                 let core = Blocks.id("frigate_reactor"), gr = s.grid, c = hb.grid(0, 17, 128)
-                for y in max(0, c.y - 12)...(c.y + 12) { for z in (c.z - 10)...(c.z + 10) { for x in (c.x - 10)...(c.x + 10) where gr.get(x, y, z) == core {
+                for y in thru(max(0, c.y - 12), (c.y + 12)) { for z in (c.z - 10)...(c.z + 10) { for x in (c.x - 10)...(c.x + 10) where gr.get(x, y, z) == core {
                     st.reactorCells.append(IVec3(x, y, z))
                 } } }
                 st.reactorLive = st.reactorCells.count
@@ -2728,7 +2728,7 @@ extension ShipManager {
                 guard world.isLoaded(x, z) else { continue }
                 // (ground standing up into the wheel's lower rows: on a rise the wheel cuts its track into the ground
                 // instead of sinking through it, 12:07:07 "its wheels morphing through the terrain")
-                for ly in wh.lo.y...min(wh.hi.y, wh.lo.y + 1) {
+                for ly in thru(wh.lo.y, min(wh.hi.y, wh.lo.y + 1)) {
                     let cp = s.toWorld(V3(Float(lx) + 0.5, Float(ly) + 0.5, Float(lz) + 0.5))
                     let cb = world.rawBlock(Int(floor(cp.x)), Int(floor(cp.y)), Int(floor(cp.z)))
                     if ShipManager.groundBlock[Int(cb)] && hardnessOK(cb) { sunk += 1 }

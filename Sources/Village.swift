@@ -191,11 +191,11 @@ enum Village {
         let m = mats(style)
         var occupied = Set<IVec2Key>()
         func free(_ x0: Int, _ z0: Int, _ x1: Int, _ z1: Int) -> Bool {
-            for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) where occupied.contains(IVec2Key(x, z)) { return false } }
+            for z in thru(min(z0, z1), max(z0, z1)) { for x in thru(min(x0, x1), max(x0, x1)) where occupied.contains(IVec2Key(x, z)) { return false } }
             return true
         }
         func claim(_ x0: Int, _ z0: Int, _ x1: Int, _ z1: Int) {
-            for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) { occupied.insert(IVec2Key(x, z)) } }
+            for z in thru(min(z0, z1), max(z0, z1)) { for x in thru(min(x0, x1), max(x0, x1)) { occupied.insert(IVec2Key(x, z)) } }
         }
         // Streets: arms from the plaza, with side branches. Frontier towns (new ground) pick one of three plans by
         // their position (Village.plan; a town on ground a save already generated keeps the crossroads):

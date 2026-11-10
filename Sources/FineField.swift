@@ -284,7 +284,7 @@ extension Mesher {
     static func fineSection(_ n9: [BlockStore], sy: Int) -> Bool {
         guard FineField.enabled else { return false }
         for st in n9 where !st.fine.isEmpty {
-            for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) where st.fine[s] != nil { return true }
+            for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) where st.fine[s] != nil { return true }
         }
         return false
     }

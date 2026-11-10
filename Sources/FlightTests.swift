@@ -85,7 +85,7 @@ enum FlightTests {
                 for dx in -c...c {
                     let ground = w.topY(cx + dx, cz + dz)
                     guard ground >= 0 else { continue }
-                    if abs(dx) <= r && abs(dz) <= r { for y in max(1, min(ground, top - 6))...top { w.setBlockAsync(cx + dx, y, cz + dz, stone) } }
+                    if abs(dx) <= r && abs(dz) <= r { for y in thru(max(1, min(ground, top - 6)), top) { w.setBlockAsync(cx + dx, y, cz + dz, stone) } }
                     for y in (top + 1)...(top + 16) where !w.isAir(cx + dx, y, cz + dz) { w.setBlockAsync(cx + dx, y, cz + dz, AIR) }
                 }
             }

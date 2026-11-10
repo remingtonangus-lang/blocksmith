@@ -52,9 +52,9 @@ extension Capital {
         for (reach, up, roofMax) in [(stationReach, 10, 6), (stationReachFar, stationUpFar, 14), (stationReachLast, stationUpLast, 30)] {
             for (ri, ring) in rings.enumerated() where !served[ri] {
                 var cands: [(IVec3, IVec3, String, Float)] = []
-                for y in max(1, ring.y - up)...max(1, min(gr.sy - 3, ring.y + up)) {
-                    for z in max(1, ring.z - reach)...max(1, min(gr.sz - 2, ring.z + reach)) {
-                        for x in max(1, ring.x - reach)...max(1, min(gr.sx - 2, ring.x + reach)) {
+                for y in thru(max(1, ring.y - up), max(1, min(gr.sy - 3, ring.y + up))) {
+                    for z in thru(max(1, ring.z - reach), max(1, min(gr.sz - 2, ring.z + reach))) {
+                        for x in thru(max(1, ring.x - reach), max(1, min(gr.sx - 2, ring.x + reach))) {
                             guard open(x, y, z), open(x, y + 1, z), solid(x, y - 1, z) else { continue }
                             // Under a roof (inside the hull, not on a deck in the open).
                             var roof = false

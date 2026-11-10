@@ -30,7 +30,7 @@ extension Game {
                 let hmax = max(0, c.heightMax)
                 // (Nov 9: sections holding nothing that ticks are passed over: BlockStore.tickMask. BS_OLDRTSCAN=1: all)
                 let mask = RandomTickRng.oldScan ? ~0 : blocks.tickMask
-                for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) where mask & (1 << UInt32(sy)) != 0 {
+                for sy in thru(0, min(NSEC - 1, (hmax + 1) >> 4)) where mask & (1 << UInt32(sy)) != 0 {
                     for _ in 0..<3 {
                         // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).
                         let r = Int(truncatingIfNeeded: rng.next() >> 20)

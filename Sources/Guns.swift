@@ -384,7 +384,7 @@ enum Guns {
             let x0 = Int(floor((q.mn.z - lo.x) * k + ox)), x1 = max(x0, Int(ceil((q.mx.z - lo.x) * k + ox)) - 1)
             let y0 = Int(floor((hi.y - q.mx.y) * k + oy)), y1 = max(y0, Int(ceil((hi.y - q.mn.y) * k + oy)) - 1)
             let c = simd_min(q.color, V3(1, 1, 1))
-            for y in max(0, y0)...min(15, max(0, y1)) { for x in max(0, x0)...min(15, max(0, x1)) {
+            for y in thru(max(0, y0), min(15, max(0, y1))) { for x in thru(max(0, x0), min(15, max(0, x1))) {
                 let top: Float = y == y0 ? 1.12 : 1                        // a lit top edge on each part
                 img[y][x] = V4(simd_min(c * top, V3(1, 1, 1)), 1)
             } }
@@ -420,12 +420,12 @@ enum Guns {
             // P232: dark gunmetal lifted a little, so a black-finished gun still reads on the dark inventory slot.
             let base = simd_min(q.color * 0.82 + V3(repeating: 0.12), V3(1, 1, 1))
             let rows = Float(max(1, y1 - y0))
-            for y in max(0, y0)...min(n - 1, max(0, y1)) {
+            for y in thru(max(0, y0), min(n - 1, max(0, y1))) {
                 let t = Float(y - y0) / rows                                   // 0 top .. 1 bottom
                 var shade: Float = 1.06 - 0.22 * t
                 if y - y0 < edge { shade = 1.22 }                              // lit top edge
                 if y1 - y < edge && y1 - y0 > edge * 3 { shade *= 0.72 }       // underside in shadow
-                for x in max(0, x0)...min(n - 1, max(0, x1)) {
+                for x in thru(max(0, x0), min(n - 1, max(0, x1))) {
                     var s = shade
                     if q.pattern == 10 { s *= 0.9 + 0.12 * sinf(Float(x) * 0.21 + sinf(Float(y) * 0.9) * 1.6) }   // wood grain
                     if q.pattern == 8 && abs(t - 0.3) < 0.08 { s *= 1.12 }                                          // metal sheen

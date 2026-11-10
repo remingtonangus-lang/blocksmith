@@ -205,7 +205,7 @@ enum ProvingGrounds {
                 b.add(at, 1) { g in
                     let w = g.world
                     _ = w.loadSync(center: at, radius: 1)
-                    for z in tz...min(tz + 31, z1) { for x in tx...min(tx + 31, x1) { body(w, o.x + x, o.z + z) } }
+                    for z in thru(tz, min(tz + 31, z1)) { for x in thru(tx, min(tx + 31, x1)) { body(w, o.x + x, o.z + z) } }
                 }
             } }
         }

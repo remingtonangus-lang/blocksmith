@@ -2058,7 +2058,7 @@ extension SceneRenderer {
                 for dz in -R...R {
                     for dx in -R...R {
                         var m = Int16(NSEC)
-                        for ox in max(-R, dx - 1)...min(R, dx + 1) {
+                        for ox in thru(max(-R, dx - 1), min(R, dx + 1)) {
                             let ns = sX[ox + R] + sZ[dz + R]
                             if tc[ns].present && tc[ns].openLow < m { m = tc[ns].openLow }
                         }
@@ -2069,7 +2069,7 @@ extension SceneRenderer {
                 for dz in -R...R {
                     for dx in -R...R {
                         var m = Int16(NSEC)
-                        for oz in max(-R, dz - 1)...min(R, dz + 1) { m = min(m, sealRow[(dx + R) + (oz + R) * span]) }
+                        for oz in thru(max(-R, dz - 1), min(R, dz + 1)) { m = min(m, sealRow[(dx + R) + (oz + R) * span]) }
                         let x0 = Float((pcx + dx) * CS), z0 = Float((pcz + dz) * CS)
                         let nx = max(x0, min(eye.x, x0 + 16)) - eye.x, nz = max(z0, min(eye.z, z0 + 16)) - eye.z
                         let slot = sX[dx + R] + sZ[dz + R]

@@ -25,7 +25,7 @@ extension Village {
         falseFront(&w, b, m, wallH: wallH, band: blk(bandColor(k) + "_terracotta", m.log))
         // Awning over the doorway (frontier towns: a covered boardwalk the width of the front), the sign above the door.
         if l.frontier { boardwalk(&w, b, m, wallH: wallH) }
-        else { for u in max(0, l.w / 2 - 2)...min(l.w - 1, l.w / 2 + 2) { b.set(&w, u, wallH - 1, -1, m.slab) } }
+        else { for u in thru(max(0, l.w / 2 - 2), min(l.w - 1, l.w / 2 + 2)) { b.set(&w, u, wallH - 1, -1, m.slab) } }
         sign(&w, b, u: l.w / 2, dy: 2, v: -1, lines: ["", k.name, "", ""])
         // R20: the general store's exchange, with its rate, by the door (Exchange: every counter has the row inside).
         if k == .general { sign(&w, b, u: 1, dy: 1, v: -1, lines: Exchange.signLines) }

@@ -131,7 +131,7 @@ extension World {
         for (c, sy) in touched {
             for dz in -1...1 { for dx in -1...1 {
                 guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
-                for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) where !all.contains(where: { $0.0 === n && $0.1 == s }) { all.append((n, s)) }
+                for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) where !all.contains(where: { $0.0 === n && $0.1 == s }) { all.append((n, s)) }
             } }
         }
         for (n, s) in all { n.sections[s].version += 1 }

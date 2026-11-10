@@ -95,7 +95,7 @@ final class GroundDrape {
         let cx = Int(floor(x)), cz = Int(floor(z))
         var bestD: Float = 1.25 * 1.25, bestY: Float? = nil
         tri.withUnsafeBufferPointer { t in
-            for bz in max(-1, cz - 1)...min(16, cz + 1) { for bx in max(-1, cx - 1)...min(16, cx + 1) {
+            for bz in thru(max(-1, cz - 1), min(16, cz + 1)) { for bx in thru(max(-1, cx - 1), min(16, cx + 1)) {
                 for k in cells[(bx + 1) + (bz + 1) * GroundDrape.N] {
                     let o = Int(k) * 9
                     // (seen from above: the squared distance to the triangle's nearest edge; adaptive ground triangles

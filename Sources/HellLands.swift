@@ -58,7 +58,7 @@ extension EmberGen {
                     guard g == soulSand || g == soulSoil else { continue }
                     let drift = col[y] > 0 && col[y + 1] <= 0 ? duneCells(col, y, duneDepth(wx, wz)).n : 0
                     var top = y
-                    for dy in 1...max(1, drift) where drift > 0 && at(x, y + dy, z) == AIR && at(x, y + dy + 1, z) == AIR { set(x, y + dy, z, soulSand); top = y + dy }
+                    for dy in thru(1, max(1, drift)) where drift > 0 && at(x, y + dy, z) == AIR && at(x, y + dy + 1, z) == AIR { set(x, y + dy, z, soulSand); top = y + dy }
                     past = top + 6
                     // P336: an ash hoodoo in the hollows now and then (a pillar of packed ash under an onyxstone cap; the
                     // wild Brimroot sprites are gone), a charred snag on a crest.

@@ -243,7 +243,7 @@ enum TownTests {
             let o = sm.origin(L)
             for tab in [false, true] {
                 sm.selling = tab
-                for scroll in 0...max(0, sm.rows.count - ShopMenu.visible) {
+                for scroll in thru(0, max(0, sm.rows.count - ShopMenu.visible)) {
                     sm.scroll = scroll
                     for l in sm.drawLines(L, o) {
                         let w = l.box?.x ?? Float(Font.width(l.text)) * l.scale

@@ -32,7 +32,7 @@ extension ShipManager {
                 let c = s.toWorld(b.centre)
                 let x = Int(floor(c.x)), z = Int(floor(c.z))
                 let y0 = Int(floor(c.y - b.height * 0.5)) - 1, y1 = Int(floor(c.y))
-                for y in y0...max(y0, y1) where fk[Int(rd.raw(x, y, z))] == 2 { top = max(top, y) }
+                for y in thru(y0, max(y0, y1)) where fk[Int(rd.raw(x, y, z))] == 2 { top = max(top, y) }
             }
             guard top != Int.min else { continue }
             // Then every lava cell in the hull's bounds up to there, and the hull cells beside or in it.

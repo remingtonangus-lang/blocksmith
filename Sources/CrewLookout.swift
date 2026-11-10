@@ -13,6 +13,37 @@ enum CrewLookout {
     static var lastMiss = ""                    // (ridecheck: the last search that found nothing, where it looked)
     static var ready: Bool { CFAbsoluteTimeGetCurrent() >= nextSearch }
     private static let reach = 22               // how far along the deck a spot is looked for (blocks, each way)
+    static let oldRanges = ProcessInfo.processInfo.environment["BS_OLDLOOKOUT"] == "1"
+
+    // The code reader's Nov 10 batch, 1 (questcheck --lookout, and the full suite): a crewman standing on a hull's top
+    // layer, one on a torn-off piece two blocks high, and one 30 blocks off the grid each search and come back.
+    static func check(_ g: Game, _ check: (Bool, String) -> Void) {
+        let next0 = nextSearch
+        defer { nextSearch = next0 }
+        let plank = Blocks.id("oak_planks")
+        func ship(_ sx: Int, _ sy: Int, _ sz: Int) -> Ship {
+            let gr = ShipGrid(sx: sx, sy: sy, sz: sz)
+            for z in 0..<sz { for x in 0..<sx { gr.set(x, 0, z, plank) } }
+            let s = Ship(id: -77, grid: gr)
+            s.rebuild()
+            s.pos = g.player.pos + V3(0, 40, 0)
+            return s
+        }
+        var lines: [String] = []
+        var ok = true
+        for (what, s, at) in [("on the top layer of a 6-high hull", ship(12, 6, 12), V3(6.5, 6.0, 6.5)),
+                              ("on a torn-off piece 2 blocks high", ship(5, 2, 5), V3(2.5, 1.0, 2.5)),
+                              ("30 blocks off the grid", ship(8, 4, 8), V3(40.5, 1.0, 40.5))] {
+            let m = Mob(.soldierTrooper, at: s.toWorld(at))
+            nextSearch = 0
+            let t0 = CFAbsoluteTimeGetCurrent()
+            _ = walk(m, s, to: s.toWorld(at) + V3(60, 0, 0), g)
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            ok = ok && ms < 500
+            lines.append(String(format: "%@ %.1f ms", what, ms))
+        }
+        check(ok, "crew lookout: a crewman's search for a spot to fire from comes back (" + lines.joined(separator: "; ") + ")")
+    }
 
     /// Sends `m` (aboard `s`) to a spot of the hull it can see `foe` from. True: it is on its way.
     static func walk(_ m: Mob, _ s: Ship, to foe: V3, _ g: Game) -> Bool {
@@ -28,9 +59,13 @@ enum CrewLookout {
         @inline(__always) func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { collide[Int(gr.get(x, y, z))] }
         // Standable cells on its own deck (a step up or down), nearest first.
         var cands: [(Int, IVec3)] = []
-        for y in max(1, fy - 1)...min(gr.sy - 2, fy + 1) {
-            for z in max(0, fz - reach)...min(gr.sz - 1, fz + reach) {
-                for x in max(0, fx - reach)...min(gr.sx - 1, fx + reach) {
+        // (thru: on a hull's top layer (fy >= sy - 1), on a piece 2 or fewer high (a torn-off part) or more than `reach`
+        // off the grid, these ranges came out backwards: lo...hi with hi < lo ran on forever on the headset, a freeze.
+        // BS_OLDLOOKOUT=1: the old height range, for the check's before.)
+        let ys: AnySequence<Int> = oldRanges ? AnySequence(max(1, fy - 1)...min(gr.sy - 2, fy + 1)) : AnySequence(thru(max(1, fy - 1), min(gr.sy - 2, fy + 1)))
+        for y in ys {
+            for z in thru(max(0, fz - reach), min(gr.sz - 1, fz + reach)) {
+                for x in thru(max(0, fx - reach), min(gr.sx - 1, fx + reach)) {
                     guard solid(x, y - 1, z), !solid(x, y, z), !solid(x, y + 1, z) else { continue }
                     let dx = x - fx, dz = z - fz, dy = y - fy
                     cands.append((dx * dx + dz * dz + dy * dy * 4, IVec3(x, y, z)))

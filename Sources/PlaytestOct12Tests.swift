@@ -347,7 +347,7 @@ enum PlaytestOct12Tests {
         if let st = withRail.first, let sc = gen.structures, let p = st.pieces.first {
             if let l = (st.plan as? CapitalRail.Plan)?.line {
                 var chunks: [IVec2Key: [BlockID]] = [:]
-                for cxk in floorDiv(min(l.x(0), l.x(l.level.count - 1)) - 2, CS)...floorDiv(max(l.x(0), l.x(l.level.count - 1)) + 2, CS) {
+                for cxk in thru(floorDiv(min(l.x(0), l.x(l.level.count - 1)) - 2, CS), floorDiv(max(l.x(0), l.x(l.level.count - 1)) + 2, CS)) {
                     let czk = floorDiv(l.z, CS)
                     for dz in -1...1 {
                         var blocks = gen.generate(cx: cxk, cz: czk + dz)
@@ -561,7 +561,7 @@ enum PlaytestOct12Tests {
             for cz in (floorDiv(oz, CS) - 2)...(floorDiv(oz, CS) + 2) { for cx in (floorDiv(ox, CS) - 2)...(floorDiv(ox, CS) + 2) {
                 var blocks = [BlockID](repeating: AIR, count: CS * CS * CH)
                 for lz in 0..<CS { for lx in 0..<CS {                   // (ground, so a road column is path, not planks)
-                    for y in 0...min(CH - 1, gen.groundY(cx * CS + lx, cz * CS + lz)) { blocks[Chunk.index(lx, y, lz)] = DIRT }
+                    for y in thru(0, min(CH - 1, gen.groundY(cx * CS + lx, cz * CS + lz))) { blocks[Chunk.index(lx, y, lz)] = DIRT }
                 } }
                 blocks.withUnsafeMutableBufferPointer { buf in
                     var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)

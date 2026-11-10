@@ -1010,7 +1010,7 @@ final class ShipManager: LifeLinked {
         if let top = waterTop {
             let lo = s.gridOrigin
             let g = s.grid
-            for y in lo.y...min(top, lo.y + g.sy - 1) { for z in lo.z..<(lo.z + g.sz) { for x in lo.x..<(lo.x + g.sx) {
+            for y in thru(lo.y, min(top, lo.y + g.sy - 1)) { for z in lo.z..<(lo.z + g.sz) { for x in lo.x..<(lo.x + g.sx) {
                 let gx = x - lo.x, gy = y - lo.y, gz = z - lo.z
                 let wasShip = taken.contains(IVec3(x, y, z))
                 if (wasShip || s.dry(gx, gy, gz)) && w.rawBlock(x, y, z) == AIR { w.setBlockAsync(x, y, z, WATER) }

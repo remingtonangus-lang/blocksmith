@@ -941,7 +941,7 @@ final class Playthrough {
         game.player.pos = sc
         var frames: [IVec3] = []
         let base = Blocks.id("end_portal_frame")
-        for y in max(0, sh.min.y)...min(CH - 1, sh.max.y) { for z in sh.min.z...sh.max.z { for x in sh.min.x...sh.max.x {
+        for y in thru(max(0, sh.min.y), min(CH - 1, sh.max.y)) { for z in sh.min.z...sh.max.z { for x in sh.min.x...sh.max.x {
             let b = world.block(x, y, z)
             if b == base || b == base + 1 { frames.append(IVec3(x, y, z)) }
         } } }

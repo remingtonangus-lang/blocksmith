@@ -366,7 +366,7 @@ extension World {
         for (c, sy) in touched {
             for dz in -1...1 { for dx in -1...1 {
                 guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
-                for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) { n.sections[s].version += 1 }
+                for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) { n.sections[s].version += 1 }
             } }
         }
         fieldStamp &+= 1

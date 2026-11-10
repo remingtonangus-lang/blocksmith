@@ -193,7 +193,7 @@ extension Game {
         }
         // Return rift two blocks toward the centre, standing on the island (step up onto its bedrock base).
         let rx = bx - Int((dir.x * 2).rounded()), rz = bz - Int((dir.y * 2).rounded())
-        if !(max(0, Int(dest.y) - 3)...min(CH - 1, Int(dest.y) + 6)).contains(where: { Blocks.key(world.materialAt(rx, $0, rz)) == "end_gateway" }) {
+        if !thru(max(0, Int(dest.y) - 3), min(CH - 1, Int(dest.y) + 6)).contains(where: { Blocks.key(world.materialAt(rx, $0, rz)) == "end_gateway" }) {
             let base = max(Int(dest.y), world.topY(rx, rz) + 1)
             if world.isAir(rx, base - 1, rz) { world.setBlock(rx, base - 1, rz, Blocks.id("end_stone")) }
             world.setBlock(rx, base, rz, BEDROCK)

@@ -687,13 +687,13 @@ enum OverworldStructures {
         let sunk = y + 5 <= SEA
         let mastTop = sunk ? SEA - 1 - y : 99                        // (highest h of a mast under the surface)
         if broken {
-            for h in 1...min(6, max(1, mastTop)) { at(1, h, 0, log) }
+            for h in thru(1, min(6, max(1, mastTop))) { at(1, h, 0, log) }
             if 5 <= mastTop || !sunk { for a in 2...6 { at(a, 5, 1, logA) } }
         } else {
-            for h in 1...min(13, max(1, mastTop)) { at(1, h, 0, log) }
+            for h in thru(1, min(13, max(1, mastTop))) { at(1, h, 0, log) }
             if 9 <= mastTop { for b in -3...3 { at(1, 9, b, logB) } }
             if 12 <= mastTop { for b in -2...2 { at(1, 12, b, logB) } }
-            for h in 1...min(10, max(1, mastTop)) { at(-5, h, 0, log) }
+            for h in thru(1, min(10, max(1, mastTop))) { at(-5, h, 0, log) }
             if 8 <= mastTop { for b in -2...2 { at(-5, 8, b, logB) } }
         }
         let supply = (cx - 6 * dir, y + 2, cz), treasure = (cx + (broken ? 4 : 6) * dir, y + 2, cz), map = (cx - 10 * dir, y + 5, cz)

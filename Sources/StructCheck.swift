@@ -421,7 +421,7 @@ enum StructCheck {
             for z in 0..<CS { for x in 0..<CS {
                 let wx = cx * CS + x, wz = cz * CS + z
                 if wx < s.min.x || wx > s.max.x || wz < s.min.z || wz > s.max.z { continue }
-                for y in max(1, s.min.y)...min(CH - 2, s.max.y) {
+                for y in thru(max(1, s.min.y), min(CH - 2, s.max.y)) {
                     let b = w.block(wx, y, wz)
                     if b == raw[Chunk.index(x, y, z)] { continue }
                     written.insert(key(wx, y, wz))
@@ -478,7 +478,7 @@ enum StructCheck {
         var explained = false
         var viewArgs = ""
         if walk {
-            for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 let b = w.block(x, y, z)
                 guard Blocks.shape[Int(b)] == "door" else { continue }
                 let st = Int(b - Blocks.groupBase[Int(b)])
@@ -548,7 +548,7 @@ enum StructCheck {
                 }
             }
             // Points of interest and beds.
-            for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 guard written.contains(key(x, y, z)) else { continue }
                 let b = w.block(x, y, z)
                 let base = Blocks.key(Blocks.groupBase[Int(b)])
@@ -687,7 +687,7 @@ enum StructCheck {
         }
         // Torches the structure placed: a standing one needs a top to stand on, a wall one a block behind it.
         var torchIssues = 0
-        for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+        for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             guard written.contains(key(x, y, z)) else { continue }
             let b = w.block(x, y, z)
             guard Blocks.shape[Int(b)] == "torch" else { continue }
@@ -709,7 +709,7 @@ enum StructCheck {
         // Ladders the structure placed: each needs a block behind it (ledger 30: a depot tank wagon's side ladder hung
         // on a corner). State f's panel is on side [1, 0, 3, 2][f] (BlocksBuilding), so its back is that side's cell.
         var ladderIssues = 0
-        for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+        for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             guard written.contains(key(x, y, z)) else { continue }
             let b = w.block(x, y, z)
             guard Blocks.shape[Int(b)] == "ladder" else { continue }

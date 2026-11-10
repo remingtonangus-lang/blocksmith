@@ -99,7 +99,7 @@ enum HorseCoatShots {
         }
         func mean(_ cx: Int, _ cy: Int, _ r: Int) -> V3 {
             var s = V3.zero, n: Float = 0
-            for y in max(0, cy - r)...min(H - 1, cy + r) { for x in max(0, cx - r)...min(W - 1, cx + r) {
+            for y in thru(max(0, cy - r), min(H - 1, cy + r)) { for x in thru(max(0, cx - r), min(W - 1, cx + r)) {
                 let i = (y * W * 2 + x) * 4
                 guard i + 2 < rgba.count else { continue }
                 s += V3(Float(rgba[i]), Float(rgba[i + 1]), Float(rgba[i + 2])); n += 1

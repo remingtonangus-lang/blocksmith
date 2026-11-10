@@ -335,7 +335,7 @@ if let out = arg("--view"), let ctx = vkctx {
             let sy = c.y >> 4
             for dz in -1...1 { for dx in -1...1 {
                 guard let n = vw.chunkAt(c.x + dx * CS, c.z + dz * CS) else { continue }
-                for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) { ring.append((n, s)) }
+                for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) { ring.append((n, s)) }
             } }
             let old = t { for (n, s) in ring { vw.remeshSync(n, s) } }
             print(String(format: "edittime: stone on the ground at %d %d %d: %.1f ms on the frame (%d sections meshed); before, the ring of %d sections alone took %.1f ms",
@@ -747,7 +747,7 @@ if let out = arg("--view"), let ctx = vkctx {
     if let r = Int(arg("--probe") ?? "") {
         let e = vg.player.pos
         let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
-        for y in max(1, ey - r)...min(CH - 2, ey + r) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
+        for y in thru(max(1, ey - r), min(CH - 2, ey + r)) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
             let b = vw.rawBlock(x, y, z), u = vw.rawBlock(x, y - 1, z)
             guard b != AIR && !Blocks.isLiquid(b) && (u == AIR || Blocks.isLiquid(u)) && Blocks.opaque[Int(b)] else { continue }
             print("probe: \(x) \(y) \(z) \(Blocks.key(b)) over \(Blocks.key(u))")
@@ -848,7 +848,7 @@ if let out = arg("--view"), let ctx = vkctx {
                 m = max(m, Int(vw.lightAt(x + dx, y + dy, z + dz).block)) } } }
             return m
         }
-        for y in max(1, ey - r)...min(CH - 2, ey + r) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
+        for y in thru(max(1, ey - r), min(CH - 2, ey + r)) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
             let b = vw.builtBlock(x, y, z)
             guard Blocks.fluidKind[Int(b)] != 0 else { continue }
             n += 1
@@ -1293,7 +1293,7 @@ if let out = arg("--view"), let ctx = vkctx {
         // below, and no solid block under them (each must stand on the drawn ground).
         var overAir: [String: Int] = [:], plants = 0
         let crossR = RenderType.cross.rawValue
-        for y in max(2, ey - reach)...min(CH - 2, ey + reach) { for z in (ez - reach)...(ez + reach) { for x in (ex - reach)...(ex + reach) {
+        for y in thru(max(2, ey - reach), min(CH - 2, ey + reach)) { for z in (ez - reach)...(ez + reach) { for x in (ex - reach)...(ex + reach) {
             let b = vw.rawBlock(x, y, z)
             guard b != AIR else { continue }
             if Blocks.render[Int(b)] == crossR && !Blocks.isLiquid(b) && !Blocks.key(b).hasSuffix("vine") && !Blocks.key(b).contains("vines") {   // (vines hang)
@@ -2243,6 +2243,10 @@ if CommandLine.arguments.contains("--musictakes") {             // P457: several
     MusicTakesCheck.run(game, check)
     print(failures == 0 ? "musictakes: all checks passed" : "musictakes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--lookout") {               // the code reader's Nov 10 batch, 1: no endless deck range
+    CrewLookout.check(game, check)
+    print(failures == 0 ? "lookout: all checks passed" : "lookout: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--rout") {                  // P511: a broken garrison runs
     RoutCheck.run(game, check)
     print(failures == 0 ? "rout: all checks passed" : "rout: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2782,6 +2786,7 @@ CraterPlaceCheck.run(game, check)                      // P507: blocks go down i
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft
 RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
+CrewLookout.check(game, check)                         // the code reader's Nov 10 batch, 1: no endless deck range
 BrushCheck.run(game, check)                            // P511: through bushes and limbs at his full pace
 ClamberCheck.run(game, check)                          // P511: up and over a ledge too high to jump onto
 TorchWaterCheck.run(game, check)                       // ledger 55: torches give way to water and lava, none go in

@@ -487,7 +487,7 @@ extension Village {
         for v in 0..<l.d { for u in 0..<l.w where u == 0 || v == 0 || u == l.w - 1 || v == l.d - 1 {
             if (u + v) % 2 == 0 { b.set(&w, u, wallH + 1, v, stone) }
         } }
-        for u in max(0, du - 1)...min(l.w - 1, du + 1) { b.set(&w, u, wallH + 1, 0, stone); b.set(&w, u, wallH + 2, 0, stone) }
+        for u in thru(max(0, du - 1), min(l.w - 1, du + 1)) { b.set(&w, u, wallH + 1, 0, stone); b.set(&w, u, wallH + 2, 0, stone) }
         boardwalk(&w, b, m, wallH: wallH)
         sign(&w, b, u: du, dy: wallH + 1, v: -1, lines: ["", "JAIL", "", ""])
         sign(&w, b, u: du, dy: 2, v: -1, lines: ["", "JAIL", "Sheriff's Office", ""])
