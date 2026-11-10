@@ -93,7 +93,7 @@ enum Railways {
     private static var plansClock = 0
     private static let lock = NSCondition()                 // (a condition: a caller waits for a plan another thread is making)
     // Item 11 (Nov 10, a saved world's launch under callgrind): the first ring's chunks, made four at a time, each
-    // planned the same few lines at once (56 plans for a handful of lines; the plans were 41% of making the ring): a
+    // planned the same lines at once (133-137 plans for 60 lines; the plans were 41% of making the ring): a
     // caller that needs a line another thread is planning now waits for that plan (up to 5 s, then plans it itself).
     // Lines never wait on links or on anything that waits, so no two threads wait on each other. BS_OLDRAILWAIT=1:
     // every caller plans it, as before. railPlansMade / railPlansWaited count them (the launch harness prints them).
