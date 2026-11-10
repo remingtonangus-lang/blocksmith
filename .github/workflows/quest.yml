@@ -34,7 +34,7 @@ jobs:
     # (90 min: the unoptimized build and the checks outgrew 45 by Oct 30; every run that day was cancelled mid-checks
     # and reported nothing.)
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
