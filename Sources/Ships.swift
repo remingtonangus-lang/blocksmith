@@ -1259,7 +1259,7 @@ final class ShipManager: LifeLinked {
                 map[b] = m; names.append(Blocks.saveKey(b)); idx[i] = m
             }
             let raw = idx.withUnsafeBytes { Data($0) }
-            let packed = ((try? (raw as NSData).compressed(using: .lzfse)) as Data?) ?? raw
+            let packed = SaveBytes.compress(raw) ?? raw
             let q = s.rot
             out.append(Saved(id: s.id, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w],
                              vel: [s.vel.x, s.vel.y, s.vel.z], angVel: [s.angVel.x, s.angVel.y, s.angVel.z],
@@ -1299,7 +1299,7 @@ final class ShipManager: LifeLinked {
                 map[b] = m; names.append(Blocks.saveKey(b)); idx[i] = m
             }
             let raw = idx.withUnsafeBytes { Data($0) }
-            let packed = ((try? (raw as NSData).compressed(using: .lzfse)) as Data?) ?? raw
+            let packed = SaveBytes.compress(raw) ?? raw
             var ents: [String: BlockEntity] = [:]
             for (k, v) in s.blockEntities { ents["\(k.x),\(k.y),\(k.z)"] = v }
             let q = s.rot.vector
@@ -1321,7 +1321,7 @@ final class ShipManager: LifeLinked {
         for sv in saved where sv.size.count == 3 && sv.pos.count == 3 && sv.rot.count == 4 {
             let n = sv.size[0] * sv.size[1] * sv.size[2]
             guard n > 0 else { continue }
-            let raw = ((try? (sv.cells as NSData).decompressed(using: .lzfse)) as Data?) ?? sv.cells
+            let raw = SaveBytes.decompress(sv.cells).map { Data($0) } ?? sv.cells
             guard raw.count == n * 2 else { continue }
             let palette = sv.palette.map { SaveMigration.blockID($0) ?? AIR }
             var blocks = [BlockID](repeating: AIR, count: n)

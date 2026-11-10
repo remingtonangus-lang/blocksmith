@@ -182,6 +182,7 @@ enum QuestLaunch {
                      World.resultsWorstMs, World.resultsWorst, MeshArena.shared.slabCount, MeshArena.shared.slabMsWorst, MeshArena.shared.slabMsTotal))
         print("launch: stages " + clock.marks.map { String(format: "%@ %.2f", $0.0, $0.1) }.joined(separator: "; "))
         print(String(format: "launch: resident %.0f MB", QuestPerf.rssMB()))
+        if SaveBytes.verify { print("launch: save bytes verify: \(SaveBytes.verified) files packed or unpacked both ways, \(SaveBytes.differ) differ") }
 
         if prepare != nil {
             // His edits by the spawn: a pit dug, a hut built, a tunnel carved; then saved and quit as the app does.

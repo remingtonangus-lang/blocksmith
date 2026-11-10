@@ -209,8 +209,7 @@ final class SaveManager {
 
     // The chunk file's bytes to blocks, or nil.
     static func decodeBlocks(_ d: [UInt8]) -> [BlockID]? {
-        guard let raw = try? (Data(d) as NSData).decompressed(using: .lzfse) as Data else { return nil }
-        let bytes = [UInt8](raw)
+        guard let bytes = SaveBytes.decompress(d) else { return nil }
         var p = 0
         func u16() -> Int { defer { p += 2 }; return p + 1 < bytes.count ? Int(bytes[p]) | Int(bytes[p + 1]) << 8 : 0 }
         guard bytes.count >= 4 else { return nil }
@@ -274,7 +273,7 @@ final class SaveManager {
             d.append(contentsOf: u)
         }
         idx.withUnsafeBytes { d.append(contentsOf: $0) }
-        guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return nil }
+        guard let c = SaveBytes.compress(d) else { return nil }
         return [UInt8](c)
     }
 }

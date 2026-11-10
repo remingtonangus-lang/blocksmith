@@ -344,13 +344,12 @@ enum FieldTerrain {
             d.append(UInt8(keys.count))
             for k in keys { d.append(UInt8(k)); f.fine[k]!.withUnsafeBytes { d.append(contentsOf: $0) } }
         }
-        guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return nil }
+        guard let c = SaveBytes.compress(d) else { return nil }
         return [UInt8](c)
     }
 
     static func decode(_ bytes0: [UInt8]) -> FieldData? {
-        guard let raw = try? (Data(bytes0) as NSData).decompressed(using: .lzfse) as Data else { return nil }
-        let b = [UInt8](raw)
+        guard let b = SaveBytes.decompress(bytes0) else { return nil }
         guard b.count >= 10, b[0] == 0x46, b[1] == 0x4C, b[2] == 0x44, b[3] == 0x31 || b[3] == 0x32 else { return nil }
         let v2 = b[3] == 0x32
         var p = 4
