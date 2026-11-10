@@ -2171,7 +2171,9 @@ if CommandLine.arguments.contains("--craterplace") {           // P507: blocks g
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--encounters") {            // P512: revenge raids, corsair sloops, the Corsair Cruiser
+    TroopVanish.on = true
     EncounterCheck.run({ World(seed: $0, device: device, save: nil, dim: .overworld) }, check)
+    print("encounters: soldiers gone without dying: " + TroopVanish.line)
     print(failures == 0 ? "encounters: all checks passed" : "encounters: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--gunstations") {           // P512: a station for every capital gun, crew at them
