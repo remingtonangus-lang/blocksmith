@@ -259,8 +259,7 @@ final class BugNotes {
     private func appendPath(_ path: String, _ line: String) {
         io.async {
             let data = Data((line + "\n").utf8)
-            if let h = FileHandle(forWritingAtPath: path) { h.seekToEndOfFile(); h.write(data); h.closeFile() }
-            else { FileManager.default.createFile(atPath: path, contents: data) }
+            SaveIO.append(data, toFile: path)
         }
     }
 
