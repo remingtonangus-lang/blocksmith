@@ -206,9 +206,12 @@ extension MobManager {
         guard d < Float(game.world.renderDistance * CS + 24), simd_dot(to / d, game.player.look) > 0.45 else { return false }
         return game.world.canSee(eye, head) || game.world.canSee(eye, m.pos + V3(0, m.height * 0.4, 0))
     }
-    private func hidden(_ m: Mob, _ game: Game) -> Bool {
-        if MobManager.oldDespawn || !MobManager.inPlainSight(m, game) { return true }
-        MobManager.heldInSight += 1
+    // True when a mob may be taken out of the world without dying now (he can't see it, or BS_OLDDESPAWN). Every rule
+    // that takes people away by distance asks it (strangers, riders, bounty hunters, freed prisoners, a battle left
+    // behind, the vault's squads, a radio truck at the end of its road).
+    static func canVanish(_ m: Mob, _ game: Game) -> Bool {
+        if oldDespawn || !inPlainSight(m, game) { return true }
+        heldInSight += 1
         return false
     }
     func shouldDespawn(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
@@ -218,7 +221,7 @@ extension MobManager {
         if d > c.farDistance {
             MobManager.despawnRule = "despawn past 128"
             if m.despawnLook > 0 { m.despawnLook -= dt; return false }        // (looked at a moment ago: asked again in 0.5 s)
-            if hidden(m, game) { return true }
+            if MobManager.canVanish(m, game) { return true }
             m.despawnLook = 0.5
             return false
         }
@@ -227,7 +230,7 @@ extension MobManager {
         if d > 32 {
             m.farTime += dt
             MobManager.despawnRule = "despawn at random past 32"
-            return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800 && hidden(m, game)
+            return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800 && MobManager.canVanish(m, game)
         }
         m.farTime = 0
         return false
@@ -247,7 +250,7 @@ extension MobManager {
             return !seen && Rand.float(in: 0..<1) < dt / 8
         }
         // (item 27: "never in plain sight" read 24 blocks: a creeper 30 blocks off in front of him went out at dawn)
-        return Rand.float(in: 0..<1) < dt / 8 && hidden(m, game)
+        return Rand.float(in: 0..<1) < dt / 8 && MobManager.canVanish(m, game)
     }
 
     // MARK: Animals

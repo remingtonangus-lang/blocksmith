@@ -29,6 +29,7 @@ enum Riders {
             && !g.mobs.mobs.contains(where: { isRider($0) && $0.health > 0 && $0.mount === h }) { h.posse = 0 }
         g.mobs.mobs.removeAll { m in
             guard isRider(m) || (m.kind == .horse && m.posse == riding) else { return false }
+            guard simd_length(m.pos - p) > 40, MobManager.canVanish(m, g) else { return false }     // (item 27: never in plain sight)
             if simd_length(m.pos - p) > 160 { return true }
             // Unhorsed or without a destination (a reload drops both): nowhere to ride, so they leave once out of the way.
             if isRider(m) && (m.mount == nil || m.patrolGoal == nil) && simd_length(m.pos - p) > 40 { return true }

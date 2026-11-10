@@ -297,8 +297,8 @@ enum BountyHunters {
         g.mobs.mobs.removeAll { m in
             guard m.posse == 3, m.health > 0, !Director.owns(m) else { return false }     // (P266: the Director's gunmen stay)
             let far = simd_length(m.pos - g.player.pos) > 48
-            return (paid && far) || (far && (m.posseSince < 0 || g.clock - m.posseSince > lifetime))
-                || simd_length(m.pos - g.player.pos) > 128
+            return ((paid && far) || (far && (m.posseSince < 0 || g.clock - m.posseSince > lifetime))
+                || simd_length(m.pos - g.player.pos) > 128) && MobManager.canVanish(m, g)      // (item 27: not in plain sight)
         }
     }
 }

@@ -424,7 +424,7 @@ extension Game {
                 greywallSquadOnFoot(t.squad % 2 == 0 ? "soldier_ironclad" : "soldier_marksman", leash: t.leash, src: t.src,
                                     at: { k in V3(at.x + Float(k - 1) * 1.3, at.y, at.z + 3.2) })
                 sfx(.gun(12), 0.6, at: at)
-            } else if t.unloaded && t.t > 2.5 && d < 2 {
+            } else if t.unloaded && t.t > 2.5 && d < 2 && MobManager.canVanish(m, self) {        // (item 27: once he can't see it)
                 m.health = -2000; mobs.mobs.removeAll { $0 === m }   // out of sight down the road
                 st.trucks.remove(at: i); continue
             } else if !t.unloaded || t.t > 2.5 {
