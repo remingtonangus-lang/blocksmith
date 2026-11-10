@@ -260,6 +260,52 @@ enum QuestTouchMatrix {
             reset()
             check(mism.isEmpty, "S7: the left-handed swap mirrors every Touch control on foot" + (mism.isEmpty ? "" : ": " + mism.joined(separator: "; ")))
         }
+        // The code reader's Nov 10 batch 2, through the real VR path: 2.2 a grip held a moment while walking keeps the
+        // held item; 2.4 sitting down in standing play stops sneaking after 3 s (a duck still crouches); 2.3 with a menu
+        // open the head moves in the world instead of the world sliding with it.
+        do {
+            let walk: (inout XRHand, inout XRHand) -> Void = { l, _ in l.stick = V2(0, 1) }
+            reset()
+            for _ in 0..<40 { frame(walk) }
+            let c0 = state(g), p0 = g.player.pos
+            for _ in 0..<22 { frame { l, r in l.stick = V2(0, 1); r.squeeze = 1 } }
+            for _ in 0..<12 { frame(walk) }
+            let c1 = state(g)
+            let moved = simd_length(V2(g.player.pos.x - p0.x, g.player.pos.z - p0.z))
+            print("touchmatrix reader 2.2 (\(QuestControls.oldThrow ? "BS_OLDTHROW" : "new")): walked \(String(format: "%.1f", moved)) blocks with the grip held 0.3 s, carried \(c0.carried) -> \(c1.carried)")
+            check(QuestControls.oldThrow || (c1.carried == c0.carried && moved > 0.5),
+                  "reader 2.2: the right grip held 0.3 s while walking doesn't throw the held item (carried \(c0.carried) -> \(c1.carried), walked \(String(format: "%.1f", moved)))")
+
+            reset()
+            let stand = sim.headPos
+            defer { sim.headPos = stand }
+            sim.headPos.y = stand.y - 0.6
+            for _ in 0..<72 { frame() }
+            let ducked = g.player.sneaking
+            for _ in 0..<(72 * 3) { frame() }
+            let sat = !g.player.sneaking
+            let eye = rig.headWorld.y - g.player.pos.y
+            sim.headPos = stand
+            for _ in 0..<72 { frame() }
+            let stoodEye = rig.headWorld.y - g.player.pos.y
+            print("touchmatrix reader 2.4 (\(QuestControls.oldSit ? "BS_OLDSIT" : "new")): head 0.6 m low: sneaking after 1 s \(ducked), after 4 s \(!sat), eye \(String(format: "%.2f", eye)) over the feet; stood up: \(String(format: "%.2f", stoodEye))")
+            check(ducked && (QuestControls.oldSit || sat && abs(eye - QuestRig.eyeHeight) < 0.1 && abs(stoodEye - QuestRig.eyeHeight) < 0.1),
+                  "reader 2.4: a duck crouches (\(ducked)); sat 4 s he isn't sneaking (\(sat)) and sees from eye height (\(String(format: "%.2f", eye))), and stood up again from eye height (\(String(format: "%.2f", stoodEye)))")
+
+            reset()
+            g.openInventory()
+            for _ in 0..<6 { frame() }
+            let h0 = rig.headWorld, f0 = g.player.pos
+            sim.headPos.x += 0.3
+            for _ in 0..<10 { frame() }
+            let dh = simd_length(V2(rig.headWorld.x - h0.x, rig.headWorld.z - h0.z)), df = simd_length(g.player.pos - f0)
+            sim.headPos = stand
+            print("touchmatrix reader 2.3 (\(QuestControls.oldMenuSlide ? "BS_OLDMENUSLIDE" : "new")): menu open, head 0.30 m aside: the eye moved \(String(format: "%.2f", dh)) in the world, the body \(String(format: "%.2f", df))")
+            check(QuestControls.oldMenuSlide || dh > 0.25 && df < 0.05,
+                  "reader 2.3: with a menu open the head moves in the world (\(String(format: "%.2f", dh)) of 0.30) and the body stays (\(String(format: "%.2f", df)))")
+            if g.menu != nil { g.closeMenu() }
+            for _ in 0..<5 { frame() }
+        }
         for r in rows { print("touchmatrix " + r) }
         for c in conflicts { print("touchmatrix CONFLICT: " + c) }
         let ctxFailed = Set(failed)
