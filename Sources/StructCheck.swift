@@ -276,6 +276,24 @@ enum StructCheck {
     static var meetTraced = 0
     static var meetUnder = [0, 0]                              // gaps over ground in the cell under the block / over none
     static var meetHist = [Int](repeating: 0, count: 5)       // gap <= 0.3, 0.3-0.6, 0.6-1.0, 1.0-1.5, none within 1.5
+    // World.floorGap, leaving out the samples on a side where a built block stands beside it, at its level or under it:
+    // the ground meets that block's side there (a wall going on down, the next course of a foundation), out of sight
+    // (build 305's traces: most "gaps" were the drawn ground dipping beside a deeper log or plank of the same building).
+    static func sideGap(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        func walled(_ dx: Int, _ dz: Int) -> Bool {
+            Blocks.collide[Int(w.builtBlock(x + dx, y - 1, z + dz))] || Blocks.collide[Int(w.builtBlock(x + dx, y, z + dz))]
+        }
+        let wx0 = walled(-1, 0), wx1 = walled(1, 0), wz0 = walled(0, -1), wz1 = walled(0, 1)
+        var worst: Float = 0
+        for k in 0..<9 {
+            let i = k % 3, j = k / 3
+            if i == 0 && wx0 || i == 2 && wx1 || j == 0 && wz0 || j == 2 && wz1 { continue }
+            let o = V3(Float(x) + 0.02 + Float(i) * 0.48, Float(y) + 0.02, Float(z) + 0.02 + Float(j) * 0.48)
+            guard w.fieldDensity(at: o) <= 0 else { continue }
+            if let h = w.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5) { worst = max(worst, Float(y) - h.at.y) } else { worst = max(worst, 1.5) }
+        }
+        return worst
+    }
     static func meetCheck(_ w: World, _ s: StructureStart, typeName: String, seed: UInt64) -> [Issue] {
         let kind = s.kind
         if noWalk.contains(typeName) || fromInside.contains(typeName) || ["sky_isle", "end_centre", "ruined_portal"].contains(typeName) { return [] }
@@ -303,7 +321,7 @@ enum StructCheck {
             // (1.5: no ground within a block and a half under it: eaves, a balcony, a bridge deck: held by what it's
             // built on, and a base hanging that far is the block-world check's `floating`. The bug is a base standing a
             // little proud of the smoothed slope.)
-            let g = w.floorGap(x, yb, z)
+            let g = sideGap(w, x, yb, z)
             meetHist[g <= 0.3 ? 0 : g < 0.6 ? 1 : g < 1.0 ? 2 : g < 1.49 ? 3 : 4] += 1
             if g > 0.3 && g < 1.49 {
                 gaps.append((IVec3(x, yb, z), g))
