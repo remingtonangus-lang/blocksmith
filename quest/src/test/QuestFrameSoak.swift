@@ -432,6 +432,14 @@ enum QuestFrameSoak {
     static var more: [Setup] {
         [biomeScene("desert", "walking through the middle of a desert", biome: "desert", fly: false),
          biomeScene("snowstorm", "walking the snowy plains in a snow storm (item 14: the snow slowdown)", biome: "snowy_plains", fly: false, storm: true),
+         // (Item 14: every snowy biome in a snow storm, on foot: the snow settling out of the sky queued building checks
+         // in P508, fps 44 by Boreal Station.)
+         biomeScene("snowtaiga", "walking a snowy taiga in a snow storm (item 14)", biome: "snowy_taiga", fly: false, storm: true),
+         biomeScene("grove", "walking a snowy grove in a snow storm (item 14)", biome: "grove", fly: false, storm: true),
+         biomeScene("slopes", "walking the snowy slopes in a snow storm (item 14)", biome: "snowy_slopes", fly: false, storm: true),
+         biomeScene("icespikes", "walking among the ice spikes in a snow storm (item 14)", biome: "ice_spikes", fly: false, storm: true),
+         biomeScene("frozenpeaks", "walking the frozen peaks in a snow storm (item 14)", biome: "frozen_peaks", fly: false, storm: true),
+         biomeScene("snowbeach", "walking a snowy beach in a snow storm (item 14)", biome: "snowy_beach", fly: false, storm: true),
          biomeScene("swamp", "walking through a swamp", biome: "swamp", fly: false),
          biomeScene("peaks", "flying at the creative sprint over jagged peaks", biome: "jagged_peaks", fly: true),
          biomeScene("ocean", "flying at the creative sprint over the deep ocean", biome: "deep_ocean", fly: true),
@@ -683,6 +691,10 @@ enum QuestFrameSoak {
         if GroundSettle.borderVerify {
             print("    border verify: \(GroundSettle.borderVerified) loose-ground seeds filled both ways, \(GroundSettle.borderDiffs) differ")
             GroundSettle.borderVerified = 0; GroundSettle.borderDiffs = 0
+        }
+        if WorldRenderer.smokeVerify {
+            print("    landmark smoke verify: \(WorldRenderer.smokeChecked) smoke beats kept the opaque part, \(WorldRenderer.smokeDiffs) differ from rebuilding it")
+            WorldRenderer.smokeChecked = 0; WorldRenderer.smokeDiffs = 0
         }
         if SoldierRig.clearVerify { print("    soldier clears run both ways (BS_CLEARVERIFY): \(SoldierRig.clearVerified), differing \(SoldierRig.clearVerifyDiffs)"); SoldierRig.clearVerified = 0; SoldierRig.clearVerifyDiffs = 0 }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
