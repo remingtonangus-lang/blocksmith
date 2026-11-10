@@ -232,9 +232,9 @@ enum QuestTouchMatrix {
                 let sel0 = g.selected
                 for _ in 0..<3 { frame { l, r in hold(&l, &r); l.squeeze = 1 } }
                 for _ in 0..<5 { frame { l, r in hold(&l, &r) } }
-                // (On the front grip the squeeze holds the rifle braced, R6: it doesn't step the hotbar there.)
-                let front = pname0 == "on the front grip"
-                let stepped = front ? g.selected == sel0 : g.selected != sel0
+                // (P510, Nov 1: "can't left grip" with a gun out: a tap steps the hotbar wherever the hand is, the front
+                // grip too; only a grip held past 0.35 s is a brace. This check still wanted R6's no-step there.)
+                let stepped = g.selected != sel0
                 check(walked > base * 0.9 && base > 0.1 && stepped, "R1: gun in hand, off hand \(pname): the left stick walks (\(String(format: "%.1f", walked)) blocks, \(String(format: "%.1f", base)) without the gun) and the left grip steps the hotbar (\(sel0) -> \(g.selected))")
             } }
         }
