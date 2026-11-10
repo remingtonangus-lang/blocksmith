@@ -134,6 +134,38 @@ enum RoutCheck {
         g.player.yaw = yaw0; g.player.pitch = pitch0
         check(inSight && (Rout.oldVanish ? !stayed : stayed) && wentBehind,
               "rout: a routed soldier 80 blocks off in plain sight \(stayed ? "stays" : "is taken out") (in sight: \(inSight)); with him turned away \(wentBehind ? "he goes" : "he stays")")
+        // Item 27: a wandering soldier (not a garrison's) 140 blocks off in plain sight is past the reference's 128-block
+        // despawn, which took him while drawn (out to the view, 184 blocks at view 10); he stays while seen and goes when
+        // the player looks away. A creeper 30 blocks ahead at dawn is seen (dawn read "seen" as within 24 blocks).
+        do {
+            let rd0 = g.world.renderDistance
+            g.world.renderDistance = max(rd0, 10)
+            defer { g.world.renderDistance = rd0 }
+            let w = soldier(1, .greywall, r.pos + V3(140, 0, 0))
+            w.persistent = false; w.home = nil
+            _ = g.world.loadSync(center: r.pos + V3(70, 0, 0), radius: 7)
+            w.pos.y = Float(g.world.topY(Int(floor(w.pos.x)), Int(floor(w.pos.z))) + 1)
+            g.player.pos = w.pos + V3(-140, 30, 0)
+            g.player.yaw = -Float.pi / 2
+            let dw = w.eye - g.player.eye
+            g.player.pitch = atan2f(dw.y, sqrtf(dw.x * dw.x + dw.z * dw.z))
+            let d = simd_length(w.pos - g.player.pos)
+            let seen = MobManager.inPlainSight(w, g)
+            w.despawnLook = 0
+            let tookSeen = g.mobs.shouldDespawn(w, d, 0.05, g)
+            g.player.yaw += Float.pi
+            w.despawnLook = 0
+            let tookAway = g.mobs.shouldDespawn(w, d, 0.05, g)
+            let cr = Mob(.creeper, at: g.player.pos + V3(-30, -30, 0))
+            cr.pos.y = Float(g.world.topY(Int(floor(cr.pos.x)), Int(floor(cr.pos.z))) + 1)
+            let dc = cr.eye - g.player.eye
+            g.player.pitch = atan2f(dc.y, sqrtf(dc.x * dc.x + dc.z * dc.z))
+            let creeperSeen = MobManager.inPlainSight(cr, g)
+            g.player.yaw = yaw0; g.player.pitch = pitch0
+            check(seen && (MobManager.oldDespawn ? tookSeen : !tookSeen) && tookAway && creeperSeen,
+                  String(format: "despawn: a wandering soldier %.0f blocks off in plain sight (%@) %@; turned away, %@; a creeper 30 blocks ahead counts as seen (%@)",
+                         d, seen ? "seen" : "not seen", tookSeen ? "is taken out" : "stays", tookAway ? "he goes" : "he stays", creeperSeen ? "yes" : "no"))
+        }
         // A patrol of three losing two: no rout (under five).
         g.mobs.mobs = []; Rout.kills = [:]
         let p = c + V3(200, y - c.y, 200)

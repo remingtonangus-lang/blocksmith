@@ -190,17 +190,44 @@ extension MobManager {
     // Despawn rules for one mob (true = remove). `d` is the distance to the nearest player (3D).
     // Which rule the last despawn was (TroopVanish, item 27).
     static var despawnRule = ""
+    // Week plan item 27 (troops vanishing at some distances): a mob is drawn out to the view (WorldRenderer.mobMaxDist,
+    // 152-408 blocks), but the reference's despawns took it at 128 blocks, or at random past 32, in front of him: a soldier
+    // walking off across open ground went out like a light. Every despawn now waits until he can't see the mob (out of a
+    // 63 degree cone round his look, past the view, or nothing of it in line of sight from his eye); it goes the moment he
+    // looks away. BS_OLDDESPAWN=1 takes it in plain sight as before.
+    static let oldDespawn = ProcessInfo.processInfo.environment["BS_OLDDESPAWN"] == "1"
+    static var heldInSight = 0             // despawns put off because he could see it (the soak prints them)
+    static func inPlainSight(_ m: Mob, _ game: Game) -> Bool {
+        let eye = game.player.eye
+        let head = m.pos + V3(0, m.height * 0.9, 0)
+        let to = head - eye
+        let d = simd_length(to)
+        if d < 0.01 { return true }
+        guard d < Float(game.world.renderDistance * CS + 24), simd_dot(to / d, game.player.look) > 0.45 else { return false }
+        return game.world.canSee(eye, head) || game.world.canSee(eye, m.pos + V3(0, m.height * 0.4, 0))
+    }
+    private func hidden(_ m: Mob, _ game: Game) -> Bool {
+        if MobManager.oldDespawn || !MobManager.inPlainSight(m, game) { return true }
+        MobManager.heldInSight += 1
+        return false
+    }
     func shouldDespawn(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
         let c = m.kind.category
         if m.routed && m.fledClear { MobManager.despawnRule = "rout"; return true }       // P511: a broken garrison's soldier, clear of him (Rout)
         guard c.despawns, !m.persistent, !m.waveUnit, m.customName == nil, !m.leashed, !m.raider, m.mount == nil, game.riding !== m else { return false }
-        if d > c.farDistance { MobManager.despawnRule = "despawn past 128"; return true }
+        if d > c.farDistance {
+            MobManager.despawnRule = "despawn past 128"
+            if m.despawnLook > 0 { m.despawnLook -= dt; return false }        // (looked at a moment ago: asked again in 0.5 s)
+            if hidden(m, game) { return true }
+            m.despawnLook = 0.5
+            return false
+        }
         if m.patrolling { return false }                  // patrols only vanish beyond 128 blocks (reference)
         if c == .monster && dawnClears(m, d, dt, game) { MobManager.despawnRule = "dawn"; return true }
         if d > 32 {
             m.farTime += dt
             MobManager.despawnRule = "despawn at random past 32"
-            return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800
+            return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800 && hidden(m, game)
         }
         m.farTime = 0
         return false
@@ -209,14 +236,18 @@ extension MobManager {
     // Day clears the surface (Oct 11 playtest P27, 07:15 in the morning: "there shouldn't be enemies this time of
     // day"): the night's monsters that don't burn (spiders, creepers, ...) lingered all day under the reference rules; the undead burn.
     // In daylight, a monster under open sky that isn't fighting the player slips away, never in plain sight: about one
-    // in eight a second while it's out of view or 24+ blocks off. Caves, night, rain and a fight keep it.
+    // in eight a second while he can't see it (item 27: inPlainSight). Caves, night, rain and a fight keep it.
     func dawnClears(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
         guard game.dim.dim.hasSky, game.daylight > 0.6, !m.aggro, !m.spec.burnsInSun, m.kind.spec.behavior != .neutral, !game.isRainingAt(m.pos) else { return false }
         let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
         guard game.world.isLoaded(x, z), Float(game.world.topY(x, z)) < m.pos.y + 0.5 else { return false }
-        let to = m.pos + V3(0, m.height * 0.5, 0) - game.player.eye
-        let seen = d < 24 && simd_dot(simd_normalize(to), game.player.look) > 0.45
-        return !seen && Rand.float(in: 0..<1) < dt / 8
+        if MobManager.oldDespawn {
+            let to = m.pos + V3(0, m.height * 0.5, 0) - game.player.eye
+            let seen = d < 24 && simd_dot(simd_normalize(to), game.player.look) > 0.45
+            return !seen && Rand.float(in: 0..<1) < dt / 8
+        }
+        // (item 27: "never in plain sight" read 24 blocks: a creeper 30 blocks off in front of him went out at dawn)
+        return Rand.float(in: 0..<1) < dt / 8 && hidden(m, game)
     }
 
     // MARK: Animals

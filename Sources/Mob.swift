@@ -517,6 +517,7 @@ final class Mob {
     var stationDoors = false        // a roused Boreal Station soldier works the bulkhead doors (BorealOps.swift)
     var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
     var farTime: Float = 0          // seconds spent more than 32 blocks from the player (despawn timer)
+    var despawnLook: Float = 0      // item 27: seconds until a despawn held off because he could see it is asked again
     var jockey = false              // spawned riding another mob (chicken / spider jockeys)
     var driven: Float = 0           // mount steered by its rider this long
     var driveSpeed: Float = 0
