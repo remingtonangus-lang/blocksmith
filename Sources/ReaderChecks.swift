@@ -121,8 +121,11 @@ enum ReaderChecks {
         w.editBatch {
             for y in 0..<5 { for z in 0..<n { for x in 0..<n { w.setBlock(c.x + x, y0 + y, c.z + z, tnt) } } }
         }
-        let pos0 = g.player.pos, surv0 = g.survival
-        defer { g.player.pos = pos0; g.survival = surv0 }
+        let pos0 = g.player.pos, surv0 = g.survival, lane0 = World.editLane
+        defer { g.player.pos = pos0; g.survival = surv0; World.editLane = lane0 }
+        // (edits mesh on the edit lane, as on the headset: without it the felled trees' sections were meshed on the
+        // frame, felling 9.7-12.3 ms, a cost the headset doesn't have)
+        World.editLane = true
         g.survival = false
         g.player.pos = V3(Float(c.x) - 40, Float(y0 + 20), Float(c.z) + 5)
         g.player.flying = true
