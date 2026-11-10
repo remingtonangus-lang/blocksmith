@@ -188,15 +188,18 @@ extension MobManager {
     }
 
     // Despawn rules for one mob (true = remove). `d` is the distance to the nearest player (3D).
+    // Which rule the last despawn was (TroopVanish, item 27).
+    static var despawnRule = ""
     func shouldDespawn(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
         let c = m.kind.category
-        if m.routed && m.fledClear { return true }       // P511: a broken garrison's soldier, clear of him (Rout)
+        if m.routed && m.fledClear { MobManager.despawnRule = "rout"; return true }       // P511: a broken garrison's soldier, clear of him (Rout)
         guard c.despawns, !m.persistent, !m.waveUnit, m.customName == nil, !m.leashed, !m.raider, m.mount == nil, game.riding !== m else { return false }
-        if d > c.farDistance { return true }
+        if d > c.farDistance { MobManager.despawnRule = "despawn past 128"; return true }
         if m.patrolling { return false }                  // patrols only vanish beyond 128 blocks (reference)
-        if c == .monster && dawnClears(m, d, dt, game) { return true }
+        if c == .monster && dawnClears(m, d, dt, game) { MobManager.despawnRule = "dawn"; return true }
         if d > 32 {
             m.farTime += dt
+            MobManager.despawnRule = "despawn at random past 32"
             return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800
         }
         m.farTime = 0

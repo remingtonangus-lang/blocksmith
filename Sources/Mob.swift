@@ -2959,7 +2959,7 @@ final class MobManager {
         Hulks.tick(game, dt)                                     // P473 (after the bodies' boxes)
         mobs.removeAll { m in
             if m.health <= 0 { addCorpse(m, game); return true }
-            if m.routed && m.fledClear { return true }          // P511: fled from a broken garrison (Rout), not stashed
+            if m.routed && m.fledClear { TroopVanish.note(m, "rout", game); return true }   // P511: fled from a broken garrison (Rout), not stashed
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
@@ -2973,9 +2973,14 @@ final class MobManager {
             let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
             if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
                 if m.keepOnUnload { stash(m) }
+                TroopVanish.note(m, m.keepOnUnload ? "stashed" : "unload", game)
                 return true
             }
-            return shouldDespawn(m, simd_length(m.pos - pn), dt, game)      // 3D, as the reference (a mob far below stayed)
+            if shouldDespawn(m, simd_length(m.pos - pn), dt, game) {      // 3D, as the reference (a mob far below stayed)
+                TroopVanish.note(m, MobManager.despawnRule, game)
+                return true
+            }
+            return false
         }
         mobs += spawned
         pMark(2)

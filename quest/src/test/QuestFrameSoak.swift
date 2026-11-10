@@ -605,6 +605,7 @@ enum QuestFrameSoak {
         // (SOAK_MOBPROF=1: the slowest single mob update and where it went; off by default, its clock reads and strings
         // weigh on the mob tick being measured)
         let mobProf = ProcessInfo.processInfo.environment["SOAK_MOBPROF"] == "1"
+        TroopVanish.on = true; TroopVanish.reset()                  // (item 27: soldiers gone without dying)
         MobManager.profileOn = mobProf
         RandomTickRng.track = mobProf; RandomTickRng.worstMs = 0; RandomTickRng.worstWhat = ""; RandomTickRng.frameWorstMs = 0; RandomTickRng.frameWorst = ""; RandomTickRng.drawCpu = 0; RandomTickRng.drawTicks = 0
         defer { MobManager.profileOn = false; RandomTickRng.track = false }
@@ -708,6 +709,7 @@ enum QuestFrameSoak {
         }
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
+        print("    soldiers gone without dying: " + TroopVanish.line)
         if RandomTickRng.frameWorstMs > 0 && mobProf { print(String(format: "    dearest frame of random ticks: %.1f ms (%@)", RandomTickRng.frameWorstMs, RandomTickRng.frameWorst)) }
         if mobProf {
             // (BlockStore.tickMask: every loaded chunk's sections passed over must hold nothing that ticks)
