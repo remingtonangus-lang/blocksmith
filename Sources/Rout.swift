@@ -115,6 +115,25 @@ enum RoutCheck {
               String(format: "rout: a base that lost 8 of 10 breaks: the two left run (%@ -> %@ blocks off) and fight no more (%@); another side's man beside them holds (%@)",
                      d0.map { String(format: "%.0f", $0) }.joined(separator: ","), d1.map { String(format: "%.0f", $0) }.joined(separator: ","),
                      calm ? "yes" : "no", other.routed ? "no" : "yes"))
+        // Item 27: a routed soldier 80 blocks off in plain sight stays in the world (he was taken out past 72); with the
+        // player turned away he goes.
+        let r = left[0]
+        r.fledClear = false
+        _ = g.world.loadSync(center: r.pos, radius: 6)
+        let yaw0 = g.player.yaw, pitch0 = g.player.pitch
+        g.player.pos = r.pos + V3(-80, 30, 0)
+        g.player.yaw = -Float.pi / 2
+        let dv = r.eye - g.player.eye
+        g.player.pitch = atan2f(dv.y, sqrtf(dv.x * dv.x + dv.z * dv.z))
+        let inSight = g.world.canSee(r.eye, g.player.eye)
+        _ = Rout.step(r, 0.05, g)
+        let stayed = !r.fledClear
+        g.player.yaw += Float.pi
+        _ = Rout.step(r, 0.05, g)
+        let wentBehind = r.fledClear
+        g.player.yaw = yaw0; g.player.pitch = pitch0
+        check(inSight && (Rout.oldVanish ? !stayed : stayed) && wentBehind,
+              "rout: a routed soldier 80 blocks off in plain sight \(stayed ? "stays" : "is taken out") (in sight: \(inSight)); with him turned away \(wentBehind ? "he goes" : "he stays")")
         // A patrol of three losing two: no rout (under five).
         g.mobs.mobs = []; Rout.kills = [:]
         let p = c + V3(200, y - c.y, 200)
