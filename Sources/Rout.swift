@@ -72,7 +72,7 @@ enum Rout {
         if (far > 72 && (Rout.oldVanish || hidden)) || (far > 40 && (hidden || !g.world.canSee(m.eye, g.player.eye))) {
             if !m.fledClear { fled += 1 }
             m.fledClear = true                          // (gone at the next despawn pass, MobManager.shouldDespawn)
-            return 0
+            // (and running on till then: he stood still once clear, and stood in the open if the pass kept him)
         }
         m.aggro = false
         m.wanderGoal = nil
@@ -144,13 +144,19 @@ enum RoutCheck {
             let w = soldier(1, .greywall, r.pos + V3(140, 0, 0))
             w.persistent = false; w.home = nil
             _ = g.world.loadSync(center: r.pos + V3(70, 0, 0), radius: 7)
-            w.pos.y = Float(g.world.topY(Int(floor(w.pos.x)), Int(floor(w.pos.z))) + 1)
-            g.player.pos = w.pos + V3(-140, 30, 0)
-            g.player.yaw = -Float.pi / 2
-            let dw = w.eye - g.player.eye
-            g.player.pitch = atan2f(dw.y, sqrtf(dw.x * dw.x + dw.z * dw.z))
+            // (a spot he sees from up in the air 140 blocks off: the ground between can hide the first one tried)
+            let w0 = w.pos
+            var seen = false
+            look: for up in [30, 50, 80] as [Float] { for dz in [0, 12, -12, 24, -24, 36, -36] as [Float] {
+                w.pos = w0 + V3(0, 0, dz)
+                w.pos.y = Float(g.world.topY(Int(floor(w.pos.x)), Int(floor(w.pos.z))) + 1)
+                g.player.pos = w.pos + V3(-140, up, 0)
+                g.player.yaw = -Float.pi / 2
+                let dw = w.eye - g.player.eye
+                g.player.pitch = atan2f(dw.y, sqrtf(dw.x * dw.x + dw.z * dw.z))
+                if MobManager.inPlainSight(w, g) { seen = true; break look }
+            } }
             let d = simd_length(w.pos - g.player.pos)
-            let seen = MobManager.inPlainSight(w, g)
             let spawnOK = g.spawnHidden(w.pos, min: 32)             // (item 71: a spawn on that spot would pop in)
             w.despawnLook = 0
             let tookSeen = g.mobs.shouldDespawn(w, d, 0.05, g)
