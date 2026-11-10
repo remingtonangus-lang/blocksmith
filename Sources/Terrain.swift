@@ -30,8 +30,6 @@ final class GridCache<T> {
     private var vals: [T]
     private let shift: UInt64
     private let lock: UnsafeMutablePointer<os_unfair_lock>
-    // Lookups and the values made on a miss (counted under the lock; the launch harness prints the node cache's).
-    private(set) var gets = 0, makes = 0
 
     init(bits: Int, empty: T) {
         keys = [Int64](repeating: Int64.min, count: 1 << bits)
@@ -46,7 +44,6 @@ final class GridCache<T> {
         let k = gridKey(a, b)
         let slot = Int(truncatingIfNeeded: (UInt64(bitPattern: k) &* 0x9E3779B97F4A7C15) >> shift)
         os_unfair_lock_lock(lock)
-        gets &+= 1
         if keys[slot] == k {
             let v = vals[slot]
             os_unfair_lock_unlock(lock)
@@ -55,7 +52,6 @@ final class GridCache<T> {
         os_unfair_lock_unlock(lock)
         let v = make()
         os_unfair_lock_lock(lock)
-        makes &+= 1
         keys[slot] = k
         vals[slot] = v
         os_unfair_lock_unlock(lock)
@@ -111,9 +107,7 @@ final class Terrain {
     var riverAccMin: Float { lessWater ? 6 : fewerLakes ? 4.5 : Terrain.accMin }
 
     private let macroCache: GridCache<Macro>
-    let nodeCache: GridCache<Node>
-    // The node cache's size in bits (BS_NODEBITS; item 11 experiment, the launch's structure plans sample far ground).
-    static let nodeBits: Int = Int(ProcessInfo.processInfo.environment["BS_NODEBITS"] ?? "") ?? 16
+    private let nodeCache: GridCache<Node>
     private let rbaseCache: GridCache<RBase>
     private let rdownCache: GridCache<Int8>
     private let raccCache: GridCache<Float>
@@ -130,7 +124,7 @@ final class Terrain {
         tempN = n(7); humN = n(8); latN = n(9); hillN = n(10); massN = n(11); mesaN = n(12)
         varN = n(13); mw1 = n(14); mw2 = n(15); detN = n(16); jitN = n(17); islN = n(18)
         macroCache = GridCache(bits: 14, empty: Macro())
-        nodeCache = GridCache(bits: Terrain.nodeBits, empty: Node())
+        nodeCache = GridCache(bits: 16, empty: Node())
         rbaseCache = GridCache(bits: 15, empty: RBase())
         rdownCache = GridCache(bits: 15, empty: -2)
         raccCache = GridCache(bits: 15, empty: 0)
