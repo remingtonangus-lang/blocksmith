@@ -364,6 +364,8 @@ extension MobManager {
         let biome = w.gen.column(x, z).biome
         guard Rand.float(in: 0..<1) < Seasons.animalChance(biome) else { return }        // C9: fewer in winter
         guard case let (kind, lo, hi)? = MobManager.pickAnimal(biome) else { return }
+        // Item 71: a pack 32-136 blocks off came in wherever the roll fell, in front of him too: it comes in out of sight.
+        if !Game.oldSpawnSight && !game.spawnHidden(V3(Float(x) + 0.5, Float(w.topY(x, z) + 1), Float(z) + 0.5), min: 24) { return }
         spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: ChunkKey(x: c.cx, z: c.cz))
     }
 
@@ -711,7 +713,11 @@ extension Game {
     // would find it); out to `clear`, out of the line of sight or outside a wide view cone (the headset's field plus a
     // margin). Every spawner of hostiles (natural monsters, hell packs, the Hollow, zombie calls, Ashguard squads)
     // asks it, so enemies walk in from out of view instead of appearing in it.
-    func spawnHidden(_ at: V3, min: Float, near: Float = 40, clear: Float = 96) -> Bool {
+    // Item 71: `clear` was 96 blocks, but mobs are drawn out to the view (152-408 blocks), so a spawn 96-136 blocks off
+    // came in in front of him; left out, it is the drawn distance (WorldRenderer.mobMaxDist). BS_OLDSPAWNSIGHT=1: 96.
+    static let oldSpawnSight = ProcessInfo.processInfo.environment["BS_OLDSPAWNSIGHT"] == "1"
+    func spawnHidden(_ at: V3, min: Float, near: Float = 40, clear: Float? = nil) -> Bool {
+        let clear = clear ?? (Game.oldSpawnSight ? 96 : Float(world.renderDistance * CS + 24))
         let body = at + V3(0, 1.2, 0)
         for i in 0..<max(1, coop.seatCount) {
             let pl = coop.seatPlayer(i, self)

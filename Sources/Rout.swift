@@ -151,6 +151,7 @@ enum RoutCheck {
             g.player.pitch = atan2f(dw.y, sqrtf(dw.x * dw.x + dw.z * dw.z))
             let d = simd_length(w.pos - g.player.pos)
             let seen = MobManager.inPlainSight(w, g)
+            let spawnOK = g.spawnHidden(w.pos, min: 32)             // (item 71: a spawn on that spot would pop in)
             w.despawnLook = 0
             let tookSeen = g.mobs.shouldDespawn(w, d, 0.05, g)
             g.player.yaw += Float.pi
@@ -162,6 +163,8 @@ enum RoutCheck {
             g.player.pitch = atan2f(dc.y, sqrtf(dc.x * dc.x + dc.z * dc.z))
             let creeperSeen = MobManager.inPlainSight(cr, g)
             g.player.yaw = yaw0; g.player.pitch = pitch0
+            check(Game.oldSpawnSight ? spawnOK : !spawnOK,
+                  "spawn: a spot \(Int(d)) blocks ahead in plain sight \(spawnOK ? "takes a spawn (it pops in)" : "takes no spawn")")
             check(seen && (MobManager.oldDespawn ? tookSeen : !tookSeen) && tookAway && creeperSeen,
                   String(format: "despawn: a wandering soldier %.0f blocks off in plain sight (%@) %@; turned away, %@; a monster 30 blocks ahead counts as seen (%@)",
                          d, seen ? "seen" : "not seen", tookSeen ? "is taken out" : "stays", tookAway ? "he goes" : "he stays", creeperSeen ? "yes" : "no"))
