@@ -677,8 +677,18 @@ final class Game: LifeLinked {
 
     // background (the autosave): mobs, drops, orbs and the meta are encoded and written on the save queue from value
     // snapshots taken here; quit, pause and world copies save synchronously (and SaveIO.flush).
+    // The slowest save on the frame so far and where its time went (the launch harness prints it; World.saveLaps holds
+    // the world's part).
+    static var saveWorstMs = 0.0, saveWorstLaps = ""
     func saveNow(background: Bool = false) {
         guard persistent, let s = save else { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var lt = t0, laps = ""
+        func lap(_ n: String) { let t = CFAbsoluteTimeGetCurrent(); let ms = (t - lt) * 1000; if ms >= 0.3 { laps += String(format: "%@ %.1f, ", n, ms) }; lt = t }
+        defer {
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            if ms > Game.saveWorstMs { Game.saveWorstMs = ms; Game.saveWorstLaps = laps + "world (" + World.saveLaps + ")" }
+        }
         saveCount += 1
         SaveBadge.savedAt = clock                         // Q2c-console-2: the HUD's "Saved" badge
         // The save holds player 1 (split screen: whoever's turn it is, the meta is written from seat 0).
@@ -686,27 +696,35 @@ final class Game: LifeLinked {
         // A synchronous save must land after any autosave still queued, or the older queued meta/mobs overwrite it.
         if !background { SaveIO.flush() }
         world.savingFalling = falling.filter { !$0.dead }.map { (IVec3(Int(floor($0.pos.x)), Int(floor($0.pos.y)), Int(floor($0.pos.z))), $0.block) }
+        lap("start")
         world.saveAll(background: background)
+        lap("world")
         // (P395: the cells they were saved in, so a load lets them fall on)
         let fallURL = s.dir.appendingPathComponent("falling.json")
         if !world.savingFalling.isEmpty || FileManager.default.fileExists(atPath: fallURL.path) {
             SaveIO.storeJSON(world.savingFalling.map { [$0.0.x, $0.0.y, $0.0.z] }, to: fallURL)
         }
         world.savingFalling.removeAll()
+        lap("falling")
         mobs.save(to: world.save, background: background)
+        lap("mobs")
         drops.save(to: world.save, background: background)
+        lap("drops")
         // F1: map pixels go as raw bytes (MapData's own coding), from copies, encoded on the save queue by the autosave.
         if background {
             let snap = maps.mapValues { $0.snapshot() }
             SaveIO.writeJSON(snap, to: s.dir.appendingPathComponent("maps.json"))
         } else if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
+        lap("maps")
         if !background { MapFog.shared.save(self) }       // A5: the explored ground survives a quit (not only the 10 s save)
         // Experience orbs (all dimensions): the XP dropped at a death survives a quit like the items do.
         let orbs = xpOrbs.filter { $0.pos.x.isFinite && $0.pos.y.isFinite && $0.pos.z.isFinite }
         let orbURL = s.dir.appendingPathComponent("xporbs.json")
         if background { SaveIO.writeJSON(orbs, to: orbURL) }
         else if let d = try? JSONEncoder().encode(orbs) { try? d.write(to: orbURL, options: .atomic) }
+        lap("orbs")
         s.saveMeta(meta, background: background)
+        lap("meta")
     }
 
     // MARK: Dimensions
