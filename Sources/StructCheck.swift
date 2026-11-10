@@ -273,6 +273,7 @@ enum StructCheck {
     // it (World.floorGap: its corners, edge middles and middle). A gap over 0.3 blocks shows daylight under the wall.
     static let meet = CommandLine.arguments.contains("--meet")
     static var meetCols: [String: (cols: Int, gaps: Int, worst: Float)] = [:]
+    static var meetTraced = 0
     static var meetUnder = [0, 0]                              // gaps over ground in the cell under the block / over none
     static var meetHist = [Int](repeating: 0, count: 5)       // gap <= 0.3, 0.3-0.6, 0.6-1.0, 1.0-1.5, none within 1.5
     static func meetCheck(_ w: World, _ s: StructureStart, typeName: String, seed: UInt64) -> [Issue] {
@@ -308,6 +309,26 @@ enum StructCheck {
                 gaps.append((IVec3(x, yb, z), g))
                 // (what is under it: ground in the cell below (the drawn ground curving away at its edge), or not)
                 meetUnder[w.fieldDensity(at: V3(Float(x) + 0.5, Float(yb) - 0.5, Float(z) + 0.5)) > 0 ? 0 : 1] += 1
+                if meetTraced < 16 {
+                    meetTraced += 1
+                    func dc(_ ax: Int, _ ay: Int, _ az: Int) -> String {
+                        String(format: "%.2f", w.fieldDensity(at: V3(Float(ax) + 0.5, Float(ay) + 0.5, Float(az) + 0.5)))
+                    }
+                    var samples: [String] = []
+                    for k in 0..<9 {
+                        let px = Float(x) + 0.02 + Float(k % 3) * 0.48, pz = Float(z) + 0.02 + Float(k / 3) * 0.48
+                        let o = V3(px, Float(yb) + 0.02, pz)
+                        if w.fieldDensity(at: o) > 0 { samples.append("in"); continue }
+                        if let h = w.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5) { samples.append(String(format: "%.2f", Float(yb) - h.at.y)) }
+                        else { samples.append("-") }
+                    }
+                    var nb: [String] = []
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                        let k0 = Blocks.key(w.builtBlock(x + dx, yb - 1, z + dz)), k1 = Blocks.key(w.builtBlock(x + dx, yb, z + dz))
+                        nb.append("\(dx),\(dz): below \(dc(x + dx, yb - 1, z + dz)) \(k0) / level \(dc(x + dx, yb, z + dz)) \(k1)")
+                    }
+                    print("structmeet trace: \(kind) \(x) \(yb - YOFF) \(z) \(Blocks.key(w.builtBlock(x, yb, z))) gap \(String(format: "%.2f", g)); samples \(samples.joined(separator: " ")); cell under \(dc(x, yb - 1, z)) \(Blocks.key(w.builtBlock(x, yb - 1, z))), own \(dc(x, yb, z)); " + nb.joined(separator: "; "))
+                }
             }
         } }
         let worst = gaps.map { $0.1 }.max() ?? 0
