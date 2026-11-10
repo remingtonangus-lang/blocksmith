@@ -223,6 +223,8 @@ enum BountyHunters {
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             // Out of the player's sight if we can (the first few tries), so they ride in.
             if from == nil && k < 24 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { tries[3] += 1; continue }
+            // Item 71: then out of his view at least (behind him or behind cover) before anywhere at all.
+            if from == nil && k < n * 14 && !Game.oldSpawnSight && !g.spawnHidden(at, min: 24, near: 0) { tries[3] += 1; continue }
             let m = makeHunter(g, index: placed, at: w.freeSpawn(at))
             if m.collides(m.pos, w) { tries[4] += 1; continue }
             if placed == 0 { from = at }
