@@ -609,7 +609,7 @@ enum QuestFrameSoak {
         MobDrawStats.dropped = 0; MobManager.heldInSight = 0          // (item 27: mobs left undrawn, despawns held in sight)
         MobManager.profileOn = mobProf
         RandomTickRng.track = mobProf; RandomTickRng.worstMs = 0; RandomTickRng.worstWhat = ""; RandomTickRng.frameWorstMs = 0; RandomTickRng.frameWorst = ""; RandomTickRng.drawCpu = 0; RandomTickRng.drawTicks = 0
-        defer { MobManager.profileOn = false; RandomTickRng.track = false }
+        defer { MobManager.profileOn = false; RandomTickRng.track = false; PopIn.disarm() }
         var worstMob = (0.0, "")
         for f in 0..<(frames + warm) {
             if g.menu != nil { g.closeMenu() }
@@ -617,7 +617,7 @@ enum QuestFrameSoak {
             g.input.keys.removeAll(keepingCapacity: true)
             g.input.captured = true
             sc.step(g, f)
-            if f == warm { GroundSettle.borderSeconds = 0; GroundSettle.borderSeedsRun = 0 }
+            if f == warm { GroundSettle.borderSeconds = 0; GroundSettle.borderSeedsRun = 0; PopIn.arm(g) }
             let a = CFAbsoluteTimeGetCurrent()
             let ta = threadMs()
             g.tick(dt)
@@ -710,6 +710,7 @@ enum QuestFrameSoak {
         }
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
+        print("    came in after the first 3 s: " + PopIn.line)
         print("    soldiers gone without dying: " + TroopVanish.line + "; despawns held while he could see the mob: \(MobManager.heldInSight); mobs left undrawn with the buffer full: \(MobDrawStats.dropped)")
         if RandomTickRng.frameWorstMs > 0 && mobProf { print(String(format: "    dearest frame of random ticks: %.1f ms (%@)", RandomTickRng.frameWorstMs, RandomTickRng.frameWorst)) }
         if mobProf {

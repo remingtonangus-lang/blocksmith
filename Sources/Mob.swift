@@ -518,6 +518,7 @@ final class Mob {
     var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
     var farTime: Float = 0          // seconds spent more than 32 blocks from the player (despawn timer)
     var despawnLook: Float = 0      // item 27: seconds until a despawn held off because he could see it is asked again
+    var popNoted = false            // item 71: noted by PopIn (harness only)
     var jockey = false              // spawned riding another mob (chicken / spider jockeys)
     var driven: Float = 0           // mount steered by its rider this long
     var driveSpeed: Float = 0
@@ -2743,6 +2744,7 @@ final class MobManager {
         return big.isEmpty ? "" : big.joined(separator: ", ") + "; slowest piece " + worstPart
     }
     func update(_ dt: Float, game: Game) {
+        if PopIn.on { for m in mobs where !m.popNoted { m.popNoted = true; PopIn.note(m, game) } }     // (item 71, harness)
         let pOn = MobManager.profileOn
         var pT = pOn ? CFAbsoluteTimeGetCurrent() : 0
         if pOn {
