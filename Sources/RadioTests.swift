@@ -23,12 +23,15 @@ enum RadioTests {
         g.onToast = { _ in }
         g.survival = true
         let cx = Int(floor(p0.x)), cz = Int(floor(p0.z))
-        let y0 = Int(floor(p0.y)) - 5
+        // (the citadel on the ground under him, not round where he stands: the full suite leaves him flying at times, and
+        // 20 over the ground the yard's crate landed below the search and the shells' grid fell outside the citadel)
+        let ground = w.topY(cx, cz)
+        let y0 = ground - 4
         g.bases.records["radiotest"] = BaseRecord(key: "radiotest", cx: cx, cz: cz, y0: y0)
-        let c = IVec3(cx + 1, Int(floor(p0.y)), cz)
+        let c = IVec3(cx + 1, ground + 1, cz)
         w.setBlock(c.x, c.y, c.z, Blocks.id("command_console")); placed.append(c)
         let opened = g.radioUse(c) && g.menu is RadioMenu
-        let plain = IVec3(cx - 1, Int(floor(p0.y)), cz)
+        let plain = IVec3(cx - 1, ground + 1, cz)
         w.setBlock(plain.x, plain.y, plain.z, STONE); placed.append(plain)
         let notStone = !g.radioUse(plain)
         if g.menu is RadioMenu { g.closeMenu() }

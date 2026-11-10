@@ -3312,6 +3312,10 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
 }
 if let out = arg("--questsim"), let ctx = vkctx {
+    // (Nov 10: the VR layer's settings stayed on for the shared checks after it, CI's host job only: with swing melee on and
+    // a sword in hand the trigger never hits a creature, so the balance duels killed nothing in 60 s. Put back below.)
+    let vrSet0 = (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
+                  game.vrTwoHanded, game.screen)
     do { try QuestSim.run(game: game, ctx: ctx, out: out, check: check) } catch { check(false, "questsim: \(error)") }
     // Monkey input through the VR layer (QuestFuzz): BLOCKSMITH_FUZZ_SECONDS / --fuzz-seed to run longer or another seed.
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
@@ -3320,6 +3324,9 @@ if let out = arg("--questsim"), let ctx = vkctx {
     // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
     game.vrHead = nil; game.vrHeadYaw = nil; game.vrHeadPitch = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
+    (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
+     game.vrTwoHanded, game.screen) = vrSet0
+    game.vrBow = nil; game.vrBlade = nil; game.vrPinch = nil; game.swingPower = 0; game.swingMob = nil
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 
