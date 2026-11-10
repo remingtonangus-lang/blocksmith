@@ -227,10 +227,10 @@ extension World {
         reindexPieces()
     }
 
-    func savePieces() {
+    func savePieces(background: Bool = false) {
         guard piecesDirty, let s = save else { return }
         piecesDirty = false
-        SaveIO.storeJSON(pieces, to: s.dir.appendingPathComponent("pieces.json"))
+        SaveIO.write(pieces, to: s.dir.appendingPathComponent("pieces.json"), background: SaveIO.queued(background))
     }
 }
 

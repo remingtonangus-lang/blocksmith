@@ -702,7 +702,7 @@ final class Game: LifeLinked {
         // (P395: the cells they were saved in, so a load lets them fall on)
         let fallURL = s.dir.appendingPathComponent("falling.json")
         if !world.savingFalling.isEmpty || FileManager.default.fileExists(atPath: fallURL.path) {
-            SaveIO.storeJSON(world.savingFalling.map { [$0.0.x, $0.0.y, $0.0.z] }, to: fallURL)
+            SaveIO.write(world.savingFalling.map { [$0.0.x, $0.0.y, $0.0.z] }, to: fallURL, background: SaveIO.queued(background))
         }
         world.savingFalling.removeAll()
         lap("falling")

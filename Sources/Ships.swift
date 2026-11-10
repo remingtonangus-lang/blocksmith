@@ -1204,16 +1204,22 @@ final class ShipManager: LifeLinked {
             let q = s.rot.vector
             return TakenCap(kind: s.role ?? "", faction: s.faction, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w])
         } + takenToRestore
-        if let r = world.save?.dir.appendingPathComponent("takencaps.json") {
-            if taken.isEmpty { try? FileManager.default.removeItem(at: r) }
-            else if let d = try? JSONEncoder().encode(taken) { try? d.write(to: r, options: .atomic) }
+        // (Nov 10: these three were written on the frame by the autosave too; on the save queue now, SaveIO.oldSync)
+        let dir = world.save?.dir
+        let regions = Array(spawnedRegions.subtracting(afloat)).sorted(), parties = navyParties
+        let small = {
+            if let r = dir?.appendingPathComponent("takencaps.json") {
+                if taken.isEmpty { try? FileManager.default.removeItem(at: r) }
+                else if let d = try? JSONEncoder().encode(taken) { try? d.write(to: r, options: .atomic) }
+            }
+            if let r = dir?.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(regions) {
+                try? d.write(to: r, options: .atomic)
+            }
+            if let r = dir?.appendingPathComponent("navyparties.json"), !parties.isEmpty, let d = try? JSONEncoder().encode(parties) {
+                try? d.write(to: r, options: .atomic)
+            }
         }
-        if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(Array(spawnedRegions.subtracting(afloat)).sorted()) {
-            try? d.write(to: r, options: .atomic)
-        }
-        if let r = world.save?.dir.appendingPathComponent("navyparties.json"), !navyParties.isEmpty, let d = try? JSONEncoder().encode(navyParties) {
-            try? d.write(to: r, options: .atomic)
-        }
+        if SaveIO.queued(background) { SaveIO.run(small) } else { small() }
         // F1: the autosave takes copies here (grids are arrays: copy on write) and packs and encodes them on the save
         // queue; ship grids' palettes, lzfse and JSON ran on the frame thread.
         let snaps = snapshots(nil)

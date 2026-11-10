@@ -2489,12 +2489,12 @@ final class World: LifeLinked {
         lap("chunks")
         for (k, c) in chunks where c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }   // PG1
         lap("field")
-        savePieces(); lap("pieces")
-        saveObjects(); lap("objects")                    // P389
-        Trains.save(self); lap("trains")                 // P337 step 6
+        savePieces(background: background); lap("pieces")
+        saveObjects(background: background); lap("objects")                    // P389
+        Trains.save(self, background: background); lap("trains")                 // P337 step 6
         save?.saveBlockEntities(blockEntities, background: background); lap("block entities")
         redstone.save(background: background); lap("circuits")             // W1: pending circuit ticks and edges (circuit.json)
-        save?.savePortals(Array(portals)); lap("portals")
+        save?.savePortals(Array(portals), background: background); lap("portals")
         ships.save(background: background); lap("ships")
         saveMeshCache(); lap("mesh cache")               // P400 step 2 (ChunkShells)
     }
