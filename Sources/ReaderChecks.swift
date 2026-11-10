@@ -137,6 +137,7 @@ enum ReaderChecks {
         w.setBlock(c.x, y0, c.z, AIR)
         g.tnts.prime(at: IVec3(c.x, y0, c.z), fuse: 0.1)
         TNTManager.deferred = 0
+        Felling.pushWorstMs = 0; Felling.pushWorstSections = 0
         var worst = 0.0, over = 0, frames = 0, worstAt = 0, worstWhat = ""
         var t: Float = 0
         while t < 30 && (frames < 20 || !g.tnts.list.isEmpty) {
@@ -152,6 +153,8 @@ enum ReaderChecks {
         for y in 0..<5 { for z in 0..<n { for x in 0..<n where w.block(c.x + x, y0 + y, c.z + z) == tnt { left += 1 } } }
         print(String(format: "reader: %d TNT lit (%@): %d frames, worst tick %.0f ms (frame %d, slowest stage %@; %.0f ms before it was lit), %d over 13.9 ms, %d blasts moved to a later frame, %d TNT left, %.1f s",
                      n * n * 5, TNTManager.oldAll ? "BS_OLDTNT" : "new", frames, worst, worstAt, worstWhat, calm, over, TNTManager.deferred, left, Double(t)))
+        print(String(format: "reader: %d TNT: felled trees' pushed remeshes, worst frame %.1f ms (%d sections); %d trees felled",
+                     n * n * 5, Felling.pushWorstMs, Felling.pushWorstSections, Felling.felled))
         check(g.tnts.list.isEmpty && left < n * n / 2,
               String(format: "reader tnt: a %d-block stack goes off (%d left) and the worst frame is %.0f ms", n * n * 5, left, worst))
     }

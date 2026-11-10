@@ -35,6 +35,7 @@ enum Felling {
     static var toppled = 0                       // (counter: P407's whole pieces)
     static var letLate = 0                       // (counter: bodies let go at the 4 s limit with the world not yet redrawn)
     static let oldPush = ProcessInfo.processInfo.environment["BS_OLDFELLPUSH"] == "1"
+    static var pushWorstMs = 0.0, pushWorstSections = 0      // (harness: the most a frame's pushed remeshes took, and how many)
     static var worstMs = 0.0, worstSplit = ""   // (the soak: the slowest topple and its parts)
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
@@ -307,7 +308,8 @@ extension Game {
         // (Nov 10, the code reader's TNT stack: 2,000 TNT felled a wood's worth of trees at once and their pushed
         // sections were all meshed on one frame, felling 12.3 ms. Past 2 ms of pushes a frame the rest wait for the next;
         // a body still waits up to 4 s for its tree to be drawn without it. BS_OLDFELLPUSH=1: every push on the frame.)
-        var pushT = 0.0
+        var pushT = 0.0, pushN = 0
+        defer { if pushT * 1000 > Felling.pushWorstMs { Felling.pushWorstMs = pushT * 1000; Felling.pushWorstSections = pushN } }
         for f in Felling.falls {
             guard let s = f.ship else { continue }
             if f.held >= 0 {
@@ -324,6 +326,7 @@ extension Game {
                     let t0 = CFAbsoluteTimeGetCurrent()
                     w.editBatch { for (ch, sy, v) in f.wait where ch.sections[sy].meshedVersion < v && w.chunks[ChunkKey(x: ch.cx, z: ch.cz)] === ch { w.remeshSync(ch, sy) } }
                     pushT += CFAbsoluteTimeGetCurrent() - t0
+                    pushN += f.wait.count
                 }
                 let built = !s.mesh.busy && !s.mesh.sections.isEmpty
                 if !(drawn && built) && f.held < 4 { s.vel = .zero; s.angVel = .zero; continue }
