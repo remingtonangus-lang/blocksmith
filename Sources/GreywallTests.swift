@@ -207,7 +207,10 @@ enum GreywallTests {
         g.greywallAlarm.sites[key] = site
         g.player.pos = V3(Float(cx) + 0.5, Float(S + 1), Float(cz) + 0.5)
         g.survival = true
-        guard let guardMob = Mob.structureMob("soldier_trooper@grey\(Greywall.leashTag(cx, cz, t))", at: V3(Float(cx) + 6.5, Float(S + 1), Float(cz) + 0.5)) else {
+        // (a trooper's spot: a quarter of the spots make an officer (Soldier.garrison), who holds his post in an alarm by
+        // design. The VR sim before the shared checks leaves the player elsewhere, and the officer's spot failed this.)
+        let gx = (6...14).first { Soldier.garrison(.soldierTrooper, at: V3(Float(cx + $0) + 0.5, Float(S + 1), Float(cz) + 0.5)) == .soldierTrooper } ?? 6
+        guard let guardMob = Mob.structureMob("soldier_trooper@grey\(Greywall.leashTag(cx, cz, t))", at: V3(Float(cx + gx) + 0.5, Float(S + 1), Float(cz) + 0.5)) else {
             check(false, "greywall alarm: a leashed trooper parses"); return
         }
         g.mobs.mobs = [guardMob]
@@ -218,7 +221,7 @@ enum GreywallTests {
         let lit = site.lamps.filter { let b = g.world.block($0.x, $0.y, $0.z); return b >= Blocks.id("alarm_lamp_lit") && b < Blocks.id("alarm_lamp_lit") + 4 }.count
         if !guardMob.aggro {
             let p = AlarmWaves.plans[key]
-            print("greywall alarm: the trooper didn't stand to: plan \(p != nil) (start \(p.map { String(format: "%.1f", $0.start) } ?? "-"), clock \(String(format: "%.1f", g.clock))), his entry \(p?.entry(guardMob).map { "role \($0.role)" } ?? "none"), order \(p.map { "\(AlarmWaves.order(guardMob, $0, now: g.clock))" } ?? "-"), gun post \(guardMob.brain?.gunPost != nil), in mobs \(g.mobs.mobs.contains { $0 === guardMob }), health \(guardMob.health), leash \(guardMob.leash != nil), sites \(g.greywallAlarm.sites.count)")
+            print("greywall alarm: the trooper didn't stand to: \(guardMob.kind), plan \(p != nil) (start \(p.map { String(format: "%.1f", $0.start) } ?? "-"), clock \(String(format: "%.1f", g.clock))), his entry \(p?.entry(guardMob).map { "role \($0.role)" } ?? "none"), order \(p.map { "\(AlarmWaves.order(guardMob, $0, now: g.clock))" } ?? "-"), gun post \(guardMob.brain?.gunPost != nil), in mobs \(g.mobs.mobs.contains { $0 === guardMob }), health \(guardMob.health), leash \(guardMob.leash != nil), sites \(g.greywallAlarm.sites.count)")
         }
         check(on && lit == 3 && guardMob.aggro && said.contains { $0.contains("alarm") },
               "greywall alarm: a shot inside the walls sets it off: \(lit)/3 lamps lit, the garrison stands to (\(guardMob.aggro)), \"\(said.first ?? "")\"")

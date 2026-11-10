@@ -3317,6 +3317,10 @@ if let out = arg("--questsim"), let ctx = vkctx {
     let vrSet0 = (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
                   game.vrTwoHanded, game.screen)
     let vrStatic0 = (GunActions.manual, VRReload.reclined)      // (swing play's hand-worked bolts: the deep balance duels fired once)
+    // (and what a minute of monkey input in both modes leaves: the walk after it died over and over, hunters outlawed
+    // him; the shared checks start from the world they start from without the sim)
+    let vrLife0 = (game.health, game.hunger, game.saturation, game.difficulty, game.townWallet, TownLaw.state)
+    let vrMobs0 = game.mobs.mobs
     do { try QuestSim.run(game: game, ctx: ctx, out: out, check: check) } catch { check(false, "questsim: \(error)") }
     // Monkey input through the VR layer (QuestFuzz): BLOCKSMITH_FUZZ_SECONDS / --fuzz-seed to run longer or another seed.
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
@@ -3328,6 +3332,10 @@ if let out = arg("--questsim"), let ctx = vkctx {
     (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
      game.vrTwoHanded, game.screen) = vrSet0
     (GunActions.manual, VRReload.reclined) = vrStatic0
+    (game.health, game.hunger, game.saturation, game.difficulty, game.townWallet, TownLaw.state) = vrLife0
+    game.mobs.mobs = vrMobs0.filter { $0.health > 0 }; game.mobs.rebuildIndex()
+    if game.menu != nil { game.closeMenu() }
+    game.alive = true
     game.vrBow = nil; game.vrBlade = nil; game.vrPinch = nil; game.swingPower = 0; game.swingMob = nil
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
@@ -3587,7 +3595,7 @@ print(String(format: "ticks: median %.2f ms, p99 %.2f ms, worst %.2f ms", tickMs
 let moved = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
 print("walk: from \(p0); every 2 s: " + walkTrace.joined(separator: "; "))
 check(game.player.pos.x.isFinite && game.player.pos.y.isFinite, "player position finite")
-check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved))
+check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved) + (walkHurt.isEmpty ? "" : " (hurt: " + walkHurt.prefix(6).joined(separator: "; ") + ")"))
 check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))"
       + (game.menu == nil ? "" : "; health at the start \(walkHealth0), survival \(game.survival), difficulty \(game.difficulty), hurt: " + (walkHurt.isEmpty ? "nothing" : walkHurt.joined(separator: "; ")))
       + "; mobs within 24: " + game.mobs.mobs.filter { simd_length($0.pos - game.player.pos) < 24 }.map { "\($0.kind)" }.joined(separator: ", "))
