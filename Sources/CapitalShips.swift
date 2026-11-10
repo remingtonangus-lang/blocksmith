@@ -53,6 +53,7 @@ enum DropLift {
 }
 
 final class CapitalState {
+    static let oldCrewAim = ProcessInfo.processInfo.environment["BS_OLDCREWAIM"] == "1"   // (harness: cleared as before)
     // P476 (Oct 27, "these four giant things are engines... thruster blocks back here. The engines connect to the
     // thruster blocks and somehow are what drives the frigate... if it doesn't have enough thrust, it doesn't get off
     // the ground"): the stern's thruster cores as built (the cells by the exhaust mouths), how many still burn, and
@@ -1096,7 +1097,8 @@ extension ShipManager {
         for c in takenToRestore where c.pos.count == 3 && c.rot.count == 4 {
             let p = V3(c.pos[0], c.pos[1], c.pos[2])
             spawnCapital(c.kind, home: IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))), yaw: 0, region: nil,
-                         faction: Faction(rawValue: c.faction), taken: (p, Quat(vector: V4(c.rot[0], c.rot[1], c.rot[2], c.rot[3])), c.name))
+                         faction: Faction(rawValue: c.faction), taken: (p, Quat(vector: V4(c.rot[0], c.rot[1], c.rot[2], c.rot[3])), c.name),
+                         takenSave: c)
         }
         takenToRestore.removeAll { $0.pos.count != 3 || $0.rot.count != 4 }     // (the rest leave the list as each is installed)
     }
@@ -1105,7 +1107,7 @@ extension ShipManager {
     // turrets when finished (capitalTick picks it up).
     // (taken: one of his, built where he left it.)
     func spawnCapital(_ kind: String, home: IVec3, yaw: Float, region: String?, sync: Bool = false, faction: Faction? = nil,
-                      taken: (V3, Quat, String)? = nil) {
+                      taken: (V3, Quat, String)? = nil, takenSave: ShipManager.TakenCap? = nil) {
         if let r = region { capitalPending.insert(r) }
         let ids = (0..<24).map { _ in newId() }
         let gen = world.gen
@@ -1117,6 +1119,20 @@ extension ShipManager {
             let name = cap ? "Meridian Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
             let ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
+            // (batch 3.4) a taken one comes back as he left her: her hull's cells and her chests from the save.
+            let asBuilt = s.blockCount
+            if let ts = takenSave, let size = ts.size, let pal = ts.palette, let cells = ts.cells,
+               let blocks = ShipManager.unpackGrid(size, pal, cells) {
+                s.grid = ShipGrid(sx: size[0], sy: size[1], sz: size[2], blocks: blocks)
+                s.rebuild()
+                if let ents = ts.entities {
+                    s.blockEntities = [:]
+                    for (k, v) in ents {
+                        let p = k.split(separator: ",").compactMap { Int($0) }
+                        if p.count == 3 { s.blockEntities[IVec3(p[0], p[1], p[2])] = v }
+                    }
+                }
+            }
             let st = CapitalState()
             st.region = region
             st.engines0 = s.engines
@@ -1143,7 +1159,7 @@ extension ShipManager {
                 } } }
                 st.reactorLive = st.reactorCells.count
             }
-            st.blocks0 = s.blockCount
+            st.blocks0 = asBuilt
             st.crew = hb.crew
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
@@ -1186,7 +1202,7 @@ extension ShipManager {
             }
             s.prevPos = s.pos; s.prevRot = s.rot
             s.home = V3(hx, s.pos.y, hz)
-            s.initialBlocks = s.blockCount
+            s.initialBlocks = takenSave?.initial ?? asBuilt
             s.updateBounds()
             for t in ships.dropFirst() { t.followParent(0); t.prevPos = t.pos; t.prevRot = t.rot }
             return (ships, st)
@@ -1987,7 +2003,10 @@ extension ShipManager {
         driveGlow(s, st, boundsDistance(s, g.player.pos), dt, g)
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
-        for t in turrets(of: s) { t.aimAt = nil }
+        // (code reader Nov 10, batch 3.1: this ran after the crews laid their guns (gunCrewTick, earlier in the same
+        // update), so on a frigate he had taken the crew's guns never turned onto anything and only fired at what
+        // happened to lie in line. A gun a crew laid this update keeps its mark.)
+        for t in turrets(of: s) where CapitalState.oldCrewAim || t.crewAimStamp != riderStamp { t.aimAt = nil }   // (batch 3.1)
     }
 
     // P483: a frigate he took that crashed keeps its guns. Manned at the helm the turrets and the Tidebreaker work as
@@ -1996,7 +2015,7 @@ extension ShipManager {
         st.target = nil
         st.mainGunCD -= dt
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
-        for t in turrets(of: s) { t.aimAt = nil }
+        for t in turrets(of: s) where CapitalState.oldCrewAim || t.crewAimStamp != riderStamp { t.aimAt = nil }   // (batch 3.1)
     }
 
     // P325 (c) (Oct 15 19:15, "a drivable ship where I angle it and momentum goes forward, not this up and down, left,

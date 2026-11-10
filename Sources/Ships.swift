@@ -307,6 +307,7 @@ final class Ship: LifeLinked {
     var turretYaw: Float = 0         // relative to the parent
     var aimYaw: Float?               // wanted turretYaw
     var aimAt: V3?                   // world point to track (crews); sets aimYaw
+    var crewAimStamp = -1            // ShipManager.riderStamp when a crew last laid this gun (GunCrew)
     var reload: Float = 0            // seconds until the cannons can fire again
 
     // Vessels (ShipVessels.swift): crewed encounter ships.
@@ -793,7 +794,42 @@ final class ShipManager: LifeLinked {
     var navyParties: [String: Int] = [:]          // T8: boarding parties a region's frigate has sent (navyparties.json)
     var capitalPending = Set<String>()
     var capState: [Int: CapitalState] = [:]
-    struct TakenCap: Codable { var kind: String; var faction: Int; var name: String; var pos: [Float]; var rot: [Float] }
+    struct TakenCap: Codable {
+        var kind: String; var faction: Int; var name: String; var pos: [Float]; var rot: [Float]
+        // (code reader Nov 10, batch 3.4: only the plans were kept, so a taken vessel came back after a reload as built:
+        // his repairs, holes, added blocks and what he stored aboard gone, and her chests full of their loot again.
+        // Her hull's cells (palette + lzfse, as ships.json) and her chests are kept now; older saves have neither.)
+        var size: [Int]? = nil; var palette: [String]? = nil; var cells: Data? = nil; var entities: [String: BlockEntity]? = nil
+        var initial: Int? = nil
+    }
+    static let oldTakenGrid = ProcessInfo.processInfo.environment["BS_OLDTAKENGRID"] == "1"
+    // A grid as palette names + lzfse(u16 palette index per cell), and back (nil: sizes or data don't match).
+    static func packGrid(_ blocks: [BlockID]) -> ([String], Data) {
+        var map: [BlockID: UInt16] = [:]
+        var names: [String] = []
+        var idx = [UInt16](repeating: 0, count: blocks.count)
+        for (i, b) in blocks.enumerated() {
+            if let m = map[b] { idx[i] = m; continue }
+            let m = UInt16(names.count)
+            map[b] = m; names.append(Blocks.saveKey(b)); idx[i] = m
+        }
+        let raw = idx.withUnsafeBytes { Data($0) }
+        return (names, SaveBytes.compress(raw) ?? raw)
+    }
+    static func unpackGrid(_ size: [Int], _ palette: [String], _ cells: Data) -> [BlockID]? {
+        guard size.count == 3 else { return nil }
+        let n = size[0] * size[1] * size[2]
+        guard n > 0 else { return nil }
+        let raw = SaveBytes.decompress(cells).map { Data($0) } ?? cells
+        guard raw.count == n * 2 else { return nil }
+        let pal = palette.map { SaveMigration.blockID($0) ?? AIR }
+        var blocks = [BlockID](repeating: AIR, count: n)
+        raw.withUnsafeBytes { (p: UnsafeRawBufferPointer) in
+            let u = p.bindMemory(to: UInt16.self)
+            for i in 0..<n { let k = Int(u[i]); blocks[i] = k < pal.count ? pal[k] : AIR }
+        }
+        return blocks
+    }
     var takenToRestore: [TakenCap] = []             // P464: taken capital vessels read from the save, built on the first tick
     var takenStarted = false
     var salvagedGuns: [Int: CapitalState] = [:]     // H4: the main gun of each ship carrying a Tidebreaker breech
@@ -1208,14 +1244,28 @@ final class ShipManager: LifeLinked {
             return r
         })
         // P464: the capital vessels he has taken are kept as their plans, pose and name (Capital.restoreTaken).
-        let taken = capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> TakenCap in
+        // (the grids are copies here, copy on write: packed on the save queue below)
+        let takenNow = capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> (TakenCap, [BlockID]?) in
             let q = s.rot.vector
-            return TakenCap(kind: s.role ?? "", faction: s.faction, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w])
-        } + takenToRestore
+            var c = TakenCap(kind: s.role ?? "", faction: s.faction, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w])
+            if ShipManager.oldTakenGrid { return (c, nil) }
+            c.size = [s.grid.sx, s.grid.sy, s.grid.sz]
+            var ents: [String: BlockEntity] = [:]
+            for (k, v) in s.blockEntities { ents["\(k.x),\(k.y),\(k.z)"] = v.snapshot() }
+            c.entities = ents
+            c.initial = s.initialBlocks
+            return (c, s.grid.blocks)
+        }
+        let restoring = takenToRestore
         // (Nov 10: these three were written on the frame by the autosave too; on the save queue now, SaveIO.oldSync)
         let dir = world.save?.dir
         let regions = Array(spawnedRegions.subtracting(afloat)).sorted(), parties = navyParties
         let small = {
+            let taken = takenNow.map { (c0, blocks) -> TakenCap in
+                var c = c0
+                if let b = blocks { (c.palette, c.cells) = ShipManager.packGrid(b) }
+                return c
+            } + restoring
             if let r = dir?.appendingPathComponent("takencaps.json") {
                 if taken.isEmpty { try? FileManager.default.removeItem(at: r) }
                 else if let d = try? JSONEncoder().encode(taken) { try? d.write(to: r, options: .atomic) }

@@ -1425,7 +1425,7 @@ final class Game: LifeLinked {
         // Within reach of a helm the player can take (ShipPlay.commandeerable): use takes it, unless aimed at a door,
         // chest or other usable block, or a ship's container.
         if useNow && !(input.shift || p.b), let s = commandeerable(), !(target.map { isInteractive($0.hit) } ?? false),
-           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false) {
+           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false), !useMeantForHull(s) {
             takeCommand(s); return
         }
         // Skinning a body you're aiming at (Hunting.swift): before guns, which take the use button to aim.

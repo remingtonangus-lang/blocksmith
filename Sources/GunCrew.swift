@@ -74,13 +74,14 @@ extension ShipManager {
             let manned = driven ? gunners : Array((gunners + tur.filter { t in !gunners.contains { $0 === t } }).prefix(crew))
             for t in manned {
                 t.aimAt = aim
+                t.crewAimStamp = riderStamp
                 let muzzle = t.toWorld(t.pivot)
                 let d = aim - muzzle
                 let horiz = simd_length(V2(d.x, d.z))
                 guard horiz >= 10 else { continue }
                 let (sv, sg) = t.shellFlight
                 let elev = ShipManager.elevation(horiz, d.y, speed: sv, gravity: sg)
-                t.gunPitch += (max(-0.2, min(0.6, elev)) - t.gunPitch) * min(1, dt * 3)
+                t.gunPitch += (max(t.pitchMin, min(t.pitchMax, elev)) - t.gunPitch) * min(1, dt * 3)
                 let tf = t.dirToWorld(V3(0, 0, -1))
                 let a = simd_normalize(V2(tf.x, tf.z) + V2(1e-5, 0)), b = simd_normalize(V2(d.x, d.z) + V2(1e-5, 0))
                 if t.reload <= 0 && acosf(max(-1, min(1, simd_dot(a, b)))) < 0.15 && fire(t, pitch: elev, game: g) > 0 { ShipManager.crewVolleys += 1 }

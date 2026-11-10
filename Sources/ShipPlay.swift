@@ -367,12 +367,24 @@ extension Game {
             // P499: the Stormwarden frigate too (anywhere in its bounds, a use on a wall or a door's frame took its helm).
             let zone: Float = s.role == "kestrel" || s.role == "capplane" ? 8 : (s.isFlyingCapital || s.blockCount > 2000 ? 2 : 6)
             // (P357 b, Oct 16 20:13: "I could fly it from anywhere aboard": a frigate's helm is taken at the helm only.)
-            let aboard = s.kinematic && !s.isFlyingCapital && (ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.5)
+            // (code reader Nov 10, batch 3.3: aboard a crawler a use anywhere in its bounds, at a chest, a door or a gun,
+            // took its helm and moved him to it. A big hull's helm is taken at the helm, as the frigate's is (P476).)
+            let aboard = s.kinematic && !s.isFlyingCapital && (s.blockCount <= 2000 || Game.oldCrawlerUse)
+                && (ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.5)
             if (d < zone || aboard) && d < bd { best = s; bd = d }
         }
         return best
     }
 
+    // (batch 3.3) aboard, away from the helm, a use aimed at the hull's own blocks (a hoist, a crate, a gun station, a
+    // block to patch or place against) is for them, not for the helm: the dropship's helm is taken from 9 blocks.
+    func useMeantForHull(_ s: Ship) -> Bool {
+        guard !Game.oldCrawlerUse, let t = world.ships.target, t.ship.root === s else { return false }
+        if t.ship === s && t.cell == s.helm { return false }
+        guard let stand = helmStand(s) else { return true }
+        return simd_length(s.toWorld(stand) - player.pos) > 2
+    }
+    static let oldCrawlerUse = ProcessInfo.processInfo.environment["BS_OLDCRAWLERUSE"] == "1"
     func takeCommand(_ s: Ship) {
         let first = s.kinematic && !s.captured
         world.ships.aboard = s
