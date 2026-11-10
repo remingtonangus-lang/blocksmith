@@ -71,6 +71,9 @@ enum ReaderChecks {
         }
         let h = IVec3(c.x, y0 + 28, c.z)
         w.setBlock(h.x, h.y, h.z, Blocks.id("ship_helm"))
+        var placed = 0
+        for y in 0..<28 { for z in -24..<24 { for x in -24..<24 where w.rawBlock(c.x + x, y0 + y, c.z + z) == brick { placed += 1 } } }
+        print("reader: helm building: \(placed) of 64512 bricks in place (id \(brick)), under the helm \(Blocks.key(w.rawBlock(h.x, h.y - 1, h.z))), helm \(Blocks.key(w.rawBlock(h.x, h.y, h.z)))")
         var worst = 0.0
         var said = ""
         for _ in 0..<3 {
@@ -106,20 +109,21 @@ enum ReaderChecks {
         w.setBlock(c.x, y0, c.z, AIR)
         g.tnts.prime(at: IVec3(c.x, y0, c.z), fuse: 0.1)
         TNTManager.deferred = 0
-        var worst = 0.0, over = 0, frames = 0
+        var worst = 0.0, over = 0, frames = 0, worstAt = 0, worstWhat = ""
         var t: Float = 0
         while t < 12 && (frames < 20 || !g.tnts.list.isEmpty) {
             g.menu = nil; g.alive = true; g.health = 20
             let a = CFAbsoluteTimeGetCurrent()
             g.tick(1.0 / 72)
             let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
-            worst = max(worst, ms); if ms > 13.9 { over += 1 }
+            if ms > worst { worst = ms; worstAt = frames; worstWhat = TickProf.summary() }
+            if ms > 13.9 { over += 1 }
             frames += 1; t += 1.0 / 72
         }
         var left = 0
         for y in 0..<5 { for z in 0..<10 { for x in 0..<10 where w.block(c.x + x, y0 + y, c.z + z) == tnt { left += 1 } } }
-        print(String(format: "reader: 500 TNT lit (%@): %d frames, worst tick %.0f ms, %d over 13.9 ms, %d blasts moved to a later frame, %d TNT left, %.1f s",
-                     TNTManager.oldAll ? "BS_OLDTNT" : "new", frames, worst, over, TNTManager.deferred, left, Double(t)))
+        print(String(format: "reader: 500 TNT lit (%@): %d frames, worst tick %.0f ms (frame %d, slowest stage %@), %d over 13.9 ms, %d blasts moved to a later frame, %d TNT left, %.1f s",
+                     TNTManager.oldAll ? "BS_OLDTNT" : "new", frames, worst, worstAt, worstWhat, over, TNTManager.deferred, left, Double(t)))
         check(g.tnts.list.isEmpty && left < 50,
               String(format: "reader tnt: a 500-block stack goes off (%d left) and the worst frame is %.0f ms", left, worst))
     }
