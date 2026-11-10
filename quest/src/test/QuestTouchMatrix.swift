@@ -241,8 +241,13 @@ enum QuestTouchMatrix {
         // S7: Dominant Hand Left mirrors every per-hand binding: each control pressed on the other controller does on foot
         // what it does right-handed (the Menu button stays on the left controller, the only one that has it).
         do {
+            // (each tap from the same start: a Y tap calls his horse, and a call can find the horse gone and end the
+            // bond, so the next tap opened the inventory instead; Nov 10, the code reader's 2.5)
+            let bond0 = g.horseBond, grave0 = g.horseGrave
+            defer { g.horseBond = bond0; g.horseGrave = grave0 }
             func tap(_ press: @escaping (inout XRHand, inout XRHand) -> Void) -> [String] {
                 reset()
+                g.horseBond = bond0; g.horseGrave = grave0
                 let s0 = state(g)
                 for _ in 0..<2 { frame(press) }
                 for _ in 0..<12 { frame() }
@@ -264,12 +269,17 @@ enum QuestTouchMatrix {
         // held item; 2.4 sitting down in standing play stops sneaking after 3 s (a duck still crouches); 2.3 with a menu
         // open the head moves in the world instead of the world sliding with it.
         do {
-            let walk: (inout XRHand, inout XRHand) -> Void = { l, _ in l.stick = V2(0, 1) }
+            // (carried along at a sprint, 4.3 blocks a second, the hands still in the play space: the sim's stick walk
+            // was too slow to show it)
             reset()
-            for _ in 0..<40 { frame(walk) }
-            let c0 = state(g), p0 = g.player.pos
-            for _ in 0..<22 { frame { l, r in l.stick = V2(0, 1); r.squeeze = 1 } }
-            for _ in 0..<12 { frame(walk) }
+            g.player.flying = true
+            let p0 = g.player.pos
+            func carried(_ f: @escaping (inout XRHand, inout XRHand) -> Void = { _, _ in }) { g.player.pos.z -= 4.3 / 72; frame(f) }
+            for _ in 0..<20 { carried() }
+            let c0 = state(g)
+            for _ in 0..<22 { carried { _, r in r.squeeze = 1 } }
+            for _ in 0..<12 { carried() }
+            g.player.flying = false
             let c1 = state(g)
             let moved = simd_length(V2(g.player.pos.x - p0.x, g.player.pos.z - p0.z))
             print("touchmatrix reader 2.2 (\(QuestControls.oldThrow ? "BS_OLDTHROW" : "new")): walked \(String(format: "%.1f", moved)) blocks with the grip held 0.3 s, carried \(c0.carried) -> \(c1.carried)")
