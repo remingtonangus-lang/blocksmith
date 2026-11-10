@@ -250,8 +250,7 @@ extension SaveManager {
         SaveManager.pendingLock.unlock()
         if let q = queued { return q }
         guard let d = try? Data(contentsOf: fieldURL(k)),
-              let raw = try? (d as NSData).decompressed(using: .lzfse) as Data else { return [:] }
-        let b = [UInt8](raw)
+              let b = SaveBytes.decompress(d) else { return [:] }
         guard b.count >= 4 else { return [:] }
         let n = Int(b[0]) | Int(b[1]) << 8 | Int(b[2]) << 16 | Int(b[3]) << 24
         guard b.count == 4 + n * 6 else { return [:] }
@@ -289,7 +288,7 @@ extension SaveManager {
                 d.append(contentsOf: [UInt8(u & 255), UInt8((u >> 8) & 255), UInt8((u >> 16) & 255), UInt8(u >> 24),
                                       UInt8(v & 255), UInt8(v >> 8)])
             }
-            guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return }
+            guard let c = SaveBytes.compress(d) else { return }
             SaveIO.store(c, to: url)
         }
     }
