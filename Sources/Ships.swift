@@ -1238,16 +1238,10 @@ final class ShipManager: LifeLinked {
 
     private var url: URL? { world.save?.dir.appendingPathComponent("ships.json") }
 
-    func save(background: Bool = false) {
-        guard let url else { return }
-        // Regions whose capital ship is still afloat are left out, so it returns after a reload (wrecks stay gone).
-        let afloat = Set(capState.compactMap { (id, st) -> String? in
-            guard let r = st.region, let s = list.first(where: { $0.id == id }), !s.wrecked, !s.captured else { return nil }
-            return r
-        })
-        // P464: the capital vessels he has taken are kept as their plans, pose and name (Capital.restoreTaken).
-        // (the grids are copies here, copy on write: packed on the save queue below)
-        let takenNow = capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> (TakenCap, [BlockID]?, [(V3, [Int], [BlockID])]) in
+    typealias TakenCopy = (TakenCap, [BlockID]?, [(V3, [Int], [BlockID])])
+    /// The capitals he has taken, as the save keeps them: copies on the frame (grids copy on write), packed by packTaken.
+    func takenCopies() -> [TakenCopy] {
+        capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> TakenCopy in
             let q = s.rot.vector
             var c = TakenCap(kind: s.role ?? "", faction: s.faction, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w])
             if ShipManager.oldTakenGrid { return (c, nil, []) }
@@ -1259,22 +1253,37 @@ final class ShipManager: LifeLinked {
             let tur = turrets(of: s).map { t in (t.mountLocal, [t.grid.sx, t.grid.sy, t.grid.sz], t.grid.blocks) }
             return (c, s.grid.blocks, tur)
         }
+    }
+    static func packTaken(_ copies: [TakenCopy]) -> [TakenCap] {
+        copies.map { (c0, blocks, tur) -> TakenCap in
+            var c = c0
+            if let b = blocks {
+                (c.palette, c.cells) = ShipManager.packGrid(b)
+                c.turrets = tur.map { (m, size, tb) in
+                    let (pal, cells) = ShipManager.packGrid(tb)
+                    return TakenTurret(mount: [m.x, m.y, m.z], size: size, palette: pal, cells: cells)
+                }
+            }
+            return c
+        }
+    }
+
+    func save(background: Bool = false) {
+        guard let url else { return }
+        // Regions whose capital ship is still afloat are left out, so it returns after a reload (wrecks stay gone).
+        let afloat = Set(capState.compactMap { (id, st) -> String? in
+            guard let r = st.region, let s = list.first(where: { $0.id == id }), !s.wrecked, !s.captured else { return nil }
+            return r
+        })
+        // P464: the capital vessels he has taken are kept as their plans, pose and name (Capital.restoreTaken).
+        // (the grids are copies here, copy on write: packed on the save queue below)
+        let takenNow = takenCopies()
         let restoring = takenToRestore
         // (Nov 10: these three were written on the frame by the autosave too; on the save queue now, SaveIO.oldSync)
         let dir = world.save?.dir
         let regions = Array(spawnedRegions.subtracting(afloat)).sorted(), parties = navyParties
         let small = {
-            let taken = takenNow.map { (c0, blocks, tur) -> TakenCap in
-                var c = c0
-                if let b = blocks {
-                    (c.palette, c.cells) = ShipManager.packGrid(b)
-                    c.turrets = tur.map { (m, size, tb) in
-                        let (pal, cells) = ShipManager.packGrid(tb)
-                        return TakenTurret(mount: [m.x, m.y, m.z], size: size, palette: pal, cells: cells)
-                    }
-                }
-                return c
-            } + restoring
+            let taken = ShipManager.packTaken(takenNow) + restoring
             if let r = dir?.appendingPathComponent("takencaps.json") {
                 if taken.isEmpty { try? FileManager.default.removeItem(at: r) }
                 else if let d = try? JSONEncoder().encode(taken) { try? d.write(to: r, options: .atomic) }

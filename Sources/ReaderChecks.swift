@@ -7,7 +7,8 @@ import simd
 enum ReaderChecks {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         helm(g, check)
-        tnt(g, check)
+        tnt(g, check, side: 10)
+        tnt(g, check, side: 20)
         taken(g, check)
     }
 
@@ -36,12 +37,13 @@ enum ReaderChecks {
         // one of her turrets shot away
         let tur0 = ships.turrets(of: s)
         if let t = tur0.first { ships.remove(t) }
-        ships.save(background: false)
-        guard let dir = w.save?.dir, let d = try? Data(contentsOf: dir.appendingPathComponent("takencaps.json")),
+        // (the harness world has no save folder: what ships.save writes to takencaps.json, made and read back the same way)
+        guard let d = try? JSONEncoder().encode(ShipManager.packTaken(ships.takenCopies())),
               let caps = try? JSONDecoder().decode([ShipManager.TakenCap].self, from: d),
               let c = caps.first(where: { $0.name == s.name && $0.kind == "crawler" }) else {
             check(false, "reader taken: the taken crawler is in the save"); return
         }
+        print("reader: taken crawler saved in \(d.count / 1024) KB")
         ships.remove(s)
         let before2 = Set(ships.capitals.map { $0.id })
         let p = V3(c.pos[0], c.pos[1], c.pos[2])
@@ -62,7 +64,9 @@ enum ReaderChecks {
         ships.remove(r)
     }
 
-    // 3: a helm set on a building over the move limit: how long "Too big to move" takes on the frame.
+    // 3: a helm set on a building over the move limit: how long "Too big to move" takes on the frame. A helm on the
+    // roof is the easy case (the roof is the floor it stands on: the helm alone moves); a helm against a wall is the
+    // stall the reader found (every floor down from the helm searched the building above it).
     static func helm(_ g: Game, _ check: (Bool, String) -> Void) {
         let w = g.world
         let c = IVec3(Int(floor(g.player.pos.x)) + 400, 0, Int(floor(g.player.pos.z)) + 400)
@@ -73,49 +77,65 @@ enum ReaderChecks {
         w.editBatch {
             for y in 0..<28 { for z in -24..<24 { for x in -24..<24 { w.setBlock(c.x + x, y0 + y, c.z + z, brick) } } }
         }
-        let h = IVec3(c.x, y0 + 28, c.z)
-        w.setBlock(h.x, h.y, h.z, Blocks.id("ship_helm"))
         var placed = 0
         for y in 0..<28 { for z in -24..<24 { for x in -24..<24 where w.rawBlock(c.x + x, y0 + y, c.z + z) == brick { placed += 1 } } }
-        print("reader: helm building: \(placed) of 64512 bricks in place (id \(brick)), under the helm \(Blocks.key(w.rawBlock(h.x, h.y - 1, h.z))), helm \(Blocks.key(w.rawBlock(h.x, h.y, h.z)))")
-        var worst = 0.0
-        var said = ""
-        for _ in 0..<3 {
-            let t0 = CFAbsoluteTimeGetCurrent()
-            let (s, msg) = w.ships.assemble(at: h, game: nil)
-            worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
-            said = s == nil ? msg : "it moved"
+        print("reader: helm building: \(placed) of 64512 bricks in place")
+        func tries(_ h: IVec3) -> (Double, String) {
+            w.setBlock(h.x, h.y, h.z, Blocks.id("ship_helm"))
+            var worst = 0.0, said = ""
+            for _ in 0..<3 {
+                let t0 = CFAbsoluteTimeGetCurrent()
+                let (s, msg) = w.ships.assemble(at: h, game: nil)
+                worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
+                if let s { said = "it moved, \(s.blockCount) blocks"; w.ships.remove(s) } else { said = msg }
+            }
+            w.setBlock(h.x, h.y, h.z, AIR)
+            return (worst, said)
         }
-        print(String(format: "reader: helm on a 64,512-block building (%@): %.0f ms a try, worst of 3 (%@)",
-                     ShipManager.oldAssemble ? "BS_OLDASSEMBLE" : "new", worst, said))
-        check(said.hasPrefix("Too big") && (ShipManager.oldAssemble || worst < 250),
-              String(format: "reader helm: a helm on a building past the limit says \"Too big to move\" in %.0f ms (%@)", worst, said))
+        let mode = ShipManager.oldAssemble ? "BS_OLDASSEMBLE" : "new"
+        let (roofMs, roofSaid) = tries(IVec3(c.x, y0 + 28, c.z))
+        print(String(format: "reader: helm on the roof of a 64,512-block building (%@): %.0f ms a try, worst of 3 (%@)", mode, roofMs, roofSaid))
+        // against the east wall, half way up
+        let (wallMs, wallSaid) = tries(IVec3(c.x + 24, y0 + 14, c.z))
+        print(String(format: "reader: helm against its wall (%@): %.0f ms a try, worst of 3 (%@)", mode, wallMs, wallSaid))
+        check(wallSaid.hasPrefix("Too big") && (ShipManager.oldAssemble || wallMs < 100),
+              String(format: "reader helm: a helm against a building past the limit says \"Too big to move\" in %.0f ms (%@)", wallMs, wallSaid))
+        check(roofSaid.hasPrefix("it moved, 1 "),
+              String(format: "reader helm: a helm on its roof moves alone (%@, %.0f ms)", roofSaid, roofMs))
         w.editBatch {
-            for y in 0...28 { for z in -24..<24 { for x in -24..<24 { w.setBlock(c.x + x, y0 + y, c.z + z, AIR) } } }
+            for y in 0...28 { for z in -25...24 { for x in -24...24 { w.setBlock(c.x + x, y0 + y, c.z + z, AIR) } } }
         }
     }
 
     // 2: a 10 x 10 x 5 stack of TNT lit at one corner: the slowest frames while it goes off.
-    static func tnt(_ g: Game, _ check: (Bool, String) -> Void) {
+    static func tnt(_ g: Game, _ check: (Bool, String) -> Void, side n: Int) {
         let w = g.world
-        let c = IVec3(Int(floor(g.player.pos.x)) - 400, 0, Int(floor(g.player.pos.z)) + 400)
+        let c = IVec3(Int(floor(g.player.pos.x)) - 400, 0, Int(floor(g.player.pos.z)) + 400 + (n - 10) * 20)
         _ = w.loadSync(center: V3(Float(c.x), 100, Float(c.z)), radius: 3)
         let y0 = w.topY(c.x, c.z) + 1
         let tnt = Blocks.id("tnt")
         w.editBatch {
-            for y in 0..<5 { for z in 0..<10 { for x in 0..<10 { w.setBlock(c.x + x, y0 + y, c.z + z, tnt) } } }
+            for y in 0..<5 { for z in 0..<n { for x in 0..<n { w.setBlock(c.x + x, y0 + y, c.z + z, tnt) } } }
         }
         let pos0 = g.player.pos, surv0 = g.survival
         defer { g.player.pos = pos0; g.survival = surv0 }
         g.survival = false
         g.player.pos = V3(Float(c.x) - 40, Float(y0 + 20), Float(c.z) + 5)
         g.player.flying = true
+        // (warm up first: the first ticks here pay once for the HUD's director, bases and town law, 80-100 ms on the host)
+        for _ in 0..<60 { g.menu = nil; g.alive = true; g.health = 20; g.tick(1.0 / 72) }
+        var calm = 0.0
+        for _ in 0..<30 {
+            let a = CFAbsoluteTimeGetCurrent()
+            g.menu = nil; g.alive = true; g.health = 20; g.tick(1.0 / 72)
+            calm = max(calm, (CFAbsoluteTimeGetCurrent() - a) * 1000)
+        }
         w.setBlock(c.x, y0, c.z, AIR)
         g.tnts.prime(at: IVec3(c.x, y0, c.z), fuse: 0.1)
         TNTManager.deferred = 0
         var worst = 0.0, over = 0, frames = 0, worstAt = 0, worstWhat = ""
         var t: Float = 0
-        while t < 12 && (frames < 20 || !g.tnts.list.isEmpty) {
+        while t < 30 && (frames < 20 || !g.tnts.list.isEmpty) {
             g.menu = nil; g.alive = true; g.health = 20
             let a = CFAbsoluteTimeGetCurrent()
             g.tick(1.0 / 72)
@@ -125,10 +145,10 @@ enum ReaderChecks {
             frames += 1; t += 1.0 / 72
         }
         var left = 0
-        for y in 0..<5 { for z in 0..<10 { for x in 0..<10 where w.block(c.x + x, y0 + y, c.z + z) == tnt { left += 1 } } }
-        print(String(format: "reader: 500 TNT lit (%@): %d frames, worst tick %.0f ms (frame %d, slowest stage %@), %d over 13.9 ms, %d blasts moved to a later frame, %d TNT left, %.1f s",
-                     TNTManager.oldAll ? "BS_OLDTNT" : "new", frames, worst, worstAt, worstWhat, over, TNTManager.deferred, left, Double(t)))
-        check(g.tnts.list.isEmpty && left < 50,
-              String(format: "reader tnt: a 500-block stack goes off (%d left) and the worst frame is %.0f ms", left, worst))
+        for y in 0..<5 { for z in 0..<n { for x in 0..<n where w.block(c.x + x, y0 + y, c.z + z) == tnt { left += 1 } } }
+        print(String(format: "reader: %d TNT lit (%@): %d frames, worst tick %.0f ms (frame %d, slowest stage %@; %.0f ms before it was lit), %d over 13.9 ms, %d blasts moved to a later frame, %d TNT left, %.1f s",
+                     n * n * 5, TNTManager.oldAll ? "BS_OLDTNT" : "new", frames, worst, worstAt, worstWhat, calm, over, TNTManager.deferred, left, Double(t)))
+        check(g.tnts.list.isEmpty && left < n * n / 2,
+              String(format: "reader tnt: a %d-block stack goes off (%d left) and the worst frame is %.0f ms", n * n * 5, left, worst))
     }
 }
