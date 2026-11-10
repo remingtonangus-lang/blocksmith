@@ -262,6 +262,15 @@ extension MobManager {
         guard w.dim == .overworld else { return }
         let nest = Blocks.has("bee_nest") ? Blocks.id("bee_nest") : AIR
         var budget = 12                                  // chunks per pass (keeps first loads from hitching)
+        // Item 71: a chunk first loaded inside his view (moving fast, the loading behind) put its pack down in front of
+        // him; that pack waits for the spot to be out of sight (BS_OLDSPAWNSIGHT=1: at once).
+        func hiddenSpot(_ x: Int, _ z: Int) -> Bool {
+            Game.oldSpawnSight || game.spawnHidden(V3(Float(x) + 0.5, Float(w.topY(x, z) + 1), Float(z) + 0.5), min: 0, near: 0)
+        }
+        for (k, p) in packsLater {
+            guard w.chunks[k] != nil else { packsLater[k] = nil; continue }
+            if hiddenSpot(p.x, p.z) { packsLater[k] = nil; spawnAnimalPack(w, p.kind, p.x, p.z, p.n, chunk: k) }
+        }
         for (k, c) in w.chunks where !populated.contains(k) {
             if budget <= 0 { populateTimer = 0.1; break }
             budget -= 1
@@ -283,7 +292,9 @@ extension MobManager {
             guard rng.float() < 0.035 * MobManager.surfaceSpawnScale else { continue }
             let x = c.cx * CS + rng.int(16), z = c.cz * CS + rng.int(16)
             guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { continue }
-            spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: k)
+            let n = Rand.int(in: lo...hi)
+            if !hiddenSpot(x, z) { packsLater[k] = (kind, x, z, n); continue }
+            spawnAnimalPack(w, kind, x, z, n, chunk: k)
         }
     }
 
@@ -636,6 +647,8 @@ extension MobManager {
                 guard let e = Spawns.pick(Spawns.water(b)) else { return }
                 let cat = e.kind.category
                 guard count(cat, near: pp) < cap(cat, w) else { return }
+                // Item 71: not in front of him (a school came in 70-130 blocks off across open water)
+                if !Game.oldSpawnSight && !game.spawnHidden(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5), min: 24) { return }
                 spawnSwimmers(w, e.kind, x, y, z, Rand.int(in: e.min...e.max))
             } else if y <= SEA - 33 && w.lightAt(x, y, z).sky == 0 && w.lightAt(x, y, z).block == 0 {
                 if b == .lushCaves && Blocks.key(w.materialAt(x, y - 1, z)) == "clay" && count(.axolotls, near: pp) < cap(.axolotls, w) {

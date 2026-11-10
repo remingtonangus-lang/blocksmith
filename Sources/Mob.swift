@@ -2610,6 +2610,7 @@ final class MobManager {
     var passiveTimer: Float = 2
     var hostileTimer: Float = 1
     var populateTimer: Float = 0.5
+    var packsLater: [ChunkKey: (kind: MobKind, x: Int, z: Int, n: Int)] = [:]     // item 71: chunk packs waiting till he can't see the spot
     var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
     var hiveTimer: Float = 0                      // hives are checked twice a second (Bees.swift)
     static var quarantined = 0                    // mobs whose update produced NaN (reported by smoke / agent oracles)
