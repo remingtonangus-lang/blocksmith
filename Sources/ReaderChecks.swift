@@ -81,9 +81,9 @@ enum ReaderChecks {
         for y in 0..<28 { for z in -24..<24 { for x in -24..<24 where w.rawBlock(c.x + x, y0 + y, c.z + z) == brick { placed += 1 } } }
         print("reader: helm building: \(placed) of 64512 bricks in place")
         func tries(_ h: IVec3) -> (Double, String) {
-            w.setBlock(h.x, h.y, h.z, Blocks.id("ship_helm"))
             var worst = 0.0, said = ""
             for _ in 0..<3 {
+                w.setBlock(h.x, h.y, h.z, Blocks.id("ship_helm"))       // (each try: a helm that moved left air behind)
                 let t0 = CFAbsoluteTimeGetCurrent()
                 let (s, msg) = w.ships.assemble(at: h, game: nil)
                 worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
