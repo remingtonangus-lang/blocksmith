@@ -115,16 +115,32 @@ extension BaseRecord {
     }
 }
 
+// A table by soldier that holds the soldier it is for: keyed by address alone, an entry outlived a man killed and was
+// taken by the next soldier made at his address (Nov 10, the alarm waves' bloom).
+struct MobTable<V> {
+    private struct E { weak var mob: Mob?; var v: V }
+    private var d: [ObjectIdentifier: E] = [:]
+    var count: Int { d.count }
+    subscript(_ m: Mob) -> V? {
+        get { guard let e = d[ObjectIdentifier(m)], e.mob === m else { return nil }; return e.v }
+        set {
+            guard let v = newValue else { d[ObjectIdentifier(m)] = nil; return }
+            if d.count > 256 { d = d.filter { $0.value.mob != nil } }
+            d[ObjectIdentifier(m)] = E(mob: m, v: v)
+        }
+    }
+}
+
 final class BaseWatch {
     var records: [String: BaseRecord] = [:]
     var noises: [BaseNoise] = []
     var patrols: [String: [Mob]] = [:]              // leader first
-    var posts: [ObjectIdentifier: V3] = [:]          // where each patrol member / crewman goes back to
+    var posts = MobTable<V3>()                      // where each patrol member / crewman goes back to
     var crews: [String: [Mob]] = [:]
     var emptySince: [String: Double] = [:]          // P419 (a): when the walls were last seen with nobody inside
     var workers: [String: [Mob]] = [:]
     var aircraft: [String: Ship] = [:]
-    var noWay: [ObjectIdentifier: Float] = [:]          // patrol members with no way home: seconds so
+    var noWay = MobTable<Float>()                       // patrol members with no way home: seconds so
     var queue: [String: [(IVec3, BlockID)]] = [:]
     var pending = Set<String>()
     private let lock = NSLock()
@@ -447,7 +463,7 @@ extension Game {
                     let side = V3(cosf(t.yaw), 0, -sinf(t.yaw)) * (k == 0 ? -2.5 : 2.5)
                     let at = t.pos + back * 9 + side
                     let br = m.soldierBrain
-                    if b.posts[ObjectIdentifier(m)] == nil { b.posts[ObjectIdentifier(m)] = m.home ?? m.pos }
+                    if b.posts[m] == nil { b.posts[m] = m.home ?? m.pos }
                     br.order = V3(at.x, Float(r.y0 + 5), at.z)
                     br.orderStation = .gunner
                     br.orderRun = true
@@ -508,7 +524,7 @@ extension Game {
                 let br = m.soldierBrain
                 br.station = .none
                 br.orderStation = .none
-                br.order = b.posts[ObjectIdentifier(m)]
+                br.order = b.posts[m]
                 br.orderRun = false
                 br.ready = false
             }
@@ -521,7 +537,7 @@ extension Game {
         // Soldiers back at their posts drop their orders.
         for m in garrison(r, b) {
             guard let br = m.brain, let o = br.order, br.orderStation == .none else { continue }
-            if simd_length(V2(m.pos.x - o.x, m.pos.z - o.z)) < 2.5 { br.order = nil; m.home = o; b.posts.removeValue(forKey: ObjectIdentifier(m)) }
+            if simd_length(V2(m.pos.x - o.x, m.pos.z - o.z)) < 2.5 { br.order = nil; m.home = o; b.posts[m] = nil }
         }
     }
 }
