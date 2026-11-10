@@ -76,6 +76,8 @@ enum QuestLaunch {
         clock.mark(meta == nil ? "new world made (spawn found, meta saved)" : "saved world opened")
         let near = game.world.loadSync(center: game.player.pos, radius: min(3, game.world.renderDistance))
         clock.mark(String(format: "near ring (radius 3: %d chunks; gen %.2f s, mesh %.2f s)", game.world.chunks.count, near.gen, near.mesh))
+        print("launch: rail plans in the near ring: \(Railways.railPlansMade) made, \(Railways.railPlansWaited) waited for another thread's")
+        print("launch: structure starts in the near ring: \(StructureCache.startsMade) made, \(StructureCache.startsWaited) waited for another thread's, \(StructureCache.startsTwice) made twice")
         HorizonRing.shared.request(game, eye: game.player.eye)
         FarRing.shared.request(game, eye: game.player.eye)
         clock.mark("horizon and middle rings")
@@ -182,6 +184,8 @@ enum QuestLaunch {
                      World.resultsWorstMs, World.resultsWorst, MeshArena.shared.slabCount, MeshArena.shared.slabMsWorst, MeshArena.shared.slabMsTotal))
         print("launch: stages " + clock.marks.map { String(format: "%@ %.2f", $0.0, $0.1) }.joined(separator: "; "))
         print(String(format: "launch: resident %.0f MB", QuestPerf.rssMB()))
+        print("launch: rail plans: \(Railways.railPlansMade) made, \(Railways.railPlansWaited) waited for another thread's")
+        print("launch: structure starts: \(StructureCache.startsMade) made, \(StructureCache.startsWaited) waited for another thread's, \(StructureCache.startsTwice) made twice")
         if SaveBytes.verify { print("launch: save bytes verify: \(SaveBytes.verified) files packed or unpacked both ways, \(SaveBytes.differ) differ") }
 
         if prepare != nil {
