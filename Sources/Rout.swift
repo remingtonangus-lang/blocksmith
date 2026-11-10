@@ -67,7 +67,7 @@ enum Rout {
             if Rout.oldVanish { return far > 72 }
             let to = m.eye - g.player.eye
             let l = simd_length(to)
-            return l > 0.01 && simd_dot(to / l, g.player.look) < 0.5
+            return l > 0.01 && simd_dot(to / l, g.viewLook) < 0.5
         }()
         if (far > 72 && (Rout.oldVanish || hidden)) || (far > 40 && (hidden || !g.world.canSee(m.eye, g.player.eye))) {
             if !m.fledClear { fled += 1 }

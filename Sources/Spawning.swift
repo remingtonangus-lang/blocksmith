@@ -203,7 +203,7 @@ extension MobManager {
         let to = head - eye
         let d = simd_length(to)
         if d < 0.01 { return true }
-        guard d < Float(game.world.renderDistance * CS + 24), simd_dot(to / d, game.player.look) > 0.45 else { return false }
+        guard d < Float(game.world.renderDistance * CS + 24), simd_dot(to / d, game.viewLook) > 0.45 else { return false }
         return game.world.canSee(eye, head) || game.world.canSee(eye, m.pos + V3(0, m.height * 0.4, 0))
     }
     // True when a mob may be taken out of the world without dying now (he can't see it, or BS_OLDDESPAWN). Every rule
@@ -726,7 +726,8 @@ extension Game {
             let d = simd_length(to)
             if d < min { return false }
             if d >= clear { continue }
-            let facing: Float = simd_dot(to / max(d, 0.01), pl.look)
+            // (the headset's own direction for him: player.look follows the hand's aim in VR)
+            let facing: Float = simd_dot(to / max(d, 0.01), pl === player && !Game.oldSpawnSight ? viewLook : pl.look)
             if d >= near && facing < 0.3 { continue }
             if world.canSee(eye, body) { return false }
         }

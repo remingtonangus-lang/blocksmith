@@ -3310,7 +3310,7 @@ if let out = arg("--questsim"), let ctx = vkctx {
     do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") }
     // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
-    game.vrHead = nil; game.vrHeadYaw = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
+    game.vrHead = nil; game.vrHeadYaw = nil; game.vrHeadPitch = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 
