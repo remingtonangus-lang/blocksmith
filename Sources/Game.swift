@@ -797,7 +797,10 @@ final class Game: LifeLinked {
         for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
             guard let c = w.chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.meshedOnce else { return false }
         } }
-        return w.ships.takenToRestore.isEmpty || ShipManager.oldTakenGrid      // (a taken capital he may stand on: built)
+        // (a taken capital he may stand on: built. Only one near him: one that never got built, or one far off, would
+        // otherwise hold every arrival to its 4 s limit)
+        let p = player.pos
+        return ShipManager.oldTakenGrid || !w.ships.takenToRestore.contains { $0.pos.count == 3 && simd_length(V3($0.pos[0], $0.pos[1], $0.pos[2]) - p) < 400 }
     }
     func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil, then: (() -> Void)? = nil) {
         var lt = CFAbsoluteTimeGetCurrent()
