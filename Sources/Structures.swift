@@ -251,7 +251,17 @@ final class StructureCache {
     private(set) static var evictions = 0
     // Bench gen: time spent computing structure starts, per kind (ms).
     static var startMs: [String: Double] = [:]
-    private let lock = NSLock()
+    private let lock = NSCondition()                 // (a condition: a caller waits for a start another thread is making)
+    // Item 11 (Nov 10, a saved world's launch under callgrind): the first ring's chunks, made four at a time, each asked
+    // for the same starts near spawn at once and every one of them made the start itself (the first stood). A caller
+    // now waits for a start another thread is making (up to 5 s, then makes it itself). Only a caller that is not itself
+    // making a start waits (a start's own checks look up other starts: those make theirs as before), so a waiter never
+    // holds a start another thread waits for. BS_OLDSTARTWAIT=1: every caller makes it, as before. startsMade /
+    // startsWaited / startsTwice count them (the launch harness prints them).
+    static let oldWait = ProcessInfo.processInfo.environment["BS_OLDSTARTWAIT"] == "1"
+    private(set) static var startsMade = 0, startsWaited = 0, startsTwice = 0
+    private var making = Set<StartKey>()
+    private static let depthKey = "bs.structureStartDepth"
     let seed: UInt64
     let types: [StructureType]
     let fixed: [StructureStart]           // starts at precomputed positions (strongholds)
@@ -420,9 +430,26 @@ final class StructureCache {
         let key = StartKey(name: t.name, rx: rx, rz: rz)          // no string built per lookup (several hundred per chunk)
         lock.lock()
         if let c = cache[key] { useClock += 1; used[key] = useClock; lock.unlock(); return c }
+        var mine = false
+        let td = StructureCache.oldWait ? nil : Thread.current.threadDictionary
+        let depth = (td?[StructureCache.depthKey] as? Int) ?? 0
+        if let td {
+            if making.contains(key) {
+                if depth == 0 {
+                    StructureCache.startsWaited += 1
+                    let until = Date(timeIntervalSinceNow: 5)
+                    while making.contains(key), cache.index(forKey: key) == nil, lock.wait(until: until) {}
+                    if let c = cache[key] { useClock += 1; used[key] = useClock; lock.unlock(); return c }
+                }
+            } else {
+                making.insert(key); mine = true
+            }
+            td[StructureCache.depthKey] = depth + 1
+        }
         lock.unlock()
         let t0: Double = CFAbsoluteTimeGetCurrent()
         defer {
+            if let td { td[StructureCache.depthKey] = depth }
             // (store review: a start planned on the frame thread is a hitch; the frame soak names each one)
             if StructureCache.onFrameThread {
                 let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
@@ -441,6 +468,9 @@ final class StructureCache {
         if let st = s, StructureCache.yields[t.name] != nil, clear(cx: cx, cz: cz, reach: t.reach, guardSet: legacyOverlap),
            givesWay(st, t, rx, rz) { s = nil }
         lock.lock()
+        if cache.index(forKey: key) != nil { StructureCache.startsTwice += 1 }
+        StructureCache.startsMade += 1
+        if mine { making.remove(key); lock.broadcast() }
         cache[key] = s
         useClock += 1; used[key] = useClock
         if cache.count > StructureCache.cap {
