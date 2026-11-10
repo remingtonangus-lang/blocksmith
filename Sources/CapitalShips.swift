@@ -1096,9 +1096,15 @@ extension Mob {
 extension ShipManager {
     // P464: the capital vessels he has taken (saved in takencaps.json, Ships.swift) come back where he left them, his,
     // unmanned and whole (their grids are too big to save: the hull is built afresh from its plans).
-    func restoreTaken() {
+    func restoreTaken(_ g: Game? = nil) {
         guard !takenStarted else { return }
         takenStarted = true
+        // (code reader Nov 10, batch 3.4: they are built on a worker, and a save made aboard one left him standing on
+        // nothing until she was there. He is held where he is (the arrival hold, ledger 40) until she is, 4 s at most.)
+        if let g, Game.arrivalHold, !ShipManager.oldTakenGrid, g.arrivalSince == nil,
+           takenToRestore.contains(where: { $0.pos.count == 3 && simd_length(V3($0.pos[0], $0.pos[1], $0.pos[2]) - g.player.pos) < 400 }) {
+            g.arrivalSince = g.clock; g.arrivalOpened = -1
+        }
         for c in takenToRestore where c.pos.count == 3 && c.rot.count == 4 {
             let p = V3(c.pos[0], c.pos[1], c.pos[2])
             spawnCapital(c.kind, home: IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))), yaw: 0, region: nil,
@@ -1524,7 +1530,7 @@ extension ShipManager {
         capitalLock.unlock()
         for b in ready { installCapital(b) }
         guard dt > 0 else { return }
-        restoreTaken()
+        restoreTaken(g)
         salvagedGunsTick(dt, g)
         for s in capitals {
             guard let st = capState[s.id] else { continue }

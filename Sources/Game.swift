@@ -797,7 +797,7 @@ final class Game: LifeLinked {
         for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
             guard let c = w.chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.meshedOnce else { return false }
         } }
-        return true
+        return w.ships.takenToRestore.isEmpty || ShipManager.oldTakenGrid      // (a taken capital he may stand on: built)
     }
     func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil, then: (() -> Void)? = nil) {
         var lt = CFAbsoluteTimeGetCurrent()
