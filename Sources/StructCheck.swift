@@ -252,6 +252,7 @@ enum StructCheck {
             lines.append("")
             lines.append("Every outside column: gap up to 0.3 / 0.3-0.6 / 0.6-1.0 / 1.0-1.5 / no ground within 1.5: " + h)
             print("structmeet: every outside column: gap up to 0.3 / 0.3-0.6 / 0.6-1.0 / 1.0-1.5 / no ground within 1.5: " + h)
+            print("structmeet: the gaps: \(meetUnder[0]) with ground in the cell under the block, \(meetUnder[1]) with none there")
         }
         let report = lines.joined(separator: "\n") + "\n"
         if let out = arg("--out") { try? report.write(toFile: out, atomically: true, encoding: .utf8) }
@@ -272,6 +273,7 @@ enum StructCheck {
     // it (World.floorGap: its corners, edge middles and middle). A gap over 0.3 blocks shows daylight under the wall.
     static let meet = CommandLine.arguments.contains("--meet")
     static var meetCols: [String: (cols: Int, gaps: Int, worst: Float)] = [:]
+    static var meetUnder = [0, 0]                              // gaps over ground in the cell under the block / over none
     static var meetHist = [Int](repeating: 0, count: 5)       // gap <= 0.3, 0.3-0.6, 0.6-1.0, 1.0-1.5, none within 1.5
     static func meetCheck(_ w: World, _ s: StructureStart, typeName: String, seed: UInt64) -> [Issue] {
         let kind = s.kind
@@ -302,7 +304,11 @@ enum StructCheck {
             // little proud of the smoothed slope.)
             let g = w.floorGap(x, yb, z)
             meetHist[g <= 0.3 ? 0 : g < 0.6 ? 1 : g < 1.0 ? 2 : g < 1.49 ? 3 : 4] += 1
-            if g > 0.3 && g < 1.49 { gaps.append((IVec3(x, yb, z), g)) }
+            if g > 0.3 && g < 1.49 {
+                gaps.append((IVec3(x, yb, z), g))
+                // (what is under it: ground in the cell below (the drawn ground curving away at its edge), or not)
+                meetUnder[w.fieldDensity(at: V3(Float(x) + 0.5, Float(yb) - 0.5, Float(z) + 0.5)) > 0 ? 0 : 1] += 1
+            }
         } }
         let worst = gaps.map { $0.1 }.max() ?? 0
         var m = meetCols[kind] ?? (0, 0, 0)

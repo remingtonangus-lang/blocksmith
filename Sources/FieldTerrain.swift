@@ -37,6 +37,7 @@ enum FieldMat {
 
 enum FieldTerrain {
     static let scale: Float = 32                         // density units per block
+    static let oldBaseBank = ProcessInfo.processInfo.environment["BS_OLDBASEBANK"] == "1"
     static let outside: Int8 = -127                      // far outside the ground (and above the stored part)
     static let inside: Int8 = 127                        // far inside
     static let cellIn: Int8 = 16                         // a cell's centre half a block inside (a filled cell)
@@ -168,6 +169,33 @@ enum FieldTerrain {
         }
         if StructureCache.traceKinds && kept > 0 {           // (harness: natural rock a structure built, kept as blocks)
             StructureCache.kindsLock.lock(); keptBuilt[ChunkKey(x: cx, z: cz)] = kept; StructureCache.kindsLock.unlock()
+        }
+        // Week item 60 ("built things sit on the ground", a trailer bug: houses floating off slopes): the ground under a
+        // block a structure built that stands on its floor reaches that floor (P508 below), but where the land beside it
+        // falls away (a house's downhill side) the drawn ground, smoothed between cell centres, curved down from the
+        // block's edge and a sliver of light showed under its bottom (structcheck --meet: 15,467 of 49,933 outside
+        // columns 0.3-0.6 blocks proud, 8 seeds). The open cells beside that ground cell, at its level, become ground
+        // too, down to the land if it is within 3 cells: a bank under the edge, below the floor (no step in a doorway).
+        // BS_OLDBASEBANK=1: as before.
+        if let built, !oldBaseBank {
+            var bank: [(Int, UInt8)] = []
+            for i in CSQ..<(n - CSQ) where fd[i] > 0 {
+                let a = i + CSQ
+                guard built[a] != 0, b[a] != AIR, World.restsOnFloor[Int(b[a])] else { continue }
+                let lx = i % CS, lz = (i / CS) % CS
+                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    let x = lx + dx, z = lz + dz
+                    guard x >= 0 && x < CS && z >= 0 && z < CS else { continue }
+                    let j = i + dx + dz * CS
+                    guard fd[j] <= 0, b[j] == AIR else { continue }
+                    var k = j, depth = 0
+                    while k >= CSQ && fd[k] <= 0 && b[k] == AIR && depth < 3 { k -= CSQ; depth += 1 }
+                    guard k >= 0, fd[k] > 0 else { continue }
+                    var c = j
+                    while c > k { bank.append((c, fm[i])); c -= CSQ }
+                }
+            }
+            for (c, m) in bank { fd[c] = inside; fm[c] = m }
         }
         let topY = min(CH - 1, top / CSQ + 1)
         let wg = gen as? WorldGen
