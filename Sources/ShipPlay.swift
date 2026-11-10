@@ -353,11 +353,9 @@ extension Game {
             // P461 (Oct 25 16:42, taking his landed dropship from the ground beside it: "shouldn't have been able to mount it
             // like this"): a dropship's helm is taken from inside its hull (up the ramp) or at the helm itself; the 9-block
             // reach and the 3 blocks round the hull let him in through its plating from the ground anywhere near it.
-            // P508: a frigate's own guns flown by him reload in under a second, as machine guns held on the trigger.
-        if s.role == "frigate" || s.role == "capfrigate" {
-            for t in ships.turrets(of: s) where !t.cannons.isEmpty { t.reloadTime = min(t.reloadTime, Capital.frigateHeldReload) }
-        }
-        if s.role == "dropship" {
+            // (code reader Nov 10, batch 3.11: a copy of startPiloting's reload clamp sat here, so every frigate he came
+            // near, hostile Meridians included, fired its guns at his helm's quick reload for good)
+            if s.role == "dropship" {
                 let inHull = ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.3 && p.y > s.worldMin.y + 0.4
                 if (inHull && d < 9 || d < 2) && d < bd { best = s; bd = d }
                 continue
@@ -416,7 +414,7 @@ extension Game {
         // much... I wanna do way more damage to buildings"): flown by him, a dropship's autocannon fires as long as the
         // trigger is held, quicker, with heavier high-explosive rounds that blow holes in walls.
         // P508: a frigate's own guns flown by him reload in under a second, as machine guns held on the trigger.
-        if s.role == "frigate" || s.role == "capfrigate" {
+        if s.role == "frigate" || s.role == "capfrigate" || s.role == "warfrigate" && !Capital.oldPlans {     // (batch 3.9: the Stormwarden too)
             for t in ships.turrets(of: s) where !t.cannons.isEmpty { t.reloadTime = min(t.reloadTime, Capital.frigateHeldReload) }
         }
         if s.role == "dropship" {

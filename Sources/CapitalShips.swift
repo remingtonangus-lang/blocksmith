@@ -1075,6 +1075,11 @@ extension Ship {
     var isFlyingCapital: Bool { role == "warfrigate" || role == "capfrigate" }
 }
 
+extension Capital {
+    static let oldCrawlerGround = ProcessInfo.processInfo.environment["BS_OLDCRAWLERGROUND"] == "1"
+    static let oldPlans = ProcessInfo.processInfo.environment["BS_OLDPLANS"] == "1"     // (harness: batch 3.9/3.10 as before)
+}
+
 extension Mob {
     var factionValue: Faction {
         // P507 (Nov 1 12:38:28-12:38:32, a Greywall truck bringing reinforcements "somehow blew up... like the soldier
@@ -1328,11 +1333,20 @@ extension ShipManager {
     // again once it is whole), then those nearest where the ingot was used, and smooths the chipped plating there.
     // The plans are drawn up from her builder off the frame the first time she is his (requestBlueprint).
     func requestBlueprint(_ s: Ship, _ st: CapitalState) {
-        guard !st.blueprintAsked, ["capfrigate", "frigate", "crawler"].contains(s.role ?? "") else { return }
+        // (code reader Nov 10, batch 3.9: the Stormwarden spawns as "warfrigate", which this list and the builder below
+        // didn't know, so a Stormwarden he took had no plans: no patching with ingots, no hull %, no helm back once shot
+        // away. Batch 3.10: the crawler's plans had her rear ramp lowered, which he had twice asked gone (P511), so a
+        // patch near the stern put it back; the plans now have it raised, as his crawler keeps it.)
+        let roles = Capital.oldPlans ? ["capfrigate", "frigate", "crawler"] : ["capfrigate", "warfrigate", "frigate", "crawler"]
+        guard !st.blueprintAsked, roles.contains(s.role ?? "") else { return }
         st.blueprintAsked = true
         let role = s.role ?? "", sx = s.grid.sx, sy = s.grid.sy, sz = s.grid.sz, id = s.id
         DispatchQueue.global(qos: .utility).async {
-            let hb = role == "capfrigate" ? Capital.capitalFrigate() : (role == "frigate" ? Capital.frigate() : Capital.crawler())
+            let hb = role == "capfrigate" ? Capital.capitalFrigate() : (role == "crawler" ? Capital.crawler() : Capital.frigate())
+            if role == "crawler" && !Capital.oldPlans {
+                for (c, _) in Capital.crawlerRamp(down: true) { hb.set(c.x, c.y, c.z, AIR) }
+                for (c, b) in Capital.crawlerRamp(down: false) { hb.set(c.x, c.y, c.z, b) }
+            }
             guard hb.sx == sx && hb.sy == sy && hb.sz == sz else { return }
             let solid = hb.blocks.reduce(0) { $0 + ($1 == AIR ? 0 : 1) }
             ShipManager.plansLock.lock()
@@ -2485,7 +2499,9 @@ extension ShipManager {
             var wy = Int(g) + 1, k = 0
             while k < 64 && wy < CH - 1 && Blocks.isLiquid(world.rawBlock(x, wy, z)) { wy += 1; k += 1 }
             guard k > 0 else { return g }
-            wet += 1
+            // (batch 3.8: only water deeper than her draft, where she swims, slows her; on her wheels in the shallows
+            // she keeps her pace)
+            if Capital.oldCrawlerGround || Float(k) > ShipManager.crawlerDraft { wet += 1 }
             return max(g, Float(wy) - ShipManager.crawlerDraft)
         }
         let half: Float = 28, track: Float = 13
@@ -2499,8 +2515,19 @@ extension ShipManager {
         // the stick still turns it, or backs it off.
         if wet >= 2 { speed *= 0.35; ShipManager.crawlerWaded += 1 }
         if turnRate > 0 || (piloted && speed > 0) {
-            let hA = ground(c2 + fh * (half + 14))
-            if (hA < Float(SEA) && !piloted) || hA - hF > 8 {
+            let ahead = c2 + fh * (half + 14)
+            let hA = ground(ahead)
+            // (code reader Nov 10, batch 3.8: the cliff test took one column under the bow against one 14 ahead, so a
+            // crater, a rail cutting or a gully under the bow alone stopped her dead with level ground ahead. A cliff is
+            // ground ahead 8 over where she stands, across the whole of her bow's width.)
+            let cliff: Bool
+            if Capital.oldCrawlerGround { cliff = hA - hF > 8 }
+            else {
+                let low = min(hA, ground(ahead + side * track * 0.6), ground(ahead - side * track * 0.6))
+                let base = max(hF, (st.ground?.x ?? (hF + hB + hL + hR) * 0.25 + 1) - 1)
+                cliff = low - base > 8
+            }
+            if (hA < Float(SEA) && !piloted) || cliff {
                 if piloted { speed = min(speed, 0) }
                 else { want = V2(-fh.y, fh.x) * st.orbitDir; speed = min(speed, 1.5) }
             }

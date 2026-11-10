@@ -20,7 +20,11 @@ final class QuestRig {
         let before = chase
         chase += (target - chase) * min(1, dt * 2.5)
         if simd_length(target - chase) < 0.01 { chase = target }
-        chaseSpeed = simd_length(chase - before) / max(dt, 1e-3)
+        // (code reader Nov 10, batch 3.7: with the chase view ~77 blocks behind a crawler's helm every slow turn or rock of
+        // the hull swung it round at 10-15 blocks a second, which read as the view easing out and closed the vignette to
+        // half the view. Only the view easing out or back in counts now; the hull's turning has its own term.)
+        chaseSpeed = QuestRig.oldChaseVignette ? simd_length(chase - before) / max(dt, 1e-3)
+            : abs(simd_length(chase) - simd_length(before)) / max(dt, 1e-3)
     }
     private(set) var lastCam: EyeCamera?        // the last frame's eye cameras (the scope's crosshair projects with them)
     var needsRecenter = true
@@ -38,6 +42,7 @@ final class QuestRig {
     private var moveYawSet = false
     private(set) var headPitch: Float = 0
     static let eyeHeight: Float = 1.62
+    static let oldChaseVignette = ProcessInfo.processInfo.environment["BS_OLDCHASEVIG"] == "1"
     // Reclined play: the tracking space is also tilted so the gaze at the last recentre becomes the level, forward
     // direction (world, horizon, HUD and panels all follow). Identity when standing or seated upright.
     private(set) var tilt = simd_quatf()

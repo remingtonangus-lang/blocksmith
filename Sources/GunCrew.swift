@@ -23,25 +23,32 @@ extension ShipManager {
     }
 
     // The nearest enemy of the player's crews: a hull, or a soldier.
-    func crewFoe(near p: V3, game g: Game) -> V3? {
-        var best: V3?, bd = ShipManager.crewRange
+    // (code reader Nov 10, batch 3.5: on a capital hull the reach was taken from her middle, 110 blocks, so with a
+    // Stormwarden 480 long the guns at her bow saw nothing past her own length while enemy frigates circle at 120 and
+    // fire from 250-300. From a capital hull it is measured from her sides, and an enemy hull is engaged out to 300.)
+    static let crewHullRange: Float = 300
+    static let oldCrewReach = ProcessInfo.processInfo.environment["BS_OLDCREWREACH"] == "1"
+    func crewFoe(near p: V3, game g: Game, hull: Ship? = nil) -> V3? {
+        let pad: Float = hull.map { $0.kinematic && !ShipManager.oldCrewReach ? simd_length($0.worldMax - $0.worldMin) * 0.5 : 0 } ?? 0
+        let hullRange = pad > 0 ? ShipManager.crewHullRange : ShipManager.crewRange
+        var best: V3?, bd = Float.greatestFiniteMagnitude
         for o in list where o.parent == nil && !o.wrecked && ShipManager.hostile(o.factionValue) && !isYours(o) {
-            let d = boundsDistance(o, p)
-            if d < bd {
+            let d = boundsDistance(o, p) - pad
+            if d < hullRange && d < bd {
                 bd = d
                 let c = simd_clamp(p, o.worldMin, o.worldMax)
                 best = c + (o.pos - c) * 0.35
             }
         }
         for m in g.mobs.mobs where m.health > 0 && !m.hired && Soldier.rank(m.kind) != nil && ShipManager.hostile(m.factionValue) {
-            let d = simd_length(m.pos - p)
-            if d < bd { bd = d; best = m.pos + V3(0, m.height * 0.5, 0) }
+            let d = simd_length(m.pos - p) - pad
+            if d < ShipManager.crewRange && d < bd { bd = d; best = m.pos + V3(0, m.height * 0.5, 0) }
         }
         // P478: and anything else out for him (monsters, brigands, raiders) within a gunner's sight, never one so near
         // him that the shell would burst on him.
         for m in g.mobs.mobs where m.health > 0 && !m.hired && m.kind.hostile && Soldier.rank(m.kind) == nil && m.aggro
             && simd_length(m.pos - g.player.pos) > 7 {
-            let d = simd_length(m.pos - p)
+            let d = simd_length(m.pos - p) - pad
             if d < min(bd, VehicleGunners.sight) { bd = d; best = m.pos + V3(0, m.height * 0.5, 0) }
         }
         return best
@@ -67,7 +74,7 @@ extension ShipManager {
             let crew = driven ? gunners.count : max(gunners.count, hands.filter { aboard($0, s) }.count)
             guard crew > 0 else { continue }
             guard !tur.isEmpty || !s.cannons.isEmpty else { continue }
-            guard let aim = crewFoe(near: s.pos, game: g) else {
+            guard let aim = crewFoe(near: s.pos, game: g, hull: s) else {
                 for t in (driven ? gunners : tur) { t.aimAt = nil }
                 continue
             }

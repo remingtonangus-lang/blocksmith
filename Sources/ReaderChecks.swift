@@ -8,6 +8,54 @@ enum ReaderChecks {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         helm(g, check)
         tnt(g, check)
+        taken(g, check)
+    }
+
+    // Batch 3.4: a crawler he took, a hole knocked in her and a diamond left in one of her chests, saved and built again
+    // the way a reload builds her (Capital.restoreTaken): the hole and the diamond are still there, and the chest
+    // isn't refilled.
+    static func taken(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world, ships = w.ships
+        let at = IVec3(Int(floor(g.player.pos.x)) + 600, 0, Int(floor(g.player.pos.z)))
+        _ = w.loadSync(center: V3(Float(at.x), 100, Float(at.z)), radius: 2)
+        let before = Set(ships.capitals.map { $0.id })
+        ships.spawnCapital("crawler", home: IVec3(at.x, w.topY(at.x, at.z) + 1, at.z), yaw: 0, region: nil, sync: true)
+        guard let s = ships.capitals.first(where: { !before.contains($0.id) }) else { check(false, "reader taken: a crawler was built"); return }
+        s.captured = true
+        // the hole: the first solid cell on the grid's middle column from the top
+        let gr = s.grid
+        var hole: IVec3?
+        for y in stride(from: gr.sy - 1, through: 0, by: -1) where gr.get(gr.sx / 2, y, gr.sz / 2) != AIR { hole = IVec3(gr.sx / 2, y, gr.sz / 2); break }
+        if let h = hole { gr.set(h.x, h.y, h.z, AIR) }
+        let chest = s.blockEntities.keys.sorted { ($0.y, $0.z, $0.x) < ($1.y, $1.z, $1.x) }.first
+        let diamond = Items.id("diamond")
+        if let c = chest, let be = s.blockEntities[c] {
+            for i in 0..<be.container.count { be.container.slots[i] = .empty }
+            be.container.slots[0] = ItemStack(diamond, 1)
+        }
+        ships.save(background: false)
+        guard let dir = w.save?.dir, let d = try? Data(contentsOf: dir.appendingPathComponent("takencaps.json")),
+              let caps = try? JSONDecoder().decode([ShipManager.TakenCap].self, from: d),
+              let c = caps.first(where: { $0.name == s.name && $0.kind == "crawler" }) else {
+            check(false, "reader taken: the taken crawler is in the save"); return
+        }
+        ships.remove(s)
+        let before2 = Set(ships.capitals.map { $0.id })
+        let p = V3(c.pos[0], c.pos[1], c.pos[2])
+        ships.spawnCapital(c.kind, home: IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))), yaw: 0, region: nil, sync: true,
+                           faction: Faction(rawValue: c.faction), taken: (p, Quat(vector: V4(c.rot[0], c.rot[1], c.rot[2], c.rot[3])), c.name),
+                           takenSave: c)
+        guard let r = ships.capitals.first(where: { !before2.contains($0.id) }) else { check(false, "reader taken: she was built again"); return }
+        let holeKept = hole.map { r.grid.get($0.x, $0.y, $0.z) == AIR } ?? false
+        var chestItems: [String] = []
+        if let c = chest, let be = r.blockEntities[c] {
+            for st in be.container.slots where !st.isEmpty { chestItems.append("\(Items.key(st.item)) x\(st.count)") }
+        }
+        let kept = chestItems == ["diamond x1"]
+        print("reader: taken crawler after a reload (\(ShipManager.oldTakenGrid ? "BS_OLDTAKENGRID" : "new")): hole \(holeKept ? "still there" : "filled in"), chest \(chestItems.isEmpty ? "empty" : chestItems.joined(separator: ", "))")
+        check(ShipManager.oldTakenGrid || holeKept && kept,
+              "reader taken: a taken crawler keeps the hole knocked in her (\(holeKept)) and what he left in her chest (\(chestItems))")
+        ships.remove(r)
     }
 
     // 3: a helm set on a building over the move limit: how long "Too big to move" takes on the frame.
