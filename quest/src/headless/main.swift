@@ -3316,6 +3316,7 @@ if let out = arg("--questsim"), let ctx = vkctx {
     // a sword in hand the trigger never hits a creature, so the balance duels killed nothing in 60 s. Put back below.)
     let vrSet0 = (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
                   game.vrTwoHanded, game.screen)
+    let vrStatic0 = (GunActions.manual, VRReload.reclined)      // (swing play's hand-worked bolts: the deep balance duels fired once)
     do { try QuestSim.run(game: game, ctx: ctx, out: out, check: check) } catch { check(false, "questsim: \(error)") }
     // Monkey input through the VR layer (QuestFuzz): BLOCKSMITH_FUZZ_SECONDS / --fuzz-seed to run longer or another seed.
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
@@ -3326,6 +3327,7 @@ if let out = arg("--questsim"), let ctx = vkctx {
     game.vrHead = nil; game.vrHeadYaw = nil; game.vrHeadPitch = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
     (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
      game.vrTwoHanded, game.screen) = vrSet0
+    (GunActions.manual, VRReload.reclined) = vrStatic0
     game.vrBow = nil; game.vrBlade = nil; game.vrPinch = nil; game.swingPower = 0; game.swingMob = nil
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
