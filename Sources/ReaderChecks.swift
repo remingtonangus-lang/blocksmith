@@ -33,6 +33,9 @@ enum ReaderChecks {
             for i in 0..<be.container.count { be.container.slots[i] = .empty }
             be.container.slots[0] = ItemStack(diamond, 1)
         }
+        // one of her turrets shot away
+        let tur0 = ships.turrets(of: s)
+        if let t = tur0.first { ships.remove(t) }
         ships.save(background: false)
         guard let dir = w.save?.dir, let d = try? Data(contentsOf: dir.appendingPathComponent("takencaps.json")),
               let caps = try? JSONDecoder().decode([ShipManager.TakenCap].self, from: d),
@@ -51,10 +54,11 @@ enum ReaderChecks {
         if let c = chest, let be = r.blockEntities[c] {
             for st in be.container.slots where !st.isEmpty { chestItems.append("\(Items.key(st.item)) x\(st.count)") }
         }
-        let kept = chestItems == ["diamond x1"]
-        print("reader: taken crawler after a reload (\(ShipManager.oldTakenGrid ? "BS_OLDTAKENGRID" : "new")): hole \(holeKept ? "still there" : "filled in"), chest \(chestItems.isEmpty ? "empty" : chestItems.joined(separator: ", "))")
+        let turKept = ships.turrets(of: r).count
+        let kept = chestItems == ["diamond x1"] && turKept == tur0.count - 1
+        print("reader: taken crawler after a reload (\(ShipManager.oldTakenGrid ? "BS_OLDTAKENGRID" : "new")): hole \(holeKept ? "still there" : "filled in"), \(turKept) of \(tur0.count) turrets (one shot away), chest \(chestItems.isEmpty ? "empty" : chestItems.joined(separator: ", "))")
         check(ShipManager.oldTakenGrid || holeKept && kept,
-              "reader taken: a taken crawler keeps the hole knocked in her (\(holeKept)) and what he left in her chest (\(chestItems))")
+              "reader taken: a taken crawler keeps the hole knocked in her (\(holeKept)), what he left in her chest (\(chestItems)) and her turrets as left (\(turKept) of \(tur0.count), one shot away)")
         ships.remove(r)
     }
 

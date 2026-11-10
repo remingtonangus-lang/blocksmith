@@ -801,7 +801,9 @@ final class ShipManager: LifeLinked {
         // Her hull's cells (palette + lzfse, as ships.json) and her chests are kept now; older saves have neither.)
         var size: [Int]? = nil; var palette: [String]? = nil; var cells: Data? = nil; var entities: [String: BlockEntity]? = nil
         var initial: Int? = nil
+        var turrets: [TakenTurret]? = nil            // (her turrets as left: one shot away stays away)
     }
+    struct TakenTurret: Codable { var mount: [Float]; var size: [Int]; var palette: [String]; var cells: Data }
     static let oldTakenGrid = ProcessInfo.processInfo.environment["BS_OLDTAKENGRID"] == "1"
     // A grid as palette names + lzfse(u16 palette index per cell), and back (nil: sizes or data don't match).
     static func packGrid(_ blocks: [BlockID]) -> ([String], Data) {
@@ -1245,25 +1247,32 @@ final class ShipManager: LifeLinked {
         })
         // P464: the capital vessels he has taken are kept as their plans, pose and name (Capital.restoreTaken).
         // (the grids are copies here, copy on write: packed on the save queue below)
-        let takenNow = capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> (TakenCap, [BlockID]?) in
+        let takenNow = capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> (TakenCap, [BlockID]?, [(V3, [Int], [BlockID])]) in
             let q = s.rot.vector
             var c = TakenCap(kind: s.role ?? "", faction: s.faction, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w])
-            if ShipManager.oldTakenGrid { return (c, nil) }
+            if ShipManager.oldTakenGrid { return (c, nil, []) }
             c.size = [s.grid.sx, s.grid.sy, s.grid.sz]
             var ents: [String: BlockEntity] = [:]
             for (k, v) in s.blockEntities { ents["\(k.x),\(k.y),\(k.z)"] = v.snapshot() }
             c.entities = ents
             c.initial = s.initialBlocks
-            return (c, s.grid.blocks)
+            let tur = turrets(of: s).map { t in (t.mountLocal, [t.grid.sx, t.grid.sy, t.grid.sz], t.grid.blocks) }
+            return (c, s.grid.blocks, tur)
         }
         let restoring = takenToRestore
         // (Nov 10: these three were written on the frame by the autosave too; on the save queue now, SaveIO.oldSync)
         let dir = world.save?.dir
         let regions = Array(spawnedRegions.subtracting(afloat)).sorted(), parties = navyParties
         let small = {
-            let taken = takenNow.map { (c0, blocks) -> TakenCap in
+            let taken = takenNow.map { (c0, blocks, tur) -> TakenCap in
                 var c = c0
-                if let b = blocks { (c.palette, c.cells) = ShipManager.packGrid(b) }
+                if let b = blocks {
+                    (c.palette, c.cells) = ShipManager.packGrid(b)
+                    c.turrets = tur.map { (m, size, tb) in
+                        let (pal, cells) = ShipManager.packGrid(tb)
+                        return TakenTurret(mount: [m.x, m.y, m.z], size: size, palette: pal, cells: cells)
+                    }
+                }
                 return c
             } + restoring
             if let r = dir?.appendingPathComponent("takencaps.json") {

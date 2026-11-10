@@ -1128,9 +1128,10 @@ extension ShipManager {
             let hb = cap ? Capital.capitalFrigate() : (frigate ? Capital.frigate() : Capital.crawler())
             let own: Faction = (faction ?? (cap ? .meridian : (frigate ? .stormwarden : .greywall))).side
             let name = cap ? "Meridian Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
-            let ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
+            var ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
-            // (batch 3.4) a taken one comes back as he left her: her hull's cells and her chests from the save.
+            // (batch 3.4) a taken one comes back as he left her: her hull's cells and her chests from the save, and her
+            // turrets as they were (matched by their mounts; one shot away stays away).
             let asBuilt = s.blockCount
             if let ts = takenSave, let size = ts.size, let pal = ts.palette, let cells = ts.cells,
                let blocks = ShipManager.unpackGrid(size, pal, cells) {
@@ -1142,6 +1143,19 @@ extension ShipManager {
                         let p = k.split(separator: ",").compactMap { Int($0) }
                         if p.count == 3 { s.blockEntities[IVec3(p[0], p[1], p[2])] = v }
                     }
+                }
+                if let saved = ts.turrets {
+                    var keep = [s]
+                    for t in ships.dropFirst() {
+                        guard let sv = saved.first(where: { $0.mount.count == 3 && simd_length(V3($0.mount[0], $0.mount[1], $0.mount[2]) - t.mountLocal) < 0.01 }) else { continue }
+                        if sv.size.count == 3, let tb = ShipManager.unpackGrid(sv.size, sv.palette, sv.cells),
+                           sv.size == [t.grid.sx, t.grid.sy, t.grid.sz] {
+                            t.grid = ShipGrid(sx: sv.size[0], sy: sv.size[1], sz: sv.size[2], blocks: tb)
+                            t.rebuild()
+                        }
+                        keep.append(t)
+                    }
+                    ships = keep
                 }
             }
             let st = CapitalState()
