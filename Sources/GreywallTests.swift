@@ -18,6 +18,7 @@ enum GreywallTests {
         defer { game.player.flying = fly0; game.menu = menu0 }       // (the turret check flies; the war table opens a report)
         faction(game, check)
         alarm(game, check)
+        alarmHeir(check)
         capture(game, check)
         turret(game, check)
         let seeds: [UInt64] = (arg("--greywall-seeds") ?? "12345,777,424242").split(separator: ",").compactMap { UInt64($0) }
@@ -262,6 +263,25 @@ enum GreywallTests {
         let front = m.pos.z > Float(cz + t.half) && steps < 600
         check(held == 0 && back > 0 && toward && front,
               String(format: "greywall leash: a step out past the wall is held (%.2f), a soldier outside walks round to the gate side (%.2f, south %@) and is back at the front after %d steps (%@)", held, back, toward ? "yes" : "no", steps, front ? "yes" : "no"))
+    }
+
+    // An alarm's plan outlives the men in it (15 s): a soldier made at a dead holder's address isn't taken for him.
+    static func alarmHeir(_ check: (Bool, String) -> Void) {
+        var holder: Mob? = Mob(.soldierTrooper, at: .zero)
+        let id = ObjectIdentifier(holder!)
+        let plan = AlarmWaves.Plan(0)
+        plan.set(holder!, 0)
+        holder = nil
+        var keep: [Mob] = [], heir: Mob?
+        for _ in 0..<400 {
+            let m = Mob(.soldierTrooper, at: .zero)
+            if ObjectIdentifier(m) == id { heir = m; break }
+            keep.append(m)
+        }
+        guard let heir else { print("greywall alarm: no soldier got a dead holder's address in 400 (not checked)"); return }
+        let o = AlarmWaves.order(heir, plan, now: 0)
+        print("greywall alarm: a soldier made at a dead holder's address (after \(keep.count) others) is told to \(o) (\(AlarmWaves.oldKeys ? "BS_OLDALARMKEYS" : "new"))")
+        check(AlarmWaves.oldKeys || o == .go, "greywall alarm: a soldier who came after the alarm goes, though a dead holder had his address (\(o))")
     }
 
     // A1c: a cleared base held at its command console for 10 s is the player's: the alarm silent for good, the deck
