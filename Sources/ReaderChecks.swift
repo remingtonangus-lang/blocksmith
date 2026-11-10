@@ -87,7 +87,11 @@ enum ReaderChecks {
                 let t0 = CFAbsoluteTimeGetCurrent()
                 let (s, msg) = w.ships.assemble(at: h, game: nil)
                 worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
-                if let s { said = "it moved, \(s.blockCount) blocks"; w.ships.remove(s) } else { said = msg }
+                if let s {
+                    var n = 0
+                    for b in s.grid.blocks where b != AIR { n += 1 }
+                    said = "it moved, \(n) blocks"; w.ships.remove(s)
+                } else { said = msg }
             }
             w.setBlock(h.x, h.y, h.z, AIR)
             return (worst, said)
