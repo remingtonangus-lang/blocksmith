@@ -253,7 +253,8 @@ final class StructureCache {
     static var startMs: [String: Double] = [:]
     private let lock = NSCondition()                 // (a condition: a caller waits for a start another thread is making)
     // Item 11 (Nov 10, a saved world's launch under callgrind): the first ring's chunks, made four at a time, each asked
-    // for the same starts near spawn at once and every one of them made the start itself (the first stood). A caller
+    // for the same starts near spawn at once and every one of them made the start itself (the first stood; 2,138-2,343 of
+    // 8,400-8,600 made twice, 17-31 with the wait). A caller
     // now waits for a start another thread is making (up to 5 s, then makes it itself). Only a caller that is not itself
     // making a start waits (a start's own checks look up other starts: those make theirs as before), so a waiter never
     // holds a start another thread waits for. BS_OLDSTARTWAIT=1: every caller makes it, as before. startsMade /
