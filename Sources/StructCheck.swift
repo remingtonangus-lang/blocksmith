@@ -246,8 +246,12 @@ enum StructCheck {
             lines.append("|---|---|---|---|")
             for (k, v) in meetCols.sorted(by: { $0.key < $1.key }) {
                 lines.append(String(format: "| %@ | %ld | %ld | %.2f |", k, v.cols, v.gaps, v.worst))
-                print(String(format: "structmeet: %@ %ld columns, %ld over a gap, worst %.2f", k, v.cols, v.gaps, v.worst))
+                print(String(format: "structmeet: %@ %ld columns, %ld over a gap of 0.3-1.5, worst %.2f", k, v.cols, v.gaps, v.worst))
             }
+            let h = meetHist.map(String.init).joined(separator: " / ")
+            lines.append("")
+            lines.append("Every outside column: gap up to 0.3 / 0.3-0.6 / 0.6-1.0 / 1.0-1.5 / no ground within 1.5: " + h)
+            print("structmeet: every outside column: gap up to 0.3 / 0.3-0.6 / 0.6-1.0 / 1.0-1.5 / no ground within 1.5: " + h)
         }
         let report = lines.joined(separator: "\n") + "\n"
         if let out = arg("--out") { try? report.write(toFile: out, atomically: true, encoding: .utf8) }
@@ -268,6 +272,7 @@ enum StructCheck {
     // it (World.floorGap: its corners, edge middles and middle). A gap over 0.3 blocks shows daylight under the wall.
     static let meet = CommandLine.arguments.contains("--meet")
     static var meetCols: [String: (cols: Int, gaps: Int, worst: Float)] = [:]
+    static var meetHist = [Int](repeating: 0, count: 5)       // gap <= 0.3, 0.3-0.6, 0.6-1.0, 1.0-1.5, none within 1.5
     static func meetCheck(_ w: World, _ s: StructureStart, typeName: String, seed: UInt64) -> [Issue] {
         let kind = s.kind
         if noWalk.contains(typeName) || fromInside.contains(typeName) || ["sky_isle", "end_centre", "ruined_portal"].contains(typeName) { return [] }
@@ -292,8 +297,12 @@ enum StructCheck {
             }
             guard open else { continue }
             cols += 1
+            // (1.5: no ground within a block and a half under it: eaves, a balcony, a bridge deck: held by what it's
+            // built on, and a base hanging that far is the block-world check's `floating`. The bug is a base standing a
+            // little proud of the smoothed slope.)
             let g = w.floorGap(x, yb, z)
-            if g > 0.3 { gaps.append((IVec3(x, yb, z), g)) }
+            meetHist[g <= 0.3 ? 0 : g < 0.6 ? 1 : g < 1.0 ? 2 : g < 1.49 ? 3 : 4] += 1
+            if g > 0.3 && g < 1.49 { gaps.append((IVec3(x, yb, z), g)) }
         } }
         let worst = gaps.map { $0.1 }.max() ?? 0
         var m = meetCols[kind] ?? (0, 0, 0)
