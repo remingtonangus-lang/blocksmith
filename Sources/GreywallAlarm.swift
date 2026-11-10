@@ -29,7 +29,7 @@ final class GreywallAlarmState {
         var silencedUntil: Double = 0               // P503: a panel switched the alarm off (no fresh alarm until then)
     }
     // A truck bringing a squad (in memory: a reload finds the road empty).
-    struct Truck { let mob: Mob; let stop: V3; let out: V3; let squad: Int; let leash: String; let src: V3; var hunters: Faction? = nil; var t: Float = 0; var unloaded = false }
+    struct Truck { let mob: Mob; let stop: V3; var out: V3; let squad: Int; let leash: String; let src: V3; var hunters: Faction? = nil; var t: Float = 0; var unloaded = false }
     var trucks: [Truck] = []
     var taken: Set<String> = []                     // bases the player has taken (saved: Effects.swift "greywallTaken")
     // P203 (Oct 13 18:38-18:47, "guards respawn faster than I can kill them and the trucks never stop"): squads a base
@@ -424,10 +424,18 @@ extension Game {
                 greywallSquadOnFoot(t.squad % 2 == 0 ? "soldier_ironclad" : "soldier_marksman", leash: t.leash, src: t.src,
                                     at: { k in V3(at.x + Float(k - 1) * 1.3, at.y, at.z + 3.2) })
                 sfx(.gun(12), 0.6, at: at)
-            } else if t.unloaded && t.t > 2.5 && d < 2 {
+            } else if t.unloaded && t.t > 2.5 && d < 2 && MobManager.canVanish(m, self) {        // (item 27: once he can't see it)
                 m.health = -2000; mobs.mobs.removeAll { $0 === m }   // out of sight down the road
                 st.trucks.remove(at: i); continue
             } else if !t.unloaded || t.t > 2.5 {
+                // Item 27: at the road's end in plain sight it drives on the way it was going (it went there and then).
+                if t.unloaded && d < 2 {
+                    let away = V2(t.out.x - t.stop.x, t.out.z - t.stop.z)
+                    let la = simd_length(away)
+                    let dir2 = la > 0.5 ? away / la : V2(-sinf(m.yaw), -cosf(m.yaw))
+                    t.out += V3(dir2.x, 0, dir2.y) * 40
+                    st.trucks[i] = t; continue
+                }
                 let step = min(d, 7 * dt)
                 let dir = to / max(d, 0.001)
                 let nx = m.pos.x + dir.x * step, nz = m.pos.z + dir.y * step

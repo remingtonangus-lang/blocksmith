@@ -356,7 +356,7 @@ extension Game {
         // Once a second: squads and patrols left far behind (over 160 blocks) stand down and go.
         if Int(clock) != Int(clock - Double(dt)) {
             let p = player.pos
-            mobs.mobs.removeAll { $0.brain?.extra == true && simd_length_squared($0.pos - p) > 160 * 160 }
+            mobs.mobs.removeAll { $0.brain?.extra == true && simd_length_squared($0.pos - p) > 160 * 160 && MobManager.canVanish($0, self) }
             ashClearedTick()
         }
         // Reinforcements, patrols, the radio rooms.

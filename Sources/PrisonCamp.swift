@@ -82,7 +82,7 @@ enum Prisoners {
         // Free: out of sight, they are gone.
         let p = g.player.pos
         g.mobs.mobs.removeAll { m in
-            guard m.posse == posse, simd_length(m.pos - p) > 56, !inside(m.pos, -2) || g.clock - freedAt > 300 else { return false }
+            guard m.posse == posse, simd_length(m.pos - p) > 56, !inside(m.pos, -2) || g.clock - freedAt > 300, MobManager.canVanish(m, g) else { return false }
             routes[ObjectIdentifier(m)] = nil
             freed += 1
             return true

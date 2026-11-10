@@ -188,16 +188,49 @@ extension MobManager {
     }
 
     // Despawn rules for one mob (true = remove). `d` is the distance to the nearest player (3D).
+    // Which rule the last despawn was (TroopVanish, item 27).
+    static var despawnRule = ""
+    // Week plan item 27 (troops vanishing at some distances): a mob is drawn out to the view (WorldRenderer.mobMaxDist,
+    // 152-408 blocks), but the reference's despawns took it at 128 blocks, or at random past 32, in front of him: a soldier
+    // walking off across open ground went out like a light. Every despawn now waits until he can't see the mob (out of a
+    // 63 degree cone round his look, past the view, or nothing of it in line of sight from his eye); it goes the moment he
+    // looks away. BS_OLDDESPAWN=1 takes it in plain sight as before.
+    static let oldDespawn = ProcessInfo.processInfo.environment["BS_OLDDESPAWN"] == "1"
+    static var heldInSight = 0             // despawns put off because he could see it (the soak prints them)
+    static func inPlainSight(_ m: Mob, _ game: Game) -> Bool {
+        let eye = game.player.eye
+        let head = m.pos + V3(0, m.height * 0.9, 0)
+        let to = head - eye
+        let d = simd_length(to)
+        if d < 0.01 { return true }
+        guard d < Float(game.world.renderDistance * CS + 24), simd_dot(to / d, game.viewLook) > 0.45 else { return false }
+        return game.world.canSee(eye, head) || game.world.canSee(eye, m.pos + V3(0, m.height * 0.4, 0))
+    }
+    // True when a mob may be taken out of the world without dying now (he can't see it, or BS_OLDDESPAWN). Every rule
+    // that takes people away by distance asks it (strangers, riders, bounty hunters, freed prisoners, a battle left
+    // behind, the vault's squads, a radio truck at the end of its road).
+    static func canVanish(_ m: Mob, _ game: Game) -> Bool {
+        if oldDespawn || !inPlainSight(m, game) { return true }
+        heldInSight += 1
+        return false
+    }
     func shouldDespawn(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
         let c = m.kind.category
-        if m.routed && m.fledClear { return true }       // P511: a broken garrison's soldier, clear of him (Rout)
+        if m.routed && m.fledClear { MobManager.despawnRule = "rout"; return true }       // P511: a broken garrison's soldier, clear of him (Rout)
         guard c.despawns, !m.persistent, !m.waveUnit, m.customName == nil, !m.leashed, !m.raider, m.mount == nil, game.riding !== m else { return false }
-        if d > c.farDistance { return true }
+        if d > c.farDistance {
+            MobManager.despawnRule = "despawn past 128"
+            if m.despawnLook > 0 { m.despawnLook -= dt; return false }        // (looked at a moment ago: asked again in 0.5 s)
+            if MobManager.canVanish(m, game) { return true }
+            m.despawnLook = 0.5
+            return false
+        }
         if m.patrolling { return false }                  // patrols only vanish beyond 128 blocks (reference)
-        if c == .monster && dawnClears(m, d, dt, game) { return true }
+        if c == .monster && dawnClears(m, d, dt, game) { MobManager.despawnRule = "dawn"; return true }
         if d > 32 {
             m.farTime += dt
-            return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800
+            MobManager.despawnRule = "despawn at random past 32"
+            return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800 && MobManager.canVanish(m, game)
         }
         m.farTime = 0
         return false
@@ -206,14 +239,18 @@ extension MobManager {
     // Day clears the surface (Oct 11 playtest P27, 07:15 in the morning: "there shouldn't be enemies this time of
     // day"): the night's monsters that don't burn (spiders, creepers, ...) lingered all day under the reference rules; the undead burn.
     // In daylight, a monster under open sky that isn't fighting the player slips away, never in plain sight: about one
-    // in eight a second while it's out of view or 24+ blocks off. Caves, night, rain and a fight keep it.
+    // in eight a second while he can't see it (item 27: inPlainSight). Caves, night, rain and a fight keep it.
     func dawnClears(_ m: Mob, _ d: Float, _ dt: Float, _ game: Game) -> Bool {
         guard game.dim.dim.hasSky, game.daylight > 0.6, !m.aggro, !m.spec.burnsInSun, m.kind.spec.behavior != .neutral, !game.isRainingAt(m.pos) else { return false }
         let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
         guard game.world.isLoaded(x, z), Float(game.world.topY(x, z)) < m.pos.y + 0.5 else { return false }
-        let to = m.pos + V3(0, m.height * 0.5, 0) - game.player.eye
-        let seen = d < 24 && simd_dot(simd_normalize(to), game.player.look) > 0.45
-        return !seen && Rand.float(in: 0..<1) < dt / 8
+        if MobManager.oldDespawn {
+            let to = m.pos + V3(0, m.height * 0.5, 0) - game.player.eye
+            let seen = d < 24 && simd_dot(simd_normalize(to), game.player.look) > 0.45
+            return !seen && Rand.float(in: 0..<1) < dt / 8
+        }
+        // (item 27: "never in plain sight" read 24 blocks: a creeper 30 blocks off in front of him went out at dawn)
+        return Rand.float(in: 0..<1) < dt / 8 && MobManager.canVanish(m, game)
     }
 
     // MARK: Animals
@@ -225,6 +262,15 @@ extension MobManager {
         guard w.dim == .overworld else { return }
         let nest = Blocks.has("bee_nest") ? Blocks.id("bee_nest") : AIR
         var budget = 12                                  // chunks per pass (keeps first loads from hitching)
+        // Item 71: a chunk first loaded inside his view (moving fast, the loading behind) put its pack down in front of
+        // him; that pack waits for the spot to be out of sight (BS_OLDSPAWNSIGHT=1: at once).
+        func hiddenSpot(_ x: Int, _ z: Int) -> Bool {
+            Game.oldSpawnSight || game.spawnHidden(V3(Float(x) + 0.5, Float(w.topY(x, z) + 1), Float(z) + 0.5), min: 0, near: 0)
+        }
+        for (k, p) in packsLater {
+            guard w.chunks[k] != nil else { packsLater[k] = nil; continue }
+            if hiddenSpot(p.x, p.z) { packsLater[k] = nil; spawnAnimalPack(w, p.kind, p.x, p.z, p.n, chunk: k) }
+        }
         for (k, c) in w.chunks where !populated.contains(k) {
             if budget <= 0 { populateTimer = 0.1; break }
             budget -= 1
@@ -246,7 +292,9 @@ extension MobManager {
             guard rng.float() < 0.035 * MobManager.surfaceSpawnScale else { continue }
             let x = c.cx * CS + rng.int(16), z = c.cz * CS + rng.int(16)
             guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { continue }
-            spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: k)
+            let n = Rand.int(in: lo...hi)
+            if !hiddenSpot(x, z) { packsLater[k] = (kind, x, z, n); continue }
+            spawnAnimalPack(w, kind, x, z, n, chunk: k)
         }
     }
 
@@ -327,6 +375,8 @@ extension MobManager {
         let biome = w.gen.column(x, z).biome
         guard Rand.float(in: 0..<1) < Seasons.animalChance(biome) else { return }        // C9: fewer in winter
         guard case let (kind, lo, hi)? = MobManager.pickAnimal(biome) else { return }
+        // Item 71: a pack 32-136 blocks off came in wherever the roll fell, in front of him too: it comes in out of sight.
+        if !Game.oldSpawnSight && !game.spawnHidden(V3(Float(x) + 0.5, Float(w.topY(x, z) + 1), Float(z) + 0.5), min: 24) { return }
         spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: ChunkKey(x: c.cx, z: c.cz))
     }
 
@@ -597,6 +647,8 @@ extension MobManager {
                 guard let e = Spawns.pick(Spawns.water(b)) else { return }
                 let cat = e.kind.category
                 guard count(cat, near: pp) < cap(cat, w) else { return }
+                // Item 71: not in front of him (a school came in 70-130 blocks off across open water)
+                if !Game.oldSpawnSight && !game.spawnHidden(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5), min: 24) { return }
                 spawnSwimmers(w, e.kind, x, y, z, Rand.int(in: e.min...e.max))
             } else if y <= SEA - 33 && w.lightAt(x, y, z).sky == 0 && w.lightAt(x, y, z).block == 0 {
                 if b == .lushCaves && Blocks.key(w.materialAt(x, y - 1, z)) == "clay" && count(.axolotls, near: pp) < cap(.axolotls, w) {
@@ -674,7 +726,11 @@ extension Game {
     // would find it); out to `clear`, out of the line of sight or outside a wide view cone (the headset's field plus a
     // margin). Every spawner of hostiles (natural monsters, hell packs, the Hollow, zombie calls, Ashguard squads)
     // asks it, so enemies walk in from out of view instead of appearing in it.
-    func spawnHidden(_ at: V3, min: Float, near: Float = 40, clear: Float = 96) -> Bool {
+    // Item 71: `clear` was 96 blocks, but mobs are drawn out to the view (152-408 blocks), so a spawn 96-136 blocks off
+    // came in in front of him; left out, it is the drawn distance (WorldRenderer.mobMaxDist). BS_OLDSPAWNSIGHT=1: 96.
+    static let oldSpawnSight = ProcessInfo.processInfo.environment["BS_OLDSPAWNSIGHT"] == "1"
+    func spawnHidden(_ at: V3, min: Float, near: Float = 40, clear: Float? = nil) -> Bool {
+        let clear = clear ?? (Game.oldSpawnSight ? 96 : Float(world.renderDistance * CS + 24))
         let body = at + V3(0, 1.2, 0)
         for i in 0..<max(1, coop.seatCount) {
             let pl = coop.seatPlayer(i, self)
@@ -683,9 +739,11 @@ extension Game {
             let d = simd_length(to)
             if d < min { return false }
             if d >= clear { continue }
-            let facing: Float = simd_dot(to / max(d, 0.01), pl.look)
+            // (the headset's own direction for him: player.look follows the hand's aim in VR)
+            let facing: Float = simd_dot(to / max(d, 0.01), pl === player && !Game.oldSpawnSight ? viewLook : pl.look)
             if d >= near && facing < 0.3 { continue }
-            if world.canSee(eye, body) { return false }
+            // (and its feet: a spider's or a rabbit's low body seen under a branch or over a ledge the 1.2 point missed)
+            if world.canSee(eye, body) || (!Game.oldSpawnSight && world.canSee(eye, at + V3(0, 0.4, 0))) { return false }
         }
         return true
     }

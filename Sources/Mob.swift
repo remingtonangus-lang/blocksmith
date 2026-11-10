@@ -517,6 +517,8 @@ final class Mob {
     var stationDoors = false        // a roused Boreal Station soldier works the bulkhead doors (BorealOps.swift)
     var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
     var farTime: Float = 0          // seconds spent more than 32 blocks from the player (despawn timer)
+    var despawnLook: Float = 0      // item 27: seconds until a despawn held off because he could see it is asked again
+    var popNoted = false            // item 71: noted by PopIn (harness only)
     var jockey = false              // spawned riding another mob (chicken / spider jockeys)
     var driven: Float = 0           // mount steered by its rider this long
     var driveSpeed: Float = 0
@@ -2608,6 +2610,7 @@ final class MobManager {
     var passiveTimer: Float = 2
     var hostileTimer: Float = 1
     var populateTimer: Float = 0.5
+    var packsLater: [ChunkKey: (kind: MobKind, x: Int, z: Int, n: Int)] = [:]     // item 71: chunk packs waiting till he can't see the spot
     var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
     var hiveTimer: Float = 0                      // hives are checked twice a second (Bees.swift)
     static var quarantined = 0                    // mobs whose update produced NaN (reported by smoke / agent oracles)
@@ -2742,6 +2745,7 @@ final class MobManager {
         return big.isEmpty ? "" : big.joined(separator: ", ") + "; slowest piece " + worstPart
     }
     func update(_ dt: Float, game: Game) {
+        if PopIn.on { for m in mobs where !m.popNoted { m.popNoted = true; PopIn.note(m, game) } }     // (item 71, harness)
         let pOn = MobManager.profileOn
         var pT = pOn ? CFAbsoluteTimeGetCurrent() : 0
         if pOn {
@@ -2959,7 +2963,7 @@ final class MobManager {
         Hulks.tick(game, dt)                                     // P473 (after the bodies' boxes)
         mobs.removeAll { m in
             if m.health <= 0 { addCorpse(m, game); return true }
-            if m.routed && m.fledClear { return true }          // P511: fled from a broken garrison (Rout), not stashed
+            if m.routed && m.fledClear { TroopVanish.note(m, "rout", game); return true }   // P511: fled from a broken garrison (Rout), not stashed
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
@@ -2973,9 +2977,14 @@ final class MobManager {
             let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
             if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
                 if m.keepOnUnload { stash(m) }
+                TroopVanish.note(m, m.keepOnUnload ? "stashed" : "unload", game)
                 return true
             }
-            return shouldDespawn(m, simd_length(m.pos - pn), dt, game)      // 3D, as the reference (a mob far below stayed)
+            if shouldDespawn(m, simd_length(m.pos - pn), dt, game) {      // 3D, as the reference (a mob far below stayed)
+                TroopVanish.note(m, MobManager.despawnRule, game)
+                return true
+            }
+            return false
         }
         mobs += spawned
         pMark(2)

@@ -311,6 +311,7 @@ final class Game: LifeLinked {
     var dodges = 0, parries = 0        // VR wind-ups dodged and parried (checks; VRCombatFeel.swift)
     // Quest: the headset's world position (mobs walk toward the column under it, meleeBody; reach: meleeGap).
     var vrHead: V3?
+    var vrHeadPitch: Float?            // Quest: the headset's pitch (with vrHeadYaw: viewLook, PopIn.swift)
     var vrHeadYaw: Float?              // Quest: the headset's yaw (where he looks across: lookYaw, PopIn.swift)
     // Quest bow: a physical draw (VRBow), set while a bow is held: the draw (0...1) and the shot's origin and direction.
     var vrBow: (draw: Float, origin: V3, dir: V3)?

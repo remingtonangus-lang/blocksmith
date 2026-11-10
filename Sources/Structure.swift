@@ -441,7 +441,9 @@ enum Structure {
                 // (furthest from the ground first, then highest, then in the fill's order: one number a block, sorted)
                 var rMax = 0, yLo = Int.max, yHi = Int.min
                 for i in order { rMax = max(rMax, route[i]); yLo = min(yLo, cells[i].y); yHi = max(yHi, cells[i].y) }
-                if !old && n < 1 << 24 && rMax < 1 << 24 && yHi - yLo < 1 << 16 {
+                // (ledger 68: with every block fallen there is nothing to order, and yHi - yLo, Int.min - Int.max, trapped
+                // the checked build; on the headset it wrapped)
+                if !old && !order.isEmpty && n < 1 << 24 && rMax < 1 << 24 && yHi - yLo < 1 << 16 {
                     keys.removeAll(keepingCapacity: true)
                     for i in order {
                         let kr = UInt64(rMax - route[i]) << 40, ky = UInt64(yHi - cells[i].y) << 24

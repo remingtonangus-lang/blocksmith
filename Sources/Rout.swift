@@ -55,14 +55,24 @@ enum Rout {
     }
 
     // Mob.soldierAI for a routed soldier: away from him at a run, gone once clear (the speed to walk; nil: not routed).
+    static let oldVanish = ProcessInfo.processInfo.environment["BS_OLDROUT"] == "1"
     static func step(_ m: Mob, _ dt: Float, _ g: Game) -> Float? {
         guard m.routed else { return nil }
         let d = V2(m.pos.x - g.player.pos.x, m.pos.z - g.player.pos.z)
         let far = simd_length(d)
-        if far > 72 || (far > 40 && !g.world.canSee(m.eye, g.player.eye)) {
+        // Item 27 (Nov 10, "troops don't vanish"): past 72 blocks a routed soldier went at once, in plain sight across open
+        // ground too. Now he is gone only out of sight: past 40 blocks with the ground between them, or behind him (outside
+        // a 60 degree cone round his look). BS_OLDROUT=1: gone past 72 as before.
+        let hidden: Bool = {
+            if Rout.oldVanish { return far > 72 }
+            let to = m.eye - g.player.eye
+            let l = simd_length(to)
+            return l > 0.01 && simd_dot(to / l, g.viewLook) < 0.5
+        }()
+        if (far > 72 && (Rout.oldVanish || hidden)) || (far > 40 && (hidden || !g.world.canSee(m.eye, g.player.eye))) {
             if !m.fledClear { fled += 1 }
             m.fledClear = true                          // (gone at the next despawn pass, MobManager.shouldDespawn)
-            return 0
+            // (and running on till then: he stood still once clear, and stood in the open if the pass kept him)
         }
         m.aggro = false
         m.wanderGoal = nil
@@ -105,6 +115,66 @@ enum RoutCheck {
               String(format: "rout: a base that lost 8 of 10 breaks: the two left run (%@ -> %@ blocks off) and fight no more (%@); another side's man beside them holds (%@)",
                      d0.map { String(format: "%.0f", $0) }.joined(separator: ","), d1.map { String(format: "%.0f", $0) }.joined(separator: ","),
                      calm ? "yes" : "no", other.routed ? "no" : "yes"))
+        // Item 27: a routed soldier 80 blocks off in plain sight stays in the world (he was taken out past 72); with the
+        // player turned away he goes.
+        let r = left[0]
+        r.fledClear = false
+        _ = g.world.loadSync(center: r.pos, radius: 6)
+        let yaw0 = g.player.yaw, pitch0 = g.player.pitch
+        g.player.pos = r.pos + V3(-80, 30, 0)
+        g.player.yaw = -Float.pi / 2
+        let dv = r.eye - g.player.eye
+        g.player.pitch = atan2f(dv.y, sqrtf(dv.x * dv.x + dv.z * dv.z))
+        let inSight = g.world.canSee(r.eye, g.player.eye)
+        _ = Rout.step(r, 0.05, g)
+        let stayed = !r.fledClear
+        g.player.yaw += Float.pi
+        _ = Rout.step(r, 0.05, g)
+        let wentBehind = r.fledClear
+        g.player.yaw = yaw0; g.player.pitch = pitch0
+        check(inSight && (Rout.oldVanish ? !stayed : stayed) && wentBehind,
+              "rout: a routed soldier 80 blocks off in plain sight \(stayed ? "stays" : "is taken out") (in sight: \(inSight)); with him turned away \(wentBehind ? "he goes" : "he stays")")
+        // Item 27: a wandering soldier (not a garrison's) 140 blocks off in plain sight is past the reference's 128-block
+        // despawn, which took him while drawn (out to the view, 184 blocks at view 10); he stays while seen and goes when
+        // the player looks away. A creeper 30 blocks ahead at dawn is seen (dawn read "seen" as within 24 blocks).
+        do {
+            let rd0 = g.world.renderDistance
+            g.world.renderDistance = max(rd0, 10)
+            defer { g.world.renderDistance = rd0 }
+            let w = soldier(1, .greywall, r.pos + V3(140, 0, 0))
+            w.persistent = false; w.home = nil
+            _ = g.world.loadSync(center: r.pos + V3(70, 0, 0), radius: 7)
+            // (a spot he sees from up in the air 140 blocks off: the ground between can hide the first one tried)
+            let w0 = w.pos
+            var seen = false
+            look: for up in [30, 50, 80] as [Float] { for dz in [0, 12, -12, 24, -24, 36, -36] as [Float] {
+                w.pos = w0 + V3(0, 0, dz)
+                w.pos.y = Float(g.world.topY(Int(floor(w.pos.x)), Int(floor(w.pos.z))) + 1)
+                g.player.pos = w.pos + V3(-140, up, 0)
+                g.player.yaw = -Float.pi / 2
+                let dw = w.eye - g.player.eye
+                g.player.pitch = atan2f(dw.y, sqrtf(dw.x * dw.x + dw.z * dw.z))
+                if MobManager.inPlainSight(w, g) { seen = true; break look }
+            } }
+            let d = simd_length(w.pos - g.player.pos)
+            let spawnOK = g.spawnHidden(w.pos, min: 32)             // (item 71: a spawn on that spot would pop in)
+            w.despawnLook = 0
+            let tookSeen = g.mobs.shouldDespawn(w, d, 0.05, g)
+            g.player.yaw += Float.pi
+            w.despawnLook = 0
+            let tookAway = g.mobs.shouldDespawn(w, d, 0.05, g)
+            let cr = Mob(.creeper, at: g.player.pos + V3(-30, -30, 0))
+            cr.pos.y = Float(g.world.topY(Int(floor(cr.pos.x)), Int(floor(cr.pos.z))) + 1)
+            let dc = cr.eye - g.player.eye
+            g.player.pitch = atan2f(dc.y, sqrtf(dc.x * dc.x + dc.z * dc.z))
+            let creeperSeen = MobManager.inPlainSight(cr, g)
+            g.player.yaw = yaw0; g.player.pitch = pitch0
+            check(Game.oldSpawnSight ? spawnOK : !spawnOK,
+                  "spawn: a spot \(Int(d)) blocks ahead in plain sight \(spawnOK ? "takes a spawn (it pops in)" : "takes no spawn")")
+            check(seen && (MobManager.oldDespawn ? tookSeen : !tookSeen) && tookAway && creeperSeen,
+                  String(format: "despawn: a wandering soldier %.0f blocks off in plain sight (%@) %@; turned away, %@; a monster 30 blocks ahead counts as seen (%@)",
+                         d, seen ? "seen" : "not seen", tookSeen ? "is taken out" : "stays", tookAway ? "he goes" : "he stays", creeperSeen ? "yes" : "no"))
+        }
         // A patrol of three losing two: no rout (under five).
         g.mobs.mobs = []; Rout.kills = [:]
         let p = c + V3(200, y - c.y, 200)
