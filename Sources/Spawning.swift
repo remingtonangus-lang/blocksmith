@@ -742,7 +742,8 @@ extension Game {
             // (the headset's own direction for him: player.look follows the hand's aim in VR)
             let facing: Float = simd_dot(to / max(d, 0.01), pl === player && !Game.oldSpawnSight ? viewLook : pl.look)
             if d >= near && facing < 0.3 { continue }
-            if world.canSee(eye, body) { return false }
+            // (and its feet: a spider's or a rabbit's low body seen under a branch or over a ledge the 1.2 point missed)
+            if world.canSee(eye, body) || (!Game.oldSpawnSight && world.canSee(eye, at + V3(0, 0.4, 0))) { return false }
         }
         return true
     }
