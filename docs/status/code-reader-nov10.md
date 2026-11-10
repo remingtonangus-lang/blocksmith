@@ -10,10 +10,10 @@ Checks: `questcheck --lookout` (1.1, also in the full suite), `questcheck --read
 
 | # | Finding | Confirmed | Fix | Proof |
 |---|---------|-----------|-----|-------|
-| 1.1 | A crewman's lookout search on a short hull built `a...b` with b < a: an endless loop on the headset (unchecked build), a trap on the host | Yes, by reading (CrewLookout y range `max(1, fy-1)...min(sy-2, fy+1)` on a grid 2-3 high) | `thru(lo, hi)` (Math.swift): an empty range when hi < lo. Swept: 97 loops of the same shape in 51 files (`BS_OLDLOOKOUT=1`) | PENDING |
+| 1.1 | A crewman's lookout search on a short hull built `a...b` with b < a: an endless loop on the headset (unchecked build), a trap on the host | Yes, by reading (CrewLookout y range `max(1, fy-1)...min(sy-2, fy+1)` on a grid 2-3 high) | `thru(lo, hi)` (Math.swift): an empty range when hi < lo. Swept: 97 loops of the same shape in 51 files (`BS_OLDLOOKOUT=1`) | --lookout, build 307: old still searching after 90 s, new 219 ms (ledger 69) |
 | 1.2 | A big TNT stack drops the frame rate | Yes (TNTManager exploded every TNT due in one frame) | Past the first, blasts stop at 3 ms a frame and the rest go off on the next (`BS_OLDTNT=1`) | PENDING |
 | 1.3 | A helm on a big building stalls about a second | Yes (assembly flood-filled every floor past the 60,000 limit) | The limit is checked per floor as it fills (`BS_OLDASSEMBLE=1`) | PENDING |
-| 1.4 | A Hollow rift loads its destination on the frame | Yes (gatewayTeleport called loadSync) | The rift arrival goes through the arrival hold (ledger 40) like every other trip (`BS_OLDRIFT=1`) | PENDING |
+| 1.4 | A Hollow rift loads its destination on the frame | Yes (gatewayTeleport called loadSync) | The rift arrival goes through the arrival hold (ledger 40) like every other trip (`BS_OLDRIFT=1`) | --triptest, build 307: the rift's tick 146-172 ms old, 8-10 ms new (ledger 70) |
 
 ## Batch 2: a buyer's first hour
 
