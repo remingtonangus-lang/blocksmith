@@ -41,7 +41,7 @@ Approved:
 24. Hit feedback: sound and haptics for hits, distinct for headshots and kills.
 25. Haptics pass: vibration on every interaction that should have it.
 26. Sheriffs fight on Hard: cover, flanking, escalation to a posse.
-27. Troops don't vanish: sweep for soldiers disappearing at some view angles or distances; fix every cause.
+27. Troops don't vanish: sweep for soldiers disappearing at some view angles or distances; fix every cause. [Nov 10, lane 2: TroopVanish tallies every soldier taken out without dying by rule and whether he could see it (soak, --launch, --encounters): build 297 had none in plain sight in 29 scenes and the encounters, whose cameras seldom watch one leave. Read for every rule that takes a mob away: a routed soldier went past 72 blocks in plain view, a wandering one at 128 or at random past 32, a monster at dawn past 24, all while drawn (to 152-408 blocks), and strangers, riders, bounty hunters, freed prisoners, a battle left behind, the vault's squads and a radio truck by distance alone. Each now waits until he can't see it (MobManager.inPlainSight / canVanish, the headset's own direction in VR; BS_OLDROUT=1, BS_OLDDESPAWN=1 for before); --rout shows both ways (ledger 66). Not causes: the mob back-face cull, the far soldier model, the cull frustum. The view's edge stays the limit.]
 28. Raids, pirates, cruisers tested (P512: questcheck --encounters).
 30. Wanted level: crimes raise a level: sheriff, posse, then army.
 32. Garrison reinforcements by truck, train or air when alarmed.
@@ -81,7 +81,7 @@ Approved:
 68. Sky limit 400: build height raised to 400 and tested.
 69. Boreal Station troops: their own original sci-fi troops with super-soldiers.
 70. Map shows the nearest of everything (citadels, cities, crawlers, trains, frigates).
-71. No pop-in: the passenger train and other spawns never appear in plain sight.
+71. No pop-in: the passenger train and other spawns never appear in plain sight. [Nov 10, lane 2: Game.spawnHidden counted every spot past 96 blocks as hidden though mobs draw to the view, animal packs and riders asked nothing, and posses, hunters and raid waves fell back to anywhere: all now come in out of his view (BS_OLDSPAWNSIGHT=1 before; --rout: a spot 143 blocks ahead in plain sight takes no spawn; ledger 67). The soak prints what came into the world in plain sight (PopIn).]
 72. Far-view seams: no block-style far versions poking through citadels; sweep every seam.
 73. Stealth uses light and weather.
 74. Cave variety: more cave types and loot.
