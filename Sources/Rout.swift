@@ -55,11 +55,21 @@ enum Rout {
     }
 
     // Mob.soldierAI for a routed soldier: away from him at a run, gone once clear (the speed to walk; nil: not routed).
+    static let oldVanish = ProcessInfo.processInfo.environment["BS_OLDROUT"] == "1"
     static func step(_ m: Mob, _ dt: Float, _ g: Game) -> Float? {
         guard m.routed else { return nil }
         let d = V2(m.pos.x - g.player.pos.x, m.pos.z - g.player.pos.z)
         let far = simd_length(d)
-        if far > 72 || (far > 40 && !g.world.canSee(m.eye, g.player.eye)) {
+        // Item 27 (Nov 10, "troops don't vanish"): past 72 blocks a routed soldier went at once, in plain sight across open
+        // ground too. Now he is gone only out of sight: past 40 blocks with the ground between them, or behind him (outside
+        // a 60 degree cone round his look). BS_OLDROUT=1: gone past 72 as before.
+        let hidden: Bool = {
+            if Rout.oldVanish { return far > 72 }
+            let to = m.eye - g.player.eye
+            let l = simd_length(to)
+            return l > 0.01 && simd_dot(to / l, g.player.look) < 0.5
+        }()
+        if (far > 72 && (Rout.oldVanish || hidden)) || (far > 40 && (hidden || !g.world.canSee(m.eye, g.player.eye))) {
             if !m.fledClear { fled += 1 }
             m.fledClear = true                          // (gone at the next despawn pass, MobManager.shouldDespawn)
             return 0
