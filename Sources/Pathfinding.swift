@@ -77,6 +77,14 @@ enum PathFinder {
         return c.blocks.isField ? c.blocks.raw(Chunk.index(mod(x, CS), y, mod(z, CS))) : c.blocks[Chunk.index(mod(x, CS), y, mod(z, CS))]
     }
 
+    @inline(__always) static func cursorChunk(_ w: World, _ x: Int, _ z: Int) -> Chunk? {
+        guard cursorOn, !oldTopLookup else { return w.chunkAt(x, z) }
+        let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
+        if k != cKey { cKey = k; cChunk = w.chunkAt(x, z) }
+        return cChunk
+    }
+    static let oldTopLookup = ProcessInfo.processInfo.environment["BS_OLDTOPLOOKUP"] == "1"
+
     static let climbIds: Set<BlockID> = {
         var s = Set<BlockID>()
         for i in 0..<Blocks.count {
@@ -94,7 +102,9 @@ enum PathFinder {
         // P338 step 3 (handoff step 9): in a field world the ground in and round a cell is met as the field's own
         // surface (World.collisionBoxes: the quarter-block columns bodies stand on), not as a full cell of its material,
         // so a search stands mobs where they will really stand and climbs what they can really climb.
-        if w.fieldTerrain, w.frame == nil, y >= 0, y < CH, let c = w.chunkAt(x, z), c.blocks.isField,
+        // (Item 7, the citadel soak's callgrind: a dictionary lookup per call, 0.8% of the soldiers, mobs and debris
+        // there; during a search the cursor's chunk serves, as in blk.)
+        if w.fieldTerrain, w.frame == nil, y >= 0, y < CH, let c = cursorChunk(w, x, z), c.blocks.isField,
            w.fieldNear(c, x, y, z, Chunk.index(mod(x, CS), y, mod(z, CS))) {
             if doors && isWoodDoor(blk(w, x, y, z)) { return 0 }
             // (Store review, build 112's citadel soak: one node of an armoured soldier's search took 6.8 ms, its cells'
