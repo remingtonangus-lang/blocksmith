@@ -3387,6 +3387,56 @@ if CommandLine.arguments.contains("--creativetabs") {
     exit(0)
 }
 
+// Ledger 84's bloom: every block item placed against each of the six faces of a stone block, through the game's own
+// placing (the pad's use trigger), in creative. The oracle is the run itself (a missing state or a bad table stops the
+// game), plus how many pieces placed nothing. Prints the count and the items that never placed.
+if CommandLine.arguments.contains("--placeall") {
+    game.survival = false; game.player.flying = true; game.paused = false
+    if game.menu != nil { game.closeMenu() }
+    let cx = Int(floor(game.player.pos.x)) + 40, cz = Int(floor(game.player.pos.z)) + 40
+    _ = world.loadSync(center: V3(Float(cx), 100, Float(cz)), radius: 2)
+    let cy = min(CH - 20, world.topY(cx, cz) + 30)
+    func clearBox() {
+        for y in (cy - 4)...(cy + 4) { for z in (cz - 4)...(cz + 4) { for x in (cx - 4)...(cx + 4) where world.block(x, y, z) != AIR { world.setBlock(x, y, z, AIR) } } }
+        world.setBlock(cx, cy, cz, STONE)
+    }
+    func frame(_ lt: Float) {
+        var p = PadSnapshot(); p.lt = lt
+        PadManager.shared.simulated = p
+        game.tick(1.0 / 72)
+        if game.menu != nil { game.closeMenu() }
+    }
+    let dirs: [V3] = [V3(1, 0, 0), V3(-1, 0, 0), V3(0, 0, 1), V3(0, 0, -1), V3(0, 1, 0), V3(0, -1, 0)]
+    let items = (0..<Items.count).map { ItemID($0) }.filter { Items.def($0).block != nil }
+    var placed = 0, never: [String] = []
+    let t0 = CFAbsoluteTimeGetCurrent()
+    for it in items {
+        var any = false
+        for d in dirs {
+            clearBox()
+            let face = V3(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5) + d * 0.5
+            let eye = face + d * 2.5
+            game.player.flying = true
+            game.player.pos = eye - (game.player.eye - game.player.pos); game.player.vel = .zero
+            game.player.yaw = d.y == 0 ? atan2f(d.x, d.z) : 0
+            game.player.pitch = d.y > 0 ? -1.55 : (d.y < 0 ? 1.55 : 0)
+            game.inventory.main[game.selected] = ItemStack(it, 64)
+            frame(0); frame(1); frame(0); frame(0)
+            var here = false
+            for y in (cy - 2)...(cy + 2) { for z in (cz - 2)...(cz + 2) { for x in (cx - 2)...(cx + 2) where !(x == cx && y == cy && z == cz) {
+                if world.block(x, y, z) != AIR { here = true }
+            } } }
+            if here { placed += 1; any = true }
+        }
+        if !any && never.count < 40 { never.append(Items.key(it)) }
+    }
+    PadManager.shared.simulated = nil
+    clearBox()
+    print(String(format: "placeall: %d block items x 6 faces, %d placings put something down, in %.0f s; never placed (%d shown): ", items.count, placed,
+                 CFAbsoluteTimeGetCurrent() - t0, never.count) + never.joined(separator: ", "))
+    exit(0)
+}
+
 // Ledger 82: the frame's own terrain lookups (the weather's biome, a spawn's height) while the workers make new
 // ground: 12 s of streaming fresh land in four places, the frame reading 20 columns about it every 2 ms, each timed by
 // the wall clock less its own CPU (the wait). BS_OLDGRIDLOCK=1 for before (one lock a cache).
