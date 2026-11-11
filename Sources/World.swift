@@ -1681,23 +1681,34 @@ final class World: LifeLinked {
             lastExtra = extra
             // Unload outside the load disc grown by one more chunk (hysteresis when walking back and forth).
             var gone: [ChunkKey] = []
-            for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2)
-                && !(extra.map { World.inDisc(k.x - $0.x, k.z - $0.z, renderDistance, grow: 2) } ?? false) {
+            for k in chunks.keys where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2)
+                && !(extra.map { World.inDisc(k.x - $0.x, k.z - $0.z, renderDistance, grow: 2) } ?? false) { gone.append(k) }
+            // Ledger 83 (Nov 11, the VR fuzz: a 10.9 ms frame after Go To a Place; triptest's rifts 10.7-13.8 ms): a jump
+            // within a dimension dropped the whole old view in one frame, and the frame both wrote out each chunk's mesh
+            // file (the snapshot of its sections, P376) and freed it (its blocks, light and sections). A large drop (8 or
+            // more) now goes to a worker for both, as a dimension change's freeing does (ledger 40, unloadAll); nothing
+            // reaches a chunk once it is out of `chunks`. The blocks and field edits are still handed to the save here.
+            // BS_OLDUNLOAD=1: all on the frame, as before.
+            let offFrame = !World.oldUnload && gone.count >= 8
+            let box = ChunksBox([:])
+            for k in gone {
+                guard let c = chunks[k] else { continue }
                 if c.needsSave && !c.hollow { save?.saveChunkAsync(k, c.blocks) }
                 if c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }
-                cacheMeshes(k, c)                                   // P376 (ChunkShells)
-                gone.append(k)
+                if offFrame { box.all[k] = c } else { cacheMeshes(k, c) }                  // P376 (ChunkShells)
             }
             TickProf.mark("world.unload: save + mesh files")
-            // Ledger 83 (Nov 11, the VR fuzz: a 10.9 ms frame after Go To a Place; triptest's rifts 6.5-8.8 ms): a jump
-            // within a dimension dropped the whole old view in one frame and freed it there (each chunk's blocks, light
-            // and sections). They are now let go on a worker, as a dimension change's are (ledger 40, unloadAll).
-            // BS_OLDUNLOAD=1: freed on the frame, as before.
-            if World.oldUnload || gone.count < 8 { for k in gone { chunks.removeValue(forKey: k) } }
-            else {
-                let box = ChunksBox([:])
-                for k in gone { if let c = chunks.removeValue(forKey: k) { box.all[k] = c } }
-                DispatchQueue.global(qos: .utility).async { box.all = [:] }
+            for k in gone { chunks.removeValue(forKey: k) }
+            if offFrame {
+                let mc = World.shells ? meshCache : nil
+                DispatchQueue.global(qos: .utility).async {
+                    if let mc {
+                        for (k, c) in box.all where c.meshedOnce && !c.needsMesh && !c.meshInFlight {
+                            mc.write(k, c, occ: c.hollow ? c.hollowOcc : c.occluderTop)
+                        }
+                    }
+                    box.all = [:]
+                }
             }
             TickProf.mark("world.unload: drop")
             reshell()                                               // P376: drop the data of finished far chunks
