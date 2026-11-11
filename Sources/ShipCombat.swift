@@ -41,7 +41,8 @@ extension Ship {
             // P483 (Oct 28 17:35-17:36, at a frigate's helm: "the guns are firing the wrong direction... the little guns
             // just are not shooting where one would expect"): the bearing is taken in the parent's own frame, so a gun
             // on a hull pitched or banked (a frigate climbing, 26 degrees at most) turns onto the mark, not off it.
-            if let y = p.turretYaw(toward: a, from: toWorld(pivot)) { aimYaw = y }
+            let d = p.dirToLocal(a - toWorld(pivot))
+            if d.x * d.x + d.z * d.z > 0.01 { aimYaw = atan2f(-d.x, -d.z) }
         }
         if let target = aimYaw {
             var d = target - turretYaw
@@ -58,33 +59,6 @@ extension Ship {
         angVel = p.angVel
         updateBounds()
     }
-}
-
-extension Ship {
-    // The yaw, in this hull's frame, that puts a turret's barrel on the world bearing of `a` (nil: straight up or down).
-    // A shell leaves on the barrel's world bearing (fire: the barrel flattened, the elevation laid in the world), so on a
-    // tilted hull the barrel must lie where the turret's plane crosses the upright plane through that bearing. (Nov 11,
-    // the crawler on a slope: the bearing was taken from the mark's direction in the hull's frame, and her side guns at
-    // 400 blocks fired 10-14 degrees off with the turrets fully round. Level, it is the same yaw as before.)
-    func turretYaw(toward a: V3, from o: V3) -> Float? {
-        let v = a - o
-        let h = V3(v.x, 0, v.z)
-        guard simd_length_squared(h) > 0.0001 else { return nil }
-        let f = simd_normalize(h)
-        if Ship.oldTiltAim {
-            let d = dirToLocal(v)
-            return d.x * d.x + d.z * d.z > 0.01 ? atan2f(-d.x, -d.z) : nil
-        }
-        let up = dirToWorld(V3(0, 1, 0))
-        let side = simd_cross(V3(0, 1, 0), f)                 // the upright plane through the bearing: its normal
-        var line = simd_cross(up, side)
-        guard simd_length_squared(line) > 1e-6 else { return nil }
-        line = simd_normalize(line)
-        if simd_dot(line, f) < 0 { line = -line }
-        let d = dirToLocal(line)
-        return d.x * d.x + d.z * d.z > 1e-6 ? atan2f(-d.x, -d.z) : nil
-    }
-    static let oldTiltAim = ProcessInfo.processInfo.environment["BS_OLDTILTAIM"] == "1"
 }
 
 extension ShipManager {
