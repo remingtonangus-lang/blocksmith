@@ -1797,6 +1797,28 @@ let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 world.activeCenter = spawn
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
+// Ledger 84: every block with an "[x]" state, placed against a face along x, along z and on top, lands as a state of
+// its own group (the two-way cloth pieces asked for a missing "[z]" and stopped the game), and turns on a ship.
+do {
+    var groups = 0, twoWay = 0, wrong: [String] = []
+    for i in 0..<Blocks.count {
+        let b = BlockID(i)
+        guard Blocks.groupBase[i] == b, Blocks.shape[i].isEmpty else { continue }
+        let k = Blocks.key(b)
+        guard Blocks.has(k + "[x]") else { continue }
+        groups += 1
+        if !Blocks.has(k + "[z]") { twoWay += 1 }
+        for n in [IVec3(1, 0, 0), IVec3(0, 0, -1), IVec3(0, 1, 0)] {
+            let p = Game.axisPlaced(b, k, normal: n)
+            if Blocks.groupBase[Int(p)] != b && wrong.count < 6 { wrong.append("\(k) \(n)") }
+        }
+    }
+    let c0 = Blocks.id("ash_standard_2"), c1 = Blocks.id("ash_standard_2[x]")
+    let turns = (ShipParts.rotate(c0, 1) == c1, ShipParts.rotate(c1, 1) == c0, ShipParts.rotate(c0, 2) == c0)
+    check(turns.0 && turns.1 && turns.2, "axis place: a two-way cloth piece turns with a quarter turn and stays with a half (\(turns))")
+    check(groups > 20 && twoWay >= 13 && wrong.isEmpty,
+          "axis place: \(groups) blocks with an [x] state (\(twoWay) two-way, no [z]) placed along x, z and y, each a state of its own (wrong: \(wrong))")
+}
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
 // titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
 if CommandLine.arguments.contains("--loadtest") {

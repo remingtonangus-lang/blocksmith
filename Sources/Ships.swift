@@ -168,6 +168,11 @@ enum ShipParts {
             if name.hasSuffix("[x]") { return Blocks.id(k + "[z]") }
             if name.hasSuffix("[z]") { return Blocks.id(k + "[x]") }
         }
+        // (ledger 84) A two-way piece (base and [x] only, the Ashguard cloth) turns between its two.
+        if t % 2 == 1 && shape.isEmpty && Blocks.has(k + "[x]") && !Blocks.has(k + "[z]") {
+            if b == base { return Blocks.id(k + "[x]") }
+            if Blocks.key(b).hasSuffix("[x]") { return base }
+        }
         return b
     }
 }

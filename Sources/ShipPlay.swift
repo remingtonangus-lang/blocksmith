@@ -787,7 +787,7 @@ extension Game {
         if Blocks.has(key + "[south]") && Blocks.shape[Int(item)].isEmpty { id = item + BlockID(facing) }
         else if Blocks.shape[Int(item)] == "stairs" { id = item + BlockID(facing ^ 1) }
         if Blocks.has(key + "[x]") && Blocks.shape[Int(item)].isEmpty {
-            if normal.x != 0 { id = Blocks.id(key + "[x]") } else if normal.z != 0 { id = Blocks.id(key + "[z]") }
+            id = Game.axisPlaced(item, key, normal: normal)                     // (ledger 84: two-way pieces too)
         }
         // Not inside the player.
         let lp = s.toLocal(player.pos)
