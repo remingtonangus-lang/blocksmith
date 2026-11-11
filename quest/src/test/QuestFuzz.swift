@@ -26,13 +26,16 @@ enum QuestFuzz {
         let target = try scene.makeTarget(image: img.image, width: size, height: size)
         let keepSurvival = game.survival, keepPos = game.player.pos
         let teleport0 = QuestSettings.teleport, smooth0 = QuestSettings.smoothTurn, seated0 = QuestSettings.seated
-        // (Nov 11, check fix 35: structure starts planned on workers, as the game does (QuestApp). The host checks plan
-        // them on the frame so a base is found at once, and the stall oracle charged those plans to the frame.
-        // Trips wait for their ground as on the headset too (Game.arrivalHold), not loaded on the frame.)
-        let plans0 = StructureCache.plansOffThread, hold0 = Game.arrivalHold
-        StructureCache.plansOffThread = true; Game.arrivalHold = true
+        // (Nov 11, check fixes 35-36: the game's own runtime rules, QuestApp.headsetWorld: structure starts planned on
+        // workers, trips waiting for their ground, a block edit meshed off the frame (World.editLane), the per-frame
+        // budgets. The host checks plan, load and mesh on the frame, and the stall oracle charged that to the frame:
+        // bases found 25-160 ms, trips 39-1772 ms, a placed block's remesh 14.5 ms, none of which the headset has.)
+        let rules0 = (StructureCache.plansOffThread, Game.arrivalHold, World.editLane, World.fluidSeconds, World.handoverSeconds,
+                      DebrisWorld.budget, World.lodNear, GroundSettle.spread, World.leafNear, BlastShape.deferred)
+        QuestApp.headsetWorld()
         defer {
-            StructureCache.plansOffThread = plans0; Game.arrivalHold = hold0
+            (StructureCache.plansOffThread, Game.arrivalHold, World.editLane, World.fluidSeconds, World.handoverSeconds,
+             DebrisWorld.budget, World.lodNear, GroundSettle.spread, World.leafNear, BlastShape.deferred) = rules0
             QuestSettings.teleport = teleport0; QuestSettings.smoothTurn = smooth0; QuestSettings.seated = seated0
             if game.menu != nil { game.closeMenu() }
             game.paused = false
@@ -84,6 +87,8 @@ enum QuestFuzz {
         var slowFrames = 0, worstMs = 0.0, worstWhat = "", tickSum = 0.0
         var slowList: [(Double, String)] = []
         var waitFrames = 0, worstWait = 0.0
+        var insideFrames = 0, insideCount = 0
+        var insideList: [String] = []
         var waitList: [String] = []
         func finite(_ v: V3) -> Bool { v.x.isFinite && v.y.isFinite && v.z.isFinite }
         let total = seconds * 72
@@ -180,6 +185,21 @@ enum QuestFuzz {
                 if !finite(controls.panelWorldCenter) { bad.append("frame \(i): panel position not finite") }
                 if p.pos.y < -70 && game.alive { bad.append(String(format: "frame %d: fell out of the world (y %.1f)", i, p.pos.y)) }
             }
+            // (Nov 11) Stuck inside blocks: his body in solid cells for 2 s on end, alive, on foot and not held by a
+            // trip. Listed, not failed: a block can fall on him (sand, gravel) as in the reference game; each one is a
+            // lead to look at.
+            if game.alive && game.riding == nil && game.arrivalSince == nil && game.player.collides(at: p.pos, game.world) {
+                insideFrames += 1
+                if insideFrames == 144 {
+                    insideCount += 1
+                    let cell = IVec3(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
+                    if insideList.count < 6 {
+                        insideList.append(String(format: "frame %d: at %.1f %.1f %.1f in %@ (head %@), %@, menu %@", i, p.pos.x, p.pos.y - 64, p.pos.z,
+                                                 Blocks.key(game.world.block(cell.x, cell.y, cell.z)), Blocks.key(game.world.block(cell.x, cell.y + 1, cell.z)),
+                                                 game.survival ? "survival" : "creative", game.menu.map { String(describing: type(of: $0)) } ?? "none"))
+                    }
+                }
+            } else { insideFrames = 0 }
             if !bad.isEmpty && bad.count >= 6 { break }
         }
         // Back to play from whatever is open: B (back) and the menu button, as a person would.
@@ -204,6 +224,8 @@ enum QuestFuzz {
         for (_, w) in slowList { print("  slow: " + w) }
         print(String(format: "questfuzz: %d frames past 13.9 ms by the clock that blocked (waited)", waitFrames) + (waitFrames > 0 ? String(format: ", worst %.1f ms", worstWait) : ""))
         for w in waitList { print("  waited: " + w) }
+        print("questfuzz: \(insideCount) times inside blocks for 2 s on end")
+        for w in insideList { print("  inside: " + w) }
         StallTrace.write()
         check(bad.isEmpty, "VR fuzz (seed \(seed), \(seconds) s): no oracle failures" + (bad.isEmpty ? "" : ": " + bad.joined(separator: "; ")))
         check(stuck == nil, "VR fuzz: B / menu buttons get back to play" + (stuck.map { " (stuck in \($0))" } ?? ""))
