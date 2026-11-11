@@ -3326,9 +3326,11 @@ if let out = arg("--questsim"), let ctx = vkctx {
     // outlawed, at war with the Meridian Navy and somewhere else, and the walk, the hunters and the roads checks after it
     // met that: ledger 75. With --questsim-only it runs here.)
     let fuzz = { do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") } }
-    if CommandLine.arguments.contains("--questsim-only") { fuzz() } else { fuzzLast = fuzz }
     // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
+    // (Nov 11: with --questsim-only too the monkey goes after the touch matrix: after seed 7's five minutes of it the
+    // matrix's swimming context couldn't be set up and its deck gun and left-hand rows read differently; check fix 34)
+    if CommandLine.arguments.contains("--questsim-only") { fuzz() } else { fuzzLast = fuzz }
     game.vrHead = nil; game.vrHeadYaw = nil; game.vrHeadPitch = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
     (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
      game.vrTwoHanded, game.screen) = vrSet0

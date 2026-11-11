@@ -50,6 +50,15 @@ enum QuestFuzz {
         var headYaw: Float = 0, headPitch: Float = 0
         var frames = 0, renders = 0, menusSeen = Set<String>(), bad: [String] = []
         var maxMenuFrames = 0, menuFrames = 0
+        // (Nov 11: the frame's own CPU time for the input and the game tick, the thread's clock so the host's scheduler
+        // doesn't count; a frame over the budget is a stall a player would see, with what was going on then)
+        @inline(__always) func threadMs() -> Double {
+            var ts = timespec()
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts)
+            return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6
+        }
+        var slowFrames = 0, worstMs = 0.0, worstWhat = "", tickSum = 0.0
+        var slowList: [(Double, String)] = []
         func finite(_ v: V3) -> Bool { v.x.isFinite && v.y.isFinite && v.z.isFinite }
         let total = seconds * 72
         for i in 0..<total {
@@ -89,10 +98,22 @@ enum QuestFuzz {
                 hd.gripRot = hd.aimRot
                 sim.hands[h] = hd
             }
+            let c0 = threadMs()
             rig.update(xr: sim, game: game)
             controls.update(dt: dt)
             game.tick(Double(dt))
             controls.afterTick(dt: dt)
+            let ms = threadMs() - c0
+            tickSum += ms
+            if ms > 13.9 && i > 72 {
+                slowFrames += 1
+                let what = String(format: "frame %d, %.1f ms: menu %@, %@, riding %@, holding %@, at %.0f %.0f %.0f", i, ms,
+                                  game.menu.map { String(describing: type(of: $0)) } ?? "none", game.survival ? "survival" : "creative",
+                                  game.riding?.kind.key ?? "nothing", game.held.count > 0 ? Items.key(game.held.item) : "nothing",
+                                  game.player.pos.x, game.player.pos.y - 64, game.player.pos.z)
+                if slowList.count < 8 { slowList.append((ms, what)) }
+                if ms > worstMs { worstMs = ms; worstWhat = what }
+            }
             frames += 1
             if let m = game.menu { menusSeen.insert(String(describing: type(of: m))); menuFrames += 1 } else { menuFrames = 0 }
             maxMenuFrames = max(maxMenuFrames, menuFrames)
@@ -131,6 +152,9 @@ enum QuestFuzz {
         let stuck = game.menu.map { String(describing: type(of: $0)) } ?? (game.paused ? "pause" : nil)
         print("questfuzz: \(frames) frames, \(renders) renders, menus seen: \(menusSeen.sorted().joined(separator: " ")); "
               + "longest menu stay \(maxMenuFrames) frames; back to play in \(back) frames")
+        print(String(format: "questfuzz: input + tick own CPU %.3f ms a frame mean, %d frames over 13.9 ms", tickSum / Double(max(1, frames)), slowFrames)
+              + (slowFrames > 0 ? "; worst " + worstWhat : ""))
+        for (_, w) in slowList { print("  slow: " + w) }
         check(bad.isEmpty, "VR fuzz (seed \(seed), \(seconds) s): no oracle failures" + (bad.isEmpty ? "" : ": " + bad.joined(separator: "; ")))
         check(stuck == nil, "VR fuzz: B / menu buttons get back to play" + (stuck.map { " (stuck in \($0))" } ?? ""))
     }
