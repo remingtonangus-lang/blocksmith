@@ -1016,7 +1016,10 @@ enum QuestSim {
                                           t.aimYaw.map { String(format: "%.2f", $0) } ?? "nil", off(bearing(t.dirToWorld(d)), bearing(mark - t.toWorld(t.pivot)))))
                     }
                 }
-                if !why.isEmpty { print("questsim: VR helm aim \(s.name) at \(Int(rel * 180 / .pi)): " + why.joined(separator: "; ")) }
+                if !why.isEmpty {
+                    let sight = TankSight.aim.map { String(format: "the sight %.1f m from the mark, %.1f from the eye", simd_length($0 - mark), simd_length($0 - game.player.eye)) } ?? "no sight"
+                    print("questsim: VR helm aim \(s.name) at \(Int(rel * 180 / .pi)) (\(sight)): " + why.joined(separator: "; "))
+                }
                 let e = errs.max() ?? 0
                 worst = max(worst, e)
                 // Fire them as the helm does and read the shells' heading.
