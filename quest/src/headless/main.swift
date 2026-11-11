@@ -3365,6 +3365,36 @@ if CommandLine.arguments.contains("--creativetabs") {
     exit(0)
 }
 
+// Ledger 80: the place searches' cost on the frame's thread: /bases, /rare, /locate frigate and Go To a Place (Meridian
+// Frigate, Stronghold), each from a spot far off in fresh land; with the game's worker search (Game.arrivalHold, as on the
+// headset) and without (BS_OLDSHORTCUT=1, or the host checks' rules). Prints the frame's own CPU ms and the answer.
+if CommandLine.arguments.contains("--locatetime") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    StructureCache.plansOffThread = true; Game.arrivalHold = true
+    var parts: [String] = []
+    for (i, c) in ["/bases", "/rare", "/locate frigate", "go:frigate", "go:stronghold"].enumerated() {
+        game.player.pos = V3(Float(20_000 + i * 9_000), 200, Float(-15_000 - i * 7_000)); game.player.vel = .zero
+        game.commandLog.removeAll()                                     // (the log keeps 60 lines)
+        let n0 = 0
+        let a = threadMs()
+        if c.hasPrefix("go:") { game.shortcutTeleport(String(c.dropFirst(3))) } else { game.command(c) }
+        let frame = threadMs() - a
+        var worst = frame, frames = 1
+        let w0 = Date()
+        while (LocateJob.pending != nil || ShortcutFind.pending != nil) && Date().timeIntervalSince(w0) < 60 {
+            Thread.sleep(forTimeInterval: 0.002)
+            let b = threadMs(); game.tick(1.0 / 72); let ms = threadMs() - b
+            worst = max(worst, ms); frames += 1
+        }
+        let said = game.commandLog.count > n0 ? game.commandLog[(n0 + 1)...].prefix(2).joined(separator: " | ") : ""
+        parts.append(String(format: "%@: %.1f ms on the frame (worst of %d frames %.1f), answer in %.2f s: ", c, frame, frames, worst, Date().timeIntervalSince(w0))
+                     + (c.hasPrefix("go:") ? String(format: "at %.0f %.0f", game.player.pos.x, game.player.pos.z) : String(said.prefix(160))))
+        game.arrivalSince = nil; game.arrivalThen = nil
+    }
+    print("locatetime (" + (Game.oldShortcutLand ? "old" : "new") + "):\n  " + parts.joined(separator: "\n  "))
+    exit(0)
+}
+
 // Horses alone (iterating on Sources/HorseTests.swift); the full run does them at the end.
 if CommandLine.arguments.contains("--horse-only") {
     HorseTests.run(game: game, check: check)
