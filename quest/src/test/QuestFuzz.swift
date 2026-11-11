@@ -104,7 +104,7 @@ enum QuestFuzz {
         var slowFrames = 0, worstMs = 0.0, worstWhat = "", tickSum = 0.0
         var slowList: [(Double, String)] = []
         var waitFrames = 0, worstWait = 0.0
-        var insideFrames = 0, insideCount = 0
+        var insideFrames = 0, insideCount = 0, lastRespawn = -1, wasAlive = true
         var insideList: [String] = []
         var waitList: [String] = []
         func finite(_ v: V3) -> Bool { v.x.isFinite && v.y.isFinite && v.z.isFinite }
@@ -205,15 +205,29 @@ enum QuestFuzz {
             // (Nov 11) Stuck inside blocks: his body in solid cells for 2 s on end, alive, on foot and not held by a
             // trip. Listed, not failed: a block can fall on him (sand, gravel) as in the reference game; each one is a
             // lead to look at.
+            if game.alive && !wasAlive { lastRespawn = i }
+            wasAlive = game.alive
             if game.alive && game.riding == nil && game.arrivalSince == nil && game.player.collides(at: p.pos, game.world) {
                 insideFrames += 1
                 if insideFrames == 144 {
                     insideCount += 1
                     let cell = IVec3(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
                     if insideList.count < 6 {
-                        insideList.append(String(format: "frame %d: at %.1f %.1f %.1f in %@ (head %@), %@, menu %@", i, p.pos.x, p.pos.y - 64, p.pos.z,
+                        // (what holds him: each cell of his body that has a collision box there, built or the field's ground)
+                        var held: [String] = []
+                        let hw = p.halfW
+                        for y in Int(floor(p.pos.y))...Int(floor(p.pos.y + p.height - 0.001)) {
+                            for z in Int(floor(p.pos.z - hw))...Int(floor(p.pos.z + hw - 0.001)) { for x in Int(floor(p.pos.x - hw))...Int(floor(p.pos.x + hw - 0.001)) {
+                                var bx: [(V3, V3)] = []
+                                game.world.collisionBoxes(x, y, z, &bx)
+                                if !bx.isEmpty { held.append(String(format: "%d %d %d %@%@ %d boxes, top %.2f", x, y - 64, z, Blocks.key(game.world.builtBlock(x, y, z)),
+                                                                    game.world.groundAt(x, y, z) ? " (ground)" : "", bx.count, bx.map { $0.1.y }.max() ?? 0)) }
+                            } }
+                        }
+                        insideList.append(String(format: "frame %d: at %.2f %.2f %.2f in %@ (head %@), %@, menu %@, %d frames since a respawn, spawn %.1f %.1f %.1f; held by ", i, p.pos.x, p.pos.y - 64, p.pos.z,
                                                  Blocks.key(game.world.block(cell.x, cell.y, cell.z)), Blocks.key(game.world.block(cell.x, cell.y + 1, cell.z)),
-                                                 game.survival ? "survival" : "creative", game.menu.map { String(describing: type(of: $0)) } ?? "none"))
+                                                 game.survival ? "survival" : "creative", game.menu.map { String(describing: type(of: $0)) } ?? "none",
+                                                 i - lastRespawn, game.spawnPoint.x, game.spawnPoint.y - 64, game.spawnPoint.z) + held.joined(separator: "; "))
                     }
                 }
             } else { insideFrames = 0 }
