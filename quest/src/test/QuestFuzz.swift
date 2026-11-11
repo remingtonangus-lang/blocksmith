@@ -101,7 +101,9 @@ enum QuestFuzz {
             let c0 = threadMs()
             rig.update(xr: sim, game: game)
             controls.update(dt: dt)
+            let c1 = threadMs()
             game.tick(Double(dt))
+            let c2 = threadMs()
             controls.afterTick(dt: dt)
             let ms = threadMs() - c0
             tickSum += ms
@@ -111,6 +113,7 @@ enum QuestFuzz {
                                   game.menu.map { String(describing: type(of: $0)) } ?? "none", game.survival ? "survival" : "creative",
                                   game.riding?.kind.key ?? "nothing", game.held.count > 0 ? Items.key(game.held.item) : "nothing",
                                   game.player.pos.x, game.player.pos.y - 64, game.player.pos.z)
+                    + String(format: "; input %.1f, tick %.1f (top stage ", c1 - c0, c2 - c1) + TickProf.summary() + ")"
                 if slowList.count < 8 { slowList.append((ms, what)) }
                 if ms > worstMs { worstMs = ms; worstWhat = what }
             }
