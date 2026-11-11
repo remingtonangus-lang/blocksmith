@@ -146,6 +146,10 @@ enum QuestFuzz {
                                     + TickProf.summary() + ")")
                 }
             }
+            // (Nov 11: a trip's arrival hold (Game.arrivalHold) waits up to 4 s of game clock for the workers to load the
+            // ground; the fuzz runs far faster than the headset's 72 Hz, so it timed out in a fraction of a second and
+            // loaded on the frame. While a hold is on, frames keep the headset's pace.)
+            if game.arrivalSince != nil, wallMs() - w0 < 13.9 { usleep(UInt32((13.9 - (wallMs() - w0)) * 1000)) }
             if ms > 13.9 && i > 72 {
                 slowFrames += 1
                 let what = String(format: "frame %d, %.1f ms: menu %@, %@, riding %@, holding %@, at %.0f %.0f %.0f", i, ms,

@@ -582,6 +582,40 @@ final class StructureCache {
         return out
     }
 
+    // Ledger 79 (Nov 11, the VR fuzz's stack sampler: just after Go To a Place, the map's once-a-second scan planned a
+    // Greywall region on the frame, 27 ms, and its "crowded" test planned bases and towns round it): the once-a-second
+    // lookups round the player (the map's discoveries, frontier sites, outlaw camps, ports) take the starts already
+    // made when asked on the frame thread, and have the missing regions made on a worker; they ask again a second
+    // later. Off the frame thread, or with the host checks' planning on the frame, the same as startsNear.
+    // BS_OLDNEARMADE=1: planned on the frame as before.
+    static let oldNearMade = ProcessInfo.processInfo.environment["BS_OLDNEARMADE"] == "1"
+    func startsNearMade(cx: Int, cz: Int, _ t: StructureType) -> [StructureStart] {
+        guard StructureCache.plansOffThread && StructureCache.onFrameThread && !StructureCache.oldNearMade else {
+            return startsNear(cx: cx, cz: cz, t)
+        }
+        var out: [StructureStart] = [], missing: [StartKey] = []
+        let r = t.reach
+        let rx0 = floorDiv(cx - r, t.spacing), rx1 = floorDiv(cx + r, t.spacing)
+        let rz0 = floorDiv(cz - r, t.spacing), rz1 = floorDiv(cz + r, t.spacing)
+        for rz in rz0...rz1 { for rx in rx0...rx1 {
+            let k = StartKey(name: t.name, rx: rx, rz: rz)
+            lock.lock()
+            let made = cache.index(forKey: k) != nil
+            if !made && !planning.contains(k) { planning.insert(k); missing.append(k) }
+            lock.unlock()
+            if made, let s = start(t, regionX: rx, regionZ: rz) { out.append(s) }
+        } }
+        if !missing.isEmpty {
+            let todo = missing
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                guard let self = self else { return }
+                for k in todo { _ = self.start(t, regionX: k.rx, regionZ: k.rz) }
+                self.lock.lock(); for k in todo { self.planning.remove(k) }; StructureCache.offThreadPlans += todo.count; self.lock.unlock()
+            }
+        }
+        return out
+    }
+
     // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
     static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
                                            "military_base": 24, "trail_ruins": 4,

@@ -506,7 +506,7 @@ enum FrontierSites {
 
     static func sites(_ g: Game, near p: V3) -> [StructureStart] {
         guard let sc = g.world.gen.structures, let t = sc.types.first(where: { $0.name == kind }) else { return [] }
-        return sc.startsNear(cx: floorDiv(Int(floor(p.x)), CS), cz: floorDiv(Int(floor(p.z)), CS), t)
+        return sc.startsNearMade(cx: floorDiv(Int(floor(p.x)), CS), cz: floorDiv(Int(floor(p.z)), CS), t)
     }
 
     static func tick(_ g: Game) {
