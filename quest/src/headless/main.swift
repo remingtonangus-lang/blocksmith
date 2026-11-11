@@ -3553,6 +3553,10 @@ var walkTrace: [String] = []
 Game.onDamage = { amt, cause in if walkHurt.count < 12 { walkHurt.append("frame \(walkFrame): \(amt) by \(cause)") } }
 for i in 0..<frames {
     walkFrame = i
+    // (Nov 11: a walk of streaming and menus, not a fight: a patrol it wandered into (a Meridian gunner, build 315) or a
+    // fall killed him and the death screen read as a menu left open. He is kept fed and whole; what hurt him is still
+    // listed.)
+    if game.alive { game.health = max(game.health, 20); game.hunger = max(game.hunger, 20) }
     var p = PadSnapshot()
     p.ly = 1
     p.rx = 0.2

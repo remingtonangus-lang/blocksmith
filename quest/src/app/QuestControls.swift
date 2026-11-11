@@ -1290,6 +1290,7 @@ final class QuestControls {
             game.player.pitch = max(-1.55, min(1.55, app.rig.headPitch))
             aimHit = nil
             game.vrAim = nil
+            TankSight.chasePoint = nil
             return
         }
         let w = game.world
@@ -1311,6 +1312,7 @@ final class QuestControls {
             }
             QuestControls.chaseAimPoint = aimOrigin + aimDir * t
         }
+        TankSight.chasePoint = QuestControls.chaseAim ? QuestControls.chaseAimPoint : nil
         if QuestControls.chaseAim, let p = QuestControls.chaseAimPoint {
             let d = simd_normalize(p - game.player.eye)
             game.player.yaw = atan2f(-d.x, -d.z)
