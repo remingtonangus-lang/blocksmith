@@ -3341,6 +3341,30 @@ if let out = arg("--questsim"), let ctx = vkctx {
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 
+// Nov 11: the creative palette's tabs and search, timed on the frame's thread (BS_OLDCREATIVETABS=1 for before).
+if CommandLine.arguments.contains("--creativetabs") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    let t0 = threadMs()
+    if !CreativeMenu.oldTabs && CommandLine.arguments.contains("--cold") { _ = CreativeMenu.byTab.count; _ = CreativeMenu.searchNames.count }
+    else { Thread.sleep(forTimeInterval: 2) }                    // (the worker's pass from the world's load done)
+    let pass = threadMs() - t0
+    game.survival = false
+    let m = CreativeMenu(game: game)
+    game.openMenu(m)
+    var parts: [String] = [], worst = 0.0
+    for t in CreativeMenu.Tab.allCases where t != .all {
+        let a = threadMs(); m.setTab(t); let ms = threadMs() - a
+        worst = max(worst, ms); parts.append(String(format: "%@ %.1f (%d)", t.short, ms, m.all.count))
+    }
+    var typed: [String] = []
+    for c in "stone" { let a = threadMs(); m.typed(String(c)); let ms = threadMs() - a; worst = max(worst, ms); typed.append(String(format: "%.2f", ms)) }
+    print(String(format: "creativetabs (%@): first opening of each tab, ms on the frame's thread: ", CreativeMenu.oldTabs ? "old" : "new")
+          + parts.joined(separator: ", ") + "; search keys s-t-o-n-e " + typed.joined(separator: " ") + String(format: " (%d found); worst %.1f ms", m.all.count, worst)
+          + (CreativeMenu.oldTabs ? "" : String(format: "; the one pass on the frame's thread %.1f ms", CommandLine.arguments.contains("--cold") ? pass : 0)))
+    game.closeMenu()
+    exit(0)
+}
+
 // Horses alone (iterating on Sources/HorseTests.swift); the full run does them at the end.
 if CommandLine.arguments.contains("--horse-only") {
     HorseTests.run(game: game, check: check)

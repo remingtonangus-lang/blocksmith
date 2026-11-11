@@ -30,6 +30,24 @@ final class CreativeMenu: Menu {
         return false
     }
     static var cache: [Int: [ItemID]] = [:]
+    // Nov 11 (the VR fuzz's stall oracle: 40-83 ms frames with the palette open, about one a tab): each tab's first
+    // opening sorted every item in the palette into its tabs (category(): up to some 250 name tests an item) to keep
+    // its own, and every key typed into Search lowercased every name again. All the tabs are now sorted in one pass and
+    // the names lowercased once, both made on a worker as a world loads (warm). BS_OLDCREATIVETABS=1: as before.
+    static let oldTabs = ProcessInfo.processInfo.environment["BS_OLDCREATIVETABS"] == "1"
+    static let byTab: [[ItemID]] = {
+        var lists = [[ItemID]](repeating: [], count: Tab.allCases.count)
+        for id in every { lists[category(id).rawValue].append(id) }
+        let ammo = Set(Guns.ammo.map { $0.0 } + Guns.all.map { $0.ammo } + Magazines.kinds.map { $0.key })
+        let misc = lists[Tab.misc.rawValue]
+        lists[Tab.misc.rawValue] = misc.filter { ammo.contains(Items.key($0)) } + misc.filter { !ammo.contains(Items.key($0)) }
+        return lists
+    }()
+    static let searchNames: [(ItemID, String, String)] = every.map { ($0, Items.def($0).display.lowercased(), Items.key($0)) }
+    static func warm() {
+        guard !oldTabs && !CommandLine.arguments.contains("--cold") else { return }      // (--creativetabs --cold: the pass timed itself)
+        DispatchQueue.global(qos: .utility).async { _ = byTab.count; _ = searchNames.count }
+    }
     var all: [ItemID] = CreativeMenu.every
     var tab: Tab = .all
     var query = ""
@@ -116,8 +134,13 @@ final class CreativeMenu: Menu {
         if t == .search {
             let q = query.lowercased().trimmingCharacters(in: .whitespaces)
             if q.isEmpty { return every }
+            if !oldTabs {
+                let k = q.replacingOccurrences(of: " ", with: "_")
+                return searchNames.compactMap { $0.1.contains(q) || $0.2.contains(k) ? $0.0 : nil }
+            }
             return every.filter { Items.def($0).display.lowercased().contains(q) || Items.key($0).contains(q.replacingOccurrences(of: " ", with: "_")) }
         }
+        if !oldTabs { return byTab[t.rawValue] }
         if let c = cache[t.rawValue] { return c }
         var list = every.filter { category($0) == t }
         // P456 (Oct 25 13:54, "Put the ammunition at the top of the ingredients section in the inventory. I grab ammo

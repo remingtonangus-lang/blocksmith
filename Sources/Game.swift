@@ -535,6 +535,7 @@ final class Game: LifeLinked {
         // Per-block-state tables the first game tick builds lazily (gravity, concrete, plant support: a 50 ms first tick
         // in the world, --sim profile). Built here, behind the load, instead.
         _ = World.fallingIDs.count; _ = Game.hardened.count; _ = PlantSupport.ruleOf(AIR)
+        CreativeMenu.warm()
     }
 
     static let creativeStarter = ["grass_block", "dirt", "stone", "cobblestone", "oak_planks", "oak_log", "glass", "torch", "crafting_table"]
