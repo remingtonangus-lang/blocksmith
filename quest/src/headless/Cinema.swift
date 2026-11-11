@@ -397,6 +397,9 @@ enum Cinema {
             var y = o.y
             while y > o.y - 6 && (y == o.y || !(w.solidAt(o.x + x, y, o.z + z) || w.groundAt(o.x + x, y, o.z + z))) { cells.append((IVec3(o.x + x, y, o.z + z), stone)); y -= 1 }
             cells.append((IVec3(o.x + x, y, o.z + z), stone))
+            // ...and two courses on into the ground: the smooth ground rounds off under a course's lower edge on a
+            // slope, and the trailer showed a dark slot under the footing there (Nov 11 dissection).
+            cells.append((IVec3(o.x + x, y - 1, o.z + z), stone)); cells.append((IVec3(o.x + x, y - 2, o.z + z), stone))
         } }
         for y in 1...h {
             var ring: [(IVec3, BlockID)] = []

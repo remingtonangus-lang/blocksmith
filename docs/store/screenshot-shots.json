@@ -8,7 +8,7 @@
     65
    ]
   },
-  "time": 0.43,
+  "time": 0.3,
   "seconds": 2.0,
   "warm": 2,
   "rain": false,
@@ -124,7 +124,7 @@
     65
    ]
   },
-  "time": 0.43,
+  "time": 0.3,
   "seconds": 4.0,
   "warm": 2,
   "rain": false,
@@ -240,7 +240,7 @@
     0
    ]
   },
-  "time": 0.42,
+  "time": 0.3,
   "seconds": 6.0,
   "warm": 10,
   "peaceful": true,
@@ -379,7 +379,7 @@
    ],
    "station": "boreal_station"
   },
-  "time": 0.53,
+  "time": 0.28,
   "seconds": 6.0,
   "warm": 6,
   "cam": [
@@ -422,7 +422,7 @@
    ],
    "station": "boreal_gate"
   },
-  "time": 0.55,
+  "time": 0.28,
   "seconds": 3.0,
   "warm": 8,
   "cam": [
@@ -695,7 +695,7 @@
    ],
    "train": "passenger"
   },
-  "time": 0.45,
+  "time": 0.3,
   "seconds": 6.8,
   "warm": 0,
   "cam": [

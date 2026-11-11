@@ -9,7 +9,7 @@
    ]
   },
   "time": 0.24,
-  "seconds": 3.0,
+  "seconds": 1.0,
   "warm": 8,
   "peaceful": true,
   "cam": [
@@ -138,165 +138,6 @@
   "fps": 30
  },
  {
-  "name": "cover_train",
-  "anchor": {
-   "rail": 50,
-   "from": [
-    -1500,
-    1500
-   ],
-   "train": "passenger"
-  },
-  "time": 0.24,
-  "seconds": 6.8,
-  "warm": 0,
-  "cam": [
-   {
-    "t": 0,
-    "pos": [
-     30,
-     16,
-     26
-    ],
-    "look": [
-     0,
-     2,
-     0
-    ]
-   },
-   {
-    "t": 6,
-    "pos": [
-     26,
-     14,
-     12
-    ],
-    "look": [
-     0,
-     2,
-     -14
-    ]
-   }
-  ],
-  "fps": 30
- },
- {
-  "name": "cover_battle",
-  "anchor": {
-   "at": [
-    3090,
-    0,
-    65
-   ]
-  },
-  "time": 0.28,
-  "seconds": 4.0,
-  "warm": 2,
-  "rain": false,
-  "events": [
-   {
-    "t": 0,
-    "do": "spawn",
-    "mob": "soldier_trooper@marauder^90",
-    "at": [
-     -24,
-     0,
-     -2
-    ],
-    "n": 12,
-    "spread": 9
-   },
-   {
-    "t": 0,
-    "do": "spawn",
-    "mob": "soldier_marksman@marauder^90",
-    "at": [
-     -30,
-     0,
-     8
-    ],
-    "n": 6,
-    "spread": 6
-   },
-   {
-    "t": 1.0,
-    "do": "explode",
-    "at": [
-     -30,
-     0,
-     -2
-    ],
-    "power": 6,
-    "fire": true
-   },
-   {
-    "t": 2.3,
-    "do": "explode",
-    "at": [
-     -38,
-     0,
-     -14
-    ],
-    "power": 6
-   },
-   {
-    "t": 3.5,
-    "do": "explode",
-    "at": [
-     -28,
-     0,
-     -12
-    ],
-    "power": 6,
-    "fire": true
-   },
-   {
-    "t": 5.8,
-    "do": "explode",
-    "at": [
-     -34,
-     0,
-     6
-    ],
-    "power": 6,
-    "fire": true
-   }
-  ],
-  "cam": [
-   {
-    "t": 0,
-    "pos": [
-     -14,
-     1.7,
-     5
-    ],
-    "look": [
-     -28,
-     1.8,
-     -1
-    ],
-    "ground": true
-   },
-   {
-    "t": 7,
-    "pos": [
-     -15,
-     1.8,
-     7
-    ],
-    "look": [
-     -28,
-     1.8,
-     -1
-    ],
-    "ground": true
-   }
-  ],
-  "survival": false,
-  "rd": 18,
-  "fps": 30
- },
- {
   "name": "cover_station_day",
   "anchor": {
    "near": "boreal_station",
@@ -381,6 +222,55 @@
      0,
      -2,
      0
+    ]
+   }
+  ],
+  "rd": 12,
+  "fps": 30
+ },
+ {
+  "name": "cover_frigate_village",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    0,
+    0,
+    35
+   ]
+  },
+  "time": 0.24,
+  "seconds": 2.0,
+  "warm": 2,
+  "events": [],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -90,
+     -25,
+     110
+    ],
+    "look": [
+     0,
+     -22,
+     10
+    ]
+   },
+   {
+    "t": 2,
+    "pos": [
+     -90,
+     -25,
+     110
+    ],
+    "look": [
+     0,
+     -22,
+     10
     ]
    }
   ],
