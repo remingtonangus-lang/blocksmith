@@ -255,7 +255,7 @@ extension Game {
         let entries = keys.compactMap { k in Game.structureNames.first { $0.0 == k } }
         if Game.arrivalHold && !Game.oldShortcutLand { return locateLater(entries, all: true) }      // (ledger 80)
         let snap = locateSnap(for: keys)
-        return locateAllLines(entries, entries.map { locateFind($0.0, snap) })
+        return locateAllLines(entries, entries.map { Game.locateFind($0.0, snap) })
     }
     private func locateAllLines(_ entries: [(String, String)], _ hits: [LocateHit]) -> [String] {
         var out: [(Int, String)] = []
@@ -543,7 +543,7 @@ extension Game {
             let n = Game.norm(a[1])
             guard let entry = Game.structureNames.first(where: { $0.0 == n || Game.norm($0.1) == n }) else { return ["Unknown structure \(a[1])"] }
             if Game.arrivalHold && !Game.oldShortcutLand { return locateLater([entry], all: false) }      // (ledger 80)
-            return locateLines(entry, locateFind(entry.0, locateSnap(for: [entry.0])))
+            return locateLines(entry, Game.locateFind(entry.0, locateSnap(for: [entry.0])))
         case "spawnpoint":
             spawnPoint = player.pos
             return [String(format: "Set spawn point to %.0f, %.0f, %.0f", player.pos.x, player.pos.y - Float(YOFF), player.pos.z)]
