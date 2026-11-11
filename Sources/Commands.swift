@@ -206,10 +206,14 @@ extension Game {
         if commandHistory.count > 40 { commandHistory.removeFirst() }
         guard t.hasPrefix("/") else { say("<Player> \(t)"); return }
         say(t)
+        let cmd = t.dropFirst().split(separator: " ").first.map { $0.lowercased() } ?? ""
+        LocateJob.cmd = cmd
         let out = execute(t.dropFirst().split(separator: " ").map(String.init))
+        report(cmd, out)
+    }
+    private func report(_ cmd: String, _ out: [String]) {
         // P456 (Oct 25 14:13, the commands list: "we got a duplicate here... two Boreal stations"): a place found again
         // replaces the line it had in the log (where the nearest one was when last asked) instead of listing it twice.
-        let cmd = t.dropFirst().split(separator: " ").first.map { $0.lowercased() } ?? ""
         if cmd == "locate" || Game.shortcutNames.contains(cmd) {
             for l in out {
                 guard let colon = l.firstIndex(of: ":") else { continue }
@@ -248,14 +252,136 @@ extension Game {
     }
 
     private func locateAll(_ keys: [String]) -> [String] {
+        let entries = keys.compactMap { k in Game.structureNames.first { $0.0 == k } }
+        if Game.arrivalHold && !Game.oldShortcutLand { return locateLater(entries, all: true) }      // (ledger 80)
+        let snap = locateSnap(for: keys)
+        return locateAllLines(entries, entries.map { locateFind($0.0, snap) })
+    }
+    private func locateAllLines(_ entries: [(String, String)], _ hits: [LocateHit]) -> [String] {
         var out: [(Int, String)] = []
-        for k in keys {
-            for l in execute(["locate", k]).prefix(1) {          // (P474: the place, not the line on what it is)
+        for (e, h) in zip(entries, hits) {
+            for l in locateLines(e, h).prefix(1) {               // (P474: the place, not the line on what it is)
                 let d = l.range(of: "(").flatMap { Int(l[$0.upperBound...].prefix { $0.isNumber }) } ?? Int.max
                 out.append((d, l))
             }
         }
         return out.sorted { $0.0 < $1.0 }.map { $0.1 }
+    }
+
+    // Ledger 80 (Nov 11, the VR fuzz's stack sampler: a frigate shortcut held one frame 685 ms): /locate and the place
+    // shortcuts (/bases, /rare...) searched on the frame, out to 40 rings of vessel encounter regions or 40 rings of a
+    // structure's regions planned there, in every dimension for a kind this one lacks: /bases ran nine such searches
+    // in one frame. The search is now split: what only the frame may read (the vessels and trains already out, the
+    // generators) is taken on the frame (locateSnap), the search itself (locateFind) reads nothing else, and on the
+    // headset it runs on a worker; its lines go to the console when it is done (locateTick, every frame), as the
+    // command's would have. Host checks: all on the frame as before (same lines). BS_OLDSHORTCUT=1: on the frame.
+    struct LocateSnap {
+        var p: V3, seed: UInt64, dim: Dim, fleetSails: Bool, time: Double
+        var gens: [(Dim, TerrainGenerator)]                  // this dimension's first
+        var shipOut: [String: (IVec3, Float)] = [:]          // the nearest vessel of a kind already out
+        var trainOut: (IVec3, Float, String)?                // the nearest train running
+    }
+    enum LocateHit {
+        case none
+        case structure(StructureStart, String)               // (start, " in <dimension>" or "")
+        case vessel(IVec3, Float, Bool)                      // (point, distance, on the move)
+        case train(IVec3, Float, String)
+    }
+    func locateSnap(for keys: [String]) -> LocateSnap {
+        var s = LocateSnap(p: player.pos, seed: world.seed, dim: dim.dim, fleetSails: fleetSails, time: time, gens: [(dim.dim, world.gen)])
+        if keys.contains(where: { k in !["warfrigate", "crawler", "frigate", "carriage", "train"].contains(k) }) {
+            for d in Dim.allCases where d != dim.dim { s.gens.append((d, Game.otherGen(d, seed: world.seed))) }
+        }
+        for k in keys where ["warfrigate", "crawler", "frigate", "carriage"].contains(k) {
+            let role = k == "frigate" ? "capfrigate" : k
+            for sh in world.ships.list where sh.role == role && !sh.wrecked {
+                let d = simd_length(V2(sh.pos.x - player.pos.x, sh.pos.z - player.pos.z))
+                if s.shipOut[k] == nil || d < s.shipOut[k]!.1 { s.shipOut[k] = (IVec3(Int(floor(sh.pos.x)), Int(floor(sh.pos.y)), Int(floor(sh.pos.z))), d) }
+            }
+        }
+        if keys.contains("train") && dim.dim == .overworld {
+            for tr in Trains.trains.values where !tr.wrecked && tr.track.dim == .overworld {
+                guard let c = tr.cars.first else { continue }
+                let d = simd_length(V2(c.pos.x - player.pos.x, c.pos.z - player.pos.z))
+                if s.trainOut == nil || d < s.trainOut!.1 { s.trainOut = (IVec3(Int(floor(c.pos.x)), Int(floor(c.pos.y)), Int(floor(c.pos.z))), d, tr.track.name) }
+            }
+        }
+        return s
+    }
+    // The search (no game state but the snapshot: also run on a worker). onFrame: the shared train track cache.
+    static func locateFind(_ key: String, _ s: LocateSnap, onFrame: Bool = true) -> LocateHit {
+        if key == "train" {
+            if let t = s.trainOut { return .train(t.0, t.1, t.2) }
+            guard s.dim == .overworld, let wg = s.gens.first?.1 as? WorldGen,
+                  let t = Game.trainLines(wg, from: s.p, time: s.time, cached: onFrame) else { return .none }
+            return .train(t.0, t.1, t.2)
+        }
+        if ["warfrigate", "crawler", "frigate", "carriage"].contains(key) {
+            if let o = s.shipOut[key] { return .vessel(o.0, o.1, true) }
+            guard let g = s.gens.first?.1, let v = Game.vesselRegions(key, from: s.p, seed: s.seed, gen: g, fleetSails: s.fleetSails) else { return .none }
+            return .vessel(v.0, v.1, false)
+        }
+        // P436 (Oct 24 15:46, "I need a command so I can find shit in another [dimension]"): what this dimension
+        // doesn't hold is looked up in the others (the surface, the Deep and its hell band, the Emberdeep, the Hollow),
+        // with the dimension named; x and z are the same in every dimension.
+        // (P504: near first, then out to 40 regions: the nearest however far, not only one close by.)
+        for reach in [6, 40] {
+            for (i, (d, g)) in s.gens.enumerated() {
+                guard let sc = g.structures, let st = sc.nearest(key, x: Int(s.p.x), z: Int(s.p.z), maxRegions: reach) else { continue }
+                return .structure(st, i == 0 ? "" : " in " + Game.dimName(d))
+            }
+        }
+        return .none
+    }
+    // The console lines for a search's answer (on the frame: marks the map).
+    func locateLines(_ entry: (String, String), _ hit: LocateHit) -> [String] {
+        switch hit {
+        case .train(let c, let d, let line):
+            return ["Train: \(c.x) ~ \(c.z) (\(Int(d)) blocks, on the \(line))"]
+        case .vessel(let c, let d, let moving):
+            return ["\(entry.1): \(c.x) ~ \(c.z) (\(Int(d)) blocks, \(moving ? "on the move" : "patrols"))"]
+        case .none:
+            if entry.0 == "train" { return ["Could not find a railway with a train running in this world"] }
+            if ["warfrigate", "crawler", "frigate", "carriage"].contains(entry.0) {
+                return [entry.0 == "warfrigate" && !fleetSails ? "The Stormwarden Frigates sail once a Greywall Fortress falls"
+                                                               : "Could not find a \(entry.1) nearby"]
+            }
+            return ["There is no \(entry.1) in this world"]
+        case .structure(let s, let whereIn):
+            let dx = Float(s.anchor.x) - player.pos.x, dz = Float(s.anchor.z) - player.pos.z
+            // P474: how deep it lies (a place under the ground or the sea shows nothing where he stands), it goes on
+            // his map, and what it is.
+            var depth = ""
+            if whereIn.isEmpty {
+                let top = world.gen.column(s.anchor.x, s.anchor.z).height
+                if s.anchor.y < top - 6 {
+                    depth = ", underground: its floor at y \(s.anchor.y - YOFF), \(top - s.anchor.y) blocks under the \(top < SEA - 2 ? "sea floor" : "surface")"
+                } else if top < SEA - 2 { depth = ", on the sea floor \(max(0, SEA - s.anchor.y)) blocks down" }
+                MapCache.shared.discover(self, kind: entry.0, x: s.anchor.x, z: s.anchor.z, name: entry.1, silent: true)
+            }
+            var out = ["\(entry.1)\(whereIn): \(s.anchor.x) ~ \(s.anchor.z) (\(Int(sqrtf(dx * dx + dz * dz))) blocks\(depth))\(whereIn.isEmpty ? ", marked on your map" : "")"]
+            if let about = Game.placeAbout[entry.0] { out.append(about.prefix(1).uppercased() + about.dropFirst() + ".") }
+            return out
+        }
+    }
+    // The headset: the search on a worker (one at a time); the command's lines come when it is done.
+    private func locateLater(_ entries: [(String, String)], all: Bool) -> [String] {
+        guard LocateJob.pending == nil else { return ["Still looking..."] }
+        let snap = locateSnap(for: entries.map { $0.0 })
+        LocateJob.pending = (LocateJob.cmd, entries, all)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let hits = entries.map { Game.locateFind($0.0, snap, onFrame: false) }
+            LocateJob.lock.lock(); LocateJob.hits = hits; LocateJob.lock.unlock()
+        }
+        return []
+    }
+    func locateTick() {
+        guard let (cmd, entries, all) = LocateJob.pending else { return }
+        LocateJob.lock.lock(); let h = LocateJob.hits; LocateJob.hits = nil; LocateJob.lock.unlock()
+        guard let hits = h else { return }
+        LocateJob.pending = nil
+        let out = all ? locateAllLines(entries, hits) : locateLines(entries[0], hits[0])
+        report(cmd, out)
     }
 
     private func execute(_ raw: [String]) -> [String] {
@@ -416,48 +542,8 @@ extension Game {
             guard a.count >= 2 else { return ["Usage: /locate <structure>   Shortcuts: /bases /citadels /frigates /villages /rare"] }
             let n = Game.norm(a[1])
             guard let entry = Game.structureNames.first(where: { $0.0 == n || Game.norm($0.1) == n }) else { return ["Unknown structure \(a[1])"] }
-            if entry.0 == "train" {
-                guard let t = trainTarget() else { return ["Could not find a railway with a train running in this world"] }
-                return ["Train: \(t.0.x) ~ \(t.0.z) (\(Int(t.1)) blocks, on the \(t.2))"]
-            }
-            if ["warfrigate", "crawler", "frigate", "carriage"].contains(entry.0) {
-                // The nearest one out (its live position when it is rolling), else its encounter region's home.
-                guard let b = vesselTarget(entry.0) else {
-                    return [entry.0 == "warfrigate" && !fleetSails ? "The Stormwarden Frigates sail once a Greywall Fortress falls"
-                                                                   : "Could not find a \(entry.1) nearby"]
-                }
-                return ["\(entry.1): \(b.0.x) ~ \(b.0.z) (\(Int(b.1)) blocks, \(b.2 ? "on the move" : "patrols"))"]
-            }
-            // P436 (Oct 24 15:46, "I need a command so I can find shit in another [dimension]"): what this dimension
-            // doesn't hold is looked up in the others (the surface, the Deep and its hell band, the Emberdeep, the Hollow),
-            // with the dimension named; x and z are the same in every dimension.
-            var found: (StructureStart, String)?
-            // (P504: near first, then out to 40 regions: the nearest however far, not only one close by.)
-            for reach in [6, 40] where found == nil {
-                if let sc = world.gen.structures, let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z), maxRegions: reach) { found = (s, "") }
-                if found == nil {
-                    for d in Dim.allCases where d != dim.dim {
-                        guard let sc = Game.otherGen(d, seed: world.seed).structures,
-                              let s = sc.nearest(entry.0, x: Int(player.pos.x), z: Int(player.pos.z), maxRegions: reach) else { continue }
-                        found = (s, " in " + Game.dimName(d)); break
-                    }
-                }
-            }
-            guard let (s, whereIn) = found else { return ["There is no \(entry.1) in this world"] }
-            let dx = Float(s.anchor.x) - player.pos.x, dz = Float(s.anchor.z) - player.pos.z
-            // P474: how deep it lies (a place under the ground or the sea shows nothing where he stands), it goes on
-            // his map, and what it is.
-            var depth = ""
-            if whereIn.isEmpty {
-                let top = world.gen.column(s.anchor.x, s.anchor.z).height
-                if s.anchor.y < top - 6 {
-                    depth = ", underground: its floor at y \(s.anchor.y - YOFF), \(top - s.anchor.y) blocks under the \(top < SEA - 2 ? "sea floor" : "surface")"
-                } else if top < SEA - 2 { depth = ", on the sea floor \(max(0, SEA - s.anchor.y)) blocks down" }
-                MapCache.shared.discover(self, kind: entry.0, x: s.anchor.x, z: s.anchor.z, name: entry.1, silent: true)
-            }
-            var out = ["\(entry.1)\(whereIn): \(s.anchor.x) ~ \(s.anchor.z) (\(Int(sqrtf(dx * dx + dz * dz))) blocks\(depth))\(whereIn.isEmpty ? ", marked on your map" : "")"]
-            if let about = Game.placeAbout[entry.0] { out.append(about.prefix(1).uppercased() + about.dropFirst() + ".") }
-            return out
+            if Game.arrivalHold && !Game.oldShortcutLand { return locateLater([entry], all: false) }      // (ledger 80)
+            return locateLines(entry, locateFind(entry.0, locateSnap(for: [entry.0])))
         case "spawnpoint":
             spawnPoint = player.pos
             return [String(format: "Set spawn point to %.0f, %.0f, %.0f", player.pos.x, player.pos.y - Float(YOFF), player.pos.z)]
@@ -473,4 +559,13 @@ extension Game {
             return ["Unknown command: \(cmd). Type /help for a list"]
         }
     }
+}
+
+// A /locate or place shortcut searching on a worker (ledger 80): the command, its places and whether it lists them
+// all (frame thread), and the answers (under the lock).
+enum LocateJob {
+    static let lock = NSLock()
+    static var cmd = ""
+    static var pending: (String, [(String, String)], Bool)?
+    static var hits: [Game.LocateHit]?
 }

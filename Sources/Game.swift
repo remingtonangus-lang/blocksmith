@@ -1137,7 +1137,7 @@ final class Game: LifeLinked {
             world.facing = player.yaw                        // (P446: the land he faces streams in first)
             world.update(center: player.pos)
             TickProf.mark("world.update")
-            shortcutFindTick()                               // (ledger 80: a Go To a Place search done on its worker)
+            shortcutFindTick(); locateTick()                 // (ledger 80: place searches done on their workers)
         }
 
         let pad = seat == 0 ? readPad() : coop.readSeatPad(seat)
