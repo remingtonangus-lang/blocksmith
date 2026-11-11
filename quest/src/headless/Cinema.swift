@@ -245,6 +245,7 @@ enum Cinema {
         print(String(format: "cine: %@: ready after %.1f s; %d frames at %dx%d", s.name, CFAbsoluteTimeGetCurrent() - t0, frames, W, H))
         var tick = 0
         var cruiseFrom: V3?
+        var cruiseRot: Quat?
         // Townsfolk and animals that wander up to the lens are walked off out of shot (scripted mobs stay put).
         func clearCamera(_ eye: V3) {
             for m in g.mobs.mobs where !m.persistent {
@@ -344,7 +345,7 @@ enum Cinema {
             for _ in 0..<perFrame {
                 hold(eye)
                 if let fr = frigate {
-                    if let cr = s.cruise { fr.vel = simd_normalize(fr.rot.act(V3(0, 0, 1))) * cr } else { fr.vel = .zero }
+                    if s.cruise == nil { fr.vel = .zero }
                     fr.angVel = .zero
                 }
                 g.tick(dt); tick += 1
@@ -352,6 +353,17 @@ enum Cinema {
                 clearCamera(eye)
             }
             FrigateBoarding.cables.removeAll()      // the boarding winch's line: a play aid, not for the store footage
+            // The cruise is posed, not flown: the frigate's own AI steers her on her patrol heading every tick and
+            // overwrote the speed set above, so she drifted engine block first (Remington, Nov 1 and Nov 11: "the
+            // frigate was moving backwards"). Her bow is local -Z (the drive exhaust streams aft along +Z): a positive
+            // cruise carries her bow first at an even speed, her heading as she was spawned.
+            if let cr = s.cruise, let fr = frigate {
+                if cruiseFrom == nil { cruiseFrom = fr.pos }
+                if cruiseRot == nil { cruiseRot = fr.rot }
+                let bow = simd_normalize(cruiseRot!.act(V3(0, 0, -1)))
+                fr.rot = cruiseRot!; fr.angVel = .zero
+                fr.pos = cruiseFrom! + bow * (cr * Float(Double(tick) * dt)); fr.vel = bow * cr
+            }
             // The camera rides with the frigate as drawn: its offset from the pose after this frame's ticks.
             if follows, let fr = frigate, let c0 = cruiseFrom {
                 eye = sample(s.cam, t, camPos) + (fr.pos - c0); look = sample(s.cam, t, camLook) + (fr.pos - c0)
