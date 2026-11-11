@@ -87,11 +87,23 @@ enum QuestFuzz {
         // The thread's voluntary context switches (it blocked: a lock, a wait, a sleep), on the host: a frame past the
         // budget by the wall clock that blocked is a stall the CPU clock above doesn't see (ledger 78: a 1.8 s wait in
         // a 68 ms frame). Host preemption is an involuntary switch and doesn't count.
+        // (Nov 11, frigate start: a 178 ms wait with only 3 samples in it, so the sampler's own thread stood still too.
+        // The frame's major page faults are counted beside it: a page of code or data read back from the host's disk
+        // is a wait the host's memory makes, not the game.)
         @inline(__always) func blocks() -> Int {
             #if os(Linux)
             var ru = rusage()
             getrusage(__rusage_who_t(1), &ru)                                         // RUSAGE_THREAD
             return ru.ru_nvcsw
+            #else
+            return 0
+            #endif
+        }
+        @inline(__always) func pageIns() -> Int {
+            #if os(Linux)
+            var ru = rusage()
+            getrusage(__rusage_who_t(1), &ru)
+            return ru.ru_majflt
             #else
             return 0
             #endif
@@ -148,7 +160,7 @@ enum QuestFuzz {
                 sim.hands[h] = hd
             }
             StallTrace.begin(i)
-            let w0 = wallMs(), b0 = blocks()
+            let w0 = wallMs(), b0 = blocks(), f0 = pageIns()
             let c0 = threadMs()
             rig.update(xr: sim, game: game)
             controls.update(dt: dt)
@@ -157,14 +169,14 @@ enum QuestFuzz {
             let c2 = threadMs()
             controls.afterTick(dt: dt)
             let ms = threadMs() - c0
-            let wall = wallMs() - w0, blocked = blocks() - b0
+            let wall = wallMs() - w0, blocked = blocks() - b0, faults = pageIns() - f0
             tickSum += ms
             let waited = wall > 13.9 && blocked > 0 && wall - ms > 5 && i > 72
             StallTrace.end(slow: (ms > 13.9 || waited) && i > 72, ms: max(ms, wall), what: game.menu.map { String(describing: type(of: $0)) } ?? "none")
             if waited {
                 waitFrames += 1; worstWait = max(worstWait, wall)
                 if waitList.count < 8 {
-                    waitList.append(String(format: "frame %d, %.1f ms by the clock, %.1f on the CPU, blocked %d times: menu %@, %@ (stage ", i, wall, ms, blocked,
+                    waitList.append(String(format: "frame %d, %.1f ms by the clock, %.1f on the CPU, blocked %d times (%d disk page-ins): menu %@, %@ (stage ", i, wall, ms, blocked, faults,
                                            game.menu.map { String(describing: type(of: $0)) } ?? "none", game.survival ? "survival" : "creative")
                                     + TickProf.summary() + ")")
                 }
@@ -180,7 +192,14 @@ enum QuestFuzz {
                                   game.riding?.kind.key ?? "nothing", game.held.count > 0 ? Items.key(game.held.item) : "nothing",
                                   game.player.pos.x, game.player.pos.y - 64, game.player.pos.z)
                     + String(format: "; input %.1f, tick %.1f (top stage ", c1 - c0, c2 - c1) + TickProf.summary() + ")"
-                if slowList.count < 8 { slowList.append((ms, what)) }
+                // (Nov 11, village start: a 15.6 ms frame in the mobs stage, its samples in World.sweep under moveBody,
+                // whose sub-steps grow with the distance moved: the mobs out, and the fastest and widest ones.)
+                let ms3 = game.mobs.mobs.sorted { simd_length($0.vel) > simd_length($1.vel) }.prefix(3)
+                let wide = game.mobs.mobs.max { $0.halfW < $1.halfW }
+                let mobsWhat = String(format: "; %d mobs, fastest ", game.mobs.mobs.count)
+                    + ms3.map { String(format: "%@ %.0f b/s (half width %.1f)", $0.kind.key, simd_length($0.vel), $0.halfW) }.joined(separator: ", ")
+                    + (wide.map { String(format: ", widest %@ %.1f", $0.kind.key, $0.halfW) } ?? "")
+                if slowList.count < 8 { slowList.append((ms, what + mobsWhat)) }
                 if ms > worstMs { worstMs = ms; worstWhat = what }
             }
             frames += 1
@@ -202,12 +221,13 @@ enum QuestFuzz {
                 if !finite(controls.panelWorldCenter) { bad.append("frame \(i): panel position not finite") }
                 if p.pos.y < -70 && game.alive { bad.append(String(format: "frame %d: fell out of the world (y %.1f)", i, p.pos.y)) }
             }
-            // (Nov 11) Stuck inside blocks: his body in solid cells for 2 s on end, alive, on foot and not held by a
-            // trip. Listed, not failed: a block can fall on him (sand, gravel) as in the reference game; each one is a
-            // lead to look at.
+            // (Nov 11) Stuck inside blocks: his body in solid cells for 2 s on end, alive, on foot, not held by a
+            // trip and not paused (check fix 37: the body's unstuck step runs in its own update, which a pause stops;
+            // seed 16 counted a respawn into the spawn's grass under the pause menu). Listed, not failed: a block can
+            // fall on him (sand, gravel) as in the reference game; each one is a lead to look at.
             if game.alive && !wasAlive { lastRespawn = i }
             wasAlive = game.alive
-            if game.alive && game.riding == nil && game.arrivalSince == nil && game.player.collides(at: p.pos, game.world) {
+            if game.alive && !game.paused && game.riding == nil && game.arrivalSince == nil && game.player.collides(at: p.pos, game.world) {
                 insideFrames += 1
                 if insideFrames == 144 {
                     insideCount += 1

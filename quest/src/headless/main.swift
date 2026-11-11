@@ -3365,6 +3365,71 @@ if CommandLine.arguments.contains("--creativetabs") {
     exit(0)
 }
 
+// Ledger 82: the frame's own terrain lookups (the weather's biome, a spawn's height) while the workers make new
+// ground: 12 s of streaming fresh land in four places, the frame reading 20 columns about it every 2 ms, each timed by
+// the wall clock less its own CPU (the wait). BS_OLDGRIDLOCK=1 for before (one lock a cache).
+if CommandLine.arguments.contains("--gridwait") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    func wallMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_MONOTONIC, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    QuestApp.headsetWorld()
+    func vcsw() -> Int { var ru = rusage(); getrusage(__rusage_who_t(1), &ru); return ru.ru_nvcsw }   // (blocked: a lock, not the host's preemption)
+    var worst = 0.0, waitSum = 0.0, over = 0, calls = 0, blocked = 0
+    var rng = SystemRandomNumberGenerator()
+    for trip in 0..<4 {
+        game.player.pos = V3(Float(40_000 + trip * 6_000), 200, Float(30_000 - trip * 4_000)); game.player.vel = .zero
+        let t0 = wallMs()
+        while wallMs() - t0 < 3000 {
+            game.world.update(center: game.player.pos)
+            for _ in 0..<20 {
+                let x = Int(game.player.pos.x) + Int.random(in: -200...200, using: &rng), z = Int(game.player.pos.z) + Int.random(in: -200...200, using: &rng)
+                let v = vcsw(), a = wallMs(), c = threadMs()
+                _ = game.world.gen.column(x, z)
+                let wait = max(0, (wallMs() - a) - (threadMs() - c))
+                let b = vcsw() - v
+                calls += 1
+                if b > 0 { blocked += 1; waitSum += wait; worst = max(worst, wait); if wait > 1 { over += 1 } }
+            }
+            usleep(2000)
+        }
+    }
+    print(String(format: "gridwait (%@, %d locks a cache): %d frame-thread column reads while the workers made ground; %d blocked, waiting %.1f ms in all, %d of them over 1 ms, worst %.2f ms",
+                 GridCacheRule.old ? "old" : "new", GridCache<Int>.stripes, calls, blocked, waitSum, over, worst))
+    exit(0)
+}
+
+// Ledger 81: the crafting book's search and the pack's search, timed on the frame's thread with a pack of common
+// materials (BS_OLDSEARCH=1 for before). The names' table is made on a worker as the world loads (waited for here).
+if CommandLine.arguments.contains("--searchtime") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    Thread.sleep(forTimeInterval: 2)
+    game.survival = true
+    for i in 0..<36 { game.inventory.main[i] = .empty }
+    for (k, n) in ["oak_planks", "stick", "cobblestone", "iron_ingot", "gold_ingot", "coal", "string", "redstone", "glass", "oak_log",
+                   "leather", "paper", "diamond", "copper_ingot", "white_wool", "flint", "feather", "sand"].enumerated() where Items.has(n) {
+        game.inventory.main[9 + k] = ItemStack(Items.id(n), 32)
+    }
+    var parts: [String] = []
+    for size in [3, 2] {
+        let m = CraftingBookMenu(game: game, size: size)
+        game.openMenu(m)
+        m.searching = true
+        var keys: [String] = [], worst = 0.0
+        for c in "iron\u{8}\u{8}\u{8}\u{8}plank" { let a = threadMs(); m.typed(String(c)); let ms = threadMs() - a; worst = max(worst, ms); keys.append(String(format: "%.2f", ms)) }
+        parts.append(String(format: "book %dx%d, keys i-r-o-n, 4 backspaces, p-l-a-n-k: ", size, size) + keys.joined(separator: " ") + String(format: " (%d found); worst %.2f ms", m.list.count, worst))
+        game.closeMenu()
+    }
+    let inv = InventoryMenu(game: game)
+    game.openMenu(inv)
+    inv.query = "iron"
+    let a = threadMs()
+    var lit = 0
+    for _ in 0..<72 { for s in game.inventory.main.slots where inv.matches(s) { lit += 1 } }
+    parts.append(String(format: "the pack's search lighting its 36 slots for 72 frames: %.2f ms (%d lit a frame)", threadMs() - a, lit / 72))
+    game.closeMenu()
+    print("searchtime (" + (ItemSearch.oldSearch ? "old" : "new") + "):\n  " + parts.joined(separator: "\n  "))
+    exit(0)
+}
+
 // Ledger 80: the place searches' cost on the frame's thread: /bases, /rare, /locate frigate and Go To a Place (Meridian
 // Frigate, Stronghold), each from a spot far off in fresh land; with the game's worker search (Game.arrivalHold, as on the
 // headset) and without (BS_OLDSHORTCUT=1, or the host checks' rules). Prints the frame's own CPU ms and the answer.
