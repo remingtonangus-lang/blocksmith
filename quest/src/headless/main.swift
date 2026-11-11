@@ -1355,6 +1355,31 @@ if let out = arg("--view"), let ctx = vkctx {
         vg.player.pos = V3(Float(bx) + 0.5, Float(by + 1), Float(bz - 4) + dist); vg.player.vel = .zero
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
+    // --scene smoke (trailer, Nov 11: smoke at night drawn as flat black pixel blobs): a snow field at --at, dark and pale
+    // smoke puffs (Particles.smoke) and an explosion's smoke from 0.6 to 7 blocks ahead, the camera looking down a little
+    // at the snow behind them (--time 0.6 for the night, 0.25 noon).
+    if arg("--scene") == "smoke" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 12)...(bx + 12) { for z in (bz - 20)...(bz + 4) {
+            vw.setBlock(x, by, z, Blocks.id("snow_block"))
+            for y in (by + 1)...(by + 8) { vw.setBlock(x, y, z, AIR) }
+        } }
+        vg.player.pos = V3(Float(bx) + 0.5, Float(by + 3), Float(bz) + 0.5); vg.player.vel = .zero
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        vw.remeshArea(x0: bx - 14, z0: bz - 22, x1: bx + 14, z1: bz + 6, y0: by - 4, y1: by + 10)
+        var rs: UInt32 = 7
+        func rnd() -> Float { rs = rs &* 1664525 &+ 1013904223; return Float(rs >> 8) / Float(1 << 24) }
+        let eye = vg.player.pos + V3(0, 1.62, 0)
+        for i in 0..<70 {
+            let d: Float = 0.6 + 6.4 * rnd(), sx = (rnd() - 0.5) * d * 1.2, sy = (rnd() - 0.6) * d * 0.6
+            vg.particles.smoke(at: eye + V3(sx, sy, -d), dark: i % 4 != 3)
+        }
+        vg.particles.explosion(at: eye + V3(3, -1, -9), power: 3)
+        for i in vg.particles.list.indices {                             // (the puffs fully grown, like the trailer's)
+            vg.particles.list[i].size *= 1.6; vg.particles.list[i].life = vg.particles.list[i].maxLife * (0.3 + 0.7 * rnd())
+        }
+        print("view: smoke scene, \(vg.particles.list.count) particles")
+    }
     // --mob KEY[,KEY...]: those mobs side by side --mobdist blocks ahead (default 3), facing the camera (model checks,
     // P185); --aggro shows them hostile.
     if let ks = arg("--mob") {

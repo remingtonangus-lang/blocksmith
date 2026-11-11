@@ -193,9 +193,26 @@ final class ParticleManager {
         list.removeAll { $0.life <= 0 }
     }
 
-    func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float) {
+    // Trailer, Nov 11 (the snow base at night from the air): smoke was drawn with the opaque cut-out pass, so a dark
+    // puff (grey 0.15-0.3, times the night's 0.15 light floor) came out as a flat black pixel disc, and one drifting
+    // past the camera blotted out a fifth of the view. The headset now draws smoke (grey puffs on the smoke or puff
+    // texture, not glowing) in a see-through pass of its own: soft (alpha 0.55) and thinning out over its last 40% of
+    // life. soft: nil writes every particle (the Mac renderer, BS_OLDSMOKE=1), true only the smoke, false the rest.
+    static let oldSmoke = ProcessInfo.processInfo.environment["BS_OLDSMOKE"] == "1"
+    static let smokeLayer = Int(Tex.id("smoke")), puffLayer = Int(Tex.id("puff"))
+    @inline(__always) static func isSmoke(_ p: Particle) -> Bool {
+        !p.glow && (p.layer == smokeLayer || p.layer == puffLayer) && p.color.x == p.color.y && p.color.y == p.color.z
+    }
+
+    func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float, soft: Bool? = nil) {
         let amb = world.dim.ambient
         for p in list {
+            var alpha: Float = 1
+            if let soft {
+                let sm = ParticleManager.isSmoke(p)
+                if sm != soft { continue }
+                if sm { alpha = 0.55 * min(1, p.life / max(0.01, p.maxLife * 0.4)) }
+            }
             let c = p.pos - eye
             let l = world.lightOpen(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
             ParticleManager.drawnCount += 1
@@ -216,7 +233,7 @@ final class ParticleManager {
             let r = right * s, u = up * s
             let a = p.uv0, b = p.uv0 + V2(p.uvSize, p.uvSize)
             wr.quad4(c - r - u, c + r - u, c + r + u, c - r + u, V2(a.x, b.y), V2(b.x, b.y), V2(b.x, a.y), V2(a.x, a.y),
-                     p.layer, V4(p.color * light, 1))
+                     p.layer, V4(p.color * light, alpha))
         }
     }
 }

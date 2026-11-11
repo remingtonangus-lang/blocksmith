@@ -575,6 +575,7 @@ final class SceneRenderer {
             "mob": PipeDesc(vert: "mob.vert", frag: "mob.frag", input: .mob, cull: none),
             "entity": PipeDesc(vert: "entity.vert", frag: "entity.frag", input: .entity, cull: none),
             "crack": PipeDesc(vert: "entity.vert", frag: "crack.frag", input: .entity, blend: true, depthWrite: false, compare: le, cull: none),
+            "smoke": PipeDesc(vert: "entity.vert", frag: "smoke.frag", input: .entity, blend: true, depthWrite: false, compare: le, cull: none),
             "panel": PipeDesc(vert: "panel.vert", frag: "panel.frag", blend: true, depthWrite: false, compare: le, cull: none),
             "shipSolid": PipeDesc(vert: "ship.vert", frag: "ship_solid.frag", input: .ship),
             "shipCut": PipeDesc(vert: "ship.vert", frag: "ship_cut.frag", input: .ship),
