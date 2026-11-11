@@ -40,10 +40,7 @@ extension Game {
             tu.aimAt = p
             let muzzle = tu.toWorld(tu.pivot)
             // (the bearing in the hull's frame: a frigate's tick clears aimAt before the turrets turn)
-            if let par = tu.parent {
-                let l = par.dirToLocal(p - muzzle)
-                if l.x * l.x + l.z * l.z > 0.01 { tu.aimYaw = atan2f(-l.x, -l.z) }
-            }
+            if let par = tu.parent, let y = par.turretYaw(toward: p, from: muzzle) { tu.aimYaw = y }
             let v = p - muzzle
             let horiz = simd_length(V2(v.x, v.z))
             // P477 (Oct 27 19:27, the Works' tank: "Has a tendency to shoot upwards... Should be a straight shooter"): each
