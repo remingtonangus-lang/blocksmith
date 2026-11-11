@@ -3318,8 +3318,6 @@ if let out = arg("--questsim"), let ctx = vkctx {
     let vrSet0 = (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
                   game.vrTwoHanded, game.screen)
     let vrStatic0 = (GunActions.manual, VRReload.reclined)      // (swing play's hand-worked bolts: the deep balance duels fired once)
-    // (and his life, wallet and standing: the shared checks start from what they start from without the sim)
-    let vrLife0 = (game.health, game.hunger, game.saturation, game.difficulty, game.townWallet, TownLaw.state)
     do { try QuestSim.run(game: game, ctx: ctx, out: out, check: check) } catch { check(false, "questsim: \(error)") }
     // Monkey input through the VR layer (QuestFuzz): BLOCKSMITH_FUZZ_SECONDS / --fuzz-seed to run longer or another seed.
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
@@ -3335,7 +3333,6 @@ if let out = arg("--questsim"), let ctx = vkctx {
     (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
      game.vrTwoHanded, game.screen) = vrSet0
     (GunActions.manual, VRReload.reclined) = vrStatic0
-    (game.health, game.hunger, game.saturation, game.difficulty, game.townWallet, TownLaw.state) = vrLife0
     if game.menu != nil { game.closeMenu() }
     game.alive = true
     game.vrBow = nil; game.vrBlade = nil; game.vrPinch = nil; game.swingPower = 0; game.swingMob = nil
