@@ -1688,6 +1688,7 @@ final class World: LifeLinked {
                 cacheMeshes(k, c)                                   // P376 (ChunkShells)
                 gone.append(k)
             }
+            TickProf.mark("world.unload: save + mesh files")
             // Ledger 83 (Nov 11, the VR fuzz: a 10.9 ms frame after Go To a Place; triptest's rifts 6.5-8.8 ms): a jump
             // within a dimension dropped the whole old view in one frame and freed it there (each chunk's blocks, light
             // and sections). They are now let go on a worker, as a dimension change's are (ledger 40, unloadAll).
@@ -1698,7 +1699,9 @@ final class World: LifeLinked {
                 for k in gone { if let c = chunks.removeValue(forKey: k) { box.all[k] = c } }
                 DispatchQueue.global(qos: .utility).async { box.all = [:] }
             }
+            TickProf.mark("world.unload: drop")
             reshell()                                               // P376: drop the data of finished far chunks
+            TickProf.mark("world.unload: reshell")
             // Chunks crossing the LOD boundary get remeshed at their new detail level.
             for (k, c) in chunks {
                 let (ox, oz) = nearOff(k)
