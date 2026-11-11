@@ -3374,7 +3374,8 @@ if CommandLine.arguments.contains("--locatetime") {
     var parts: [String] = []
     for (i, c) in ["/bases", "/rare", "/locate frigate", "go:frigate", "go:stronghold"].enumerated() {
         game.player.pos = V3(Float(20_000 + i * 9_000), 200, Float(-15_000 - i * 7_000)); game.player.vel = .zero
-        let n0 = game.commandLog.count
+        game.commandLog.removeAll()                                     // (the log keeps 60 lines)
+        let n0 = 0
         let a = threadMs()
         if c.hasPrefix("go:") { game.shortcutTeleport(String(c.dropFirst(3))) } else { game.command(c) }
         let frame = threadMs() - a
