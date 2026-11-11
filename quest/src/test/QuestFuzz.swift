@@ -61,6 +61,7 @@ enum QuestFuzz {
         var slowList: [(Double, String)] = []
         func finite(_ v: V3) -> Bool { v.x.isFinite && v.y.isFinite && v.z.isFinite }
         let total = seconds * 72
+        StallTrace.install()                                                         // (BS_STALLTRACE=FILE)
         for i in 0..<total {
             if i == total / 2 { game.survival = !game.survival }                   // both modes
             if i % 1500 == 0 {                                                       // comfort options vary too
@@ -98,6 +99,7 @@ enum QuestFuzz {
                 hd.gripRot = hd.aimRot
                 sim.hands[h] = hd
             }
+            StallTrace.begin(i)
             let c0 = threadMs()
             rig.update(xr: sim, game: game)
             controls.update(dt: dt)
@@ -107,6 +109,7 @@ enum QuestFuzz {
             controls.afterTick(dt: dt)
             let ms = threadMs() - c0
             tickSum += ms
+            StallTrace.end(slow: ms > 13.9 && i > 72, ms: ms, what: game.menu.map { String(describing: type(of: $0)) } ?? "none")
             if ms > 13.9 && i > 72 {
                 slowFrames += 1
                 let what = String(format: "frame %d, %.1f ms: menu %@, %@, riding %@, holding %@, at %.0f %.0f %.0f", i, ms,
@@ -158,6 +161,7 @@ enum QuestFuzz {
         print(String(format: "questfuzz: input + tick own CPU %.3f ms a frame mean, %d frames over 13.9 ms", tickSum / Double(max(1, frames)), slowFrames)
               + (slowFrames > 0 ? "; worst " + worstWhat : ""))
         for (_, w) in slowList { print("  slow: " + w) }
+        StallTrace.write()
         check(bad.isEmpty, "VR fuzz (seed \(seed), \(seconds) s): no oracle failures" + (bad.isEmpty ? "" : ": " + bad.joined(separator: "; ")))
         check(stuck == nil, "VR fuzz: B / menu buttons get back to play" + (stuck.map { " (stuck in \($0))" } ?? ""))
     }
