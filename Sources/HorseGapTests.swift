@@ -134,6 +134,11 @@ extension HorseTests {
                 why.append(String(format: "speed %.1f, ridden %@, gait %@, stamina %.0f, at %.1f,%.1f,%.1f (lane %.1f), ground %@",
                                   speed(h), g.riding === h ? "yes" : "no", h.hs.gait.name, h.stamina, h.pos.x, h.pos.y, h.pos.z, lane0.y,
                                   h.onGround ? "yes" : "no")
+                           // (Nov 11: once in a full run both horses stood still at full stamina: what could hold one)
+                           + String(format: ", health %.0f, downed %.1f, held %@, rear %.2f, asked %.1f, moveYaw %@, loaded %@",
+                                    Float(h.health), h.downed, HandGrab.holds(h) ? "yes" : "no", h.hs.rear, h.hs.speed,
+                                    g.player.moveYaw.map { String(format: "%.2f", $0) } ?? "none",
+                                    g.world.isLoaded(Int(floor(h.pos.x)), Int(floor(h.pos.z))) ? "yes" : "no")
                            + {
                                let f = V3(-sinf(h.yaw), 0, -cosf(h.yaw))
                                let a = h.pos + f * 0.9

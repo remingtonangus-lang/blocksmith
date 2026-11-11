@@ -7,7 +7,8 @@ layout(location = 0) out vec4 outColor;
 // u.wind.xy = its direction; Sources/SkyLook.swift). Lit by the sun (gold at its rise and set, white at noon) or the
 // moon, self-shadowed by one tap toward the sun, thicker and darker as the cover rises with rain, and lit from inside
 // by storm flashes. Drawn after the dome, stars, sun and moon (blended, depth 1: only over open sky, so it hides them).
-// Cost: 7 value-noise taps per sky pixel (5 cumulus, 2 cirrus); none below the horizon.
+// Cost: 7 value-noise taps per sky pixel (5 cumulus, 2 cirrus); none below the horizon. (Nov 11: each tap one fetch
+// from the noise lattice table, common.glsl vnoise.)
 const float CUMULUS_Y = 340.0;   // internal world y (displayed y 276), above every peak; nothing draws from above it
 const float CIRRUS_Y = 900.0;
 void main() {

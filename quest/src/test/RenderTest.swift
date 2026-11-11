@@ -208,7 +208,7 @@ extension RenderTest {
         let readback = try VkBuf(ctx, size: width * height * 4 * 2, usage: VK_BUFFER_USAGE_TRANSFER_DST_BIT.rawValue, host: true)
         let center = game.player.eye
         let base = path.hasSuffix(".png") ? String(path.dropLast(4)) : path
-        var recMs: [Double] = []
+        var recMs: [Double] = [], gpuMs: [Double] = []
         // Two frames at the starting yaw first (the far ring and landmark shells built), then the turn.
         for fi in -2..<frames {
             let y = yaw + 2 * .pi * Float(max(0, fi)) / Float(frames)
@@ -227,9 +227,11 @@ extension RenderTest {
             r.imageSubresource = VkImageSubresourceLayers(aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, mipLevel: 0, baseArrayLayer: 0, layerCount: 2)
             r.imageExtent = VkExtent3D(width: UInt32(width), height: UInt32(height), depth: 1)
             vkCmdCopyImageToBuffer(s.cmd, img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, readback.buffer, 1, &r)
+            let g0 = CFAbsoluteTimeGetCurrent()
             try scene.submit(s)
             scene.waitIdle()
             guard fi >= 0 else { continue }
+            gpuMs.append((CFAbsoluteTimeGetCurrent() - g0) * 1000)
             recMs.append(wr.frameCPUMs)
             let src = readback.mapped!.bindMemory(to: UInt8.self, capacity: width * height * 8)
             var out = [UInt8](repeating: 0, count: width * 2 * height * 4)
@@ -239,11 +241,14 @@ extension RenderTest {
             } } }
             let name = base + String(format: "-%03d.png", fi)
             try PNG.encode(rgba: out, width: width * 2, height: height).write(to: URL(fileURLWithPath: name))
-            print(String(format: "turn %03d: yaw %.1f, %d sections, %d draws, %d quads, CPU record %.2f ms (cull %.2f)",
-                         fi, Double(y) * 180 / .pi, scene.visibleCount, scene.drawCalls, scene.drawnQuads, wr.frameCPUMs, scene.cullMs))
+            print(String(format: "turn %03d: yaw %.1f, %d sections, %d draws, %d quads, CPU record %.2f ms (cull %.2f), drawn by lavapipe %.1f ms",
+                         fi, Double(y) * 180 / .pi, scene.visibleCount, scene.drawCalls, scene.drawnQuads, wr.frameCPUMs, scene.cullMs, gpuMs.last ?? 0))
         }
         let mean = recMs.reduce(0, +) / Double(max(1, recMs.count))
-        print(String(format: "turn: %d frames, CPU record mean %.2f ms, worst %.2f ms; stages ", recMs.count, mean, recMs.max() ?? 0) + wr.takeStages())
+        // (Nov 11: the frame's submit to idle on lavapipe: the GPU side's cost on the host's CPU, for A/B of a shader)
+        let gmean = gpuMs.reduce(0, +) / Double(max(1, gpuMs.count))
+        print(String(format: "turn: %d frames, CPU record mean %.2f ms, worst %.2f ms; drawn by lavapipe mean %.1f ms; stages ", recMs.count, mean,
+                     recMs.max() ?? 0, gmean) + wr.takeStages())
         scene.waitIdle()
         withExtendedLifetime((img, targets, readback)) {}
     }

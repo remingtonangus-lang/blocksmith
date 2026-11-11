@@ -96,6 +96,9 @@ final class SceneRenderer {
     private var descPool: VkDescriptorPool!
     private var pipes: [String: VkPipeline] = [:]
     private(set) var texture: VkImg!
+    // Nov 11 (frame rate): the clouds' value-noise lattice (clouds.frag vnoiseT): 256 x 256 cells, each texel the hashes
+    // of its four corners, so a noise tap is one fetch instead of four hashes (set 0, binding 2).
+    private(set) var cloudNoise: VkImg!
     private(set) var sampler: VkSampler!
     private var quadIndex: VkBuf!
     private var starBuf: VkBuf!
@@ -228,6 +231,7 @@ final class SceneRenderer {
                       srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue)
         }
         texture = ph
+        cloudNoise = try SceneRenderer.makeCloudNoise(ctx)
         for sl in slots { writeSet0(sl) }
         // GPU timestamps (frame GPU time in the perf log). Not on llvmpipe: its timestamp queries crash the queue thread
         // after a few frames (CI run 1; reproduced locally with alternating targets and validation clean).
@@ -269,6 +273,8 @@ final class SceneRenderer {
         set0Layout = try layout([
             VkDescriptorSetLayoutBinding(binding: 0, descriptorType: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount: 1, stageFlags: vf, pImmutableSamplers: nil),
             VkDescriptorSetLayoutBinding(binding: 1, descriptorType: VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount: 1, stageFlags: vf, pImmutableSamplers: nil),
+            VkDescriptorSetLayoutBinding(binding: 2, descriptorType: VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount: 1,
+                                         stageFlags: VK_SHADER_STAGE_FRAGMENT_BIT.rawValue, pImmutableSamplers: nil),
         ])
         set1Layout = try layout([
             VkDescriptorSetLayoutBinding(binding: 0, descriptorType: VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount: 1,
@@ -415,6 +421,12 @@ final class SceneRenderer {
         return m
     }
 
+    // Nov 11 (frame rate, the GPU side): BS_OVERDRAW=1 with BS_SPVDIR holding counting fragment shaders
+    // (quest/tools/overdraw.py) makes every colour pipeline additive and clears to black, so a --view render counts the
+    // fragments each pixel shaded, split by pass into the channels (questcheck can't time the headset's GPU; the
+    // fragments it shades are most of what it spends in a forest).
+    static let overdraw = ProcessInfo.processInfo.environment["BS_OVERDRAW"] == "1"
+
     func makePipeline(_ p: PipeDesc, renderPass rp: VkRenderPass? = nil) throws -> VkPipeline {
         let a = PtrArena()
         let main = a.cstr("main")
@@ -494,7 +506,12 @@ final class SceneRenderer {
         ds.depthCompareOp = p.compare
         var att = VkPipelineColorBlendAttachmentState()
         att.colorWriteMask = p.colorWrite ? 0xF : 0
-        if p.blend {
+        if SceneRenderer.overdraw && p.colorWrite {
+            // (overdraw count: every fragment that passes the depth test adds what its counting shader writes)
+            att.blendEnable = 1
+            att.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE; att.colorBlendOp = VK_BLEND_OP_ADD
+            att.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.alphaBlendOp = VK_BLEND_OP_ADD
+        } else if p.blend {
             att.blendEnable = 1
             att.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA
             att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
@@ -725,7 +742,9 @@ final class SceneRenderer {
         let a = PtrArena()
         let bi = VkDescriptorBufferInfo(buffer: s.ubo.buffer, offset: 0, range: VkDeviceSize(MemoryLayout<FrameUniforms>.stride))
         let ii = VkDescriptorImageInfo(sampler: sampler, imageView: texture?.view, imageLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        var w = [VkWriteDescriptorSet(), VkWriteDescriptorSet()]
+        let ni = VkDescriptorImageInfo(sampler: cloudNoise == nil ? sampler : (try? nearestSampler()) ?? sampler, imageView: cloudNoise?.view,
+                                       imageLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+        var w = [VkWriteDescriptorSet(), VkWriteDescriptorSet(), VkWriteDescriptorSet()]
         w[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
         w[0].dstSet = s.set0
         w[0].dstBinding = 0
@@ -738,7 +757,52 @@ final class SceneRenderer {
         w[1].descriptorCount = 1
         w[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
         w[1].pImageInfo = a.ptr(ii)
-        vkUpdateDescriptorSets(ctx.device, 2, w, 0, nil)
+        w[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        w[2].dstSet = s.set0
+        w[2].dstBinding = 2
+        w[2].descriptorCount = 1
+        w[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+        w[2].pImageInfo = a.ptr(ni)
+        // (before init has made the lattice, only the first two)
+        vkUpdateDescriptorSets(ctx.device, cloudNoise == nil ? 2 : 3, w, 0, nil)
+    }
+
+    // The clouds' noise lattice: texel (x, y) holds hash21 of the cells (x, y), (x+1, y), (x, y+1) and (x+1, y+1),
+    // wrapping at 256 (a cumulus cell is 150 blocks, so the deck repeats every 38 km; its four octaves are rotated
+    // against each other, so the sum never does). RGBA32F read with texelFetch: no filtering, the same values the
+    // shader's own hash gave, only from a table.
+    static let cloudNoiseSize = 256
+    static func cloudHash(_ x: Int, _ y: Int) -> Float {
+        func fr(_ v: Float) -> Float { v - v.rounded(.down) }
+        var p3 = SIMD3<Float>(fr(Float(x) * 0.1031), fr(Float(y) * 0.1031), fr(Float(x) * 0.1031))
+        let d = p3.x * (p3.y + 33.33) + p3.y * (p3.z + 33.33) + p3.z * (p3.x + 33.33)
+        p3 += SIMD3<Float>(repeating: d)
+        return fr((p3.x + p3.y) * p3.z)
+    }
+    static func makeCloudNoise(_ ctx: VkContext) throws -> VkImg {
+        let n = cloudNoiseSize
+        var texels = [Float](repeating: 0, count: n * n * 4)
+        for y in 0..<n { for x in 0..<n {
+            let i = (y * n + x) * 4, x1 = (x + 1) % n, y1 = (y + 1) % n
+            texels[i] = cloudHash(x, y); texels[i + 1] = cloudHash(x1, y); texels[i + 2] = cloudHash(x, y1); texels[i + 3] = cloudHash(x1, y1)
+        } }
+        let img = try VkImg(ctx, width: n, height: n, format: VK_FORMAT_R32G32B32A32_SFLOAT,
+                            usage: VK_IMAGE_USAGE_SAMPLED_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_DST_BIT.rawValue, arrayView: false)
+        let staging = try VkBuf(ctx, size: texels.count * 4, usage: VK_BUFFER_USAGE_TRANSFER_SRC_BIT.rawValue, host: true)
+        _ = texels.withUnsafeBytes { memcpy(staging.mapped!, $0.baseAddress!, $0.count) }
+        try ctx.oneShot { cb in
+            vkBarrier(cb, img.image, from: VK_IMAGE_LAYOUT_UNDEFINED, to: VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                      srcAccess: 0, dstAccess: VK_ACCESS_TRANSFER_WRITE_BIT.rawValue,
+                      srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue)
+            var r = VkBufferImageCopy()
+            r.imageSubresource = VkImageSubresourceLayers(aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, mipLevel: 0, baseArrayLayer: 0, layerCount: 1)
+            r.imageExtent = VkExtent3D(width: UInt32(n), height: UInt32(n), depth: 1)
+            vkCmdCopyBufferToImage(cb, staging.buffer, img.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &r)
+            vkBarrier(cb, img.image, from: VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, to: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                      srcAccess: VK_ACCESS_TRANSFER_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_SHADER_READ_BIT.rawValue,
+                      srcStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue)
+        }
+        return img
     }
 
     // A storage-buffer set for a tint slab (cached; slabs live for the process).
@@ -867,7 +931,7 @@ final class SceneRenderer {
     func beginPass(_ s: Slot, _ t: RenderTarget, clear: V3) {
         let (w, h) = viewExtent(t)
         var clears = [VkClearValue(), VkClearValue()]
-        clears[0].color.float32 = (clear.x, clear.y, clear.z, 1)
+        clears[0].color.float32 = SceneRenderer.overdraw ? (0, 0, 0, 0) : (clear.x, clear.y, clear.z, 1)
         clears[1].depthStencil = VkClearDepthStencilValue(depth: 1, stencil: 0)
         var rb = VkRenderPassBeginInfo()
         rb.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO

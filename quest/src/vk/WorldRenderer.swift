@@ -78,6 +78,8 @@ final class WorldRenderer {
     // FAILURES 4 (questcheck --view ... --voidcount, tools/voidsweep.sh): the frame cleared to pure magenta with no sky
     // drawn over it (QUEST_SKIP=sky), so every gap in what is drawn shows as magenta.
     static var voidProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
+    // Nov 11: BS_OLDCLOUDS=1 has clouds.frag hash its noise lattice as before (shader FX bit 1024) instead of reading the table.
+    static let oldCloudNoise = ProcessInfo.processInfo.environment["BS_OLDCLOUDS"] == "1"
     static var debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
     // (and within the entities pass, QUEST_SKIPENT=drops,debris,particles,shadows,halos,weather,... leaves those writers out)
     static let entitySkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIPENT"] ?? "").split(separator: ",").map(String.init))
@@ -268,7 +270,7 @@ final class WorldRenderer {
         let nightT: Float = df > 0.52 && df < 0.98 ? -0.55 * min(1, min(df - 0.52, 0.98 - df) / 0.06) : 0
         let biomeT: Float = max(-0.2, min(0.25, (game.audio.biomeHere.info.temp - 0.7) * 0.25))
         let grade: Float = hasSky && !underground && !underwater && game.dim.dim == .overworld ? max(-1, min(1, max(0, warmT) + nightT + biomeT)) : 0
-        u.fx = V4(Float(Settings.shared.shaderFX), mist, Float(SEA + 8), grade)
+        u.fx = V4(Float(Settings.shared.shaderFX | (WorldRenderer.oldCloudNoise ? 1024 : 0)), mist, Float(SEA + 8), grade)
         if sheenBits.isEmpty { sheenBits = ShaderFX.sheenBits() }
         withUnsafeMutableBytes(of: &u.sheen) { raw in
             let p = raw.bindMemory(to: UInt32.self)
