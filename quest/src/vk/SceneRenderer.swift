@@ -1082,6 +1082,7 @@ final class SceneRenderer {
         var flags: UInt32 = 0                  // SecInfo.nonEmpty, .meshed, .deep, .solidFull
         var oPair: Int32 = -1, oVo: Int32 = 0, quads: Int32 = 0, solid: Int32 = 0, fSkip: Int32 = 0, fExtra: Int32 = 0
         var farCut: Int32 = 0, farTail: Int32 = 0, bAt: Int32 = 0, bN: Int32 = 0, bCut: Int32 = 0     // (P453: Section.blobFar*)
+        var cN: Int32 = 0                      // (Nov 11: Section.canopyN)
         var pN: Int32 = 0                      // (Nov 6: Section.farPlants)
         var dPair: Int32 = -1, dVo: Int32 = 0, dQuads: Int32 = 0, dSolid: Int32 = 0, dSkip: Int32 = 0, dExtra: Int32 = 0
         var tPair: Int32 = -1, tVo: Int32 = 0, tQuads: Int32 = 0
@@ -1592,6 +1593,10 @@ final class SceneRenderer {
     // views render alike. BS_TRUNKFROM=N sets it; BS_TRUNKFAR=0 meshes the old copy, drawn past the ground's switch.
     static var trunkCutFrom: Float = Float(ProcessInfo.processInfo.environment["BS_TRUNKCUT"] ?? "") ?? 1e9
     private(set) var skippedTrunks = 0
+    // Nov 11 (far canopy tier, his say pending): BS_CANOPY=N meshes the canopy (Mesher.canopy) and draws it from N blocks
+    // (no nearer than GroundMerge.farDistance, the far copy's own switch) in place of the leaf blobs' far shells.
+    static var canopyFrom: Float = Float(ProcessInfo.processInfo.environment["BS_CANOPY"] ?? "") ?? 1e9
+    private(set) var drawnCanopy = 0
     static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(ProcessInfo.processInfo.environment["BS_TRUNKFROM"] ?? "") ?? 32) : 1e9
     // Nov 5 (P453 again): from this far out to blobFarFrom the leaf blobs draw their outer cutout shell alone, not the
     // darker one inside it (the Mesher puts the outer shells first). BS_BLOBMID=999: both shells to blobFarFrom.
@@ -1758,7 +1763,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; skippedPlants = 0; skippedTrunks = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0; for b in 0..<20 { opaqueParts[b] = 0 } }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
+        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; skippedPlants = 0; skippedTrunks = 0; drawnCanopy = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0; for b in 0..<20 { opaqueParts[b] = 0 } }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         if tableFrame {
@@ -1979,7 +1984,7 @@ extension SceneRenderer {
                 e.oPair = pairOf(slabOf(b), ts); e.oVo = Int32(b.offset / 8)
                 e.quads = Int32(s.opaqueQuads); e.solid = Int32(s.solidQuads); e.fSkip = Int32(s.farSkip); e.fExtra = Int32(s.farExtra)
                 e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail); e.pN = Int32(s.farPlants)
-                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN)
+                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN); e.cN = Int32(s.canopyN)
             }
             if s.detailQuads > 0, let b = s.detailBuf {
                 e.dPair = pairOf(slabOf(b), ts); e.dVo = Int32(b.offset / 16)
@@ -2576,7 +2581,7 @@ extension SceneRenderer {
         let mq = Int32(SceneRenderer.maxQuads)
         let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
         let bf = min(mf, SceneRenderer.blobFarFrom), tf = min(mf, SceneRenderer.trunkFarFrom), bm = min(bf, SceneRenderer.blobMidFrom)
-        let pf = SceneRenderer.plantFarFrom, dc = SceneRenderer.trunkCutFrom
+        let pf = SceneRenderer.plantFarFrom, dc = SceneRenderer.trunkCutFrom, cf = SceneRenderer.canopyFrom
         for half in 0..<2 {
             let detail = half == 1
             if detail && !anyDet { break }
@@ -2629,7 +2634,19 @@ extension SceneRenderer {
                         pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((solid - fSkip) * 6), instanceCount: 1,
                                                                              firstIndex: UInt32(fSkip * 6), vertexOffset: vo, firstInstance: UInt32(i))))
                     }
-                    if fExtra > 0 {
+                    // (Nov 11, BS_CANOPY: past canopyFrom the far copy up to its leaf shells, then the canopy stored after it)
+                    let canopy = !detail && e.cN > 0 && e.bAt + e.bN == fExtra && fExtra + e.cN <= mq && d2 >= cf * cf
+                    if canopy {
+                        if e.bAt > 0 {
+                            batchCount[k] += 1
+                            pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.bAt * 6), instanceCount: 1, firstIndex: 0,
+                                                                                 vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
+                        }
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.cN * 6), instanceCount: 1, firstIndex: UInt32(fExtra * 6),
+                                                                             vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
+                        quadsDrawn += Int(e.cN - e.bN); drawnCanopy += Int(e.cN)
+                    } else if fExtra > 0 {
                         batchCount[k] += 1
                         pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(fExtra * 6), instanceCount: 1, firstIndex: 0,
                                                                              vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))

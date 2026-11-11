@@ -26,6 +26,7 @@ struct SectionMesh {
     var farParts = SIMD4<Int32>()   // (questcheck --farcheck: the far copy's ground, bevelled and leaf parts; near laid things)
     var detailFarSkip = 0
     var detailFar: [UInt32] = []
+    var canopyN = 0         // Nov 11 (BS_CANOPY): the far canopy's quads, the last of farGround (after the leaf blobs' far shells)
     var solidFull = false   // P376 step 5: every cell of the section is opaque (an occluder for SceneRenderer.occlusionCull)
     var kinds = SIMD16<Int32>()   // P384 step 1: quads by kind (MeshKind), for questcheck --perfscenes
     var ground: GroundTris? = nil   // P386: the drawn ground for bodies and rays (GroundFeet.swift)
@@ -575,6 +576,8 @@ enum Mesher {
         // first of the cutout ones) and their far copies are collected aside (bevFar, blobFar).
         let bev = sc.bev, bevFar = sc.bevFar, blobCut = sc.blobCut, blobFar = sc.blobFar, drapeNear = sc.drapeNear, drapeFar = sc.drapeFar
         bev.count = 0; bevFar.count = 0; blobCut.count = 0; blobFar.count = 0; drapeNear.count = 0; drapeFar.count = 0
+        let canopyFar = sc.canopyFar
+        canopyFar.count = 0
         let farCopies = Mesher.farCopies && lod != 1
         var solidOut = opq, cutOut = cut, counting = true
         var farMaskUsed = false
@@ -2209,6 +2212,27 @@ enum Mesher {
                         AdaptiveGround.simplify(blobFar, from: 0, tol: AdaptiveGround.blobFarTolerance,
                                                 exact: ex.count == blobFar.count / 2 * 3 ? ex.ptr : nil, capture: false, blob: true)
                     }
+                    // Nov 11 (the far canopy tier, behind BS_CANOPY until he has judged it): a second, coarser shell of
+                    // the same leaves (the logs too with BS_CANOPYLOGS=1), drawn past SceneRenderer.canopyFrom in place
+                    // of the far shell: no clump noise (BS_CANOPYNOISE=1 keeps it), simplified to a looser bound
+                    // (BS_CANOPYTOL blocks; a pixel at 182 blocks is about 0.16 block at the lens's sharpest, most of the
+                    // band is farther and drawn under dynamic resolution), its corner shading and light free to
+                    // interpolate (BS_CANOPYLT levels of light; BS_CANOPYSTEP=N: light in steps of N first).
+                    if Mesher.canopy && AdaptiveGround.enabled {
+                        ex.count = 0
+                        solidOut = canopyFar; counting = false
+                        let step = Mesher.canopyStep
+                        smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: 1, world: Mesher.canopyNoise ? wo : nil, exact: ex, tri: true,
+                                    canopy: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                            curCut = false
+                            let sky = min(15, ((l >> 4) + step / 2) / step * step), blk = (l & 15) / step * step
+                            groundVert(x16, y16, z16, f, tint, layer, ao, sky << 4 | blk, ncode)
+                        }
+                        solidOut = opq; counting = true
+                        AdaptiveGround.simplify(canopyFar, from: 0, tol: Mesher.canopyTol, exact: ex.count == canopyFar.count / 2 * 3 ? ex.ptr : nil,
+                                                capture: false, blob: true, oTol: 4, lTol: Mesher.canopyLightTol)
+                        Mesher.canopyTally(blobFar.count / 8, canopyFar.count / 8)
+                    }
                 }
             }
         }
@@ -2337,7 +2361,7 @@ enum Mesher {
         // P384: one far copy for everything the near quads lead with (the ground's far copy, or its near quads where it
         // has none, the bevelled faces drawn plain, the leaf blobs' far shell), and the far copies of things laid on the
         // ground (after the other cutout quads, drawn far only), kept when they are smaller.
-        var farSkipOut = farSkip, farCopy = farGround, farCut = 0, farTail = 0
+        var farSkipOut = farSkip, farCopy = farGround, farCut = 0, farTail = 0, canopyN = 0
         var parts = SIMD4<Int32>(Int32(farGround.count / 8), 0, 0, 0)
         if farCopies && (bev.count > 0 || blobFar.count > 0 || drapeNear.count > 0) {
             var fc = farGround
@@ -2352,6 +2376,11 @@ enum Mesher {
             let blobs = blobFar.count > 0 ? blobCut.count : 0
             if fc.count + drapeFar.count < groundEnd + bev.count + blobs + drapeNear.count {
                 farCopy = fc; farSkipOut = (groundEnd + bev.count) / 8; farCut = (blobs + drapeNear.count) / 8; farTail = drapeFar.count / 8
+                // (Nov 11: the far canopy last, kept when it is smaller than the far shells it stands in for)
+                if canopyFar.count > 0 && blobFar.count > 0 && canopyFar.count < blobFar.count {
+                    farCopy.append(contentsOf: UnsafeBufferPointer(start: canopyFar.ptr, count: canopyFar.count))
+                    canopyN = canopyFar.count / 8
+                }
             } else {
                 parts = SIMD4<Int32>(Int32(farGround.count / 8), 0, 0, 0)
             }
@@ -2402,7 +2431,7 @@ enum Mesher {
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
                            farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farPlants: farPlantCut.count / 8, farParts: parts,
-                           detailFarSkip: detailFarSkip, detailFar: detailFar, solidFull: solidFull, kinds: kv, ground: groundTris)
+                           detailFarSkip: detailFarSkip, detailFar: detailFar, canopyN: canopyN, solidFull: solidFull, kinds: kv, ground: groundTris)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -2445,6 +2474,20 @@ enum Mesher {
     static var farGround = ProcessInfo.processInfo.environment["BS_FARGROUND"] != "0"
     // Ledger 25: the detail stream's far copy holds the trunks at the mid sides (BS_TRUNKFAR=0: the old simplified copy).
     static var trunkFar = ProcessInfo.processInfo.environment["BS_TRUNKFAR"] != "0"
+    // Nov 11: the far canopy tier (see its meshing above; SceneRenderer.canopyFrom draws it). Off unless BS_CANOPY is set.
+    static var canopy = ProcessInfo.processInfo.environment["BS_CANOPY"] != nil
+    static var canopyTol: Float = Float(ProcessInfo.processInfo.environment["BS_CANOPYTOL"] ?? "") ?? 1.0
+    static var canopyLightTol: Double = Double(ProcessInfo.processInfo.environment["BS_CANOPYLT"] ?? "") ?? 2
+    static var canopyStep = max(1, Int(ProcessInfo.processInfo.environment["BS_CANOPYSTEP"] ?? "") ?? 1)
+    static var canopyNoise = ProcessInfo.processInfo.environment["BS_CANOPYNOISE"] == "1"
+    static let canopyLogs = ProcessInfo.processInfo.environment["BS_CANOPYLOGS"] == "1"
+    static let canopyT: [Bool] = (0..<Blocks.count).map { leafT[$0] || canopyLogs && ShapeTrunks.isLog[$0] }
+    // (harness: the far shells' quads and the canopy's, every section meshed with both)
+    static var canopyCounts = (sections: 0, shells: 0, canopy: 0)
+    static let canopyLock = NSLock()
+    static func canopyTally(_ shells: Int, _ canopy: Int) {
+        canopyLock.lock(); canopyCounts.sections += 1; canopyCounts.shells += shells; canopyCounts.canopy += canopy; canopyLock.unlock()
+    }
     // P384: far copies of more than the ground (bevelled built blocks drawn plain, one simplified shell per leaf blob,
     // the detail stream), drawn by the renderer's far switch past GroundMerge.farDistance. BS_FARCOPY=0: ground only.
     // (Quest only: the Mac's renderer has no far switch.)
@@ -2584,6 +2627,7 @@ final class MeshScratch {
     let bev = GrowBuf<UInt32>(1 << 10), bevFar = GrowBuf<UInt32>(1 << 10)
     let blobCut = GrowBuf<UInt32>(1 << 10), blobFar = GrowBuf<UInt32>(1 << 10), blobExact = GrowBuf<Float>(1 << 10)
     let blobInner = GrowBuf<UInt32>(1 << 10)    // (Nov 5: the inner cutout shells, put after the outer ones)
+    let canopyFar = GrowBuf<UInt32>(1 << 10)    // (Nov 11: the far canopy tier, BS_CANOPY)
     let farMask = UnsafeMutablePointer<Int32>.allocate(capacity: 6 * 16 * 256)
     let detFar = GrowBuf<UInt32>(1 << 12)       // P384: the detail stream's far copy
     let detFarCut = GrowBuf<UInt32>(1 << 8)     // (ledger 25: cutout quads of the far trunks, dropped)
