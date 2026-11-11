@@ -32,9 +32,10 @@ jobs:
     # Shared code + Quest sources built for Linux: questcheck (world, meshing, Game.tick with Touch input, mixer, saves),
     # a stereo render and the scripted VR controls test on lavapipe.
     # (90 min: the unoptimized build and the checks outgrew 45 by Oct 30; every run that day was cancelled mid-checks
-    # and reported nothing. 180 min, Nov 10: at 90 the suite was cut off after the balance duels, 84 min in.)
+    # and reported nothing. 180 min, Nov 10: at 90 the suite was cut off after the balance duels, 84 min in. 330 min,
+    # Nov 11: run 890 was cut off at 180 with five sixths of the checks done (the town law checks); 360 is the cap.)
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
 

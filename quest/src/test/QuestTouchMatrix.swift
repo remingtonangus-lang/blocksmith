@@ -272,6 +272,9 @@ enum QuestTouchMatrix {
             // (carried along at a sprint, 4.3 blocks a second, the hands still in the play space: the sim's stick walk
             // was too slow to show it)
             reset()
+            // (the way clear: the taps before this placed blocks round the start, and one ahead of him stopped the walk
+            // at 0.2 blocks, every fifth frame put back by the tick's collision)
+            for z in (bz - 6)...bz { for y in (py + 1)...(py + 3) { for x in (bx - 1)...(bx + 1) where w.block(x, y, z) != AIR { put(x, y, z, AIR) } } }
             g.player.flying = true
             let p0 = g.player.pos
             // (each step says where it was pulled back, if it was: the first five)
