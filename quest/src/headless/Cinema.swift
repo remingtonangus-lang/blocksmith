@@ -57,6 +57,7 @@ enum Cinema {
         let survival: Bool?
         let peaceful: Bool?         // night monsters cleared each frame (a town at dusk without the undead)
         let cruise: Float?          // the frigate flies on along its keel at this speed (blocks/s), the camera with it
+        let follow: Bool?           // false: the camera keeps its own keyframes while the frigate flies past (default true)
         let anchor: Anchor?
         let cam: [Key]
         let events: [Ev]?
@@ -70,6 +71,9 @@ enum Cinema {
         // The Deep meshes only the layer the player stands in (World.deepLayerCut); the cine camera flies free of the
         // harness's player, so a hell shot showed only its nearest chunks. A player in hell sees all of hell: mesh both.
         World.deepLayerCut = false
+        // The headset steps ships once a drawn frame (QuestApp); left at 60 Hz under 72 Hz ticks, a cruising frigate took
+        // one or two steps a video frame and juddered (Remington, Nov 11: "the frigate was moving choppily").
+        ShipManager.stepRate = 72; ShipManager.stepSlack = 0.2 / 72
         let only = Set((arg("--only") ?? "").split(separator: ",").map(String.init))
         let W = Int(arg("--w") ?? "") ?? 1920, H = Int(arg("--h") ?? "") ?? 1080
         let still = CommandLine.arguments.contains("--still")     // the middle frame of each shot only
@@ -331,7 +335,8 @@ enum Cinema {
                 }
             }
             var eye = sample(s.cam, t, camPos), look = sample(s.cam, t, camLook)
-            if s.cruise != nil, let fr = frigate {
+            let follows = s.cruise != nil && (s.follow ?? true)
+            if follows, let fr = frigate {
                 if cruiseFrom == nil { cruiseFrom = fr.pos }
                 let off = fr.pos - cruiseFrom!
                 eye += off; look += off
@@ -347,6 +352,10 @@ enum Cinema {
                 clearCamera(eye)
             }
             FrigateBoarding.cables.removeAll()      // the boarding winch's line: a play aid, not for the store footage
+            // The camera rides with the frigate as drawn: its offset from the pose after this frame's ticks.
+            if follows, let fr = frigate, let c0 = cruiseFrom {
+                eye = sample(s.cam, t, camPos) + (fr.pos - c0); look = sample(s.cam, t, camLook) + (fr.pos - c0)
+            }
             if let r = s.timeRate { g.time = baseTime + r * t * DAY_LENGTH }
             if f % 30 == 0 { _ = w.loadSync(center: eye, radius: min(w.renderDistance, 6)) }
             if still && f != frames / 2 { continue }
