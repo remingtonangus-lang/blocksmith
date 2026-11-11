@@ -277,6 +277,11 @@ enum QuestTouchMatrix {
             for z in (bz - 6)...bz { for y in (py + 1)...(py + 3) { for x in (bx - 1)...(bx + 1) where w.block(x, y, z) != AIR { put(x, y, z, AIR) } } }
             g.player.flying = true
             let p0 = g.player.pos
+            // (Nov 11: and no drops along it: the taps before this drop cobblestone round the start, and one picked up on the
+            // walk counted as carried 82 -> 83 in a --questsim-only run, check fix 34)
+            let strayDrops = g.drops.items.filter { abs($0.pos.x - p0.x) < 4 && $0.pos.z < p0.z + 3 && $0.pos.z > p0.z - 8 }.count
+            g.drops.items.removeAll { abs($0.pos.x - p0.x) < 4 && $0.pos.z < p0.z + 3 && $0.pos.z > p0.z - 8 }
+            if strayDrops > 0 { print("touchmatrix reader 2.2: \(strayDrops) drops cleared off the walk") }
             // (each step says where it was pulled back, if it was: the first five)
             var pulls = 0, steps = 0
             func carried(_ f: @escaping (inout XRHand, inout XRHand) -> Void = { _, _ in }) {

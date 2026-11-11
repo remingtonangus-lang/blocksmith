@@ -1586,7 +1586,7 @@ if let out = arg("--view"), let ctx = vkctx {
             let holes = vc.holes, below = vc.below, backstop = vc.backstop, rows = vc.rows, cols = vc.cols, marks = vc.marks
             print(String(format: "voidcount: %d of %d pixels below the horizon show through (%.4f%%), in %d by %d cells of 8 px; seed %@ at %.1f %.1f %.1f look %.0f %.0f",
                          holes, below, Double(holes) * 100 / Double(max(1, below)), cols.count, rows.count, arg("--seed") ?? "?",
-                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0)
+                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0.0)
                   + String(format: "; backstop %d (only the fog floor under the horizon ground)", backstop))
             if holes > 0 {
                 for (mx, my) in marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {
@@ -3326,9 +3326,11 @@ if let out = arg("--questsim"), let ctx = vkctx {
     // outlawed, at war with the Meridian Navy and somewhere else, and the walk, the hunters and the roads checks after it
     // met that: ledger 75. With --questsim-only it runs here.)
     let fuzz = { do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") } }
-    if CommandLine.arguments.contains("--questsim-only") { fuzz() } else { fuzzLast = fuzz }
     // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
+    // (Nov 11: with --questsim-only too the monkey goes after the touch matrix: after seed 7's five minutes of it the
+    // matrix's swimming context couldn't be set up and its deck gun and left-hand rows read differently; check fix 34)
+    if CommandLine.arguments.contains("--questsim-only") { fuzz() } else { fuzzLast = fuzz }
     game.vrHead = nil; game.vrHeadYaw = nil; game.vrHeadPitch = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
     (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
      game.vrTwoHanded, game.screen) = vrSet0
@@ -3337,6 +3339,30 @@ if let out = arg("--questsim"), let ctx = vkctx {
     game.alive = true
     game.vrBow = nil; game.vrBlade = nil; game.vrPinch = nil; game.swingPower = 0; game.swingMob = nil
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
+}
+
+// Nov 11: the creative palette's tabs and search, timed on the frame's thread (BS_OLDCREATIVETABS=1 for before).
+if CommandLine.arguments.contains("--creativetabs") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    let t0 = threadMs()
+    if !CreativeMenu.oldTabs && CommandLine.arguments.contains("--cold") { _ = CreativeMenu.byTab.count; _ = CreativeMenu.searchNames.count }
+    else { Thread.sleep(forTimeInterval: 2) }                    // (the worker's pass from the world's load done)
+    let pass = threadMs() - t0
+    game.survival = false
+    let m = CreativeMenu(game: game)
+    game.openMenu(m)
+    var parts: [String] = [], worst = 0.0
+    for t in CreativeMenu.Tab.allCases where t != .all {
+        let a = threadMs(); m.setTab(t); let ms = threadMs() - a
+        worst = max(worst, ms); parts.append(String(format: "%@ %.1f (%d)", t.short, ms, m.all.count))
+    }
+    var typed: [String] = []
+    for c in "stone" { let a = threadMs(); m.typed(String(c)); let ms = threadMs() - a; worst = max(worst, ms); typed.append(String(format: "%.2f", ms)) }
+    print(String(format: "creativetabs (%@): first opening of each tab, ms on the frame's thread: ", CreativeMenu.oldTabs ? "old" : "new")
+          + parts.joined(separator: ", ") + "; search keys s-t-o-n-e " + typed.joined(separator: " ") + String(format: " (%d found); worst %.1f ms", m.all.count, worst)
+          + (CreativeMenu.oldTabs ? "" : String(format: "; the one pass on the frame's thread %.1f ms", CommandLine.arguments.contains("--cold") ? pass : 0)))
+    game.closeMenu()
+    exit(0)
 }
 
 // Horses alone (iterating on Sources/HorseTests.swift); the full run does them at the end.

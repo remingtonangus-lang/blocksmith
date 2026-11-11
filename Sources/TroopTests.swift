@@ -89,7 +89,7 @@ enum TroopTests {
         // (P465: a whole helmet stops the first round to the head outright; then it lets a share through.)
         check(through[0] == 0 && abs(through[1] - 8 * 0.35) < 0.01 && through[crackedAt] > through[1] && through.last == 8 && offAt > 0 && dropped == 0,
               String(format: "troop armour: a Hannibal helmet stops the first round (%.1f of 8 through), lets %.1f through, cracked after %d hits (then %.1f), shot off after %d (then 8: %.1f), wrecked with nothing dropped (P204): %@",
-                     through[0], through[1], crackedAt, crackedAt >= 0 ? through[crackedAt] : -1, offAt, through.last ?? -1, dropped == 0 ? "none" : piece))
+                     through[0], through[1], crackedAt, crackedAt >= 0 ? through[crackedAt] : -1.0, offAt, through.last ?? -1, dropped == 0 ? "none" : piece))
         // Melee wears the vest.
         let v0 = m.troopSeg.y
         Mob.playerMelee = true

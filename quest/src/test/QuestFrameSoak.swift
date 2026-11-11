@@ -701,7 +701,7 @@ enum QuestFrameSoak {
         if SoldierRig.clearVerify { print("    soldier clears run both ways (BS_CLEARVERIFY): \(SoldierRig.clearVerified), differing \(SoldierRig.clearVerifyDiffs)"); SoldierRig.clearVerified = 0; SoldierRig.clearVerifyDiffs = 0 }
         if Felling.worstMs > 0 { print(String(format: "    slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
         if Structure.dropWorstMs > 0 { print(String(format: "    slowest load-check fall: %.1f ms (%@); crumbs %d blocks in %.1f ms, %.1f us a block", Structure.dropWorstMs, Structure.dropWorst,
-                                                    Structure.crumbN, Structure.crumbMs, Structure.crumbN > 0 ? Structure.crumbMs * 1000 / Double(Structure.crumbN) : 0)) }
+                                                    Structure.crumbN, Structure.crumbMs, Structure.crumbN > 0 ? Structure.crumbMs * 1000 / Double(Structure.crumbN) : 0.0)) }
         if CraterJob.worstStepMs > 0 { print(String(format: "    slowest bowl step: %.1f ms (%@)", CraterJob.worstStepMs, CraterJob.worstStep)) }
         if CraterJob.worstStepMs > 0 {
             let byPhase: [String] = CraterJob.unfetchedPhases.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }
@@ -725,7 +725,7 @@ enum QuestFrameSoak {
             }
             print("    fluid cells on a chunk side its border springs pass over: \(fluidMisses)")
             print(String(format: "    random tick sections: %d of %d passed over (nothing in them ticks); passed over but holding a ticking cell: %d; the draws' own CPU %.3f ms a game tick (%d ticks)",
-                         skipped, sections, misses, RandomTickRng.drawTicks > 0 ? RandomTickRng.drawCpu / Double(RandomTickRng.drawTicks) : 0, RandomTickRng.drawTicks))
+                         skipped, sections, misses, RandomTickRng.drawTicks > 0 ? RandomTickRng.drawCpu / Double(RandomTickRng.drawTicks) : 0.0, RandomTickRng.drawTicks))
         }
         if let t = Structure.tally, !t.isEmpty {
             let top = t.sorted { $0.value > $1.value }.prefix(6).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
