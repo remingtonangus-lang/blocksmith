@@ -1590,6 +1590,8 @@ final class SceneRenderer {
     // copy, the trunks at the mid sides (Mesher.trunkFar); the ground's switch when that is nearer. At 64 it cut 1-2% of
     // the quads drawn at his jungle and birch spots (nearly every trunk drawn is nearer), at 32 4-10%, and the same
     // views render alike. BS_TRUNKFROM=N sets it; BS_TRUNKFAR=0 meshes the old copy, drawn past the ground's switch.
+    static var trunkCutFrom: Float = Float(ProcessInfo.processInfo.environment["BS_TRUNKCUT"] ?? "") ?? 1e9
+    private(set) var skippedTrunks = 0
     static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(ProcessInfo.processInfo.environment["BS_TRUNKFROM"] ?? "") ?? 32) : 1e9
     // Nov 5 (P453 again): from this far out to blobFarFrom the leaf blobs draw their outer cutout shell alone, not the
     // darker one inside it (the Mesher puts the outer shells first). BS_BLOBMID=999: both shells to blobFarFrom.
@@ -1756,7 +1758,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; skippedPlants = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0; for b in 0..<20 { opaqueParts[b] = 0 } }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
+        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; skippedPlants = 0; skippedTrunks = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0; for b in 0..<20 { opaqueParts[b] = 0 } }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         if tableFrame {
@@ -2574,7 +2576,7 @@ extension SceneRenderer {
         let mq = Int32(SceneRenderer.maxQuads)
         let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
         let bf = min(mf, SceneRenderer.blobFarFrom), tf = min(mf, SceneRenderer.trunkFarFrom), bm = min(bf, SceneRenderer.blobMidFrom)
-        let pf = SceneRenderer.plantFarFrom
+        let pf = SceneRenderer.plantFarFrom, dc = SceneRenderer.trunkCutFrom
         for half in 0..<2 {
             let detail = half == 1
             if detail && !anyDet { break }
@@ -2599,7 +2601,7 @@ extension SceneRenderer {
                 let fSkip = detail ? e.dSkip : e.fSkip, fExtra = detail ? e.dExtra : e.fExtra
                 var cutFrom = solid
                 let cutSwitch = !detail && (e.farCut > 0 || tail > 0)
-                var far = false, band = false, mid = false
+                var far = false, band = false, mid = false, d2: Float = 0
                 // (Nov 6: the small plants, the last pN quads before the tail, near only and nearer than plantFarFrom)
                 var plantsOut = false
                 if !detail && e.pN > 0 && total == quads - tail {
@@ -2613,11 +2615,13 @@ extension SceneRenderer {
                     let ci = tc[v / NSEC]
                     let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
                     let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
-                    let d2 = simd_length_squared(qn - re)
+                    d2 = simd_length_squared(qn - re)
                     far = d2 >= (detail ? tf * tf : mf * mf)
                     band = !far && !detail && e.bN > 0 && d2 >= bf * bf
                     mid = !far && !band && !detail && e.bN > 0 && e.bCut >= 2 && e.bCut & 1 == 0 && d2 >= bm * bm
                 }
+                // (Nov 11 experiment, BS_TRUNKCUT=N: the round shapes' far copies, trunks mostly, left out past N blocks)
+                if detail && far && d2 >= dc * dc { skippedTrunks += Int(fExtra - fSkip) + Int(total); continue }
                 if far {
                     merged += 1
                     if solid > fSkip {
