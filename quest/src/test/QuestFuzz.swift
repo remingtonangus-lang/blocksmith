@@ -63,8 +63,27 @@ enum QuestFuzz {
             clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts)
             return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6
         }
+        // The thread's voluntary context switches (it blocked: a lock, a wait, a sleep), on the host: a frame past the
+        // budget by the wall clock that blocked is a stall the CPU clock above doesn't see (ledger 78: a 1.8 s wait in
+        // a 68 ms frame). Host preemption is an involuntary switch and doesn't count.
+        @inline(__always) func blocks() -> Int {
+            #if os(Linux)
+            var ru = rusage()
+            getrusage(__rusage_who_t(1), &ru)                                         // RUSAGE_THREAD
+            return ru.ru_nvcsw
+            #else
+            return 0
+            #endif
+        }
+        @inline(__always) func wallMs() -> Double {
+            var ts = timespec()
+            clock_gettime(CLOCK_MONOTONIC, &ts)
+            return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6
+        }
         var slowFrames = 0, worstMs = 0.0, worstWhat = "", tickSum = 0.0
         var slowList: [(Double, String)] = []
+        var waitFrames = 0, worstWait = 0.0
+        var waitList: [String] = []
         func finite(_ v: V3) -> Bool { v.x.isFinite && v.y.isFinite && v.z.isFinite }
         let total = seconds * 72
         StallTrace.install()                                                         // (BS_STALLTRACE=FILE)
@@ -106,6 +125,7 @@ enum QuestFuzz {
                 sim.hands[h] = hd
             }
             StallTrace.begin(i)
+            let w0 = wallMs(), b0 = blocks()
             let c0 = threadMs()
             rig.update(xr: sim, game: game)
             controls.update(dt: dt)
@@ -114,8 +134,18 @@ enum QuestFuzz {
             let c2 = threadMs()
             controls.afterTick(dt: dt)
             let ms = threadMs() - c0
+            let wall = wallMs() - w0, blocked = blocks() - b0
             tickSum += ms
-            StallTrace.end(slow: ms > 13.9 && i > 72, ms: ms, what: game.menu.map { String(describing: type(of: $0)) } ?? "none")
+            let waited = wall > 13.9 && blocked > 0 && wall - ms > 5 && i > 72
+            StallTrace.end(slow: (ms > 13.9 || waited) && i > 72, ms: max(ms, wall), what: game.menu.map { String(describing: type(of: $0)) } ?? "none")
+            if waited {
+                waitFrames += 1; worstWait = max(worstWait, wall)
+                if waitList.count < 8 {
+                    waitList.append(String(format: "frame %d, %.1f ms by the clock, %.1f on the CPU, blocked %d times: menu %@, %@ (stage ", i, wall, ms, blocked,
+                                           game.menu.map { String(describing: type(of: $0)) } ?? "none", game.survival ? "survival" : "creative")
+                                    + TickProf.summary() + ")")
+                }
+            }
             if ms > 13.9 && i > 72 {
                 slowFrames += 1
                 let what = String(format: "frame %d, %.1f ms: menu %@, %@, riding %@, holding %@, at %.0f %.0f %.0f", i, ms,
@@ -167,6 +197,8 @@ enum QuestFuzz {
         print(String(format: "questfuzz: input + tick own CPU %.3f ms a frame mean, %d frames over 13.9 ms", tickSum / Double(max(1, frames)), slowFrames)
               + (slowFrames > 0 ? "; worst " + worstWhat : ""))
         for (_, w) in slowList { print("  slow: " + w) }
+        print(String(format: "questfuzz: %d frames past 13.9 ms by the clock that blocked (waited)", waitFrames) + (waitFrames > 0 ? String(format: ", worst %.1f ms", worstWait) : ""))
+        for w in waitList { print("  waited: " + w) }
         StallTrace.write()
         check(bad.isEmpty, "VR fuzz (seed \(seed), \(seconds) s): no oracle failures" + (bad.isEmpty ? "" : ": " + bad.joined(separator: "; ")))
         check(stuck == nil, "VR fuzz: B / menu buttons get back to play" + (stuck.map { " (stuck in \($0))" } ?? ""))
