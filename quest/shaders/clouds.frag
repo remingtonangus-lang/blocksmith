@@ -7,23 +7,11 @@ layout(location = 0) out vec4 outColor;
 // u.wind.xy = its direction; Sources/SkyLook.swift). Lit by the sun (gold at its rise and set, white at noon) or the
 // moon, self-shadowed by one tap toward the sun, thicker and darker as the cover rises with rain, and lit from inside
 // by storm flashes. Drawn after the dome, stars, sun and moon (blended, depth 1: only over open sky, so it hides them).
-// Cost: 7 value-noise taps per sky pixel (5 cumulus, 2 cirrus); none below the horizon.
-// Nov 11 (frame rate, the GPU side): its value noise reads the lattice's four corner hashes in one fetch from a table
-// (SceneRenderer.makeCloudNoise) instead of hashing them: 7 taps were 28 hashes over all the open sky, the costliest
-// pixels the headset drew in an ordinary outdoor view. Shader FX bit 1024 (BS_OLDCLOUDS=1) hashes them as before.
-layout(set = 0, binding = 2) uniform sampler2D cloudLattice;
-float vnoiseT(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    vec4 h = texelFetch(cloudLattice, ivec2(mod(i, 256.0)), 0);
-    return mix(mix(h.x, h.y, f.x), mix(h.z, h.w, f.x), f.y);
-}
-bool oldNoise;
-float cnoise(vec2 p) { return oldNoise ? vnoise(p) : vnoiseT(p); }
+// Cost: 7 value-noise taps per sky pixel (5 cumulus, 2 cirrus); none below the horizon. (Nov 11: each tap one fetch
+// from the noise lattice table, common.glsl vnoise.)
 const float CUMULUS_Y = 340.0;   // internal world y (displayed y 276), above every peak; nothing draws from above it
 const float CIRRUS_Y = 900.0;
 void main() {
-    oldNoise = fxOn(1024);
     vec4 w = u.invViewProj[gl_ViewIndex] * vec4(oNdc, 1.0, 1.0);
     vec3 d = normalize(w.xyz / w.w);
     float hu = CUMULUS_Y - u.eye.y;
@@ -56,13 +44,13 @@ void main() {
     vec2 p1 = rot * p * 2.13 + 3.7, p2 = rot * p1 * 2.21 + 5.1, p3 = rot * p2 * 2.1 + 1.3;
     float w0 = 1.0 - smoothstep(0.3, 0.6, fp), w1 = 1.0 - smoothstep(0.3, 0.6, fp * 2.13);
     float w2 = 1.0 - smoothstep(0.3, 0.6, fp * 4.71), w3 = 1.0 - smoothstep(0.3, 0.6, fp * 9.9);
-    float n0 = mix(0.5, cnoise(p), w0);
-    float n = n0 * 0.47 + mix(0.5, cnoise(p1), w1) * 0.27 + mix(0.5, cnoise(p2), w2) * 0.16 + mix(0.5, cnoise(p3), w3) * 0.10;   // P174: more billow
+    float n0 = mix(0.5, vnoise(p), w0);
+    float n = n0 * 0.47 + mix(0.5, vnoise(p1), w1) * 0.27 + mix(0.5, vnoise(p2), w2) * 0.16 + mix(0.5, vnoise(p3), w3) * 0.10;   // P174: more billow
     float thr = mix(0.64, 0.2, cover);
     float dens = smoothstep(thr, thr + 0.06 + min(0.3, fp * 0.5), n);   // P174: crisper rims
     float thick = smoothstep(thr + 0.05, thr + 0.42, n);
     // Self-shadow: denser toward the sun means the near side is in shade; sunlit edges and tops brighten.
-    float ns = mix(0.5, cnoise(p + normalize(sd.xz + vec2(1e-4)) * 0.3), w0);
+    float ns = mix(0.5, vnoise(p + normalize(sd.xz + vec2(1e-4)) * 0.3), w0);
     float lit = clamp(0.58 + (n0 - ns) * 2.4 - thick * 0.35, 0.0, 1.0);
     vec3 cc = mix(ambC * 0.82, lightC * 1.14 + ambC * 0.16, lit);
     cc *= 1.0 - 0.4 * thick * (0.25 + storm);
@@ -78,7 +66,7 @@ void main() {
     vec2 r = vec2(dot(q, wd), dot(q, vec2(-wd.y, wd.x)));
     vec2 r0 = r * vec2(1.0 / 700.0, 1.0 / 260.0), r1 = r * vec2(1.0 / 240.0, 1.0 / 70.0) + 5.3;
     float fq = length(fwidth(r1));
-    float m = cnoise(r0) * 0.6 + mix(0.5, cnoise(r1), 1.0 - smoothstep(0.3, 0.6, fq)) * 0.4;
+    float m = vnoise(r0) * 0.6 + mix(0.5, vnoise(r1), 1.0 - smoothstep(0.3, 0.6, fq)) * 0.4;
     float far2 = 1.0 - exp(-t2 / 16000.0);
     float ai = smoothstep(0.58, 0.9, m) * 0.22 * (1.0 - 0.8 * cover) * (1.0 - smoothstep(0.5, 0.85, far2)) * smoothstep(0.015, 0.1, d.y);
     vec3 ci = mix(ambC, lightC * 1.15 + ambC * 0.15, 0.75) + sunC * sv * 0.5 + flashC * 0.3;

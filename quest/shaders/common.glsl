@@ -136,9 +136,23 @@ bool turnedLayer(float layer) {
 }
 #endif
 
+// Nov 11 (frame rate, the GPU side): in fragment shaders the four corner hashes come from a table in one fetch
+// (SceneRenderer.makeCloudNoise: texel (x, y) holds hash21 of (x, y), (x+1, y), (x, y+1), (x+1, y+1), wrapping at 256):
+// the clouds took 7 taps (28 hashes) over all the open sky, water 2-4 a pixel, lava 6, mobs 2-4. The same values
+// where the lattice is in 0...255; past it the pattern repeats every 256 cells (38 km of cumulus). Shader FX bit 1024
+// (BS_OLDCLOUDS=1) hashes them as before.
+#ifdef BS_FRAG
+layout(set = 0, binding = 2) uniform sampler2D noiseLattice;
+#endif
 float vnoise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
+#ifdef BS_FRAG
+    if (!fxOn(1024)) {
+        vec4 h = texelFetch(noiseLattice, ivec2(mod(i, 256.0)), 0);
+        return mix(mix(h.x, h.y, f.x), mix(h.z, h.w, f.x), f.y);
+    }
+#endif
     float a = hash21(i), b = hash21(i + vec2(1, 0)), c = hash21(i + vec2(0, 1)), d = hash21(i + vec2(1, 1));
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
