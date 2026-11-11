@@ -91,7 +91,14 @@ enum Railways {
     private struct Plans { var lines: [Int64: Line?] = [:]; var planning: Set<Int64> = []; var used = 0 }
     private static var plans: [Int: Plans] = [:]                // by generator serial * 4 + mode (fieldWorld 1, railSites 2)
     private static var plansClock = 0
-    private static let lock = NSLock()
+    private static let lock = NSCondition()                 // (a condition: a caller waits for a plan another thread is making)
+    // Item 11 (Nov 10, a saved world's launch under callgrind): the first ring's chunks, made four at a time, each
+    // planned the same lines at once (133-137 plans for 60 lines; the plans were 41% of making the ring): a
+    // caller that needs a line another thread is planning now waits for that plan (up to 5 s, then plans it itself).
+    // Lines never wait on links or on anything that waits, so no two threads wait on each other. BS_OLDRAILWAIT=1:
+    // every caller plans it, as before. railPlansMade / railPlansWaited count them (the launch harness prints them).
+    static let oldWait = ProcessInfo.processInfo.environment["BS_OLDRAILWAIT"] == "1"
+    private(set) static var railPlansMade = 0, railPlansWaited = 0
 
     static func key(_ row: Int, _ s: Int) -> Int64 { Int64(row) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: s))) }
 
@@ -131,14 +138,28 @@ enum Railways {
                     lock.lock()
                     keep(l)
                     plans[ck]?.planning.remove(k)
+                    lock.broadcast()
                     lock.unlock()
                 }
             }
             return nil
         }
+        var mine = false
+        if !oldWait {
+            if plans[ck]!.planning.contains(k) {
+                let until = Date(timeIntervalSinceNow: 5)
+                railPlansWaited += 1
+                while plans[ck]?.planning.contains(k) == true, plans[ck]?.lines[k] == nil, lock.wait(until: until) {}
+                if let c = plans[ck]?.lines[k] { lock.unlock(); return c }
+            } else {
+                plans[ck]!.planning.insert(k); mine = true
+            }
+        }
+        railPlansMade += 1
         lock.unlock()
         let l = make()
         lock.lock()
+        if mine { plans[ck]?.planning.remove(k); lock.broadcast() }
         // (planned meanwhile on another thread: that plan stands, so every caller sees one plan)
         if let c = plans[ck]?.lines[k] { lock.unlock(); return c }
         keep(l)
@@ -702,7 +723,7 @@ enum Railways {
             // (A dog-leg one or two blocks across has two curves close together: the second takes the first's level.)
             let window = target[max(0, i - 2)...min(n - 1, i + 2)].sorted()
             let lv = fixed[i] ?? fixed[i - 1] ?? window[window.count / 2]
-            for j in max(0, i - 1)...min(n - 1, i + 1) { fixed[j] = fixed[j] ?? lv }
+            for j in thru(max(0, i - 1), min(n - 1, i + 1)) { fixed[j] = fixed[j] ?? lv }
         }
         for st in stations {
             let a = max(0, st.index - 8), b = min(n - 1, st.index + 8)
@@ -782,10 +803,10 @@ enum Railways {
             var lv = fixed[i] ?? window[window.count / 2]
             if floatCurves && fixed[i] == nil {
                 var lo: Float = -1e9, hi: Float = 1e9
-                for j in max(0, i - 1)...min(n - 1, i + 1) { let b = band(j); lo = max(lo, b.0); hi = min(hi, b.1) }
+                for j in thru(max(0, i - 1), min(n - 1, i + 1)) { let b = band(j); lo = max(lo, b.0); hi = min(hi, b.1) }
                 if lo <= hi { lv = max(lo, min(hi, lv)) }
             }
-            for j in max(0, i - 1)...min(n - 1, i + 1) { fixed[j] = fixed[j] ?? lv }
+            for j in thru(max(0, i - 1), min(n - 1, i + 1)) { fixed[j] = fixed[j] ?? lv }
         }
         for st in stations {
             let a = max(0, st.index - 8), b = min(n - 1, st.index + 8)

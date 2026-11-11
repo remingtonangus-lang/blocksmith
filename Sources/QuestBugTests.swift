@@ -67,12 +67,21 @@ enum QuestBugTests {
             print("questbugs: \(fails) failures")
             return fails
         }
-        DeepTests.run(game, check)
-        FactionTests.run(game, check)
-        MainGunTests.run(game, check)
-        BoardingTests.run(game, check)
-        FindabilityTests.run(game, check)
-        VoiceNoteTests.run(game, check)
+        // (Nov 5, the first run on the headset build: checks after these that drive Game.tick saw nothing happen; what each
+        // group leaves behind that stops a tick is printed)
+        func state(_ after: String) {
+            let p = game.player
+            print(String(format: "questbugs: state after %@: credits %@, menu %@, paused %@, photo %@, health %d, riding %@, dim %@, at %.0f %.0f %.0f",
+                         after, game.credits != nil ? "yes" : "no", game.menu.map { "\(type(of: $0))" } ?? "none", game.paused ? "yes" : "no",
+                         game.cine.active ? "yes" : "no", game.health, game.riding != nil ? "yes" : "no", "\(game.dim.dim)", p.pos.x, p.pos.y, p.pos.z))
+        }
+        state("start")
+        DeepTests.run(game, check); state("deep")
+        FactionTests.run(game, check); state("factions")
+        MainGunTests.run(game, check); state("main gun")
+        BoardingTests.run(game, check); state("boarding")
+        FindabilityTests.run(game, check); state("findability")
+        VoiceNoteTests.run(game, check); state("voice notes")
         // Ore drops with an iron pickaxe, no Fortune (reference: lapis 4-9).
         let pick = ItemStack(Items.id("iron_pickaxe"), 1)
         for (ore, item, lo, hi) in [("lapis_ore", "lapis_lazuli", 4, 9), ("deepslate_lapis_ore", "lapis_lazuli", 4, 9)] {
@@ -200,6 +209,7 @@ enum QuestBugTests {
         check(idle >= 13 && aimParts.contains { abs($0.rotX - 1.45) < 0.01 && $0.color.x > 0.8 && $0.mx.z - $0.mn.z > 13 },
               "skeleton: \(idle) parts, bow string raised while aiming")
         // VR trigger attacks (Game.bufferAttacks): TriggerSpamCheck.swift (also `questcheck --trigger-only`).
+        state("before trigger spam")
         TriggerSpamCheck.run(game, check: check)
         // Round 2 (v63): a bed's head half drops the bed; a saddled horse drops its saddle; the mount screen takes the
         // saddle off; a villager asleep lies on its bed.
@@ -252,8 +262,13 @@ enum QuestBugTests {
             let d = back.map { simd_length($0.pos - game.player.pos) } ?? 999
             let left = game.mobs.stored.values.joined().contains { $0.extra?["bond"] == game.horseBond }
             let run = back.flatMap { $0.bondedHorseAI(0.05, game, dist: d) } ?? 0
+            // (Where he stands: the call doesn't carry below ground, BountyHunters.below.)
+            let px = Int(floor(game.player.pos.x)), py = Int(floor(game.player.pos.y)), pz = Int(floor(game.player.pos.z))
+            let where_ = String(format: "; he stands at %d %d %d, sky light %d, underground %@, land %d, below %@", px, py, pz,
+                                Int(game.world.lightAt(px, py + 1, pz).sky), Mob.underground(game.world, px, py, pz) ? "yes" : "no",
+                                game.world.gen.column(px, pz).height, BountyHunters.below(game) ? "yes" : "no")
             check(called && back != nil && d < 20 && !left && run > 0,
-                  String(format: "horse call from 2,100 blocks: back %@, %.1f blocks from the player, store copy left %@, runs at %.1f", back != nil ? "yes" : "no", d, left ? "yes" : "no", run))
+                  String(format: "horse call from 2,100 blocks: back %@, %.1f blocks from the player, store copy left %@, runs at %.1f", back != nil ? "yes" : "no", d, left ? "yes" : "no", run) + where_)
             game.mobs.mobs.removeAll { $0.bond != 0 }
             game.horseBond = 0; game.horseCall = 0
             game.survival = surv
@@ -424,12 +439,19 @@ enum QuestBugTests {
             let yr = p.pos.y
             _ = run(0.5, hold: false)
             check(p.pos.y < yr - 0.5, String(format: "r3 jetpack: released, the player falls (%.1f -> %.1f)", yr, p.pos.y))
+            // Against a plain jump held as long with nothing on his back (the jump has risen about 1.55 blocks since P417;
+            // this check wanted under 1.5, from the old 1.3-block jump).
+            game.inventory.armor[1] = .empty
+            pad(); standOn()
+            let j0 = p.pos.y
+            let plain = run(1.5, hold: true) - j0
             var empty = ItemStack(jet, 1); empty.damage = Jetpack.tank
             game.inventory.armor[1] = empty
             pad(); standOn()
             let e0 = p.pos.y
             let etop = run(1.5, hold: true)
-            check(etop - e0 < 1.5 && etop - e0 > 0.8, String(format: "r3 jetpack: empty tank holding jump only jumps (%.2f blocks)", etop - e0))
+            check(abs((etop - e0) - plain) < 0.1 && plain > 0.8 && plain < 2,
+                  String(format: "r3 jetpack: empty tank holding jump only jumps (%.2f blocks, a plain jump %.2f)", etop - e0, plain))
             var half = ItemStack(jet, 1); half.damage = 1000
             let coal = ItemStack(Items.id("coal"), 1)
             let rf = Fireworks.craft([half, coal, coal, .empty, .empty, .empty, .empty, .empty, .empty])

@@ -110,6 +110,28 @@ enum GroundSettleTests {
         for y in cy..<(cy + 12) { for z in cz..<(cz + 14) { for x in cx..<(cx + 14) where w.groundAt(x, y, z) { heldLeft += 1 } } }
         check(GroundSettle.bigDrops == big0 + 1 && lumpLeft == 0 && heldLeft > 2000,
               "P380 (4): a 2,352-cell lump on a stalk fell in lots (\(GroundSettle.bigDrops - big0) big fall, \(lumpLeft) cells left); the same lump on the ground kept \(heldLeft) cells")
+        // (5) Ledger 29, the torch trick: a block falling into a torch's cell breaks into its item (the wyrm egg, a
+        // gravel column dug out over a torch), on a built floor and on the drawn ground; with no torch it lands.
+        func torchDrop(_ x: Int, _ z: Int, built: Bool, torch: Bool, _ what: BlockID) -> (block: Bool, items: Int) {
+            let y = flat(x, z)
+            if built { w.setBlock(x, y, z, Blocks.id("stone_bricks")) }
+            let f = built ? y + 1 : y
+            if torch { w.setBlock(x, f, z, TORCH) }
+            w.setBlock(x, f + 3, z, what)
+            g.drops.items.removeAll()
+            g.falling.append(FallingBlock(V3(Float(x) + 0.5, Float(f + 3), Float(z) + 0.5), what))
+            w.setBlock(x, f + 3, z, AIR)
+            settle(g, 3)
+            var placed = false
+            for yy in f...(f + 4) where w.materialAt(x, yy, z) == what { placed = true }   // (sand in a field world lands as drawn ground)
+            return (placed, g.drops.items.filter { Items.key($0.stack.item) == Blocks.key(what) }.count)
+        }
+        let egg = Blocks.id("dragon_egg"), sand = Blocks.id("sand")      // (sand: gravel can drop flint)
+        let eggBuilt = torchDrop(x0 + 40, z0 - 20, built: true, torch: true, egg)
+        let sandGround = torchDrop(x0 + 50, z0 - 20, built: false, torch: true, sand)
+        let noTorch = torchDrop(x0 + 60, z0 - 20, built: true, torch: false, sand)
+        check(!eggBuilt.block && eggBuilt.items == 1 && !sandGround.block && sandGround.items == 1 && noTorch.block && noTorch.items == 0,
+              "ledger 29: onto a torch the egg breaks into its item on a built floor (block \(eggBuilt.block), \(eggBuilt.items) item) and sand on the drawn ground (block \(sandGround.block), \(sandGround.items) item); with no torch sand lands (block \(noTorch.block), \(noTorch.items) items)")
         // (2) Floating pieces across chunk borders: three seeds' ravine country, with the check off and on.
         // A made case: a 3 x 3 x 3 lump in the air across the border between two chunks, noted as generation would.
         let lx = 14, lz = 4, ly = y0 + 30

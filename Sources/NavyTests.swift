@@ -32,8 +32,21 @@ enum NavyTests {
         m.navyTick(0.05, g)
         m.invulnerable = 0
         m.hit(from: at + V3(3, 0, 0), damage: 35)                     // 25 left: pops, 10 through
-        let popped = m.shield == 0 && m.health < h0 && m.shieldFx == 2
-        check(soaked && popped, "navy: the shield soaks a 15 hit whole (flare), a 35 pops it and the rest goes through (\(h0) -> \(m.health) health)")
+        var popped = m.shield == 0 && m.shieldFx == 2
+        // The 10 that goes through meets level power and Hannibal plate, and comes out a point or two with the fraction
+        // rounded at random (so the average holds): one pop alone can land 0. Seven more pops on fresh marines, so the
+        // check reads what goes through on average instead of one roll.
+        var lost = h0 - m.health, pops = 1
+        for _ in 0..<7 {
+            let n = aegis(g, at)
+            n.invulnerable = 0
+            n.shield = Navy.shieldMax - 15                             // (as the first one stood after the flare)
+            let before = n.health
+            n.hit(from: at + V3(3, 0, 0), damage: 35)
+            popped = popped && n.shield == 0 && n.shieldFx == 2
+            lost += before - n.health; pops += 1
+        }
+        check(soaked && popped && lost > 0, String(format: "navy: the shield soaks a 15 hit whole (flare), a 35 pops it and the rest goes through (%.1f health a pop over %d pops)", Float(lost) / Float(pops), pops))
         var t: Float = 0
         m.navyTick(0.05, g)
         while m.shield == 0 && t < 10 { m.navyTick(0.05, g); t += 0.05 }

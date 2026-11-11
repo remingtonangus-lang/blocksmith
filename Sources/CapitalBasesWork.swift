@@ -174,7 +174,7 @@ extension Game {
         default:
             // Back to their posts, each on its own.
             for m in members {
-                let post = b.posts[ObjectIdentifier(m)] ?? r.gate
+                let post = b.posts[m] ?? r.gate
                 let to = V3(post.x - m.pos.x, 0, post.z - m.pos.z)
                 let dist = simd_length(to)
                 // At the post, or near it after a while (a post on a ledge the straight walk can't climb onto: the
@@ -183,7 +183,7 @@ extension Game {
                     let br = m.soldierBrain
                     br.order = nil; br.ready = false
                     m.home = post
-                    b.posts.removeValue(forKey: ObjectIdentifier(m))
+                    b.posts[m] = nil
                     members.removeAll { $0 === m }
                     continue
                 }
@@ -191,14 +191,13 @@ extension Game {
                 m.soldierBrain.order = dist < 18 ? post : ground(wp)
                 // No way back for 25 s (fallen into a ravine, cut off by water): it holds where it is as a new post
                 // (long citadel behaviour sim: patrol members pushed at unreachable waypoints for minutes).
-                let id = ObjectIdentifier(m)
-                if let o = m.soldierBrain.order, m.gaveUp(o) { b.noWay[id, default: 0] += dt } else { b.noWay[id] = nil }
-                if (b.noWay[id] ?? 0) > 25 {
-                    b.noWay[id] = nil
+                if let o = m.soldierBrain.order, m.gaveUp(o) { b.noWay[m] = (b.noWay[m] ?? 0) + dt } else { b.noWay[m] = nil }
+                if (b.noWay[m] ?? 0) > 25 {
+                    b.noWay[m] = nil
                     let br = m.soldierBrain
                     br.order = nil; br.ready = false
                     m.home = m.pos
-                    b.posts.removeValue(forKey: id)
+                    b.posts[m] = nil
                     members.removeAll { $0 === m }
                     b.note("\(r.key) patrol: a \(m.kind.key) found no way back (\(Int(dist)) blocks out), holds there")
                 }
@@ -229,7 +228,7 @@ extension Game {
         // The officer leads.
         if let i = team.firstIndex(where: { $0.kind == .soldierOfficer }), i != 0 { team.swapAt(0, i) }
         for m in team {
-            if b.posts[ObjectIdentifier(m)] == nil { b.posts[ObjectIdentifier(m)] = m.home ?? m.pos }
+            if b.posts[m] == nil { b.posts[m] = m.home ?? m.pos }
             let br = m.soldierBrain
             br.ready = true
             br.station = .none; br.orderStation = .none
@@ -279,7 +278,7 @@ extension Game {
             m.variant = Guns.pistol
             m.home = m.pos
             mobs.mobs.append(m)
-            b.posts[ObjectIdentifier(m)] = r.gate
+            b.posts[m] = r.gate
             crew.append(m)
         }
         var budget = Int((dt * Float(max(1, crew.count)) * 0.9).rounded()) + (away > 5 ? Int(away * 1.8) : 0)

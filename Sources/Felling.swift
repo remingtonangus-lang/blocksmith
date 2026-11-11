@@ -15,7 +15,7 @@ enum Felling {
     static let maxLogs = 260, maxLeaves = 900
     static let carryMax = 24
     final class Fall {
-        weak var ship: Ship?
+        @WeakLink var ship: Ship? = nil
         var age: Float = 0
         var still: Float = 0
         var landed = false
@@ -30,10 +30,13 @@ enum Felling {
         init(_ s: Ship) { ship = s }
     }
     static var falls: [Fall] = []
-    static weak var carried: Ship?
+    @WeakLink static var carried: Ship? = nil
     static var felled = 0                        // (counter)
     static var toppled = 0                       // (counter: P407's whole pieces)
     static var letLate = 0                       // (counter: bodies let go at the 4 s limit with the world not yet redrawn)
+    static let oldPush = ProcessInfo.processInfo.environment["BS_OLDFELLPUSH"] == "1"
+    static var pushWorstMs = 0.0, pushWorstSections = 0      // (harness: the most a frame's pushed remeshes took, and how many)
+    static var worstMs = 0.0, worstSplit = ""   // (the soak: the slowest topple and its parts)
 
     static func isFelled(_ s: Ship) -> Bool { s.root.name == name }
     // (P504) Two cells of one trunk's section: within its 2x2 (a block apart on each axis at most).
@@ -177,8 +180,12 @@ extension Game {
             bp.cells[ivSub(c, start)] = world.block(c.x, c.y, c.z)
             lo = IVec3(min(lo.x, c.x - start.x), min(lo.y, c.y - start.y), min(lo.z, c.z - start.z))
         }
+        // (ledger 45: no circuit marks a block when no circuit part is near the tree)
+        let quiet0 = world.circuitQuiet
+        if Explosion.circuitCalm && !world.circuitNear(Array(logs) + Array(leaves), margin: 3) { world.circuitQuiet = true }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in logs { world.setBlockAsync(c.x, c.y, c.z, AIR) }
+        world.circuitQuiet = quiet0
         let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0, name: Felling.name, role: "")
         s.role = nil
         // Local cell (c - start - lo) sits where it stood: world = pos + (l - com).
@@ -206,6 +213,16 @@ extension Game {
     static let toppledName = "Toppled"
     func topple(_ cells: [IVec3], away awayDir: V3? = nil) {
         guard let start = cells.min(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) else { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var tCopy = t0, tTake = t0, tSpawn = t0
+        defer {
+            let t4 = CFAbsoluteTimeGetCurrent(), ms = (t4 - t0) * 1000
+            if ms > Felling.worstMs {
+                Felling.worstMs = ms
+                Felling.worstSplit = String(format: "%d blocks: crown and copy %.1f, taken out %.1f, body made %.1f, held %.1f", cells.count,
+                                            (tCopy - t0) * 1000, (tTake - tCopy) * 1000, (tSpawn - tTake) * 1000, (t4 - tSpawn) * 1000)
+            }
+        }
         let logs = cells.filter { CapitalBase.isLog(world.block($0.x, $0.y, $0.z)) }
         var leaves: Set<IVec3> = []
         if !logs.isEmpty {
@@ -233,11 +250,16 @@ extension Game {
             bp.cells[ivSub(c, start)] = world.block(c.x, c.y, c.z)
             lo = IVec3(min(lo.x, c.x - start.x), min(lo.y, c.y - start.y), min(lo.z, c.z - start.z))
         }
+        tCopy = CFAbsoluteTimeGetCurrent()
         // (taken out quietly: what it leaves behind was checked already)
         world.restoring = true
+        let quiet0 = world.circuitQuiet                      // (ledger 45)
+        if Explosion.circuitCalm && !world.circuitNear(cells + Array(leaves), margin: 3) { world.circuitQuiet = true }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }
+        world.circuitQuiet = quiet0
         world.restoring = false
+        tTake = CFAbsoluteTimeGetCurrent()
         let tree = logs.count == cells.count
         let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0,
                                   name: tree ? Felling.name : Game.toppledName, role: "")
@@ -246,6 +268,7 @@ extension Game {
         s.prevPos = s.pos
         s.updateBounds()
         s.initialBlocks = s.blockCount
+        tSpawn = CFAbsoluteTimeGetCurrent()
         var away = awayDir ?? V3(s.pos.x - player.pos.x, 0, s.pos.z - player.pos.z)      // (P507: a crawler's push, its way)
         if simd_length(away) < 0.1 { away = V3(-sinf(player.yaw), 0, -cosf(player.yaw)) }
         away = simd_normalize(away)
@@ -282,6 +305,11 @@ extension Game {
         Felling.roundTrunks = Felling.roundFor(world)
         let live = world.ships.list
         Felling.falls.removeAll { f in f.ship.map { s in !live.contains { $0 === s } } ?? true }
+        // (Nov 10, the code reader's TNT stack: 2,000 TNT felled a wood's worth of trees at once and their pushed
+        // sections were all meshed on one frame, felling 12.3 ms. Past 2 ms of pushes a frame the rest wait for the next;
+        // a body still waits up to 4 s for its tree to be drawn without it. BS_OLDFELLPUSH=1: every push on the frame.)
+        var pushT = 0.0, pushN = 0
+        defer { if pushT * 1000 > Felling.pushWorstMs { Felling.pushWorstMs = pushT * 1000; Felling.pushWorstSections = pushN } }
         for f in Felling.falls {
             guard let s = f.ship else { continue }
             if f.held >= 0 {
@@ -292,10 +320,13 @@ extension Game {
                 // body waits up to 4 s for it (a section unloaded meanwhile counts as drawn).
                 f.held += dt
                 let drawn = f.wait.allSatisfy { $0.0.sections[$0.1].meshedVersion >= $0.2 || self.world.chunks[ChunkKey(x: $0.0.cx, z: $0.0.cz)] !== $0.0 }
-                if !drawn && !f.pushed && f.held > 0.1 {
+                if !drawn && !f.pushed && f.held > 0.1 && (Felling.oldPush || pushT < 0.002) {
                     f.pushed = true
                     let w = world
+                    let t0 = CFAbsoluteTimeGetCurrent()
                     w.editBatch { for (ch, sy, v) in f.wait where ch.sections[sy].meshedVersion < v && w.chunks[ChunkKey(x: ch.cx, z: ch.cz)] === ch { w.remeshSync(ch, sy) } }
+                    pushT += CFAbsoluteTimeGetCurrent() - t0
+                    pushN += f.wait.count
                 }
                 let built = !s.mesh.busy && !s.mesh.sections.isEmpty
                 if !(drawn && built) && f.held < 4 { s.vel = .zero; s.angVel = .zero; continue }

@@ -100,7 +100,8 @@ enum CapitalCity {
     }
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "capital_city", spacing: 56, separation: 20, salt: 51829403, reach: 8) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: "capital_city", spacing: 56, separation: 20, salt: 51829403, reach: 8) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             // The region's spot, then up to five more in its placement square (36 x 36 chunks, so the spacing holds).
             let rx = floorDiv(cx0, 56), rz = floorDiv(cz0, 56), s32 = UInt32(truncatingIfNeeded: seed)
             for k in 0...5 {
@@ -591,7 +592,10 @@ enum CapitalCity {
             for dz in -1...2 { w.set(cx - 2, y, cz + dz, steel); w.set(cx + 2, y, cz + dz, steel) }
             for dx in -1...1 { w.set(cx + dx, y, cz + 2, steel) }
         }
-        for s in 0..<(Yt - L) {
+        // (Ledger 37: one step past the top floor. Where that floor's level step was the north one, its door goes out off
+        // the next step, and the stair ended before it: the top floor of one office tower a city had no way in, its
+        // desks and barrels out of reach.)
+        for s in 0..<(floors > 1 ? Yt - L + 1 : 0) {
             let a = ring[s % 8], b = ring[(s + 1) % 8]
             w.set(cx + a.0, L + 1 + s, cz + a.1, step((b.0 - a.0, b.1 - a.1)))
         }

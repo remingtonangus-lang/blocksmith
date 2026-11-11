@@ -71,7 +71,7 @@ enum BaseTests {
         var phaseT0 = CFAbsoluteTimeGetCurrent(), simT0 = t
         func lap(_ n: String) {
             let real = CFAbsoluteTimeGetCurrent() - phaseT0, game = t - simT0
-            print(String(format: "basetest phase %@: %.0f s of game in %.1f s (%.2f ms a tick)", n, game, real, game > 0 ? real * 1000 / Double(game / 0.05) : 0))
+            print(String(format: "basetest phase %@: %.0f s of game in %.1f s (%.2f ms a tick)", n, game, real, game > 0 ? real * 1000 / Double(game / 0.05) : 0.0))
             phaseT0 = CFAbsoluteTimeGetCurrent(); simT0 = t
         }
 
@@ -155,7 +155,7 @@ enum BaseTests {
             check(back != nil, "the patrol returns", String(format: "after %.0f s", back ?? -1))
             if back == nil {
                 for m in b.patrols[key] ?? [] {
-                    let post = b.posts[ObjectIdentifier(m)] ?? rec().gate
+                    let post = b.posts[m] ?? rec().gate
                     print(String(format: "basetest log: straggler %@ at %.0f,%.0f,%.0f post %.0f,%.0f,%.0f order %@", m.kind.key, m.pos.x, m.pos.y, m.pos.z,
                                  post.x, post.y, post.z, m.soldierBrain.order.map { String(format: "%.0f,%.0f,%.0f", $0.x, $0.y, $0.z) } ?? "none"))
                 }

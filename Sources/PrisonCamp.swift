@@ -23,7 +23,7 @@ enum Prisoners {
     static var liberated: Bool { (TownLaw.state.vaultObj?[key] ?? 0) > 0 }
     static var freedAt = 0.0
     private static var clearFor: Float = 0
-    private static var routes: [ObjectIdentifier: [V3]] = [:]
+    private static var routes = MobTable<[V3]>()           // (by the prisoner himself: Nov 10, not his address)
     static var freed = 0                            // (counter: prisoners that walked out of sight)
 
     static func setup(_ m: Mob, sitting: Bool) {
@@ -82,8 +82,8 @@ enum Prisoners {
         // Free: out of sight, they are gone.
         let p = g.player.pos
         g.mobs.mobs.removeAll { m in
-            guard m.posse == posse, simd_length(m.pos - p) > 56, !inside(m.pos, -2) || g.clock - freedAt > 300 else { return false }
-            routes[ObjectIdentifier(m)] = nil
+            guard m.posse == posse, simd_length(m.pos - p) > 56, !inside(m.pos, -2) || g.clock - freedAt > 300, MobManager.canVanish(m, g) else { return false }
+            routes[m] = nil
             freed += 1
             return true
         }
@@ -105,7 +105,7 @@ extension Mob {
         }
         if sitting { sitting = false; aiTimer = Float(hash3(Int(pos.x), 3, Int(pos.z), 0x9A3) % 30) / 10 }  // they rise, one by one
         if aiTimer > 0 { return 0 }
-        let id = ObjectIdentifier(self)
+        let id = self
         var route = Prisoners.routesFor(id) ?? []
         if route.isEmpty {
             route = Prisoners.route(from: pos)
@@ -131,8 +131,8 @@ extension Mob {
 }
 
 extension Prisoners {
-    static func routesFor(_ id: ObjectIdentifier) -> [V3]? { routes[id] }
-    static func setRoute(_ id: ObjectIdentifier, _ r: [V3]) { routes[id] = r.isEmpty ? [] : r }
+    static func routesFor(_ m: Mob) -> [V3]? { routes[m] }
+    static func setRoute(_ m: Mob, _ r: [V3]) { routes[m] = r.isEmpty ? [] : r }
 }
 
 // A prisoner: gaunt, in worn and patched civilian clothes too big for him (front toward -Z, feet at y 0). Sitting: the

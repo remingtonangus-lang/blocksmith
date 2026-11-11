@@ -249,7 +249,9 @@ enum HellWorks {
             for y in [f + 6, f + 13, f + 20] { disc(&w, 0, 0, 5.5, y, y, dark, shell: 1.2) }
             for y in [f, f + 8, f + 16] { disc(&w, 0, 0, 4.4, y, y, trim) }
             disc(&w, 0, 0, 5.5, f + 23, f + 23, dark)
-            box(&w, 0, f + 1, -4, 0, f + 23, -4, ladder + 1)                                   // (against the north wall, up through a hatch)
+            // (Against the north wall, up through the hatches. Ledger 34: beside the north door, not in front of it: its
+            // first three rungs hung on the doorway.)
+            box(&w, 1, f + 1, -4, 1, f + 23, -4, ladder + 1)
             for a in stride(from: 0, to: 360, by: 30) {
                 let r: Float = 5, t = Float(a) * .pi / 180
                 at(&w, Int((cosf(t) * r).rounded()), f + 24, Int((sinf(t) * r).rounded()), onyx)

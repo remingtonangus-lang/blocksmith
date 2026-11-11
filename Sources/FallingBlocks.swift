@@ -33,35 +33,38 @@ extension Game {
         // shells, a plant popped or a fire put out at each. The checks stop at `gravitySeconds`; the cells left go back
         // to the queue's front for the next tick.)
         let deadline = World.deterministic || Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + Game.gravitySeconds
-        for (k, p) in q.enumerated() {
-            if k & 15 == 15 && CFAbsoluteTimeGetCurrent() > deadline {
-                world.gravityQueue.insert(contentsOf: q[k...], at: 0)
-                break
+        world.editBatch {                              // (ledger 44: the tick's falls and pops remeshed together)
+            for (k, p) in q.enumerated() {
+                if k & 15 == 15 && CFAbsoluteTimeGetCurrent() > deadline {
+                    world.gravityQueue.insert(contentsOf: q[k...], at: 0)
+                    break
+                }
+                if !world.activeHere(p) { world.park(falling: p); continue }   // P376
+                FarTicks.note(world, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
+                if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
+                if world.fireCheck(p) { continue }            // P504: fire with nothing under it goes out
+                // P462 (Oct 25 16:58, on a beach: "when I break a sand block, it's like an existing block form of it spawns
+                // and drops, which is wrong"): in a field world only built blocks fall; the drawn ground's sand and gravel
+                // hold where they are (thin overhangs break off as ground: GroundSettle), so a dug beach no longer drops
+                // cubes of sand out of its slope.
+                let b = world.fieldTerrain ? world.builtBlock(p.x, p.y, p.z) : world.materialAt(p.x, p.y, p.z)
+                guard World.fallingIDs[Int(b)], p.y > 0 else {
+                    hardenConcrete(p)
+                    continue
+                }
+                let below = world.materialAt(p.x, p.y - 1, p.z)
+                guard below == AIR || Blocks.isLiquid(below) || (Blocks.replaceable[Int(below)] && !Blocks.collide[Int(below)]) || below == FIRE else {
+                    hardenConcrete(p)
+                    continue
+                }
+                world.setBlock(p.x, p.y, p.z, AIR)
+                falling.append(FallingBlock(V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5), b))
             }
-            if !world.activeHere(p) { world.park(falling: p); continue }   // P376
-            FarTicks.note(world, V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
-            if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
-            if world.fireCheck(p) { continue }            // P504: fire with nothing under it goes out
-            // P462 (Oct 25 16:58, on a beach: "when I break a sand block, it's like an existing block form of it spawns
-            // and drops, which is wrong"): in a field world only built blocks fall; the drawn ground's sand and gravel
-            // hold where they are (thin overhangs break off as ground: GroundSettle), so a dug beach no longer drops
-            // cubes of sand out of its slope.
-            let b = world.fieldTerrain ? world.builtBlock(p.x, p.y, p.z) : world.materialAt(p.x, p.y, p.z)
-            guard World.fallingIDs[Int(b)], p.y > 0 else {
-                hardenConcrete(p)
-                continue
-            }
-            let below = world.materialAt(p.x, p.y - 1, p.z)
-            guard below == AIR || Blocks.isLiquid(below) || (Blocks.replaceable[Int(below)] && !Blocks.collide[Int(below)]) || below == FIRE else {
-                hardenConcrete(p)
-                continue
-            }
-            world.setBlock(p.x, p.y, p.z, AIR)
-            falling.append(FallingBlock(V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5), b))
         }
     }
 
     static let gravityChecksPerTick = 1500
+    static let oldLanding = ProcessInfo.processInfo.environment["BS_OLDLAND"] == "1"
     static var gravitySeconds = 0.0008
 
     // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs
@@ -124,6 +127,16 @@ extension Game {
                     return m == AIR || Blocks.replaceable[Int(m)] || Blocks.isLiquid(m)
                 }
                 var at = IVec3(cell.x, ground && open(cell) ? cell.y : cell.y + 1, cell.z)
+                // Ledger 29: the cell it comes to rest in holds a torch, rail, button, sign or the like (no collision
+                // box, not replaceable): it breaks into its item there (reference; the torch trick that collects the wyrm
+                // egg, or a gravel column dug out over a torch). The stacking above was only for ground and solid
+                // blocks in the way: it lifted the egg onto the torch, so the egg could never be taken (BS_OLDLAND=1).
+                let rest = world.materialAt(at.x, at.y, at.z)
+                if !Game.oldLanding && !open(at) && !Blocks.collide[Int(rest)] {
+                    f.dead = true
+                    for s in Mining.drops(f.block, ItemStack(Items.id("netherite_pickaxe"), 1)) { drops.spawn(s, at: f.pos) }
+                    continue
+                }
                 for _ in 0..<3 where !open(at) { at.y += 1 }
                 f.dead = true
                 let key = Blocks.key(f.block)

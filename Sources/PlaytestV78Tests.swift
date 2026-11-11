@@ -114,7 +114,9 @@ enum PlaytestV78Tests {
             for _ in 0..<(60 * 4) { game.mobs.hostileAttempts(game) }
             let ms = game.mobs.mobs.filter { $0.kind.category == .monster }
             let under = ms.filter { Int(floor($0.pos.y)) < w.topY(Int(floor($0.pos.x)), Int(floor($0.pos.z))) - 8 }.count
-            let near = ms.filter { simd_length($0.pos - at) < 48 }.count
+            // (H1, Remington: cave monsters spawn about 10 blocks farther off, the nearest 34: "near" is within 64, the
+            // 48 this asked before H1 left only a 34-48 ring and failed one run in two on the headset build, Nov 4)
+            let near = ms.filter { simd_length($0.pos - at) < 64 }.count
             let close = ms.filter { simd_length($0.pos - at) < 32 }.count
             return (ms.count, near, close, under)
         }
@@ -131,9 +133,19 @@ enum PlaytestV78Tests {
             }
         } } }
         if let c = cave {
-            let r = run(c)
-            check(r.under >= 3 && r.near >= 2, String(format: "spawning: in a cave at y %d, 60 s: %d underground, %d within 48 blocks (want >= 3 and >= 2)", Int(c.y) - 64, r.under, r.near))
-            check(r.close <= 8, "spawning: in a cave, no swarm: \(r.close) monsters within 32 blocks (want <= 8)")
+            // Six runs of 60 s, counted together. The spawner picks columns evenly over 13 x 13 chunks round him and a
+            // height anywhere under each column's top, so cave monsters come up in every cave at every depth, as in the
+            // reference; with H1 keeping them 34 off, few land within 64 blocks of him: 6 of 58, 1 of 55 and 3 of 71 in
+            // three-run sets on builds 154-159 (Nov 4-5; the old comment's "a fifth" was never measured). Six runs
+            // expect about 6 near.
+            var under = 0, near = 0, close = 0, runs: [String] = []
+            for _ in 0..<6 {
+                let r = run(c)
+                under += r.under; near += r.near; close = max(close, r.close)
+                runs.append("\(r.near)/\(r.under)")
+            }
+            check(under >= 18 && near >= 2, "spawning: in a cave at y \(Int(c.y) - 64), 6 x 60 s: \(under) underground, \(near) within 64 blocks (want >= 18 and >= 2; runs near/under: \(runs.joined(separator: " ")))")
+            check(close <= 8, "spawning: in a cave, no swarm: at most \(close) monsters within 32 blocks in a run (want <= 8)")
         } else { check(false, "spawning: no cave found near the spawn to test") }
     }
 }

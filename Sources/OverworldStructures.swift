@@ -20,7 +20,8 @@ enum OverworldStructures {
     // MARK: Temples
 
     static func temple(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "temple", spacing: 34, separation: 12, salt: 14357617, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "temple", spacing: 34, separation: 12, salt: 14357617, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let x = cx * CS + 8, z = cz * CS + 8
             let biome = gen.column(x, z).biome
             let y = gen.groundY(x, z)
@@ -32,8 +33,9 @@ enum OverworldStructures {
                 // The whole footprint in the desert (one stood half on grassland at a biome edge: blind critic, run 417).
                 for (dx, dz) in [(-11, -15), (11, -15), (-11, 11), (11, 11)] where gen.column(x + dx, z + dz).biome != .desert { return nil }
                 let mission = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyP360) } ?? true   // P360
+                let l63 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL62) } ?? true   // ledger 63
                 return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 15, x + 11, y + 16, z + 11) { w in
-                    if mission { dustMission(&w, x, y, z, s) } else { desertPyramid(&w, x, y, z, s) } }],
+                    if mission { dustMission(&w, x, y, z, s, l63: l63) } else { desertPyramid(&w, x, y, z, s) } }],
                                       anchor: IVec3(x, y + 1, z - 17))
             case .jungle, .bambooJungle, .sparseJungle:
                 // P429 (Oct 24: "jungle temples are too common"): two grid cells in five keep one.
@@ -362,6 +364,14 @@ enum OverworldStructures {
             // The ladder after the room: laid first, the lab's ceiling covered the shaft (structcheck, run 368: both
             // basements' chest and cauldron unreachable).
             for yy in (by + 1)...(y - 2) { w.set(cx, yy, cz - 2, Blocks.id("ladder") + 1) }
+            // Above the lab the shaft runs through whatever ground is there: on a slope or over a cave its rungs hung with
+            // air behind them and its sides open onto the hillside (structcheck, seed 31337 at -968 67 -1866). Lined in
+            // the lab's brick where the ground leaves a gap.
+            if by + 4 <= y - 2 {
+                for yy in (by + 4)...(y - 2) { for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
+                    if !Blocks.collide[Int(w.get(cx + dx, yy, cz - 2 + dz))] { w.set(cx + dx, yy, cz - 2 + dz, Blocks.id("stone_bricks")) }
+                } } }
+            }
             w.chest(cx + 2, by, cz + 2, loot: "igloo_chest", seed: rng.next(), facing: 0)
             w.set(cx + 2, by, cz, Blocks.id("cauldron"))
             // The villager's cell: the west column behind iron bars.
@@ -374,7 +384,8 @@ enum OverworldStructures {
     // MARK: Marauder outpost
 
     static func outpost(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "pillager_outpost", spacing: 34, separation: 12, salt: 165745296, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "pillager_outpost", spacing: 34, separation: 12, salt: 165745296, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             var rng = SRng(seed)
             guard rng.int(5) == 0 else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8
@@ -384,10 +395,14 @@ enum OverworldStructures {
             let y = gen.groundY(x, z)
             guard y >= SEA else { return nil }
             let s = rng.next()
-            var pieces = [piece(x - 6, y - 8, z - 6, x + 6, y + 30, z + 6) { w in outpostTower(&w, x, y + 1, z, s) }]
+            // (Ledger 35: the ground rising south of the door, two cells out, for the steps down to it.)
+            let rise = (gen.column(x, z - 5).height - y, gen.column(x, z - 6).height - y)
+            var pieces = [piece(x - 6, y - 8, z - 6, x + 6, y + 30, z + 6) { w in outpostTower(&w, x, y + 1, z, s, rise: rise) }]
             // The camp round the tower: a cage with a captive golem, tents, a log pile and archery targets, each on
             // ground within a few blocks of the tower's (skipped on steep or wet ground).
             let camp: [(Int, Int, Int)] = [(0, 11, -6), (1, -11, 6), (2, 9, 9), (3, -9, -8)]
+            // Ledger 53: on ground no save had generated before it, steps down from the tent's aprons (below).
+            let l53 = gen.structures.map { $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL52) } ?? true
             for (kind, dx, dz) in camp {
                 let fx = x + dx, fz = z + dz
                 // The 2D column height (groundY samples 3D density down the column: four of them per outpost start
@@ -395,7 +410,10 @@ enum OverworldStructures {
                 let fy = gen.column(fx, fz).height
                 guard fy >= SEA && abs(fy - y) <= 4 else { continue }
                 let fs = rng.next()
-                pieces.append(piece(fx - 3, fy - 5, fz - 4, fx + 3, fy + 5, fz + 4) { w in outpostCamp(&w, kind, fx, fy + 1, fz, fs) })
+                let reachZ = l53 && kind == 1 ? 8 : 4
+                pieces.append(piece(fx - 3, fy - (l53 ? 9 : 5), fz - reachZ, fx + 3, fy + 5, fz + reachZ) { w in
+                    outpostCamp(&w, kind, fx, fy + 1, fz, fs, steps: l53)
+                })
             }
             return StructureStart(kind: "pillager_outpost", pieces: pieces, anchor: IVec3(x, y + 4, z - 16))
         }
@@ -403,7 +421,7 @@ enum OverworldStructures {
 
     // A four-storey watchtower: cobblestone plinth, birch walls on a dark oak frame with fence-slit windows, an open
     // lookout storey, an overhanging platform with the loot chest under a stepped dark oak roof.
-    static func outpostTower(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
+    static func outpostTower(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64, rise: (Int, Int) = (0, 0)) {
         var rng = SRng(seed)
         let log = Blocks.id("dark_oak_log"), pl = Blocks.id("dark_oak_planks"), cob = COBBLE, fence = Blocks.id("dark_oak_fence")
         let wall = Blocks.id("birch_planks"), mossy = Blocks.has("mossy_cobblestone") ? Blocks.id("mossy_cobblestone") : COBBLE
@@ -424,6 +442,8 @@ enum OverworldStructures {
                 else { w.set(x, yy, z, wall) }
             } } }
             for yy in by...(by + 4) { w.set(cx + 2, yy, cz + 2, Blocks.id("ladder") + 2) }
+            // (Ledger 32: in the open lookout the ladder stood free over the rail; a post runs up behind it to the platform.)
+            if fl == 3 { for yy in (by + 2)...(by + 4) { w.set(cx + 3, yy, cz + 2, log) } }
             w.mob("soldier_marksman@marauder", V3(Float(cx) + 0.5, Float(by + 1), Float(cz) + 0.5))
         }
         // Furnishing: a fletching table and a barrel of arrows below, bedrolls of hay above.
@@ -462,6 +482,16 @@ enum OverworldStructures {
         w.fill(cx, y + 1, cz - 3, cx, y + 2, cz - 3, AIR)
         let slab = Blocks.has("dark_oak_slab") ? Blocks.id("dark_oak_slab") : (Blocks.has("cobblestone_slab") ? Blocks.id("cobblestone_slab") : cob)
         w.set(cx, y, cz - 4, slab)
+        // Ledger 35: on a slope rising south the ground stood over the step and against the doorway (an outpost on a
+        // snowy slope, seed 12345 1416 568: its rooms and chest unreachable). The step is cleared, and where the ground
+        // outside is higher, steps a block apart come down to it.
+        w.fill(cx, y + 1, cz - 4, cx, y + 3, cz - 4, AIR)
+        if rise.0 >= 1 || rise.1 >= 2 {
+            w.set(cx, y, cz - 5, pl); w.fill(cx, y + 1, cz - 5, cx, y + 3, cz - 5, AIR)
+        }
+        if rise.1 >= 2 {
+            w.set(cx, y + 1, cz - 6, pl); w.fill(cx, y + 2, cz - 6, cx, y + 4, cz - 6, AIR)
+        }
         w.set(cx + 2, top, cz + 2, Blocks.id("ladder") + 2)
         w.chest(cx - 2, top + 1, cz - 2, loot: "pillager_outpost", seed: rng.next(), facing: 1)
         w.mob("soldier_officer@marauder", V3(Float(cx) + 0.5, Float(top + 1), Float(cz) + 0.5))
@@ -469,7 +499,7 @@ enum OverworldStructures {
     }
 
     // Camp pieces round an outpost: 0 cage (a captive villager), 1 tent, 2 log pile, 3 archery targets.
-    static func outpostCamp(_ w: inout StructWriter, _ kind: Int, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
+    static func outpostCamp(_ w: inout StructWriter, _ kind: Int, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64, steps: Bool = false) {
         let pl = Blocks.id("dark_oak_planks"), fence = Blocks.id("dark_oak_fence"), log = Blocks.id("dark_oak_log")
         switch kind {
         case 0:
@@ -494,6 +524,15 @@ enum OverworldStructures {
                 w.groundDown(x, y - 1, z, DIRT, minY: y - 5)
                 for yy in y...(y + 2) { w.set(x, yy, z, AIR) }
             } }
+            // Ledger 53: the tent stands on the column's 2D height, and where the true ground fell away (a ridge, a cliff
+            // top) its aprons stood two or more over it, so the table inside could not be reached (structcheck seed 11,
+            // -883 164 1823). Steps go down a block at a time from each apron to the ground; where the ground is that high
+            // already, groundDown leaves it.
+            if steps {
+                for s in [-1, 1] { for k in 1...4 { for x in (cx - 1)...(cx + 1) {
+                    w.groundDown(x, y - 1 - k, cz + s * (3 + k), DIRT, minY: y - 1 - k)
+                } } }
+            }
             // A dark ridge pole along the peak (the bare wool A-frame read as white steps: run 408 outpost). No end
             // posts: they stood in the one-block entrances (structcheck: every tent's table unreachable, run 410).
             let ridge = Blocks.has("dark_oak_log[z]") ? Blocks.id("dark_oak_log[z]") : log
@@ -519,7 +558,8 @@ enum OverworldStructures {
     // MARK: Ruined portal
 
     static func ruinedPortal(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "ruined_portal", spacing: 40, separation: 15, salt: 34222645, reach: 1) { [unowned gen] seed, cx, cz in
+        StructureType(name: "ruined_portal", spacing: 40, separation: 15, salt: 34222645, reach: 1) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let x = cx * CS + 8, z = cz * CS + 8
             if abs(x) < 64 && abs(z) < 64 { return nil }          // keep the spawn area clear
             let y = gen.groundY(x, z)
@@ -559,7 +599,8 @@ enum OverworldStructures {
     // MARK: Shipwrecks, buried treasure
 
     static func shipwreck(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "shipwreck", spacing: 24, separation: 4, salt: 165745295, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "shipwreck", spacing: 24, separation: 4, salt: 165745295, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             // P190 (Oct 13: "too many ships popping up, make those about eight times as rare"): one start in eight
             // stays (the others' places are unchanged, so a wreck already found is still there).
             guard hashf(cx, cz, 0x5E1C, UInt32(truncatingIfNeeded: seed)) < 0.125 else { return nil }
@@ -646,13 +687,13 @@ enum OverworldStructures {
         let sunk = y + 5 <= SEA
         let mastTop = sunk ? SEA - 1 - y : 99                        // (highest h of a mast under the surface)
         if broken {
-            for h in 1...min(6, max(1, mastTop)) { at(1, h, 0, log) }
+            for h in thru(1, min(6, max(1, mastTop))) { at(1, h, 0, log) }
             if 5 <= mastTop || !sunk { for a in 2...6 { at(a, 5, 1, logA) } }
         } else {
-            for h in 1...min(13, max(1, mastTop)) { at(1, h, 0, log) }
+            for h in thru(1, min(13, max(1, mastTop))) { at(1, h, 0, log) }
             if 9 <= mastTop { for b in -3...3 { at(1, 9, b, logB) } }
             if 12 <= mastTop { for b in -2...2 { at(1, 12, b, logB) } }
-            for h in 1...min(10, max(1, mastTop)) { at(-5, h, 0, log) }
+            for h in thru(1, min(10, max(1, mastTop))) { at(-5, h, 0, log) }
             if 8 <= mastTop { for b in -2...2 { at(-5, 8, b, logB) } }
         }
         let supply = (cx - 6 * dir, y + 2, cz), treasure = (cx + (broken ? 4 : 6) * dir, y + 2, cz), map = (cx - 10 * dir, y + 5, cz)
@@ -671,7 +712,8 @@ enum OverworldStructures {
     static func WATER_IF_BELOW_SEA(_ y: Int) -> BlockID { y <= SEA ? WATER : AIR }
 
     static func buriedTreasure(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "buried_treasure", spacing: 4, separation: 1, salt: 10387320, reach: 0) { [unowned gen] seed, cx, cz in
+        StructureType(name: "buried_treasure", spacing: 4, separation: 1, salt: 10387320, reach: 0) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             var rng = SRng(seed)
             guard rng.int(100) < 6 else { return nil }             // ~1% of beach chunks overall
             let x = cx * CS + 9, z = cz * CS + 9
@@ -686,7 +728,8 @@ enum OverworldStructures {
     // MARK: Mineshafts
 
     static func mineshaft(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "mineshaft", spacing: 16, separation: 1, salt: 30084233, reach: 4) { [unowned gen] seed, cx, cz in
+        StructureType(name: "mineshaft", spacing: 16, separation: 1, salt: 30084233, reach: 4) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let x = cx * CS + 8, z = cz * CS + 8
             // C12: abandoned mineshafts are retired on new ground; the mining towns work real mines instead
             // (MiningTowns.swift). Ground a save had generated before keeps its shafts.
@@ -866,7 +909,8 @@ enum OverworldStructures {
     // MARK: Desert well
 
     static func desertWell(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "desert_well", spacing: 22, separation: 2, salt: 40306, reach: 0) { [unowned gen] seed, cx, cz in
+        StructureType(name: "desert_well", spacing: 22, separation: 2, salt: 40306, reach: 0) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let x = cx * CS + 8, z = cz * CS + 8
             guard gen.column(x, z).biome == .desert else { return nil }
             // P495 (night lane, Oct 30, a desert render: a well's base stood a block proud of the sand on a beach slope,

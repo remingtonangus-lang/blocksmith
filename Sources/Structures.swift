@@ -251,7 +251,18 @@ final class StructureCache {
     private(set) static var evictions = 0
     // Bench gen: time spent computing structure starts, per kind (ms).
     static var startMs: [String: Double] = [:]
-    private let lock = NSLock()
+    private let lock = NSCondition()                 // (a condition: a caller waits for a start another thread is making)
+    // Item 11 (Nov 10, a saved world's launch under callgrind): the first ring's chunks, made four at a time, each asked
+    // for the same starts near spawn at once and every one of them made the start itself (the first stood; 2,138-2,343 of
+    // 8,400-8,600 made twice, 17-31 with the wait). A caller
+    // now waits for a start another thread is making (up to 5 s, then makes it itself). Only a caller that is not itself
+    // making a start waits (a start's own checks look up other starts: those make theirs as before), so a waiter never
+    // holds a start another thread waits for. BS_OLDSTARTWAIT=1: every caller makes it, as before. startsMade /
+    // startsWaited / startsTwice count them (the launch harness prints them).
+    static let oldWait = ProcessInfo.processInfo.environment["BS_OLDSTARTWAIT"] == "1"
+    private(set) static var startsMade = 0, startsWaited = 0, startsTwice = 0
+    private var making = Set<StartKey>()
+    private static let depthKey = "bs.structureStartDepth"
     let seed: UInt64
     let types: [StructureType]
     let fixed: [StructureStart]           // starts at precomputed positions (strongholds)
@@ -311,6 +322,10 @@ final class StructureCache {
             legacyP503 = SaveManager.guarding?.structureGuard(file: "structure-guard-p503.txt") ?? []
             legacyP510 = SaveManager.guarding?.structureGuard(file: "structure-guard-p510.txt") ?? []
             legacyP511 = SaveManager.guarding?.structureGuard(file: "structure-guard-p511.txt") ?? []
+            legacyP512 = SaveManager.guarding?.structureGuard(file: "structure-guard-p512.txt") ?? []
+            legacyL49 = SaveManager.guarding?.structureGuard(file: "structure-guard-l49.txt") ?? []
+            legacyL52 = SaveManager.guarding?.structureGuard(file: "structure-guard-l52.txt") ?? []
+            legacyL62 = SaveManager.guarding?.structureGuard(file: "structure-guard-l62.txt") ?? []
         }
     }
     var legacyR20: Set<Int64> = []               // ground saved before R20's streets and jails (Village.layout)
@@ -326,6 +341,10 @@ final class StructureCache {
     var legacyP503: Set<Int64> = []              // ground saved before P503's citadel gun rooms and lifts (CapitalBase.build)
     var legacyP510: Set<Int64> = []              // ground saved before P510 ran each railway on to the next (Railways.link)
     var legacyP511: Set<Int64> = []              // ground saved before P511 turned a railway's ends in loops (RailLoops.swift)
+    var legacyP512: Set<Int64> = []              // ground saved before P512's wider loops at ends P511's didn't fit (RailLoops.swift)
+    var legacyL49: Set<Int64> = []               // ground saved before ledger 49 (pueblo tiers on the roof below, frontier ladders, ghost town boards)
+    var legacyL52: Set<Int64> = []               // ground saved before ledger 52-54 (family house table, outpost tent steps, no lamps on the town square)
+    var legacyL62: Set<Int64> = []               // ground saved before ledgers 62-63 (log wall plates under the homestead's eaves; the Dust Mission's corbelled roof)
     var legacyP475: Set<Int64> = []              // ground saved before P475 fenced Boreal Stations in chain link with a gate
     var legacyP470: Set<Int64> = []              // ground saved before P470 let two stations make a line (Railways.plan)
     var legacyP469: Set<Int64> = []              // ground saved before P469 gave depot bases their compounds (Depots.swift)
@@ -412,9 +431,26 @@ final class StructureCache {
         let key = StartKey(name: t.name, rx: rx, rz: rz)          // no string built per lookup (several hundred per chunk)
         lock.lock()
         if let c = cache[key] { useClock += 1; used[key] = useClock; lock.unlock(); return c }
+        var mine = false
+        let td = StructureCache.oldWait ? nil : Thread.current.threadDictionary
+        let depth = (td?[StructureCache.depthKey] as? Int) ?? 0
+        if let td {
+            if making.contains(key) {
+                if depth == 0 {
+                    StructureCache.startsWaited += 1
+                    let until = Date(timeIntervalSinceNow: 5)
+                    while making.contains(key), cache.index(forKey: key) == nil, lock.wait(until: until) {}
+                    if let c = cache[key] { useClock += 1; used[key] = useClock; lock.unlock(); return c }
+                }
+            } else {
+                making.insert(key); mine = true
+            }
+            td[StructureCache.depthKey] = depth + 1
+        }
         lock.unlock()
         let t0: Double = CFAbsoluteTimeGetCurrent()
         defer {
+            if let td { td[StructureCache.depthKey] = depth }
             // (store review: a start planned on the frame thread is a hitch; the frame soak names each one)
             if StructureCache.onFrameThread {
                 let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
@@ -433,6 +469,9 @@ final class StructureCache {
         if let st = s, StructureCache.yields[t.name] != nil, clear(cx: cx, cz: cz, reach: t.reach, guardSet: legacyOverlap),
            givesWay(st, t, rx, rz) { s = nil }
         lock.lock()
+        if cache.index(forKey: key) != nil { StructureCache.startsTwice += 1 }
+        StructureCache.startsMade += 1
+        if mine { making.remove(key); lock.broadcast() }
         cache[key] = s
         useClock += 1; used[key] = useClock
         if cache.count > StructureCache.cap {
@@ -540,6 +579,40 @@ final class StructureCache {
         let rx0 = floorDiv(cx - r, t.spacing), rx1 = floorDiv(cx + r, t.spacing)
         let rz0 = floorDiv(cz - r, t.spacing), rz1 = floorDiv(cz + r, t.spacing)
         for rz in rz0...rz1 { for rx in rx0...rx1 { if let s = start(t, regionX: rx, regionZ: rz) { out.append(s) } } }
+        return out
+    }
+
+    // Ledger 79 (Nov 11, the VR fuzz's stack sampler: just after Go To a Place, the map's once-a-second scan planned a
+    // Greywall region on the frame, 27 ms, and its "crowded" test planned bases and towns round it): the once-a-second
+    // lookups round the player (the map's discoveries, frontier sites, outlaw camps, ports) take the starts already
+    // made when asked on the frame thread, and have the missing regions made on a worker; they ask again a second
+    // later. Off the frame thread, or with the host checks' planning on the frame, the same as startsNear.
+    // BS_OLDNEARMADE=1: planned on the frame as before.
+    static let oldNearMade = ProcessInfo.processInfo.environment["BS_OLDNEARMADE"] == "1"
+    func startsNearMade(cx: Int, cz: Int, _ t: StructureType) -> [StructureStart] {
+        guard StructureCache.plansOffThread && StructureCache.onFrameThread && !StructureCache.oldNearMade else {
+            return startsNear(cx: cx, cz: cz, t)
+        }
+        var out: [StructureStart] = [], missing: [StartKey] = []
+        let r = t.reach
+        let rx0 = floorDiv(cx - r, t.spacing), rx1 = floorDiv(cx + r, t.spacing)
+        let rz0 = floorDiv(cz - r, t.spacing), rz1 = floorDiv(cz + r, t.spacing)
+        for rz in rz0...rz1 { for rx in rx0...rx1 {
+            let k = StartKey(name: t.name, rx: rx, rz: rz)
+            lock.lock()
+            let made = cache.index(forKey: k) != nil
+            if !made && !planning.contains(k) { planning.insert(k); missing.append(k) }
+            lock.unlock()
+            if made, let s = start(t, regionX: rx, regionZ: rz) { out.append(s) }
+        } }
+        if !missing.isEmpty {
+            let todo = missing
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                guard let self = self else { return }
+                for k in todo { _ = self.start(t, regionX: k.rx, regionZ: k.rz) }
+                self.lock.lock(); for k in todo { self.planning.remove(k) }; StructureCache.offThreadPlans += todo.count; self.lock.unlock()
+            }
+        }
         return out
     }
 

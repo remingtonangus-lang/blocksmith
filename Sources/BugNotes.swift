@@ -27,7 +27,7 @@ final class BugNotes {
     var forcedMode: Mode?                           // harness
     var mode: Mode { forcedMode ?? Mode(rawValue: Settings.shared.bugNotes) ?? .off }
 
-    weak var game: Game?
+    @WeakLink var game: Game? = nil
     private var engine: AVAudioEngine?
     private(set) var listening = false              // mic running
     private(set) var recording = false              // inside a note
@@ -275,11 +275,7 @@ final class BugNotes {
                 + "see BUGNOTES.md in the repo.\n"
             try? head.write(to: mdURL, atomically: true, encoding: .utf8)
         }
-        if let h = try? FileHandle(forWritingTo: mdURL) {
-            h.seekToEndOfFile()
-            h.write(s.data(using: .utf8) ?? Data())
-            try? h.close()
-        }
+        SaveIO.append(Data(s.utf8), toFile: mdURL.path)
     }
 
     // MARK: Audio helpers

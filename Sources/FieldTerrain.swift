@@ -37,6 +37,7 @@ enum FieldMat {
 
 enum FieldTerrain {
     static let scale: Float = 32                         // density units per block
+    static let oldBaseBank = ProcessInfo.processInfo.environment["BS_OLDBASEBANK"] == "1"
     static let outside: Int8 = -127                      // far outside the ground (and above the stored part)
     static let inside: Int8 = 127                        // far inside
     static let cellIn: Int8 = 16                         // a cell's centre half a block inside (a filled cell)
@@ -169,6 +170,33 @@ enum FieldTerrain {
         if StructureCache.traceKinds && kept > 0 {           // (harness: natural rock a structure built, kept as blocks)
             StructureCache.kindsLock.lock(); keptBuilt[ChunkKey(x: cx, z: cz)] = kept; StructureCache.kindsLock.unlock()
         }
+        // Week item 60 ("built things sit on the ground", a trailer bug: houses floating off slopes): the ground under a
+        // block a structure built that stands on its floor reaches that floor (P508 below), but where the land beside it
+        // falls away (a house's downhill side) the drawn ground, smoothed between cell centres, curved down from the
+        // block's edge and a sliver of light showed under its bottom (structcheck --meet: 15,467 of 49,933 outside
+        // columns 0.3-0.6 blocks proud, 8 seeds). The open cells beside that ground cell, at its level, become ground
+        // too, down to the land if it is within 3 cells: a bank under the edge, below the floor (no step in a doorway).
+        // BS_OLDBASEBANK=1: as before.
+        if let built, !oldBaseBank {
+            var bank: [(Int, UInt8)] = []
+            for i in CSQ..<(n - CSQ) where fd[i] > 0 {
+                let a = i + CSQ
+                guard built[a] != 0, b[a] != AIR, World.restsOnFloor[Int(b[a])] else { continue }
+                let lx = i % CS, lz = (i / CS) % CS
+                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    let x = lx + dx, z = lz + dz
+                    guard x >= 0 && x < CS && z >= 0 && z < CS else { continue }
+                    let j = i + dx + dz * CS
+                    guard fd[j] <= 0, b[j] == AIR else { continue }
+                    var k = j, depth = 0
+                    while k >= CSQ && fd[k] <= 0 && b[k] == AIR && depth < 3 { k -= CSQ; depth += 1 }
+                    guard k >= 0, fd[k] > 0 else { continue }
+                    var c = j
+                    while c > k { bank.append((c, fm[i])); c -= CSQ }
+                }
+            }
+            for (c, m) in bank { fd[c] = inside; fm[c] = m }
+        }
         let topY = min(CH - 1, top / CSQ + 1)
         let wg = gen as? WorldGen
         let F: SmoothField? = wg != nil ? SmoothField() : nil
@@ -204,7 +232,7 @@ enum FieldTerrain {
             let y1 = min(CH - 1, y0 + 15)
             // Uniform rows (with the rows just above and below): nothing to refine unless a border cliff might need it.
             var anySolid = false, anyOpen = false
-            for y in max(0, y0 - 1)...min(CH - 1, y1 + 1) {
+            for y in thru(max(0, y0 - 1), min(CH - 1, y1 + 1)) {
                 for c in 0..<CSQ { if fd[c + y * CSQ] > 0 { anySolid = true } else { anyOpen = true }; if anySolid && anyOpen { break } }
                 if anySolid && anyOpen { break }
             }
@@ -344,13 +372,12 @@ enum FieldTerrain {
             d.append(UInt8(keys.count))
             for k in keys { d.append(UInt8(k)); f.fine[k]!.withUnsafeBytes { d.append(contentsOf: $0) } }
         }
-        guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return nil }
+        guard let c = SaveBytes.compress(d) else { return nil }
         return [UInt8](c)
     }
 
     static func decode(_ bytes0: [UInt8]) -> FieldData? {
-        guard let raw = try? (Data(bytes0) as NSData).decompressed(using: .lzfse) as Data else { return nil }
-        let b = [UInt8](raw)
+        guard let b = SaveBytes.decompress(bytes0) else { return nil }
         guard b.count >= 10, b[0] == 0x46, b[1] == 0x4C, b[2] == 0x44, b[3] == 0x31 || b[3] == 0x32 else { return nil }
         let v2 = b[3] == 0x32
         var p = 4
@@ -462,6 +489,21 @@ extension World {
         guard let c = chunkAt(x, z), c.blocks.isField else { return -4 }
         return FieldTerrain.f(c.blocks.density(Chunk.index(mod(x, CS), y, mod(z, CS))))
     }
+    // As fieldDensity(x, y, z), with the cell's chunk already looked up (`ch`: chunkAt(x, z)).
+    @inline(__always) func fieldDensity(_ ch: Chunk?, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        if y < 0 { return 4 }
+        if y >= CH { return -4 }
+        guard let ch, ch.blocks.isField else { return -4 }
+        return FieldTerrain.f(ch.blocks.density(Chunk.index(x & 15, y, z & 15)))
+    }
+    // The four chunks of the cells (x0 or x0 + 1, z0 or z0 + 1), each looked up once: (x0 z0, x0+1 z0, x0 z0+1, x0+1 z0+1).
+    @inline(__always) func cornerChunks(_ x0: Int, _ z0: Int) -> (Chunk?, Chunk?, Chunk?, Chunk?) {
+        let a = chunkAt(x0, z0)
+        let sameX = (x0 >> 4) == ((x0 + 1) >> 4), sameZ = (z0 >> 4) == ((z0 + 1) >> 4)
+        let b = sameX ? a : chunkAt(x0 + 1, z0), c = sameZ ? a : chunkAt(x0, z0 + 1)
+        let e = sameX ? c : (sameZ ? b : chunkAt(x0 + 1, z0 + 1))
+        return (a, b, c, e)
+    }
 
     // The ground's density at a point (blocks, + inside): trilinear between the eight cell centres round it, or between
     // the fine samples where the ground was edited (P377 step 1, FineField.swift).
@@ -472,10 +514,21 @@ extension World {
         let qx = p.x - 0.5, qy = p.y - 0.5, qz = p.z - 0.5
         let x0 = Int(floor(qx)), y0 = Int(floor(qy)), z0 = Int(floor(qz))
         let tx = qx - Float(x0), ty = qy - Float(y0), tz = qz - Float(z0)
-        let c000 = fieldDensity(x0, y0, z0), c100 = fieldDensity(x0 + 1, y0, z0)
-        let c010 = fieldDensity(x0, y0 + 1, z0), c110 = fieldDensity(x0 + 1, y0 + 1, z0)
-        let c001 = fieldDensity(x0, y0, z0 + 1), c101 = fieldDensity(x0 + 1, y0, z0 + 1)
-        let c011 = fieldDensity(x0, y0 + 1, z0 + 1), c111 = fieldDensity(x0 + 1, y0 + 1, z0 + 1)
+        let c000: Float, c100: Float, c010: Float, c110: Float, c001: Float, c101: Float, c011: Float, c111: Float
+        if World.oldLookups {
+            c000 = fieldDensity(x0, y0, z0); c100 = fieldDensity(x0 + 1, y0, z0)
+            c010 = fieldDensity(x0, y0 + 1, z0); c110 = fieldDensity(x0 + 1, y0 + 1, z0)
+            c001 = fieldDensity(x0, y0, z0 + 1); c101 = fieldDensity(x0 + 1, y0, z0 + 1)
+            c011 = fieldDensity(x0, y0 + 1, z0 + 1); c111 = fieldDensity(x0 + 1, y0 + 1, z0 + 1)
+        } else {
+            // Item 7 (callgrind of the worst-case soak, build 235: this was the most chunk lookups of any caller, a
+            // debris piece's ground contact reading it): the eight corners' chunks, looked up once each (one, mostly).
+            let (a, b, c, e) = cornerChunks(x0, z0)
+            c000 = fieldDensity(a, x0, y0, z0); c100 = fieldDensity(b, x0 + 1, y0, z0)
+            c010 = fieldDensity(a, x0, y0 + 1, z0); c110 = fieldDensity(b, x0 + 1, y0 + 1, z0)
+            c001 = fieldDensity(c, x0, y0, z0 + 1); c101 = fieldDensity(e, x0 + 1, y0, z0 + 1)
+            c011 = fieldDensity(c, x0, y0 + 1, z0 + 1); c111 = fieldDensity(e, x0 + 1, y0 + 1, z0 + 1)
+        }
         let a = c000 + (c100 - c000) * tx, b = c010 + (c110 - c010) * tx
         let c = c001 + (c101 - c001) * tx, d = c011 + (c111 - c011) * tx
         let e = a + (b - a) * ty, f = c + (d - c) * ty
@@ -572,7 +625,7 @@ extension World {
         for (c, sy) in touched {
             for dz in -1...1 { for dx in -1...1 {
                 guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
-                for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) where !all.contains(where: { $0.0 === n && $0.1 == s }) { all.append((n, s)) }
+                for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) where !all.contains(where: { $0.0 === n && $0.1 == s }) { all.append((n, s)) }
             } }
         }
         for (n, s) in all { n.sections[s].version += 1 }
@@ -611,14 +664,18 @@ extension World {
     // Might the field's ground reach into cell (x, y, z) (local index i in chunk c)? It or one of its six neighbours is
     // inside the ground.
     @inline(__always) func fieldNear(_ c: Chunk, _ x: Int, _ y: Int, _ z: Int, _ i: Int) -> Bool {
-        let st = c.blocks
-        guard st.isField else { return false }
-        if st.ground(i) || (y > 0 && st.ground(i - CSQ)) || (y < CH - 1 && st.ground(i + CSQ)) { return true }
+        // (Item 7, build 237's worst-case profile: 813k calls, each copying the chunk's block store and so retaining and
+        // releasing its three arrays, 3% of the scene. The chunk's own cells are read in place and first, then the
+        // neighbour chunks' edge cells; the same answer.)
+        guard c.blocks.isField else { return false }
         let lx = i & 15, lz = (i >> 4) & 15
-        if lx > 0 { if st.ground(i - 1) { return true } } else if let n = chunkAt(x - 1, z), n.blocks.ground(i + 15) { return true }
-        if lx < 15 { if st.ground(i + 1) { return true } } else if let n = chunkAt(x + 1, z), n.blocks.ground(i - 15) { return true }
-        if lz > 0 { if st.ground(i - CS) { return true } } else if let n = chunkAt(x, z - 1), n.blocks.ground(i + 15 * CS) { return true }
-        if lz < 15 { if st.ground(i + CS) { return true } } else if let n = chunkAt(x, z + 1), n.blocks.ground(i - 15 * CS) { return true }
+        if c.blocks.ground(i) || (y > 0 && c.blocks.ground(i - CSQ)) || (y < CH - 1 && c.blocks.ground(i + CSQ))
+            || (lx > 0 && c.blocks.ground(i - 1)) || (lx < 15 && c.blocks.ground(i + 1))
+            || (lz > 0 && c.blocks.ground(i - CS)) || (lz < 15 && c.blocks.ground(i + CS)) { return true }
+        if lx == 0, let n = chunkAt(x - 1, z), n.blocks.ground(i + 15) { return true }
+        if lx == 15, let n = chunkAt(x + 1, z), n.blocks.ground(i - 15) { return true }
+        if lz == 0, let n = chunkAt(x, z - 1), n.blocks.ground(i + 15 * CS) { return true }
+        if lz == 15, let n = chunkAt(x, z + 1), n.blocks.ground(i - 15 * CS) { return true }
         return false
     }
 

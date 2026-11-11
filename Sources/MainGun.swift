@@ -66,9 +66,11 @@ enum MainGun {
     static var warnings = 0                             // charges an AI frigate aimed at a player (MainGunTests)
 
     // Controller rumble (Touch controllers on the Quest, the pad on the Mac).
+    static var feelLog: [Float] = []                    // (MainGunTests: the gun's own rumbles, apart from anything else's)
     static func feel(_ strength: Float, _ seconds: Float, sharpness: Float) {
         let pm = PadManager.shared
         guard strength > 0.02, pm.connected, Settings.shared.rumble > 0 else { return }
+        if pm.simulated != nil { feelLog.append(min(1, strength)); if feelLog.count > 64 { feelLog.removeFirst() } }
         pm.rumble(min(1, strength), seconds, sharpness: sharpness)
     }
 }
@@ -380,6 +382,19 @@ extension ShipManager {
         }
     }
 
+    // The bowls' carving this frame, oldest first, out of the frame's shared allowance (from the frame after the impact).
+    func stepBowls(_ g: Game) {
+        for w in shockwaves {
+            // (from the frame after the impact: run late in the tick, a wave's age has had this tick's dt added)
+            let after = CraterJob.inTick ? w.age > shockDt * 1.5 : w.age > 0
+            if let j = w.crater, !j.done, after, CraterJob.allowance() > 0 {
+                let a = CFAbsoluteTimeGetCurrent()
+                if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed, scorched: j.scorched) }
+                MainGun.craterStepMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
+            }
+        }
+    }
+
     func updateShockwaves(_ dt: Float, game g: Game) {
         updatePendingCraters(dt, game: g)
         if shockwaves.isEmpty { return }
@@ -389,13 +404,12 @@ extension ShipManager {
         // once one has used it, the rest wait for the next frame, oldest first.)
         // (Build 94: and with the naval breaches, out of one allowance a frame: CraterJob.allowance.)
         TickProf.mark("ships.shockwaves: pending")
-        for w in shockwaves {
-            if let j = w.crater, !j.done, w.age > 0, CraterJob.allowance() > 0 {   // from the frame after the impact
-                let a = CFAbsoluteTimeGetCurrent()
-                if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed, scorched: j.scorched) }
-                MainGun.craterStepMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
-            }
-        }
+        // (Store review, build 109's citadel soak: the slow frames were the soldiers' 3-4 ms with a bowl's 1.6 ms on top,
+        // the bowl carved first thing in the tick and the allowance going by the last tick. In the game's tick the
+        // bowls are carved late in it, after the mobs, out of what the tick has left: Game.advance, stepBowls. A
+        // harness driving the shockwaves itself carves them here.)
+        shockDt = dt
+        if !CraterJob.inTick { stepBowls(g) }
         TickProf.mark("ships.shockwaves: bowls")             // (the soak: the bowls' carving apart from the waves)
         for w in shockwaves {
             let r0 = w.r

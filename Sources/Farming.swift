@@ -17,6 +17,8 @@ extension Game {
         // through a local (each draw paid an exclusivity check on the global and on the chunk's storage, some 9000 a
         // game tick at render distance 8+, and it was one of the Quest frame's dearest stages); the hits run once the
         // copy is gone, so a tick that changes a block never copies the chunk's storage.
+        let track = RandomTickRng.track
+        let tStart = track ? CFAbsoluteTimeGetCurrent() : 0, cStart = track ? Explosion.threadMs() : 0
         var rng = RandomTickRng.state
         var hits = RandomTickRng.hits
         RandomTickRng.hits = []
@@ -26,7 +28,9 @@ extension Game {
                 guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
                 let blocks = c.blocks, x0 = c.cx * CS, z0 = c.cz * CS
                 let hmax = max(0, c.heightMax)
-                for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) {
+                // (Nov 9: sections holding nothing that ticks are passed over: BlockStore.tickMask. BS_OLDRTSCAN=1: all)
+                let mask = RandomTickRng.oldScan ? ~0 : blocks.tickMask
+                for sy in thru(0, min(NSEC - 1, (hmax + 1) >> 4)) where mask & (1 << UInt32(sy)) != 0 {
                     for _ in 0..<3 {
                         // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).
                         let r = Int(truncatingIfNeeded: rng.next() >> 20)
@@ -55,27 +59,39 @@ extension Game {
             // one frame in his jungle: questcheck --framesoak jungle.)
             // (A seeded run, Rand.deterministic: no clock in it, so a replay or a harness duel draws the same numbers
             // however busy the host is: the main-gun suite's Gravesworn duel went 7.2 s to 9.8 s with the host's load.)
+            let tDrawn = track ? CFAbsoluteTimeGetCurrent() : 0, cDrawn = track ? Explosion.threadMs() : 0
             let deadline = Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + RandomTickRng.frameSeconds
-            var k = 0
-            let track = RandomTickRng.track
+            var k = 0, frameWorst = 0.0
             for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {     // (an earlier tick may have changed it)
                 let t0 = track ? CFAbsoluteTimeGetCurrent() : 0
                 randomTick(p, b)
                 if track {
                     let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                    frameWorst = max(frameWorst, ms)
                     if ms > RandomTickRng.worstMs { RandomTickRng.worstMs = ms; RandomTickRng.worstWhat = "\(Blocks.key(b)) at \(p.x) \(p.y) \(p.z)" }
                 }
                 k += 1
                 if k & 7 == 0 && CFAbsoluteTimeGetCurrent() > deadline { break }
             }
+            if track {
+                // (the frame soak: the dearest frame of random ticks, split into the draws and the ticks)
+                let tEnd = CFAbsoluteTimeGetCurrent(), all = (tEnd - tStart) * 1000
+                RandomTickRng.drawCpu += cDrawn - cStart; RandomTickRng.drawTicks += 1
+                if all > RandomTickRng.frameWorstMs {
+                    RandomTickRng.frameWorstMs = all
+                    RandomTickRng.frameWorst = String(format: "draws %.2f ms (own CPU %.2f, %d hits), %d ticks %.2f ms (slowest %.2f); own CPU in all %.2f ms",
+                                                      (tDrawn - tStart) * 1000, cDrawn - cStart, hits.count, k, (tEnd - tDrawn) * 1000, frameWorst, Explosion.threadMs() - cStart)
+                }
+            }
         }
         RandomTickRng.hits = hits
+        TickProf.mark("random ticks")
         // Leaves whose tree was cut decay a few at a time.
         var n = 0
         while n < 4, let p = leafQueue.popLast() {
             n += 1
             let b = world.materialAt(p.x, p.y, p.z)
-            guard Blocks.key(b).hasSuffix("leaves"), !placedLeaves.contains(p) else { continue }
+            guard Game.leafKinds[Int(b)] == 2, !placedLeaves.contains(p) else { continue }
             if !logNearby(p, radius: 6) {          // reference: leaves live up to 6 steps from a log (4 stripped big canopies)
                 world.setBlock(p.x, p.y, p.z, AIR)
                 for s in Mining.drops(b, .empty) { drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
@@ -83,20 +99,30 @@ extension Game {
         }
     }
 
+    // Per block state: 1 a log or wood, 2 leaves (store review, build 111's citadel soak: a 20 Hz tick's leaf decay
+    // after the crawler's topples took 10-13 ms of a frame, every cell of each search read as its name and suffixes).
+    static let leafKinds: [UInt8] = (0..<Blocks.count).map { i -> UInt8 in
+        let k = Blocks.key(BlockID(i))
+        if k.hasSuffix("_log") || k.hasSuffix("_wood") { return 1 }
+        return k.hasSuffix("leaves") ? 2 : 0
+    }
+
     private func logNearby(_ p: IVec3, radius: Int) -> Bool {
         // BFS through leaves looking for a log within `radius` steps.
+        let kinds = Game.leafKinds
         var seen = Set<IVec3>([p])
         var frontier = [p]
+        let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
         for _ in 0..<radius {
             var next: [IVec3] = []
             for q in frontier {
-                for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                for d in dirs {
                     let n = q + d
                     if seen.contains(n) { continue }
                     seen.insert(n)
-                    let k = Blocks.key(world.materialAt(n.x, n.y, n.z))
-                    if k.hasSuffix("_log") || k.hasSuffix("_wood") { return true }
-                    if k.hasSuffix("leaves") { next.append(n) }
+                    let kind = kinds[Int(world.materialAt(n.x, n.y, n.z))]
+                    if kind == 1 { return true }
+                    if kind == 2 { next.append(n) }
                 }
             }
             frontier = next
@@ -107,7 +133,12 @@ extension Game {
     func queueLeafDecay(around p: IVec3) {
         for dy in -6...6 { for dz in -6...6 { for dx in -6...6 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
-            if Blocks.key(world.materialAt(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Rand.int(in: 0...leafQueue.count)) }
+            // (appended and swapped with a random place: an insert at a random place moved the whole queue each time,
+            // a felled canopy's 2,000 cells into a queue thousands long)
+            if Game.leafKinds[Int(world.materialAt(q.x, q.y, q.z))] == 2 {
+                leafQueue.append(q)
+                leafQueue.swapAt(Rand.int(in: 0...(leafQueue.count - 1)), leafQueue.count - 1)
+            }
         } } }
     }
 
@@ -709,5 +740,8 @@ enum RandomTickRng {
     static var hits: [(IVec3, BlockID)] = []          // (Game.randomTicks' reused list)
     static var profile = false, worstMs = 0.0, worstWhat = ""   // (P400 harness)
     static var track = false                                     // (the frame soak's SOAK_MOBPROF: the slowest one, timed as it runs)
+    static var frameWorstMs = 0.0, frameWorst = ""                 // (and the dearest frame of them, split)
+    static var drawCpu = 0.0, drawTicks = 0                         // (and the draws' own CPU in all, over that many game ticks)
+    static let oldScan = ProcessInfo.processInfo.environment["BS_OLDRTSCAN"] == "1"
     static var frameSeconds = 0.0012                    // (store review: a frame's random ticks at most this long)
 }

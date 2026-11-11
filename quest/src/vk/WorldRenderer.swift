@@ -32,10 +32,13 @@ final class WorldRenderer {
     func takeStages() -> String {
         let n = Double(max(1, stageFrames))
         let parts = zip(WorldRenderer.stageNames, stageSums).map { "\($0) " + String(format: "%.2f", $1 * 1000 / n) }
-        let extra = String(format: " | table re-read %.1f columns a frame, occluder raster %.2f ms a frame; taken back from the workers: mobs %d, raster %d of %d frames",
-                           Double(tableReads) / n, rasterSum / n, mobWork.takeTookBack(), scene.occWork.takeTookBack(), stageFrames)
+        let extra = String(format: " | table re-read %.1f columns a frame, occluder raster %.2f ms a frame; taken back from the workers: mobs %d, raster %d of %d frames; landmark builds: %d full, %d mid, %d smoke, %.0f vertices, %.2f ms a frame",
+                           Double(tableReads) / n, rasterSum / n, mobWork.takeTookBack(), scene.occWork.takeTookBack(), stageFrames,
+                           lmTally[0], lmTally[1], lmTally[2], Double(lmVertSum) / Double(max(1, lmTally[0] + lmTally[1] + lmTally[2])),
+                           lmBuildMs / n)
         for i in stageSums.indices { stageSums[i] = 0; stagePrev[i] = 0 }
         stageFrames = 0; stageWorst = 0; tableReads = 0; rasterSum = 0
+        lmTally = [0, 0, 0]; lmVertSum = 0; lmBuildMs = 0
         return parts.joined(separator: ", ") + extra
     }
     // P385 step 3: the mobs' vertices are written on a worker while the frame thread culls and draws the terrain (they read the
@@ -75,7 +78,11 @@ final class WorldRenderer {
     // FAILURES 4 (questcheck --view ... --voidcount, tools/voidsweep.sh): the frame cleared to pure magenta with no sky
     // drawn over it (QUEST_SKIP=sky), so every gap in what is drawn shows as magenta.
     static var voidProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
+    // Nov 11: BS_OLDCLOUDS=1 has clouds.frag hash its noise lattice as before (shader FX bit 1024) instead of reading the table.
+    static let oldCloudNoise = ProcessInfo.processInfo.environment["BS_OLDCLOUDS"] == "1"
     static var debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
+    // (and within the entities pass, QUEST_SKIPENT=drops,debris,particles,shadows,halos,weather,... leaves those writers out)
+    static let entitySkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIPENT"] ?? "").split(separator: ",").map(String.init))
 
     let ships: ShipDraw
     // Volcano and Ancient Spire impostors past the render distance (Sources/LandmarkRender.swift on the HUD host).
@@ -110,6 +117,7 @@ final class WorldRenderer {
         self.scene = scene
         self.game = game
         ships = ShipDraw(scene: scene)
+        Renderer.shellOnGPU = ProcessInfo.processInfo.environment["BS_OLDSHELL"] != "1"     // (simple.vert puts them on it)
     }
 
     // Skylight around the eye, smoothed (Renderer.updateCave): fog and sky darken underground, and the eye darkness
@@ -262,7 +270,7 @@ final class WorldRenderer {
         let nightT: Float = df > 0.52 && df < 0.98 ? -0.55 * min(1, min(df - 0.52, 0.98 - df) / 0.06) : 0
         let biomeT: Float = max(-0.2, min(0.25, (game.audio.biomeHere.info.temp - 0.7) * 0.25))
         let grade: Float = hasSky && !underground && !underwater && game.dim.dim == .overworld ? max(-1, min(1, max(0, warmT) + nightT + biomeT)) : 0
-        u.fx = V4(Float(Settings.shared.shaderFX), mist, Float(SEA + 8), grade)
+        u.fx = V4(Float(Settings.shared.shaderFX | (WorldRenderer.oldCloudNoise ? 1024 : 0)), mist, Float(SEA + 8), grade)
         if sheenBits.isEmpty { sheenBits = ShaderFX.sheenBits() }
         withUnsafeMutableBytes(of: &u.sheen) { raw in
             let p = raw.bindMemory(to: UInt32.self)
@@ -555,27 +563,82 @@ final class WorldRenderer {
         // P385: while smoke rises (every 2nd frame) only the landmarks and the smoke are rebuilt, over the horizon ground
         // of the last full build; the ground itself at the standing beat (36 frames), or once the eye moved or the far
         // plane changed. BS_LMSPLIT=0: whole builds, as before.
-        let moved = simd_length_squared(eye - lmEye) > move || far != lmFar
-        if moved || lmFrameNo - lmBuilt >= every {
+        // Nov 4: the smoke beats keep the cones, spires, citadels and town boxes of the last build that made them (lmMid),
+        // as they keep its horizon ground: they change as the ground does, with the eye and the light. Each beat rebuilt
+        // them, 2.3 M instructions every 2nd frame at Stone Gulch for its campfires' smoke (the town soak's dearest
+        // record stage after the ring). An eruption's glowing bombs are opaque and fly: while one erupts, all of it.
+        // Nov 9 (item 7): with the shell on the GPU (Renderer.shellOnGPU) the opaque part is in world terms and holds
+        // while the eye moves: the whole build waits for 12 blocks of travel (its hazes, faces turned to the eye and
+        // what stands past the loaded land), the smoke alone (still projected here) for the old distance.
+        let gpu = Renderer.shellOnGPU
+        let moved = simd_length_squared(eye - lmEye) > (gpu ? 144 : move) || far != lmFar
+        let smokeMoved = gpu && lmHadSmoke && simd_length_squared(eye - lmSmokeEye) > move
+        if moved || smokeMoved || lmFrameNo - lmBuilt >= every {
             let full = moved || !WorldRenderer.lmSplit || lmFrameNo - lmFull >= (TickProf.lighter ? 36 : 1)
-            landmarkVerts.removeAll(keepingCapacity: true)
-            if !full { landmarkVerts.append(contentsOf: lmHorizon) }
-            var smokeStart = 0
-            host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
-                                rd: Float(game.world.renderDistance), horizon: full)
-            if full {
-                lmHorizon.removeAll(keepingCapacity: true)
-                lmHorizon.append(contentsOf: landmarkVerts[0..<Renderer.horizonEnd])
-                lmEye = eye; lmFar = far; lmFull = lmFrameNo
+            let erupting = game.eruption.map { $0.strength(game.clock) > 0 } ?? false
+            let smokeOnly = !full && lmMidValid && !erupting
+            // Nov 9 (item 7): a smoke beat leaves the opaque part where it is, in the live buffer of the last build that
+            // made it (the same vertices as lmHorizon + lmMid, which the beat copied back in front of the smoke and then
+            // into a buffer again: 22,000 vertices every 2nd frame while a volcano smokes or the crawler's shells raise
+            // dust over a far citadel), and only the smoke goes into a small buffer of its own. BS_OLDLMSMOKE=1: as before.
+            if smokeOnly && WorldRenderer.smokeApart && lmLive >= 0 && lmSmokeStart > 0 {
+                lmSmokeVerts.removeAll(keepingCapacity: true)
+                var none = 0
+                host.buildLandmarks(&lmSmokeVerts, smokeStart: &none, game: game, eye: eye, far: far, fog: fogColor,
+                                    rd: Float(game.world.renderDistance), horizon: false, landmarks: false)
+                if WorldRenderer.smokeVerify, let b = lmBufs[lmLive], let mp = b.mapped {
+                    let opaque = lmHorizon + lmMid
+                    let same = opaque.count == lmSmokeStart && opaque.withUnsafeBytes { memcmp(mp, $0.baseAddress!, $0.count) == 0 }
+                    WorldRenderer.smokeChecked += 1; if !same { WorldRenderer.smokeDiffs += 1 }
+                }
+                lmSmokeLive = lmStoreSmoke(lmSmokeVerts)
+                lmBuilt = lmFrameNo; lmSmokeEye = eye; lmHadSmoke = !lmSmokeVerts.isEmpty
+                lmTally[2] += 1; lmVertSum += lmSmokeVerts.count
+                lmBuildMs += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                lmSmokeOwn = true
+            } else {
+                lmSmokeOwn = false
+                landmarkVerts.removeAll(keepingCapacity: true)
+                if !full { landmarkVerts.append(contentsOf: lmHorizon) }
+                if smokeOnly { landmarkVerts.append(contentsOf: lmMid) }
+                var smokeStart = 0
+                host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
+                                    rd: Float(game.world.renderDistance), horizon: full, landmarks: !smokeOnly)
+                if full {
+                    lmHorizon.removeAll(keepingCapacity: true)
+                    lmHorizon.append(contentsOf: landmarkVerts[0..<Renderer.horizonEnd])
+                    lmEye = eye; lmFar = far; lmFull = lmFrameNo
+                }
+                if !smokeOnly {
+                    lmMid.removeAll(keepingCapacity: true)
+                    let lo = min(lmHorizon.count, smokeStart)          // (a build that found nothing to draw: no landmarks)
+                    lmMid.append(contentsOf: landmarkVerts[lo..<smokeStart])
+                    lmMidValid = WorldRenderer.lmSplit && !erupting && smokeStart >= lmHorizon.count
+                }
+                lmSmokeStart = smokeStart; lmBuilt = lmFrameNo
+                lmSmokeEye = eye; lmHadSmoke = landmarkVerts.count > smokeStart
+                lmTally[full ? 0 : smokeOnly ? 2 : 1] += 1; lmVertSum += landmarkVerts.count
+                lmBuildMs += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                lmLive = TickProf.lighter ? lmStore(landmarkVerts) : -1
             }
-            lmSmokeStart = smokeStart; lmBuilt = lmFrameNo
         }
         let smokeStart = lmSmokeStart
+        if lmSmokeOwn, let b = lmBufs[lmLive] {
+            lmUsed[lmLive] = lmFrameNo
+            scene.drawBuffer(s, "simpleSolid", b.buffer, offset: 0, count: smokeStart)
+            if lmSmokeLive >= 0, let sb = lmSmokeBufs[lmSmokeLive] {
+                lmSmokeUsed[lmSmokeLive] = lmFrameNo
+                landmarkSmoke = (sb.buffer, 0, lmSmokeVerts.count)
+            } else if let off = scene.push(s, lmSmokeVerts) {
+                landmarkSmoke = (nil, off, lmSmokeVerts.count)
+            }
+            landmarkCount = smokeStart + lmSmokeVerts.count
+            return
+        }
         let stride = MemoryLayout<SimpleVert>.stride
         // P283: a build goes into one of three vertex buffers of its own (one out of use for 3 frames: both frames in
         // flight are done with it) and is drawn from there until the next, instead of copying the whole shell into the
         // frame's scratch ring every frame (0.4 ms of each frame's record on the replay).
-        if lmBuilt == lmFrameNo { lmLive = TickProf.lighter ? lmStore(landmarkVerts) : -1 }
         if lmLive >= 0, let b = lmBufs[lmLive] {
             lmUsed[lmLive] = lmFrameNo
             if smokeStart > 0 { scene.drawBuffer(s, "simpleSolid", b.buffer, offset: 0, count: smokeStart) }
@@ -587,9 +650,29 @@ final class WorldRenderer {
         landmarkCount = landmarkVerts.count
     }
     private var lmFrameNo = 0, lmBuilt = -100, lmSmokeStart = 0, lmEye = V3(1e9, 0, 0), lmFar: Float = 0
-    private var lmFull = -100, lmHorizon: [SimpleVert] = []
+    private var lmSmokeEye = V3(1e9, 0, 0), lmHadSmoke = false
+    private var lmTally = [0, 0, 0], lmVertSum = 0, lmBuildMs = 0.0   // builds (full, landmarks + smoke, smoke) for the soak
+    private var lmFull = -100, lmHorizon: [SimpleVert] = [], lmMid: [SimpleVert] = [], lmMidValid = false
     static var lmSplit = ProcessInfo.processInfo.environment["BS_LMSPLIT"] != "0"
     private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
+    private var lmSmokeVerts: [SimpleVert] = [], lmSmokeOwn = false
+    private var lmSmokeBufs: [VkBuf?] = [nil, nil, nil], lmSmokeUsed = [-10, -10, -10], lmSmokeLive = -1
+    static let smokeApart = ProcessInfo.processInfo.environment["BS_OLDLMSMOKE"] != "1"
+    static let smokeVerify = ProcessInfo.processInfo.environment["BS_LMSMOKEVERIFY"] == "1"
+    static var smokeChecked = 0, smokeDiffs = 0             // (BS_LMSMOKEVERIFY: smoke beats whose kept opaque part differed)
+    // The smoke alone into a buffer of its own (as lmStore), or -1 (pushed to the scratch ring each frame).
+    private func lmStoreSmoke(_ verts: [SimpleVert]) -> Int {
+        guard !verts.isEmpty else { return -1 }
+        let bytes = verts.count * MemoryLayout<SimpleVert>.stride
+        guard let k = (0..<3).first(where: { $0 != lmSmokeLive && lmFrameNo - lmSmokeUsed[$0] >= 3 }) else { return -1 }
+        if lmSmokeBufs[k] == nil || lmSmokeBufs[k]!.size < bytes {
+            lmSmokeBufs[k] = nil
+            lmSmokeBufs[k] = try? VkBuf(scene.ctx, size: max(bytes * 5 / 4, 1 << 16), usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true)
+        }
+        guard let b = lmSmokeBufs[k], let p = b.mapped else { return -1 }
+        verts.withUnsafeBytes { src in _ = memcpy(p, src.baseAddress!, bytes) }
+        return k
+    }
     // The build into a buffer none of the frames in flight reads (index), or -1 (drawn from the scratch ring this time).
     private func lmStore(_ verts: [SimpleVert]) -> Int {
         guard !verts.isEmpty else { return -1 }
@@ -718,32 +801,32 @@ final class WorldRenderer {
         let look = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
         let right = V3(cosf(yaw), 0, -sinf(yaw))
         let up = simd_normalize(simd_cross(right, look))
-        let w = game.world, daylight = game.daylight
-        game.drops.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, time: Float(game.clock))
-        game.projectiles.write(&wr, eye: eye, world: w, daylight: daylight)
-        game.tnts.write(&wr, eye: eye, world: w, daylight: daylight)
+        let w = game.world, daylight = game.daylight, es = WorldRenderer.entitySkip
+        if !es.contains("drops") { game.drops.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, time: Float(game.clock)) }
+        if !es.contains("projectiles") { game.projectiles.write(&wr, eye: eye, world: w, daylight: daylight) }
+        if !es.contains("tnts") { game.tnts.write(&wr, eye: eye, world: w, daylight: daylight) }
         game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
         game.writeFangs(&wr, eye: eye)
         game.writeBeams(&wr, eye: eye)
-        game.writeFalling(&wr, eye: eye)
-        w.ships.writeShells(&wr, eye: eye)
-        game.writeDecor(&wr, eye: eye)
+        if !es.contains("falling") { game.writeFalling(&wr, eye: eye) }
+        if !es.contains("shells") { w.ships.writeShells(&wr, eye: eye) }
+        if !es.contains("decor") { game.writeDecor(&wr, eye: eye) }
         game.writeBobber(&wr, eye: eye, right: right, up: -up)
         game.writeLeads(&wr, eye: eye)
         game.writeBanners(&wr, eye: eye)
         game.writeRockets(&wr, eye: eye)
-        game.writeArms(&wr, eye: eye)
+        if !es.contains("arms") { game.writeArms(&wr, eye: eye) }
         game.writeLecternBooks(&wr, eye: eye)
         game.writeShelves(&wr, eye: eye)
-        game.writeFelled(&wr, eye: eye)                                       // (P297 d: round felled trunks)
-        game.debris.write(&wr, eye: eye, world: w, daylight: daylight)      // (R15: ragdolls and debris in every world)
+        if !es.contains("felled") { game.writeFelled(&wr, eye: eye) }   // (P297 d: round felled trunks)
+        if !es.contains("debris") { game.debris.write(&wr, eye: eye, world: w, daylight: daylight) }   // (R15: ragdolls and debris in every world)
         let tp0 = CFAbsoluteTimeGetCurrent()
-        game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight)
+        if !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight) }
         particleSec = CFAbsoluteTimeGetCurrent() - tp0
         let nItems = wr.n
-        game.writeShadows(&wr, eye: eye)
-        game.writeHalos(&wr, eye: eye, right: right, up: -up)          // SH1 light halos
-        game.writeWeather(&wr, eye: eye)
+        if !es.contains("shadows") { game.writeShadows(&wr, eye: eye) }
+        if !es.contains("halos") { game.writeHalos(&wr, eye: eye, right: right, up: -up) }   // SH1 light halos
+        if !es.contains("weather") { game.writeWeather(&wr, eye: eye) }
         if let m = game.mining, game.mineProgress > 0, w.damageLevel(m) == 0, game.targetGround?.cell != m {      // (P297 b: not on polygon ground)
             let layer = HudTex.destroy(Int(game.mineProgress * 10))
             let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye

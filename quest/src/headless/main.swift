@@ -105,6 +105,7 @@ if arg("--cine") != nil, let ctx = vkctx { exit(Cinema.run(ctx: ctx)) }
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
 // --framesoak [--only crawler,citadel,naval,train,hell,battle] [--seconds 40] [--rd 10]: the store review's frame rate
 // (VRC.Quest.Performance.1) in the heavy scenes of play, frame by frame in real time (quest/src/test/QuestFrameSoak.swift).
+// Each scene ends with a void count (week item 63: eight probe shots, the sky through the ground; --novoids skips it).
 if CommandLine.arguments.contains("--framesoak"), let ctx = vkctx { exit(QuestFrameSoak.run(ctx: ctx)) }
 // --freezetest [--rd 8]: the Oct 23 base freezes (a bulkhead door opened, a wall block broken), frame by frame (P416).
 if CommandLine.arguments.contains("--freezetest") { exit(QuestFreezeTest.run()) }
@@ -112,6 +113,10 @@ if CommandLine.arguments.contains("--freezetest") { exit(QuestFreezeTest.run()) 
 if CommandLine.arguments.contains("--turretfreeze") { exit(QuestTurretFreeze.run()) }
 // --toppletest: what nothing holds falls whole, as itself (P407: a tower past the load fill, a tree on a broken plinth).
 if CommandLine.arguments.contains("--toppletest") { exit(QuestToppleTest.run()) }
+// --planrelease: ledger 39, worlds let go while their structure starts plan on the workers (quest/src/test/PlanReleaseCheck.swift).
+if CommandLine.arguments.contains("--planrelease") { exit(PlanReleaseCheck.run()) }
+// --triptest: a dimension change (the Deep's seam, a portal) timed part by part, and the 3 s after it.
+if CommandLine.arguments.contains("--triptest") { exit(TripCheck.run()) }
 // --spacewarp: P403 7b, the space warp's motion vectors of a moving mob (quest/src/test/SpaceWarpCheck.swift).
 if CommandLine.arguments.contains("--spacewarp"), let ctx = vkctx { exit(SpaceWarpCheck.run(ctx: ctx)) }
 // --launch DIR / --launch-prepare DIR [--rd 24]: the headset's launch path timed stage by stage (P400,
@@ -332,7 +337,7 @@ if let out = arg("--view"), let ctx = vkctx {
             let sy = c.y >> 4
             for dz in -1...1 { for dx in -1...1 {
                 guard let n = vw.chunkAt(c.x + dx * CS, c.z + dz * CS) else { continue }
-                for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) { ring.append((n, s)) }
+                for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) { ring.append((n, s)) }
             } }
             let old = t { for (n, s) in ring { vw.remeshSync(n, s) } }
             print(String(format: "edittime: stone on the ground at %d %d %d: %.1f ms on the frame (%d sections meshed); before, the ring of %d sections alone took %.1f ms",
@@ -744,7 +749,7 @@ if let out = arg("--view"), let ctx = vkctx {
     if let r = Int(arg("--probe") ?? "") {
         let e = vg.player.pos
         let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
-        for y in max(1, ey - r)...min(CH - 2, ey + r) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
+        for y in thru(max(1, ey - r), min(CH - 2, ey + r)) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
             let b = vw.rawBlock(x, y, z), u = vw.rawBlock(x, y - 1, z)
             guard b != AIR && !Blocks.isLiquid(b) && (u == AIR || Blocks.isLiquid(u)) && Blocks.opaque[Int(b)] else { continue }
             print("probe: \(x) \(y) \(z) \(Blocks.key(b)) over \(Blocks.key(u))")
@@ -845,7 +850,7 @@ if let out = arg("--view"), let ctx = vkctx {
                 m = max(m, Int(vw.lightAt(x + dx, y + dy, z + dz).block)) } } }
             return m
         }
-        for y in max(1, ey - r)...min(CH - 2, ey + r) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
+        for y in thru(max(1, ey - r), min(CH - 2, ey + r)) { for z in (ez - r)...(ez + r) { for x in (ex - r)...(ex + r) {
             let b = vw.builtBlock(x, y, z)
             guard Blocks.fluidKind[Int(b)] != 0 else { continue }
             n += 1
@@ -932,6 +937,41 @@ if let out = arg("--view"), let ctx = vkctx {
         }
         (SmoothTerrain.enabled, SmoothTerrain.fromField) = was
         Mesher.detailMeshes = detailWas
+        // The ground drawn at half blocks (fine samples, as round a dug or blasted spot): the 5x5 chunks' sections that
+        // draw any ground given their fine samples, then meshed with the samples looked up the old way and the new.
+        if vw.fieldTerrain && FineField.enabled {
+            var fineSecs = 0
+            for dz in -2...2 { for dx in -2...2 {
+                guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
+                for sy in 0..<NSEC {
+                    var nat = 0
+                    for y in sy * 16..<(sy * 16 + 16) where y < CH { for i in 0..<CS * CS where c.blocks.ground(Chunk.index(i % CS, y, i / CS)) { nat += 1 } }
+                    if nat > 0 && nat < 16 * CS * CS && vw.ensureFine(c, sy) { fineSecs += 1 }
+                }
+            } }
+            let oldWas = (Mesher.oldFineLookup, Mesher.oldFineFill)
+            for rep in 0..<3 { for mode in 0..<3 {
+                let old = mode == 0
+                Mesher.oldFineLookup = old; Mesher.oldFineFill = mode < 2
+                Mesher.fineTiming = true; Mesher.fineT = (0, 0, 0, 0, 0, 0)
+                var ms = 0.0, quads = 0, sum: UInt64 = 0xCBF29CE484222325
+                for dz in -2...2 { for dx in -2...2 {
+                    guard let c = vw.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], let nb = vw.neighbourhood(c) else { continue }
+                    for sy in 0..<NSEC where Mesher.fineSection(nb.0, sy: sy) {
+                        let t0 = CFAbsoluteTimeGetCurrent()
+                        let m = Mesher.buildSection(nb.0, nb.1, sy: sy, site: vw.smoothSite(c), chunk: (c.cx, c.cz))
+                        ms += (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                        quads += m.opaque.count / 8
+                        for w in m.opaque { sum = (sum ^ UInt64(w)) &* 0x100000001B3 }
+                    }
+                } }
+                let ft = Mesher.fineT
+                print(String(format: "meshbench fine (%@, run %d): %.1f ms, %d sections given fine samples, %d quads (words' hash %016llx); half-block ground: cells' pass %.1f, filling %.1f, quads %.1f ms, %d of %d eighths drew nothing; simplified in %.1f ms",
+                             ["old lookup and fill", "new lookup, old fill", "new lookup and fill"][mode], rep + 1, ms, fineSecs, quads, sum, ft.pre * 1000, ft.fill * 1000, ft.quads * 1000, ft.empty, ft.subs, ft.adaptive * 1000))
+                Mesher.fineTiming = false
+            } }
+            (Mesher.oldFineLookup, Mesher.oldFineFill) = oldWas
+        }
     }
     // --dig N: a plus-shaped pit N deep dug into the ground 6 blocks ahead (P142: digging leaves a dent in smooth land).
     if let n = Int(arg("--dig") ?? "") {
@@ -1255,7 +1295,7 @@ if let out = arg("--view"), let ctx = vkctx {
         // below, and no solid block under them (each must stand on the drawn ground).
         var overAir: [String: Int] = [:], plants = 0
         let crossR = RenderType.cross.rawValue
-        for y in max(2, ey - reach)...min(CH - 2, ey + reach) { for z in (ez - reach)...(ez + reach) { for x in (ex - reach)...(ex + reach) {
+        for y in thru(max(2, ey - reach), min(CH - 2, ey + reach)) { for z in (ez - reach)...(ez + reach) { for x in (ex - reach)...(ex + reach) {
             let b = vw.rawBlock(x, y, z)
             guard b != AIR else { continue }
             if Blocks.render[Int(b)] == crossR && !Blocks.isLiquid(b) && !Blocks.key(b).hasSuffix("vine") && !Blocks.key(b).contains("vines") {   // (vines hang)
@@ -1446,6 +1486,30 @@ if let out = arg("--view"), let ctx = vkctx {
         print("view: rubble on \(Blocks.key(b)) at \(gx) \(gy) \(gz), \(vg.debris.count) pieces")
         vw.remeshArea(x0: gx - 3, z0: gz - 3, x1: gx + 3, z1: gz + 3, y0: gy - 3, y1: gy + 3)
     }
+    // --scene mobs [--mobs K,K,..] [--mobdist D] [--mobturn DEG]: living creatures in a row D blocks ahead (default 24), on
+    // the ground, each turned DEG more than the last (default 40), standing still. The face-culling check: the same
+    // frame with BS_MOBBACKCULL=0 draws every face; the pictures should match and the vertex count halve past 16 blocks.
+    if arg("--scene") == "mobs" {
+        let ahead = V3(-sinf(yaw), 0, -cosf(yaw)), right = V3(cosf(yaw), 0, -sinf(yaw))
+        let keys = (arg("--mobs") ?? "zombie,cow,villager,spider,chicken,skeleton,pig,wolf,horse,sheep").split(separator: ",").map(String.init)
+        let d = Float(arg("--mobdist") ?? "") ?? 24
+        let turn = (Float(arg("--mobturn") ?? "") ?? 40) * .pi / 180
+        vg.mobs.mobs.removeAll()
+        Rand.seed(7)                     // (each mob's coat, tail swish and the like the same from run to run)
+        for (i, k) in keys.enumerated() {
+            guard let kind = MobKind.named(k) else { print("view: no mob \(k)"); continue }
+            let off = (Float(i) - Float(keys.count - 1) / 2) * 2.2
+            let at = vg.player.pos + ahead * d + right * off
+            let bx = Int(floor(at.x)), bz = Int(floor(at.z))
+            var gy = vw.topY(bx, bz)
+            while gy > 1 && !Blocks.opaque[Int(vw.block(bx, gy, bz))] { gy -= 1 }
+            let m = Mob(kind, at: V3(at.x, Float(gy + 1), at.z))
+            m.yaw = yaw + .pi + Float(i) * turn
+            m.viewDY = vw.smoothGroundOffset(m.pos)
+            vg.mobs.mobs.append(m)
+        }
+        print("view: \(vg.mobs.mobs.count) mobs \(d) blocks ahead, back faces \(MobDrawStats.backCull ? "left out" : "drawn")")
+    }
     // --scene ragdoll [--mobs K,K,..] [--mobdist D]: creatures in a row D blocks ahead (default 5) killed by a blow from
     // the camera, falling as ragdolls (realistic world: with --smooth), settled for --settle s (default 3).
     if arg("--scene") == "ragdoll" {
@@ -1514,34 +1578,17 @@ if let out = arg("--view"), let ctx = vkctx {
             SceneRenderer.drawMerged = true
         }
         try RenderTest.render(game: vg, ctx: ctx, path: out, width: vwid, height: vhei, yaw: yaw, pitch: pitch, fovDeg: vfov)
+        if arg("--scene") == "mobs" { print("view: mob vertices \(RenderTest.lastStats.mobVerts) (\(RenderTest.lastStats.mobsDrawn) mobs in reach)") }
         // FAILURES 4: --voidcount (with QUEST_VOIDPROBE=1 QUEST_SKIP=sky): magenta pixels where a ray goes more than
         // 12 degrees below the horizon (it meets ground within the loaded land on all but a cliff's edge): the gaps
         // the sky shows through. Written marked (OUT-void.png) when there are any.
         if CommandLine.arguments.contains("--voidcount") {
             var img = RenderTest.lastRGBA
-            let tw = tanf(vfov * .pi / 360), th = tw * Float(vhei) / Float(vwid)
-            let cp = cosf(pitch), sp = sinf(pitch), lim = sinf(-12 * .pi / 180)
-            var holes = 0, below = 0, backstop = 0, rows = Set<Int>(), cols = Set<Int>()
-            var marks: [(Int, Int)] = []
-            for eye in 0..<2 { for y in 0..<vhei {
-                let vy = (1 - 2 * (Float(y) + 0.5) / Float(vhei)) * th
-                for x in 0..<vwid {
-                    let vx = (2 * (Float(x) + 0.5) / Float(vwid) - 1) * tw
-                    let wy = (cp * vy + sp) / sqrtf(vx * vx + vy * vy + 1)
-                    guard wy < lim else { continue }
-                    below += 1
-                    let i = ((y * vwid * 2) + eye * vwid + x) * 4
-                    // (pure green: only the horizon's fog floor, Renderer.buildHorizon, met the ray: no hole the sky
-                    // shows through any more, but no ground either; counted apart)
-                    if i + 2 < img.count, img[i] < 25, img[i + 1] > 235, img[i + 2] < 25 { backstop += 1 }
-                    guard i + 2 < img.count, img[i] > 235, img[i + 1] < 25, img[i + 2] > 235 else { continue }
-                    holes += 1; rows.insert(y / 8); cols.insert((eye * vwid + x) / 8)
-                    if marks.count < 4000 { marks.append((eye * vwid + x, y)) }
-                }
-            } }
+            let vc = RenderTest.countVoid(img, width: vwid, height: vhei, eyes: 2, fovDeg: vfov, pitch: pitch)
+            let holes = vc.holes, below = vc.below, backstop = vc.backstop, rows = vc.rows, cols = vc.cols, marks = vc.marks
             print(String(format: "voidcount: %d of %d pixels below the horizon show through (%.4f%%), in %d by %d cells of 8 px; seed %@ at %.1f %.1f %.1f look %.0f %.0f",
                          holes, below, Double(holes) * 100 / Double(max(1, below)), cols.count, rows.count, arg("--seed") ?? "?",
-                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0)
+                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0.0)
                   + String(format: "; backstop %d (only the fog floor under the horizon ground)", backstop))
             if holes > 0 {
                 for (mx, my) in marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {
@@ -1747,6 +1794,9 @@ game.player.pos = spawn
 game.paused = false
 game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
+// (Nov 5: the game's tick sets this every frame; the suites that never tick first left it at the origin, thousands of
+// blocks off, so nothing near the player ticked: arrows hung in the air, a called horse never ran)
+world.activeCenter = spawn
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
@@ -1772,10 +1822,15 @@ if CommandLine.arguments.contains("--loadtest") {
     let left = built.filter { world.builtBlock($0.0.x, $0.0.y, $0.0.z) == $0.1 }.count
     print(String(format: "loadtest in play: %d checks (worst %.2f ms), %d blocks fell, %d crushed on landing, %d of %d built blocks still where they were built (10 s of ticks in %.1f s)",
                  Structure.checks, Structure.worstMs, Structure.fallen, Structure.crushed, left, built.count, CFAbsoluteTimeGetCurrent() - t1))
+    if Structure.loadVerify { print(Structure.verifyLine) }
     exit(0)
 }
 // --loadcheck: P388 (5), every generated structure type's pieces checked whole (Sources/StructureTests.swift).
-if CommandLine.arguments.contains("--loadcheck") { exit(Structure.loadCheck(device: device)) }
+if CommandLine.arguments.contains("--loadcheck") {
+    let rc = Structure.loadCheck(device: device)
+    if Structure.loadVerify { print(Structure.verifyLine) }
+    exit(rc)
+}
 // --settletest: P380 ground and object physics in field worlds (Sources/GroundSettleTests.swift).
 if CommandLine.arguments.contains("--settletest") {
     GroundSettleTests.run(game, check: check)
@@ -2022,6 +2077,19 @@ if let out = arg("--figureshot") {
     print("figureshot: \(pre) set, preview \(cw)x\(chh) px at \(minX),\(minY) -> \(out)")
     exit(0)
 }
+// --vaultride N (Nov 8: the Ash Vault rail ride check rolled 0 blocks once in a suite run on build 255): the ride alone,
+// N times, from the overworld each time, as the suite does it.
+if let n = Int(arg("--vaultride") ?? "") {
+    var bad = 0
+    for i in 0..<n {
+        let home = game.player.pos
+        AshVaultGapTests.ride(game) { ok, what in if !ok { bad += 1; print("FAIL run \(i + 1): \(what)") } else if i == 0 { print("ok   \(what)") } }
+        game.changeDimension(to: .overworld, at: home); _ = game.world.loadSync(center: home, radius: 2)
+        game.mobs.mobs.removeAll()
+    }
+    print("vaultride: \(n - bad) of \(n) rolled up the line"); exit(bad == 0 ? 0 : 1)
+}
+
 // --rail-only: C1 railways and trains (Sources/RailwayTests.swift).
 if CommandLine.arguments.contains("--rail-only") {
     // (--links: only the P510 links and the ride through)
@@ -2104,6 +2172,20 @@ if CommandLine.arguments.contains("--craterplace") {           // P507: blocks g
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--encounters") {            // P512: revenge raids, corsair sloops, the Corsair Cruiser
+    TroopVanish.on = true
+    EncounterCheck.run({ World(seed: $0, device: device, save: nil, dim: .overworld) }, check)
+    print("encounters: soldiers gone without dying: " + TroopVanish.line)
+    print(failures == 0 ? "encounters: all checks passed" : "encounters: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--gunstations") {           // P512: a station for every capital gun, crew at them
+    GunStationsCheck.run(game, check)
+    print(failures == 0 ? "gunstations: all checks passed" : "gunstations: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--proving") {               // P512: the Proving Grounds (vehicles, circuits, guns)
+    ProvingGroundsCheck.run(game, check)
+    print(failures == 0 ? "proving: all checks passed" : "proving: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--builtgun") {              // P507: a gun he builds, worked from a computer
     BuiltGunCheck.run(game, check)
     print(failures == 0 ? "builtgun: all checks passed" : "builtgun: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2163,6 +2245,14 @@ if CommandLine.arguments.contains("--musictakes") {             // P457: several
     MusicTakesCheck.run(game, check)
     print(failures == 0 ? "musictakes: all checks passed" : "musictakes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--reader") {                // the code reader's Nov 10 batch: helm and TNT stalls
+    ReaderChecks.run(game, check)
+    print(failures == 0 ? "reader: all checks passed" : "reader: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--lookout") {               // the code reader's Nov 10 batch, 1: no endless deck range
+    CrewLookout.check(game, check)
+    print(failures == 0 ? "lookout: all checks passed" : "lookout: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--rout") {                  // P511: a broken garrison runs
     RoutCheck.run(game, check)
     print(failures == 0 ? "rout: all checks passed" : "rout: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2186,6 +2276,10 @@ if CommandLine.arguments.contains("--gunners") {
     print(failures == 0 ? "gunners: all checks passed" : "gunners: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --fuelcheck: P478's fuel liquid (Sources/FuelCheck.swift).
+if CommandLine.arguments.contains("--torchwater") {            // ledger 55: torches give way to water and lava, none go in
+    TorchWaterCheck.run(game, check)
+    print(failures == 0 ? "torchwater: all checks passed" : "torchwater: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--fuelcheck") {
     FuelCheck.run(game, check)
     print(failures == 0 ? "fuelcheck: all checks passed" : "fuelcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -2213,6 +2307,18 @@ if CommandLine.arguments.contains("--shellthrough") {          // P464: his deck
 if CommandLine.arguments.contains("--huntcrawler") {          // P460: the Reckoning's Capital band brings a crawler
     HuntCrawlerCheck.run(game, check)
     print(failures == 0 ? "huntcrawler: all checks passed" : "huntcrawler: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--detachcheck") {         // Nov 4: the loose-piece search after a blast on a capital hull
+    DetachCheck.run(game, check)
+    print(failures == 0 ? "detachcheck: all checks passed" : "detachcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--surfacecheck") {        // Nov 4: the field's surface under a standing spot, as before and faster
+    SurfaceCheck.run(game, check)
+    print(failures == 0 ? "surfacecheck: all checks passed" : "surfacecheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--huntwarship") {         // Nov 4: the Reckoning's Stormwarden band brings a warship that comes
+    HuntWarshipCheck.run(game, check)
+    print(failures == 0 ? "huntwarship: all checks passed" : "huntwarship: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --crewfight: P471, a frigate's crew with him on its deck (Sources/CrewFightCheck.swift).
 if CommandLine.arguments.contains("--crewfight") {
@@ -2581,6 +2687,46 @@ if CommandLine.arguments.contains("--military-only") {
     print(MobTests.failures.isEmpty ? "military: all checks passed" : "military: \(MobTests.failures.count) FAILED: \(MobTests.failures.joined(separator: ", "))")
     exit(MobTests.failures.isEmpty ? 0 : 1)
 }
+// --mobtests: the whole Mac --mobtests suite (Sources/MobTests.swift: paths, ladders, doors, spawning, villagers,
+// conversions, raids, soldiers...), never run on this build before Nov 4 (bug hunt).
+if CommandLine.arguments.contains("--mobtests") {
+    let ok = MobTests.run(game: game, world: game.world, pos: game.player.pos, rd: 8)
+    exit(ok ? 0 : 1)
+}
+// Mac harness suites the questcheck never ran before Nov 4 (bug hunt): --swingtest (VR melee and the bow,
+// VRMeleeTests) and --v78 (the V78 playtest list, PlaytestV78Tests). (The audio suites are Mac-only files, quest/mac-only.txt.)
+// Nov 5: more of them (bug hunt): --coppertest (copper circuit parity, CopperTests + the workshop), --questbugs (task 20
+// and the PM9 playtest lists), --smoothtest (smooth ground).
+if CommandLine.arguments.contains("--coppertest") {
+    var f = CopperTests.run(game)
+    CircuitWorkshopTests.run(game) { ok, what in print("coppertest: \(ok ? "PASS" : "FAIL") \(what)"); if !ok { f += 1 } }
+    print("coppertest: \(f) failed"); exit(f == 0 ? 0 : 1)
+}
+// --worldaudit [N] (Nov 5, bug hunt): the Mac's world-gen audit on the field worlds the headset makes: structure
+// overlaps, distance to the nearest village and Capital, a safe spawn, mob density at noon and midnight.
+if CommandLine.arguments.contains("--worldaudit") { exit(WorldAudit.run(device: device, field: true)) }
+// --collisiontest [--strict] (Nov 5, bug hunt): the Mac's collision test for every block shape (Sources/CollisionTest.swift:
+// drops, steps, walk-throughs, box sanity) and the step up under a low ceiling.
+if CommandLine.arguments.contains("--collisiontest") { exit(CollisionTest.run(device: device)) }
+// --physicstest / --capitaltest (Nov 5, bug hunt): the Mac's scripted ship checks (Sources/ShipTest.swift: floating,
+// propulsion, steering, hover, climb, driving, riding the deck, save and load, docking; the capital vessels).
+if CommandLine.arguments.contains("--physicstest") || CommandLine.arguments.contains("--capitaltest") {
+    var f = 0
+    // (the Mac runs them at view 8: at this harness's 6 the active distance is 104 blocks, not 136, and the plane, the
+    // runway takeoff and the car outran it and slept mid-check)
+    game.world.renderDistance = 8
+    if CommandLine.arguments.contains("--physicstest") { f += ShipTest.physicsTest(game: game, rd: 8) }
+    if CommandLine.arguments.contains("--capitaltest") { f += ShipTest.capitalTest(game: game, rd: 8) }
+    print("shiptest: \(f) failed"); exit(f == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--questbugs") { let f = QuestBugTests.run(game); print("questbugs: \(f) failed"); exit(f == 0 ? 0 : 1) }
+if CommandLine.arguments.contains("--smoothtest") { let f = SmoothTests.run(game); print("smoothtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
+if CommandLine.arguments.contains("--swingtest") { let f = VRMeleeTests.run(game); print("swingtest: \(f) failed"); exit(f == 0 ? 0 : 1) }
+if CommandLine.arguments.contains("--v78") {
+    var f = 0
+    PlaytestV78Tests.run(game) { ok, msg in print("v78: \(ok ? "ok  " : "FAIL") \(msg)"); if !ok { f += 1 } }
+    print("v78: \(f) failed"); exit(f == 0 ? 0 : 1)
+}
 // --latency-only: every control answers in the frame that reads the press (Sources/InputLatencyTests.swift, Q2).
 if CommandLine.arguments.contains("--latency-only") {
     InputLatencyTests.run(game: game, check: check)
@@ -2646,8 +2792,10 @@ CraterPlaceCheck.run(game, check)                      // P507: blocks go down i
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft
 RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
+CrewLookout.check(game, check)                         // the code reader's Nov 10 batch, 1: no endless deck range
 BrushCheck.run(game, check)                            // P511: through bushes and limbs at his full pace
 ClamberCheck.run(game, check)                          // P511: up and over a ledge too high to jump onto
+TorchWaterCheck.run(game, check)                       // ledger 55: torches give way to water and lava, none go in
 CrawlerInteriorCheck.run(check)                         // P511: the crawler's insides dense, a motor at every wheel
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
@@ -2744,6 +2892,43 @@ var quads = 0, sections = 0
 for c in world.chunks.values { for s in c.sections where !s.empty { quads += s.opaqueQuads + s.transQuads; sections += 1 } }
 check(quads > 10_000, "terrain meshed: \(sections) sections, \(quads) quads")
 check(MeshArena.shared.slabBytes > 0, "mesh arena holds \(MeshArena.shared.slabBytes >> 20) MB of host slabs")
+// Ledger 60 (item 10): freed mesh space joins up again. A slab of 1 KB slices freed holds 4 KB slices afterwards
+// without a new slab, and slices freed and made at random never overlap.
+do {
+    MeshArena.frameCompleted(MeshArena.frameSubmitted())                 // (no frame in flight for this test arena)
+    let a = MeshArena(slabSize: 1 << 20)
+    var fill = [UInt8](repeating: 0, count: 8192)
+    func make(_ n: Int, _ v: UInt8) -> MeshSlice? {
+        for i in 0..<n { fill[i] = v }
+        return fill.withUnsafeBytes { a.alloc(device, UnsafeRawBufferPointer(rebasing: $0[0..<n])) }
+    }
+    var small: [MeshSlice] = []
+    for i in 0..<1000 { if let m = make(1000, UInt8(i & 255)) { small.append(m) } }
+    let slabsBefore = a.slabCount
+    small.removeAll()
+    var big: [MeshSlice] = []
+    for i in 0..<240 { if let m = make(4000, UInt8(i & 255)) { big.append(m) } }
+    check(small.isEmpty && big.count == 240 && a.slabCount == slabsBefore,
+          "freed mesh slices join up: 1,000 1 KB slices freed hold 240 4 KB ones (\(slabsBefore) -> \(a.slabCount) slabs, largest free run \(a.largestFree >> 10) KB)")
+    big.removeAll()
+    var rng: UInt64 = 0x9E37_79B9_7F4A_7C15
+    func next() -> Int { rng = rng &* 6364136223846793005 &+ 1442695040888963407; return Int(rng >> 33) }
+    var live: [(MeshSlice, UInt8)] = []
+    var bad = 0
+    for round in 0..<40 {
+        for _ in 0..<200 { let v = UInt8(next() & 255); if let m = make(64 + next() % 8000, v) { live.append((m, v)) } }
+        live.removeAll { _ in (next() + round) % 2 == 0 }
+        for (m, v) in live {
+            let p = m.buffer.contents().advanced(by: m.offset).assumingMemoryBound(to: UInt8.self)
+            for i in Swift.stride(from: 0, to: m.length, by: 61) where p[i] != v { bad += 1; break }
+        }
+    }
+    let used = a.liveBytes, held = a.slabBytes
+    live.removeAll()
+    let back = a.trim()
+    check(bad == 0 && a.liveBytes == 0 && a.freeBytes == 0 && back == held - a.slabSize,
+          "mesh slices made and freed at random never overlap (\(bad) overwritten; \(used >> 10) KB live in \(held >> 10) KB at the end, then every slab but the one in use given back whole)")
+}
 // With --render: hell's own mobs lined up on the arena HellMobsTests fought on (hell_mobs.png next to the PNG).
 if let path = renderPath, !path.isEmpty, let ctx = vkctx, let c = HellMobsTests.arena {
     let home = game.player.pos, wasFly = game.player.flying
@@ -3094,22 +3279,187 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             (game.player.pos, game.player.flying, game.time) = saved
             _ = world.loadSync(center: game.player.pos, radius: 6)
         }
+        // --proving-shots DIR (P512): the Proving Grounds built far off, seen from the start, the range and the field.
+        if let dir = arg("--proving-shots") {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            let saved = (game.player.pos, game.player.flying, game.time)
+            let o = IVec3(Int(spawn.x) + 3000, ProvingGrounds.deckY, Int(spawn.z) + 3000)
+            let b = ProvingGrounds.plan(o)
+            // (no game ticks after: the harness world has no save, and a tick's streaming would drop the far chunks'
+            // edits with them; in play the world's save keeps them)
+            game.player.pos = ProvingGrounds.start(o)
+            while !b.done { b.run(game, budget: 1) }
+            game.player.flying = true
+            game.time = 0.27 * DAY_LENGTH
+            let s0 = ProvingGrounds.start(o), f0 = o + ProvingGrounds.pad(0), boats = ProvingGrounds.park.rows[4]
+            let views: [(String, V3, Float, Float)] = [
+                ("proving_park", s0 + V3(0, 9, -2), .pi + 0.35, -0.45),
+                ("proving_range", s0 + V3(30, 6, 4), 0.15, -0.25),
+                ("proving_field", V3(Float(f0.x) - 10, Float(o.y) + 14, Float(f0.z) - 14), .pi + 0.6, -0.5),
+                ("proving_boats", V3(Float(o.x) + 20, Float(o.y) + 8, Float(o.z + boats.z) - 2), .pi + 0.4, -0.45),
+            ]
+            for (name, p, yaw, pitch) in views {
+                game.player.pos = p
+                _ = world.loadSync(center: p, radius: 5)
+                try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/\(name).png", yaw: yaw, pitch: pitch)
+                print("proving: \(dir)/\(name).png")
+            }
+            (game.player.pos, game.player.flying, game.time) = saved
+            _ = world.loadSync(center: game.player.pos, radius: 6)
+        }
         if let shots = arg("--mob-shots") { try MobPortraits.run(game: game, ctx: ctx, dir: shots, kinds: (arg("--mob-kinds") ?? "creeper").split(separator: ",").map(String.init)) }
         if CommandLine.arguments.contains("--sky-only") { print(failures == 0 ? "skytest: all checks passed" : "skytest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
         try MobDrawTest.run(game: game, ctx: ctx, check: check)
     } catch { check(false, "render: \(error)") }
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
 }
+var fuzzLast: (() -> Void)?           // the VR monkey input, run after the shared checks (--questsim)
 if let out = arg("--questsim"), let ctx = vkctx {
+    // (Nov 10: the VR layer's settings stayed on for the shared checks after it, CI's host job only: with swing melee on and
+    // a sword in hand the trigger never hits a creature, so the balance duels killed nothing in 60 s. Put back below.)
+    let vrSet0 = (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
+                  game.vrTwoHanded, game.screen)
+    let vrStatic0 = (GunActions.manual, VRReload.reclined)      // (swing play's hand-worked bolts: the deep balance duels fired once)
     do { try QuestSim.run(game: game, ctx: ctx, out: out, check: check) } catch { check(false, "questsim: \(error)") }
     // Monkey input through the VR layer (QuestFuzz): BLOCKSMITH_FUZZ_SECONDS / --fuzz-seed to run longer or another seed.
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
     let fuzzSeed = UInt64(arg("--fuzz-seed") ?? "") ?? 1
-    do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") }
+    // (Nov 11: run last, after the shared checks. A minute of monkey input in both modes leaves him starving, on fire,
+    // outlawed, at war with the Meridian Navy and somewhere else, and the walk, the hunters and the roads checks after it
+    // met that: ledger 75. With --questsim-only it runs here.)
+    let fuzz = { do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, at: arg("--fuzz-at"), check: check) } catch { check(false, "questfuzz: \(error)") } }
     // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
-    game.vrHead = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
+    // (Nov 11: with --questsim-only too the monkey goes after the touch matrix: after seed 7's five minutes of it the
+    // matrix's swimming context couldn't be set up and its deck gun and left-hand rows read differently; check fix 34)
+    if CommandLine.arguments.contains("--questsim-only") { fuzz() } else { fuzzLast = fuzz }
+    game.vrHead = nil; game.vrHeadYaw = nil; game.vrHeadPitch = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
+    (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
+     game.vrTwoHanded, game.screen) = vrSet0
+    (GunActions.manual, VRReload.reclined) = vrStatic0
+    if game.menu != nil { game.closeMenu() }
+    game.alive = true
+    game.vrBow = nil; game.vrBlade = nil; game.vrPinch = nil; game.swingPower = 0; game.swingMob = nil
     if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
+}
+
+// Nov 11: the creative palette's tabs and search, timed on the frame's thread (BS_OLDCREATIVETABS=1 for before).
+if CommandLine.arguments.contains("--creativetabs") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    let t0 = threadMs()
+    if !CreativeMenu.oldTabs && CommandLine.arguments.contains("--cold") { _ = CreativeMenu.byTab.count; _ = CreativeMenu.searchNames.count }
+    else { Thread.sleep(forTimeInterval: 2) }                    // (the worker's pass from the world's load done)
+    let pass = threadMs() - t0
+    game.survival = false
+    let m = CreativeMenu(game: game)
+    game.openMenu(m)
+    var parts: [String] = [], worst = 0.0
+    for t in CreativeMenu.Tab.allCases where t != .all {
+        let a = threadMs(); m.setTab(t); let ms = threadMs() - a
+        worst = max(worst, ms); parts.append(String(format: "%@ %.1f (%d)", t.short, ms, m.all.count))
+    }
+    var typed: [String] = []
+    for c in "stone" { let a = threadMs(); m.typed(String(c)); let ms = threadMs() - a; worst = max(worst, ms); typed.append(String(format: "%.2f", ms)) }
+    print(String(format: "creativetabs (%@): first opening of each tab, ms on the frame's thread: ", CreativeMenu.oldTabs ? "old" : "new")
+          + parts.joined(separator: ", ") + "; search keys s-t-o-n-e " + typed.joined(separator: " ") + String(format: " (%d found); worst %.1f ms", m.all.count, worst)
+          + (CreativeMenu.oldTabs ? "" : String(format: "; the one pass on the frame's thread %.1f ms", CommandLine.arguments.contains("--cold") ? pass : 0)))
+    game.closeMenu()
+    exit(0)
+}
+
+// Ledger 82: the frame's own terrain lookups (the weather's biome, a spawn's height) while the workers make new
+// ground: 12 s of streaming fresh land in four places, the frame reading 20 columns about it every 2 ms, each timed by
+// the wall clock less its own CPU (the wait). BS_OLDGRIDLOCK=1 for before (one lock a cache).
+if CommandLine.arguments.contains("--gridwait") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    func wallMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_MONOTONIC, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    QuestApp.headsetWorld()
+    func vcsw() -> Int { var ru = rusage(); getrusage(__rusage_who_t(1), &ru); return ru.ru_nvcsw }   // (blocked: a lock, not the host's preemption)
+    var worst = 0.0, waitSum = 0.0, over = 0, calls = 0, blocked = 0
+    var rng = SystemRandomNumberGenerator()
+    for trip in 0..<4 {
+        game.player.pos = V3(Float(40_000 + trip * 6_000), 200, Float(30_000 - trip * 4_000)); game.player.vel = .zero
+        let t0 = wallMs()
+        while wallMs() - t0 < 3000 {
+            game.world.update(center: game.player.pos)
+            for _ in 0..<20 {
+                let x = Int(game.player.pos.x) + Int.random(in: -200...200, using: &rng), z = Int(game.player.pos.z) + Int.random(in: -200...200, using: &rng)
+                let v = vcsw(), a = wallMs(), c = threadMs()
+                _ = game.world.gen.column(x, z)
+                let wait = max(0, (wallMs() - a) - (threadMs() - c))
+                let b = vcsw() - v
+                calls += 1
+                if b > 0 { blocked += 1; waitSum += wait; worst = max(worst, wait); if wait > 1 { over += 1 } }
+            }
+            usleep(2000)
+        }
+    }
+    print(String(format: "gridwait (%@, %d locks a cache): %d frame-thread column reads while the workers made ground; %d blocked, waiting %.1f ms in all, %d of them over 1 ms, worst %.2f ms",
+                 GridCacheRule.old ? "old" : "new", GridCache<Int>.stripes, calls, blocked, waitSum, over, worst))
+    exit(0)
+}
+
+// Ledger 81: the crafting book's search and the pack's search, timed on the frame's thread with a pack of common
+// materials (BS_OLDSEARCH=1 for before). The names' table is made on a worker as the world loads (waited for here).
+if CommandLine.arguments.contains("--searchtime") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    Thread.sleep(forTimeInterval: 2)
+    game.survival = true
+    for i in 0..<36 { game.inventory.main[i] = .empty }
+    for (k, n) in ["oak_planks", "stick", "cobblestone", "iron_ingot", "gold_ingot", "coal", "string", "redstone", "glass", "oak_log",
+                   "leather", "paper", "diamond", "copper_ingot", "white_wool", "flint", "feather", "sand"].enumerated() where Items.has(n) {
+        game.inventory.main[9 + k] = ItemStack(Items.id(n), 32)
+    }
+    var parts: [String] = []
+    for size in [3, 2] {
+        let m = CraftingBookMenu(game: game, size: size)
+        game.openMenu(m)
+        m.searching = true
+        var keys: [String] = [], worst = 0.0
+        for c in "iron\u{8}\u{8}\u{8}\u{8}plank" { let a = threadMs(); m.typed(String(c)); let ms = threadMs() - a; worst = max(worst, ms); keys.append(String(format: "%.2f", ms)) }
+        parts.append(String(format: "book %dx%d, keys i-r-o-n, 4 backspaces, p-l-a-n-k: ", size, size) + keys.joined(separator: " ") + String(format: " (%d found); worst %.2f ms", m.list.count, worst))
+        game.closeMenu()
+    }
+    let inv = InventoryMenu(game: game)
+    game.openMenu(inv)
+    inv.query = "iron"
+    let a = threadMs()
+    var lit = 0
+    for _ in 0..<72 { for s in game.inventory.main.slots where inv.matches(s) { lit += 1 } }
+    parts.append(String(format: "the pack's search lighting its 36 slots for 72 frames: %.2f ms (%d lit a frame)", threadMs() - a, lit / 72))
+    game.closeMenu()
+    print("searchtime (" + (ItemSearch.oldSearch ? "old" : "new") + "):\n  " + parts.joined(separator: "\n  "))
+    exit(0)
+}
+
+// Ledger 80: the place searches' cost on the frame's thread: /bases, /rare, /locate frigate and Go To a Place (Meridian
+// Frigate, Stronghold), each from a spot far off in fresh land; with the game's worker search (Game.arrivalHold, as on the
+// headset) and without (BS_OLDSHORTCUT=1, or the host checks' rules). Prints the frame's own CPU ms and the answer.
+if CommandLine.arguments.contains("--locatetime") {
+    func threadMs() -> Double { var ts = timespec(); clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts); return Double(ts.tv_sec) * 1000 + Double(ts.tv_nsec) / 1e6 }
+    StructureCache.plansOffThread = true; Game.arrivalHold = true
+    var parts: [String] = []
+    for (i, c) in ["/bases", "/rare", "/locate frigate", "go:frigate", "go:stronghold"].enumerated() {
+        game.player.pos = V3(Float(20_000 + i * 9_000), 200, Float(-15_000 - i * 7_000)); game.player.vel = .zero
+        game.commandLog.removeAll()                                     // (the log keeps 60 lines)
+        let n0 = 0
+        let a = threadMs()
+        if c.hasPrefix("go:") { game.shortcutTeleport(String(c.dropFirst(3))) } else { game.command(c) }
+        let frame = threadMs() - a
+        var worst = frame, frames = 1
+        let w0 = Date()
+        while (LocateJob.pending != nil || ShortcutFind.pending != nil) && Date().timeIntervalSince(w0) < 60 {
+            Thread.sleep(forTimeInterval: 0.002)
+            let b = threadMs(); game.tick(1.0 / 72); let ms = threadMs() - b
+            worst = max(worst, ms); frames += 1
+        }
+        let said = game.commandLog.count > n0 ? game.commandLog[(n0 + 1)...].prefix(2).joined(separator: " | ") : ""
+        parts.append(String(format: "%@: %.1f ms on the frame (worst of %d frames %.1f), answer in %.2f s: ", c, frame, frames, worst, Date().timeIntervalSince(w0))
+                     + (c.hasPrefix("go:") ? String(format: "at %.0f %.0f", game.player.pos.x, game.player.pos.z) : String(said.prefix(160))))
+        game.arrivalSince = nil; game.arrivalThen = nil
+    }
+    print("locatetime (" + (Game.oldShortcutLand ? "old" : "new") + "):\n  " + parts.joined(separator: "\n  "))
+    exit(0)
 }
 
 // Horses alone (iterating on Sources/HorseTests.swift); the full run does them at the end.
@@ -3198,7 +3548,10 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         // CPU share (4 ms of 13.9).
         // The budget: the fog cuts sections, terrain and units, and the mob pass stays inside a third of the frame's
         // shared vertex scratch (the rest: dropped items, particles, hands, HUD); past it the farthest units would drop.
-        let mobBytes = with.mobVerts * MemoryLayout<MobVert>.stride, mobBudget = SceneRenderer.scratchSize / 3
+        // (P512: since P385 the mob pass writes into a buffer of its own on a worker, WorldRenderer.mobBufBytes, not the
+        // frame's shared scratch; the budget is half of that buffer, the scratch's third only when the pass runs in place.)
+        let mobBytes = with.mobVerts * MemoryLayout<MobVert>.stride
+        let mobBudget = WorldRenderer.mobThread ? WorldRenderer.mobBufBytes / 2 : SceneRenderer.scratchSize / 3
         check(units >= 40 && with.sections < without.sections && with.mobsDrawn < without.mobsDrawn && mobBytes <= mobBudget,
               String(format: "ash vault draw: the biggest battle (%d units, render distance 10) with the fog budget: %d sections, %d quads, %d units in reach, %d mob vertices (%.1f of %.1f MB), record %.1f ms; without: %d sections, %d quads, %d units, %d vertices, %.1f ms",
                      units, with.sections, with.quads, with.mobsDrawn, with.mobVerts, Double(mobBytes) / 1048576, Double(mobBudget) / 1048576, with.recordMs,
@@ -3230,14 +3583,20 @@ func leaves(_ name: String, _ body: () -> Void) {
     // (P499: and at no helm and on no mount: a group that left him at a frigate's helm put every later aim and chase
     // view check in the helm's hands.)
     let pilot0 = game.world.ships.pilot, riding0 = game.riding, vrAim0 = game.vrAim
+    // (Nov 4: and with the factions' standing as it was: the friendly-fire squads of the Meridian never fought once a
+    // group before them had left him the Meridian's ally.)
+    let rep0 = FactionRep.encode(), repMap0 = FactionRep.rep, hunters0 = FactionRep.nextHunters
     // Put it all back after the check, so one group's leftover fails that group, not every group after it.
     defer {
         game.player.flying = fly; game.world.ships.encounters = enc; game.survival = surv; game.player.pos = pos; game.player.vel = .zero; game.menu = menu0
         game.world.ships.pilot = pilot0; game.riding = riding0; game.vrAim = vrAim0
+        FactionRep.rep = repMap0; FactionRep.nextHunters = hunters0
     }
     body()
     let moved = simd_length(game.player.pos - pos)
     let helm = game.world.ships.pilot === pilot0 && game.riding === riding0
+    let rep = FactionRep.encode()
+    if rep != rep0 { print("\(name): left the factions' standing at \(rep) (was \(rep0)); put back") }
     check(game.player.flying == fly && game.world.ships.encounters == enc && game.survival == surv && moved < 1 && (game.menu == nil) == menu && helm,
           "\(name): leaves the player and world as it found them (flying \(game.player.flying)/\(fly), encounters \(game.world.ships.encounters)/\(enc), survival \(game.survival)/\(surv), moved \(String(format: "%.1f", moved)), menu \(game.menu == nil ? "none" : "open"), helm \(game.world.ships.pilot?.root.name ?? "none")/\(pilot0?.root.name ?? "none"), riding \(game.riding?.kind.key ?? "none")/\(riding0?.kind.key ?? "none"))")
 }
@@ -3308,7 +3667,19 @@ var tickAllocs: [Int] = []
 var slow: [(Double, Double, Int, Int, Int)] = []
 let frames = 72 * 20
 let p0 = game.player.pos
+// (Nov 4, build 134: he died in this walk once, the death menu still up at its end: what hurt him, and when)
+var walkHurt: [String] = []
+let walkHealth0 = game.health
+let onDamageWalk0 = Game.onDamage
+var walkFrame = 0
+var walkTrace: [String] = []
+Game.onDamage = { amt, cause in if walkHurt.count < 12 { walkHurt.append("frame \(walkFrame): \(amt) by \(cause)") } }
 for i in 0..<frames {
+    walkFrame = i
+    // (Nov 11: a walk of streaming and menus, not a fight: a patrol it wandered into (a Meridian gunner, build 315) or a
+    // fall killed him and the death screen read as a menu left open. He is kept fed and whole; what hurt him is still
+    // listed.)
+    if game.alive { game.health = max(game.health, 20); game.hunger = max(game.hunger, 20) }
     var p = PadSnapshot()
     p.ly = 1
     p.rx = 0.2
@@ -3326,8 +3697,15 @@ for i in 0..<frames {
     let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
     tickMs.append(ms)
     slow.append((ms, (b - a) * 1000, i, world.chunks.count, game.mobs.mobs.count))
+    // (Nov 6, build 200: 9.4 blocks where four builds walked 48.7: where he was every 2 s, so a stall shows where and why)
+    if i % 144 == 143 {
+        let q = game.player.pos
+        walkTrace.append(String(format: "%d: %.1f %.1f %.1f%@%@%@", i + 1, q.x, q.y - Float(YOFF), q.z, game.player.onGround ? " ground" : "",
+                                game.player.inWater ? " water" : "", game.menu == nil ? "" : " menu " + String(describing: type(of: game.menu!))))
+    }
 }
 pm.touch = nil
+Game.onDamage = onDamageWalk0
 // The slowest frames, split into world streaming (results applied, scheduling) and the rest of the game tick.
 slow.sort { $0.0 > $1.0 }
 for (ms, upd, i, ch, mobs) in slow.prefix(6) {
@@ -3341,9 +3719,12 @@ if !tickAllocs.isEmpty {
 }
 print(String(format: "ticks: median %.2f ms, p99 %.2f ms, worst %.2f ms", tickMs[tickMs.count / 2], tickMs[tickMs.count * 99 / 100], tickMs.last!))
 let moved = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
+print("walk: from \(p0); every 2 s: " + walkTrace.joined(separator: "; "))
 check(game.player.pos.x.isFinite && game.player.pos.y.isFinite, "player position finite")
-check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved))
-check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))")
+check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved) + (walkHurt.isEmpty ? "" : " (hurt: " + walkHurt.prefix(6).joined(separator: "; ") + ")"))
+check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))"
+      + (game.menu == nil ? "" : "; health at the start \(walkHealth0), survival \(game.survival), difficulty \(game.difficulty), hurt: " + (walkHurt.isEmpty ? "nothing" : walkHurt.joined(separator: "; ")))
+      + "; mobs within 24: " + game.mobs.mobs.filter { simd_length($0.pos - game.player.pos) < 24 }.map { "\($0.kind)" }.joined(separator: ", "))
 
 // The Meridian frigate's Tidebreaker (Sources/MainGunTests.swift): barrel, shockwave, a shot through Game.tick with the
 // frame time after the impact; with --render, stereo frames of the barrel, the charge, the blast and the crater
@@ -3426,6 +3807,9 @@ HorseTests.run(game: game, check: check)
 // The pose oracle (Sources/PoseCheck.swift; the Mac fast lane runs it too): limbs, soldiers' hands, heads and weapons in
 // every stance.
 check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
+
+// The VR monkey input (--questsim), last: what it leaves behind meets no check after it.
+if let f = fuzzLast { f() }
 
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")

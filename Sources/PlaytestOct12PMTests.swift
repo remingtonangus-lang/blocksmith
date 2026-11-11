@@ -264,10 +264,16 @@ enum PlaytestOct12PMTests {
         g.horseCall = 0
         let answered = g.callHorse()
         let below = g.horseCall == 0
+        // (Ledger 24: in the dark 5 under the land, a mine's depth, she stays put too; little daylight alone no longer
+        // means underground.)
+        g.player.pos = V3(Float(x) + 0.5, Float(top - 4), Float(z) + 0.5)
+        g.horseCall = 0
+        _ = g.callHorse()
+        let mine = g.horseCall == 0
         g.player.pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
         _ = g.callHorse()
         let above = g.horseCall > 0
-        check(answered && below && above, "P117 horse call: from underground Ginger stays put \(below); on the surface she comes \(above)")
+        check(answered && below && mine && above, "P117 horse call: from underground Ginger stays put \(below) (5 under the land \(mine)); on the surface she comes \(above)")
     }
 
     // P118: a pick in gravel sounds like pebbles knocking, not water: its envelope is spiky (sparse grains) where a

@@ -13,7 +13,8 @@ enum AncientSpire {
     static let floorStep = 24
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "great_ruin", spacing: 68, separation: 36, salt: 51870337, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: "great_ruin", spacing: 68, separation: 36, salt: 51870337, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             // One region in four (at 0.6 about twenty stood within sight range: tour shots full of pillars, run 482).
             guard hashf(cx, 77, cz, UInt32(truncatingIfNeeded: seed)) < 0.25 else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8

@@ -223,6 +223,8 @@ enum BountyHunters {
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             // Out of the player's sight if we can (the first few tries), so they ride in.
             if from == nil && k < 24 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { tries[3] += 1; continue }
+            // Item 71: then out of his view at least (behind him or behind cover) before anywhere at all.
+            if from == nil && k < n * 14 && !Game.oldSpawnSight && !g.spawnHidden(at, min: 24, near: 0) { tries[3] += 1; continue }
             let m = makeHunter(g, index: placed, at: w.freeSpawn(at))
             if m.collides(m.pos, w) { tries[4] += 1; continue }
             if placed == 0 { from = at }
@@ -243,19 +245,21 @@ enum BountyHunters {
     }
     static var sent = 0
 
-    // Below ground (P115, R21: "they must not find him underground"): natural rock over the head, no daylight reaching
-    // him, or well under the land's own surface (a ravine floor, a pit). No posse sets out then, and one already out
+    // Below ground (P115, R21: "they must not find him underground"): natural rock over the head, little daylight under
+    // the land's surface, or well under it (a ravine floor, a pit). No posse sets out then, and one already out
     // holds on the surface (`holdOff`) until he's back up.
     static func below(_ g: Game) -> Bool {
         let p = g.player.pos, x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))
         let w = g.world
         guard w.isLoaded(x, z) else { return false }
-        if w.lightAt(x, y + 1, z).sky < 8 || Mob.underground(w, x, y, z) { return true }
-        if g.dim.dim == .overworld {
-            let land: Float = Float(w.gen.column(x, z).height)
-            if land - p.y > 12 { return true }
-        }
-        return false
+        if Mob.underground(w, x, y, z) { return true }
+        let dark = w.lightAt(x, y + 1, z).sky < 8
+        guard g.dim.dim == .overworld else { return dark }
+        // Ledger 24: little daylight counts only under the land's surface (a mine under its timbers, a cave). A windowless
+        // room, a dense wood or a hollow in the ground has little daylight too, and there his horse never came ("can't
+        // hear you down here") and a posse lost him.
+        let land: Float = Float(w.gen.column(x, z).height)
+        return land - p.y > 12 || (dark && land - p.y > 2)
     }
     static func isHunter(_ m: Mob) -> Bool { m.posse == 3 && m.health > 0 && m.customName == name }
     static let lifetime: Double = 300
@@ -295,8 +299,8 @@ enum BountyHunters {
         g.mobs.mobs.removeAll { m in
             guard m.posse == 3, m.health > 0, !Director.owns(m) else { return false }     // (P266: the Director's gunmen stay)
             let far = simd_length(m.pos - g.player.pos) > 48
-            return (paid && far) || (far && (m.posseSince < 0 || g.clock - m.posseSince > lifetime))
-                || simd_length(m.pos - g.player.pos) > 128
+            return ((paid && far) || (far && (m.posseSince < 0 || g.clock - m.posseSince > lifetime))
+                || simd_length(m.pos - g.player.pos) > 128) && MobManager.canVanish(m, g)      // (item 27: not in plain sight)
         }
     }
 }

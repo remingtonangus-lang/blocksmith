@@ -239,6 +239,7 @@ final class PauseMenu: Menu {
         "create": "Choose a name, seed, game mode and difficulty.",
         "newworld": "Start a new world with a random seed straight away.",
         "workshop": "A creative test world with the standard circuits built and signed: clocks, a toggle, a piston door, a sorter.",
+        "proving": "A creative world with a hundred vehicles, a hundred copper circuits and ten built guns laid out to try.",
         "w_play": "Load this world.",
         "w_rename": "Give this world a new name.",
         "w_copy": "Make a copy of this world (a backup before big changes).",
@@ -304,7 +305,7 @@ final class PauseMenu: Menu {
                 rows.insert(("Report a Bug or Idea", "report"), at: at)
             }
             // S4: after a crash, the newest rolling backup of this world can be put back.
-            if CrashGuard.crashed && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
+            if CrashGuard.crashedHere(g.save?.dir) && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
         case .options:
             // Q2c-console-1: the host's own page list (the Quest leaves out Keyboard & Mouse) and page names.
             let shown = PauseMenu.shownCats
@@ -425,7 +426,8 @@ final class PauseMenu: Menu {
             if StorageCheck.low { subtitle = "Storage almost full: \(StorageCheck.freeMB) MB free" }      // Q2c-console-51
             worlds = WorldStore.list()
             rows = [("Create New World...", "create"), ("Quick New World (random seed)", "newworld"),
-                    ("Sparkstone Workshop (circuits)", "workshop")].filter { $0.1 != "workshop" || st.devTools }   // Q2c-console-25
+                    ("Sparkstone Workshop (circuits)", "workshop"),
+                    ("Proving Grounds (vehicles, circuits, guns)", "proving")].filter { ($0.1 != "workshop" && $0.1 != "proving") || st.devTools }   // Q2c-console-25, P512
                 + worlds.map { (WorldStore.rowLabel($0, open: $0.name == currentWorld), "world:" + $0.name) }   // Q2c-console-8
                 + [("Back", "back")]
         case .world:
@@ -509,7 +511,7 @@ final class PauseMenu: Menu {
         case .worlds:
             // New-world buttons side by side on top, then one wide button per world, Back apart at the end.
             return Style(width: 320, btnH: 24, gapX: 10, gapY: 5, groupGap: 10, cols: 3, lines: 7, groups: [
-                (["create", "newworld", "workshop"], 0),
+                (["create", "newworld", "workshop", "proving"], 0),
                 (rows.map { $0.1 }.filter { $0.hasPrefix("world:") }, 1),
                 (["back"], 0)])
         case .confirm:
@@ -781,6 +783,7 @@ final class PauseMenu: Menu {
         case "create": go(.create); editing = nil; resetCursor = true
         case "newworld": g.appAction?("newworld")
         case "workshop": g.appAction?("workshop")
+        case "proving": g.appAction?("proving")                                      // P512 (ProvingGrounds.swift)
         case "edit_name", "edit_seed", "edit_rename":
             editing = id == "edit_name" ? 0 : (id == "edit_seed" ? 1 : 2)
             if Prompt.pad || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }

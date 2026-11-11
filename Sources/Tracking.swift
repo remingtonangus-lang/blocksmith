@@ -17,8 +17,19 @@ enum Tracking {
     struct Print { var pos: V3; var t: Double; var blood: Bool }
     static var prints: [Print] = []
     static var last: [ObjectIdentifier: V3] = [:]
-    static var eating: [ObjectIdentifier: Float] = [:]
-    static var caughtToasted = Set<ObjectIdentifier>()
+    // (Nov 10: keyed by an animal's address alone, these outlived it: the next animal made at that address stood eating
+    // bait it never took, or was never told of as caught. Each entry holds the animal it is for.)
+    struct Marked { weak var mob: Mob?; var t: Float }
+    static var eating: [ObjectIdentifier: Marked] = [:]
+    static var caughtToasted: [ObjectIdentifier: Marked] = [:]
+    static func mark(_ table: inout [ObjectIdentifier: Marked], _ m: Mob, _ t: Float) {
+        if table.count > 64 { table = table.filter { $0.value.mob != nil } }
+        table[ObjectIdentifier(m)] = Marked(mob: m, t: t)
+    }
+    static func marked(_ table: [ObjectIdentifier: Marked], _ m: Mob) -> Marked? {
+        guard let e = table[ObjectIdentifier(m)], e.mob === m else { return nil }
+        return e
+    }
     static var windToldAt: Double = -1e9
     static var wasSneaking = false
     static var printsMade = 0, baitEaten = 0, snared = 0                // (harness)
@@ -122,9 +133,9 @@ enum Tracking {
     // herdAI: walk to bait and eat it (nil: no bait to see to).
     static func baitStep(_ m: Mob, _ g: Game, _ dt: Float) -> Float? {
         let id = ObjectIdentifier(m)
-        if let t = eating[id] {
+        if let t = marked(eating, m)?.t {
             if t <= dt { eating[id] = nil; return nil }
-            eating[id] = t - dt
+            mark(&eating, m, t - dt)
             m.moving = false
             m.walkAmount = 0
             return 0
@@ -139,7 +150,7 @@ enum Tracking {
         guard let b = best else { return nil }
         if bd < 1.4 {
             if b.stack.count > 1 { b.stack.count -= 1 } else { g.drops.items.removeAll { $0 === b } }
-            eating[id] = 8
+            mark(&eating, m, 8)
             baitEaten += 1
             g.sfx(.eat, 0.6, at: m.pos)
             return 0
@@ -149,7 +160,7 @@ enum Tracking {
         return m.spec.speed * 0.5
     }
 
-    static func isEating(_ m: Mob) -> Bool { eating[ObjectIdentifier(m)] != nil }
+    static func isEating(_ m: Mob) -> Bool { marked(eating, m) != nil }
 
     // MARK: Snares
 
@@ -166,9 +177,8 @@ enum Tracking {
         guard snareable.contains(m.kind) else { return false }
         m.vel.x = 0; m.vel.z = 0
         m.moving = false
-        let id = ObjectIdentifier(m)
-        if !caughtToasted.contains(id) {
-            caughtToasted.insert(id)
+        if marked(caughtToasted, m) == nil {
+            mark(&caughtToasted, m, 0)
             snared += 1
             let d = simd_length(m.pos - g.player.pos)
             if d < 96 { g.onToast?("A \(m.spec.name.lowercased()) is caught in your snare, \(Int(d)) m \(Waymarks.side(g, m.pos))") }   // Q2: where

@@ -18,6 +18,7 @@ import simd
 //   bed_broken        a bed half without its other half
 //   floating          structure columns (walls, foundations) hanging over air
 //   torch_unsupported a standing torch with nothing under it, or a wall torch with nothing behind it
+//   ladder_unsupported a ladder with nothing behind it
 // Walk model: a two-block-tall body; steps up to 0.6 are walking, up to 1.25 need a jump, drops up to 3;
 // doors and gates count as open, ladders and vines climb. Prints a summary per kind, writes a report
 // (--out FILE, markdown) with every issue's position and a snapshot command to look at it.
@@ -32,18 +33,23 @@ enum StructCheck {
     // Kinds entered from their own start piece (underground or enclosed) rather than from the open surface.
     static let fromInside: Set<String> = ["mineshaft", "stronghold", "ancient_city", "trial_chambers", "end_city", "fortress", "bastion"]
     static let flying: Set<String> = ["ghast", "blaze", "vex", "bat", "allay", "phantom", "wither", "ender_dragon", "shulker", "end_crystal",
-                                      "parrot", "bee", "happy_ghast", "breeze"]
+                                      "parrot", "bee", "happy_ghast", "breeze",
+                                      "searwing"]          // (check fix 25: hell's winged mob, P336)
     static let poiKeys: Set<String> = ["chest", "trapped_chest", "barrel", "lectern", "composter", "smoker", "cartography_table",
                                        "fletching_table", "loom", "stonecutter", "cauldron", "blast_furnace", "smithing_table", "grindstone",
                                        "brewing_stand", "crafting_table", "bell", "furnace", "anvil", "enchanting_table"]
 
     // MARK: Walk model
 
+    static let garageDoor: BlockID = Blocks.has(Depots.shutter) ? Blocks.groupBase[Int(Blocks.id(Depots.shutter))] : 0
+
     static func top(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float {
         let b = w.block(x, y, z)
         let sh = Blocks.shape[Int(b)]
         if sh == "door" { return 0 }
         if Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("_fence_gate") { return 0 }
+        // (Check fix 25: a garage door swings open from its buttons (GarageDoors.swift), like a door.)
+        if Blocks.groupBase[Int(b)] == garageDoor { return 0 }
         return PathFinder.solidTop(w, x, y, z)
     }
 
@@ -165,6 +171,7 @@ enum StructCheck {
         for seed in seeds {
             for dim in dims {
                 let world = World(seed: seed, device: device, save: nil, dim: dim)
+                if meet { world.makeFieldWorld() }          // (--meet: the headset's ground, a density field)
                 guard let cache = world.gen.structures else { continue }
                 var kinds: [(String, [StructureStart])] = []
                 for t in cache.types where only == nil || only!.contains(t.name) {
@@ -231,6 +238,22 @@ enum StructCheck {
             lines.append("- **\(i.cls)** \(i.kind) " + where_ + ": \(i.detail)  `\(snap)`")
             if !i.view.isEmpty { lines.append("  - view: `\(i.view)`") }
         }
+        if meet {
+            lines.append("")
+            lines.append("## Meeting the ground (--meet): outside columns over the drawn ground by more than 0.3 blocks")
+            lines.append("")
+            lines.append("| kind | columns | over a gap | worst |")
+            lines.append("|---|---|---|---|")
+            for (k, v) in meetCols.sorted(by: { $0.key < $1.key }) {
+                lines.append(String(format: "| %@ | %ld | %ld | %.2f |", k, v.cols, v.gaps, v.worst))
+                print(String(format: "structmeet: %@ %ld columns, %ld over a gap of 0.3-1.5, worst %.2f", k, v.cols, v.gaps, v.worst))
+            }
+            let h = meetHist.map(String.init).joined(separator: " / ")
+            lines.append("")
+            lines.append("Every outside column: gap up to 0.3 / 0.3-0.6 / 0.6-1.0 / 1.0-1.5 / no ground within 1.5: " + h)
+            print("structmeet: every outside column: gap up to 0.3 / 0.3-0.6 / 0.6-1.0 / 1.0-1.5 / no ground within 1.5: " + h)
+            print("structmeet: the gaps: \(meetUnder[0]) with ground in the cell under the block, \(meetUnder[1]) with none there")
+        }
         let report = lines.joined(separator: "\n") + "\n"
         if let out = arg("--out") { try? report.write(toFile: out, atomically: true, encoding: .utf8) }
         for l in lines.prefix(6 + stats.count) { print("structcheck " + l) }
@@ -242,12 +265,145 @@ enum StructCheck {
         return CommandLine.arguments.contains("--strict") && !issues.isEmpty ? 2 : 0
     }
 
+    // MARK: Meeting the ground (--meet)
+
+    // Week item 60 ("built things sit on the ground", a trailer bug: houses floating off slopes). In a field world (the
+    // headset's: natural ground is a density field drawn smooth, buildings stay blocks) each column's lowest built block
+    // that rests on its floor, on the building's outside (open to one side), is measured against the drawn ground under
+    // it (World.floorGap: its corners, edge middles and middle). A gap over 0.3 blocks shows daylight under the wall.
+    static let meet = CommandLine.arguments.contains("--meet")
+    static var meetCols: [String: (cols: Int, gaps: Int, worst: Float)] = [:]
+    static var meetTraced = 0
+    static var meetUnder = [0, 0]                              // gaps over ground in the cell under the block / over none
+    static var meetHist = [Int](repeating: 0, count: 5)       // gap <= 0.3, 0.3-0.6, 0.6-1.0, 1.0-1.5, none within 1.5
+    // World.floorGap, leaving out the samples on a side where a built block stands beside it, at its level or under it:
+    // the ground meets that block's side there (a wall going on down, the next course of a foundation), out of sight
+    // (build 305's traces: most "gaps" were the drawn ground dipping beside a deeper log or plank of the same building).
+    static func sideGap(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        func walled(_ dx: Int, _ dz: Int) -> Bool {
+            Blocks.collide[Int(w.builtBlock(x + dx, y - 1, z + dz))] || Blocks.collide[Int(w.builtBlock(x + dx, y, z + dz))]
+        }
+        let wx0 = walled(-1, 0), wx1 = walled(1, 0), wz0 = walled(0, -1), wz1 = walled(0, 1)
+        var worst: Float = 0
+        for k in 0..<9 {
+            let i = k % 3, j = k / 3
+            if i == 0 && wx0 || i == 2 && wx1 || j == 0 && wz0 || j == 2 && wz1 { continue }
+            let o = V3(Float(x) + 0.02 + Float(i) * 0.48, Float(y) + 0.02, Float(z) + 0.02 + Float(j) * 0.48)
+            guard w.fieldDensity(at: o) <= 0 else { continue }
+            if let h = w.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5) { worst = max(worst, Float(y) - h.at.y) } else { worst = max(worst, 1.5) }
+        }
+        return worst
+    }
+    static func meetCheck(_ w: World, _ s: StructureStart, typeName: String, seed: UInt64) -> [Issue] {
+        let kind = s.kind
+        if noWalk.contains(typeName) || fromInside.contains(typeName) || ["sky_isle", "end_centre", "ruined_portal"].contains(typeName) { return [] }
+        var gaps: [(IVec3, Float)] = []
+        var cols = 0
+        let y0 = max(2, s.min.y), y1 = min(CH - 2, s.max.y)
+        for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            var found: Int? = nil
+            var y = y0
+            while y <= y1 {
+                let b = Int(w.builtBlock(x, y, z))
+                if Blocks.collide[b] {
+                    if World.restsOnFloor[b] && !Blocks.collide[Int(w.builtBlock(x, y - 1, z))] { found = y }
+                    break
+                }
+                y += 1
+            }
+            guard let yb = found else { continue }
+            var open = false
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where !Blocks.collide[Int(w.builtBlock(x + dx, yb, z + dz))] {
+                if w.fieldDensity(at: V3(Float(x + dx) + 0.5, Float(yb) + 0.5, Float(z + dz) + 0.5)) <= 0 { open = true; break }
+            }
+            guard open else { continue }
+            cols += 1
+            // (1.5: no ground within a block and a half under it: eaves, a balcony, a bridge deck: held by what it's
+            // built on, and a base hanging that far is the block-world check's `floating`. The bug is a base standing a
+            // little proud of the smoothed slope.)
+            let g = sideGap(w, x, yb, z)
+            meetHist[g <= 0.3 ? 0 : g < 0.6 ? 1 : g < 1.0 ? 2 : g < 1.49 ? 3 : 4] += 1
+            if g > 0.3 && g < 1.49 {
+                gaps.append((IVec3(x, yb, z), g))
+                // (what is under it: ground in the cell below (the drawn ground curving away at its edge), or not)
+                meetUnder[w.fieldDensity(at: V3(Float(x) + 0.5, Float(yb) - 0.5, Float(z) + 0.5)) > 0 ? 0 : 1] += 1
+                if meetTraced < 16 {
+                    meetTraced += 1
+                    func dc(_ ax: Int, _ ay: Int, _ az: Int) -> String {
+                        String(format: "%.2f", w.fieldDensity(at: V3(Float(ax) + 0.5, Float(ay) + 0.5, Float(az) + 0.5)))
+                    }
+                    var samples: [String] = []
+                    for k in 0..<9 {
+                        let px = Float(x) + 0.02 + Float(k % 3) * 0.48, pz = Float(z) + 0.02 + Float(k / 3) * 0.48
+                        let o = V3(px, Float(yb) + 0.02, pz)
+                        if w.fieldDensity(at: o) > 0 { samples.append("in"); continue }
+                        if let h = w.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5) { samples.append(String(format: "%.2f", Float(yb) - h.at.y)) }
+                        else { samples.append("-") }
+                    }
+                    var nb: [String] = []
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                        let k0 = Blocks.key(w.builtBlock(x + dx, yb - 1, z + dz)), k1 = Blocks.key(w.builtBlock(x + dx, yb, z + dz))
+                        nb.append("\(dx),\(dz): below \(dc(x + dx, yb - 1, z + dz)) \(k0) / level \(dc(x + dx, yb, z + dz)) \(k1)")
+                    }
+                    print("structmeet trace: \(kind) \(x) \(yb - YOFF) \(z) \(Blocks.key(w.builtBlock(x, yb, z))) gap \(String(format: "%.2f", g)); samples \(samples.joined(separator: " ")); cell under \(dc(x, yb - 1, z)) \(Blocks.key(w.builtBlock(x, yb - 1, z))), own \(dc(x, yb, z)); " + nb.joined(separator: "; "))
+                }
+            }
+        } }
+        let worst = gaps.map { $0.1 }.max() ?? 0
+        var m = meetCols[kind] ?? (0, 0, 0)
+        m.cols += cols; m.gaps += gaps.count; m.worst = max(m.worst, worst)
+        meetCols[kind] = m
+        guard let first = gaps.max(by: { $0.1 < $1.1 }) else { return [] }
+        let p = first.0
+        let blk = Blocks.key(Blocks.groupBase[Int(w.builtBlock(p.x, p.y, p.z))])
+        var out = [Issue(cls: "floor_gap", kind: kind, seed: seed, pos: p,
+                         detail: String(format: "%ld of %ld outside columns stand over the drawn ground, worst %.2f blocks (%@)", gaps.count, cols, worst, blk))]
+        out[0].view = "--view v.png --seed \(seed) --at \(p.x + 4),\(p.y + 1),\(p.z) --look 90,-15 --field"
+        return out
+    }
+
     // MARK: One instance
+
+    // --slices: each unreachable door or point of interest printed as top-down maps of the cells round it (two levels
+    // under its feet to two over), one character a cell, so a flag can be read without a render. '#' collides fully,
+    // '+' collides in part (slabs, fences, panes, stairs), 'D' door, 'H' ladder, '~' fluid, '.' open; the flagged cell is
+    // shown as '@' over its own character's place.
+    static let slices = CommandLine.arguments.contains("--slices")
+    static func printSlice(_ w: World, _ p: IVec3, label: String, r: Int = 8) {
+        print("slice: \(label) at \(p.x) \(p.y - YOFF) \(p.z) (rows +z down, columns +x right, x from \(p.x - r), z from \(p.z - r))")
+        var parts: [String: Int] = [:]                      // the '+' cells' blocks at its level and the one over it
+        for dy in 0...1 { for z in (p.z - r)...(p.z + r) { for x in (p.x - r)...(p.x + r) {
+            let b = w.block(x, p.y + dy, z), i = Int(b)
+            if Blocks.collide[i] && !Blocks.fullCollide[i] && !PathFinder.isDoor(b) && !PathFinder.climbable(b) { parts[Blocks.key(Blocks.groupBase[i]), default: 0] += 1 }
+        } } }
+        print("slice:  '+' there: " + parts.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+        for dy in stride(from: 2, through: -2, by: -1) {
+            print("slice:  y \(p.y + dy - YOFF)\(dy == 0 ? " (its level)" : "")")
+            for z in (p.z - r)...(p.z + r) {
+                var row = ""
+                for x in (p.x - r)...(p.x + r) {
+                    if x == p.x && z == p.z && dy == 0 { row += "@"; continue }
+                    let b = w.block(x, p.y + dy, z)
+                    let i = Int(b)
+                    if PathFinder.isDoor(b) { row += "D" }
+                    else if PathFinder.climbable(b) { row += "H" }
+                    else if Blocks.fluidKind[i] != 0 { row += "~" }
+                    else if Blocks.fullCollide[i] { row += "#" }
+                    else if Blocks.collide[i] { row += "+" }
+                    else { row += "." }
+                }
+                print("slice:   " + row)
+            }
+        }
+    }
 
     static func check(_ w: World, _ s: StructureStart, typeName: String, seed: UInt64) -> (issues: [Issue], doors: Int, pois: Int, mobs: Int) {
         var out: [Issue] = []
         let kind = s.kind
-        func add(_ cls: String, _ p: IVec3, _ d: String) { out.append(Issue(cls: cls, kind: kind, seed: seed, pos: p, detail: d)) }
+        func add(_ cls: String, _ p: IVec3, _ d: String) {
+            out.append(Issue(cls: cls, kind: kind, seed: seed, pos: p, detail: d))
+            if slices && cls.hasSuffix("unreachable") { printSlice(w, p, label: "\(kind) \(cls) seed \(seed)") }
+        }
         let margin = 6
         let lo = IVec3(s.min.x - margin, max(1, s.min.y - 4), s.min.z - margin)
         let hi = IVec3(s.max.x + margin, min(CH - 4, s.max.y + 4), s.max.z + margin)
@@ -255,6 +411,7 @@ enum StructCheck {
         // Very large structures (strongholds' bounding boxes can be huge): skip anything over 24x24 chunks.
         guard (cx1 - cx0) <= 24 && (cz1 - cz0) <= 24 else { return ([], 0, 0, 0) }
         w.loadBlocks(cx0: cx0 - 1, cz0: cz0 - 1, cx1: cx1 + 1, cz1: cz1 + 1)
+        if meet { return (meetCheck(w, s, typeName: typeName, seed: seed), 0, 0, 0) }
         // Blocks the structure wrote: compare with the bare terrain.
         var written = Set<Int>()
         var writtenSolid: [Int: [Int]] = [:]           // column key -> written solid y values
@@ -264,7 +421,7 @@ enum StructCheck {
             for z in 0..<CS { for x in 0..<CS {
                 let wx = cx * CS + x, wz = cz * CS + z
                 if wx < s.min.x || wx > s.max.x || wz < s.min.z || wz > s.max.z { continue }
-                for y in max(1, s.min.y)...min(CH - 2, s.max.y) {
+                for y in thru(max(1, s.min.y), min(CH - 2, s.max.y)) {
                     let b = w.block(wx, y, wz)
                     if b == raw[Chunk.index(x, y, z)] { continue }
                     written.insert(key(wx, y, wz))
@@ -321,7 +478,7 @@ enum StructCheck {
         var explained = false
         var viewArgs = ""
         if walk {
-            for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 let b = w.block(x, y, z)
                 guard Blocks.shape[Int(b)] == "door" else { continue }
                 let st = Int(b - Blocks.groupBase[Int(b)])
@@ -378,8 +535,20 @@ enum StructCheck {
                     add("door_needs_jump", p, "reachable only with 1-block jumps; ground round the outer side (rows z-3...z+3): " + grid.joined(separator: " | "))
                 }
             } } }
+            // Check fix 28: another structure's pieces that reach into this one's box (a Greywall base's own depot, built
+            // against its wall, P469: its magazine chests, walked from the depot's own gate by the depot's check, counted as
+            // the base's from the base's side of the fence: poi_unreachable 12).
+            var foreign: [Piece] = []
+            if let reg = w.gen.structures {
+                let ccx = floorDiv((s.min.x + s.max.x) / 2, CS), ccz = floorDiv((s.min.z + s.max.z) / 2, CS)
+                for t in reg.types where t.name != typeName && t.name != kind {
+                    for o in reg.startsNear(cx: ccx, cz: ccz, t) where o.kind != kind {
+                        foreign += o.pieces.filter { $0.max.x >= s.min.x && $0.min.x <= s.max.x && $0.max.z >= s.min.z && $0.min.z <= s.max.z }
+                    }
+                }
+            }
             // Points of interest and beds.
-            for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 guard written.contains(key(x, y, z)) else { continue }
                 let b = w.block(x, y, z)
                 let base = Blocks.key(Blocks.groupBase[Int(b)])
@@ -401,6 +570,11 @@ enum StructCheck {
                     return inX && inYZ
                 }
                 if !own { continue }
+                if foreign.contains(where: { (pc: Piece) -> Bool in
+                    let inX: Bool = x >= pc.min.x && x <= pc.max.x
+                    let inYZ: Bool = y >= pc.min.y && y <= pc.max.y && z >= pc.min.z && z <= pc.max.z
+                    return inX && inYZ
+                }) { continue }
                 // A world-gen dungeon's chest inside the box (mossy cobblestone floor, a spawner beside it): not the
                 // structure's own (run 373: a Steelhold foundation closed a dungeon's cave opening).
                 // Another structure's chest inside this box (a desert pyramid's treasure room under a citadel, seed
@@ -431,6 +605,9 @@ enum StructCheck {
                 pois += 1
                 // The desert pyramid's treasure room is reached by digging through the floor pattern, by design.
                 if kind == "desert_pyramid" && base == "chest" { continue }
+                // (Check fix 25: a chest in a barred cell, bars on all four sides, is a deliberate cell broken into: the
+                // Chain Gaol's cells, HellWorks.)
+                if [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy({ Blocks.key(w.materialAt(x + $0.0, y, z + $0.1)) == "iron_bars" }) { continue }
                 var ok = false
                 for dz in -1...1 { for dx in -1...1 where !ok && (dx != 0 || dz != 0) {
                     for dy in [-1, 0, 1] where !ok {
@@ -510,7 +687,7 @@ enum StructCheck {
         }
         // Torches the structure placed: a standing one needs a top to stand on, a wall one a block behind it.
         var torchIssues = 0
-        for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+        for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             guard written.contains(key(x, y, z)) else { continue }
             let b = w.block(x, y, z)
             guard Blocks.shape[Int(b)] == "torch" else { continue }
@@ -529,6 +706,22 @@ enum StructCheck {
                 add("torch_unsupported", IVec3(x, y, z), st == 0 ? "standing torch over \(Blocks.key(w.materialAt(x, y - 1, z)))" : "wall torch with nothing behind it")
             }
         } } }
+        // Ladders the structure placed: each needs a block behind it (ledger 30: a depot tank wagon's side ladder hung
+        // on a corner). State f's panel is on side [1, 0, 3, 2][f] (BlocksBuilding), so its back is that side's cell.
+        var ladderIssues = 0
+        for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            guard written.contains(key(x, y, z)) else { continue }
+            let b = w.block(x, y, z)
+            guard Blocks.shape[Int(b)] == "ladder" else { continue }
+            let f = Int(b - Blocks.groupBase[Int(b)])
+            let back: [(Int, Int)] = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+            let (bx, bz) = back[min(3, f)]
+            if !Blocks.collide[Int(w.materialAt(x + bx, y, z + bz))] && ladderIssues < 3 {
+                ladderIssues += 1
+                let sides = [(1, 0, "+x"), (-1, 0, "-x"), (0, 1, "+z"), (0, -1, "-z")].map { "\($0.2) \(Blocks.key(w.materialAt(x + $0.0, y, z + $0.1)))" }
+                add("ladder_unsupported", IVec3(x, y, z), "ladder (state \(f)) with \(Blocks.key(w.materialAt(x + bx, y, z + bz))) behind it; round it \(sides.joined(separator: ", "))")
+            }
+        } } }
         // Structure mobs.
         var mobs = 0
         for (name, pos) in w.pendingMobs where s.contains(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))) {
@@ -545,6 +738,8 @@ enum StructCheck {
             // A villager behind iron bars is a deliberate cell (igloo basement), not a trapped spawn.
             var caged = false
             for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.key(w.materialAt(c.x + dx, c.y, c.z + dz)) == "iron_bars" { caged = true }
+            // (Check fix 25: an outpost's captive stands in a fenced cage two blocks round, by design: OverworldStructures.outpostCamp.)
+            if typeName == "pillager_outpost" || kind == "pillager_outpost" { caged = true }
             if walk && name == "villager" && !caged && !ra.isEmpty, let (sy, _) = standNear(w, c.x, c.y, c.z, up: 0, down: 2), !ra.contains(key(c.x, sy, c.z)) {
                 add("mob_trapped", c, "villager spawn not connected to the village")
             }
@@ -562,7 +757,23 @@ enum StructCheck {
                 var gap = 0
                 var yy = y0 - 1
                 while yy > 0 && top(w, x, yy, z) < 0.4 && Blocks.fluidKind[Int(w.builtBlock(x, yy, z))] == 0 && gap < 8 { gap += 1; yy -= 1 }
-                if gap >= 2 { floating.append(IVec3(x, y0, z)) }
+                // (check fix: a roof over a room whose floor matched the ground it was laid on, so it was never counted as
+                // written: every way out of the room under it, along the gap's top, meets a written wall within 8. The
+                // pueblo's upper tiers on the lower tier's roofs, seed 99: 41 columns. An overhang on a slope is open on
+                // its downhill side and still counts.)
+                var walled = true
+                if gap >= 2 {
+                    for (ex, ez) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                        var k = 1, met = false
+                        while k <= 8 {
+                            let qx = x + ex * k, qz = z + ez * k
+                            if top(w, qx, y0 - 1, qz) >= 0.4 { met = written.contains(key(qx, y0 - 1, qz)); break }
+                            k += 1
+                        }
+                        if !met { walled = false; break }
+                    }
+                }
+                if gap >= 2 && !walled { floating.append(IVec3(x, y0, z)) }
             }
         } }
         if floating.count >= 3 && !["end_city", "fortress", "bastion", "ruined_portal", "end_centre", "sky_isle"].contains(typeName) && kind != "end_centre" {   // the Hollow's exit-portal island and the sky isles (C7) float by design

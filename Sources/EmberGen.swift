@@ -521,7 +521,7 @@ final class HollowGen: TerrainGenerator {
         for z in 0..<CS {
             for x in 0..<CS {
                 guard let i = island(cx * CS + x, cz * CS + z) else { continue }
-                for y in max(0, i.top - i.depth)...i.top { b[Chunk.index(x, y, z)] = endStone }
+                for y in thru(max(0, i.top - i.depth), i.top) { b[Chunk.index(x, y, z)] = endStone }
             }
         }
         spirals(&b, cx: cx, cz: cz)

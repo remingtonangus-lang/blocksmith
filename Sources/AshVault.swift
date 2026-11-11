@@ -146,7 +146,7 @@ extension AshWar {
             let first = h.from, last = h.from + h.dir * (haltLength - 1)
             let lo = min(first, last), hi = max(first, last)
             guard hi >= a && lo <= b else { continue }
-            for t in max(lo, a)...min(hi, b) {
+            for t in thru(max(lo, a), min(hi, b)) {
                 let (cx, cz) = cell(r, t)
                 guard guardSet.clear(floorDiv(cx, CS), floorDiv(cz, CS), 0) else { continue }
                 func at(_ off: Int) -> (Int, Int) { r.alongX ? (cx, cz + off * h.side) : (cx + off * h.side, cz) }
@@ -176,7 +176,7 @@ extension AshWar {
             // platform and behind it, two cells past each end, a gate in the middle of each side.
             let link = Blocks.has("chain_link_fence") ? Blocks.id("chain_link_fence") : k.bars
             let barbs = Blocks.has("ash_wire") ? Blocks.id("ash_wire") : AIR
-            for t in max(lo - 2, a)...min(hi + 2, b) {
+            for t in thru(max(lo - 2, a), min(hi + 2, b)) {
                 let (cx, cz) = cell(r, t)
                 guard guardSet.clear(floorDiv(cx, CS), floorDiv(cz, CS), 0) else { continue }
                 for off in [-3, 5] {

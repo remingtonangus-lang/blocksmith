@@ -63,11 +63,13 @@ enum Saloon {
         let jb = Blocks.id("jukebox")
         let cx = Int(floor(c.x)), cy = Int(floor(c.y)), cz = Int(floor(c.z))
         var best: (Int, IVec3)?
-        for dy in -2...2 { for dz in -14...14 { for dx in -14...14 {
-            guard w.builtBlock(cx + dx, cy + dy, cz + dz) == jb else { continue }
+        // (once a second in town: 4,205 cells, read a chunk at a time)
+        w.scanBuilt(cx - 14, cy - 2, cz - 14, cx + 14, cy + 2, cz + 14, want: { $0 == jb }) { x, y, z in
+            let dx = x - cx, dy = y - cy, dz = z - cz
             let d = dx * dx + dz * dz + dy * dy
-            if d < (best?.0 ?? .max) { best = (d, IVec3(cx + dx, cy + dy, cz + dz)) }
-        } } }
+            if d < (best?.0 ?? .max) { best = (d, IVec3(x, y, z)) }
+            return true
+        }
         return best?.1
     }
 

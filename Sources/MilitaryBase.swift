@@ -186,7 +186,8 @@ enum MilitaryBase {
     static func type(_ gen: WorldGen) -> StructureType {
         // One candidate per 40x40-chunk region (64 left most players never meeting one: Remington playtest 2).
         // The Capital citadel (CapitalBase.swift) under the old key: 113 across, so it reaches 4 chunks from its start.
-        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 6) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 6) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             // Open, fairly flat ground over the whole footprint.
             func site(_ cx: Int, _ cz: Int) -> Int? {
                 let x = cx * CS + 8, z = cz * CS + 8
@@ -207,11 +208,16 @@ enum MilitaryBase {
             // Another structure under the site (seed 424242: a citadel flattened a desert pyramid and buried its
             // treasure room under the plaza, store audit). Only on ground no saved world has seen (clear), so
             // citadels in explored land never move.
+            // Ledger 26 (Nov 5, the world audit: a desert village built against a citadel's wall, an outpost inside its
+            // cleared ring): the other start's footprint, not its anchor, kept off the site, its cleared ring and a
+            // street's width. A town's anchor is its plaza, and its houses reach 60 blocks and more past it.
             func crowded(_ cx: Int, _ cz: Int) -> Bool {
                 guard let sc = gen.structures else { return false }
-                let bx = cx * CS + 8, bz = cz * CS + 8, r = CapitalBase.A + 24
+                let bx = cx * CS + 8, bz = cz * CS + 8, r = CapitalBase.A + 24, e = CapitalBase.A + 16
                 for k in ["temple", "village", "pillager_outpost", "mansion", "trail_ruins"] {
-                    if let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1), abs(o.anchor.x - bx) < r, abs(o.anchor.z - bz) < r { return true }
+                    guard let o = sc.nearest(k, x: bx, z: bz, maxRegions: 1) else { continue }
+                    if abs(o.anchor.x - bx) < r, abs(o.anchor.z - bz) < r { return true }
+                    if WorldRules.citadelFootprints && o.max.x >= bx - e && o.min.x <= bx + e && o.max.z >= bz - e && o.min.z <= bz + e { return true }
                 }
                 return false
             }

@@ -624,7 +624,7 @@ extension Mob {
         while o <= halfW + 0.01 && gone < 6 {
             let q = pos + dir * reach + side * o
             let x = Int(floor(q.x)), z = Int(floor(q.z))
-            for y in y0...max(y0, y1) where gone < 6 {
+            for y in thru(y0, max(y0, y1)) where gone < 6 {
                 let b = w.block(x, y, z)
                 guard b != AIR, !Blocks.isLiquid(b), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
                 let hard = Blocks.hardness[Int(b)]
@@ -726,6 +726,9 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
     // parts (wheels, links, grilles, dischargers) go; the hull, turret, gun and markings stay. The citadel battle's
     // vehicles stay inside the mob vertex budget (questcheck's "ash vault draw").
     let fine: Bool = { guard SoldierRig.drawing, let e = SoldierRig.eye else { return true }; return simd_length_squared(m.pos - e) < 34 * 34 }()
+    // (and past 72 blocks, where a part under a block wide is under a pixel on the headset, a tank keeps only its
+    // outline: tracks, hull, plates, band, turret and gun. The citadel battle's 34 tanks were a fifth of the mob pass.)
+    let far: Bool = { guard SoldierRig.drawing, let e = SoldierRig.eye else { return false }; return simd_length_squared(m.pos - e) > 72 * 72 }()
     func turned(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, pivot: V3, gun: Bool = false, pat: Float = 7) {
         var q = box(x, y, z, w, h, d, c, pat)
         q.pivot = pivot
@@ -770,6 +773,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
                 p.append(box(x, 1.5, Float(k) * 9.5 - 40, outer ? 1.0 : 0.6, 11, 11, steel * (outer ? 1 : 0.8), 8))
                 if outer { p.append(box(s < 0 ? -28.4 : 27.9, 6, Float(k) * 9.5 - 35.6, 0.5, 2.2, 2.2, dark)) }
             }
+            if far { continue }
             p.append(box(s < 0 ? -28 : 18, 4, -46, 10, 10, 6, steel, 8))                      // drive sprocket
             p.append(box(s < 0 ? -21 : 18, 20, 40.6, 3, 2, 0.6, glow, 9))                     // tail lights
             mark(s < 0 ? -28.4 : 28.4, 19.5, 6, side: s, size: 8)
@@ -786,17 +790,19 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
             for x: Float in [-16, -6, 4] { p.append(box(x, 28, 22, 8, 0.6, 12, dark)) }       // engine deck grilles
         }
         p.append(box(-28.4, 25, -30, 56.8, 2, 20, red))                                        // red band on both flanks
-        for x: Float in [-15, 11] {                                                            // exhaust stacks with guards
+        for x: Float in [-15, 11] where !far {                                                 // exhaust stacks with guards
             p.append(box(x, 14, 38, 4, 13, 4, steel, 8))
             if fine { p.append(box(x + 0.5, 27, 38.5, 3, 0.6, 3, V3(0.02, 0.02, 0.02))) }
         }
         let pv = V3(0, 33.5, -2)
         turned(-19, 28, -20, 38, 14, 34, black, pivot: pv)                                     // boxy turret
-        turned(-18, 42, -18, 36, 0.8, 30, plate, pivot: pv)                                    // roof
-        turned(-15, 30, 14, 30, 9, 8, plate, pivot: pv)                                        // stowage bin
+        if !far {
+            turned(-18, 42, -18, 36, 0.8, 30, plate, pivot: pv)                                // roof
+            turned(-15, 30, 14, 30, 9, 8, plate, pivot: pv)                                    // stowage bin
+        }
         turned(-19.4, 37, -14, 38.8, 2, 20, red, pivot: pv, pat: 0)                            // turret band
-        turned(-14, 42.8, 2, 9, 4, 9, plate, pivot: pv)                                        // commander's cupola
-        if !m.tamed {                                                                          // the commander, head out
+        if !far { turned(-14, 42.8, 2, 9, 4, 9, plate, pivot: pv) }                            // commander's cupola
+        if !m.tamed && !far {                                                                  // the commander, head out
             turned(-12, 46.8, 4.5, 5, 4, 4, coat, pivot: pv, pat: 0)
             turned(-11.5, 50.8, 4.5, 4, 4, 4, skin, pivot: pv, pat: 0)
             turned(-12, 53.6, 4, 5, 1.6, 5, helm, pivot: pv, pat: 0)
@@ -809,7 +815,7 @@ func ashVehicleParts(_ m: Mob) -> [Part] {
         }
         turned(-10, 29, -25, 20, 11, 5, plate, pivot: pv, gun: true)                           // mantlet
         turned(-1.6, 32.9, -96 + kick, 3.2, 3.2, 72, steel, pivot: pv, gun: true, pat: 8)      // long gun
-        turned(-3, 31.5, -100.4 + kick, 6, 6, 2.0, dark, pivot: pv, gun: true, pat: 8)         // double-baffle muzzle brake
+        if !far { turned(-3, 31.5, -100.4 + kick, 6, 6, 2.0, dark, pivot: pv, gun: true, pat: 8) }   // double-baffle muzzle brake
         if fine {
             turned(-3, 31.5, -97.2 + kick, 6, 6, 1.4, dark, pivot: pv, gun: true, pat: 8)
             turned(5, 31, -28, 1.5, 1.5, 4, dark, pivot: pv, gun: true)                        // coaxial MG

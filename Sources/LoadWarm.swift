@@ -37,6 +37,7 @@ enum LoadWarm {
         _ = Mesher.bevelT
         _ = Mesher.iceT
         _ = Mesher.leafT
+        _ = Mesher.farPlantT
         _ = Mob.earth
         _ = NaturalCensus.natural
         _ = NaturalCensus.bulkShare
@@ -76,5 +77,7 @@ enum LoadWarm {
         _ = WorldObjects.candidate
         _ = WorldObjects.isPost
         _ = WorldObjects.isLight
+        _ = GameBlocks.sculkIDs
+        _ = AudioState.kindTable
     }
 }

@@ -48,10 +48,19 @@ enum DoorwayCheck {
             results[opening] = (before, after)
         }
         wall("none")
+        // Nov 4: a chair standing alone (open floor either side, no frame) is no doorway: walked into 0.38 off its middle,
+        // the body is not slid aside toward the cell beside it (the ride check's crawler deck: 7 b/s off his line).
+        for x in (a.fx - 4)...(a.fx + 4) { for y in y1...(y1 + 2) { set(x, y, wz, AIR) } }
+        let chair = Blocks.has("oak_chair") ? Blocks.id("oak_chair") : STONE
+        set(a.fx, y1, wz, chair)
+        _ = walk(0.38)
+        let chairAside = g.player.pos.x - (Float(a.fx) + 0.5 + 0.38)
+        set(a.fx, y1, wz, AIR)
+        wall("none")
         let z0 = Float(a.fz) + 0.5
         let solid = walk(0.38)
         let x = g.player.pos.x - (Float(a.fx) + 0.5 + 0.38)
-        check(results["door"]!.1 && results["gap"]!.1 && solid > Float(wz) + 1 && abs(x) < 0.01,
-              "doorway: 0.38 off the middle (and 0.6 off at 40 degrees, P501), through an open bulkhead door \(results["door"]!.1) (without the assist \(results["door"]!.0)), a bare gap \(results["gap"]!.1) (\(results["gap"]!.0)); into a plain wall it stays put (\(String(format: "%.2f", z0 - solid)) on, \(String(format: "%.2f", x)) aside)")
+        check(results["door"]!.1 && results["gap"]!.1 && solid > Float(wz) + 1 && abs(x) < 0.01 && abs(chairAside) < 0.05,
+              "doorway: 0.38 off the middle (and 0.6 off at 40 degrees, P501), through an open bulkhead door \(results["door"]!.1) (without the assist \(results["door"]!.0)), a bare gap \(results["gap"]!.1) (\(results["gap"]!.0)); into a plain wall it stays put (\(String(format: "%.2f", z0 - solid)) on, \(String(format: "%.2f", x)) aside); into a lone chair \(String(format: "%.2f", chairAside)) aside")
     }
 }

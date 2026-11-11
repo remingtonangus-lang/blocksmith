@@ -109,31 +109,42 @@ extension RenderTest {
     final class ShotRig {
         let game: Game, scene: SceneRenderer, wr: WorldRenderer, img: VkImg, targets: [RenderTarget], readback: VkBuf
         let width: Int, height: Int, proj: float4x4, far: Float
-        init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float) throws {
-            self.game = game; self.width = width; self.height = height
-            scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
+        // `ring`: the far plane as the headset's (the F4 middle ring's reach too), for the void count's shots.
+        convenience init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, ring: Bool = false) throws {
+            let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
             try scene.uploadTextures()
-            wr = WorldRenderer(scene: scene, game: game)
+            let wr = WorldRenderer(scene: scene, game: game)
             wr.landmarkHost = Renderer(game: game)
+            try self.init(game: game, scene: scene, wr: wr, ctx: ctx, width: width, height: height, fovDeg: fovDeg, ring: ring)
+        }
+        // On a renderer already running (the frame soak's own: a second renderer beside it read back other memory).
+        init(game: Game, scene: SceneRenderer, wr: WorldRenderer, ctx: VkContext, width: Int, height: Int, fovDeg: Float, ring: Bool = false) throws {
+            self.game = game; self.width = width; self.height = height
+            self.scene = scene; self.wr = wr
             img = try VkImg(ctx, width: width, height: height, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
                             usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_SRC_BIT.rawValue)
             targets = [try scene.makeTarget(image: img.image, width: width, height: height),
                        try scene.makeTarget(image: img.image, width: width, height: height)]
             let t = tanf(fovDeg * .pi / 360)
-            far = Float(game.world.renderDistance * 16 + 96)
+            let ringFar: Float = ring && FarRing.enabled && game.dim.dim == .overworld ? FarRing.outer + 96 : 0
+            far = max(Float(game.world.renderDistance * 16 + 96), ringFar)
             let tv = t * Float(height) / Float(width)
             proj = XRMath.projection(tanLeft: -t, tanRight: t, tanUp: tv, tanDown: -tv, near: 0.05, far: far)
             readback = try VkBuf(ctx, size: width * height * 4 * 2, usage: VK_BUFFER_USAGE_TRANSFER_DST_BIT.rawValue, host: true)
         }
         func shoot(_ path: String, eye: V3, yaw: Float, pitch: Float) throws {
+            try PNG.encode(rgba: grab(eye: eye, yaw: yaw, pitch: pitch), width: width, height: height).write(to: URL(fileURLWithPath: path))
+        }
+        // The shot's left eye (width x height RGBA), not written anywhere.
+        func grab(eye: V3, yaw: Float, pitch: Float, frames: Int = 2) throws -> [UInt8] {
             let head = simd_quatf(angle: yaw, axis: V3(0, 1, 0)) * simd_quatf(angle: pitch, axis: V3(1, 0, 0))
             let vp = proj * XRMath.inversePose(head, .zero)
             game.player.yaw = yaw; game.player.pitch = pitch
             game.player.pos = eye - V3(0, game.player.eyeHeight, 0)
             let cam = EyeCamera(center: eye, viewProj: [vp, vp], cullViewProj: vp, yaw: yaw, pitch: pitch, far: far)
-            for fi in 0..<2 {
+            for fi in 0..<max(1, frames) {
                 let s = scene.beginFrame()
-                wr.record(s, targets[fi], cam)
+                wr.record(s, targets[fi % 2], cam)
                 vkCmdEndRenderPass(s.cmd)
                 vkBarrier(s.cmd, img.image, from: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, to: VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layers: 2,
                           srcAccess: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_TRANSFER_READ_BIT.rawValue,
@@ -148,8 +159,35 @@ extension RenderTest {
             let src = readback.mapped!.bindMemory(to: UInt8.self, capacity: width * height * 8)
             var out = [UInt8](repeating: 0, count: width * height * 4)
             for i in 0..<(width * height) { out[i * 4] = src[i * 4]; out[i * 4 + 1] = src[i * 4 + 1]; out[i * 4 + 2] = src[i * 4 + 2]; out[i * 4 + 3] = 255 }
-            try PNG.encode(rgba: out, width: width, height: height).write(to: URL(fileURLWithPath: path))
+            return out
         }
+    }
+
+    // FAILURES 4 (questcheck --view --voidcount) and week item 63 (the frame soak's void check): in a probe frame
+    // (WorldRenderer.voidProbe: cleared to magenta, QUEST_SKIP=sky: no sky drawn), the magenta pixels where the ray goes
+    // more than 12 degrees below the horizon (it meets ground within the loaded land on all but a cliff's edge): the gaps
+    // the sky shows through. Pure green ones (only the horizon's fog floor, Renderer.buildHorizon, met the ray: no hole,
+    // but no ground either) are counted apart. `img` holds `eyes` views side by side, each width x height.
+    struct VoidCount { var holes = 0, below = 0, backstop = 0; var rows = Set<Int>(), cols = Set<Int>(); var marks: [(Int, Int)] = [] }
+    static func countVoid(_ img: [UInt8], width vwid: Int, height vhei: Int, eyes: Int, fovDeg vfov: Float, pitch: Float) -> VoidCount {
+        var c = VoidCount()
+        let tw = tanf(vfov * .pi / 360), th = tw * Float(vhei) / Float(vwid)
+        let cp = cosf(pitch), sp = sinf(pitch), lim = sinf(-12 * .pi / 180)
+        for eye in 0..<eyes { for y in 0..<vhei {
+            let vy = (1 - 2 * (Float(y) + 0.5) / Float(vhei)) * th
+            for x in 0..<vwid {
+                let vx = (2 * (Float(x) + 0.5) / Float(vwid) - 1) * tw
+                let wy = (cp * vy + sp) / sqrtf(vx * vx + vy * vy + 1)
+                guard wy < lim else { continue }
+                c.below += 1
+                let i = ((y * vwid * eyes) + eye * vwid + x) * 4
+                if i + 2 < img.count, img[i] < 25, img[i + 1] > 235, img[i + 2] < 25 { c.backstop += 1 }
+                guard i + 2 < img.count, img[i] > 235, img[i + 1] < 25, img[i + 2] > 235 else { continue }
+                c.holes += 1; c.rows.insert(y / 8); c.cols.insert((eye * vwid + x) / 8)
+                if c.marks.count < 4000 { c.marks.append((eye * vwid + x, y)) }
+            }
+        } }
+        return c
     }
 
     static func renderTurn(game: Game, ctx: VkContext, path: String, width: Int, height: Int, yaw: Float, pitch: Float,
@@ -170,7 +208,7 @@ extension RenderTest {
         let readback = try VkBuf(ctx, size: width * height * 4 * 2, usage: VK_BUFFER_USAGE_TRANSFER_DST_BIT.rawValue, host: true)
         let center = game.player.eye
         let base = path.hasSuffix(".png") ? String(path.dropLast(4)) : path
-        var recMs: [Double] = []
+        var recMs: [Double] = [], gpuMs: [Double] = []
         // Two frames at the starting yaw first (the far ring and landmark shells built), then the turn.
         for fi in -2..<frames {
             let y = yaw + 2 * .pi * Float(max(0, fi)) / Float(frames)
@@ -189,9 +227,11 @@ extension RenderTest {
             r.imageSubresource = VkImageSubresourceLayers(aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, mipLevel: 0, baseArrayLayer: 0, layerCount: 2)
             r.imageExtent = VkExtent3D(width: UInt32(width), height: UInt32(height), depth: 1)
             vkCmdCopyImageToBuffer(s.cmd, img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, readback.buffer, 1, &r)
+            let g0 = CFAbsoluteTimeGetCurrent()
             try scene.submit(s)
             scene.waitIdle()
             guard fi >= 0 else { continue }
+            gpuMs.append((CFAbsoluteTimeGetCurrent() - g0) * 1000)
             recMs.append(wr.frameCPUMs)
             let src = readback.mapped!.bindMemory(to: UInt8.self, capacity: width * height * 8)
             var out = [UInt8](repeating: 0, count: width * 2 * height * 4)
@@ -201,11 +241,14 @@ extension RenderTest {
             } } }
             let name = base + String(format: "-%03d.png", fi)
             try PNG.encode(rgba: out, width: width * 2, height: height).write(to: URL(fileURLWithPath: name))
-            print(String(format: "turn %03d: yaw %.1f, %d sections, %d draws, %d quads, CPU record %.2f ms (cull %.2f)",
-                         fi, Double(y) * 180 / .pi, scene.visibleCount, scene.drawCalls, scene.drawnQuads, wr.frameCPUMs, scene.cullMs))
+            print(String(format: "turn %03d: yaw %.1f, %d sections, %d draws, %d quads, CPU record %.2f ms (cull %.2f), drawn by lavapipe %.1f ms",
+                         fi, Double(y) * 180 / .pi, scene.visibleCount, scene.drawCalls, scene.drawnQuads, wr.frameCPUMs, scene.cullMs, gpuMs.last ?? 0))
         }
         let mean = recMs.reduce(0, +) / Double(max(1, recMs.count))
-        print(String(format: "turn: %d frames, CPU record mean %.2f ms, worst %.2f ms; stages ", recMs.count, mean, recMs.max() ?? 0) + wr.takeStages())
+        // (Nov 11: the frame's submit to idle on lavapipe: the GPU side's cost on the host's CPU, for A/B of a shader)
+        let gmean = gpuMs.reduce(0, +) / Double(max(1, gpuMs.count))
+        print(String(format: "turn: %d frames, CPU record mean %.2f ms, worst %.2f ms; drawn by lavapipe mean %.1f ms; stages ", recMs.count, mean,
+                     recMs.max() ?? 0, gmean) + wr.takeStages())
         scene.waitIdle()
         withExtendedLifetime((img, targets, readback)) {}
     }

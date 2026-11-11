@@ -98,25 +98,32 @@ extension Game {
         var target = V3(floor(player.pos.x * scale) + 0.5, 0, floor(player.pos.z * scale) + 0.5)
         target.x = simd_clamp(target.x, -29_999_000, 29_999_000)
         target.z = simd_clamp(target.z, -29_999_000, 29_999_000)
-        // Load the destination around the target first.
-        changeDimension(to: to, at: V3(target.x, Float(YOFF + 70), target.z))
-        let w = world
-        let range: Float = to == .nether ? 16 : 128
-        var best: IVec3?
-        var bestD = Float.greatestFiniteMagnitude
-        for p in w.portals {
-            let d = simd_length(V2(Float(p.x) - target.x, Float(p.z) - target.z))
-            if d <= range && d < bestD {
-                let b = w.block(p.x, p.y, p.z)
-                if b == PORTAL_X || b == PORTAL_Z || !w.isLoaded(p.x, p.z) { best = p; bestD = d }
+        // Load the destination around the target first (on the headset: once the hold has it, Game.arrivalThen),
+        // then find or build the portal there.
+        changeDimension(to: to, at: V3(target.x, Float(YOFF + 70), target.z)) { [self] in
+            var lt = CFAbsoluteTimeGetCurrent()
+            func lap(_ s: String) { let t = CFAbsoluteTimeGetCurrent(); Game.tripLaps += String(format: "%@ %.1f, ", s, (t - lt) * 1000); lt = t }
+            let w = world
+            let range: Float = to == .nether ? 16 : 128
+            var best: IVec3?
+            var bestD = Float.greatestFiniteMagnitude
+            for p in w.portals {
+                let d = simd_length(V2(Float(p.x) - target.x, Float(p.z) - target.z))
+                if d <= range && d < bestD {
+                    let b = w.block(p.x, p.y, p.z)
+                    if b == PORTAL_X || b == PORTAL_Z || !w.isLoaded(p.x, p.z) { best = p; bestD = d }
+                }
             }
-        }
-        if best == nil { best = buildPortal(near: IVec3(Int(floor(target.x)), 0, Int(floor(target.z)))) }
-        if let b = best {
-            _ = w.loadSync(center: V3(Float(b.x), Float(b.y), Float(b.z)), radius: 2)
-            player.pos = V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5)
-            player.vel = .zero
-            player.airPeak = player.pos.y
+            if best == nil { best = buildPortal(near: IVec3(Int(floor(target.x)), 0, Int(floor(target.z)))) }
+            lap(best == nil ? "portal: none" : "portal: found or built")
+            if let b = best {
+                // (Ledger 40: on the headset nothing here; the hold waits for the ground round where it put him)
+                if !Game.arrivalHold { _ = w.loadSync(center: V3(Float(b.x), Float(b.y), Float(b.z)), radius: 2) }
+                lap("portal: loaded round it")
+                player.pos = V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5)
+                player.vel = .zero
+                player.airPeak = player.pos.y
+            }
         }
         sfx(.portalTravel, 0.8)
     }

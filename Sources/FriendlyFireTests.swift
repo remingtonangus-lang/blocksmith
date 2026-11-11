@@ -12,6 +12,10 @@ enum FriendlyFireTests {
         let w = g.world
         let pos0 = g.player.pos, surv0 = g.survival, fly0 = g.player.flying, mobs0 = g.mobs.mobs, time0 = g.time, menu0 = g.menu
         let riding0 = g.riding, credits0 = g.credits
+        // (Nov 4: every squad starts out for him at the opening standing: a check before this one had left him the
+        // Meridian's ally, and its squad never fired.)
+        let rep0 = FactionRep.rep
+        FactionRep.rep = [:]
         let fx = Int(floor(pos0.x)) - 60, fz = Int(floor(pos0.z)) + 60
         _ = w.loadSync(center: V3(Float(fx), pos0.y, Float(fz)), radius: 3)
         let py = min(CH - 14, w.topY(fx, fz) + 30)
@@ -19,6 +23,7 @@ enum FriendlyFireTests {
         func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) { placed.append((IVec3(x, y, z), w.block(x, y, z))); w.setBlock(x, y, z, b) }
         defer {
             Mob.onHit = nil
+            FactionRep.rep = rep0
             for (p, b) in placed.reversed() { w.setBlock(p.x, p.y, p.z, b) }
             g.mobs.mobs = mobs0; g.riding = riding0; g.credits = credits0
             g.survival = surv0; g.player.flying = fly0; g.player.pos = pos0; g.player.vel = .zero; g.time = time0

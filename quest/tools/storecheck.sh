@@ -32,6 +32,9 @@ if [ "$EXPECT" = 0 ]; then
   sdk=$(echo "$MAN" | sed -n "s/^\(min\)\{0,1\}[sS]dkVersion:'\([0-9]*\)'.*/\2/p" | head -1); tsdk=$(echo "$MAN" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'.*/\1/p")
   pk "minSdk >= 29 ($sdk)" "$([ "${sdk:-0}" -ge 29 ] && echo 1)"
   pk "targetSdk >= 32 ($tsdk)" "$([ "${tsdk:-0}" -ge 32 ] && echo 1)"
+  # (code reader Nov 10, batch 2.6) the launch entitlement check: the platform loader and the store app ID
+  pk "entitlement: platform loader in the APK" "$(unzip -Z1 "$APK" | grep -qx 'lib/arm64-v8a/libovrplatformloader.so' && echo 1)"
+  pk "entitlement: store app ID set" "$(strings -a "$SO" | grep -q '1396130500248132' && echo 1)"
   other=$(unzip -Z1 "$APK" | grep '^lib/' | grep -vc '^lib/arm64-v8a/')
   pk "arm64-v8a libraries only ($other others)" "$([ "$other" -eq 0 ] && echo 1)"
   pk "VR intent category" "$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null | grep -c 'com.oculus.intent.category.VR' | grep -qv '^0$' && echo 1)"

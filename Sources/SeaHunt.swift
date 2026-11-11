@@ -70,13 +70,24 @@ extension Game {
         let r = Rand.float(in: 0..<1)
         guard r < 0.5 else { return }
         let cruiser = r < 0.125
-        // In from 150 blocks off, over open water.
+        // In from 150 blocks off, over open water; past the fog's end at his view when that is further (week item 71 bloom:
+        // at view 12 and up the sails came into being inside the fog).
         let p = player.pos
         let a0 = Rand.float(in: 0..<(2 * .pi))
+        let D = Corsairs.comeIn(world, least: 150)
         for k in 0..<12 {
             let a = a0 + Float(k) * .pi / 6
-            let x = Int(floor(p.x + cosf(a) * 150)), z = Int(floor(p.z + sinf(a) * 150))
-            guard world.isLoaded(x, z), let y = Submarine.surface(world, x, z) else { continue }
+            let ca = cosf(a), sa = sinf(a)
+            let x = Int(floor(p.x + ca * D)), z = Int(floor(p.z + sa * D))
+            // (open water all round where it comes in: a sloop made against a reef or a shore lost its gun and lay there;
+            // 14 in toward him and to each side, 6 out, the edge of what is loaded at the fog's end)
+            let round: [(Float, Float)] = [(-ca * 14, -sa * 14), (-sa * 14, ca * 14), (sa * 14, -ca * 14), (ca * 6, sa * 6)]
+            guard world.isLoaded(x, z), let y = Submarine.surface(world, x, z),
+                  round.allSatisfy({ o in
+                      let ox = x + Int(o.0.rounded()), oz = z + Int(o.1.rounded())
+                      return world.isLoaded(ox, oz) && Submarine.surface(world, ox, oz) != nil
+                  })
+            else { continue }
             let yaw = atan2f(cosf(a), sinf(a))                       // bow (-Z) toward him
             let s = ships.spawnVessel(cruiser ? NavalPatrol.role : "sloop", home: IVec3(x, y + 1, z), game: self, yaw: yaw)
             s.home = p

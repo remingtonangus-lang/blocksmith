@@ -233,12 +233,14 @@ extension Game {
         let bonus = r.wave > r.groups
         // Spawn point on the ground 20-32 blocks from the centre.
         var at = r.center
-        for _ in 0..<20 {
+        for k in 0..<20 {
             let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 20...32)
             let x = Int(floor(r.center.x + cosf(a) * d)), z = Int(floor(r.center.z + sinf(a) * d))
             guard world.isLoaded(x, z) else { continue }
             let y = world.topY(x, z)
             if Blocks.isLiquid(world.builtBlock(x, y, z)) { continue }
+            // Item 71: the first tries out of his view (the wave walks in rather than appearing in front of him).
+            if k < 14 && !Game.oldSpawnSight && !spawnHidden(V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5), min: 12, near: 0) { continue }
             at = V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5)
             break
         }

@@ -231,7 +231,8 @@ extension Capital {
         for z in 0..<L { for y in 0..<40 { for x in -W...W where solid(x, y, z) {
             let edge: Bool = !solid(x + 1, y, z) || !solid(x - 1, y, z) || !solid(x, y + 1, z) || !solid(x, y - 1, z)
                 || !solid(x, y, z + 1) || !solid(x, y, z - 1)
-            if !edge { continue }
+            // (the sensor dome is solid: hollow, its cap met its ring only along their edges and floated: P512)
+            if !edge && !(mfDome(x, y, z) && !mfBridge(x, y, z)) { continue }
             var b: BlockID = hashf(z / 8, y / 4, x < 0 ? 1 : 0, 77) < 0.16 ? plate : hull      // scattered lighter panels
             if mfDome(x, y, z) { b = trim }
             else if mfBoom(x, y, z) && !mfSpine(x, y, z) && (y == 2 || y == 3) { b = trim }
@@ -485,7 +486,7 @@ extension Capital {
             }
         }
         for x in [-3, -2] { hb.set(x, 24, 91, AIR) }
-        hb.set(-4, 26, 88, light)
+        hb.set(-6, 26, 88, light)                    // (P512: in the bridge's side wall; at x -4 it hung in the air)
 
         // The engine room (z 121-154): bulkheads fore and aft, the lower level (floor y 8) and the upper deck (y 14, the
         // main deck's level) over it, ladders between them at both ends. P504: its machinery (FrigateEngineRoom.swift).
@@ -598,7 +599,9 @@ extension Capital {
                 let d2 = (x - nx) * (x - nx) + (y - ny) * (y - ny)
                 // The glowing core fills the whole nozzle (G8: it was a radius smaller, "two small points at night").
                 if d2 <= rr * rr { hb.set(x, y, L - 1, AIR); hb.set(x, y, L - 2, thr) }                    // recessed glowing core
-                else if d2 <= (rr + 1) * (rr + 1) { hb.set(x, y, L - 1, trim) }                          // nozzle ring
+                // (P512: the ring runs a block deep, the nozzle's wall round its core: the core sat a block in, over the
+                // hollow aft of the engine room's bulkhead, and its 209 blocks joined nothing, his P504 "floating" engines)
+                else if d2 <= (rr + 1) * (rr + 1) { hb.set(x, y, L - 1, trim); hb.set(x, y, L - 2, trim) } // nozzle ring
             } }
         }
         // Navigation lights at the boom tips and the engine block's corners.
@@ -643,6 +646,10 @@ extension Capital {
                 hb.post(c.x, c.y, c.z, .troop)
             }
         }
+        // P512 (his P504, "how are the engines floating in space inside the ship?"): where the skin steps more than a block
+        // a cell (the engine block's taper), a skin block met the next only along an edge and hung on nothing; each such
+        // piece takes one block more beside it that meets the hull.
+        hb.joinIslands()
         return hb
     }
 
@@ -736,7 +743,7 @@ extension Capital {
         func ix(_ x: Int, _ z: Int) -> Int { (x + xr) + (z - z0) * W }
         func at(_ x: Int, _ z: Int) -> UInt8 { x < -xr || x > xr || z < z0 || z > z1 ? 0 : t[ix(x, z)] }
         for z in z0...z1 { for x in -xr...xr where inner(x, y, z) && inner(x, y + 1, z) { t[ix(x, z)] = 1 } }
-        for (xa, xb, za, zb) in corridors { for z in max(z0, za)...min(z1, zb) { for x in xa...xb where at(x, z) == 1 { t[ix(x, z)] = 2 } } }
+        for (xa, xb, za, zb) in corridors { for z in thru(max(z0, za), min(z1, zb)) { for x in xa...xb where at(x, z) == 1 { t[ix(x, z)] = 2 } } }
         let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         for z in z0...z1 { for x in -xr...xr where at(x, z) == 1 {
             if z == z0 || dirs.contains(where: { at(x + $0.0, z + $0.1) == 2 }) { t[ix(x, z)] = 3 }

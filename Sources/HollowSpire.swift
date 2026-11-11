@@ -5,7 +5,8 @@ import Foundation
 // treasure chests and shellsentrys, and often a bridge out to an end ship whose hold carries an glider wings.
 enum HollowSpire {
     static func type(_ gen: HollowGen) -> StructureType {
-        StructureType(name: "end_city", spacing: 20, separation: 11, salt: 10387313, reach: 5) { [unowned gen] seed, cx, cz in
+        StructureType(name: "end_city", spacing: 20, separation: 11, salt: 10387313, reach: 5) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let ox = cx * CS + 8, oz = cz * CS + 8
             guard ox * ox + oz * oz > 1000 * 1000 else { return nil }
             // Needs solid island under the whole base (checked at the centre and four corners).
@@ -210,7 +211,7 @@ enum HollowSpire {
                 put(a, 0, b, purpur)                                   // deck
                 if abs(b) == half { put(a, 1, b, purpur) }             // gunwale
             }
-            for b in -max(0, half - 1)...max(0, half - 1) { put(a, -1, b, purpur) }
+            for b in thru(-max(0, half - 1), max(0, half - 1)) { put(a, -1, b, purpur) }
             put(a, -2, 0, OBSIDIAN)
         }
         // Hold (below deck, two blocks tall so it can be walked) with chests, and a two-step hatch down into it.

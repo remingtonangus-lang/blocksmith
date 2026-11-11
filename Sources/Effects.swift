@@ -292,6 +292,12 @@ extension Game {
 
     // Blindness / darkness fog distance (blocks), nil when clear.
     var blindFog: Float? {
+        // Ledger 40: black while held after a trip, then opening out from his feet.
+        if arrivalSince != nil { return 0.3 }
+        if arrivalOpened >= 0 {
+            let t = Float(clock - arrivalOpened) / Float(Game.arrivalOpen)
+            if t < 1 { return 0.3 + t * t * 40 }
+        }
         if effects.has(.blindness) { return 5 }
         if effects.has(.darkness) { return 15 + 5 * sinf(Float(clock) * 2) }
         return nil

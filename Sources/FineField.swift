@@ -12,6 +12,7 @@ import simd
 // rays and every World.fieldDensity(at:) query. The cells (BlockStore.fd) stay what they were (cell solidity, drops,
 // light and the game's block queries are unchanged).
 enum FineField {
+    static var gridColumns = ProcessInfo.processInfo.environment["BS_OLDFINECOLS"] != "1"   // (World.fineColumns)
     static let n = 32, count = 32 * 32 * 32
     static var enabled = ProcessInfo.processInfo.environment["BS_FINE"] != "0"
     @inline(__always) static func index(_ fx: Int, _ fy: Int, _ fz: Int) -> Int { fx + fz * 32 + fy * 1024 }
@@ -132,6 +133,8 @@ extension World {
             f[FineField.index(fx, fy, fz)] = FineField.upsample(v, raw0: r0, allSame: same, t)       // (corners: bit 0 x, 1 y, 2 z)
         } } }
         c.blocks.fine[sy] = f
+        World.fineMade &+= 1
+        if World.fineWhy { World.fineLog.append(SIMD3(Int32(c.cx), Int32(sy), Int32(c.cz))) }
         return true
     }
 
@@ -149,9 +152,7 @@ extension World {
                 for sy in s0...s1 where c0.blocks.fine[sy] == nil {
                     let c = c0.hollow || !c0.cacheDropped ? editing(c0) : c0
                     guard c.blocks.isField, ensureFine(c, sy) else { continue }
-                    World.finePrefetched.removeAll { $0.c == nil }
-                    if World.finePrefetched.count > 64 { World.finePrefetched.removeFirst(World.finePrefetched.count - 64) }  // (never carved: let go)
-                    World.finePrefetched.append(FinePrefetch(c: c, sy: sy, version: c.sections[sy].version))
+                    World.notePrefetched(c, sy)
                     return true
                 }
             }
@@ -221,15 +222,49 @@ extension World {
 
     // fieldBoxes for a cell whose ground reads fine samples: the 4 x 4 quarter-block columns, each solid between the
     // lowest and highest of 9 points up its centre line inside the ground (the fine field as the mesh draws it).
+    // (Store review, the crawler and citadel soaks: one step of a mob's path search took 4-6 ms over cratered or rutted
+    // ground, every cell it looked at reading 144 points here, each eight samples through a chunk lookup (and a coarse
+    // sample's eight more). The 144 points all lie between the same 4 x 4 x 4 samples round the cell: read once, then
+    // interpolated exactly as fineDensity does. FineField.gridColumns false: the old way.)
     func fineColumns(_ x: Int, _ y: Int, _ z: Int, _ out: UnsafeMutablePointer<Float>) {
+        guard FineField.gridColumns else { fineColumnsPointwise(x, y, z, out); return }
+        withUnsafeTemporaryAllocation(of: Float.self, capacity: 64) { S in
+            let bx = 2 * x - 1, by = 2 * y - 1, bz = 2 * z - 1
+            for k in 0..<4 { for j in 0..<4 { for i in 0..<4 { S[i + j * 4 + k * 16] = fineSample(bx + i, by + k, bz + j) } } }
+            @inline(__always) func s(_ fx: Int, _ fy: Int, _ fz: Int) -> Float {
+                let i = fx - bx, k = fy - by, j = fz - bz
+                if i >= 0 && i < 4 && j >= 0 && j < 4 && k >= 0 && k < 4 { return S[i + j * 4 + k * 16] }
+                return fineSample(fx, fy, fz)                    // (far from the origin, where a float's step is coarse)
+            }
+            // fineDensity(at:), its samples taken from S.
+            func dens(_ p: V3) -> Float {
+                let q = p * 2 - 0.5
+                let x0 = Int(floor(q.x)), y0 = Int(floor(q.y)), z0 = Int(floor(q.z))
+                let tx = q.x - Float(x0), ty = q.y - Float(y0), tz = q.z - Float(z0)
+                let c000 = s(x0, y0, z0), c100 = s(x0 + 1, y0, z0)
+                let c010 = s(x0, y0 + 1, z0), c110 = s(x0 + 1, y0 + 1, z0)
+                let c001 = s(x0, y0, z0 + 1), c101 = s(x0 + 1, y0, z0 + 1)
+                let c011 = s(x0, y0 + 1, z0 + 1), c111 = s(x0 + 1, y0 + 1, z0 + 1)
+                let a = c000 + (c100 - c000) * tx, b = c010 + (c110 - c010) * tx
+                let c = c001 + (c101 - c001) * tx, d = c011 + (c111 - c011) * tx
+                let e = a + (b - a) * ty, f = c + (d - c) * ty
+                return e + (f - e) * tz
+            }
+            columns(x, y, z, out, dens)
+        }
+    }
+    func fineColumnsPointwise(_ x: Int, _ y: Int, _ z: Int, _ out: UnsafeMutablePointer<Float>) {
+        columns(x, y, z, out) { fineDensity(at: $0) }
+    }
+    @inline(__always) private func columns(_ x: Int, _ y: Int, _ z: Int, _ out: UnsafeMutablePointer<Float>, _ density: (V3) -> Float) {
         for v in 0..<4 { for u in 0..<4 {
             let px = Float(x) + (Float(u) + 0.5) / 4, pz = Float(z) + (Float(v) + 0.5) / 4
             var lo: Float = -1, hi: Float = -1
-            var prev = fineDensity(at: V3(px, Float(y), pz)), prevT: Float = 0
+            var prev = density(V3(px, Float(y), pz)), prevT: Float = 0
             if prev > 0 { lo = 0; hi = 0 }
             for s in 1...8 {
                 let t = Float(s) / 8
-                let d = fineDensity(at: V3(px, Float(y) + t, pz))
+                let d = density(V3(px, Float(y) + t, pz))
                 if d > 0 {
                     if lo < 0 { lo = prev > 0 ? prevT : prevT + (t - prevT) * prev / (prev - d) }
                     hi = t
@@ -249,7 +284,7 @@ extension Mesher {
     static func fineSection(_ n9: [BlockStore], sy: Int) -> Bool {
         guard FineField.enabled else { return false }
         for st in n9 where !st.fine.isEmpty {
-            for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) where st.fine[s] != nil { return true }
+            for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) where st.fine[s] != nil { return true }
         }
         return false
     }
@@ -265,6 +300,11 @@ extension Mesher {
     // drawn from its cells (`fineBeyond` from World.fineBeyond says what lies past the 3x3 chunks), the ground's two
     // outer half-block cells pin onto the vertex the cells draw there (the nearest of the cells' vertices the half-block
     // cell lies in), so the border is the very polyline the neighbour draws: no slit, no overlap.
+    // (meshbench only: where the half-block ground's time goes; main thread)
+    static var fineTiming = false
+    static var fineT = (pre: 0.0, fill: 0.0, quads: 0.0, subs: 0, empty: 0, adaptive: 0.0)
+    static var oldFineFill = ProcessInfo.processInfo.environment["BS_OLDFINEFILL"] == "1"
+    static var oldFineLookup = ProcessInfo.processInfo.environment["BS_OLDFINELOOKUP"] == "1"
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
                            exact: GrowBuf<Float>? = nil, fineBeyond: [UInt32] = [], _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let vs = sc.fineScratch
@@ -292,6 +332,9 @@ extension Mesher {
             if sy < NSEC - 1 && !fineSection(n9, sy: sy + 1) { coarse |= 32 }
         }
         // The cells' own vertices (the ones the neighbour draws there: the same in every section that meshes them).
+        let timing = Mesher.fineTiming
+        var tA = timing ? CFAbsoluteTimeGetCurrent() : 0
+        defer { if timing { Mesher.fineT.quads += CFAbsoluteTimeGetCurrent() - tA } }
         if coarse != 0 {
             smoothQuads(R, sc, dmg: [:], stored: dens, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles) { _, _, _, _, _, _, _, _, _ in }
         }
@@ -301,60 +344,103 @@ extension Mesher {
         let lo = max(0, C0 - SmoothTerrain.maxRelax - 4), hi = min(RW - 1, C0 + 21 + SmoothTerrain.maxRelax)
         vR.initialize(repeating: AIR, count: RL * RH)
         vD.initialize(repeating: FieldTerrain.outside, count: RL * RH)
+        // The fine samples of the 3x3 chunks' sections below, at and above this one, looked up once: looked up for every
+        // half-block sample (a dictionary find, a SipHash of the section number) they were a fifth of every instruction
+        // the mesh workers ran in the worst-case soak (callgrind, build 265). BS_OLDFINELOOKUP=1: a find a sample.
+        let fineT: [[Int8]?] = (0..<27).map { k in
+            let t = sy + k / 9 - 1
+            return t >= 0 && t < NSEC ? n9[k % 9].fine[t] : nil
+        }
+        let oldLookup = Mesher.oldFineLookup
+        if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.pre += t - tA; tA = t }
+        // The half block at fine, section-local gx, gy, gz: what it is, its density (half-block units) and its light.
+        @inline(__always) func half(_ gx: Int, _ gy: Int, _ gz: Int) -> (BlockID, Int8, UInt8, UInt8) {
+            let src = ri(gx >> 1, gy >> 1, gz >> 1)
+            var d: Int8
+            let ni = (gx >> 5) + 1 + ((gz >> 5) + 1) * 3
+            if let f = oldLookup ? n9[ni].fine[sy + (gy >> 5)] : fineT[ni + ((gy >> 5) + 1) * 9] {
+                d = f[FineField.index(gx & 31, gy & 31, gz & 31)]
+            } else {
+                let bx = (gx - 1) >> 1, by = (gy - 1) >> 1, bz = (gz - 1) >> 1
+                let t = SIMD3<Float>(gx & 1 == 0 ? 0.75 : 0.25, gy & 1 == 0 ? 0.75 : 0.25, gz & 1 == 0 ? 0.75 : 0.25)
+                var c = SIMD8<Float>()
+                let r0 = dens[ri(bx, by, bz)]
+                var same = true
+                for k in 0..<8 {
+                    let r = dens[ri(bx + (k & 1), by + ((k >> 1) & 1), bz + (k >> 2))]
+                    c[k] = Float(r)
+                    if r != r0 { same = false }
+                }
+                d = FineField.upsample(c, raw0: r0, allSame: same, t)
+            }
+            // (distances in half blocks: twice as many units)
+            let dv: Int8 = d == FieldTerrain.inside || d == FieldTerrain.outside ? d : Int8(max(-126, min(126, Int(d) * 2)))
+            // The half block's own: ground where its sample is inside (the cell's ground material, or the one it had
+            // before it was dug), open where it is outside; a built block stays what it is.
+            let rb = R[src]
+            let cellGround = dens[src] > 0 && natT[Int(rb)]
+            var b = rb
+            if d > 0 && !cellGround && (rb == AIR || !opaqueT[Int(rb)]) {
+                // (the ground beside it, under it first: grass reaching up into the open cell over it stays grass)
+                b = DIRT
+                var found = false
+                let around: [Int] = [-RL, 1, -1, RW, -RW, RL]
+                for o in around where dens[src + o] > 0 && natT[Int(R[src + o])] { b = R[src + o]; found = true; break }
+                if !found {
+                    let bx: Int = gx >> 1, by: Int = sy * 16 + (gy >> 1), bz: Int = gz >> 1
+                    let ni: Int = (bx >> 4) + 1 + ((bz >> 4) + 1) * 3
+                    let st = n9[ni]
+                    var m = 0
+                    if by >= 0 && by < CH { m = Int(st.material(Chunk.index(bx & 15, by, bz & 15))) }
+                    if m != 0 { b = FieldMat.blocks[m] }
+                }
+            } else if d <= 0 && cellGround {
+                b = AIR
+            }
+            var sl = sky[src], bl = blk[src]
+            if !loT[Int(b)] && loT[Int(rb)] {
+                // (open inside a cell the light flood took as solid: the light of the open cells beside it)
+                for o in [1, -1, RW, -RW, RL, -RL] where !loT[Int(R[src + o])] { sl = max(sl, sky[src + o]); bl = max(bl, blk[src + o]) }
+            }
+            return (b, dv, sl, bl)
+        }
+        // Each eighth's region reaches maxRelax + 4 half blocks past its own 16, so the eight overlapped: every half block
+        // was worked out about three times (a fifth of the mesher's time in dug ground). Now once each, over the 50^3 box
+        // all eight read (fine -8...41 on each axis), copied row by row into each eighth's region. BS_OLDFINEFILL=1: before.
+        let fW = hi - lo + 1 + 16, fL = fW * fW, g0 = lo - C0
+        let oldFill = Mesher.oldFineFill
+        precondition(fW == MeshScratch.fineFillW)
+        if !oldFill {
+            let FF = vs.fill, FR = FF.r, FD = FF.d, FS = FF.s, FB = FF.b
+            var k = 0
+            for gy in g0..<(g0 + fW) { for gz in g0..<(g0 + fW) { for gx in g0..<(g0 + fW) {
+                let h = half(gx, gy, gz)
+                FR[k] = h.0; FD[k] = h.1; FS[k] = h.2; FB[k] = h.3
+                k += 1
+            } } }
+        }
         for v in 0..<8 {
             let vx = v & 1, vy = (v >> 1) & 1, vz = v >> 2
-            for ry in lo...hi { for rz in lo...hi { for rx in lo...hi {
-                let gx = rx - C0 + vx * 16, gy = ry - C0 + vy * 16, gz = rz - C0 + vz * 16     // fine, section-local
-                let j = rx + rz * RW + ry * RL
-                let src = ri(gx >> 1, gy >> 1, gz >> 1)
-                var d: Int8
-                if let f = n9[(gx >> 5) + 1 + ((gz >> 5) + 1) * 3].fine[sy + (gy >> 5)] {
-                    d = f[FineField.index(gx & 31, gy & 31, gz & 31)]
-                } else {
-                    let bx = (gx - 1) >> 1, by = (gy - 1) >> 1, bz = (gz - 1) >> 1
-                    let t = SIMD3<Float>(gx & 1 == 0 ? 0.75 : 0.25, gy & 1 == 0 ? 0.75 : 0.25, gz & 1 == 0 ? 0.75 : 0.25)
-                    var c = SIMD8<Float>()
-                    let r0 = dens[ri(bx, by, bz)]
-                    var same = true
-                    for k in 0..<8 {
-                        let r = dens[ri(bx + (k & 1), by + ((k >> 1) & 1), bz + (k >> 2))]
-                        c[k] = Float(r)
-                        if r != r0 { same = false }
-                    }
-                    d = FineField.upsample(c, raw0: r0, allSame: same, t)
-                }
-                // (distances in half blocks: twice as many units)
-                vD[j] = d == FieldTerrain.inside || d == FieldTerrain.outside ? d : Int8(max(-126, min(126, Int(d) * 2)))
-                // The half block's own: ground where its sample is inside (the cell's ground material, or the one it had
-                // before it was dug), open where it is outside; a built block stays what it is.
-                let rb = R[src]
-                let cellGround = dens[src] > 0 && natT[Int(rb)]
-                var b = rb
-                if d > 0 && !cellGround && (rb == AIR || !opaqueT[Int(rb)]) {
-                    // (the ground beside it, under it first: grass reaching up into the open cell over it stays grass)
-                    b = DIRT
-                    var found = false
-                    let around: [Int] = [-RL, 1, -1, RW, -RW, RL]
-                    for o in around where dens[src + o] > 0 && natT[Int(R[src + o])] { b = R[src + o]; found = true; break }
-                    if !found {
-                        let bx: Int = gx >> 1, by: Int = sy * 16 + (gy >> 1), bz: Int = gz >> 1
-                        let ni: Int = (bx >> 4) + 1 + ((bz >> 4) + 1) * 3
-                        let st = n9[ni]
-                        var m = 0
-                        if by >= 0 && by < CH { m = Int(st.material(Chunk.index(bx & 15, by, bz & 15))) }
-                        if m != 0 { b = FieldMat.blocks[m] }
-                    }
-                } else if d <= 0 && cellGround {
-                    b = AIR
-                }
-                vR[j] = b
-                var sl = sky[src], bl = blk[src]
-                if !loT[Int(b)] && loT[Int(rb)] {
-                    // (open inside a cell the light flood took as solid: the light of the open cells beside it)
-                    for o in [1, -1, RW, -RW, RL, -RL] where !loT[Int(R[src + o])] { sl = max(sl, sky[src + o]); bl = max(bl, blk[src + o]) }
-                }
-                vSky[j] = sl; vBlk[j] = bl
-            } } }
+            if oldFill {
+                for ry in lo...hi { for rz in lo...hi { for rx in lo...hi {
+                    let h = half(rx - C0 + vx * 16, ry - C0 + vy * 16, rz - C0 + vz * 16)     // fine, section-local
+                    let j = rx + rz * RW + ry * RL
+                    vR[j] = h.0; vD[j] = h.1; vSky[j] = h.2; vBlk[j] = h.3
+                } } }
+            } else {
+                let n = hi - lo + 1, FF = vs.fill
+                for ry in lo...hi { for rz in lo...hi {
+                    let j = lo + rz * RW + ry * RL
+                    let k = vx * 16 + (rz - lo + vz * 16) * fW + (ry - lo + vy * 16) * fL
+                    (vR + j).update(from: FF.r + k, count: n)
+                    (vD + j).update(from: FF.d + k, count: n)
+                    (vSky + j).update(from: FF.s + k, count: n)
+                    (vBlk + j).update(from: FF.b + k, count: n)
+                } }
+            }
+            if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.fill += t - tA; tA = t }
+            var emitted = 0
+            defer { if timing { Mesher.fineT.subs += 1; if emitted == 0 { Mesher.fineT.empty += 1 } } }
             let e0 = exact?.count ?? 0
             let off = SIMD3<Float>(Float(vx * 16), Float(vy * 16), Float(vz * 16))
             let pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = coarse == 0 ? nil : { hx, hy, hz, p in
@@ -387,6 +473,7 @@ extension Mesher {
                 return (best * 16).rounded(.toNearestOrAwayFromZero) / 16 * 2 - off
             }
             smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact, pin: pin) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                emitted += 1
                 emit((x16 + vx * 256) >> 1, (y16 + vy * 256) >> 1, (z16 + vz * 256) >> 1, f, tint, layer, ao, l, ncode)
             }
             // (P383: the unsnapped positions, scaled back from half blocks like the snapped ones)
@@ -397,20 +484,35 @@ extension Mesher {
                     ex.ptr[i + 2] = (ex.ptr[i + 2] + Float(vz * 16)) * 0.5
                 }
             }
+            if timing { let t = CFAbsoluteTimeGetCurrent(); Mesher.fineT.quads += t - tA; tA = t }
         }
         sc.smValid = false
     }
 }
 
-// A section prefetchFine made: the chunk itself (weak: an ObjectIdentifier outlives its chunk and comes back for the
-// next one made at that address) and the section's version then. It counts as fresh only while both still hold: any
-// edit since (a placed block's ensureFine, another carve) bumps the version, and a fresh section a sphere leaves as it
-// was is let go, which would throw that edit's fine ground away.
-struct FinePrefetch { weak var c: Chunk?; let sy: Int; let version: Int }
+// A section prefetchFine made: the chunk (its identity and a mark it was given then: an ObjectIdentifier outlives its
+// chunk and comes back for the next one made at that address, which starts unmarked) and the section's version then.
+// It counts as fresh only while both still hold: any edit since (a placed block's ensureFine, another carve) bumps the
+// version, and a fresh section a sphere leaves as it was is let go, which would throw that edit's fine ground away.
+// (Item 7: it held the chunk weakly, and a weak reference gives its object a side table for life: every retain and
+// release of the chunks round a blast or a rut, the busiest chunks there are, took the slow path, part of the 6% of the
+// worst-case soak's instructions in slow reference counting.)
+struct FinePrefetch { let c: ObjectIdentifier; let mark: Int; let sy: Int; let version: Int }
 extension World {
     static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
+    static var fineMade = 0                              // (sections given their fine samples: the soak's slowest bowl step)
+    // (BS_FINEWHY=1, the soak: which sections a bowl step made past its prefetch, printed by CraterJob)
+    static let fineWhy = ProcessInfo.processInfo.environment["BS_FINEWHY"] == "1"
+    static var fineLog: [SIMD3<Int32>] = []
+    static var prefetchMarks = 0                         // (main thread)
+    static func notePrefetched(_ c: Chunk, _ sy: Int) {
+        if c.prefetchMark == 0 { prefetchMarks += 1; c.prefetchMark = prefetchMarks }
+        if finePrefetched.count >= 64 { finePrefetched.removeFirst(finePrefetched.count - 63) }  // (never carved: let go)
+        finePrefetched.append(FinePrefetch(c: ObjectIdentifier(c), mark: c.prefetchMark, sy: sy, version: c.sections[sy].version))
+    }
     static func takePrefetched(_ c: Chunk, _ sy: Int) -> Bool {
-        guard let i = finePrefetched.firstIndex(where: { $0.c === c && $0.sy == sy }) else { return false }
+        let id = ObjectIdentifier(c)
+        guard c.prefetchMark != 0, let i = finePrefetched.firstIndex(where: { $0.c == id && $0.mark == c.prefetchMark && $0.sy == sy }) else { return false }
         let p = finePrefetched.remove(at: i)
         return p.version == c.sections[sy].version
     }

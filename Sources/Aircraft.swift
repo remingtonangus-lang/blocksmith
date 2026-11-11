@@ -112,7 +112,7 @@ enum Aircraft {
 
 // Seated crews ride exactly in their seats (the deck carry lets walking riders slide in a fast turn).
 enum FlightCrew {
-    struct Seat { weak var mob: Mob?; weak var ship: Ship?; var local: V3 }
+    struct Seat { weak var mob: Mob?; @WeakLink var ship: Ship? = nil; var local: V3 }
     static var seats: [Seat] = []
 
     static func tick(_ g: Game) {

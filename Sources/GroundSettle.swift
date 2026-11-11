@@ -108,7 +108,8 @@ enum GroundSettle {
     // the seeds among them. (Store review, build 96's crawler soak: "ground collapse" up to 8.3 ms of a frame; a
     // rut's every ground seed in natural ground ran its own further fill to the 40-cell reach, the same piece each time.)
     static var lastHeld: [IVec3] = []
-    static func bigPiece(_ w: World, from s: IVec3, around p: IVec3) -> [IVec3]? {
+    // held: cells of ground already found held this check (ledger 41): meeting one, the piece is held too.
+    static func bigPiece(_ w: World, from s: IVec3, around p: IVec3, held: CellMarks? = nil) -> [IVec3]? {
         let seen = bigMarks
         seen.reset(around: p)
         _ = seen.insert(s)
@@ -122,6 +123,10 @@ enum GroundSettle {
             }
             for e in World.allDirs {
                 let n = c + e
+                if let h = held, h.contains(n) {
+                    lastHeld.removeAll(keepingCapacity: true); lastHeld += cells; lastHeld += stack
+                    return nil
+                }
                 if w.isGround(n) && seen.insert(n) { stack.append(n) }
             }
         }
@@ -143,22 +148,34 @@ enum GroundSettle {
     }
 
     private static let objDone = CellSet(capacity: 4096), objSeen = CellSet(capacity: 1024)
+    static var objLaps = ""                          // (perf scenes: the last call's scan, floods and falls)
     static func objects(_ g: Game, _ p: IVec3, _ r: Int) {
         let w = g.world
         let R = r + 2
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var t1 = t0, floodS = 0.0, scanned = 0, nBases = 0, flooded = 0, fell = 0
+        defer {
+            let t3 = CFAbsoluteTimeGetCurrent()
+            let scanMs: Double = (t1 - t0) * 1000, floodMs: Double = floodS * 1000
+            let fallMs: Double = (t3 - t1) * 1000 - floodMs
+            objLaps = String(format: "scan %.1f (%d queued, %d bases), floods %.1f (%d cells), falls %.1f (%d)", scanMs, scanned, nBases, floodMs, flooded, fallMs, fell)
+        }
         var bases: [IVec3] = []
         for y in stride(from: max(1, p.y - R), through: min(CH - 2, p.y + R + 2), by: 1) { for z in (p.z - R)...(p.z + R) { for x in (p.x - R)...(p.x + R) {
             let b = w.builtBlock(x, y, z)
             guard b != AIR, !Blocks.isLiquid(b) else { continue }
             let q = IVec3(x, y, z)
             w.gravityQueue.append(q)                         // plants pop, sand and gravel fall (Game.gravityTick)
+            scanned += 1
             if !fallSkip[Int(b)] && !w.solidAt(x, y - 1, z) { bases.append(q) }
         } } }
+        t1 = CFAbsoluteTimeGetCurrent(); nBases = bases.count
         // (store review: the kept cell sets, as the border flood, instead of hashed Set<IVec3>s merged per base)
         let done = objDone, seen = objSeen
         done.removeAll()
         var seenList: [IVec3] = []
         for s in bases where !done.contains(s) {
+            let tf = CFAbsoluteTimeGetCurrent()
             // The built piece standing here (6-connected solid built blocks, leaves aside), and whether anything holds it.
             seen.removeAll(); seen.insert(s)
             seenList.removeAll(keepingCapacity: true); seenList.append(s)
@@ -179,7 +196,10 @@ enum GroundSettle {
                 if held { break }
             }
             for q in seenList { done.insert(q) }
+            flooded += seenList.count
+            floodS += CFAbsoluteTimeGetCurrent() - tf
             if held { continue }
+            fell += 1
             let logs = cells.filter { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
             if logs.count >= 3, let foot = logs.min(by: { $0.y < $1.y }) {
                 // A tree whose foot is gone: it falls as a felled tree (its crown with it).
@@ -188,12 +208,20 @@ enum GroundSettle {
                 if Felling.felled > before { treeFalls += 1; continue }
             }
             // Anything else falls block by block, lowest first, and lands where it comes down.
-            for c in cells.sorted(by: { $0.y < $1.y }) {
-                let b = w.builtBlock(c.x, c.y, c.z)
-                guard !fallSkip[Int(b)] else { continue }
-                w.setBlock(c.x, c.y, c.z, AIR)
-                g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+            // (Ledger 44: one remesh for the whole piece, editBatch; each block's own took 4.4-4.7 ms for 5-6 pieces of
+            // a crater's rim in the taiga24 battle, build 212.)
+            // (Item 61, ledger 45's bloom: with no circuit part near, without the circuit's marks round each cell.)
+            let quiet0 = w.circuitQuiet
+            if Explosion.circuitCalm && !w.circuitNear(cells, margin: 3) { w.circuitQuiet = true }
+            w.editBatch {
+                for c in cells.sorted(by: { $0.y < $1.y }) {
+                    let b = w.builtBlock(c.x, c.y, c.z)
+                    guard !fallSkip[Int(b)] else { continue }
+                    w.setBlock(c.x, c.y, c.z, AIR)
+                    g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+                }
             }
+            w.circuitQuiet = quiet0
             objectFalls += 1
         }
     }
@@ -210,7 +238,7 @@ enum GroundSettle {
     static var spread = false, stepSeconds = 0.0008
     private static var queued: [ChunkKey] = []
     private static var queuedSet = Set<ChunkKey>()
-    private static weak var queuedWorld: World?
+    @WeakLink private static var queuedWorld: World? = nil
     static func borderStep(_ w: World) {
         guard spread, !queued.isEmpty else { return }
         if queuedWorld !== w { queued.removeAll(); queuedSet.removeAll(); queuedWorld = w; return }
@@ -237,6 +265,10 @@ enum GroundSettle {
         for dz in -1...1 { for dx in -1...1 { borderCheckNow(w, ChunkKey(x: k.x + dx, z: k.z + dz)) } }
     }
     private static let borderDone = CellSet(capacity: 8192), borderSeen = CellSet(capacity: 1024)
+    static let oldBorderFill = ProcessInfo.processInfo.environment["BS_OLDBORDERFILL"] == "1"
+    static let borderVerify = ProcessInfo.processInfo.environment["BS_BORDERVERIFY"] == "1"
+    static var borderVerified = 0, borderDiffs = 0
+    static var borderSeconds = 0.0, borderSeedsRun = 0          // (the soak's tally: time in the checks, seeds)
     // One chunk's waiting seeds, if all eight neighbours are in.
     private static func borderCheckNow(_ w: World, _ kk: ChunkKey) {
         // P488: generation's own leftovers, not an edit: the sections round what is taken out mesh in the queue's order
@@ -252,31 +284,63 @@ enum GroundSettle {
             guard ready else { return }
             let seeds = c.borderSeeds
             c.borderSeeds = []
+            let t0 = CFAbsoluteTimeGetCurrent()
+            defer { borderSeconds += CFAbsoluteTimeGetCurrent() - t0; borderSeedsRun += seeds.count }
             // (store review, callgrind of the battle soak: still 12M instructions a chunk, most of it hashing cells into
             // Set<IVec3> and merging them; open-addressed cell sets kept between calls, frame thread only)
             let done = borderDone, seen = borderSeen
             done.removeAll()
             var seenList: [IVec3] = []
+            // One seed's fill: whether its piece is held; `cells` holds its cells (all of them when it is not). (The
+            // peaks flight's callgrind: 11% of the checks was the fill's arrays growing from empty, 361,000 times;
+            // their buffers are kept between seeds now.)
+            var stack: [IVec3] = [], cells: [IVec3] = []
+            stack.reserveCapacity(512); cells.reserveCapacity(512); seenList.reserveCapacity(512)
+            func fill(_ s: IVec3, seenCap: Bool, _ seenList: inout [IVec3], _ stack: inout [IVec3], _ cells: inout [IVec3]) -> Bool {
+                seen.removeAll(); seen.insert(s)
+                seenList.removeAll(keepingCapacity: true); seenList.append(s)
+                stack.removeAll(keepingCapacity: true); stack.append(s)
+                cells.removeAll(keepingCapacity: true)
+                // (item 7, callgrind of the worst-case soak: a chunk lookup a cell and six more for its neighbours;
+                // the chunk is kept between cells now, BS_OLDLOOKUPS=1 as before)
+                var k = ChunkCursor(w)
+                @inline(__always) func ground(_ n: IVec3) -> Bool {
+                    if World.oldLookups { return w.isGround(n) }
+                    guard n.y >= 0 && n.y < CH, let c = k.chunk(n.x, n.z) else { return false }
+                    return c.blocks.ground(Chunk.index(n.x & 15, n.y, n.z & 15))
+                }
+                while let q = stack.popLast() {
+                    cells.append(q)
+                    if q.y <= 1 || cells.count >= 400 { return true }
+                    guard let cq = World.oldLookups ? w.chunkAt(q.x, q.z) : k.chunk(q.x, q.z), !cq.hollow else { return true }
+                    for e in World.allDirs {
+                        let n = q + e
+                        if seen.contains(n) || !ground(n) { continue }
+                        if done.contains(n) { return true }        // (a loose piece's cells went: ground no more)
+                        seen.insert(n); seenList.append(n); stack.append(n)
+                    }
+                    if seenCap && seenList.count >= 400 { return true }
+                }
+                return false
+            }
             for i in seeds {
                 let s = IVec3(kk.x * CS + i & 15, i / CSQ, kk.z * CS + (i >> 4) & 15)
                 guard !done.contains(s), w.isGround(s) else { continue }
-                seen.removeAll(); seen.insert(s)
-                seenList.removeAll(keepingCapacity: true); seenList.append(s)
-                var stack = [s], cells: [IVec3] = []
-                var held = false
                 // (store review, callgrind of the soak: each seed filled its 400 cells into hashed sets, 1.8M instructions
                 // a chunk, the whole 0.8 ms budget of every frame while land came in; ground that reaches ground an
                 // earlier seed found held is held too, and those were most of them)
-                flood: while let q = stack.popLast() {
-                    cells.append(q)
-                    if q.y <= 1 || cells.count >= 400 { held = true; break }
-                    guard let cq = w.chunkAt(q.x, q.z), !cq.hollow else { held = true; break }
-                    for e in World.allDirs {
-                        let n = q + e
-                        if seen.contains(n) || !w.isGround(n) { continue }
-                        if done.contains(n) { held = true; break flood }        // (a loose piece's cells went: ground no more)
-                        seen.insert(n); seenList.append(n); stack.append(n)
-                    }
+                // Nov 9 (item 7, callgrind of the peaks flight: 40% of taking chunks in, nearly all held fills walking
+                // their 400 cells): a piece is held once 400 cells of it are seen, not filled. Seen cells are ground joined
+                // to it, so the piece has 400 or more either way and the fill would have reached 400 before running out:
+                // the same pieces go, a held fill stops after about a quarter of the cells. BS_OLDBORDERFILL=1 fills to
+                // 400 as before; BS_BORDERVERIFY=1 fills both ways and compares (borderVerified / borderDiffs).
+                var held = fill(s, seenCap: !oldBorderFill, &seenList, &stack, &cells)
+                if borderVerify {
+                    let c1 = cells
+                    let h0 = fill(s, seenCap: false, &seenList, &stack, &cells)      // (the old way's outcome and marks go on)
+                    borderVerified += 1
+                    if h0 != held || (!h0 && c1 != cells) { borderDiffs += 1 }
+                    held = h0
                 }
                 for q in seenList { done.insert(q) }
                 if held { continue }
@@ -302,7 +366,7 @@ extension World {
         for (c, sy) in touched {
             for dz in -1...1 { for dx in -1...1 {
                 guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
-                for s in max(0, sy - 1)...min(NSEC - 1, sy + 1) { n.sections[s].version += 1 }
+                for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) { n.sections[s].version += 1 }
             } }
         }
         fieldStamp &+= 1

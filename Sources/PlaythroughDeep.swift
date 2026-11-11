@@ -221,10 +221,27 @@ extension Playthrough {
         check(game.ashStage == 1 && !game.ashVictory, "deep: the Marshal's fall starts the last battle (stage \(game.ashStage))")
 
         section("deep: the last battle")
-        for n in 0..<3 {
-            _ = tick(Double(AshFinal.breather) + 15) { self.game.lastWar.spawned }
+        // (Check fix 26: the waves are followed by the battle's own count, not the loop's: a wave that took longer than
+        // the wait to come (a death, its ground not found at first) left the loop a wave behind the battle; and each is
+        // fought down to its last unit, as the last must be to count as beaten.)
+        var announced = Set<Int>()
+        for _ in 0..<8 where game.ashStage == 1 {
+            let came = tick(Double(AshFinal.breather) + 45) { self.game.lastWar.spawned || self.game.ashStage != 1 }
+            guard game.ashStage == 1 else { break }
+            let n = game.ashWave
             let wave = game.lastWar.wave
-            check(game.lastWar.spawned && !wave.isEmpty, "deep: wave \(n + 1), \(AshFinal.waveNames[n]), comes in (\(wave.count) units)")
+            if !came {
+                let p = game.player.pos
+                info(String(format: "wave %d not in after %.0f s: player at %.0f %.0f %.0f, in the vault %@, in the bunker %@", n + 1, Double(AshFinal.breather) + 45,
+                            p.x, p.y, p.z, DeepGen.inVault(p.y) ? "yes" : "no", AshFinal.inside(p) ? "yes" : "no"))
+                break
+            }
+            if !announced.contains(n) {
+                announced.insert(n)
+                check(!wave.isEmpty, "deep: wave \(n + 1), \(AshFinal.waveNames[n]), comes in (\(wave.count) units)")
+            } else {
+                info("wave \(n + 1) comes again (\(wave.count) units)")
+            }
             // The nearest infantryman fought for real; the rest in bulk.
             if let foot = wave.filter({ !$0.kind.ashVehicle && $0.health > 0 }).min(by: { simd_length($0.pos - game.player.pos) < simd_length($1.pos - game.player.pos) }) {
                 var s = 0
@@ -234,13 +251,34 @@ extension Playthrough {
             }
             let left = game.lastWar.wave.filter { $0.health > 0 }
             kill(left)
+            var rounds = 0
+            while rounds < 20, case let still = game.lastWar.wave.filter({ $0.health > 0 }), !still.isEmpty {
+                if rounds == 0 { info("still standing after the bulk blow: " + still.map { "\($0.kind) \($0.health)" }.joined(separator: ", ")) }
+                kill(still); _ = tick(0.5); rounds += 1
+            }
             info("bulk: the rest of wave \(n + 1) (\(left.count) units)")
-            _ = tick(3) { self.game.ashWave == n + 1 || self.game.ashStage == 2 }
+            _ = tick(3) { self.game.ashWave != n || self.game.ashStage != 1 }
         }
-        var open = 0
-        for z in AshFinal.hatchZ { for x in AshFinal.hatchX where world.isAir(x, AshFinal.hatchY, z) { open += 1 } }
-        check(game.ashStage == 2 && open == 9 && game.advancements.contains("adventure/ash_last_battle"),
-              "deep: the last army beaten, the blast door in the command bunker opens (\(open)/9)")
+        check(announced.count == 3, "deep: all three waves came in (\(announced.sorted().map { "\($0 + 1)" }.joined(separator: ", ")))")
+        info("after the waves: stage \(game.ashStage), wave \(game.ashWave), \(game.lastWar.wave.count) of it listed, \(game.lastWar.vanished) vanished, \(game.lastWar.spawnedWaves) waves sent")
+        // (Check fix 24: since P318 the blast door waits for the player at the console beside it, lit once the army is
+        // broken; the run never used it, so the door stayed shut and the Chancellor's step had nothing to go down to.)
+        func opened() -> Int { var n = 0; for z in AshFinal.hatchZ { for x in AshFinal.hatchX where world.isAir(x, AshFinal.hatchY, z) { n += 1 } }; return n }
+        let shut0 = opened()
+        let con = AshSabotage.consoleAt
+        _ = world.loadSync(center: V3(Float(con.x), Float(con.y), Float(con.z)), radius: 2)
+        holdNothing()
+        game.player.flying = false
+        game.player.pos = V3(Float(con.x) - 0.5, Float(con.y), Float(con.z) + 0.5); game.player.vel = .zero
+        aim(at: center(con))
+        AimAssist.last = nil
+        game.input.rightClicked = true
+        frame(pin: game.player.pos)
+        let useWhy = why()
+        _ = tick(2)
+        let open = opened()
+        check(game.ashStage == 2 && shut0 == 0 && open == 9 && game.advancements.contains("adventure/ash_last_battle"),
+              "deep: the last army beaten, the blast door in the command bunker shut (\(9 - shut0)/9) until its console opens it (\(open)/9; \(useWhy))")
 
         section("deep: the Chancellor")
         let hall = V3(8.5, Float(AshFinal.y0 + 1), 22.5)

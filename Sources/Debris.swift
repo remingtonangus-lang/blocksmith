@@ -165,6 +165,8 @@ final class DebrisArena {
 }
 
 final class DebrisWorld {
+    // (the frame's debris time, seconds: set by the headset's world rules, QuestApp.headsetWorld; 0 = every sub-step)
+    static var budget: Double = 0
     struct Config {
         var capacity = 160              // pieces that may be live (not fading) at once
         var spare = 24                  // extra slots so pieces pushed out by the budget fade instead of popping
@@ -537,8 +539,17 @@ final class DebrisWorld {
         accumulator = max(0, accumulator - Float(n) * h)
         stats.fixedContacts = 0; stats.pairContacts = 0; stats.pairs = 0; stats.iterations = 0
         stats.groundQueries = 0
-        for _ in 0..<n { substep(h, ground, clear, useClear) }
-        stats.substeps = n
+        // (Nov 8, every soak scene on build 245: a frame's debris took 4-6 ms in the citadel and worst-case scenes, two
+        // sub-steps of a fresh blast's pieces back to back. Once a sub-step has run past `budget`, the next waits for
+        // the next frame (the pieces fall a little slow for a frame, as they do past maxSubsteps). Off in the host checks; BS_DEBRISMS=0 on the headset: as before.)
+        let t0 = DebrisWorld.budget > 0 && n > 1 ? CFAbsoluteTimeGetCurrent() : 0
+        var ran = 0
+        while ran < n {
+            substep(h, ground, clear, useClear)
+            ran += 1
+            if t0 > 0 && ran < n && CFAbsoluteTimeGetCurrent() - t0 > DebrisWorld.budget { accumulator += Float(n - ran) * h; break }
+        }
+        stats.substeps = ran
         updateLifetimes(dt.isFinite ? max(dt, 0) : 0)
         updateDrawPoses(min(1, accumulator / h))
         stats.live = liveN

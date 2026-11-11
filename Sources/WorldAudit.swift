@@ -8,10 +8,10 @@ import simd
 // citadel and Capital city; (3) a safe spawn: feet and head free, solid dry ground, no lava or water within 2 blocks;
 // (4) spawn density: S seconds of Game.tick in survival at noon then at midnight, mobs counted by kind, biome and
 // depth (surface or cave). Prints one line per seed and writes a summary table. Local tool (about 10 s per seed).
+// (Nov 5, bug hunt: the headset build runs it too, `questcheck --worldaudit N`, on the field worlds it makes: `field`.)
 enum WorldAudit {
-    static func run() -> Int32 {
+    static func run(device: MTLDevice, field: Bool = false) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let n = Int(arg("--worldaudit") ?? "") ?? 50
         let out = arg("--out") ?? "snaps/world_audit.md"
         let secs = Double(arg("--secs") ?? "") ?? 30
@@ -23,8 +23,10 @@ enum WorldAudit {
         for i in 0..<n {
             let seed = UInt64(1000 + i * 7919)
             let world = World(seed: seed, device: device, save: nil)
+            if field { FieldTerrain.newWorlds = true; world.makeFieldWorld() }
             world.renderDistance = 4
             let game = Game(world: world, save: nil, persistent: false)
+            if field { game.smoothTerrain = true; SmoothTerrain.use(world: true, world: world) }
             guard let sc = world.gen.structures else { print("worldaudit: no structures"); return 1 }
             let o = Game.spawnOrigin(seed: seed)
             let ox = o.0 * 16 + 8, oz = o.1 * 16 + 8
@@ -47,6 +49,11 @@ enum WorldAudit {
                 // Piece against piece (a city's bounding box is mostly empty ground between its buildings).
                 if s.pieces.contains(where: { p in t.pieces.contains { q in hit(p.min, p.max, q.min, q.max) } }) {
                     ov += 1; overlapPairs[[s.kind, t.kind].sorted().joined(separator: " + "), default: 0] += 1
+                    // (Nov 5: which, and where, so an overlap can be looked at)
+                    if let (p, q) = s.pieces.lazy.compactMap({ p in t.pieces.first { q in hit(p.min, p.max, q.min, q.max) }.map { (p, $0) } }).first {
+                        print("worldaudit: seed \(seed) overlap pieces \(s.kind) \(p.min.x),\(p.min.y - YOFF),\(p.min.z)...\(p.max.x),\(p.max.y - YOFF),\(p.max.z) + \(t.kind) \(q.min.x),\(q.min.y - YOFF),\(q.min.z)...\(q.max.x),\(q.max.y - YOFF),\(q.max.z)")
+                    }
+                    print("worldaudit: seed \(seed) overlap \(s.kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z) (y \(s.min.y - YOFF)...\(s.max.y - YOFF)) + \(t.kind) at \(t.anchor.x) \(t.anchor.y - YOFF) \(t.anchor.z) (y \(t.min.y - YOFF)...\(t.max.y - YOFF))")
                 }
             } }
             // 2. Findability from spawn.
@@ -89,6 +96,12 @@ enum WorldAudit {
                     let col = world.gen.column(mx, mz)
                     let cave = Int(m.pos.y) < col.height - 6 ? 1 : 0
                     if m.kind.hostile { hos[cave] += 1 } else { pas[cave] += 1 }
+                    // (Nov 5: a monster on the surface at noon: what light it stands in and what is over it)
+                    if m.kind.hostile && cave == 0 && frac < 0.5 {
+                        let my = Int(floor(m.pos.y)), l = world.lightAt(mx, my, mz), top = world.topY(mx, mz)
+                        print("worldaudit: seed \(seed) noon surface \(m.kind) in \(col.biome) at \(mx) \(my - YOFF) \(mz): sky \(l.sky) block \(l.block), "
+                              + "top \(top - my) up (\(Blocks.key(world.block(mx, top, mz)))), ground \(col.height - my) up, \(world.litByMesher(mx, my, mz) ? "lit" : "not yet lit")")
+                    }
                     byKind["\(label) \(m.kind)", default: 0] += 1
                     byBiome["\(label) \(col.biome) \(m.kind.hostile ? "hostile" : "passive")\(cave == 1 ? " cave" : "")", default: 0] += 1
                 }

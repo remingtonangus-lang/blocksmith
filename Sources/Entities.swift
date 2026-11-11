@@ -367,7 +367,7 @@ final class ItemEntityManager {
             if d2 > far2 { continue }
             let bob = sinf(e.age * 2.5 + e.spin) * 0.06 + 0.12
             let c = e.pos + V3(0, bob + e.viewDY, 0) - eye
-            let l = world.lightAt(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
+            let l = world.lightOpen(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
             // The cave fill (Shaders.caveFill): an item on a dark cave floor shows like the floor around it.
             let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))
             // P484 (Oct 28 17:56, mining in a cave: "I can't see the piece of the block I break when it falls very

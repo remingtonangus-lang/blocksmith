@@ -48,12 +48,19 @@ enum GroundCollapse {
     static let reach = 12
     static let maxCells = 1500
     private static let seenMarks = CellMarks(radius: reach + 1), doneMarks = CellMarks(radius: reach + 1)
+    // Ledger 41 (Nov 6, the taiga24 battle: one check after a shell's crater took 12.7-21 ms, 600 fills from the seeds
+    // round the hole, each running to the box's edge and on through bigPiece, all of them the same ground the first
+    // one had found held). Cells of a piece found held; a fill that meets one is that piece, so held (BS_OLDCOLLAPSE=1:
+    // every seed filled on its own, as before).
+    private static let heldMarks = CellMarks(radius: reach + 1)
+    static let shareHeld = ProcessInfo.processInfo.environment["BS_OLDCOLLAPSE"] != "1"
 
     // Store review (crawler soak, build 103): a check is 1-2.6 ms, and it came on frames already heavy with the drive and
     // the soldiers (ticks of 9-11 ms). It draws on the carving allowance (CraterJob.allowance): a frame with under
     // `wantSeconds` left waits, at most `maxWait` frames in a row, so the ground still comes down within a few frames.
     static var wantSeconds = 0.0012, maxWait = 6
     private static var waited = 0
+    static var worstMs = 0.0, worstWhat = ""         // (perf scenes: the slowest check and what it walked)
 
     static func tick(_ g: Game) {
         let w = g.world
@@ -61,17 +68,31 @@ enum GroundCollapse {
         if waited < maxWait && !World.deterministic && !Rand.deterministic && CraterJob.allowance() < wantSeconds { waited += 1; return }
         waited = 0
         let began = CFAbsoluteTimeGetCurrent()
-        defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - began) }
+        var seedN = 0, filled = 0, bigs = 0, fillEnd = 0.0, overEnd = 0.0, rr = 0
+        defer {
+            let took = CFAbsoluteTimeGetCurrent() - began
+            CraterJob.spend(took)
+            if took * 1000 > worstMs {
+                let fillMs: Double = fillEnd > 0 ? (fillEnd - began) * 1000 : took * 1000
+                let overMs: Double = overEnd > 0 ? (overEnd - fillEnd) * 1000 : 0
+                let objMs: Double = overEnd > 0 ? (began + took - overEnd) * 1000 : 0
+                worstMs = took * 1000
+                worstWhat = String(format: "%d seeds, %d cells filled, %d past %d; fill %.1f ms, overhangs %.1f ms, objects (r %d) %.1f ms",
+                                   seedN, filled, bigs, maxCells, fillMs, overMs, rr, objMs) + (overEnd > 0 ? ": " + GroundSettle.objLaps : "")
+            }
+        }
         guard let (p, r) = w.collapseQueue.popLast() else { return }
         if w.collapseQueue.count > 64 { w.collapseQueue.removeFirst(w.collapseQueue.count - 64) }
-        let done = doneMarks, seen = seenMarks
-        done.reset(around: p)
+        let done = doneMarks, seen = seenMarks, heldSet = heldMarks
+        done.reset(around: p); heldSet.reset(around: p)
+        let share = shareHeld
         // Seeds: the ground left round the hole (every ground cell within the carve's radius and a cell).
         var seeds: [IVec3] = []
         for dy in -r...r { for dz in -r...r { for dx in -r...r {
             let s = p + IVec3(dx, dy, dz)
             if w.isGround(s) { seeds.append(s) }
         } } }
+        seedN = seeds.count
         var dropped = false
         var seenList: [IVec3] = []
         for s in seeds {
@@ -81,36 +102,43 @@ enum GroundCollapse {
             seenList.removeAll(keepingCapacity: true); seenList.append(s)
             var stack = [s], cells: [IVec3] = []
             var held = false, big = false
-            while let c = stack.popLast() {
+            fill: while let c = stack.popLast() {
                 cells.append(c)
                 // (a piece past 1,500 cells, or one reaching past the box, may still be loose: P380 (4))
                 if cells.count > maxCells || abs(c.x - p.x) >= reach || abs(c.y - p.y) >= reach || abs(c.z - p.z) >= reach { big = true; break }
                 if c.y <= 1 || !w.isLoaded(c.x, c.z) { held = true; break }
                 for e in World.allDirs {
                     let n = c + e
+                    if share && heldSet.contains(n) { held = true; break fill }      // (ledger 41: joined to held ground)
                     if !seen.contains(n) && w.isGround(n) { _ = seen.insert(n); seenList.append(n); stack.append(n) }
                 }
             }
             for c in seenList { _ = done.insert(c) }
+            filled += seenList.count
             if big {
+                bigs += 1
                 // P380 (4): past 1,500 cells (or the box) the fill carries on; a piece that closes is truly loose and
                 // falls in lots, a small one whole.
-                if let all = GroundSettle.bigPiece(w, from: s, around: p) {
+                if let all = GroundSettle.bigPiece(w, from: s, around: p, held: share ? heldSet : nil) {
                     for c in all { _ = done.insert(c) }; dropped = true
                     if all.count > maxCells { GroundSettle.dropBig(g, all) } else { drop(g, all) }
                 } else {
-                    for c in GroundSettle.lastHeld { _ = done.insert(c) }      // (held: the seeds in it are too)
+                    for c in GroundSettle.lastHeld { _ = done.insert(c); _ = heldSet.insert(c) }      // (held: the seeds in it are too)
+                    for c in seenList { _ = heldSet.insert(c) }
                 }
                 continue
             }
-            if held { continue }
+            if held { for c in seenList { _ = heldSet.insert(c) }; continue }
             drop(g, cells)
             dropped = true
         }
+        fillEnd = CFAbsoluteTimeGetCurrent()
         // P380 (1): ground near the carve hanging too far for its thickness breaks off; the rest is checked again.
         if GroundSettle.thinOverhangs(g, p, r) { w.collapseQueue.append((p, r + 2)); dropped = true }
+        overEnd = CFAbsoluteTimeGetCurrent()
         // P380 (3): what stood on the ground round the hole settles or falls.
-        GroundSettle.objects(g, p, r + (dropped ? 3 : 0))
+        rr = r + (dropped ? 3 : 0)
+        GroundSettle.objects(g, p, rr)
     }
 
     // A loose piece leaves the field and falls apart into its rock.
@@ -124,7 +152,10 @@ enum GroundCollapse {
         }
         let mat = mats.max { $0.value < $1.value || $0.value == $1.value && $0.key > $1.key }?.key ?? STONE
         w.collapsing = true
+        let quiet0 = w.circuitQuiet                          // (ledger 45: no circuit marks with no circuit part near)
+        if Explosion.circuitCalm && !w.circuitNear(cells, margin: 3) { w.circuitQuiet = true }
         for c in cells { w.setBlockAsync(c.x, c.y, c.z, AIR) }
+        w.circuitQuiet = quiet0
         w.collapsing = false
         let size = V3(Float(hi.x - lo.x + 1), Float(hi.y - lo.y + 1), Float(hi.z - lo.z + 1))
         let centre = V3(Float(lo.x), Float(lo.y), Float(lo.z)) + size * 0.5

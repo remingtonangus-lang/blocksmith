@@ -179,7 +179,8 @@ struct ShipBucket {
     var height: Float       // vertical extent (for the submerged fraction)
 }
 
-final class Ship {
+final class Ship: LifeLinked {
+    lazy var lifeLink = LifeLink(self)    // (item 8: WeakLink.swift)
     let id: Int
     var grid: ShipGrid
     var blockEntities: [IVec3: BlockEntity] = [:]     // ship space
@@ -298,7 +299,7 @@ final class Ship {
     var autopilot: V3?               // throttle, steer, climb when no player steers (harness, crews)
 
     // Turrets: a ship mounted on another on a vertical-axis bearing (a Turret Ring), placed by its parent.
-    weak var parent: Ship?
+    @WeakLink var parent: Ship? = nil
     var children: [Ship] = []        // turrets riding on this ship (refreshed every frame by the manager)
     var parentId: Int?
     var mountLocal = V3(0, 0, 0)     // bearing point in the parent's space
@@ -306,6 +307,7 @@ final class Ship {
     var turretYaw: Float = 0         // relative to the parent
     var aimYaw: Float?               // wanted turretYaw
     var aimAt: V3?                   // world point to track (crews); sets aimYaw
+    var crewAimStamp = -1            // ShipManager.riderStamp when a crew last laid this gun (GunCrew)
     var reload: Float = 0            // seconds until the cannons can fire again
 
     // Vessels (ShipVessels.swift): crewed encounter ships.
@@ -739,7 +741,9 @@ final class Ship {
 
 // MARK: Manager (one per World / dimension)
 
-final class ShipManager {
+final class ShipManager: LifeLinked {
+    static let oldAssemble = ProcessInfo.processInfo.environment["BS_OLDASSEMBLE"] == "1"
+    lazy var lifeLink = LifeLink(self)    // (item 8: background builds reach the manager by link, not a weak reference)
     unowned let world: World
     static var quarantined = 0               // ship steps that produced NaN (ShipPhysics.step puts the pose back)
     private(set) var list: [Ship] = []
@@ -750,7 +754,7 @@ final class ShipManager {
     // The player's motion relative to the deck it rides (ShipPlay.shipPlayerUpdate): kept in the ship's frame from
     // tick to tick so the deck's own acceleration and turning never leak into it (riders slid and were shoved as a
     // crawler sped up and turned); only outside pushes (knockback, blasts) change it, seen as p.vel != riderOut.
-    weak var riderShip: Ship?
+    @WeakLink var riderShip: Ship? = nil
     var riderVel = V3(0, 0, 0)       // ship space
     var riderOut = V3(0, 0, 0)       // the world velocity handed out last tick
     var riderStamp = 0               // ShipManager.update count; riderAt: the stamp when the rider was last moved
@@ -765,13 +769,16 @@ final class ShipManager {
     var mobRiders: [(Mob, Ship)] = []        // per-frame scratch (ShipPhysics.update): riders before the ships move
     var itemRiders: [(ItemEntity, Ship)] = []
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
+    var shellNear: [Mob] = []        // (updateShells: the mobs within reach of one shell's flight this frame)
     var shockwaves: [Shockwave] = []
+    var shockDt: Float = 1.0 / 72                // (the last frame's dt: stepBowls tells a wave born this frame)
     var pendingCraters: [V3] = []                    // Tidebreaker hits on ground not loaded yet (MainGun.swift)
     var pendingAlong: [V3?] = []                     // ... and the line each came in on (P504), index for index
     var pendingCraterTimer: Float = 0 // Tidebreaker impacts spreading out (MainGun.swift)
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
     var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
     var encounters = true            // rare vessels spawn near their home regions (off in harness scenes)
+    var spawnEncounters = true       // P512: ... and spawn (off: the crews still sail and fire; the Proving Grounds, checks)
     var encounterTimer: Float = 0
     var spawnedRegions = Set<String>()   // regions whose vessel has already appeared
     let meshQueue = DispatchQueue(label: "blocksmith.shipmesh", qos: .userInitiated)
@@ -787,7 +794,44 @@ final class ShipManager {
     var navyParties: [String: Int] = [:]          // T8: boarding parties a region's frigate has sent (navyparties.json)
     var capitalPending = Set<String>()
     var capState: [Int: CapitalState] = [:]
-    struct TakenCap: Codable { var kind: String; var faction: Int; var name: String; var pos: [Float]; var rot: [Float] }
+    struct TakenCap: Codable {
+        var kind: String; var faction: Int; var name: String; var pos: [Float]; var rot: [Float]
+        // (code reader Nov 10, batch 3.4: only the plans were kept, so a taken vessel came back after a reload as built:
+        // his repairs, holes, added blocks and what he stored aboard gone, and her chests full of their loot again.
+        // Her hull's cells (palette + lzfse, as ships.json) and her chests are kept now; older saves have neither.)
+        var size: [Int]? = nil; var palette: [String]? = nil; var cells: Data? = nil; var entities: [String: BlockEntity]? = nil
+        var initial: Int? = nil
+        var turrets: [TakenTurret]? = nil            // (her turrets as left: one shot away stays away)
+    }
+    struct TakenTurret: Codable { var mount: [Float]; var size: [Int]; var palette: [String]; var cells: Data }
+    static let oldTakenGrid = ProcessInfo.processInfo.environment["BS_OLDTAKENGRID"] == "1"
+    // A grid as palette names + lzfse(u16 palette index per cell), and back (nil: sizes or data don't match).
+    static func packGrid(_ blocks: [BlockID]) -> ([String], Data) {
+        var map: [BlockID: UInt16] = [:]
+        var names: [String] = []
+        var idx = [UInt16](repeating: 0, count: blocks.count)
+        for (i, b) in blocks.enumerated() {
+            if let m = map[b] { idx[i] = m; continue }
+            let m = UInt16(names.count)
+            map[b] = m; names.append(Blocks.saveKey(b)); idx[i] = m
+        }
+        let raw = idx.withUnsafeBytes { Data($0) }
+        return (names, SaveBytes.compress(raw) ?? raw)
+    }
+    static func unpackGrid(_ size: [Int], _ palette: [String], _ cells: Data) -> [BlockID]? {
+        guard size.count == 3 else { return nil }
+        let n = size[0] * size[1] * size[2]
+        guard n > 0 else { return nil }
+        let raw = SaveBytes.decompress(cells).map { Data($0) } ?? cells
+        guard raw.count == n * 2 else { return nil }
+        let pal = palette.map { SaveMigration.blockID($0) ?? AIR }
+        var blocks = [BlockID](repeating: AIR, count: n)
+        raw.withUnsafeBytes { (p: UnsafeRawBufferPointer) in
+            let u = p.bindMemory(to: UInt16.self)
+            for i in 0..<n { let k = Int(u[i]); blocks[i] = k < pal.count ? pal[k] : AIR }
+        }
+        return blocks
+    }
     var takenToRestore: [TakenCap] = []             // P464: taken capital vessels read from the save, built on the first tick
     var takenStarted = false
     var salvagedGuns: [Int: CapitalState] = [:]     // H4: the main gun of each ship carrying a Tidebreaker breech
@@ -803,7 +847,9 @@ final class ShipManager {
     // Removes a ship with its turrets, or (turrets: false, a hull destroyed under them) sets the turrets loose as
     // ships of their own.
     static var probeId = -1, probeContacts: [String] = [], probeWheels: [String] = []      // (harness: one ship's contacts and wheels)
+    static var onRemove: ((Ship) -> Void)?                  // (host checks: who takes a ship away)
     func remove(_ s: Ship, turrets: Bool = true) {
+        ShipManager.onRemove?(s)
         for t in list where t !== s && t.root === s {
             if turrets { remove(t) } else if t.parent === s { t.parent = nil; t.parentId = nil }
         }
@@ -910,7 +956,7 @@ final class ShipManager {
         let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
         // Connected cells from start, not entering `taken`, never going up out of a turret ring, never down out of a
         // wheel or a track (it rests on the ground), never below `floor`. Overflow: the cells seen when it passed the limit.
-        func collect(_ start: IVec3, _ taken: Set<IVec3>, floor: Int = Int.min) -> (cells: [IVec3], over: Bool) {
+        func collect(_ start: IVec3, _ taken: Set<IVec3>, floor: Int = Int.min, limit: Int = limit) -> (cells: [IVec3], over: Bool) {
             var seen = Set<IVec3>([start])
             var queue = [start]
             var head = 0
@@ -952,10 +998,17 @@ final class ShipManager {
         if wheelY == nil && (first.over || first.cells.count > 2000) {
             var below: [Int: Int] = [:]
             for c in first.cells { below[c.y, default: 0] += 1 }
+            // (The code reader's Nov 10 batch, 3: a helm on or against a big building stalled the frame about a second
+            // before "Too big to move", every try: each of these 25 floors searched up to 60,000 cells. A floor passes
+            // only when the vehicle above it is under an eighth of the layer under it (less 200), so the search above
+            // a floor stops there, and a floor with 200 cells or fewer under it can't pass at all: the same answer.
+            // BS_OLDASSEMBLE=1: every floor searched in full, as before.)
             for fy in stride(from: h.y, through: h.y - 24, by: -1) {
-                let upper = collect(h, [], floor: fy)
+                let b = below[fy - 1] ?? 0
+                if !ShipManager.oldAssemble && b <= 200 { continue }
+                let upper = collect(h, [], floor: fy, limit: ShipManager.oldAssemble ? limit : (b - 200) / 8 + 1)
                 if upper.over { continue }
-                if (below[fy - 1] ?? 0) > upper.cells.count * 8 + 200 { first = upper; break }
+                if b > upper.cells.count * 8 + 200 { first = upper; break }
             }
         }
         guard !first.over else { return (nil, tooBig) }
@@ -1003,7 +1056,7 @@ final class ShipManager {
         if let top = waterTop {
             let lo = s.gridOrigin
             let g = s.grid
-            for y in lo.y...min(top, lo.y + g.sy - 1) { for z in lo.z..<(lo.z + g.sz) { for x in lo.x..<(lo.x + g.sx) {
+            for y in thru(lo.y, min(top, lo.y + g.sy - 1)) { for z in lo.z..<(lo.z + g.sz) { for x in lo.x..<(lo.x + g.sx) {
                 let gx = x - lo.x, gy = y - lo.y, gz = z - lo.z
                 let wasShip = taken.contains(IVec3(x, y, z))
                 if (wasShip || s.dry(gx, gy, gz)) && w.rawBlock(x, y, z) == AIR { w.setBlockAsync(x, y, z, WATER) }
@@ -1185,6 +1238,36 @@ final class ShipManager {
 
     private var url: URL? { world.save?.dir.appendingPathComponent("ships.json") }
 
+    typealias TakenCopy = (TakenCap, [BlockID]?, [(V3, [Int], [BlockID])])
+    /// The capitals he has taken, as the save keeps them: copies on the frame (grids copy on write), packed by packTaken.
+    func takenCopies() -> [TakenCopy] {
+        capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> TakenCopy in
+            let q = s.rot.vector
+            var c = TakenCap(kind: s.role ?? "", faction: s.faction, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w])
+            if ShipManager.oldTakenGrid { return (c, nil, []) }
+            c.size = [s.grid.sx, s.grid.sy, s.grid.sz]
+            var ents: [String: BlockEntity] = [:]
+            for (k, v) in s.blockEntities { ents["\(k.x),\(k.y),\(k.z)"] = v.snapshot() }
+            c.entities = ents
+            c.initial = s.initialBlocks
+            let tur = turrets(of: s).map { t in (t.mountLocal, [t.grid.sx, t.grid.sy, t.grid.sz], t.grid.blocks) }
+            return (c, s.grid.blocks, tur)
+        }
+    }
+    static func packTaken(_ copies: [TakenCopy]) -> [TakenCap] {
+        copies.map { (c0, blocks, tur) -> TakenCap in
+            var c = c0
+            if let b = blocks {
+                (c.palette, c.cells) = ShipManager.packGrid(b)
+                c.turrets = tur.map { (m, size, tb) in
+                    let (pal, cells) = ShipManager.packGrid(tb)
+                    return TakenTurret(mount: [m.x, m.y, m.z], size: size, palette: pal, cells: cells)
+                }
+            }
+            return c
+        }
+    }
+
     func save(background: Bool = false) {
         guard let url else { return }
         // Regions whose capital ship is still afloat are left out, so it returns after a reload (wrecks stay gone).
@@ -1193,20 +1276,26 @@ final class ShipManager {
             return r
         })
         // P464: the capital vessels he has taken are kept as their plans, pose and name (Capital.restoreTaken).
-        let taken = capitals.filter { $0.captured && !$0.wrecked && ["capfrigate", "warfrigate", "crawler"].contains($0.role ?? "") }.map { s -> TakenCap in
-            let q = s.rot.vector
-            return TakenCap(kind: s.role ?? "", faction: s.faction, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w])
-        } + takenToRestore
-        if let r = world.save?.dir.appendingPathComponent("takencaps.json") {
-            if taken.isEmpty { try? FileManager.default.removeItem(at: r) }
-            else if let d = try? JSONEncoder().encode(taken) { try? d.write(to: r, options: .atomic) }
+        // (the grids are copies here, copy on write: packed on the save queue below)
+        let takenNow = takenCopies()
+        let restoring = takenToRestore
+        // (Nov 10: these three were written on the frame by the autosave too; on the save queue now, SaveIO.oldSync)
+        let dir = world.save?.dir
+        let regions = Array(spawnedRegions.subtracting(afloat)).sorted(), parties = navyParties
+        let small = {
+            let taken = ShipManager.packTaken(takenNow) + restoring
+            if let r = dir?.appendingPathComponent("takencaps.json") {
+                if taken.isEmpty { try? FileManager.default.removeItem(at: r) }
+                else if let d = try? JSONEncoder().encode(taken) { try? d.write(to: r, options: .atomic) }
+            }
+            if let r = dir?.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(regions) {
+                try? d.write(to: r, options: .atomic)
+            }
+            if let r = dir?.appendingPathComponent("navyparties.json"), !parties.isEmpty, let d = try? JSONEncoder().encode(parties) {
+                try? d.write(to: r, options: .atomic)
+            }
         }
-        if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(Array(spawnedRegions.subtracting(afloat)).sorted()) {
-            try? d.write(to: r, options: .atomic)
-        }
-        if let r = world.save?.dir.appendingPathComponent("navyparties.json"), !navyParties.isEmpty, let d = try? JSONEncoder().encode(navyParties) {
-            try? d.write(to: r, options: .atomic)
-        }
+        if SaveIO.queued(background) { SaveIO.run(small) } else { small() }
         // F1: the autosave takes copies here (grids are arrays: copy on write) and packs and encodes them on the save
         // queue; ship grids' palettes, lzfse and JSON ran on the frame thread.
         let snaps = snapshots(nil)
@@ -1252,7 +1341,7 @@ final class ShipManager {
                 map[b] = m; names.append(Blocks.saveKey(b)); idx[i] = m
             }
             let raw = idx.withUnsafeBytes { Data($0) }
-            let packed = ((try? (raw as NSData).compressed(using: .lzfse)) as Data?) ?? raw
+            let packed = SaveBytes.compress(raw) ?? raw
             let q = s.rot
             out.append(Saved(id: s.id, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w],
                              vel: [s.vel.x, s.vel.y, s.vel.z], angVel: [s.angVel.x, s.angVel.y, s.angVel.z],
@@ -1292,7 +1381,7 @@ final class ShipManager {
                 map[b] = m; names.append(Blocks.saveKey(b)); idx[i] = m
             }
             let raw = idx.withUnsafeBytes { Data($0) }
-            let packed = ((try? (raw as NSData).compressed(using: .lzfse)) as Data?) ?? raw
+            let packed = SaveBytes.compress(raw) ?? raw
             var ents: [String: BlockEntity] = [:]
             for (k, v) in s.blockEntities { ents["\(k.x),\(k.y),\(k.z)"] = v }
             let q = s.rot.vector
@@ -1314,7 +1403,7 @@ final class ShipManager {
         for sv in saved where sv.size.count == 3 && sv.pos.count == 3 && sv.rot.count == 4 {
             let n = sv.size[0] * sv.size[1] * sv.size[2]
             guard n > 0 else { continue }
-            let raw = ((try? (sv.cells as NSData).decompressed(using: .lzfse)) as Data?) ?? sv.cells
+            let raw = SaveBytes.decompress(sv.cells).map { Data($0) } ?? sv.cells
             guard raw.count == n * 2 else { continue }
             let palette = sv.palette.map { SaveMigration.blockID($0) ?? AIR }
             var blocks = [BlockID](repeating: AIR, count: n)

@@ -134,7 +134,7 @@ enum CompassHUD {
             while rel < -.pi { rel += 2 * .pi }
             let st = MapCache.style(m.kind)
             if abs(rel) <= span / 2 && d < 3000 { on.append((rel / (span / 2), st.letter, st.color)) }
-            if d < bestD { bestD = d; best = (m.name ?? st.name, Int(d), compassPoint(b)) }
+            if d < bestD { bestD = d; best = (m.name ?? st.name, Int(d.rounded()), compassPoint(b)) }
         }
         return (on, best)
     }

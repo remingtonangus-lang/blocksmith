@@ -35,6 +35,14 @@ enum ShapeTrunks {
 
     // Window: section-local -M ... 15 + M on each axis (inside the mesher's 48^3 region).
     static let M = 10
+    // Nov 6: the far copy's merged trunk runs (BS_TRUNKMERGE=0: a band a block, as before).
+    static let mergeFar = ProcessInfo.processInfo.environment["BS_TRUNKMERGE"] != "0"
+    // (and its root flare one band round the trunk's sides, its tip one cone, its limbs 4 sides: BS_FARFOOT=0, BS_FARTIP=0,
+    // BS_FARLIMB=5 for each as before)
+    static let farFoot = ProcessInfo.processInfo.environment["BS_FARFOOT"] != "0"
+    static let farTip = ProcessInfo.processInfo.environment["BS_FARTIP"] != "0"
+    static let farLimbSides = ProcessInfo.processInfo.environment["BS_FARLIMB"].flatMap { Int($0) } ?? 4
+    static let farSides = ProcessInfo.processInfo.environment["BS_FARSIDES"].flatMap { Int($0) } ?? 6     // (a trunk's sides there)
     static let W = 16 + 2 * M
 
     final class Scratch {
@@ -143,7 +151,7 @@ enum ShapeTrunks {
                     else { kind = 2 }                                               // a post (built timber)
                     if kind != 0 {
                         let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(max(5, H + 4)) : 0.45)
-                        for yy in max(y, -M)...min(top, 15 + M) where logC(x, yy, z) {      // (P433: not the cut's cells)
+                        for yy in thru(max(y, -M), min(top, 15 + M)) where logC(x, yy, z) {      // (P433: not the cut's cells)
                             let i = wi(x, yy, z)
                             s.col[i] = kind
                             let t = (Float(yy - bot) + 0.5) / Float(H)
@@ -193,9 +201,10 @@ enum ShapeTrunks {
         }
 
         // 3. Geometry for the owned logs.
-        // Mid sections (lod 2) use fewer sides and leave out the joint knobs and tips; far ones (lod 1) fewer still.
-        let sides = ctx.lod == 0 ? 9 : (ctx.lod == 2 ? 6 : 5)
-        let limbSides = ctx.lod == 0 ? 6 : (ctx.lod == 2 ? 5 : 4)
+        // Mid sections (lod 2) use fewer sides and leave out the joint knobs and tips; far ones (lod 1) fewer still. The
+        // far copy (lod 3, drawn past SceneRenderer.trunkFarFrom) has the mid sides and straight runs of a trunk merged.
+        let sides = ctx.lod == 0 ? 9 : (ctx.lod == 3 ? ShapeTrunks.farSides : (ctx.lod == 2 ? 6 : 5))
+        let limbSides = ctx.lod == 0 ? 6 : (ctx.lod == 3 ? ShapeTrunks.farLimbSides : (ctx.lod == 2 ? 5 : 4))
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isTrunk[Int(b)] else { continue }
@@ -403,6 +412,23 @@ enum ShapeTrunks {
         let rAbove = above && y + 1 < 16 + M ? s.rad[wi(x, y + 1, z)] * scale : r
         let r0 = (r + rBelow) * 0.5, r1 = (r + rAbove) * 0.5
         let y0 = Float(y), y1 = Float(y + 1)
+        // Nov 6 (frame rate, the jungle): in the far copy (lod 3) a straight run of trunk with trunk over and under every
+        // cell goes up as one band of up to 8 blocks, not a band a block: at his jungle spot 107k of the 154k trunk quads
+        // drawn were 64+ blocks off, and the far sections had no lighter copy (they are mid sections already, 6 sides).
+        var topH = y1, topR = r1
+        if ctx.lod == 3 && ShapeTrunks.mergeFar && below && above {
+            let kind = s.col[i]
+            func plain(_ yy: Int) -> Bool {
+                yy - 1 >= -M && yy + 1 < 16 + M && s.col[wi(x, yy, z)] == kind && s.col[wi(x, yy - 1, z)] != 0 && s.col[wi(x, yy + 1, z)] != 0
+            }
+            var base = y
+            while base - 1 >= 0 && plain(base - 1) { base -= 1 }
+            if (y - base) % 8 != 0 { return }                 // (drawn by its run's first cell)
+            var end = y + 1
+            while end < 16 && end - y < 8 && plain(end) { end += 1 }
+            topH = Float(end)
+            topR = (s.rad[wi(x, end - 1, z)] + s.rad[wi(x, end, z)]) * 0.5 * scale
+        }
         var prof: [(Float, Float)] = []              // (height, radius) from the bottom up
         // PG4: a living trunk whose foot is on another trunk's side (no ground under it) grows out of that trunk: no
         // root flare, its foot sunk into a short bough from the other trunk's centre.
@@ -429,8 +455,13 @@ enum ShapeTrunks {
             // (Straight down below the flare, so a deep foot reads as the trunk going into the ground, not a cone.)
             var foot = y0 - 0.5
             if let lo = ctx.groundTop(x, y, z, reach: 3, lowest: true) { foot = max(y0 - 2.5, min(foot, lo - 0.3)) }
-            if foot < y0 - 0.55 { prof.append((foot, r + 0.24)) }
-            prof.append((y0 - 0.5, r + 0.3)); prof.append((y0 + 0.02, r + 0.19)); prof.append((y0 + 0.3, r + 0.09)); prof.append((y0 + 0.7, r + 0.02))
+            if ctx.lod == 3 && ShapeTrunks.farFoot {
+                // (the far copy: the flare as one band from the ground to above the root lobes)
+                prof.append((min(foot, y0 - 0.5), r + 0.3)); prof.append((y0 + 0.45, r + 0.06))
+            } else {
+                if foot < y0 - 0.55 { prof.append((foot, r + 0.24)) }
+                prof.append((y0 - 0.5, r + 0.3)); prof.append((y0 + 0.02, r + 0.19)); prof.append((y0 + 0.3, r + 0.09)); prof.append((y0 + 0.7, r + 0.02))
+            }
             flatFoot = false
         } else {
             prof.append((y0, r0))
@@ -439,9 +470,10 @@ enum ShapeTrunks {
         // cut end showing the rings, not the rounded tip under a crown.
         let cutTop = !above && living && !isTrunk[Int(ctx.column(x, y + 1, z))] && cutAbove(ctx, x, y, z) >= 0
         if above {
-            prof.append((y1, r1))
+            prof.append((topH, topR))
         } else if living && !cutTop {
-            prof.append((y1 - 0.15, r * 0.8)); prof.append((y1 + 0.05, r * 0.45)); prof.append((y1 + 0.15, 0.02))
+            if ctx.lod == 3 && ShapeTrunks.farTip { prof.append((y1 + 0.15, 0.02)) }        // (the far copy: one cone)
+            else { prof.append((y1 - 0.15, r * 0.8)); prof.append((y1 + 0.05, r * 0.45)); prof.append((y1 + 0.15, 0.02)) }
         } else {
             prof.append((y1, r0))
         }
@@ -450,7 +482,7 @@ enum ShapeTrunks {
         // root flare's three lobes were cut from the trunk's nine sides, so each lobe was one spike vertex between two
         // flat ones: sharp fins round every tree's foot. The foot cell goes round with twice the sides and the lobes
         // swell smoothly (no clamped cosine edge), so they read as buttress roots running into the ground.
-        let ring = roots ? sides * 2 : sides
+        let ring = roots && !(ctx.lod == 3 && ShapeTrunks.farFoot) ? sides * 2 : sides
         let wrap = max(1, (2 * .pi * r).rounded())          // bark repeats round the trunk (one count for every ring)
         var prev: [SIMD3<Float>] = [], prevN: [SIMD3<Float>] = [], bottom: [SIMD3<Float>] = []
         for (k, (h, rr)) in prof.enumerated() {

@@ -164,12 +164,12 @@ extension Game {
                     reg.dirty = true
                     let tl = held.isEmpty ? ToolType.none : held.def.tool
                     if tl != .none && Blocks.hardness[Int(b)] > 0 { damageHeld(tl == .sword ? 2 : 1) }
-                    if survival { reg.later.append { [weak self] in self?.objectDrop(b, at: at) } }
+                    if survival { reg.later.append { [me = weakLink] in me.wrappedValue?.objectDrop(b, at: at) } }
                 }
                 if left[k] <= 1e-5 && !o.leaving[k] {
                     o.leaving[k] = true
-                    reg.later.append { [weak self, weak o] in
-                        guard let self, let o, !o.broken, !o.gone[k], self.world.objectReg.objects[o.id] === o else { return }
+                    reg.later.append { [me = weakLink, weak o] in            // (item 8: the game by link: WeakLink.swift)
+                        guard let self = me.wrappedValue, let o, !o.broken, !o.gone[k], self.world.objectReg.objects[o.id] === o else { return }
                         let reg = self.world.objectReg
                         reg.editing = true
                         self.breakBlock(o.cells[k], o.blocks[k], drop: false, quiet: true)

@@ -81,7 +81,7 @@ extension Mob {
             while y > Int(floor(pos.y)) - 6 && !(w.opaqueAt(x, y - 1, z) && !w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z)) { y -= 1 }
             guard y > Int(floor(pos.y)) - 6, w.lightAt(x, y, z).block < 10 else { continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-            if !g.spawnHidden(at, min: 16, near: 40, clear: 48) { continue }    // P307 (a): out of the player's sight
+            if !g.spawnHidden(at, min: 16, near: 40, clear: Game.oldSpawnSight ? 48 : nil) { continue }    // P307 (a): out of the player's sight
             let z2 = Mob(kind, at: at)
             if z2.collides(at, w) { continue }
             z2.lockTime = 10
@@ -101,7 +101,9 @@ extension Mob {
         g.sfx(.thunder, 1.4, at: pos)
         var horses: [Mob] = [self]
         for _ in 0..<3 {
-            let h = Mob(.skeletonHorse, at: pos + V3(Rand.float(in: -1.5...1.5), 0, Rand.float(in: -1.5...1.5)))
+            // On the ground by the trap horse (a spot 1.5 off at its height stood in a slope's rock or over a drop; the
+            // bug ledger's trader llamas, Nov 4), or on its own spot.
+            let h = Mob(.skeletonHorse, at: MobManager.groundSpot(g.world, near: pos + V3(Rand.float(in: -1.5...1.5), 0, Rand.float(in: -1.5...1.5))) ?? pos)
             horses.append(h)
             g.mobs.mobs.append(h)
         }
@@ -174,8 +176,12 @@ extension Game {
             t.villager = WanderingTrader.data()
             t.persistent = true
             mobs.mobs.append(t)
+            // (Nov 4, bug hunt: each llama had one try at a spot within 4 blocks, and on broken ground, in trees or by
+            // water both missed: the trader came alone (questcheck --mobtests). Now each has eight tries, then his spot.)
             for _ in 0..<2 {
-                guard let lp = groundSpot(x + Rand.int(in: -4...4), z + Rand.int(in: -4...4)) else { continue }
+                var spot: V3? = nil
+                for _ in 0..<8 where spot == nil { spot = groundSpot(x + Rand.int(in: -4...4), z + Rand.int(in: -4...4)) }
+                let lp = spot ?? at
                 let l = Mob(.traderLlama, at: lp)
                 l.target = t
                 l.persistent = true

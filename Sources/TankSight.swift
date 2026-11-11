@@ -9,7 +9,14 @@ import simd
 enum TankSight {
     static let reach: Float = 220
     static var aim: V3?                          // the sight's point (nil: no sight to lay)
-    static var elev: Float = 0                   // the first turret's elevation for that point
+    static var elev: Float = 0
+    static let oldArcs = ProcessInfo.processInfo.environment["BS_OLDARCS"] == "1"                   // the first turret's elevation for that point
+    // What the laser falls on under the headset's chase view (QuestControls), the sight's point when there is one. (Nov 11,
+    // the crawler's VR helm aim, older than Nov 10: the sight ran its own ray from the eye at the helm toward that point,
+    // cut at 220 blocks on wheels and stopped by whatever the helm's eye met first, so the guns at the hull's ends were
+    // laid on another point and turned 10-13 degrees off the mark 400 m away.)
+    static var chasePoint: V3?
+    static let oldChaseSight = ProcessInfo.processInfo.environment["BS_OLDCHASESIGHT"] == "1"
     static var laid = false                      // every turret bears on it
     // P483 (Oct 28 17:35-17:36, at a frigate's helm: "the little guns just are not shooting where one would expect"): a
     // warship's (a frigate's) guns are laid on the sight too; they followed the view's bearing and pitch.
@@ -32,7 +39,8 @@ extension Game {
         for other in ships.list where other.root !== s {
             if let r = other.raycast(o, d, maxDist: t, world: world), r.t < t { t = r.t }
         }
-        let p = o + d * t
+        var p = o + d * t
+        if !TankSight.oldChaseSight, let cp = TankSight.chasePoint { p = cp }
         TankSight.aim = p
         var laid = true
         for (i, tu) in tur.enumerated() {
@@ -48,7 +56,10 @@ extension Game {
             // P477 (Oct 27 19:27, the Works' tank: "Has a tendency to shoot upwards... Should be a straight shooter"): each
             // turret is laid for its own shell (a calibre gun's flat and fast one: CannonCalibre), not the old lobbed ball.
             let (sv, sg) = tu.shellFlight
-            let lo: Float = s.wheels.isEmpty ? tu.pitchMin : -0.2, hi: Float = s.wheels.isEmpty ? tu.pitchMax : 0.6     // (a frigate's guns: their own arcs)
+            // (code reader Nov 10, batch 3.2: a wheeled vehicle's guns were held to -0.2...0.6 whatever their own arcs, so
+            // a high-angle gun on wheels couldn't be laid on anything above it. Every gun keeps its own arcs.)
+            let own = s.wheels.isEmpty || !TankSight.oldArcs
+            let lo: Float = own ? tu.pitchMin : -0.2, hi: Float = own ? tu.pitchMax : 0.6
             let e: Float = horiz < 4 ? max(lo, min(hi, player.pitch)) : max(lo, min(hi, ShipManager.elevation(horiz, v.y, speed: sv, gravity: sg)))
             tu.gunPitch = e
             if i == 0 { TankSight.elev = e; s.gunPitch = e }

@@ -421,7 +421,8 @@ enum HorseTests {
             g.mobs.mobs.append(h); g.paused = false
             // (A steady horse, back in the saddle: this is about where the treat is aimed. In the full run something in
             // the tick startled the level-1 horse here and threw the rider: "ridden false, thrown 1".)
-            h.hs.bondXP = HorseFeel.levelXP[3]; mount(h)
+            // (A fright during the gallop above can leave a level-1 rear pending with its throw already rolled: settle it.)
+            h.hs.bondXP = HorseFeel.levelXP[3]; h.hs.rear = 0; h.hs.rearThrow = false; h.hs.spookCool = 0; mount(h)
             defer { g.mobs.mobs.removeAll { $0 === h }; g.paused = wasPaused }
             func press(_ pitch: Float) -> Float {
                 for i in 0..<60 {

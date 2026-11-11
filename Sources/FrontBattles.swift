@@ -116,7 +116,7 @@ extension Game {
             FrontBattle.decided += 1
             onToast?("\(b.sides[w].name) holds the field\(joined ? ": you fought with them, and their line is stronger for it" : "")")
         } else if far {
-            for m in b.mobs.flatMap({ $0 }) { m.health = -2000 }        // out of sight: the battle moved on
+            for m in b.mobs.flatMap({ $0 }) where MobManager.canVanish(m, self) { m.health = -2000 }   // out of sight: the battle moved on
             mobs.mobs.removeAll { $0.health == -2000 }
         }
         FrontBattle.current = nil

@@ -239,7 +239,7 @@ enum Trains {
             if let tr = trains[t.id] { tr.delay = t.delay; tr.robbedDay = t.robbedDay; tr.wrecked = t.wrecked }
         }
     }
-    static func save(_ w: World) {
+    static func save(_ w: World, background: Bool = false) {
         guard let s = w.save else { return }
         for tr in trains.values where tr.track.dim == w.dim && !tr.track.through {
             saved[tr.track.id] = SavedTrain(id: tr.track.id, delay: tr.delay, robbedDay: tr.robbedDay, wrecked: tr.wrecked)
@@ -247,22 +247,28 @@ enum Trains {
         let mine = saved.values.filter { v in trains[v.id].map { $0.track.dim == w.dim } ?? true }
             .filter { $0.delay != 0 || $0.robbedDay >= 0 || $0.wrecked }
         if mine.isEmpty && !FileManager.default.fileExists(atPath: s.dir.appendingPathComponent("trains.json").path) { return }
-        SaveIO.storeJSON(mine.sorted { $0.id < $1.id }, to: s.dir.appendingPathComponent("trains.json"))
+        SaveIO.write(mine.sorted { $0.id < $1.id }, to: s.dir.appendingPathComponent("trains.json"), background: SaveIO.queued(background))
     }
 
     // MARK: Ticking
 
     // Once a second: trains near the player are built as cars, far ones taken away; strays (a reload) go too.
+    // Week item 71 (no pop-in): how far off a train is made and taken away: past the fog's end at his view (render
+    // distance x 16 less 12), 128 at least. At 128 a train came into being in plain sight at any view past 8 (the
+    // headset's auto view runs 8 to 16: the fog ends 148 to 244 out).
+    static let fogReach = ProcessInfo.processInfo.environment["BS_TRAINREACH"] != "0"      // (the check's before: =0)
+    static func reach(_ g: Game) -> Float { fogReach ? max(128, Float(g.world.renderDistance * CS) + 4) : 128 }
     static func tick(_ g: Game) {
         let p = g.player.pos
         var want: Set<Int64> = []
-        let nearTracks = tracksNear(g, p, 140)
+        let R = reach(g)
+        let nearTracks = tracksNear(g, p, Int(R) + 12)
         TrainArrivals.tick(g, near: nearTracks)          // P508: one in ten every ten minutes, a train comes his way
         // P510: a through train he rides runs on, line after line; the line it left has no train of its own meanwhile.
         if let r = g.riding, isCar(r), let (tr, _) = carOf[ObjectIdentifier(r)] { through(g, tr) }
         for (id, tr) in trains where tr.track.through && !tr.cars.isEmpty {
             let aboard = g.riding.map { r in tr.cars.contains { $0 === r } } ?? false
-            if aboard || simd_length(tr.track.point(tr.lastS) - p) < 160 { want.insert(id) }
+            if aboard || simd_length(tr.track.point(tr.lastS) - p) < R + 32 { want.insert(id) }
         }
         for t in nearTracks {
             if let o = throughOut[t.id], trains[o]?.cars.isEmpty == false {
@@ -278,8 +284,12 @@ enum Trains {
             }
             if tr.wrecked { continue }
             tr.time = g.time - tr.delay
-            let head = t.point(t.at(tr.time).s)
-            guard simd_length(head - p) < 128 else { continue }
+            let at = t.at(tr.time)
+            let head = t.point(at.s)
+            // (and a built train stays while its tail is still in reach: one running away from him went with its last
+            // cars in sight when its head passed the line)
+            let tail = t.point(at.s - at.dir * tr.length)
+            guard simd_length(head - p) < R || (!tr.cars.isEmpty && simd_length(tail - p) < R) else { continue }
             // Only where the track was laid (ground a save had generated before keeps no rails).
             let c0 = t.cells[max(0, min(t.cells.count - 1, Int(t.at(tr.time).s)))]
             guard g.world.isLoaded(c0.x, c0.z), Rails.isRail(g.world.block(c0.x, c0.y, c0.z)) else { continue }

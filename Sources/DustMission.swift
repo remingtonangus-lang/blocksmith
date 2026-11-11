@@ -9,7 +9,7 @@ import Foundation
 // passage of burial niches to the reliquary at its end (the chests, a husk's cage and lanterns). Keys and loot are the
 // temple's ("desert_pyramid").
 extension OverworldStructures {
-    static func dustMission(_ w: inout StructWriter, _ cx: Int, _ gy: Int, _ cz: Int, _ seed: UInt64) {
+    static func dustMission(_ w: inout StructWriter, _ cx: Int, _ gy: Int, _ cz: Int, _ seed: UInt64, l63: Bool = true) {
         var rng = SRng(seed)
         let ss = SANDSTONE, cut = Blocks.id("cut_sandstone"), chis = Blocks.id("chiseled_sandstone"), smooth = Blocks.id("smooth_sandstone")
         func id(_ n: String, _ alt: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : alt }
@@ -55,18 +55,32 @@ extension OverworldStructures {
             // Tall narrow windows between the buttresses.
             if k < 8 { for dy in 3...5 { B(-5, dy, k + 2, AIR); B(5, dy, k + 2, AIR) } }
         }
+        // Ledger 63: each course of the roof corbels in one over the course under it (two blocks a course, the inner
+        // resting on the one below), so every course is carried by the side walls under it. A single block a course
+        // touched the next only at an edge: the roof stood on its two gables alone, and the middle of the nave's 17
+        // blocks was past stone's reach of 5 (--loadcheck: 38 and 48 blocks would fall in two missions).
         for (i, dy) in (8...13).enumerated() {
             let h = 6 - i
             for k in -7...11 {
                 B(-h, dy, k, smooth); B(h, dy, k, smooth)
+                if l63 && h > 1 { B(-(h - 1), dy, k, smooth); B(h - 1, dy, k, smooth) }
                 if h == 1 { B(0, dy, k, cut) }
             }
             if h > 1 { F(-h + 1, dy, 10, h - 1, dy, 10, ss) }
         }
-        // Holes in the roof where it fell in (a few, by the seed).
+        // Holes in the roof where it fell in (a few, by the seed). With the corbelled roof (ledger 63) a hole goes through
+        // both courses, all of them on one side (the other side carries the ridge) and never two side by side.
+        var holes: [Int] = [], holeSide = 0
         for _ in 0..<3 {
-            let hz = rng.int(12) - 3, side = rng.chance(0.5) ? -1 : 1
-            for dz in 0...1 { B(side * 4, 10, hz + dz, AIR); B(side * 3, 11, hz + dz, AIR) }
+            let hz = rng.int(12) - 3
+            var side = rng.chance(0.5) ? -1 : 1
+            if l63 {
+                if holeSide == 0 { holeSide = side }
+                side = holeSide
+                if holes.contains(where: { abs($0 - hz) < 4 }) { continue }
+                holes.append(hz)
+            }
+            for dz in 0...1 { B(side * 4, 10, hz + dz, AIR); B(side * 3, 11, hz + dz, AIR); if l63 { B(side * 3, 10, hz + dz, AIR) } }
             B(side * 2, 1, hz, ss)                                                        // the fallen block on the floor
         }
 
@@ -91,7 +105,8 @@ extension OverworldStructures {
         F(7, 15, -5, 8, 15, -4, slab)
         F(7, 10, -5, 8, 10, -4, plank)
         B(7, 11, -5, bell)
-        for dy in 1...11 { B(8, dy, -4, ladder) }
+        // (Ledger 34: the top rung stood in the belfry, its wall open on every side: it ends at the belfry floor.)
+        for dy in 1...10 { B(8, dy, -4, ladder) }
         for dy in 1...2 { B(8, dy, -6, AIR) }                                            // the door from the forecourt
 
         // Inside: pews either side of the aisle facing the altar, the altar, niches and pots on the back wall.
@@ -123,6 +138,7 @@ extension OverworldStructures {
         F(-5, fy, 6, -2, fy + 3, 9, AIR)
         F(-5, fy - 1, 6, -2, fy - 1, 9, chis)
         B(-1, fy + 2, 7, chis); B(-1, fy + 2, 8, chis)
+        if l63 { B(-1, fy + 3, 7, chis); B(-1, fy + 3, 8, chis) }                       // (ledger 63: the lintel meets the vault, it hung in the air)
         for (dx, dz, f) in [(-5, 7, 3), (-5, 8, 3), (-3, 9, 1)] {
             w.chest(cx + dx, y + fy, cz + dz, loot: "desert_pyramid", seed: rng.next(), facing: f)
         }

@@ -9,6 +9,9 @@ import simd
 extension Renderer {
     static let landmarkRange: Float = 2600
     static var plumeRising = false                 // the last build had volcano smoke (camp smoke alone rebuilds slower)
+    // Nov 9 (item 7): the opaque impostors and the horizon ground go in world terms, put on the shell by the shader
+    // (the headset's simple.vert; WorldRenderer sets it, BS_OLDSHELL=1 projects them on the CPU as before).
+    static var shellOnGPU = false
     static var horizonEnd = 0                      // P385: where the last build's horizon ground ended in `out`
     static let spireRange: Float = 1800               // a 170-block shaft is a sliver beyond this
     static var spireList: [V4] = []                // x, base y, z, height (refreshed every 2 s)
@@ -90,8 +93,10 @@ extension Renderer {
     // Appends the impostor triangles: opaque ones first, then `smokeStart` marks the blended smoke.
     // P385: `horizon` false leaves the horizon ground out (the Quest keeps the last one and rebuilds only the landmarks
     // and the smoke while smoke rises: the ground was most of a build, redone every second frame by a chimney's smoke).
+    // `landmarks` false (P385 again, Nov 4): the smoke alone (volcano plumes, fires, camp smoke, town glow, a far hit's
+    // dust), for a caller that keeps the cones, spires, citadels and town boxes of its last build.
     func buildLandmarks(_ out: inout [SimpleVert], smokeStart: inout Int, game: Game, eye: V3, far: Float, fog: V3, rd: Float,
-                        horizon: Bool = true) {
+                        horizon: Bool = true, landmarks: Bool = true) {
         smokeStart = 0; Renderer.plumeRising = false; Renderer.horizonEnd = out.count
         guard game.dim.dim == .overworld, let wg = game.world.gen as? WorldGen else { return }
         let vols = wg.terrain.volcanoes(near: eye.x, eye.z, reach: Renderer.landmarkRange)
@@ -127,11 +132,18 @@ extension Renderer {
             let r: Float = place * (0.95 + 0.05 * min(1, len / Renderer.landmarkRange))
             return V4(d * (r / len), 1)
         }
+        // Nov 9 (item 7): on the headset the opaque part goes in world terms and its shader puts it on the shell
+        // (simple.vert: w = 3 + the shell's radius, or -1 for a point at its true place), so a build holds while the
+        // eye moves: flying, it was rebuilt every 3 blocks, 0.11-0.14 ms of every frame's record over the peaks (the
+        // horizon ground, the far citadel and the cones). The smoke, drawn blended by its own pass, stays on the CPU.
+        let gpu = Renderer.shellOnGPU
+        let shellW: Float = 3 + place
+        func ps(_ w: V3) -> V4 { gpu ? V4(w, shellW) : p(w) }
         func tri(_ a: V4, _ b: V4, _ c: V4, _ col: V4, _ into: inout [SimpleVert]) {
             into.append(SimpleVert(pos: a, color: col)); into.append(SimpleVert(pos: b, color: col)); into.append(SimpleVert(pos: c, color: col))
         }
         // The ground past the loaded terrain first (HorizonRing.swift): the landmarks below stand on it.
-        if horizon { buildHorizon(&out, game: game, eye: eye, loaded: loaded, fog: fog, sun: sun, day: day, hdrK: hdrK, shell: place, project: p) }
+        if horizon { buildHorizon(&out, game: game, eye: eye, loaded: loaded, fog: fog, sun: sun, day: day, hdrK: hdrK, shell: place, project: ps) }
         Renderer.horizonEnd = out.count
         for v in vols {
             let c = V3(v.x, Float(YOFF) + v.base, v.z)
@@ -185,7 +197,7 @@ extension Renderer {
                 let gh: V3 = g * (1 - gHaze) + fog * gHaze
                 return V4(rk * (1 - f) + gh * f, 1)
             }
-            for ri in 0..<(rings.count - 1) {
+            for ri in 0..<(landmarks ? rings.count - 1 : 0) {
                 let t0 = rings[ri], t1 = rings[ri + 1]
                 for i in 0..<seg {
                     let a0 = ringPoint(t0, i), b0 = ringPoint(t0, i + 1)
@@ -193,13 +205,13 @@ extension Renderer {
                     let n = simd_normalize(simd_cross(b0 - a0, a1 - a0) + V3(0, 1e-4, 0))
                     let up = n.y < 0 ? -n : n
                     let ca0 = vcol(t0, a0, up), cb0 = vcol(t0, b0, up), ca1 = vcol(t1, a1, up), cb1 = vcol(t1, b1, up)
-                    out.append(SimpleVert(pos: p(a0), color: ca0)); out.append(SimpleVert(pos: p(b0), color: cb0)); out.append(SimpleVert(pos: p(a1), color: ca1))
-                    out.append(SimpleVert(pos: p(b0), color: cb0)); out.append(SimpleVert(pos: p(b1), color: cb1)); out.append(SimpleVert(pos: p(a1), color: ca1))
+                    out.append(SimpleVert(pos: ps(a0), color: ca0)); out.append(SimpleVert(pos: ps(b0), color: cb0)); out.append(SimpleVert(pos: ps(a1), color: ca1))
+                    out.append(SimpleVert(pos: ps(b0), color: cb0)); out.append(SimpleVert(pos: ps(b1), color: cb1)); out.append(SimpleVert(pos: ps(a1), color: ca1))
                     if ri == 0 {
                         // A skirt hanging out of sight under the apron edge, in the ground's colour.
                         let a2 = a0 - V3(0, 60, 0), b2 = b0 - V3(0, 60, 0)
-                        out.append(SimpleVert(pos: p(a0), color: ca0)); out.append(SimpleVert(pos: p(b0), color: cb0)); out.append(SimpleVert(pos: p(b2), color: cb0))
-                        out.append(SimpleVert(pos: p(a0), color: ca0)); out.append(SimpleVert(pos: p(b2), color: cb0)); out.append(SimpleVert(pos: p(a2), color: ca0))
+                        out.append(SimpleVert(pos: ps(a0), color: ca0)); out.append(SimpleVert(pos: ps(b0), color: cb0)); out.append(SimpleVert(pos: ps(b2), color: cb0))
+                        out.append(SimpleVert(pos: ps(a0), color: ca0)); out.append(SimpleVert(pos: ps(b2), color: cb0)); out.append(SimpleVert(pos: ps(a2), color: ca0))
                     }
                 }
             }
@@ -208,13 +220,13 @@ extension Renderer {
             let lava = V4(V3(1.0, 0.36, 0.08) * glowK * (1 - haze * 0.6) + fog * haze * 0.6, 1)
             let ctr = V3(v.x, Float(YOFF) + v.lavaLevel, v.z)
             let tc = v.crater / v.r
-            for i in 0..<seg {
+            for i in 0..<(landmarks ? seg : 0) {
                 let a = ringPoint(tc, i), b = ringPoint(tc, i + 1)
                 let ia = V3(v.x + (a.x - v.x) * 0.8, ctr.y, v.z + (a.z - v.z) * 0.8)
                 let ib = V3(v.x + (b.x - v.x) * 0.8, ctr.y, v.z + (b.z - v.z) * 0.8)
                 let wall = V4(shade(rock * 0.6, V3(0, 1, 0)), 1)
-                tri(p(a), p(b), p(ia), wall, &out); tri(p(b), p(ib), p(ia), wall, &out)
-                tri(p(ctr), p(ia), p(ib), lava, &out)
+                tri(ps(a), ps(b), ps(ia), wall, &out); tri(ps(b), ps(ib), ps(ia), wall, &out)
+                tri(ps(ctr), ps(ia), ps(ib), lava, &out)
             }
             // Smoke plume: crossed quads rising from the crater, widening, drifting downwind, fading.
             let t = Float(game.time.truncatingRemainder(dividingBy: 600))
@@ -222,7 +234,7 @@ extension Renderer {
             // Erupting (Eruptions.swift): the plume swells, darkens and boils up faster, its foot lit by the fountain,
             // and glowing bombs arc out of the crater.
             let er: Float = game.eruption.map { $0.v.x == v.x && $0.v.z == v.z ? $0.strength(game.clock) : 0 } ?? 0
-            if er > 0 {
+            if er > 0 && landmarks {                      // (the bombs are opaque: the caller rebuilds all while one erupts)
                 let ct = Float(game.clock.truncatingRemainder(dividingBy: 1000))
                 let bomb = V4(V3(1.0, 0.45, 0.1) * glowK * 1.3 * (1 - haze * 0.5) + fog * haze * 0.5, 1)
                 let bs: Float = max(4, dist * 0.008)
@@ -234,10 +246,10 @@ extension Renderer {
                     let hgt = v.rim + 4 + 110 * er * ph * (1 - ph) * 4 * (0.6 + 0.4 * sinf(fk * 1.7))
                     let c = V3(v.x, Float(YOFF) + hgt, v.z) + ofs
                     // A diamond in each of two crossed planes (a glowing lump from any side).
-                    let top = p(c + V3(0, bs, 0)), bot = p(c - V3(0, bs, 0))
+                    let top = ps(c + V3(0, bs, 0)), bot = ps(c - V3(0, bs, 0))
                     for (sx, sz) in [(bs * 0.7, Float(0)), (Float(0), bs * 0.7)] {
                         let side = V3(sx, 0, sz)
-                        let l = p(c - side), r = p(c + side)
+                        let l = ps(c - side), r = ps(c + side)
                         tri(l, r, top, bomb, &out); tri(r, l, bot, bomb, &out)
                     }
                 }
@@ -264,7 +276,7 @@ extension Renderer {
         }
         // Ancient Spires: an eight-sided shaft with a broken crown.
         let grey = V3(0.43, 0.43, 0.44)
-        for sp in spireCache(game) {
+        for sp in landmarks ? spireCache(game) : [] {
             let dist = simd_length(V2(sp.x - eye.x, sp.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.spireRange else { continue }
             let haze: Float = 0.35 + 0.55 * Terrain.smooth(loaded, Renderer.spireRange, dist)
@@ -277,20 +289,20 @@ extension Renderer {
                 let n = simd_normalize(V3(cosf((a0 + a1) / 2), 0, sinf((a0 + a1) / 2)))
                 let lit: Float = (0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08) * nightK
                 let c = V4(grey * lit * hdrK * (1 - haze) + fog * haze, 1)
-                tri(p(b0), p(b1), p(t1), c, &out); tri(p(b0), p(t1), p(t0), c, &out)
+                tri(ps(b0), ps(b1), ps(t1), c, &out); tri(ps(b0), ps(t1), ps(t0), c, &out)
                 // A fog-coloured skirt under the foot: past the loaded terrain the shaft hung over the horizon haze
                 // (spire_horizon, run 482).
                 let f4 = V4(fog, 1)
                 let d0 = b0 - V3(0, 70, 0), d1 = b1 - V3(0, 70, 0)
-                tri(p(d0), p(d1), p(b1), f4, &out); tri(p(d0), p(b1), p(b0), f4, &out)
+                tri(ps(d0), ps(d1), ps(b1), f4, &out); tri(ps(d0), ps(b1), ps(b0), f4, &out)
             }
         }
         // The Capital's citadels: the white hall on its podium, the great tower and its two side towers, as boxes.
         // Inside the far plane they stand at their true place (`near`): on the shell, the middle ring's ground (FarRing,
         // at its true depth out to 1024 blocks) rising behind them covered them from above (P483, "I can't see it").
-        func at(_ w: V3, _ near: Bool) -> V4 { near ? V4(w - eye, 1) : p(w) }
+        func at(_ w: V3, _ near: Bool) -> V4 { near ? (gpu ? V4(w, -1) : V4(w - eye, 1)) : ps(w) }
         let stone = V3(0.9, 0.91, 0.92), trim = V3(0.68, 0.7, 0.73)
-        for (ci, ct) in citadelCache(game).enumerated() {
+        for (ci, ct) in (landmarks ? citadelCache(game) : []).enumerated() {
             let dist = simd_length(V2(ct.x - eye.x, ct.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.citadelRange else { continue }
             let haze: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist), margin: 0.22)
@@ -330,7 +342,7 @@ extension Renderer {
         let tones: [V3] = [V3(0.6, 0.47, 0.33), V3(0.36, 0.24, 0.19), V3(0.9, 0.91, 0.92), V3(0.3, 0.48, 0.58),
                            V3(0.64, 0.66, 0.69), V3(0.55, 0.55, 0.56)]
         _ = townCache(game)
-        for bx in Renderer.townBoxes {
+        for bx in landmarks ? Renderer.townBoxes : [] {
             // (down into the middle ring's coarse ground)
             // (P505: 14 down, into a hillside's fall)
             let lo = V3(Float(bx.min.x), Float(bx.min.y - 14), Float(bx.min.z)), hi = V3(Float(bx.max.x + 1), Float(bx.max.y + 1), Float(bx.max.z + 1))

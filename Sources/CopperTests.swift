@@ -980,6 +980,17 @@ enum CopperTests {
             let all = (1...3).allSatisfy { st(P($0)) >= 6 }
             return (all, "activator rails powered \(all)")
         }
+        // Ledger 45: a blast with no part that makes or carries power near clears its cells without the circuit's marks
+        // (World.circuitNear); one that cuts a live line must still turn off what it fed.
+        t("blast.cut") {
+            battery(P(0)); for x in 1...6 { wire(P(x)) }; put(P(7), "redstone_lamp")
+            tick(10)
+            let before = lit(P(7))
+            Explosion.explode(at: centre(P(2), dy: 0.5), power: 1.2, game: g)
+            let cut = key(P(2)) != "redstone_wire"
+            tick(10)
+            return (before && cut && !lit(P(7)) && key(P(7)) == "redstone_lamp", "lamp lit \(before); the blast took the wire \(cut); lamp after \(lit(P(7))) (\(key(P(7))))")
+        }
 
         // MARK: Recipes and names
         t("recipes.all") {

@@ -111,8 +111,11 @@ enum BrigandRoost {
         for z in [hz0, hz1] { for x in [hx0, hx1] { w.fill(x, y, z, x, y + 8, z, log) } }
         for x in stride(from: hx0 + 2, through: hx1 - 2, by: 4) { for z in [hz0, hz1] { w.set(x, y + 2, z, g("glass_pane", AIR)) } }
         w.fill(hx0 + 1, y + 5, hz0 + 1, hx1 - 1, y + 5, hz1 - 1, pl)                       // the loft floor
-        w.fill(hx0 + 1, y + 5, hz0 + 1, hx0 + 3, y + 5, hz1 - 1, AIR)                       // its hatch at the west end
-        for yy in 0..<5 { w.set(hx0 + 1, y + yy, hz1 - 1, ladder) }                         // (on the south wall)
+        // Its hatch over the ladder, the ladder up through it (ledger 31: the hatch was the whole west end, 3 x 9, and
+        // the ladder stopped under it in the far corner, 3 blocks from any loft floor: the loft's chest and bunks
+        // could not be reached on foot; structcheck flagged the chest in every roost).
+        w.set(hx0 + 1, y + 5, hz1 - 1, AIR)
+        for yy in 0..<6 { w.set(hx0 + 1, y + yy, hz1 - 1, ladder) }                         // (on the south wall)
         for k in 0...6 {                                                                      // the roof
             let zz0 = hz0 - 1 + k, zz1 = hz1 + 1 - k
             guard zz0 <= zz1 else { break }
@@ -148,7 +151,8 @@ enum BrigandRoost {
         mob("vindicator", cx - 3, 0, cz - r + 3); mob("vindicator", cx + 3, 0, cz - r + 3)
         mob("vindicator", cx - 3, 0, cz - 3); mob("vindicator", cx + 5, 0, cz + 3)
         mob("pillager", tx, 10, tz); mob("pillager", cx + 6, 0, cz - 11)
-        if rng.chance(0.5) { mob("pillager", cx - r + 2, 4, cz) }
+        // (Ledger 36: on the west wall's walk, the slabs a block in from the wall; one more in he stood on air, 4 up.)
+        if rng.chance(0.5) { mob("pillager", cx - r + 1, 4, cz) }
     }
 }
 

@@ -22,20 +22,29 @@ struct SectionMesh {
     var farGround: [UInt32] = []
     var farCut = 0
     var farTail = 0         // P384: the last farTail cutout quads are drawn far only (things laid on the ground)
+    var farPlants = 0       // Nov 6: the farPlants cutout quads before the far tail are small ground plants (Mesher.farPlantT)
     var farParts = SIMD4<Int32>()   // (questcheck --farcheck: the far copy's ground, bevelled and leaf parts; near laid things)
     var detailFarSkip = 0
     var detailFar: [UInt32] = []
+    var canopyN = 0         // Nov 11 (BS_CANOPY): the far canopy's quads, the last of farGround (after the leaf blobs' far shells)
+    // (and with its logs, the trunks' detail quads it stands in for: near from, to; in the far copy from (to its end), -1 none)
+    var canopyTrunks = SIMD3<Int32>(0, 0, -1)
     var solidFull = false   // P376 step 5: every cell of the section is opaque (an occluder for SceneRenderer.occlusionCull)
     var kinds = SIMD16<Int32>()   // P384 step 1: quads by kind (MeshKind), for questcheck --perfscenes
     var ground: GroundTris? = nil   // P386: the drawn ground for bodies and rays (GroundFeet.swift)
+    var uploaded: Uploaded? = nil   // Nov 9: the words already copied into mesh slices by the worker (World.upload)
+    struct Uploaded {
+        var opaque: MeshSlice?, trans: MeshSlice?, detail: MeshSlice?
+        var opaqueWords = 0, farWords = 0, transWords = 0, detailWords = 0, detailFarWords = 0
+    }
 }
 
 // P384 step 1: what the section's quads are (SectionMesh.kinds; opaque stream 0...7, detail stream 8...13).
 enum MeshKind {
     static let cube = 0, bevel = 1, model = 2, plant = 3, fluid = 4, ground = 5, blob = 6
     static let trunk = 8, organic = 9, spike = 10, rail = 11, piece = 12, struck = 13
-    static let names = ["cubes", "bevels", "props", "plants", "fluids", "ground", "leaf blobs", "",
-                        "trunks", "round shapes", "spikes", "rails", "pieces", "struck cubes", "", ""]
+    static let names = ["cubes", "bevels", "props", "plants", "fluids", "ground", "leaf blobs", "cut out (not blobs)",
+                        "trunks", "round shapes", "spikes", "rails", "pieces", "struck cubes", "cut-out cubes", "cut-out props"]
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -99,6 +108,50 @@ enum Mesher {
 
     // P508: built cubes on the field's ground get a foot down into it (BS_FEET=0 leaves them off: before/after renders).
     static let blockFeet = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
+    // Nov 6 (jungle perf spot: bamboo was 27k of the 43k cutout quads past 64 blocks): a stack of one thin model (one box,
+    // full height, clear of the cell's sides: bamboo, chains, rods) lit alike all the way up is drawn as one box per run
+    // in the section. Its sides take the face-projected texture (u = v = 31 in chunk.vert), which repeats per block
+    // exactly as faceUV lays it, so the look is the same. BS_RUNMERGE=0 for before.
+    static let runMerge = ProcessInfo.processInfo.environment["BS_RUNMERGE"] != "0"
+    // The same for a stack of one still, full-size cross (hanging vines: the jungle's most drawn block, 51k quads at the
+    // perf spot): one tall cross per run, its corners' u = 28 (rising with x) or 29 (falling) and chunk.vert / ship.vert
+    // lay the texture by position as the per-block corners did. Headset shaders only (the Mac's don't read 28 / 29).
+    #if QUEST || QUEST_HEADLESS
+    static let crossRuns = runMerge && ProcessInfo.processInfo.environment["BS_CROSSRUNS"] != "0"
+    // Nov 6 (frame rate, the standing fill-in): small ground plants (grass tufts, ferns, flowers, dead bushes) go last
+    // of a section's cutout quads, before the far-only tail, counted in MeshResult.plants, so the renderer can leave
+    // them out from SceneRenderer.plantFarFrom (a tuft is under a pixel and a half there at headset resolution). Tall
+    // plants, vines and roots stay (water plants too, until Nov 8: below). BS_FARPLANTS=0 for before.
+    static let farPlants = ProcessInfo.processInfo.environment["BS_FARPLANTS"] != "0"
+    static let farPlantKeys: Set<String> = ["short_grass", "grass", "fern", "dead_bush", "bush", "dandelion", "poppy", "blue_orchid",
+        "allium", "azure_bluet", "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "oxeye_daisy", "cornflower",
+        "lily_of_the_valley", "torchflower", "open_eyeblossom", "closed_eyeblossom", "short_dry_grass", "sweet_berry_bush"]
+    // Nov 8 (the soak's deep-ocean flight drew 165k quads, 40k of them seagrass and kelp past 64 blocks): water plants go
+    // with them. Past 64 blocks a seagrass tuft is as small as a grass one, and a kelp strand a pixel and a half wide;
+    // both are seen only through the water, which water.frag draws over the bed with its column's depth band (kelp and
+    // seagrass count as water there): over 5+ deep water a strand at 64 shows through at a few percent, and past 76
+    // not at all. BS_FARWATERPLANTS=0 keeps them, as before.
+    static let farWaterPlants = farPlants && ProcessInfo.processInfo.environment["BS_FARWATERPLANTS"] != "0"
+    static let farWaterPlantKeys: Set<String> = ["seagrass", "kelp"]
+    static let farPlantT: [Bool] = (0..<Blocks.count).map { i in
+        guard farPlants && Blocks.defs[i].render == .cross else { return false }
+        let k = Blocks.key(Blocks.groupBase[i])
+        return farPlantKeys.contains(k) || farWaterPlants && farWaterPlantKeys.contains(k)
+    }
+    #else
+    static let crossRuns = false
+    static let farPlantT = [Bool](repeating: false, count: Blocks.count)      // (the Mac draws every plant)
+    #endif
+    static let crossRun: [Bool] = (0..<Blocks.count).map { i in
+        Blocks.render[i] == RenderType.cross.rawValue && Blocks.crossSize[i] == 16 && !Blocks.sway[i] && !Blocks.drift[i]
+            && Blocks.layer[i] != RenderLayer.translucent.rawValue && BlockID(i) != pointedDrip
+    }
+    static let runBox: [Bool] = (0..<Blocks.count).map { i in
+        guard Blocks.render[i] == RenderType.model.rawValue, Blocks.layer[i] != RenderLayer.translucent.rawValue, !ChestJoin.joinable[i],
+              Blocks.boxes[i].count == 1, let b = Blocks.boxes[i].first else { return false }
+        return b.y0 == 0 && b.y1 == 16 && b.x0 > 0 && b.x1 < 16 && b.z0 > 0 && b.z1 < 16 && b.x1 > b.x0 && b.z1 > b.z0
+            && b.leanX == 0 && b.leanZ == 0
+    }
 
     // Faces +X,-X,+Y,-Y,+Z,-Z; corners BL,BR,TR,TL counter-clockwise seen from outside.
     static let cornerTable: [Int] = [
@@ -344,6 +397,7 @@ enum Mesher {
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase, joinT = ChestJoin.joinable
+        let runT = Mesher.runBox, crossRunT = Mesher.crossRun
         let rRail = RenderType.rail.rawValue
         let waterTex = Int(WATER) * 6
         let translucent = RenderLayer.translucent.rawValue
@@ -524,12 +578,17 @@ enum Mesher {
         // first of the cutout ones) and their far copies are collected aside (bevFar, blobFar).
         let bev = sc.bev, bevFar = sc.bevFar, blobCut = sc.blobCut, blobFar = sc.blobFar, drapeNear = sc.drapeNear, drapeFar = sc.drapeFar
         bev.count = 0; bevFar.count = 0; blobCut.count = 0; blobFar.count = 0; drapeNear.count = 0; drapeFar.count = 0
+        let canopyFar = sc.canopyFar
+        canopyFar.count = 0
         let farCopies = Mesher.farCopies && lod != 1
         var solidOut = opq, cutOut = cut, counting = true
         var farMaskUsed = false
         opq.count = 0; cut.count = 0; trn.count = 0
         var curCut = false
         var kindNow = MeshKind.cube, kv = SIMD16<Int32>()  // (P384 step 1: vertices by kind)
+        var dropNow = false                                 // (Nov 6: a small ground plant's quads: Mesher.farPlantT)
+        let farPlantCut = sc.farPlantCut, farPlantT = Mesher.farPlantT
+        farPlantCut.count = 0
         var groundV = 0, blobV = 0                       // (P283 stats: vertices from the two smooth passes)
         var farSkip = 0, farGround: [UInt32] = []        // P375 (GroundMerge)
         var leafy = false                                // faces between leaf blocks met (lod 0 and 2 differ)
@@ -588,8 +647,14 @@ enum Mesher {
             let w1: UInt32 = uv | (UInt32(layer) << 10) | (UInt32(ao) << 20)
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
             if trans { trn.append(w0); trn.append(w1); return }
-            if counting { kv[kindNow] &+= 1 }
-            if curCut { cutOut.append(w0); cutOut.append(w1) } else { solidOut.append(w0); solidOut.append(w1) }
+            if counting {
+                kv[kindNow] &+= 1
+                // (Nov 6: of the opaque stream's cutout quads, the ones not leaf blobs, and the cubes' and props' share)
+                if curCut && kindNow != MeshKind.blob { kv[7] &+= 1; if kindNow == MeshKind.cube { kv[14] &+= 1 } else if kindNow == MeshKind.model { kv[15] &+= 1 } }
+            }
+            if curCut {
+                if dropNow && cutOut === cut { farPlantCut.append(w0); farPlantCut.append(w1) } else { cutOut.append(w0); cutOut.append(w1) }
+            } else { solidOut.append(w0); solidOut.append(w1) }
         }
         // A smooth ground vertex from the ground passes: u = 31 projects the texture by the quad's face, and v (+ 31 when
         // the overlay bit is set) is the vertex normal code (< 49); P383: f 8...15 is a per-position vertex (u = 30, the
@@ -613,7 +678,7 @@ enum Mesher {
                        runsOn: (Int, Int, Int) -> Bool, cham: (Int, Int) -> Bool) {
             let a = f >> 1, sa = f & 1 == 0 ? 1 : -1, pa = sa > 0 ? 16 : 0
             let base = SIMD3<Int>(bx16, by16, bz16)
-            kindNow = MeshKind.bevel
+            kindNow = MeshKind.bevel; dropNow = false
             if farCopies && !curCut && !isTrans { solidOut = bev }      // (P384: near only)
             defer { kindNow = MeshKind.cube; solidOut = opq }
             func put(_ q: SIMD3<Int>, _ n: SIMD3<Float>, _ l: Int, _ ao: Int) {
@@ -849,7 +914,7 @@ enum Mesher {
         // The smooth ground first: the plants below stand on its drawn surface (P175), read back from its vertices.
         sc.smValid = false
         let groundStart = opq.count
-        kindNow = MeshKind.ground
+        kindNow = MeshKind.ground; dropNow = false
         if smooth && fieldOn && far && Mesher.farGround {
             // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround).
             coarseGround(R, dens, sc, nearSides: nearSides) { x16, y16, z16, f, tint, layer, ao, l, ncode in
@@ -868,8 +933,10 @@ enum Mesher {
                 groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
             }
             if AdaptiveGround.enabled && adaptiveOK {
+                let t0 = Mesher.fineTiming ? CFAbsoluteTimeGetCurrent() : 0
                 groundV -= AdaptiveGround.mesh(opq, from: g0, exact: ex.count == (opq.count - g0) / 2 * 3 ? ex.ptr : nil,
                                                farSkip: &farSkip, farGround: &farGround) * 4    // P381, P383
+                if Mesher.fineTiming { Mesher.fineT.adaptive += CFAbsoluteTimeGetCurrent() - t0 }
             }
         } else if smooth {
             // (P381: the adaptive ground replaces the pixel-error merge in field worlds.)
@@ -1073,7 +1140,7 @@ enum Mesher {
         // the field), quads wholly inside the ground left out. Far sections too (P378 step 3: identical far).
         let fluidNets = fieldOn && Mesher.fluidNets            // (every distance: P378 step 3)
         if fluidNets {
-            kindNow = MeshKind.fluid
+            kindNow = MeshKind.fluid; dropNow = false
             for kind in [UInt8(1), UInt8(2), UInt8(3)] {                // (3: fuel, P478)
                 var any = false
                 outer: for y in (C0 - 2)..<(C0 + 20) { for z in (C0 - 2)..<(C0 + 20) { for x in (C0 - 2)..<(C0 + 20) where fkT[Int(R[x + z * RW + y * RL])] == kind { any = true; break outer } } }
@@ -1385,6 +1452,7 @@ enum Mesher {
                     let isTrans = layerT[bi] == translucent
                     curCut = !(rt == rCube && layerT[bi] == solidLayer)
                     kindNow = rt == rCube ? MeshKind.cube : (rt == rCross ? MeshKind.plant : (rt == rLiquid ? MeshKind.fluid : MeshKind.model))
+                    dropNow = farPlantT[bi]
 
                     if anyDmg, let dv = dmg[i], rt == rCube {
                         // A chipped block: its remaining 4x4x4 sub-cubes, faces between them and against undamaged
@@ -1446,6 +1514,38 @@ enum Mesher {
                         // floor, so a plant in its first row over a dip stayed up to 3/4 block over the drawn ground: the
                         // section below draws it (after the main loop).
                         if smooth && ly == 0 && plantOnNatural(i) { continue }
+                        if Mesher.crossRuns && crossRunT[bi] && ly < 16 {
+                            // (Nov 6: a run of one still cross: skipped above its first block, drawn whole from there; not
+                            // in a stack that stands on the drawn ground, which the stack offsets below would move)
+                            func joins(_ j: Int, _ jy: Int) -> Bool {
+                                if anyDmg && dmg[j] != nil { return false }
+                                if let sk = objSkip, sk[(x - C0) + (z - C0) * 16 + jy * 256] { return false }
+                                if sc.smValid || drapeOn {
+                                    var g = jy - 1, k = j - RL
+                                    while g > -SmoothTerrain.maxRelax && renderT[Int(R[k])] == rCross { g -= 1; k -= RL }
+                                    if natAt(k) { return false }
+                                }
+                                return true
+                            }
+                            if joins(i, ly) {
+                                if ly > 0 && R[i - RL] == b && joins(i - RL, ly - 1) && skyL[i - RL] == skyL[i] && blkL[i - RL] == blkL[i] { continue }
+                                var n = 1
+                                while ly + n < 16 && R[i + n * RL] == b && joins(i + n * RL, ly + n) && skyL[i + n * RL] == skyL[i] && blkL[i + n * RL] == blkL[i] { n += 1 }
+                                if n > 1 {
+                                    let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                                    let layer = Int(texT[bi * 6 + 2])
+                                    for q in 0..<4 {
+                                        let uCode = q == 0 || q == 3 ? 28 : 29
+                                        for k in 0..<4 {
+                                            let ci = (q * 4 + k) * 3
+                                            vert(isTrans, bx16 + PTab[ci] * 16, by16 + PTab[ci + 1] * n * 16, bz16 + PTab[ci + 2] * 16,
+                                                 6, tintV, uCode, 0, layer, 3, l, false)
+                                        }
+                                    }
+                                    continue
+                                }
+                            }
+                        }
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         // P175: a plant (or a stack of them, cane) on smooth ground stands on the drawn surface, not on the
                         // block top it was rounded from (grass floated over every dip).
@@ -1620,6 +1720,48 @@ enum Mesher {
                             }
                         }
                         continue
+                    }
+                    if rt == rModel && Mesher.runMerge && runT[bi] && ly < 16 {
+                        // (Nov 6: a run of one thin model: skipped above its first block, drawn whole from there)
+                        @inline(__always) func joins(_ j: Int, _ jy: Int) -> Bool {
+                            !natAt(j - RL) && !(anyDmg && dmg[j] != nil)
+                                && !(objSkip.map { $0[(x - C0) + (z - C0) * 16 + jy * 256] } ?? false)
+                        }
+                        if joins(i, ly) {
+                            if ly > 0 && R[i - RL] == b && joins(i - RL, ly - 1) && skyL[i - RL] == skyL[i] && blkL[i - RL] == blkL[i] { continue }
+                            var n = 1
+                            while ly + n < 16 && R[i + n * RL] == b && joins(i + n * RL, ly + n) && skyL[i + n * RL] == skyL[i] && blkL[i + n * RL] == blkL[i] { n += 1 }
+                            if n > 1 {
+                                let box = boxesT[bi][0]
+                                let mn = [Int(box.x0), 0, Int(box.z0)], mx = [Int(box.x1), 16, Int(box.z1)]
+                                let lOwn = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                                let iTop = i + (n - 1) * RL, rise = (n - 1) * 16
+                                for f in 0..<6 {
+                                    let at = f == 2 ? iTop : i                  // (the top face is the run's top block's)
+                                    var l = lOwn
+                                    if f == 2 || f == 3 {
+                                        let nb = R[at + offs[f]]
+                                        if opaqueT[Int(nb)] && !smoothOpen(at + offs[f]) && !(anyDmg && dmg[at + offs[f]] != nil) { continue }
+                                        if nb == b && !(anyDmg && (dmg[at] != nil || dmg[at + offs[f]] != nil)) { continue }
+                                        l = max(0, light(x, y + (f == 2 ? n : -1), z))
+                                    }
+                                    let layer = box.tex.isEmpty ? Int(texT[bi * 6 + f]) : Int(box.tex[f])
+                                    for k in 0..<4 {
+                                        let ci = (f * 4 + k) * 3
+                                        let px = CT[ci] == 1 ? mx[0] : mn[0]
+                                        let up = CT[ci + 1] == 1
+                                        let pz = CT[ci + 2] == 1 ? mx[2] : mn[2]
+                                        if f == 2 || f == 3 {
+                                            let (u, v) = faceUV(f, px, up ? 16 : 0, pz)
+                                            vert(isTrans, bx16 + px, by16 + (up ? 16 : 0) + (f == 2 ? rise : 0), bz16 + pz, f, tintV, u, v, layer, 3, l, false)
+                                        } else {
+                                            vert(isTrans, bx16 + px, by16 + (up ? 16 + rise : 0), bz16 + pz, f, tintV, 31, 31, layer, 3, l, false)
+                                        }
+                                    }
+                                }
+                                continue
+                            }
+                        }
                     }
                     if rt == rModel || rt == rConnect {
                         var boxes = boxesT[bi]
@@ -1956,6 +2098,8 @@ enum Mesher {
                 let isTrans = layerT[bi] == translucent
                 curCut = true
                 kindNow = MeshKind.plant
+                dropNow = farPlantT[bi]
+                defer { dropNow = false }
                 let layer = Int(texT[bi * 6 + 2])
                 let cs = Int(crossT[bi]), ci0 = (16 - cs) / 2
                 let drift = swayOn && driftT[bi], foot = drift && driftFoot(i)
@@ -1986,6 +2130,7 @@ enum Mesher {
         }
         // Realistic world: trunks and limbs grown from the log graph (ShapeTrunks) and rounded organic objects
         // (ShapeOrganic), into the detail stream.
+        var trunkFrom = 0, trunkTo = 0, trunkCtx: DetailContext? = nil      // (the trunks' solid quads in det, for their far copy)
         if detailDraw {
             var ctx = DetailContext(out: det, cutOut: detCut, R: R, sky: skyL, blk: blkL, wx0: wox, wy0: sy * 16, wz0: woz,
                                     lod: lod, sc: sc, srcs: srcs, sy: sy, field: fieldOn ? n9 : nil)
@@ -1999,7 +2144,9 @@ enum Mesher {
             var d0 = det.count + detCut.count
             func tally(_ k: Int) { let d = det.count + detCut.count; kv[k] &+= Int32((d - d0) / DetailMesh.wordsPerVertex); d0 = d }
             kv[MeshKind.struck] &+= Int32(d0 / DetailMesh.wordsPerVertex)
+            trunkFrom = det.count; trunkCtx = ctx
             ShapeTrunks.emit(ctx); tally(MeshKind.trunk)
+            trunkTo = det.count
             ShapeOrganic.emit(ctx); tally(MeshKind.organic)
             ShapeSpikes.emit(ctx); ShapeSpikes.emitCrystals(ctx); tally(MeshKind.spike)
             ShapeRails.emit(ctx); tally(MeshKind.rail)
@@ -2036,12 +2183,21 @@ enum Mesher {
                 let farBlob = lod == 1 && Mesher.farLeaves
                 let farShell = farCopies && !farBlob && SmoothTerrain.triGround
                 if farShell { cutOut = blobCut }                 // (P384: near only, first of the cutout quads)
-                kindNow = MeshKind.blob
+                kindNow = MeshKind.blob; dropNow = false
+                // (Nov 5, P453 "simplify trees": with a far shell the cutout shells go outer ones first, then the inner
+                // ones, so past SceneRenderer.blobMidFrom the renderer draws the outer half alone. smoothQuads gives every
+                // quad's inner twin right after it.)
+                let inner = sc.blobInner
+                inner.count = 0
+                var bq = 0
                 smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: farBlob ? 1 : 2, world: wo) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                     curCut = !farBlob
+                    if farShell { cutOut = (bq >> 2) & 1 == 1 ? inner : blobCut }
+                    bq += 1
                     blobV += 1
                     vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
                 }
+                for i in 0..<inner.count { blobCut.append(inner.ptr[i]) }
                 cutOut = cut
                 // P384 step 4: far, one solid shell (the outer one: the canopy's outline), drawn per position (triplanar,
                 // like the ground) and simplified to the far bound against its exact surface.
@@ -2055,14 +2211,45 @@ enum Mesher {
                     }
                     solidOut = opq; counting = true
                     if AdaptiveGround.enabled {
-                        AdaptiveGround.simplify(blobFar, from: 0, tol: AdaptiveGround.farTolerance,
+                        AdaptiveGround.simplify(blobFar, from: 0, tol: AdaptiveGround.blobFarTolerance,
                                                 exact: ex.count == blobFar.count / 2 * 3 ? ex.ptr : nil, capture: false, blob: true)
                     }
                 }
             }
         }
+        // Nov 11 (the far canopy tier, behind BS_CANOPY until he has judged it): a second, coarser shell of the leaves
+        // (and a shell of the trees' logs with BS_CANOPYLOGS=1, so the trunks' far copies can go too), drawn past
+        // SceneRenderer.canopyFrom in place of the leaf blobs' far shells: simplified to a looser bound (BS_CANOPYTOL
+        // blocks; a pixel at 182 blocks is about 0.16 block at the lens's sharpest, most of the band is farther and drawn
+        // under dynamic resolution), its corner shading and light free to interpolate (BS_CANOPYLT levels of light).
+        var canopyLogsHere = false
+        if Mesher.canopy && Mesher.canopyLogs && leafBlob && farCopies && SmoothTerrain.triGround && detailDraw {
+            let logT = ShapeTrunks.isLog
+            scanLogs: for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where logT[Int(R[(x + C0) + (z + C0) * RW + (y + C0) * RL])] {
+                canopyLogsHere = true; break scanLogs
+            } } }
+        }
+        if Mesher.canopy && AdaptiveGround.enabled && leafBlob && farCopies && SmoothTerrain.triGround && (blobFar.count > 0 || canopyLogsHere) {
+            // (the leaves: the far shell itself simplified on, not a shell meshed again: that took 44% more meshing time)
+            for k in 0..<blobFar.count { canopyFar.append(blobFar.ptr[k]) }
+            AdaptiveGround.simplify(canopyFar, from: 0, tol: Mesher.canopyTol, capture: false, blob: true, oTol: 4, lTol: Mesher.canopyLightTol)
+            if canopyLogsHere {
+                // (the logs: their own shell after it, as smooth as the leaves' and simplified the same way)
+                let ex = sc.blobExact, at = canopyFar.count
+                ex.count = 0
+                solidOut = canopyFar; counting = false
+                smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: 1, world: nil, exact: ex, tri: true, canopy: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                    curCut = false
+                    groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
+                }
+                solidOut = opq; counting = true
+                AdaptiveGround.simplify(canopyFar, from: at, tol: Mesher.canopyTol, exact: ex.count == (canopyFar.count - at) / 2 * 3 ? ex.ptr : nil,
+                                        capture: false, blob: true, oTol: 4, lTol: Mesher.canopyLightTol)
+            }
+            Mesher.canopyTally(blobFar.count / 8, canopyFar.count / 8)
+        }
         // Merge the collected faces: grow each run along a, then along b while the whole row matches.
-        kindNow = MeshKind.cube
+        kindNow = MeshKind.cube; dropNow = false
         func mergeFaces(_ mk: UnsafeMutablePointer<Int32>) {
             for f in 0..<6 {
                 let axis = f / 2
@@ -2186,7 +2373,7 @@ enum Mesher {
         // P384: one far copy for everything the near quads lead with (the ground's far copy, or its near quads where it
         // has none, the bevelled faces drawn plain, the leaf blobs' far shell), and the far copies of things laid on the
         // ground (after the other cutout quads, drawn far only), kept when they are smaller.
-        var farSkipOut = farSkip, farCopy = farGround, farCut = 0, farTail = 0
+        var farSkipOut = farSkip, farCopy = farGround, farCut = 0, farTail = 0, canopyN = 0
         var parts = SIMD4<Int32>(Int32(farGround.count / 8), 0, 0, 0)
         if farCopies && (bev.count > 0 || blobFar.count > 0 || drapeNear.count > 0) {
             var fc = farGround
@@ -2205,7 +2392,13 @@ enum Mesher {
                 parts = SIMD4<Int32>(Int32(farGround.count / 8), 0, 0, 0)
             }
         }
-        opaqueOut.reserveCapacity(opq.count + bev.count + blobCut.count + drapeNear.count + cut.count + farTail * 8)
+        // (Nov 11: the far canopy last: where the far copy holds the leaf blobs' far shells, and with the logs in it, where
+        // the section has logs and no leaves; leaves alone, kept when smaller than the shells it stands in for)
+        if canopyFar.count > 0 && (parts[2] > 0 && (canopyLogsHere || canopyFar.count < blobFar.count) || canopyLogsHere && blobCut.count == 0) {
+            farCopy.append(contentsOf: UnsafeBufferPointer(start: canopyFar.ptr, count: canopyFar.count))
+            canopyN = canopyFar.count / 8
+        }
+        opaqueOut.reserveCapacity(opq.count + bev.count + blobCut.count + drapeNear.count + cut.count + farPlantCut.count + farTail * 8)
         // (P384: the ground, the bevelled faces, the rest of the solid quads; the blobs' cutout shells, the things laid
         // on the ground, the other cutout quads, the far copies of the things laid on the ground)
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr, count: groundEnd))
@@ -2214,6 +2407,7 @@ enum Mesher {
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: blobCut.ptr, count: blobCut.count))
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: drapeNear.ptr, count: drapeNear.count))
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: cut.ptr, count: cut.count))
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: farPlantCut.ptr, count: farPlantCut.count))   // (Nov 6: small plants last)
         opaqueOut.append(contentsOf: UnsafeBufferPointer(start: drapeFar.ptr, count: farTail * 8))
         var detailOut = [UInt32]()
         if det.count + detCut.count > 0 {
@@ -2224,19 +2418,39 @@ enum Mesher {
         // P384 step 3: the detail stream's solid quads simplified to the far bound (FarCopy.swift), kept when it saves a
         // tenth or more.
         var detailFar: [UInt32] = [], detailFarSkip = 0
+        // (Nov 11: with the logs in the far canopy, the trunks' quads in the detail stream and in its far copy, which the
+        // renderer leaves out where it draws the canopy)
+        let wq = DetailMesh.wordsPerQuad
+        var canopyTrunks = SIMD3<Int32>(0, 0, -1)
+        if canopyN > 0 && canopyLogsHere && trunkTo > trunkFrom { canopyTrunks = SIMD3<Int32>(Int32(trunkFrom / wq), Int32(trunkTo / wq), -1) }
         if farCopies && AdaptiveGround.enabled && det.count >= 8 * DetailMesh.wordsPerQuad {
             let df = sc.detFar
             df.count = 0
-            for k in 0..<det.count { df.append(det.ptr[k]) }
-            AdaptiveGround.simplifyDetail(df, from: 0, tol: AdaptiveGround.farTolerance)
+            // Ledger 25 (week item: the jungle's frame rate; P453, "Yeah, sure. Let's try to simplify them somehow"): the
+            // far copy draws from SceneRenderer.trunkFarFrom (64 blocks), so the trunks in it are grown again with the
+            // mid sides (6 round a trunk, 5 round a limb, no joint knobs or tips: a sixth of a pixel off at 64 blocks)
+            // and the rest of the detail stream is copied as it is. Trunks were the biggest share of a jungle's quads
+            // (173k of 425k at his Oct 22 spot), all of them at 9 sides however far off.
+            if trunkFar, let tc = trunkCtx, trunkTo > trunkFrom {
+                for k in 0..<trunkFrom { df.append(det.ptr[k]) }
+                for k in trunkTo..<det.count { df.append(det.ptr[k]) }
+                sc.detFarCut.count = 0
+                let far = DetailContext(out: df, cutOut: sc.detFarCut, R: tc.R, sky: tc.sky, blk: tc.blk, wx0: tc.wx0, wy0: tc.wy0, wz0: tc.wz0,
+                                        lod: 3, sc: tc.sc, srcs: tc.srcs, sy: tc.sy, field: tc.field, skipCells: tc.skipCells)
+                ShapeTrunks.emit(far)
+            } else {
+                for k in 0..<det.count { df.append(det.ptr[k]) }
+                AdaptiveGround.simplifyDetail(df, from: 0, tol: AdaptiveGround.farTolerance)
+            }
             if df.count * 10 <= det.count * 9 {
                 detailFar = Array(UnsafeBufferPointer(start: df.ptr, count: df.count)); detailFarSkip = det.count / DetailMesh.wordsPerQuad
+                if canopyTrunks[1] > canopyTrunks[0] && trunkFar && trunkCtx != nil { canopyTrunks[2] = Int32((trunkFrom + det.count - trunkTo) / wq) }
             }
         }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
-                           farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farParts: parts,
-                           detailFarSkip: detailFarSkip, detailFar: detailFar, solidFull: solidFull, kinds: kv, ground: groundTris)
+                           farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farPlants: farPlantCut.count / 8, farParts: parts,
+                           detailFarSkip: detailFarSkip, detailFar: detailFar, canopyN: canopyN, canopyTrunks: canopyTrunks, solidFull: solidFull, kinds: kv, ground: groundTris)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -2277,6 +2491,20 @@ enum Mesher {
     static var farLeaves = ProcessInfo.processInfo.environment["BS_FARLEAF"] != "0"
     // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround); BS_FARGROUND=0 meshes it in full.
     static var farGround = ProcessInfo.processInfo.environment["BS_FARGROUND"] != "0"
+    // Ledger 25: the detail stream's far copy holds the trunks at the mid sides (BS_TRUNKFAR=0: the old simplified copy).
+    static var trunkFar = ProcessInfo.processInfo.environment["BS_TRUNKFAR"] != "0"
+    // Nov 11: the far canopy tier (see its meshing above; SceneRenderer.canopyFrom draws it). Off unless BS_CANOPY is set.
+    static var canopy = ProcessInfo.processInfo.environment["BS_CANOPY"] != nil
+    static var canopyTol: Float = Float(ProcessInfo.processInfo.environment["BS_CANOPYTOL"] ?? "") ?? 1.0
+    static var canopyLightTol: Double = Double(ProcessInfo.processInfo.environment["BS_CANOPYLT"] ?? "") ?? 2
+    static let canopyLogs = ProcessInfo.processInfo.environment["BS_CANOPYLOGS"] == "1"
+    static let canopyT: [Bool] = ShapeTrunks.isLog                  // (the far canopy's own shell: the logs)
+    // (harness: the far shells' quads and the canopy's, every section meshed with both)
+    static var canopyCounts = (sections: 0, shells: 0, canopy: 0)
+    static let canopyLock = NSLock()
+    static func canopyTally(_ shells: Int, _ canopy: Int) {
+        canopyLock.lock(); canopyCounts.sections += 1; canopyCounts.shells += shells; canopyCounts.canopy += canopy; canopyLock.unlock()
+    }
     // P384: far copies of more than the ground (bevelled built blocks drawn plain, one simplified shell per leaf blob,
     // the detail stream), drawn by the renderer's far switch past GroundMerge.farDistance. BS_FARCOPY=0: ground only.
     // (Quest only: the Mac's renderer has no far switch.)
@@ -2365,6 +2593,13 @@ final class GrowBuf<T> {
 }
 
 // Per-thread meshing scratch memory (kept in the thread dictionary; worker threads reuse theirs).
+final class FineFill {
+    let r = UnsafeMutablePointer<BlockID>.allocate(capacity: MeshScratch.fineFillN)
+    let d = UnsafeMutablePointer<Int8>.allocate(capacity: MeshScratch.fineFillN)
+    let s = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.fineFillN)
+    let b = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.fineFillN)
+    deinit { r.deallocate(); d.deallocate(); s.deallocate(); b.deallocate() }
+}
 final class MeshScratch {
     let region = UnsafeMutablePointer<BlockID>.allocate(capacity: Mesher.RL * Mesher.RH)
     let sky = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)
@@ -2399,15 +2634,22 @@ final class MeshScratch {
     let dens = UnsafeMutablePointer<Int8>.allocate(capacity: Mesher.RL * Mesher.RH)    // PG1: the region's field densities
     lazy var field = SmoothField()
     lazy var fineScratch = MeshScratch()        // P377 step 1: the half-block region Mesher.fineGround meshes
+    // (fineScratch's own: every half block the eight eighths read, worked out once; Mesher.fineGround)
+    static let fineFillW = 42 + 2 * SmoothTerrain.maxRelax, fineFillN = fineFillW * fineFillW * fineFillW
+    lazy var fill = FineFill()
     lazy var drape = GroundDrape()              // P382: the section's drawn ground, for things lying on it
     let groundExact = GrowBuf<Float>(1 << 14)   // P383: the ground vertices' unsnapped positions (x, y, z a vertex)
     // P384: near-only bevelled faces and their far plain faces, the leaf blobs' cutout shells and far shell (and its
     // exact positions), and the far mask of the plain faces.
     let bev = GrowBuf<UInt32>(1 << 10), bevFar = GrowBuf<UInt32>(1 << 10)
     let blobCut = GrowBuf<UInt32>(1 << 10), blobFar = GrowBuf<UInt32>(1 << 10), blobExact = GrowBuf<Float>(1 << 10)
+    let blobInner = GrowBuf<UInt32>(1 << 10)    // (Nov 5: the inner cutout shells, put after the outer ones)
+    let canopyFar = GrowBuf<UInt32>(1 << 10)    // (Nov 11: the far canopy tier, BS_CANOPY)
     let farMask = UnsafeMutablePointer<Int32>.allocate(capacity: 6 * 16 * 256)
     let detFar = GrowBuf<UInt32>(1 << 12)       // P384: the detail stream's far copy
+    let detFarCut = GrowBuf<UInt32>(1 << 8)     // (ledger 25: cutout quads of the far trunks, dropped)
     let drapeNear = GrowBuf<UInt32>(1 << 10), drapeFar = GrowBuf<UInt32>(1 << 10)   // P384: things laid on the ground, near and far
+    let farPlantCut = GrowBuf<UInt32>(1 << 10)  // (Nov 6: small ground plants, put last of the cutout quads before the far tail)
     var smValid = false             // P175: smV/smL hold the section's ground surface (Mesher.smoothGroundTop)
 
     deinit {

@@ -261,23 +261,25 @@ extension Game {
         }
         gateCooldown = DeepGates.cooldown
         DeepGates.rodeDown += 1
-        changeDimension(to: .deep, at: to)
-        // Land on the nearest open standing spot round the gate or lift (never digging out what was built there); only
-        // with none within 3 blocks is the landing cell itself cleared.
-        var land = to
-        let bx = Int(floor(to.x)), by = Int(floor(to.y)), bz = Int(floor(to.z))
-        func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-            !world.solidAt(x, y, z) && !world.solidAt(x, y + 1, z) && world.solidAt(x, y - 1, z)
+        // (the landing search waits for the ground there on the headset: Game.arrivalThen)
+        changeDimension(to: .deep, at: to) { [self] in
+            // Land on the nearest open standing spot round the gate or lift (never digging out what was built there); only
+            // with none within 3 blocks is the landing cell itself cleared.
+            var land = to
+            let bx = Int(floor(to.x)), by = Int(floor(to.y)), bz = Int(floor(to.z))
+            func open(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+                !world.solidAt(x, y, z) && !world.solidAt(x, y + 1, z) && world.solidAt(x, y - 1, z)
+            }
+            search: for r in 0...3 { for dy in [0, 1, -1, 2] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                if open(bx + dx, by + dy, bz + dz) { land = V3(Float(bx + dx) + 0.5, Float(by + dy), Float(bz + dz) + 0.5); break search }
+            } } } }
+            if land == to && !open(bx, by, bz) {
+                for y in by...(by + 1) where world.solidAt(bx, y, bz) { world.setBlock(bx, y, bz, AIR) }
+            }
+            player.pos = land
+            player.vel = .zero
+            player.airPeak = land.y
         }
-        search: for r in 0...3 { for dy in [0, 1, -1, 2] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
-            if open(bx + dx, by + dy, bz + dz) { land = V3(Float(bx + dx) + 0.5, Float(by + dy), Float(bz + dz) + 0.5); break search }
-        } } } }
-        if land == to && !open(bx, by, bz) {
-            for y in by...(by + 1) where world.solidAt(bx, y, bz) { world.setBlock(bx, y, bz, AIR) }
-        }
-        player.pos = land
-        player.vel = .zero
-        player.airPeak = land.y
         sfx(.click, 0.8)
         onToast?("The Gate Shard pulls you down into Hell")
         return true

@@ -15,7 +15,7 @@ enum QuestFreezeTest {
 
     static func run() -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = 99   // (QuestApp)
+        QuestApp.headsetWorld()                                                       // (as on the headset)
         StructureCache.plansOffThread = true            // (as in the game: the headless default plans bases in the tick, 295 ms here)
         defer { StructureCache.plansOffThread = false }
         let rd = Int(arg("--rd") ?? "") ?? 8

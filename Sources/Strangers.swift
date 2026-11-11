@@ -52,7 +52,7 @@ enum Strangers {
 
     // Once a second (TownLaw.tick): a stranger walks up in town, once a day; one far behind is gone.
     static func tick(_ g: Game) {
-        g.mobs.mobs.removeAll { isStranger($0) && simd_length($0.pos - g.player.pos) > 72 }
+        g.mobs.mobs.removeAll { isStranger($0) && simd_length($0.pos - g.player.pos) > 72 && MobManager.canVanish($0, g) }   // (item 27: not in plain sight)
         // Visits: a far ridge reached.
         for s in stories where taken(s.key) && chapter(s.key) < 3 {
             if case .visit = s.chapters[chapter(s.key)].goal, let t = TownLaw.state.strangerAt?[s.key], t.count == 2,

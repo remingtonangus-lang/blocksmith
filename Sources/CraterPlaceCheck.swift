@@ -47,6 +47,25 @@ enum CraterPlaceCheck {
         let floorY = top(cx, cz)
         check(gy - floorY >= 2 && hidden <= 4,
               "craterplace: three rockets blow a bowl \(gy - floorY) deep in his ground at \(cx) \(gy - 64) \(cz) (\(bowlCells) cells open); \(hidden) ground cells left whole inside it under a dot of drawn rock (want at most 4, round its rim)")
+        // The bowl's ground as bodies meet it (fieldBoxes' fine columns): read from the 4 x 4 x 4 samples round each cell,
+        // the same to the bit as read point by point, and how long each takes.
+        do {
+            var a = [Float](repeating: 0, count: 32), b = [Float](repeating: 0, count: 32)
+            var cells = 0, differ = 0
+            var tGrid = 0.0, tPoint = 0.0
+            for y in (gy - 7)...(gy + 3) { for z in (cz - 8)...(cz + 8) { for x in (cx - 8)...(cx + 8) {
+                guard w.fineNear(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) else { continue }
+                cells += 1
+                let t0 = CFAbsoluteTimeGetCurrent()
+                a.withUnsafeMutableBufferPointer { w.fineColumns(x, y, z, $0.baseAddress!) }
+                let t1 = CFAbsoluteTimeGetCurrent()
+                b.withUnsafeMutableBufferPointer { w.fineColumnsPointwise(x, y, z, $0.baseAddress!) }
+                tGrid += t1 - t0; tPoint += CFAbsoluteTimeGetCurrent() - t1
+                if zip(a, b).contains(where: { $0.bitPattern != $1.bitPattern }) { differ += 1 }
+            } } }
+            check(cells > 500 && differ == 0, String(format: "craterplace: the bowl's fine ground columns read from each cell's 64 samples match the point-by-point read in %ld of %ld cells (%.1f us a cell, %.1f point by point)",
+                                                    cells - differ, cells, tGrid * 1e6 / Double(max(1, cells)), tPoint * 1e6 / Double(max(1, cells))))
+        }
         // From the rim: stone in hand, clicks round the bowl's face. Each one aimed at the ground puts a block down.
         let stone = Items.id("stone")
         g.inventory.held = ItemStack(stone, 64)
@@ -86,19 +105,30 @@ enum CraterPlaceCheck {
             g.tick(1.0 / 60)
             p.yaw = yawOff; p.pitch = pitch
             guard let t = g.target, w.groundAt(t.hit.x, t.hit.y, t.hit.z), abs(t.hit.x - cx) <= 8, abs(t.hit.z - cz) <= 8 else { continue }
-            // (a block can't go where he stands: an aim at the ground under his own feet isn't one of these)
-            let c0 = t.hit + t.normal
+            // (a block can't go where he stands: an aim at the ground under his own feet isn't one of these. Check fix 29:
+            // the cell the click fills is the game's own choice (Game.placeCell: on drawn ground it can be the open cell
+            // before the hit along the ray, not the one off the hit's face): suite on build 200, one aim of 9 went into
+            // his own cell, "You're standing there")
+            let c0 = g.placeCell(t, for: STONE)
             let feet = p.pos, half: Float = 0.3
             if Float(c0.x) < feet.x + half && Float(c0.x + 1) > feet.x - half && Float(c0.z) < feet.z + half && Float(c0.z + 1) > feet.z - half
                 && Float(c0.y) < feet.y + 1.8 && Float(c0.y + 1) > feet.y { continue }
             aimed += 1
             let n0 = g.inventory.held.count
+            g.lastRefusal = ""
+            let feetBefore = p.pos
             g.input.rightClicked = true; g.input.rightDown = true
             g.tick(1.0 / 60)
             g.input.rightClicked = false; g.input.rightDown = false
             if g.inventory.held.count < n0 { placed += 1 } else {
                 let c = t.hit + t.normal
-                missed.append("at \(t.hit.x - cx),\(t.hit.y - gy),\(t.hit.z - cz) face \(t.normal.x),\(t.normal.y),\(t.normal.z): \(Blocks.key(w.block(c.x, c.y, c.z)))")
+                // What the click itself saw (the aim is set again before the tick, but the body can settle on the rim).
+                let now = g.target.map { "\($0.hit.x - cx),\($0.hit.y - gy),\($0.hit.z - cz) face \($0.normal.x),\($0.normal.y),\($0.normal.z)" } ?? "none"
+                let open = g.openCellBefore(t).map { "\($0.x - cx),\($0.y - gy),\($0.z - cz)" } ?? "none"
+                missed.append("at \(t.hit.x - cx),\(t.hit.y - gy),\(t.hit.z - cz) face \(t.normal.x),\(t.normal.y),\(t.normal.z): \(Blocks.key(w.block(c.x, c.y, c.z)))"
+                    + String(format: " (ground there %@; open cell before it %@; at the click aimed %@; refused \"%@\"; feet %.2f %.2f %.2f moved %.2f, on the ground %@)",
+                             w.groundAt(c.x, c.y, c.z) ? "yes" : "no", open, now, g.lastRefusal, p.pos.x - Float(cx), p.pos.y - Float(gy), p.pos.z - Float(cz),
+                             simd_length(p.pos - feetBefore), p.onGround ? "yes" : "no"))
             }
             g.tick(1.0 / 60)
         }

@@ -3,7 +3,7 @@ import simd
 
 let DAY_LENGTH: Double = 1200 // seconds per full day/night cycle (20 minutes, like the reference game)
 
-final class Game {
+final class Game: LifeLinked {
     // The dimension the player is in; other dimensions are kept (unloaded) in `dims`.
     private(set) var dim: DimensionState
     private(set) var dims: [Dim: DimensionState] = [:]
@@ -258,6 +258,8 @@ final class Game {
     var shriekDecay = 600    // nightwings appear after 3 days (3600 s) without sleep
     private var beaconTicks = 0
     var workshopChecked = false                 // the Sparkstone Workshop deck check has run (CircuitWorkshop.swift)
+    var provingChecked = false                  // P512: the Proving Grounds check has run (ProvingGrounds.swift)
+    var provingBuild: ProvingGrounds.Build?     // ... and the grounds still going down, a few steps a tick
     var shieldCooldown: Float = 0
     var shieldRaise: Float = 0
     var crossbowCharge: Float = 0
@@ -309,6 +311,8 @@ final class Game {
     var dodges = 0, parries = 0        // VR wind-ups dodged and parried (checks; VRCombatFeel.swift)
     // Quest: the headset's world position (mobs walk toward the column under it, meleeBody; reach: meleeGap).
     var vrHead: V3?
+    var vrHeadPitch: Float?            // Quest: the headset's pitch (with vrHeadYaw: viewLook, PopIn.swift)
+    var vrHeadYaw: Float?              // Quest: the headset's yaw (where he looks across: lookYaw, PopIn.swift)
     // Quest bow: a physical draw (VRBow), set while a bow is held: the draw (0...1) and the shot's origin and direction.
     var vrBow: (draw: Float, origin: V3, dir: V3)?
     // Quest: the aiming hand's ray (world), set each frame; the crossbow shoots from it (GameCombat.crossbowUse).
@@ -317,7 +321,7 @@ final class Game {
     var grapple: GrappleLine.Hook?           // a Grapple Line's hook, reeling the player in (SkyIsle.swift, C7)
     var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
     var attackQueued: Float = 0
-    weak var commandeerHint: Ship?     // the vessel whose helm last creaked at him (ShipPlay.commandeerHintTick)
+    @WeakLink var commandeerHint: Ship? = nil     // the vessel whose helm last creaked at him (ShipPlay.commandeerHintTick)
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseGrave: HorseGrave?        // P259: where and when the bonded horse died (Riding.swift)
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
@@ -342,6 +346,7 @@ final class Game {
     var eatProgress: Float = 0        // seconds held while eating
     var fullToldAt: Double = -100      // Q2c-console-33: the last "You're full"
     var refusedAt: [String: Double] = [:]   // Q2c-console-39: when each placement refusal was last said
+    var lastRefusal = ""                    // (checks: the last refusal, said or not)
     var heldDroppedAt: Double = -100        // Q2c-console-41: the last dropHeld
     var menuNote: (text: String, at: Double)?  // Q2c-console-65: why a slot refused the carried item (over the window)
     // Q2c-console-52: the creature he hurt last (Mob.playerHurtAt within 3 s) as a bar under the boss bars: its name,
@@ -486,6 +491,7 @@ final class Game {
     var padConnected = false
 
     static var alive = 0            // live Game objects (leak check in --bench)
+    lazy var lifeLink = LifeLink(self)    // (item 8: WeakLink.swift)
     deinit { Game.alive -= 1 }
 
     init(world: World, save: SaveManager?, persistent: Bool) {
@@ -497,8 +503,8 @@ final class Game {
         self.save = save
         self.persistent = persistent
         if persistent { Blueprints.known = []; Blueprints.seedPending = false }      // a new world knows none (P138; a load sets them)
-        onToast = { [weak self] s in
-            guard let self else { return }
+        onToast = { [me = weakLink] s in              // (item 8: a link, not a weak reference: WeakLink.swift)
+            guard let self = me.wrappedValue else { return }
             self.logMessage(s)                                         // (the journal gets every one at once, in order)
             // Q2c-console-12: the message showing keeps the HUD until it has been readable (Game.readFor); newer ones
             // wait their turn (toastQueueTick). A line that extends the one showing (the journal's note) replaces it.
@@ -529,6 +535,7 @@ final class Game {
         // Per-block-state tables the first game tick builds lazily (gravity, concrete, plant support: a 50 ms first tick
         // in the world, --sim profile). Built here, behind the load, instead.
         _ = World.fallingIDs.count; _ = Game.hardened.count; _ = PlantSupport.ruleOf(AIR)
+        CreativeMenu.warm()
     }
 
     static let creativeStarter = ["grass_block", "dirt", "stone", "cobblestone", "oak_planks", "oak_log", "glass", "torch", "crafting_table"]
@@ -672,8 +679,18 @@ final class Game {
 
     // background (the autosave): mobs, drops, orbs and the meta are encoded and written on the save queue from value
     // snapshots taken here; quit, pause and world copies save synchronously (and SaveIO.flush).
+    // The slowest save on the frame so far and where its time went (the launch harness prints it; World.saveLaps holds
+    // the world's part).
+    static var saveWorstMs = 0.0, saveWorstLaps = ""
     func saveNow(background: Bool = false) {
         guard persistent, let s = save else { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var lt = t0, laps = ""
+        func lap(_ n: String) { let t = CFAbsoluteTimeGetCurrent(); let ms = (t - lt) * 1000; if ms >= 0.3 { laps += String(format: "%@ %.1f, ", n, ms) }; lt = t }
+        defer {
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            if ms > Game.saveWorstMs { Game.saveWorstMs = ms; Game.saveWorstLaps = laps + "world (" + World.saveLaps + ")" }
+        }
         saveCount += 1
         SaveBadge.savedAt = clock                         // Q2c-console-2: the HUD's "Saved" badge
         // The save holds player 1 (split screen: whoever's turn it is, the meta is written from seat 0).
@@ -681,27 +698,35 @@ final class Game {
         // A synchronous save must land after any autosave still queued, or the older queued meta/mobs overwrite it.
         if !background { SaveIO.flush() }
         world.savingFalling = falling.filter { !$0.dead }.map { (IVec3(Int(floor($0.pos.x)), Int(floor($0.pos.y)), Int(floor($0.pos.z))), $0.block) }
+        lap("start")
         world.saveAll(background: background)
+        lap("world")
         // (P395: the cells they were saved in, so a load lets them fall on)
         let fallURL = s.dir.appendingPathComponent("falling.json")
         if !world.savingFalling.isEmpty || FileManager.default.fileExists(atPath: fallURL.path) {
-            SaveIO.storeJSON(world.savingFalling.map { [$0.0.x, $0.0.y, $0.0.z] }, to: fallURL)
+            SaveIO.write(world.savingFalling.map { [$0.0.x, $0.0.y, $0.0.z] }, to: fallURL, background: SaveIO.queued(background))
         }
         world.savingFalling.removeAll()
+        lap("falling")
         mobs.save(to: world.save, background: background)
+        lap("mobs")
         drops.save(to: world.save, background: background)
+        lap("drops")
         // F1: map pixels go as raw bytes (MapData's own coding), from copies, encoded on the save queue by the autosave.
         if background {
             let snap = maps.mapValues { $0.snapshot() }
             SaveIO.writeJSON(snap, to: s.dir.appendingPathComponent("maps.json"))
         } else if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
+        lap("maps")
         if !background { MapFog.shared.save(self) }       // A5: the explored ground survives a quit (not only the 10 s save)
         // Experience orbs (all dimensions): the XP dropped at a death survives a quit like the items do.
         let orbs = xpOrbs.filter { $0.pos.x.isFinite && $0.pos.y.isFinite && $0.pos.z.isFinite }
         let orbURL = s.dir.appendingPathComponent("xporbs.json")
         if background { SaveIO.writeJSON(orbs, to: orbURL) }
         else if let d = try? JSONEncoder().encode(orbs) { try? d.write(to: orbURL, options: .atomic) }
+        lap("orbs")
         s.saveMeta(meta, background: background)
+        lap("meta")
     }
 
     // MARK: Dimensions
@@ -725,42 +750,93 @@ final class Game {
         w.loadObjects()                                     // P389 (WorldObjects)
         Trains.load(w)                                      // P337 step 6
         w.redstone.game = self
-        w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+        w.onFluidEvent = { [me = weakLink] p in me.wrappedValue?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+        // Ledger 55: a torch a flow takes drops as an item; lava burns it with a hiss.
+        w.onWashedAway = { [me = weakLink] p, b, fluid in
+            guard let self = me.wrappedValue else { return }
+            let at = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
+            if Blocks.fluidKind[Int(fluid)] == Blocks.fluidKind[Int(LAVA)] { self.sfx(.fizz, 0.5, at: at); return }
+            for s in Mining.drops(b, .empty) { self.drops.spawn(s, at: at) }
+        }
         // P478: fuel catching: a whoomp, at most every 0.3 s however many cells catch.
         var lastWhoomp = 0.0
-        w.onFuelLit = { [weak self] p in
+        w.onFuelLit = { [me = weakLink] p in
             let now = CFAbsoluteTimeGetCurrent()
             guard now - lastWhoomp > 0.3 else { return }
             lastWhoomp = now
-            self?.sfx(.fireball, 0.7, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+            me.wrappedValue?.sfx(.fireball, 0.7, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         }
-        w.onIgnite = { [weak self] p, b in
-            guard let self else { return }
+        w.onIgnite = { [me = weakLink] p, b in
+            guard let self = me.wrappedValue else { return }
             if Blocks.key(b) == "tnt" { self.world.setBlockAsync(p.x, p.y, p.z, AIR); self.tnts.prime(at: p) }
         }
     }
 
     // Moves the player to another dimension (saving and unloading the one we leave).
     // syncRadius: chunks loaded before play goes on (P291: a drop into hell loads only the nearest, no loading pause).
-    func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil) {
+    // (--triptest: where the last dimension change's time went, and the sync radius to try; BS_TRIPSYNC)
+    static var tripLaps = ""
+    static var tripSync = Int(ProcessInfo.processInfo.environment["BS_TRIPSYNC"] ?? "") ?? 4
+    // Ledger 40 (Nov 6): a trip to another dimension loaded the chunks within 4 of the arrival on the frame: about a
+    // second on the host every time (a portal, the Deep's seam, its gates and lift, the Hollow), more with a portal,
+    // which loaded 2 round the portal it found or built after that. The headset froze for it. There (arrivalHold, set
+    // by QuestApp.headsetWorld) nothing is loaded on the frame: he is held where he arrived, the view black
+    // (blindFog), while the world streams in on the workers, until the chunks within 2 of him are drawn (at most
+    // arrivalMax seconds); then the black opens out over arrivalOpen s. What a trip does on arrival with the ground
+    // (the seam's way cut, a portal found or built, a gate's landing spot) is its `then`, run once that ground is
+    // there (build 210: loading only the arrival's own chunk still took 51-174 ms on the host).
+    static var arrivalHold = false
+    static var arrivalThenMs = 0.0             // (the last trip's arrival work, for --triptest)
+    static let arrivalMax = 4.0, arrivalOpen = 0.45
+    var arrivalSince: Double?                  // the game clock when the hold began
+    var arrivalOpened = -1.0                   // and when it let go
+    var arrivalThen: (() -> Void)?             // the trip's work on arrival, waiting for the ground
+    func arrivalReady() -> Bool {
+        let w = world
+        let cx = floorDiv(Int(floor(player.pos.x)), CS), cz = floorDiv(Int(floor(player.pos.z)), CS)
+        let r = max(0, min(2, w.renderDistance))
+        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
+            guard let c = w.chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.meshedOnce else { return false }
+        } }
+        // (a taken capital he may stand on: built. Only one near him: one that never got built, or one far off, would
+        // otherwise hold every arrival to its 4 s limit)
+        let p = player.pos
+        return ShipManager.oldTakenGrid || !w.ships.takenToRestore.contains { $0.pos.count == 3 && simd_length(V3($0.pos[0], $0.pos[1], $0.pos[2]) - p) < 400 }
+    }
+    func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil, then: (() -> Void)? = nil) {
+        var lt = CFAbsoluteTimeGetCurrent()
+        Game.tripLaps = ""
+        func lap(_ s: String) { let t = CFAbsoluteTimeGetCurrent(); Game.tripLaps += String(format: "%@ %.1f, ", s, (t - lt) * 1000); lt = t }
         let old = world
         let oldMobs = mobs
         hell.slag.removeAll(); hell.charges.removeAll()      // nothing in flight or burning follows you (HellMobs.swift)
         if persistent { old.saveAll() }
+        lap("save" + (World.saveLaps.isEmpty ? "" : " (" + World.saveLaps + ")"))
         for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
         oldMobs.mobs.removeAll()
         if persistent { oldMobs.save(to: old.save); dim.drops.save(to: old.save) }
+        lap("mobs")
         let rd = old.renderDistance, ad = old.activeDistance
         dim = dimensionState(d)
         world.renderDistance = rd
         world.activeDistance = ad
+        lap("world")
         old.unloadAll()
         particles.list.removeAll()
+        lap("unload")
         player.pos = p
         player.vel = .zero
         player.airPeak = p.y
-        _ = world.loadSync(center: p, radius: min(syncRadius ?? 4, rd))
         onToast?(d.displayName)
+        if Game.arrivalHold {
+            arrivalSince = clock; arrivalOpened = -1; arrivalThen = then
+            return
+        }
+        arrivalThen = nil
+        let r = min(syncRadius ?? Game.tripSync, rd)
+        let gm = world.loadSync(center: p, radius: r)
+        lap(String(format: "load r%d (gen %.0f, mesh %.0f)", r, gm.gen * 1000, gm.mesh * 1000))
+        then?()
     }
 
     // MARK: Sky
@@ -1061,6 +1137,7 @@ final class Game {
             world.facing = player.yaw                        // (P446: the land he faces streams in first)
             world.update(center: player.pos)
             TickProf.mark("world.update")
+            shortcutFindTick(); locateTick()                 // (ledger 80: place searches done on their workers)
         }
 
         let pad = seat == 0 ? readPad() : coop.readSeatPad(seat)
@@ -1083,6 +1160,21 @@ final class Game {
             if menu == nil { openMenu(PauseMenu(game: self)) }
             tickMenu(p, q, dt)
             return
+        }
+        // Ledger 40: just arrived from another dimension, he waits where he is (nothing moves him or anything else)
+        // while the ground round him is drawn; the world streams in above (world.update).
+        if let since = arrivalSince {
+            let ready = arrivalReady()
+            if let then = arrivalThen, ready || clock - since >= Game.arrivalMax {
+                // (the trip's own work once the ground is there; it can move him, so the hold looks again)
+                if !ready { _ = world.loadSync(center: player.pos, radius: 0) }   // (out of time: as before, on the frame)
+                arrivalThen = nil
+                let a = CFAbsoluteTimeGetCurrent()
+                then()
+                Game.arrivalThenMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
+                if clock - since < Game.arrivalMax && !arrivalReady() { return }
+            } else if clock - since < Game.arrivalMax && !ready { return }
+            arrivalSince = nil; arrivalOpened = clock
         }
 
         let fdt = Float(dt)
@@ -1338,7 +1430,7 @@ final class Game {
         // Within reach of a helm the player can take (ShipPlay.commandeerable): use takes it, unless aimed at a door,
         // chest or other usable block, or a ship's container.
         if useNow && !(input.shift || p.b), let s = commandeerable(), !(target.map { isInteractive($0.hit) } ?? false),
-           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false) {
+           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false), !useMeantForHull(s) {
             takeCommand(s); return
         }
         // Skinning a body you're aiming at (Hunting.swift): before guns, which take the use button to aim.
@@ -1852,15 +1944,17 @@ final class Game {
                 return
             }
         }
-        var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
-        // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
-        // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
-        // (a cell drawn small, a slope's corner): the block goes in the last open cell the aim crossed before the ground.
-        if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))], let open = openCellBefore(t) { at = open }
+        var at = placeCell(t, for: blockItem)
         let existing = world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
             else if useNow { placeRefused("Something is in the way") }                        // (P507: never a silent click)
+            return
+        }
+        // Ledger 55 (week item 62): no torch (nor wire, a repeater...) goes into water or lava (it would stand in the pool).
+        if World.washedAway[Int(blockItem)] && Blocks.isLiquid(existing) && !World.oldTorches {
+            let what = Blocks.shape[Int(blockItem)] == "torch" || Blocks.key(blockItem) == "redstone_torch" ? "Torches" : "That"
+            if useNow { placeRefused(Blocks.fluidKind[Int(existing)] == Blocks.fluidKind[Int(LAVA)] ? "\(what) can't go in lava" : "\(what) can't go in water") }
             return
         }
         var id = blockItem
@@ -2130,6 +2224,16 @@ final class Game {
     }
 
     // P507: the last cell along the aim before the target's hit point that a block can go in (not the target's own).
+    // The cell a block placed at this aim goes into (also what CraterPlaceCheck leaves out when it is his own: check fix 29).
+    func placeCell(_ t: (hit: IVec3, normal: IVec3), for blockItem: BlockID) -> IVec3 {
+        let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
+        var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
+        // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
+        // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
+        // (a cell drawn small, a slope's corner): the block goes in the last open cell the aim crossed before the ground.
+        if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))], let open = openCellBefore(t) { at = open }
+        return at
+    }
     func openCellBefore(_ t: (hit: IVec3, normal: IVec3)) -> IVec3? {
         let o = player.eye, d = player.look
         var s = simd_length(hitPoint(t) - o) - 0.04
@@ -2313,14 +2417,14 @@ final class Game {
                 let m = DoubleChestMenu(game: self, a: first.container, b: second.container)
                 m.title = "Large Trapped Chest"
                 world.redstone.setTrapped(p, 1); world.redstone.setTrapped(q, 1)
-                m.closed = { [weak self] in self?.world.redstone.setTrapped(p, 0); self?.world.redstone.setTrapped(q, 0) }
+                m.closed = { [me = weakLink] in me.wrappedValue?.world.redstone.setTrapped(p, 0); me.wrappedValue?.world.redstone.setTrapped(q, 0) }
                 openMenu(m)
                 return
             }
             let m = ChestMenu(game: self, entity: be)
             m.title = "Trapped Chest"
             world.redstone.setTrapped(p, 1)
-            m.closed = { [weak self] in self?.world.redstone.setTrapped(p, 0) }
+            m.closed = { [me = weakLink] in me.wrappedValue?.world.redstone.setTrapped(p, 0) }
             openMenu(m)
         case _ where k.hasSuffix("shulker_box"):
             let be = world.entity(p, .shulker)
@@ -2363,6 +2467,7 @@ final class Game {
     // light tick in the hands, each reason at most every 4 s. P328 (NO TEXT): the reason is never said; `why` keys the
     // repeat guard. Q2c-console-33's "needs a stone pickaxe to drop anything" is gone too: the block drops nothing.
     func placeRefused(_ why: String) {
+        lastRefusal = why
         guard clock - (refusedAt[why] ?? -100) > 4 else { return }
         refusedAt[why] = clock
         sfx(.click, 0.25)
@@ -2813,7 +2918,11 @@ final class Game {
                 guard world.solidAt(bx, by - 1, bz) else { continue }
                 // Hostile mobs from spawners need block light ≤ 11 (cinderwisps and silverfish ignore it in practice).
                 if !kind.hellOwn && world.lightAt(bx, by, bz).block > 11 { continue }
-                let m = Mob(kind, at: V3(Float(bx) + 0.5, sp.y, Float(bz) + 0.5))
+                // Ledger 38: where the roll fell, not the cell's middle (reference). A mob wider than a block (the
+                // Slagthrower, 1.1, the fortress cages' heir since P292) set in a cell's middle reached into all four
+                // cells round it, so on the fortress's bridges and stair platform most rolls hit something and the cage
+                // brought 10 in 20 minutes: 4 cinder rods (playthrough, builds 195 and 197).
+                let m = Mob(kind, at: V3(sp.x, sp.y, sp.z))
                 if m.sized { m.makeSlime(size: 1) }
                 if m.collides(m.pos, world) { continue }
                 mobs.mobs.append(m)
@@ -3370,12 +3479,6 @@ final class Game {
         GarageDoors.tick(self, Float(dt))                      // garage doors swinging (GarageDoors.swift)
         Elevators.tick(self, Float(dt))                        // lift cars riding their shafts (Elevators.swift)
         TickProf.mark("doors and lifts")
-        GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
-        TickProf.mark("ground collapse")
-        Structure.tick(self)                                   // P388: built pieces near a change carry their load
-        TickProf.mark("structure load")
-        StructureTip.tick(self)                                // P503: a piece shot out from under it tips
-        TickProf.mark("structure tip")
         if Int(clock * 0.5) != Int((clock - Double(dt)) * 0.5) { packStims() }    // P504: no golden apples, every 2 s
         settleStrayPieces()                                    // P448
         TickProf.mark("stray pieces")
@@ -3391,13 +3494,28 @@ final class Game {
         tnts.update(Float(dt), game: self)
         TickProf.mark("tnt")
         particles.update(Float(dt), world)
+        TickProf.mark("particles")
         objectsTick()                           // P389: finished cuts swapped in, their pieces thrown
+        TickProf.mark("particles: cut objects")
         debris.tick(Float(dt), world: world)    // (R15: ragdolls fall in block worlds too)
+        TickProf.mark("particles: debris")
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
         updateFlashes(Float(dt))
         shake = max(0, shake - Float(dt) * 1.3)
-        TickProf.mark("particles")
+        TickProf.mark("particles: ambient")
+        // Store review (build 109's citadel soak): the carving and the checks after it run here, after the mobs, so
+        // they take what the tick has left (CraterJob.allowance) and wait out a frame the soldiers ran long.
+        w.ships.stepBowls(self)                                // main-gun bowls (MainGun.swift)
+        TickProf.mark("ships.shockwaves: bowls")
+        BlastShape.tick(self)                                  // ledger 42: craters shaped over the frames after a blast
+        TickProf.mark("crater shaping")
+        GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
+        TickProf.mark("ground collapse")
+        Structure.tick(self)                                   // P388: built pieces near a change carry their load
+        TickProf.mark("structure load")
+        StructureTip.tick(self)                                // P503: a piece shot out from under it tips
+        TickProf.mark("structure tip")
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0
@@ -3509,9 +3627,10 @@ final class Game {
         if autosaveTimer > 60 { autosaveTimer = 0; saveNow(background: true) }
         for msg in SaveIO.takeProblems() { onToast?(msg); SaveBadge.failedAt = clock }          // S2: save problems reach the player
         if persistent { StorageCheck.tick(self) }                                               // Q2c-console-51
-        if CrashGuard.crashed && !CrashGuard.told && clock > 3 {    // S4
+        if CrashGuard.crashedHere(save?.dir) && !CrashGuard.told && clock > 3 {    // S4
             CrashGuard.told = true
-            onToast?("The last session ended unexpectedly. Pause > Restore Last Backup puts back the last saved copy")
+            onToast?(CrashGuard.oldAdvice ? "The last session ended unexpectedly. Pause > Restore Last Backup puts back the last saved copy"
+                     : "The last session ended unexpectedly. The world is as it was last saved")
         }
         TickProf.mark("autosave")
     }
@@ -3559,7 +3678,7 @@ final class Game {
     private func gameTick() {
         if persistent && survival { Stats.tick(self) }                 // Q2c-console-57
         randomTicks()
-        TickProf.mark("random ticks")
+        TickProf.mark("leaf decay")
         precipitationTicks()
         TickProf.mark("precipitation")
         blockEntityTicks()
@@ -3572,6 +3691,7 @@ final class Game {
         TickProf.mark("spawners")
         world.redstone.tick()
         if !workshopChecked { workshopTick() }                // the Sparkstone Workshop world builds its deck once (CircuitWorkshop.swift)
+        if !provingChecked || provingBuild != nil { provingTick() }   // P512: the Proving Grounds build once, a few steps a tick
         TickProf.mark("circuits")
         // (No minecart: an empty list, without building two arrays 20 times a second.)
         let carts: [V3] = mobs.mobs.contains { $0.kind == .minecart } ? mobs.mobs.filter { $0.kind == .minecart }.map { $0.pos } : []

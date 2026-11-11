@@ -196,9 +196,11 @@ enum DeepGapTests {
 
     // MARK: Balance: a full-gear run (D4b, DE1)
 
-    struct Duel { let name: String; let toKillPlayer: Float?; let playerKills: Float?; let weapon: String; var rounds: Float = 0; var dealt: Float = 0 }
+    struct Duel { let name: String; let toKillPlayer: Float?; let playerKills: Float?; let weapon: String; var rounds: Float = 0; var dealt: Float = 0; var hits: Float = 0 }
     static var lastRounds = 0              // rounds the unit fired dealing its 20 (the last duel's part 1)
     static var lastDealt = 0               // ... and what they dealt (20, or less when 60 s ran out first)
+    static var lastHits = 0                // ... and how many of them struck the player (check fix 27)
+    static var lastGun = -1                // ... and the gun it carried (a rifleman draws the Kessel or a Sturmwind)
 
     // Duskium armour, food full, normal difficulty; the unit `dist` blocks off on the open vault floor. Returns how long
     // the unit takes to do 20 points of damage to the player (who stands still; their health is topped up each tick)
@@ -222,9 +224,12 @@ enum DeepGapTests {
         }
         // 1. The unit on the player.
         var toKill: Float?
-        let foe0 = Armory.foeFired
+        let foe0 = Armory.foeFired, hits0 = Armory.foeHits
         lastDealt = 0
+        lastHits = 0
+        lastGun = -1
         if let m = place() {
+            lastGun = m.soldierBrain.gun
             var dealt = 0, t: Float = 0
             while t < limit && m.health > 0 {
                 g.health = 20; g.hunger = 20; g.saturation = 5
@@ -245,6 +250,7 @@ enum DeepGapTests {
             }
         }
         lastRounds = Armory.foeFired - foe0
+        lastHits = Armory.foeHits - hits0
         // 2. The player on the unit: aim at its middle and hold the trigger. The unit is held where it stands (it still
         // turns and fires): a pure damage race, the same for every unit (the Marshal charging in and out of the blast
         // swung his time from 44 s to over 180 s between runs).
@@ -337,6 +343,7 @@ enum DeepGapTests {
             ("The Ash Marshal", marshalAlone, "gun_launcher", "rocket_ammo", 16),
         ]
         report = []
+        var kesselDealt = 0, kesselHits = 0, kesselDuels = 0
         // Seeded duels (a single duel's spread and hit luck swung a rifleman's time by 2x). The numbers still shift a
         // little with what ran before (a full questcheck vs --deep-only): the rules below hold with room to spare.
         let wasDeterministic = Rand.deterministic
@@ -350,15 +357,16 @@ enum DeepGapTests {
             let boss = name.hasPrefix("The Ash Marshal") || name.hasPrefix("Keep Castellan")
             let seeds = name.hasPrefix("Capital rifleman") || name.hasPrefix("Ashguard Rifleman") ? 9 : 1
             var runs: [(Float?, Float?)] = []
-            var rounds = 0, dealt = 0
+            var rounds = 0, dealt = 0, hits = 0
             for k in 0..<seeds {
                 Rand.seed(0xBA1A_0000 + UInt64(i) + UInt64(k) * 0x100)
                 runs.append(duel(g, make, gun: gun, ammo: ammo, dist: dist, limit: boss ? 180 : 60))
-                rounds += lastRounds; dealt += lastDealt
+                rounds += lastRounds; dealt += lastDealt; hits += lastHits
+                if name.hasPrefix("Ashguard Rifleman") && lastGun == Guns.kessel { kesselDealt += lastDealt; kesselHits += lastHits; kesselDuels += 1 }
             }
             func mean(_ xs: [Float?]) -> Float? { xs.contains { $0 == nil } ? nil : xs.compactMap { $0 }.reduce(0, +) / Float(xs.count) }
             let (a, b) = (mean(runs.map { $0.0 }), mean(runs.map { $0.1 }))
-            report.append(Duel(name: name, toKillPlayer: a, playerKills: b, weapon: Items.def(Items.id(gun)).display, rounds: Float(rounds) / Float(seeds), dealt: Float(dealt) / Float(seeds)))
+            report.append(Duel(name: name, toKillPlayer: a, playerKills: b, weapon: Items.def(Items.id(gun)).display, rounds: Float(rounds) / Float(seeds), dealt: Float(dealt) / Float(seeds), hits: Float(hits) / Float(seeds)))
             print("deep balance: \(name): kills full-gear player in \(a.map { String(format: "%.1f s", $0) } ?? "> 60 s"); player kills it in \(b.map { String(format: "%.1f s", $0) } ?? (boss ? "> 180 s" : "> 60 s")) (\(Items.def(Items.id(gun)).display))")
         }
         func r(_ n: String) -> Duel? { report.first { $0.name.hasPrefix(n) } }
@@ -372,12 +380,20 @@ enum DeepGapTests {
         // takes several times what one of the Capital's does.)
         // (What the rounds dealt over what was fired, whether or not 60 s ran out first: one seed's slow Kessel dealt 15.)
         func perRound(_ d: Duel?) -> Float { d.map { $0.rounds > 0 ? $0.dealt / $0.rounds : 0 } ?? 0 }
-        let harder = perRound(rifle) > 2 * perRound(cap)
+        // (Check fix 27: what a round fired dealt mixes his round with his aim, and swung across the 2x line between runs:
+        // 1.6 against 0.8 on build 192, 2.0 against 0.8 on build 118, 1.3 against 0.9 on build 197. What a round that
+        // strikes him deals is the round itself, through his armour and the moments after a hit that take nothing.)
+        func perHit(_ d: Duel?) -> Float { d.map { $0.hits > 0 ? $0.dealt / $0.hits : 0 } ?? 0 }
+        // (And his heavier round is the Kessel's: four riflemen in ten carry a Sturmwind, a carbine at the Donnerkeil's
+        // weight and rate, whose many hits outweighed the Kessel's few in a rifleman's mean: 3.6 a hit against 2.0 on
+        // build 198. The rule compares the Kessel's hits, from the seeds that drew it.)
+        let kesselPerHit: Float = kesselHits > 0 ? Float(kesselDealt) / Float(kesselHits) : 0
+        let harder = kesselPerHit > 2 * perHit(cap)
         let armoured = (tankR?.playerKills == nil || (tankR?.playerKills ?? 0) > 3 * (tankL?.playerKills ?? .infinity)) && tankL?.playerKills != nil
         let beatable = report.filter { !$0.name.hasPrefix("Cinder Tank (rifle)") }.allSatisfy { $0.playerKills != nil }
         let fair = report.allSatisfy { ($0.toKillPlayer ?? .infinity) > 2 }
         check(harder && armoured && beatable && fair,
-              "deep balance: full gear, Ashguard rifleman \(f(rifle?.playerKills)) to kill / kills you in \(f(rifle?.toKillPlayer)) (\(String(format: "%.1f", perRound(rifle))) a round) vs Capital \(f(cap?.playerKills)) / \(f(cap?.toKillPlayer)) (\(String(format: "%.1f", perRound(cap))) a round); tank \(f(tankR?.playerKills)) by rifle, \(f(tankL?.playerKills)) by launcher; all beatable \(beatable), none faster than 2 s \(fair)")
+              "deep balance: full gear, Ashguard rifleman \(f(rifle?.playerKills)) to kill / kills you in \(f(rifle?.toKillPlayer)) (\(String(format: "%.1f", perRound(rifle))) a round, \(String(format: "%.1f", perHit(rifle))) a hit, the Kessel's \(String(format: "%.1f", kesselPerHit)) a hit in \(kesselDuels) duels) vs Capital \(f(cap?.playerKills)) / \(f(cap?.toKillPlayer)) (\(String(format: "%.1f", perRound(cap))) a round, \(String(format: "%.1f", perHit(cap))) a hit); tank \(f(tankR?.playerKills)) by rifle, \(f(tankL?.playerKills)) by launcher; all beatable \(beatable), none faster than 2 s \(fair)")
     }
     static func f(_ t: Float?) -> String { t.map { String(format: "%.1f s", $0) } ?? "> 60 s" }
 }

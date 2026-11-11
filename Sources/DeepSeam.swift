@@ -42,26 +42,28 @@ extension Game {
         // load first (no loading pause); without such ground in reach it is the pocket below as before.
         let falling = down && player.vel.y < -1 && !player.flying
         let carried = player.vel.y
-        changeDimension(to: down ? .deep : .overworld, at: to, syncRadius: falling ? 2 : nil)
-        if falling, let site = hellLanding(nearX: x, z: z) {
-            openHellShaft(site.x, site.z, roof: site.roof)
-            let at = V3(Float(site.x) + 0.5, Float(feet), Float(site.z) + 0.5)
-            player.pos = at
-            player.vel = V3(0, min(carried, -10), 0)
-            player.airPeak = at.y
-            hellDrop = HellDropState(active: true, broke: false, roof: site.roof, floor: site.floor, t: 0)
-            achieve("deep_visit"); deepEntry = at
-            deepVisited = true
-            return
+        // (on the headset the rest waits for the ground there: Game.arrivalThen)
+        changeDimension(to: down ? .deep : .overworld, at: to, syncRadius: falling ? 2 : nil) { [self] in
+            if falling, let site = hellLanding(nearX: x, z: z) {
+                openHellShaft(site.x, site.z, roof: site.roof)
+                let at = V3(Float(site.x) + 0.5, Float(feet), Float(site.z) + 0.5)
+                player.pos = at
+                player.vel = V3(0, min(carried, -10), 0)
+                player.airPeak = at.y
+                hellDrop = HellDropState(active: true, broke: false, roof: site.roof, floor: site.floor, t: 0)
+                achieve("deep_visit"); deepEntry = at
+                deepVisited = true
+                return
+            }
+            // Climbing out into the surface's Wardstone floor cuts a way up through it (the floor below stays shut).
+            for y in thru(feet, (down ? feet + 1 : max(feet + 1, HellGate.floorTop))) where !world.isAir(x, y, z) { world.setBlock(x, y, z, AIR) }
+            if !world.opaqueAt(x, feet - 1, z) { world.setBlock(x, feet - 1, z, EMBERSLATE) }
+            player.pos = to
+            player.vel = .zero
+            player.airPeak = to.y
+            if down { achieve("deep_visit"); deepEntry = to }
+            if down { deepVisited = true }       // NO TEXT (P328): the arrival speaks for itself
         }
-        // Climbing out into the surface's Wardstone floor cuts a way up through it (the floor below stays shut).
-        for y in feet...(down ? feet + 1 : max(feet + 1, HellGate.floorTop)) where !world.isAir(x, y, z) { world.setBlock(x, y, z, AIR) }
-        if !world.opaqueAt(x, feet - 1, z) { world.setBlock(x, feet - 1, z, EMBERSLATE) }
-        player.pos = to
-        player.vel = .zero
-        player.airPeak = to.y
-        if down { achieve("deep_visit"); deepEntry = to }
-        if down { deepVisited = true }       // NO TEXT (P328): the arrival speaks for itself
     }
 }
 

@@ -118,6 +118,8 @@ final class QuestControls {
     private var gripOpenAt: [Double] = [-9, -9]  // when each hand was last open (grip under a quarter)
     private var prevRWorld: V3?
     private var velR = V3(0, 0, 0)
+    private var velRHand = V3(0, 0, 0), prevRTrack: V3? = nil
+    static let oldThrow = ProcessInfo.processInfo.environment["BS_OLDTHROW"] == "1"   // (the world-space speed, as before)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
     // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
     private var hudSolid: Float = 0
@@ -253,7 +255,7 @@ final class QuestControls {
     private var panelYaw: Float { panelYawT + app.rig.bodyYaw }
 
     // The ship the player rides (aboard or at the helm): its turns turn the rig, its motion drives the vignette.
-    private weak var carryShip: Ship?
+    @WeakLink private var carryShip: Ship? = nil
     private var carryYaw: Float = 0
     private var carryRot = simd_quatf()
     private var carryVel = V3.zero
@@ -379,7 +381,7 @@ final class QuestControls {
         game.padHotbarScroll = false
 
         // Roomscale: the head's walk since last frame moves the player through collision.
-        roomScale()
+        roomScale(dt: dt, stick: simd_length(L.stick))
 
         // Aim from the aiming hand.
         // A tracking blip keeps the last tracked hand pose (the head fallback drew the laser straight out of the eye, where
@@ -448,6 +450,8 @@ final class QuestControls {
         game.knockbackScale = QuestSettings.knockback               // Q2c-console-60
         game.vrShake = QuestSettings.blastShake
         game.vrHead = rig.headWorld
+        game.vrHeadYaw = rig.headYaw
+        game.vrHeadPitch = rig.headPitch
         p.rt = trigBtn[1].padValue                         // P303 (c): the game's 0.5 cut follows the trigger's state
         mineToggleUpdate(R, inMenu: inMenu, &p)             // Q2c-console-61
         p.lt = trigBtn[0].padValue                          // use / place (hold to repeat)
@@ -663,12 +667,18 @@ final class QuestControls {
             let p = rig.toWorld(R.gripPos)
             if let q = prevRWorld, dt > 0 { velR += ((p - q) / dt - velR) * 0.5 }
             prevRWorld = p
-        } else { prevRWorld = nil; velR = .zero }
+            // (the hand's own swing, in the play space turned to the world: walking, sprinting, riding and snap turns
+            // left out (code reader Nov 10, batch 2.2: a grip held a moment while walking threw the item away))
+            if let q = prevRTrack, dt > 0 { velRHand += (rig.toWorldDir(R.gripPos - q) / dt - velRHand) * 0.5 }
+            prevRTrack = R.gripPos
+        } else { prevRWorld = nil; velR = .zero; prevRTrack = nil; velRHand = .zero }
         if rHoldAt >= 0 && !rGrip {
             let held = game.clock - rHoldAt
             rHoldAt = -1
-            if rThrows && !inMenu && game.menu == nil && R.gripValid && held > 0.15 && simd_length(velR) > 2.5 {
-                if ThrownHeld.throwHeld(game, from: rig.toWorld(R.gripPos), vel: velR * 1.6) {
+            let swing = QuestControls.oldThrow ? velR : velRHand
+            if rThrows && !inMenu && game.menu == nil && R.gripValid && held > 0.15 && simd_length(swing) > 2.5 {
+                // (thrown with the swing, carried on by how he was moving)
+                if ThrownHeld.throwHeld(game, from: rig.toWorld(R.gripPos), vel: QuestControls.oldThrow ? velR * 1.6 : velRHand * 1.6 + (velR - velRHand)) {
                     app.input.haptic(aimHand, amplitude: 0.7, seconds: 0.05, frequency: 120)
                 }
             } else if held < 0.35 && !inMenu && game.menu == nil {
@@ -734,7 +744,10 @@ final class QuestControls {
             yHold = 0; yLong = false; yPulse = 0; flyPulse = 0
         } else {
             if L.button2 { yHold += dt } else {
-                if yHold > 0 && !yLong { flyPulse = 3 }
+                // (code reader Nov 10, batch 2.5: in survival a tap only flies or calls a horse, so with no horse it did
+                // nothing at all; then it opens the inventory, as holding it does.)
+                let tapDoesNothing = game.survival && game.horseBond == 0 && game.horseGrave == nil && !QuestControls.oldYTap
+                if yHold > 0 && !yLong { if tapDoesNothing { yBlock = true; yPulse = 3 } else { flyPulse = 3 } }
                 yHold = 0; yLong = false
             }
             if yHold > QuestControls.inventoryHold && !yLong { yLong = true; yBlock = true; yPulse = 3 }
@@ -1191,8 +1204,27 @@ final class QuestControls {
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "simple", offset: off, count: v.count) }
     }
 
-    private func roomScale() {
+    private var lowStill: Float = 0, lastHeadT = V3.zero
+    static let oldYTap = ProcessInfo.processInfo.environment["BS_OLDYTAP"] == "1"
+    static let oldMenuSlide = ProcessInfo.processInfo.environment["BS_OLDMENUSLIDE"] == "1"
+    static let oldSit = ProcessInfo.processInfo.environment["BS_OLDSIT"] == "1"   // (harness: sitting down sneaks, as before)
+    private func roomScale(dt: Float, stick: Float) {
         let rig = app.rig
+        // (code reader Nov 10, batch 2.4: sitting down in standing play left him sneaking, slow and unable to fall off a
+        // ledge, with nothing to say why. A head held low and still for three seconds, the stick at rest, is a seat: the
+        // view is raised to a standing player's eyes from there (as Seated play does), and standing up again puts the
+        // standing height back. A duck to get under something moves, so it still crouches.)
+        if !QuestSettings.seated && !QuestSettings.reclined && !QuestControls.oldSit {
+            let head = rig.trackingHead
+            let still = dt > 0 && simd_length(head - lastHeadT) / dt < 0.15 && stick < 0.1
+            lastHeadT = head
+            if rig.satDown {
+                if head.y > rig.pivotY + 0.3 { rig.standAgain() }
+            } else if game.riding == nil && game.menu == nil && head.y + rig.heightOffset < QuestRig.eyeHeight - 0.45 && still {
+                lowStill += dt
+                if lowStill > 3 { rig.sitAt(head.y); lowStill = 0 }
+            } else { lowStill = 0 }
+        }
         // P226 (Oct 13 21:40, "I can't get crouch under here"): ducking for real (the head 40 cm or more below standing
         // eye height) crouches the body too, so it fits under a low gap as the stick's sneak does, and drops to a crawl
         // into one lower still (Player.update, P179). Seated play has no real duck.
@@ -1204,6 +1236,17 @@ final class QuestControls {
             d.y = 0
             let l = simd_length(d)
             if l > 0.35 { rig.anchor += d * (1 - 0.35 / l) }
+            rig.refresh(game: game)
+            return
+        }
+        // (code reader Nov 10, batch 2.3: with a menu open a real step didn't move the body, yet the step was still
+        // taken up into the anchor, so the whole world slid along with his head. Now the view moves as the head does,
+        // up to a metre; the body catches up through collision once the menu closes.)
+        if game.menu != nil && !QuestControls.oldMenuSlide {
+            var d = rig.trackingHead - rig.anchor
+            d.y = 0
+            let l = simd_length(d)
+            if l > 1 { rig.anchor += d * (1 - 1 / l) }
             rig.refresh(game: game)
             return
         }
@@ -1247,6 +1290,7 @@ final class QuestControls {
             game.player.pitch = max(-1.55, min(1.55, app.rig.headPitch))
             aimHit = nil
             game.vrAim = nil
+            TankSight.chasePoint = nil
             return
         }
         let w = game.world
@@ -1268,6 +1312,7 @@ final class QuestControls {
             }
             QuestControls.chaseAimPoint = aimOrigin + aimDir * t
         }
+        TankSight.chasePoint = QuestControls.chaseAim ? QuestControls.chaseAimPoint : nil
         if QuestControls.chaseAim, let p = QuestControls.chaseAimPoint {
             let d = simd_normalize(p - game.player.eye)
             game.player.yaw = atan2f(-d.x, -d.z)

@@ -25,39 +25,57 @@ let SEA_D: Float = Float(SEA - YOFF)
 @inline(__always) func gridKey(_ a: Int, _ b: Int) -> Int64 { (Int64(a) << 32) ^ Int64(UInt32(truncatingIfNeeded: b)) }
 
 // Thread-safe direct-mapped memo for pure functions of a 2D integer key (eviction just recomputes).
+// Ledger 82 (Nov 11, the VR fuzz's wait oracle: a frame that stood 18 ms on 0.6 ms of its own work, its samples in a
+// lattice node lookup for the weather's biome): one lock guarded each whole cache, so the frame's few lookups queued
+// behind every generation worker's thousands, and behind a worker the system had paused while holding it. The slots
+// are now split over 64 locks (a slot always under the same one). BS_OLDGRIDLOCK=1: one lock, as before.
 final class GridCache<T> {
-    private var keys: [Int64]
-    private var vals: [T]
+    static var stripes: Int { GridCacheRule.old ? 1 : 64 }
+    // (plain storage, not arrays: slots under different locks are written at once, and an array's write is a
+    // whole-array access)
+    private let keys: UnsafeMutablePointer<Int64>
+    private let vals: UnsafeMutablePointer<T>
+    private let size: Int
     private let shift: UInt64
+    private let mask: Int
     private let lock: UnsafeMutablePointer<os_unfair_lock>
 
     init(bits: Int, empty: T) {
-        keys = [Int64](repeating: Int64.min, count: 1 << bits)
-        vals = [T](repeating: empty, count: 1 << bits)
+        size = 1 << bits
+        keys = .allocate(capacity: size); keys.initialize(repeating: Int64.min, count: size)
+        vals = .allocate(capacity: size); vals.initialize(repeating: empty, count: size)
         shift = UInt64(64 - bits)
-        lock = UnsafeMutablePointer<os_unfair_lock>.allocate(capacity: 1)
-        lock.initialize(to: os_unfair_lock())
+        let n = GridCache.stripes
+        mask = n - 1
+        lock = UnsafeMutablePointer<os_unfair_lock>.allocate(capacity: n)
+        lock.initialize(repeating: os_unfair_lock(), count: n)
     }
-    deinit { lock.deallocate() }
+    deinit {
+        lock.deallocate()
+        keys.deallocate()
+        vals.deinitialize(count: size); vals.deallocate()
+    }
 
     @inline(__always) func get(_ a: Int, _ b: Int, _ make: () -> T) -> T {
         let k = gridKey(a, b)
         let slot = Int(truncatingIfNeeded: (UInt64(bitPattern: k) &* 0x9E3779B97F4A7C15) >> shift)
-        os_unfair_lock_lock(lock)
+        let l = lock + (slot & mask)
+        os_unfair_lock_lock(l)
         if keys[slot] == k {
             let v = vals[slot]
-            os_unfair_lock_unlock(lock)
+            os_unfair_lock_unlock(l)
             return v
         }
-        os_unfair_lock_unlock(lock)
+        os_unfair_lock_unlock(l)
         let v = make()
-        os_unfair_lock_lock(lock)
+        os_unfair_lock_lock(l)
         keys[slot] = k
         vals[slot] = v
-        os_unfair_lock_unlock(lock)
+        os_unfair_lock_unlock(l)
         return v
     }
 }
+enum GridCacheRule { static let old = ProcessInfo.processInfo.environment["BS_OLDGRIDLOCK"] == "1" }
 
 final class Terrain {
     // Smooth large-scale fields.

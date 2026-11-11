@@ -243,6 +243,22 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
         let qx = p.x - 0.5, qy = p.y - 0.5, qz = p.z - 0.5
         let x0 = Int(floor(qx)), y0 = Int(floor(qy)), z0 = Int(floor(qz))
         let tx = qx - Float(x0), ty = qy - Float(y0), tz = qz - Float(z0)
+        // (item 7: the 8 corners in one chunk, as they are 7 times in 9: the chunk found once and the cells read by
+        // their index; was 2.5% of the worst-case soak's instructions. BS_OLDLOOKUPS=1: each corner finds its chunk.)
+        let lx = x0 & (CS - 1), lz = z0 & (CS - 1)
+        if !World.oldLookups && lx < CS - 1 && lz < CS - 1 && y0 >= 0 && y0 + 1 < CH {
+            let k = ChunkKey(x: x0 >> 4, z: z0 >> 4)
+            if k != lastKey { lastKey = k; lastChunk = world.chunks[k] }
+            guard let c = lastChunk else { return 4 }
+            let b = c.blocks, i = Chunk.index(lx, y0, lz)
+            @inline(__always) func d(_ j: Int) -> Float { FieldTerrain.f(b.density(j)) }
+            let c000 = d(i), c100 = d(i + 1), c010 = d(i + CSQ), c110 = d(i + CSQ + 1)
+            let c001 = d(i + CS), c101 = d(i + CS + 1), c011 = d(i + CSQ + CS), c111 = d(i + CSQ + CS + 1)
+            let a0 = c000 * (1 - tx) + c100 * tx, b0 = c010 * (1 - tx) + c110 * tx
+            let a1 = c001 * (1 - tx) + c101 * tx, b1 = c011 * (1 - tx) + c111 * tx
+            let e0 = a0 * (1 - ty) + b0 * ty, e1 = a1 * (1 - ty) + b1 * ty
+            return e0 * (1 - tz) + e1 * tz
+        }
         let a0 = density(x0, y0, z0) * (1 - tx) + density(x0 + 1, y0, z0) * tx
         let b0 = density(x0, y0 + 1, z0) * (1 - tx) + density(x0 + 1, y0 + 1, z0) * tx
         let a1 = density(x0, y0, z0 + 1) * (1 - tx) + density(x0 + 1, y0, z0 + 1) * tx

@@ -127,7 +127,7 @@ enum FarCitadel {
             for lz in 0..<CS { for lx in 0..<CS {
                 let x = bx + lx, z = bz + lz
                 guard x >= x0, x <= piece.max.x, z >= z0, z <= piece.max.z else { continue }
-                for y in max(0, floorY)...y1 {
+                for y in thru(max(0, floorY), y1) {
                     let i = Chunk.index(lx, y, lz)
                     let b = blocks[i]
                     guard mark[i] != 0, keep[Int(b)] else { continue }

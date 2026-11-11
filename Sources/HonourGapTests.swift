@@ -322,7 +322,11 @@ extension TownTests {
         }
         // They ride off once you're no longer wanted and they're out of range; never sent on Peaceful.
         Honour.value = 0
-        for h in hunters { h.pos = g.player.pos + V3(60, 0, 0) }
+        // (behind him: one in plain sight stays until he looks away (item 27, MobManager.canVanish), and the VR sim's
+        // monkey input before the shared checks can leave him looking east)
+        var back = -V3(g.viewLook.x, 0, g.viewLook.z)
+        back = simd_length(back) > 0.1 ? simd_normalize(back) : V3(1, 0, 0)
+        for h in hunters { h.pos = g.player.pos + back * 60 }
         BountyHunters.tick(g)
         check(!g.mobs.mobs.contains { $0.posse == 3 }, "honour gap: hunters leave once you're no longer wanted")
         g.mobs.mobs = []; Honour.value = -90; TownLaw.state.huntersDay = nil; g.difficulty = 0

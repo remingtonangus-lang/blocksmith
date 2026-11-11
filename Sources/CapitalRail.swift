@@ -23,7 +23,8 @@ enum CapitalRail {
     // Same grid as the citadels, so each region's spur belongs to that region's citadel. Nothing looks spurs up,
     // so the spur may ask about any other kind without a loop.
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: kind, spacing: 40, separation: 14, salt: 70411993 ^ 0x5A11, reach: reach) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: kind, spacing: 40, separation: 14, salt: 70411993 ^ 0x5A11, reach: reach) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             guard let sc = gen.structures, let mt = sc.types.first(where: { $0.name == "military_base" }),
                   let base = sc.start(mt, regionX: floorDiv(cx0, 40), regionZ: floorDiv(cz0, 40)) else { return nil }
             let x = base.anchor.x, z = base.anchor.z - CapitalBase.podium - 8

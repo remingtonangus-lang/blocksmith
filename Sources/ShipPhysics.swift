@@ -133,7 +133,7 @@ private struct Contact {
     var n: V3
     var pen: Float
     var acc: Float = 0
-    weak var other: Ship?
+    @WeakLink var other: Ship? = nil
 }
 
 extension ShipManager {
@@ -218,11 +218,17 @@ extension ShipManager {
                 let dx = max(r.worldMin.x - b.x, 0, b.x - r.worldMax.x), dz = max(r.worldMin.z - b.z, 0, b.z - r.worldMax.z)
                 d = min(d, simd_length(V2(dx, dz)))
             }
+            // P512 (his Nov 2 ask for proof that base revenge raids work: they never came): a dropship out on a run (called
+            // from 260 blocks off to land troops by him) slept past the active distance (136 blocks at the default 8) and
+            // hung in the sky where it was made. One on its run stays awake until it is gone; so does a sea hunter (rolled
+            // in 150 blocks off: past 136 it lay still on the water and never came for him).
+            let onRun = (r.role == "dropship" && !r.captured && (capState[r.id]?.phase ?? 0) >= 1) || SeaHunt.isHunter(r) || Corsairs.raiding(r)
+                || Reckoning.huntWarship(r)          // (Nov 4, ledger 16: made past the fog, far past the active distance)
             let steered = pilots.contains { $0 === s } || (Player.moveOverUnmade && carried.contains { $0 === r })
             // Kinematic (AI-moved) ships don't need the ground under them loaded: they never touch it physically.
             // P376: past the active distance every ship sleeps, capital ships too (they wait in place, drawn).
             let activeR = Float(min(world.activeDistance, world.renderDistance) * CS + CS / 2)
-            s.asleep = !steered && ((d > activeR && !world.hot(r.pos)) || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
+            s.asleep = !steered && ((d > activeR && !onRun && !world.hot(r.pos)) || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
             if !s.asleep { FarTicks.shipAwakeFar += d > activeR ? 1 : 0 }
             if !s.asleep && dt > 0 {
                 // Sky light the world has around the ship (top and middle of its bounds): ships darken under cover.

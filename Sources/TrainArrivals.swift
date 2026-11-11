@@ -33,7 +33,7 @@ enum TrainArrivals {
         for id in Array(kinds.keys) {
             guard let tr = Trains.trains[id] else { kinds[id] = nil; wreckers.remove(id); continue }
             let head = tr.track.point(tr.track.at(tr.time).s)
-            if simd_length(head - p) > 240 || tr.wrecked { kinds[id] = nil; wreckers.remove(id); shellAt[id] = nil }
+            if simd_length(head - p) > max(240, Trains.reach(g) + 40) || tr.wrecked { kinds[id] = nil; wreckers.remove(id); shellAt[id] = nil }
         }
         guard g.dim.dim == .overworld, !tracks.isEmpty, g.alive else { return }
         near += 1
@@ -45,6 +45,7 @@ enum TrainArrivals {
         _ = arrive(g, tracks, kind: k)
     }
 
+    static func alongFor(_ g: Game) -> Float { Trains.fogReach ? max(approach, Trains.reach(g) + 24) : approach }
     // Puts a train of `kind` on the nearest line, `approach` blocks up the track and running toward him.
     @discardableResult
     static func arrive(_ g: Game, _ tracks: [Trains.Track], kind: Trains.Kind) -> Trains.Train? {
@@ -60,7 +61,9 @@ enum TrainArrivals {
         let n = t.cells.count
         // Up the line on the side with more track, so it has room to come.
         let up: Float = n - 1 - i0 >= i0 ? 1 : -1
-        let target = max(0, min(Float(n - 1), Float(i0) + up * approach))
+        // (Week item 71: from past where trains are made at his view, so it comes into being out of his sight.)
+        let along = alongFor(g)
+        let target = max(0, min(Float(n - 1), Float(i0) + up * along))
         let wantDir: Float = -up
         // The timetable moment its head is there, running his way (not standing at a stop).
         var bestU = -1.0, bestErr = Float.infinity

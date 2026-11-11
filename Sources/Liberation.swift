@@ -25,7 +25,7 @@ enum Liberation {
     // The outlaw camp starts near a point (centre = anchor).
     static func outlawCamps(_ g: Game, near p: V3) -> [StructureStart] {
         guard let sc = g.world.gen.structures, let t = sc.types.first(where: { $0.name == "wild_camp" }) else { return [] }
-        return sc.startsNear(cx: floorDiv(Int(floor(p.x)), CS), cz: floorDiv(Int(floor(p.z)), CS), t).filter { $0.kind == "camp_outlaws" }
+        return sc.startsNearMade(cx: floorDiv(Int(floor(p.x)), CS), cz: floorDiv(Int(floor(p.z)), CS), t).filter { $0.kind == "camp_outlaws" }
     }
 
     static func freed(_ x: Int, _ z: Int) -> Bool {

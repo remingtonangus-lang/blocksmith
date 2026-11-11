@@ -156,7 +156,7 @@ enum Elevators {
             s.d += 1
         }
         guard s.d >= 1 else { return nil }
-        for y in max(1, F0 - 96)...min(CH - 6, F0 + 96) {
+        for y in thru(max(1, F0 - 96), min(CH - 6, F0 + 96)) {
             let dc = s.doorCell(0, y + 1)
             if isDoor(w.block(dc.x, dc.y, dc.z)) && !isDoor(w.block(dc.x, dc.y - 1, dc.z)) {
                 s.landings.append(y)
@@ -185,7 +185,7 @@ enum Elevators {
         var to = 0, from = 0
         var timer: Float = 0
         var travelled: Float = 0, speed: Float = 0
-        weak var ship: Ship?
+        @WeakLink var ship: Ship? = nil
         var pos0 = V3(0, 0, 0)
         var cells: [(IVec3, BlockID)] = []   // the car's blocks, relative to its front-left floor cell
         var wait: [(Chunk, Int, Int)] = []
@@ -459,7 +459,7 @@ enum Elevators {
     static func retrofit(_ w: World, _ p: IVec3, avoid: V3? = nil) -> Bool {
         guard let pad = Lift.pad else { return false }
         var ys: [Int] = []
-        for y in max(1, p.y - 64)...min(CH - 8, p.y + 64) where w.block(p.x, y, p.z) == pad { ys.append(y) }
+        for y in thru(max(1, p.y - 64), min(CH - 8, p.y + 64)) where w.block(p.x, y, p.z) == pad { ys.append(y) }
         guard ys.count >= 2 else { return false }
         // The tower's nearest wall (two to five cells off at a middle landing's head height): the shaft's back.
         let mid = ys[ys.count / 2] + 2

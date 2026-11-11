@@ -11,7 +11,7 @@ import simd
 // - The standing third-person body (writePlayerModel) steps aside while seated, so there is only ever one body.
 enum BoatLooks {
     static weak var rider: Mob?          // the boat the local player sits in (Mob.updateBoat keeps it current)
-    static weak var game: Game?
+    @WeakLink static var game: Game? = nil
 
     static func track(_ m: Mob, _ g: Game, ridden: Bool) {
         if ridden { rider = m; game = g } else if rider === m { rider = nil }

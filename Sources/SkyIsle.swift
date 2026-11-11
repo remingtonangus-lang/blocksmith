@@ -48,7 +48,8 @@ enum SkyIsle {
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: kind, spacing: spacing, separation: separation, salt: 47021893, reach: 2) { [unowned gen] seed, cx, cz in
+        StructureType(name: kind, spacing: spacing, separation: separation, salt: 47021893, reach: 2) { [weak gen] seed, cx, cz in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             let rx = floorDiv(cx, spacing), rz = floorDiv(cz, spacing)
             guard hashf(rx, rz, 9300, UInt32(truncatingIfNeeded: gen.seed)) < presence else { return nil }
             let o = Game.spawnOrigin(seed: gen.seed)
@@ -161,7 +162,7 @@ enum GrappleLine {
 
     final class Hook {
         var at: V3                               // world point (block hooks)
-        weak var ship: Ship?
+        @WeakLink var ship: Ship? = nil
         var local: V3 = .zero                    // ship-space point (ship hooks)
         var time: Float = 0
         init(at: V3) { self.at = at }

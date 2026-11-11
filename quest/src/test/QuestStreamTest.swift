@@ -18,8 +18,8 @@ enum QuestStreamTest {
 
     static func run(ctx: VkContext?) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        World.fluidSeconds = 0.002; World.handoverSeconds = (Double(ProcessInfo.processInfo.environment["BS_HANDOVERMS"] ?? "") ?? 1.5) / 1000; World.lodNear = 99; World.leafNear = QuestApp.leafNear
-        World.editLane = true                                                       // (QuestApp)
+        QuestApp.headsetWorld()                                                       // (as on the headset)
+        World.handoverSeconds = (Double(ProcessInfo.processInfo.environment["BS_HANDOVERMS"] ?? "") ?? 1.5) / 1000
         let at = (arg("--at") ?? "0,160,0").split(separator: ",").compactMap { Float($0) }
         let look = (arg("--look") ?? "0,-20").split(separator: ",").compactMap { Float($0) }
         let rd = Int(arg("--rd") ?? "") ?? 10

@@ -20,6 +20,34 @@ final class QuestApp {
     // leaf blocks). At 6 chunks (96 blocks) a leaf block is ~8 px tall on the Quest 3 and a leaf texture's holes are
     // under a pixel, so the inner faces could only show through holes the mip chain has already closed.
     static var leafNear = 4
+
+    // The world settings the headset plays with. Every host harness that stands in for the headset's frame calls this
+    // too (Nov 6: the perf scenes ran without the edit lane, so a felled tree's sections meshed on the frame thread
+    // there and read as a 155 ms "felling" spike the headset never has; five harnesses meshed leaves at full detail
+    // out to the view's edge, leafNear 99, where the headset uses 4).
+    static func headsetWorld() {
+        World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
+        World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
+        DebrisWorld.budget = (Double(ProcessInfo.processInfo.environment["BS_DEBRISMS"] ?? "") ?? 1.5) / 1000   // a frame's debris sub-steps stop past 1.5 ms
+        // P339 (Remington, Oct 18 20:10: "everything out to the 24-chunk view looks exactly like the land near him... no
+        // coarse 2-block-lattice LOD, no blur or compression"): every chunk in view is meshed at full detail (no far
+        // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
+        // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
+        World.lodNear = 99
+        World.editLane = true                      // P440: a placed or broken block meshes off the frame
+        GroundSettle.spread = true                 // store review: generation's loose pieces cleared a slice a frame
+        World.leafNear = QuestApp.leafNear
+        // The game plans structure starts on a worker (the headless checks plan them at once, main.swift): in the perf
+        // scenes a Greywall base found in flight was planned in the tick, a 158 ms "bases found" spike, and the town
+        // law tick's lookups 118 ms, neither of which the headset has.
+        StructureCache.plansOffThread = true
+        // Ledger 40: a trip to another dimension holds him in black while the ground streams in, instead of loading it
+        // on the frame (BS_OLDTRIP=1 for before).
+        Game.arrivalHold = ProcessInfo.processInfo.environment["BS_OLDTRIP"] != "1"
+        // Ledger 42: a blast's crater is shaped over the next frames within the carving allowance (BS_OLDBLAST=1: at once).
+        BlastShape.deferred = ProcessInfo.processInfo.environment["BS_OLDBLAST"] != "1"
+    }
+
     private(set) var dynRes = DynamicResolution()       // P403 7b
     private(set) var game: Game?
     private var worldRenderer: WorldRenderer?
@@ -35,6 +63,7 @@ final class QuestApp {
     // F3: a world being saved behind the loading scene ("Saving the world"), and a quit waiting for that save.
     private var savingGame: Game?
     private var exitWhenSaved = false
+    static let oldExitSave = ProcessInfo.processInfo.environment["BS_OLDEXITSAVE"] == "1"
     private var saveDone = false
     private var loadStatus = "Starting"
     private var loadProgress: Float = 0
@@ -69,16 +98,7 @@ final class QuestApp {
             self?.rig.needsRecenter = true
             self?.game?.onToast?(QuestSettings.reclined ? "View levelled to your gaze" : "View recentred")
         }
-        World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
-        World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
-        // P339 (Remington, Oct 18 20:10: "everything out to the 24-chunk view looks exactly like the land near him... no
-        // coarse 2-block-lattice LOD, no blur or compression"): every chunk in view is meshed at full detail (no far
-        // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
-        // draws, not by lowering far detail; his headset captures decide if it holds 72 fps.
-        World.lodNear = 99
-        World.editLane = true                      // P440: a placed or broken block meshes off the frame
-        GroundSettle.spread = true                 // store review: generation's loose pieces cleared a slice a frame
-        World.leafNear = QuestApp.leafNear
+        QuestApp.headsetWorld()
         PauseMenu.viewFixed = true                 // P339: the view distance is fixed (QuestSettings.viewDistance)
         stats.lowerRate = { [weak xr] in
             guard let x = xr, x.refreshRate > 72.5, x.setRefreshRate(72) else { return false }
@@ -88,7 +108,7 @@ final class QuestApp {
         stats.dynResProbe = { [weak self] in self?.dynRes.lastProbe ?? 0 }
         stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && !(self?.xr.foveated ?? true) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
-        startLoading()
+        startLoading(WorldRequest(survival: true))       // (code reader Nov 10, batch 2.1: a buyer's first world was Creative: no camp, no goals)
     }
 
     // MARK: Loading
@@ -117,6 +137,7 @@ final class QuestApp {
                 self?.status("Saving the world", 0.02)
                 let a = CFAbsoluteTimeGetCurrent()
                 if quitting {
+                    g.closeMenusForExit()
                     g.saveNow()
                     SaveIO.flush()
                     g.world.meshCache?.flush()           // (P400: the view's meshes on disk for the next launch)
@@ -231,6 +252,7 @@ final class QuestApp {
         defer { took("game, renderer, sound, controls"); firstWorldFrames = 4 }
         self.save = save
         self.game = game
+        CrashGuard.world = save?.dir.lastPathComponent ?? ""        // (the session marker names the open world)
         game.paused = false
         game.hideHUD = false
         game.sound = SoundEngine()
@@ -307,6 +329,8 @@ final class QuestApp {
             switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.diffLevel, smooth: true))   // (PG6: Polygons, even from a block world)
         case "workshop":
             switchWorld(WorldRequest(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 2))
+        case "proving":                                                               // P512 (ProvingGrounds.swift)
+            switchWorld(WorldRequest(name: ProvingGrounds.worldName, seed: ProvingGrounds.seed, survival: false, difficulty: 2, smooth: false))
         case _ where id.hasPrefix("create:"):
             if let req = WorldRequest.create(action: id) { switchWorld(req) }
         default: break
@@ -489,11 +513,7 @@ final class QuestApp {
         print("hitch: " + line, terminator: "")
         let path = QuestPaths.root + "/hitches.log"
         DispatchQueue.global(qos: .utility).async {
-            if let h = FileHandle(forWritingAtPath: path) {
-                h.seekToEndOfFile(); h.write(line.data(using: .utf8) ?? Data()); h.closeFile()
-            } else {
-                try? line.write(toFile: path, atomically: true, encoding: .utf8)
-            }
+            SaveIO.append(Data(line.utf8), toFile: path)
         }
     }
 
@@ -509,6 +529,10 @@ final class QuestApp {
     // Saves the world (activity paused / exiting).
     func saveNow() {
         guard let g = game else { return }
+        // (code reader Nov 10, batch 2.7: the headset's own exits (paused, sent away, the system's Quit) saved with a
+        // screen open, so the item on the cursor and the crafting grid weren't in the save, and lost if the system then
+        // ended the app. As the Mac's quit does, every open screen hands them back first; the pause menu stays.)
+        if !(g.menu is PauseMenu) && !QuestApp.oldExitSave { g.closeMenusForExit() }
         g.saveNow()
         SaveIO.flush()
         print("save: world saved")
@@ -757,7 +781,7 @@ final class FrameStats {
     // Auto Render Distance inputs besides the timings: a menu or pause in the window, a save, a dimension change,
     // and the chunks generated (a loading burst: fast flight, a raise's new ring).
     private var busyFrames = 0, lastSaves = -1, lastGen = -1
-    private weak var lastWorld: World?
+    @WeakLink private var lastWorld: World? = nil
     // Set by QuestApp: asks the runtime for 72 Hz; true when the rate changed.
     var lowerRate: (() -> Bool)?
     // Set by QuestApp: the world renderer's record split since the last line (WorldRenderer.takeStages).

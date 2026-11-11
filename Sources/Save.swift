@@ -182,8 +182,8 @@ final class SaveManager {
         return a.filter { $0.count == 3 }.map { IVec3($0[0], $0[1], $0[2]) }
     }
 
-    func savePortals(_ p: [IVec3]) {
-        SaveIO.storeJSON(p.map { [$0.x, $0.y, $0.z] }, to: dir.appendingPathComponent("portals.json"))
+    func savePortals(_ p: [IVec3], background: Bool = false) {
+        SaveIO.write(p.map { [$0.x, $0.y, $0.z] }, to: dir.appendingPathComponent("portals.json"), background: SaveIO.queued(background))
     }
 
     func chunkURL(_ k: ChunkKey) -> URL { chunkDir.appendingPathComponent("c.\(k.x).\(k.z).lz") }
@@ -209,8 +209,7 @@ final class SaveManager {
 
     // The chunk file's bytes to blocks, or nil.
     static func decodeBlocks(_ d: [UInt8]) -> [BlockID]? {
-        guard let raw = try? (Data(d) as NSData).decompressed(using: .lzfse) as Data else { return nil }
-        let bytes = [UInt8](raw)
+        guard let bytes = SaveBytes.decompress(d) else { return nil }
         var p = 0
         func u16() -> Int { defer { p += 2 }; return p + 1 < bytes.count ? Int(bytes[p]) | Int(bytes[p + 1]) << 8 : 0 }
         guard bytes.count >= 4 else { return nil }
@@ -274,7 +273,7 @@ final class SaveManager {
             d.append(contentsOf: u)
         }
         idx.withUnsafeBytes { d.append(contentsOf: $0) }
-        guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return nil }
+        guard let c = SaveBytes.compress(d) else { return nil }
         return [UInt8](c)
     }
 }
@@ -343,10 +342,13 @@ enum SaveIO {
             guard fm.createFile(atPath: tmp.path, contents: nil) else {
                 throw NSError(domain: "save", code: 1, userInfo: [NSLocalizedDescriptionKey: "can't create a file (is the storage full?)"])
             }
+            // (code reader Nov 10, batch 2.9: FileHandle's old write(_:) and synchronizeFile() end the app when the
+            // storage is full (a try! inside them on the headset, an exception on the Mac), so a full storage crashed
+            // the save instead of being reported. The throwing calls report it and the old file stays.)
             let h = try FileHandle(forWritingTo: tmp)
-            h.write(data)
-            h.synchronizeFile()
-            h.closeFile()
+            defer { try? h.close() }
+            try h.write(contentsOf: data)
+            try h.synchronize()
             if rename(tmp.path, url.path) != 0 {
                 throw NSError(domain: "save", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: String(cString: strerror(errno))])
             }
@@ -354,6 +356,12 @@ enum SaveIO {
             try? FileManager.default.removeItem(at: tmp)
             report("Couldn't save \(url.lastPathComponent): \(error.localizedDescription)")
         }
+    }
+    // Appends to a log without ending the app on a full storage (see store): false when it couldn't.
+    @discardableResult static func append(_ data: Data, toFile path: String) -> Bool {
+        guard let h = FileHandle(forWritingAtPath: path) else { return FileManager.default.createFile(atPath: path, contents: data) }
+        defer { try? h.close() }
+        do { _ = try h.seekToEnd(); try h.write(contentsOf: data); return true } catch { return false }
     }
     static func storeJSON<T: Encodable>(_ value: T, to url: URL, pretty: Bool = false) {
         let enc = encoder()
@@ -387,6 +395,7 @@ enum SaveIO {
         if due { lastSnapshot[key] = now }
         lock.unlock()
         guard due else { return }
+        if CrashGuard.crashedHere(dir) && !CrashGuard.oldAdvice { return }      // (the crashed session's copy is kept while it's offered)
         queue.async {
             let fm = FileManager.default
             let root = dir.appendingPathComponent("backups", isDirectory: true)
@@ -419,6 +428,12 @@ enum SaveIO {
 
     // F1: work for the save queue (encoding from value snapshots the frame thread no longer touches).
     static func run(_ work: @escaping () -> Void) { queue.async(execute: work) }
+    // Nov 10 (a launch's first autosave, timed by parts): the autosave wrote the portals, trains, free pieces, world
+    // objects, falling blocks and three of the ships' files right on the frame, each flushed to the storage (2-5 ms for
+    // the portals alone on the cloud host, every minute). They go on the save queue now, like the chunks and the meta.
+    // BS_OLDSAVESYNC=1: written on the frame as before.
+    static let oldSync = ProcessInfo.processInfo.environment["BS_OLDSAVESYNC"] == "1"
+    @inline(__always) static func queued(_ background: Bool) -> Bool { background && !oldSync }
     // A value snapshot written as JSON: on the save queue (the autosave) or right here (quit, pause, world switch).
     static func write<T: Encodable>(_ value: T, to url: URL, background: Bool) {
         if background { writeJSON(value, to: url); return }

@@ -14,7 +14,7 @@ enum QuestFlyTest {
 
     static func run() -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = 99   // (QuestApp)
+        QuestApp.headsetWorld()                                                       // (as on the headset)
         guard let dirPath = arg("--flytest") else { print("FAIL flytest: --flytest DIR"); return 1 }
         let rd = Int(arg("--rd") ?? "") ?? 24
         let secs = Int(arg("--seconds") ?? "") ?? 60

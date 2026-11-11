@@ -55,7 +55,8 @@ enum WildCamps {
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [unowned gen] seed, cx0, cz0 in
+        StructureType(name: "wild_camp", spacing: spacing, separation: separation, salt: 61733021, reach: 1) { [weak gen] seed, cx0, cz0 in
+            guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             var roll = SRng(seed)
             guard roll.chance(chance) else { return nil }
             if thinnedG12(gen, seed, cx0, cz0) { return nil }
@@ -158,6 +159,9 @@ enum WildCamps {
         }
         // The facing offset (north, south, west, east = 0...3) of a block facing local north (-z).
         var north: BlockID { BlockID([0, 3, 1, 2][rot]) }
+        // The facing offset of a block facing local direction d (0 north -z, 1 east +x, 2 south +z, 3 west -x). A ladder
+        // faces away from what holds it: one on a wall to its local north faces south (facing(2)).
+        func facing(_ d: Int) -> BlockID { BlockID([0, 3, 1, 2][(d + rot) % 4]) }
         // A log lying along the local x axis (true) or z axis.
         func log(_ wood: String, alongX: Bool) -> BlockID {
             let ax = alongX == (rot % 2 == 0) ? "x" : "z"
@@ -263,7 +267,9 @@ enum WildCamps {
                 put(-2, 2, dz, hoop); put(0, 2, dz, hoop)
                 put(-2, 3, dz, canopy); put(0, 3, dz, canopy); put(-1, 4, dz, canopy)
             }
-            put(-1, 2, -2, b("barrel")); put(-1, 2, -3, b("hay_block"))
+            // (Ledger 33: a barrel and a bale filled the one-wide aisle from the tail, so neither the bed nor the barrel
+            // could be reached (structcheck); the barrel is set down by the wagon's side.)
+            put(1, 0, -1, b("barrel"))
             bed(-1, 2, 0, "white")                            // (in the wagon, under the canopy)
             put(-2, 1, 3, b("spruce_fence", "oak_fence")); put(0, 1, 3, b("spruce_fence", "oak_fence"))   // the shafts
             put(-1, 2, 2, b("spruce_slab", "spruce_planks"))      // the driver's bench

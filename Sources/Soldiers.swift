@@ -720,9 +720,12 @@ extension Mob {
             b.aimTime = 0
             // P305 (b): he is behind a wall it can't get round (the path finder gave him up) or close behind thin cover,
             // and it knows where he is: it stands and shoots through the cover (BlockWear wears it away round by round).
-            if (b.seenAgo < 12 || lockTime > 0) && b.reload <= 0 && b.react <= 0 && b.shotTimer <= 0 && b.mag > 0
+            // (Nov 4: the cover is traced once a fifth of a second while it isn't thin, not every tick: see soldierFire)
+            let mayShootThrough = (b.seenAgo < 12 || lockTime > 0) && b.reload <= 0 && b.react <= 0 && b.shotTimer <= 0 && b.mag > 0
                 && gs.shot != .rocket && dist < min(rank.sight, 40) && (gaveUp(g.player.pos) || dist < 16)
-                && BlockWear.thinCover(g.world, eye, target, max: 3) {
+            let thin = mayShootThrough && BlockWear.thinCover(g.world, eye, target, max: 3)
+            if mayShootThrough && !thin { b.shotTimer = max(b.shotTimer, 0.2) }
+            if thin {
                 face(g.player.pos)
                 let tp = target - eye
                 b.pitch += (max(-0.9, min(0.9, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
@@ -876,7 +879,11 @@ extension Mob {
         // only): a wall, window, door or fence between the gun and the target holds the shot.
         // P305 (b): thin cover the rounds can wear through (glass, a plank wall, a bush, up to two blocks) doesn't.
         MobManager.stage("fire: aim")
-        guard g.world.clearShot(muzzle, target) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else { b.aimTime = 0; MobManager.stage("fire: line"); return }
+        // (Nov 4, callgrind of the worst-case soak: a soldier ready to fire with a wall in the way traced the line and the
+        // thin cover again every tick, 39 a tick, a third of the mob tick; blocked, it looks again in a fifth of a second.)
+        guard g.world.clearShot(muzzle, target) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else {
+            b.aimTime = 0; b.shotTimer = max(b.shotTimer, 0.2); MobManager.stage("fire: line"); return
+        }
         MobManager.stage("fire: line")
         if glintDone { b.glinted = true }          // (a glint held up by a wall doesn't use up the warning)
         var aimAt = target

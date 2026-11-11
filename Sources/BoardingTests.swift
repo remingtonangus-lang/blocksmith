@@ -27,6 +27,7 @@ enum BoardingTests {
         // A living player with no menu open (an earlier check in the full questcheck can leave it dead on the death
         // screen, where the stick moves nothing).
         g.alive = true; g.menu = nil; g.health = max(g.health, g.maxHealth)
+        g.hunger = 20; g.saturation = 5                             // (fed: a long suite had him starving through the haul)
         g.survival = true                                           // (falls hurt: the haul must not)
         let startHealth = g.health
         // Nobody else about: the main gun checks before this one leave Meridian crews and ships, and in survival their

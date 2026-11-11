@@ -50,6 +50,9 @@ void main() {
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
     vec2 uv = vec2(float(uu), float(vv)) / 16.0;
+    // Nov 6 (Mesher.crossRuns): a run of stacked crosses drawn as one tall cross: u 28 / 29 lay the texture by position
+    // along its plane (28: rising with x, 29: falling) and down its height, repeating per block as the corners did.
+    if (face == 6u && (uu == 28u || uu == 29u)) uv = vec2(uu == 28u ? p.x : -p.x, -p.y);
     // P383: a per-position ground vertex: the shade bits, the overlay bit and v hold its normal; it acts as the face
     // its normal points most along (a top for anything facing up within 60 degrees, as the quads picked).
     bool tri = uu == 30u;

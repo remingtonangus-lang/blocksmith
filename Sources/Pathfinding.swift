@@ -62,6 +62,7 @@ enum PathFinder {
     // each read was a dictionary lookup: bench profile, mobs scene). Only while find() runs (main thread); elsewhere
     // blk is World.block.
     private static var cursorOn = false
+    private static var topCache: [IVec3: Float] = [:]       // (solidTop's field cells during one run of a search)
     private static var cKey = ChunkKey(x: Int.min, z: Int.min)
     private static var cChunk: Chunk?
     static let dirs4 = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -75,6 +76,14 @@ enum PathFinder {
         // every ground cell is fieldNear); this is the built layer.
         return c.blocks.isField ? c.blocks.raw(Chunk.index(mod(x, CS), y, mod(z, CS))) : c.blocks[Chunk.index(mod(x, CS), y, mod(z, CS))]
     }
+
+    @inline(__always) static func cursorChunk(_ w: World, _ x: Int, _ z: Int) -> Chunk? {
+        guard cursorOn, !oldTopLookup else { return w.chunkAt(x, z) }
+        let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
+        if k != cKey { cKey = k; cChunk = w.chunkAt(x, z) }
+        return cChunk
+    }
+    static let oldTopLookup = ProcessInfo.processInfo.environment["BS_OLDTOPLOOKUP"] == "1"
 
     static let climbIds: Set<BlockID> = {
         var s = Set<BlockID>()
@@ -93,13 +102,20 @@ enum PathFinder {
         // P338 step 3 (handoff step 9): in a field world the ground in and round a cell is met as the field's own
         // surface (World.collisionBoxes: the quarter-block columns bodies stand on), not as a full cell of its material,
         // so a search stands mobs where they will really stand and climbs what they can really climb.
-        if w.fieldTerrain, w.frame == nil, y >= 0, y < CH, let c = w.chunkAt(x, z), c.blocks.isField,
+        // (Item 7, the citadel soak's callgrind: a dictionary lookup per call, 0.8% of the soldiers, mobs and debris
+        // there; during a search the cursor's chunk serves, as in blk.)
+        if w.fieldTerrain, w.frame == nil, y >= 0, y < CH, let c = cursorChunk(w, x, z), c.blocks.isField,
            w.fieldNear(c, x, y, z, Chunk.index(mod(x, CS), y, mod(z, CS))) {
             if doors && isWoodDoor(blk(w, x, y, z)) { return 0 }
+            // (Store review, build 112's citadel soak: one node of an armoured soldier's search took 6.8 ms, its cells'
+            // field ground read again for every neighbour that looked at them. During a search each cell's is kept.)
+            let key = IVec3(x, y, z)
+            if cursorOn, let t = topCache[key] { return t }
             boxes.removeAll(keepingCapacity: true)
             w.collisionBoxes(x, y, z, &boxes)
             var top: Float = 0
             for (_, hi) in boxes { top = max(top, hi.y - Float(y)) }
+            if cursorOn { topCache[key] = top }
             return top
         }
         let b = Int(blk(w, x, y, z))
@@ -247,6 +263,7 @@ enum PathFinder {
         let saveCursor = cursorOn
         cursorOn = true
         cKey = ChunkKey(x: Int.min, z: Int.min); cChunk = nil
+        topCache.removeAll(keepingCapacity: true)
         defer { doors = saveDoors; cursorOn = saveCursor; cChunk = nil; cKey = ChunkKey(x: Int.min, z: Int.min) }
         return body()
     }
@@ -480,6 +497,7 @@ extension Mob {
             if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; dropSearch(); giveUp(target); return }
         }
         if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); dropSearch(); return }
+        MobManager.stage("path: watchdog")                      // (the soak: an ironclad's path stage was 7 ms, the search's share 1.5)
         // A search still running from an earlier tick: its share of this tick's budget (dropped if the goal has moved
         // far since; the usual repath below starts a new one).
         if let s = path.search {
@@ -491,6 +509,7 @@ extension Mob {
                 if done { path.search = nil; takePath(s); PathFinder.recycle(s) }
             }
         }
+        MobManager.stage("path: resumed search")
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
         let climbing = PathFinder.climbable(w.builtBlock(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
@@ -508,8 +527,10 @@ extension Mob {
             // This tick's share of the 1.5 ms (all of it in the deterministic harness runs); unfinished, it carries on
             // next tick while the mob keeps its old path / heads straight for the target.
             let deadline: Double = Rand.deterministic ? .infinity : t0 + PathFinder.slice - PathFinder.spent
+            MobManager.stage("path: search begun")
             if PathFinder.run(s, w, deadline: deadline) { takePath(s); PathFinder.recycle(s) } else { path.search = s }
             PathFinder.spent += CFAbsoluteTimeGetCurrent() - t0
+            MobManager.stage("path: new search")
         }
         let off: Float = path.span == 2 ? 1 : 0.5
         while path.index < path.nodes.count {

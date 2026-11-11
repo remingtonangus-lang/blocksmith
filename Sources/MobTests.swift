@@ -159,7 +159,7 @@ enum MobTests {
         let cx: Int, cz: Int, gy: Int
         func set(_ u: Int, _ y: Int, _ v: Int, _ b: BlockID) { w.setBlockAsync(cx + u, gy + y, cz + v, b) }
         func fill(_ u0: Int, _ y0: Int, _ v0: Int, _ u1: Int, _ y1: Int, _ v1: Int, _ b: BlockID) {
-            for u in min(u0, u1)...max(u0, u1) { for y in min(y0, y1)...max(y0, y1) { for v in min(v0, v1)...max(v0, v1) { set(u, y, v, b) } } }
+            for u in thru(min(u0, u1), max(u0, u1)) { for y in thru(min(y0, y1), max(y0, y1)) { for v in thru(min(v0, v1), max(v0, v1)) { set(u, y, v, b) } } }
         }
         func p(_ u: Int, _ y: Int, _ v: Int) -> V3 { V3(Float(cx + u) + 0.5, Float(gy + y), Float(cz + v) + 0.5) }
         func local(_ n: IVec3) -> (Int, Int, Int) { (n.x - cx, n.y - gy, n.z - cz) }
@@ -321,7 +321,9 @@ enum MobTests {
         // Tables and categories.
         check(Spawns.monsters(.mushroomFields).isEmpty && Spawns.monsters(.deepDark).isEmpty, "spawn no monsters in mushroom fields / deep dark")
         check(Spawns.monsters(.desert).contains { $0.kind == .husk && $0.weight == 80 }, "spawn desert husks 80")
-        check(Spawns.monsters(.snowyPlains).contains { $0.kind == .stray && $0.weight == 80 }, "spawn snowy strays 80")
+        // (P246/P483: the skeleton bowmen, strays among them, stay out of the lists; the walkers came back)
+        check(!Spawns.monsters(.snowyPlains).contains { $0.kind == .stray || $0.kind == .skeleton } && Spawns.monsters(.snowyPlains).contains { $0.kind == .zombie },
+              "spawn snowy: walkers, no bowmen (P483)")
         check(Spawns.monsters(.river).contains { $0.kind == .drowned && $0.weight == 100 }, "spawn river drowned 100")
         check(MobKind.zombie.category == .monster && MobKind.cow.category == .creature && MobKind.bat.category == .ambient
               && MobKind.cod.category == .waterAmbient && MobKind.squid.category == .waterCreature && MobKind.glowSquid.category == .undergroundWater
@@ -365,8 +367,11 @@ enum MobTests {
             biggest = max(biggest, mm.mobs.filter { $0.mount == nil }.count - before)
         }
         check(biggest <= 4, "spawn at most 4 monsters an attempt", "biggest \(biggest)")
-        let packs = Dictionary(grouping: night.filter { $0.kind != .slime }) { m in "\(m.kind.key)\(Int(floor(m.pos.x / 12))),\(Int(floor(m.pos.z / 12)))" }
-        check(packs.values.contains { $0.count >= 2 }, "spawn monsters come in packs", "biggest \(packs.values.map { $0.count }.max() ?? 0)")
+        // (Nov 4: by kind within 10 blocks of each other; it bucketed them into 12-block squares, and a pack across a
+        // square's edge counted as two lone ones: failed on build 149 with 9 zombies out, passed on 145)
+        let walkers = night.filter { $0.kind != .slime }
+        let packed = walkers.filter { m in walkers.contains { $0 !== m && $0.kind == m.kind && simd_length($0.pos - m.pos) < 10 } }.count
+        check(packed >= 2, "spawn monsters come in packs", "\(packed) of \(walkers.count) have one of their kind within 10 blocks")
 
         // Noon: nothing spawns in daylight (raw sky light above 7).
         mm.mobs.removeAll()
@@ -468,18 +473,22 @@ enum MobTests {
         check(!mm.mobs.contains { $0.kind == .ironGolem }, "townsfolk summon no golem (the sheriff replaces it)")
         TownLaw.golemsAllowed = true
         defer { TownLaw.golemsAllowed = false }
+        // (Each call tries 10 random spots within 8 blocks for a golem's room; on the spawn's broken ground, trees and
+        // slopes all 10 can miss, and the game simply calls again at the next gossip. One call each failed one run in
+        // a few (build 154: the summon missed, then the "waits" call made it). Five calls each, as five gossips.)
+        func calls(_ m: Mob) { for _ in 0..<5 { m.spawnGolemIfNeeded(game, needed: 5) } }
         mm.mobs.removeAll { $0 === fifth }
-        four[0].spawnGolemIfNeeded(game, needed: 5)
+        calls(four[0])
         check(!mm.mobs.contains { $0.kind == .ironGolem }, "golem not summoned by four")
         mm.mobs.append(fifth)
-        four[0].spawnGolemIfNeeded(game, needed: 5)
+        for _ in 0..<5 where !mm.mobs.contains(where: { $0.kind == .ironGolem }) { four[0].spawnGolemIfNeeded(game, needed: 5) }
         check(mm.mobs.contains { $0.kind == .ironGolem }, "golem summoned by five sleepers")
         let before = mm.mobs.filter { $0.kind == .ironGolem }.count
-        four[1].spawnGolemIfNeeded(game, needed: 5)
+        calls(four[1])
         check(mm.mobs.filter { $0.kind == .ironGolem }.count == before, "golem summon waits after one appears")
         let sleepless = (0..<5).map { villager($0 - 2, -3) }
         for m in sleepless { m.sleptAt = -1e9 }
-        sleepless[0].spawnGolemIfNeeded(game, needed: 5)
+        calls(sleepless[0])
         check(mm.mobs.filter { $0.kind == .ironGolem }.count == before, "golem needs villagers that slept")
         mm.mobs.removeAll()
     }
@@ -574,6 +583,108 @@ enum MobTests {
         let traders = mm.mobs.filter { $0.kind == .wanderingTrader }.count, llamas = mm.mobs.filter { $0.kind == .traderLlama }.count
         check(traders == 1 && llamas >= 1, "wandering trader arrives with llamas", "\(traders) trader, \(llamas) llamas")
         mm.mobs.removeAll()
+
+        // Skeleton trap horses come up on the ground (bug ledger, Nov 4: each was put 1.5 off at the trap's own height,
+        // in the rock of a bank beside it as often as not). The trap stands at the foot of a 3-high bank.
+        do {
+            let bx = Int(floor(pos.x)) + 40, bz = Int(floor(pos.z)), by = Int(floor(pos.y))
+            let stone = Blocks.id("stone")
+            for dx in -3...3 { for dz in -3...3 {
+                world.setBlockAsync(bx + dx, by - 1, bz + dz, stone)
+                for dy in 0...4 { world.setBlockAsync(bx + dx, by + dy, bz + dz, dx >= 1 && dy < 3 ? stone : AIR) }
+            } }
+            let p0 = game.player.pos
+            var inRock = 0, total = 0
+            for _ in 0..<10 {
+                mm.mobs.removeAll()
+                let h = Mob(.skeletonHorse, at: V3(Float(bx) + 0.5, Float(by), Float(bz) + 0.5))
+                h.trap = true
+                mm.mobs.append(h)
+                game.player.pos = h.pos + V3(-3, 0, 0)
+                h.trapTick(game)
+                for m in mm.mobs where m.kind == .skeletonHorse {
+                    total += 1
+                    if world.solidAt(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z))) { inRock += 1 }
+                }
+            }
+            game.player.pos = p0
+            // (before: 1.5 off at the trap's height, as each horse was put until Nov 4, on the same bank)
+            var oldInRock = 0
+            for _ in 0..<40 {
+                let q = V3(Float(bx) + 0.5, Float(by), Float(bz) + 0.5) + V3(Rand.float(in: -1.5...1.5), 0, Rand.float(in: -1.5...1.5))
+                if world.solidAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { oldInRock += 1 }
+            }
+            check(total == 40 && inRock == 0, "skeleton trap horses come up clear of rock",
+                  "\(inRock) of \(total) horses in rock (the old placement: \(oldInRock) of 40)")
+            mm.mobs.removeAll()
+        }
+
+        // Conduit power (bug ledger, Nov 5): the search round a swimmer read only every other layer, so a conduit at an
+        // odd height from his feet never gave power. A conduit 3 up in a 16-block tidestone ring, then 4 up.
+        if Blocks.has("conduit") {
+            let bx = Int(floor(pos.x)) - 40, bz = Int(floor(pos.z)), by = Int(floor(pos.y))
+            let conduit = Blocks.id("conduit"), prism = Blocks.id("prismarine")
+            let p0 = game.player.pos, w0 = game.player.inWater
+            var got: [Bool] = []
+            for up in [3, 4] {
+                for dx in -3...3 { for dz in -3...3 { for dy in 0...6 { world.setBlockAsync(bx + dx, by + dy, bz + dz, AIR) } } }
+                for dx in -2...2 { for dz in -2...2 where abs(dx) == 2 || abs(dz) == 2 { world.setBlockAsync(bx + dx, by + up, bz + dz, prism) } }
+                world.setBlockAsync(bx, by + up, bz, conduit)
+                game.effects.remove(.conduitPower)
+                game.player.pos = V3(Float(bx) + 0.5, Float(by), Float(bz) + 0.5)
+                game.player.inWater = true
+                game.blockSecondTick()
+                got.append(game.effects.has(.conduitPower))
+            }
+            for dx in -3...3 { for dz in -3...3 { for dy in 0...6 { world.setBlockAsync(bx + dx, by + dy, bz + dz, AIR) } } }
+            game.player.pos = p0; game.player.inWater = w0
+            game.effects.remove(.conduitPower)
+            check(got == [true, true], "a conduit gives power at an odd height from the swimmer as at an even one",
+                  "3 up: \(got[0]), 4 up: \(got[1])")
+        }
+
+        // Ledger 23: a hop peaks the same height whatever beat the mob moves on (every tick at 72 Hz, every 2nd or 4th
+        // past 48 blocks, the harness's 20 Hz); at 8.6 b/s it peaked 1.21, 1.10, 0.89 and 0.46 up, short of a step at
+        // the slow beats. Gravity comes off before each move, as in Mob.update.
+        do {
+            var peaks: [String] = [], old: [String] = []
+            var ok = true
+            for dt: Float in [1.0 / 72, 0.05, 0.1, 0.2] {
+                func peak(_ v0: Float) -> Float {
+                    var v = v0, y: Float = 0, top: Float = 0
+                    while v > 0 || y > 0 { v -= 28 * dt; y += v * dt; top = max(top, y); if y < -1 { break } }
+                    return top
+                }
+                let p = peak(Mob.hopSpeed(dt))
+                peaks.append(String(format: "%.2f", p)); old.append(String(format: "%.2f", peak(8.6)))
+                if p < 1.05 || p > 1.35 { ok = false }
+            }
+            check(ok, "a hop clears a one-block step at every beat a mob moves on",
+                  "peaks at 1/72, 0.05, 0.1 and 0.2 s: \(peaks.joined(separator: ", ")) (at 8.6 b/s: \(old.joined(separator: ", ")))")
+        }
+
+        // World.scanBuilt (the conduit's, the shriekers', the murk bloom's, the mines', the ambience's and the piano's
+        // search) finds the cells a cell-by-cell read finds, built and with the ground, across chunk edges.
+        do {
+            let x0 = Int(floor(pos.x)) - 37, z0 = Int(floor(pos.z)) - 29, y0 = Int(floor(pos.y)) - 12
+            let x1 = x0 + 70, z1 = z0 + 58, y1 = y0 + 24
+            var bad = 0, n = [0, 0]
+            var tScan = 0.0, tCells = 0.0
+            for (i, ground) in [false, true].enumerated() {
+                var a = Set<IVec3>(), b = Set<IVec3>()
+                let t0 = Date()
+                world.scanBuilt(x0, y0, z0, x1, y1, z1, ground: ground, want: { $0 != AIR }) { x, y, z in a.insert(IVec3(x, y, z)); return true }
+                let t1 = Date()
+                for y in y0...y1 { for z in z0...z1 { for x in x0...x1 where (ground ? world.block(x, y, z) : world.builtBlock(x, y, z)) != AIR {
+                    b.insert(IVec3(x, y, z))
+                } } }
+                tScan += t1.timeIntervalSince(t0); tCells += Date().timeIntervalSince(t1)
+                bad += a.symmetricDifference(b).count
+                n[i] = b.count
+            }
+            check(bad == 0 && n[1] > 0, "the chunk-at-a-time block scan finds what a cell-by-cell read finds",
+                  "\(bad) cells differ; \(n[0]) built, \(n[1]) with the ground; \(Int(tScan * 1000)) ms against \(Int(tCells * 1000)) ms (both with a set insert a cell)")
+        }
     }
 
     // MARK: Behaviour details

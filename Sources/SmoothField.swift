@@ -87,7 +87,57 @@ extension World {
         return d > -reach + 1e-4 ? y0 + d : nil
     }
 
+    // Nov 4 (frame rate, the worst-case soak's profile: a fifth of the mob pass, 25k instructions a call): each of the
+    // up to nine steps down read the eight cells round it out of the world, the same few cells over and over (the steps
+    // are a tenth of a block apart, the cells a block). The steps now read each level of cells once: the same numbers
+    // (BS_SURFOLD=1: as before; questcheck --surfacecheck compares the two).
+    static let surfaceOld = ProcessInfo.processInfo.environment["BS_SURFOLD"] == "1"
     func fieldSurfaceOffset(_ pos: V3) -> Float {
+        if World.surfaceOld { return fieldSurfaceOffsetOld(pos) }
+        let qx = pos.x - 0.5, qz = pos.z - 0.5
+        let x0 = Int(floor(qx)), z0 = Int(floor(qz))
+        let tx = qx - Float(x0), tz = qz - Float(z0)
+        // (a level of cells: the four round the column at cell height yl, mixed along x as coarseDensity mixes them)
+        var lvA = Int.min, lvB = Int.min
+        var aX0: Float = 0, aX1: Float = 0, bX0: Float = 0, bX1: Float = 0
+        // (item 7, callgrind of the worst-case soak: four chunk lookups a level; the column's chunks are looked up once)
+        let corners: (Chunk?, Chunk?, Chunk?, Chunk?) = World.oldLookups ? (nil, nil, nil, nil) : cornerChunks(x0, z0)
+        let (k00, k10, k01, k11) = corners
+        @inline(__always) func level(_ yl: Int) -> (Float, Float) {
+            if yl == lvA { return (aX0, aX1) }
+            if yl == lvB { return (bX0, bX1) }
+            let c00: Float, c10: Float, c01: Float, c11: Float
+            if World.oldLookups {
+                c00 = fieldDensity(x0, yl, z0); c10 = fieldDensity(x0 + 1, yl, z0)
+                c01 = fieldDensity(x0, yl, z0 + 1); c11 = fieldDensity(x0 + 1, yl, z0 + 1)
+            } else {
+                c00 = fieldDensity(k00, x0, yl, z0); c10 = fieldDensity(k10, x0 + 1, yl, z0)
+                c01 = fieldDensity(k01, x0, yl, z0 + 1); c11 = fieldDensity(k11, x0 + 1, yl, z0 + 1)
+            }
+            let r = (c00 + (c10 - c00) * tx, c01 + (c11 - c01) * tx)
+            lvB = lvA; bX0 = aX0; bX1 = aX1
+            lvA = yl; aX0 = r.0; aX1 = r.1
+            return r
+        }
+        func density(_ y: Float) -> Float {
+            let p = V3(pos.x, y, pos.z)
+            if fineNear(p) { return fineDensity(at: p) }
+            let qy = y - 0.5, y0 = Int(floor(qy)), ty = qy - Float(y0)
+            let (a, c) = level(y0), (b, d) = level(y0 + 1)
+            let e = a + (b - a) * ty, f = c + (d - c) * ty
+            return e + (f - e) * tz
+        }
+        var y = pos.y + 0.25, prev = density(y)
+        if prev > 0 { return 0 }
+        while y > pos.y - 0.5 {
+            let y2 = y - 0.1
+            let d = density(y2)
+            if d > 0 { return y - 0.1 * prev / (prev - d) - pos.y }
+            prev = d; y = y2
+        }
+        return 0
+    }
+    func fieldSurfaceOffsetOld(_ pos: V3) -> Float {
         var y = pos.y + 0.25, prev = fieldDensity(at: V3(pos.x, y, pos.z))
         if prev > 0 { return 0 }
         while y > pos.y - 0.5 {

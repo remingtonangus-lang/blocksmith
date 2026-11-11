@@ -21,6 +21,9 @@ enum TickProf {
         count = 0; last = CFAbsoluteTimeGetCurrent(); start = last; tick &+= 1
     }
 
+    // Seconds since this tick began.
+    static var elapsed: Double { CFAbsoluteTimeGetCurrent() - start }
+
     // The time since the previous mark (or begin) is charged to `name`.
     @inline(__always) static func mark(_ name: StaticString) {
         let t = CFAbsoluteTimeGetCurrent()

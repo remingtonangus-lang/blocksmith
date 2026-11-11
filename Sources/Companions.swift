@@ -122,7 +122,9 @@ extension Mob {
     func companionAI(_ dt: Float, _ g: Game) -> Float {
         let b = soldierBrain
         // P478: at the gun of his vehicle (VehicleGunners): the gun is the work; they ride where they stand.
-        if VehicleGunners.place(self) { aggro = false; return 0 }
+        // P512: a rider aboard fires their own gun from where they ride.
+        let aboard = VehicleGunners.place(self)
+        if aboard && !VehicleGunners.riding(self) { aggro = false; return 0 }
         let gs = Guns.all[max(0, min(Guns.all.count - 1, b.gun))]
         b.clock += dt
         b.aimHold -= dt
@@ -138,7 +140,7 @@ extension Mob {
         let toP = V2(pp.x - pos.x, pp.z - pos.z)
         let dp = simd_length(toP)
         // Left far behind (a ride, a ship, a fall): they arrive.
-        if dp > Companions.arrive || abs(pp.y - pos.y) > 24 {
+        if !aboard && (dp > Companions.arrive || abs(pp.y - pos.y) > 24) {
             let a = Float(ObjectIdentifier(self).hashValue & 7) * 0.8
             pos = pp + V3(cosf(a) * 2, 0.2, sinf(a) * 2)
             vel = .zero
@@ -157,16 +159,17 @@ extension Mob {
             }
             companionFoe = best
         }
-        if let f = companionFoe, f.health > 0, dp < Companions.catchUp {
+        if let f = companionFoe, f.health > 0, dp < Companions.catchUp || aboard {
             let aim = f.pos + V3(0, f.height * 0.6, 0)
             face(aim)
             b.aimHold = 1.2
             let d = aim - eye
             b.pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
             companionFire(g, b, gs, at: aim)
-            return dp > Companions.follow * 1.6 ? spec.speed * 0.5 : 0
+            return aboard ? 0 : (dp > Companions.follow * 1.6 ? spec.speed * 0.5 : 0)
         }
         companionFoe = nil
+        if aboard { return 0 }
         if dp > Companions.follow {
             face(pp)
             return spec.speed * (dp > Companions.catchUp ? 1.3 : 0.9)
@@ -190,6 +193,14 @@ extension Mob {
         let toP = g.player.eye - V3(0, 0.5, 0) - muzzle
         let along = simd_dot(toP, dir)
         if along > 0 && along < simd_length(t - muzzle) && simd_length(toP - dir * along) < 1.2 { return }
+        // Nor across another of his people (P512 bloom of the station hands killed by their own guns: a rider on his
+        // vehicle's deck fired past the others riding with them, and its rounds take the first body on the line).
+        let reach = simd_length(t - muzzle)
+        for m in g.mobs.mobs where m.hired && m !== self && m.health > 0 {
+            let to = m.pos + V3(0, m.height * 0.5, 0) - muzzle
+            let a = simd_dot(to, dir)
+            if a > 0 && a < reach && simd_length(to - dir * a) < 1 { return }
+        }
         let scale: Float = gs.pellets > 1 ? 0.6 : 1
         switch gs.shot {
         case .bullet:

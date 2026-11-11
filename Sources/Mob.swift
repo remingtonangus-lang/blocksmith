@@ -52,7 +52,16 @@ enum MobKind: Int, CaseIterable {
         var aquatic = false       // swims; suffocates on land
     }
 
-    var spec: Spec {
+    // Nov 4 (frame rate, the worst-case soak's profile): every `kind.spec` built its Spec anew, name string and drops
+    // array included, and `hostile` built it six times (1,200 instructions a call, 77,000 calls in 6 s of the mob tick
+    // alone). The specs never change, so they are built once, in case order.
+    private static let specTable: [Spec] = MobKind.allCases.map { $0.builtSpec }
+    private static let hostileTable: [Bool] = MobKind.allCases.map { k in
+        let b = k.builtSpec.behavior
+        return b != .passive && b != .villager && b != .golem && b != .vehicle && b != .snowGolem && b != .animal
+    }
+    var spec: Spec { MobKind.specTable[rawValue] }
+    private var builtSpec: Spec {
         switch self {
         case .cow: return Spec(name: "Cow", halfW: 0.45, height: 1.4, health: 10, speed: 1.0, behavior: .passive,
                                drops: [("beef", 1, 3), ("leather", 1, 3)], xp: 2, call: .mobCow)
@@ -158,7 +167,7 @@ enum MobKind: Int, CaseIterable {
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
-    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle && spec.behavior != .snowGolem && spec.behavior != .animal }
+    var hostile: Bool { MobKind.hostileTable[rawValue] }
     // Farm animals and other peaceful creatures: nobody but the player shoots them (P150).
     var livestock: Bool { spec.behavior == .passive || spec.behavior == .animal }
     // Save / command keys: fixed forever so saves survive display-name changes.
@@ -278,6 +287,7 @@ final class Mob {
     // (SoldierRig.build: the drawn rig kept a frame or two past 14 blocks; written only by the mob pass)
     var rigDrawn: SoldierRigOut?
     var rigDrawnLod = 0, rigDrawnAt = 0
+    var muzzleDrawn = V3(0, 0, 0), muzzleDrawnAt = Int.min / 2     // (SoldierRig.muzzleWorld: the drawn rig's muzzle, by tick)
     lazy var vary: MobVary = MobVary.roll(self)          // P55: this one's own speed, strength, toughness, aim
     static let hitFlashTime: Float = 0.14
     static weak var trace: Mob?     // harness: print this mob's physics steps
@@ -322,7 +332,7 @@ final class Mob {
     var fleeGoal: V3?               // where it runs from a threat, kept about a second (not re-aimed every tick)
     var fleeTime: Float = 0
     var bedWalk: V3?                // villager: heading to its bed tonight (villagerNight -> villagerDay)
-    static weak var world: World?   // the world mobs are updating in (stroll targets)
+    @WeakLink static var world: World? = nil   // the world mobs are updating in (stroll targets)
     var path = PathState()          // ground navigation (Pathfinding.swift)
     var faceGoal: V3?               // what face() last aimed at during this update
     var aiTimer: Float
@@ -495,7 +505,7 @@ final class Mob {
     var mountOffset: V3?            // P470: where on its mount a rider stands (blocks, the mount's own frame), not on its back
     var trainPitch: Float = 0       // P470: a train car's tilt up a grade (its nose up, positive)
     var livery: UInt8 = 0           // P470: a train car's paint (Trains.swift)
-    weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
+    @WeakLink var deck: Ship? = nil            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
     var crewPost: V3?               // capital crew: its post in the ship's frame, held while the vehicle runs
     var crewRoute: [V3] = []        // capital crew: ship-space waypoints it walks (troops leaving by the ramp)
     var crewFree = false            // crew of a disabled vehicle: fights where it likes aboard, never off a ledge
@@ -507,6 +517,8 @@ final class Mob {
     var stationDoors = false        // a roused Boreal Station soldier works the bulkhead doors (BorealOps.swift)
     var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
     var farTime: Float = 0          // seconds spent more than 32 blocks from the player (despawn timer)
+    var despawnLook: Float = 0      // item 27: seconds until a despawn held off because he could see it is asked again
+    var popNoted = false            // item 71: noted by PopIn (harness only)
     var jockey = false              // spawned riding another mob (chicken / spider jockeys)
     var driven: Float = 0           // mount steered by its rider this long
     var driveSpeed: Float = 0
@@ -1340,7 +1352,12 @@ final class Mob {
         let before = pos
         var hit: (x: Bool, y: Bool, z: Bool)
         var deckBumped = false
-        if let s = deck {
+        if deck != nil && VehicleGunners.atStation(self) {
+            // P512: in a gun station's chair it stays put (the chair's own box lifted it onto the seat back each tick).
+            pressedPlayer = false
+            _ = VehicleGunners.place(self)
+            hit = (false, true, false)
+        } else if let s = deck {
             // On a moving deck: walk and collide in the ship's own frame (its blocks are exact there; the
             // world-space boxes of a turned hull are only an approximation), with velocity relative to the deck.
             pressedPlayer = false
@@ -1420,7 +1437,12 @@ final class Mob {
             // P344 (d): a vehicle never hops (a truck bounced over every bump); it climbs a step on its own (below).
             // P366 (g, "villagers jumping for no reason"): townsfolk bumping a wall, a fence or each other hop only when a
             // one-block step is really there to climb.
-            else if onGround && spec.behavior != .slime && !kind.ashVehicle && (kind != .villager || stepAhead(w)) { vel.y = 8.6 }
+            // Ledger 23: the hop's height hung on the beat it was taken at (gravity is taken off before each move, so a
+            // hop peaks v²/56 - v·dt/2 up): every tick at 72 Hz 1.2, but a calm mob past 48 blocks moves on every 2nd or
+            // 4th tick (P283) and on a slow frame peaked 0.9 or 0.5, short of the step it was hopping (a townsperson in
+            // the capital sat bouncing at her flat's door step all night). The hop now takes the speed that peaks 1.2
+            // up at the beat it moves on.
+            else if onGround && spec.behavior != .slime && !kind.ashVehicle && (kind != .villager || stepAhead(w)) { vel.y = Mob.hopSpeed(dt) }
         }
         if pos.y < -10 { health = 0 }
 
@@ -1786,6 +1808,13 @@ final class Mob {
     }
 
     // A one-block step in front: solid at the feet a little ahead, clear a block higher.
+    // The take-off speed of a hop that peaks `height` up when gravity (28) comes off before each move of `dt`.
+    static func hopSpeed(_ dt: Float, height: Float = 1.2) -> Float {
+        let gd: Float = 28 * dt
+        let disc: Float = gd * gd + 8 * 28 * height
+        return (gd + disc.squareRoot()) / 2
+    }
+
     func stepAhead(_ w: World) -> Bool {
         var f = V3(forward.x, 0, forward.z)
         let l = simd_length(f)
@@ -1843,6 +1872,9 @@ struct Part {
 
     // The part's rotation (Ry * Rz * Rx) as a matrix: one set of trig per part instead of per vertex.
     var rotation: simd_float3x3 {
+        // (Nov 4, the worst-case soak's profile: a twelfth of the mob drawing was this trig, most parts unturned; the
+        // product of the three for no turn is the identity)
+        if rotX == 0 && rotY == 0 && rotZ == 0 { return matrix_identity_float3x3 }
         let cx = cosf(rotX), sx = sinf(rotX), cz = cosf(rotZ), sz = sinf(rotZ), cy = cosf(rotY), sy = sinf(rotY)
         let rx = simd_float3x3(V3(1, 0, 0), V3(0, cx, sx), V3(0, -sx, cx))
         let rz = simd_float3x3(V3(cz, sz, 0), V3(-sz, cz, 0), V3(0, 0, 1))
@@ -2285,6 +2317,9 @@ enum MobLight {
 enum MobDrawStats {
     static var mobs = 0, near = 0, written = 0, drawn = 0, culled = 0, dropped = 0
     static var path = "none"
+    // BS_MOBBACKCULL=0 draws every face of every part (writeMobVertices: the faces turned away past 16 blocks), for
+    // before/after pictures.
+    static var backCull = ProcessInfo.processInfo.environment["BS_MOBBACKCULL"] != "0"
     static var line: String {
         "mobs \(mobs) (\(near) within 32), \(written) vertices written, \(drawn) drawn via \(path), \(culled) culled, \(dropped) dropped (buffer full)"
     }
@@ -2417,8 +2452,11 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let heavy = m.kind.ashVehicle
         let far = !m.kind.steelhold && simd_length_squared(base) > (heavy ? 48 * 48 : 64 * 64)
         let tiny: Float = (heavy ? 3 : 1.2) / max(0.25, scale)
-        // Soldiers and vehicles (closed opaque boxes) past 16 blocks: faces turned away are not written (about half).
-        let cullBack = rag == nil && (m.kind.steelhold || heavy) && simd_length_squared(base) > 16 * 16
+        // Past 16 blocks the faces turned away are not written (about half). Every part is a closed opaque box (the mob
+        // pipeline has no blending or discard, and draws both sides), so a face turned from the eye is behind its box's
+        // front faces; the test is on the placed corners, so lying, carcass and mirrored parts are judged as drawn. It
+        // was soldiers and vehicles only: a town's or a herd's mobs past 16 blocks wrote all six faces of every part.
+        let cullBack = MobDrawStats.backCull && rag == nil && simd_length_squared(base) > 16 * 16
         for pi in 0..<(body.count + worn.count) {
             let p = pi < body.count ? body[pi] : worn[pi - body.count]
             if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
@@ -2429,13 +2467,6 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let bi = rag?.bone(p, hj) ?? 0
             let pc: V3 = m.hulk ? Hulks.burn(p.color, m, pi) : simd_mix(p.color * tint, flashCol, V3(repeating: flash * 0.85))
             let pat: Float = m.hulk && p.pattern == 9 ? 4 : p.pattern            // (a hulk's lamps are out)
-            var ctr = V3.zero
-            if cullBack {
-                var q = p.place(p.mn + size * 0.5, rot)
-                if lie { q = V3(q.x, 4 - q.z, q.y) }
-                q *= scale / 16
-                ctr = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
-            }
             let bev = roundable ? MobRound.bevel(p) : 0
             if bev > 0 {
                 if n + MobRound.vertsPerPart > capacity { MobDrawStats.dropped += list.count - idx; return n }
@@ -2487,6 +2518,11 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                 r = rag != nil ? MobRagdoll.turn[bi] * r + MobRagdoll.shift[bi] : r + base
                 pts[c] = MobVert(pos: V4(r, pat), color: V4(pc, ground * ((c >> 1) & 1 == 0 ? 0.9 : 1)), local: V4(lp, 0))
             }
+            // The box's centre as drawn: midway between two opposite placed corners (every step above is affine; the
+            // centre placed on its own missed the pose and the carcass turn, so a walking or falling mob's faces were
+            // judged from the wrong point).
+            let c0 = pts[0].pos, c7 = pts[7].pos
+            let ctr = V3(c0.x + c7.x, c0.y + c7.y, c0.z + c7.z) * 0.5
             for f in 0..<6 {
                 // A ragdoll's faces turn with it: shaded by where they face now (the same weights as faceShade).
                 var fs = faceShade[f]
@@ -2574,6 +2610,7 @@ final class MobManager {
     var passiveTimer: Float = 2
     var hostileTimer: Float = 1
     var populateTimer: Float = 0.5
+    var packsLater: [ChunkKey: (kind: MobKind, x: Int, z: Int, n: Int)] = [:]     // item 71: chunk packs waiting till he can't see the spot
     var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
     var hiveTimer: Float = 0                      // hives are checked twice a second (Bees.swift)
     static var quarantined = 0                    // mobs whose update produced NaN (reported by smoke / agent oracles)
@@ -2708,6 +2745,7 @@ final class MobManager {
         return big.isEmpty ? "" : big.joined(separator: ", ") + "; slowest piece " + worstPart
     }
     func update(_ dt: Float, game: Game) {
+        if PopIn.on { for m in mobs where !m.popNoted { m.popNoted = true; PopIn.note(m, game) } }     // (item 71, harness)
         let pOn = MobManager.profileOn
         var pT = pOn ? CFAbsoluteTimeGetCurrent() : 0
         if pOn {
@@ -2925,7 +2963,7 @@ final class MobManager {
         Hulks.tick(game, dt)                                     // P473 (after the bodies' boxes)
         mobs.removeAll { m in
             if m.health <= 0 { addCorpse(m, game); return true }
-            if m.routed && m.fledClear { return true }          // P511: fled from a broken garrison (Rout), not stashed
+            if m.routed && m.fledClear { TroopVanish.note(m, "rout", game); return true }   // P511: fled from a broken garrison (Rout), not stashed
             // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
             // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
             if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
@@ -2939,9 +2977,14 @@ final class MobManager {
             let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
             if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
                 if m.keepOnUnload { stash(m) }
+                TroopVanish.note(m, m.keepOnUnload ? "stashed" : "unload", game)
                 return true
             }
-            return shouldDespawn(m, simd_length(m.pos - pn), dt, game)      // 3D, as the reference (a mob far below stayed)
+            if shouldDespawn(m, simd_length(m.pos - pn), dt, game) {      // 3D, as the reference (a mob far below stayed)
+                TroopVanish.note(m, MobManager.despawnRule, game)
+                return true
+            }
+            return false
         }
         mobs += spawned
         pMark(2)

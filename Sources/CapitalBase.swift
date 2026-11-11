@@ -313,8 +313,9 @@ enum CapitalBase {
         // Vault under the hall, by a ladder from the foyer.
         w.fill(X(-6), P1 - 5, Z(10), X(6), P1 - 1, Z(20), white)
         w.fill(X(-5), P1 - 4, Z(11), X(5), P1 - 2, Z(19), AIR)
-        for y in (P1 - 4)...P1 { put(0, y, 20, ladder) }
-        put(0, P1 + 1, 20, AIR)
+        // (Ledger 32: the ladder stood in the vault's end wall, nothing behind it; it is inside now, on that wall.)
+        for y in (P1 - 4)...P1 { put(0, y, 19, ladder) }
+        put(0, P1 + 1, 19, AIR)
         for (dx, dz) in [(-4, 12), (4, 12)] { w.chest(X(dx), P1 - 4, Z(dz), loot: "steelhold_vault", seed: rng.next(), facing: 1) }
         w.chest(X(-4), P1 - 4, Z(18), loot: "steelhold_charge", seed: rng.next(), facing: 0)      // (P504: its one Ember Charge)
         w.safe(X(4), P1 - 4, Z(18), seed: safeSeed &+ 1, facing: 0)                    // P248 (BaseSafes.swift)
@@ -484,6 +485,9 @@ enum CapitalBase {
             let z0 = oz == 0 ? -1 : oz * 6, z1 = oz == 0 ? 1 : oz * reach
             w.fill(X(min(x0, x1)), ST + 1, Z(min(z0, z1)), X(max(x0, x1)), ST + 3, Z(max(z0, z1)), AIR)
         }
+        // (Ledger 34: the north door cut the white column behind the core's ladder shaft, so its last three rungs before
+        // the terrace hung in the doorway; the door keeps its two side cells.)
+        for y in (ST + 1)...(ST + 3) { put(0, y, -6, white) }
         // Landing pad: a disc cantilevered north off the terrace, a ring and a chevron marking, edge lights, braces.
         let padZ = -21, padR = 10
         columns(-padR - 1, padR + 1, padZ - padR - 1, padZ + padR + 1) { dx, dz in

@@ -96,6 +96,9 @@ final class SceneRenderer {
     private var descPool: VkDescriptorPool!
     private var pipes: [String: VkPipeline] = [:]
     private(set) var texture: VkImg!
+    // Nov 11 (frame rate): the clouds' value-noise lattice (clouds.frag vnoiseT): 256 x 256 cells, each texel the hashes
+    // of its four corners, so a noise tap is one fetch instead of four hashes (set 0, binding 2).
+    private(set) var cloudNoise: VkImg!
     private(set) var sampler: VkSampler!
     private var quadIndex: VkBuf!
     private var starBuf: VkBuf!
@@ -158,6 +161,17 @@ final class SceneRenderer {
     // Stats (last frame).
     private(set) var drawCalls = 0
     private(set) var drawnQuads = 0
+    private(set) var drawnDetail = 0, drawnBand = 0     // (the share of drawnQuads in the detail stream, and in leaf far shells)
+    private(set) var skippedInner = 0                    // (inner leaf shells left out between blobMidFrom and blobFarFrom)
+    private(set) var skippedPlants = 0                   // (small ground plants left out past plantFarFrom)
+    // (harness, perf scenes: the detail stream's quads drawn by distance, 0-16, 16-32, 32-64, 64+ blocks, and of those past
+    // trunkFarFrom the ones in sections with no far copy to switch to)
+    static var tallyDetail = false
+    private(set) var detailBands = [Int](repeating: 0, count: 4), detailNoFar = 0
+    // (Nov 6, questcheck --perfscenes: the opaque stream's drawn quads by distance band (as detailBands) and part: 0 the
+    // solid quads drawn near (ground, cubes, props), 1 the leaf blobs' cutout shells, 2 their far shells, 3 the rest of
+    // the cutout quads (plants, vines), 4 the far copies past the merged ground distance; index part * 4 + band)
+    private(set) var opaqueParts = [Int](repeating: 0, count: 20)
     private(set) var visibleCount = 0
     private(set) var cullMs = 0.0
     var caveCulling = true
@@ -217,6 +231,7 @@ final class SceneRenderer {
                       srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue)
         }
         texture = ph
+        cloudNoise = try SceneRenderer.makeCloudNoise(ctx)
         for sl in slots { writeSet0(sl) }
         // GPU timestamps (frame GPU time in the perf log). Not on llvmpipe: its timestamp queries crash the queue thread
         // after a few frames (CI run 1; reproduced locally with alternating targets and validation clean).
@@ -258,6 +273,8 @@ final class SceneRenderer {
         set0Layout = try layout([
             VkDescriptorSetLayoutBinding(binding: 0, descriptorType: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount: 1, stageFlags: vf, pImmutableSamplers: nil),
             VkDescriptorSetLayoutBinding(binding: 1, descriptorType: VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount: 1, stageFlags: vf, pImmutableSamplers: nil),
+            VkDescriptorSetLayoutBinding(binding: 2, descriptorType: VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount: 1,
+                                         stageFlags: VK_SHADER_STAGE_FRAGMENT_BIT.rawValue, pImmutableSamplers: nil),
         ])
         set1Layout = try layout([
             VkDescriptorSetLayoutBinding(binding: 0, descriptorType: VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount: 1,
@@ -404,6 +421,12 @@ final class SceneRenderer {
         return m
     }
 
+    // Nov 11 (frame rate, the GPU side): BS_OVERDRAW=1 with BS_SPVDIR holding counting fragment shaders
+    // (quest/tools/overdraw.py) makes every colour pipeline additive and clears to black, so a --view render counts the
+    // fragments each pixel shaded, split by pass into the channels (questcheck can't time the headset's GPU; the
+    // fragments it shades are most of what it spends in a forest).
+    static let overdraw = ProcessInfo.processInfo.environment["BS_OVERDRAW"] == "1"
+
     func makePipeline(_ p: PipeDesc, renderPass rp: VkRenderPass? = nil) throws -> VkPipeline {
         let a = PtrArena()
         let main = a.cstr("main")
@@ -483,7 +506,12 @@ final class SceneRenderer {
         ds.depthCompareOp = p.compare
         var att = VkPipelineColorBlendAttachmentState()
         att.colorWriteMask = p.colorWrite ? 0xF : 0
-        if p.blend {
+        if SceneRenderer.overdraw && p.colorWrite {
+            // (overdraw count: every fragment that passes the depth test adds what its counting shader writes)
+            att.blendEnable = 1
+            att.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE; att.colorBlendOp = VK_BLEND_OP_ADD
+            att.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.alphaBlendOp = VK_BLEND_OP_ADD
+        } else if p.blend {
             att.blendEnable = 1
             att.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA
             att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
@@ -714,7 +742,9 @@ final class SceneRenderer {
         let a = PtrArena()
         let bi = VkDescriptorBufferInfo(buffer: s.ubo.buffer, offset: 0, range: VkDeviceSize(MemoryLayout<FrameUniforms>.stride))
         let ii = VkDescriptorImageInfo(sampler: sampler, imageView: texture?.view, imageLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        var w = [VkWriteDescriptorSet(), VkWriteDescriptorSet()]
+        let ni = VkDescriptorImageInfo(sampler: cloudNoise == nil ? sampler : (try? nearestSampler()) ?? sampler, imageView: cloudNoise?.view,
+                                       imageLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+        var w = [VkWriteDescriptorSet(), VkWriteDescriptorSet(), VkWriteDescriptorSet()]
         w[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
         w[0].dstSet = s.set0
         w[0].dstBinding = 0
@@ -727,7 +757,52 @@ final class SceneRenderer {
         w[1].descriptorCount = 1
         w[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
         w[1].pImageInfo = a.ptr(ii)
-        vkUpdateDescriptorSets(ctx.device, 2, w, 0, nil)
+        w[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        w[2].dstSet = s.set0
+        w[2].dstBinding = 2
+        w[2].descriptorCount = 1
+        w[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+        w[2].pImageInfo = a.ptr(ni)
+        // (before init has made the lattice, only the first two)
+        vkUpdateDescriptorSets(ctx.device, cloudNoise == nil ? 2 : 3, w, 0, nil)
+    }
+
+    // The clouds' noise lattice: texel (x, y) holds hash21 of the cells (x, y), (x+1, y), (x, y+1) and (x+1, y+1),
+    // wrapping at 256 (a cumulus cell is 150 blocks, so the deck repeats every 38 km; its four octaves are rotated
+    // against each other, so the sum never does). RGBA32F read with texelFetch: no filtering, the same values the
+    // shader's own hash gave, only from a table.
+    static let cloudNoiseSize = 256
+    static func cloudHash(_ x: Int, _ y: Int) -> Float {
+        func fr(_ v: Float) -> Float { v - v.rounded(.down) }
+        var p3 = SIMD3<Float>(fr(Float(x) * 0.1031), fr(Float(y) * 0.1031), fr(Float(x) * 0.1031))
+        let d = p3.x * (p3.y + 33.33) + p3.y * (p3.z + 33.33) + p3.z * (p3.x + 33.33)
+        p3 += SIMD3<Float>(repeating: d)
+        return fr((p3.x + p3.y) * p3.z)
+    }
+    static func makeCloudNoise(_ ctx: VkContext) throws -> VkImg {
+        let n = cloudNoiseSize
+        var texels = [Float](repeating: 0, count: n * n * 4)
+        for y in 0..<n { for x in 0..<n {
+            let i = (y * n + x) * 4, x1 = (x + 1) % n, y1 = (y + 1) % n
+            texels[i] = cloudHash(x, y); texels[i + 1] = cloudHash(x1, y); texels[i + 2] = cloudHash(x, y1); texels[i + 3] = cloudHash(x1, y1)
+        } }
+        let img = try VkImg(ctx, width: n, height: n, format: VK_FORMAT_R32G32B32A32_SFLOAT,
+                            usage: VK_IMAGE_USAGE_SAMPLED_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_DST_BIT.rawValue, arrayView: false)
+        let staging = try VkBuf(ctx, size: texels.count * 4, usage: VK_BUFFER_USAGE_TRANSFER_SRC_BIT.rawValue, host: true)
+        _ = texels.withUnsafeBytes { memcpy(staging.mapped!, $0.baseAddress!, $0.count) }
+        try ctx.oneShot { cb in
+            vkBarrier(cb, img.image, from: VK_IMAGE_LAYOUT_UNDEFINED, to: VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                      srcAccess: 0, dstAccess: VK_ACCESS_TRANSFER_WRITE_BIT.rawValue,
+                      srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue)
+            var r = VkBufferImageCopy()
+            r.imageSubresource = VkImageSubresourceLayers(aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, mipLevel: 0, baseArrayLayer: 0, layerCount: 1)
+            r.imageExtent = VkExtent3D(width: UInt32(n), height: UInt32(n), depth: 1)
+            vkCmdCopyBufferToImage(cb, staging.buffer, img.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &r)
+            vkBarrier(cb, img.image, from: VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, to: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                      srcAccess: VK_ACCESS_TRANSFER_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_SHADER_READ_BIT.rawValue,
+                      srcStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue)
+        }
+        return img
     }
 
     // A storage-buffer set for a tint slab (cached; slabs live for the process).
@@ -856,7 +931,7 @@ final class SceneRenderer {
     func beginPass(_ s: Slot, _ t: RenderTarget, clear: V3) {
         let (w, h) = viewExtent(t)
         var clears = [VkClearValue(), VkClearValue()]
-        clears[0].color.float32 = (clear.x, clear.y, clear.z, 1)
+        clears[0].color.float32 = SceneRenderer.overdraw ? (0, 0, 0, 0) : (clear.x, clear.y, clear.z, 1)
         clears[1].depthStencil = VkClearDepthStencilValue(depth: 1, stencil: 0)
         var rb = VkRenderPassBeginInfo()
         rb.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
@@ -1007,6 +1082,9 @@ final class SceneRenderer {
         var flags: UInt32 = 0                  // SecInfo.nonEmpty, .meshed, .deep, .solidFull
         var oPair: Int32 = -1, oVo: Int32 = 0, quads: Int32 = 0, solid: Int32 = 0, fSkip: Int32 = 0, fExtra: Int32 = 0
         var farCut: Int32 = 0, farTail: Int32 = 0, bAt: Int32 = 0, bN: Int32 = 0, bCut: Int32 = 0     // (P453: Section.blobFar*)
+        var cN: Int32 = 0                      // (Nov 11: Section.canopyN)
+        var cT = SIMD3<Int32>(0, 0, -1)        // (Nov 11: Section.canopyTrunks)
+        var pN: Int32 = 0                      // (Nov 6: Section.farPlants)
         var dPair: Int32 = -1, dVo: Int32 = 0, dQuads: Int32 = 0, dSolid: Int32 = 0, dSkip: Int32 = 0, dExtra: Int32 = 0
         var tPair: Int32 = -1, tVo: Int32 = 0, tQuads: Int32 = 0
         static let nonEmpty: UInt32 = 1, meshed: UInt32 = 2, deep: UInt32 = 4, solidFull: UInt32 = 8
@@ -1432,7 +1510,18 @@ final class SceneRenderer {
             let low = Int(c.height.min() ?? 0)
             if (sy + 1) * 16 <= low { buried[f] &+= s.kinds; buriedSecs[f] += 1 }
         }
-        return ["within", "past"].enumerated().map { f, n in
+        // (Nov 6: the sections within the far switch past blobFarFrom, 64 blocks, by kind: what the far band draws)
+        var band = SIMD16<Int32>(), bandSecs = 0
+        for i in 0..<min(visible.count, SceneRenderer.recordCap) {
+            let (c, sy, _) = visible[i]
+            if mergedFar(c, sy) { continue }
+            let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
+            let d = simd_length(simd_clamp(recEye, mn, mn + V3(16, 16, 16)) - recEye)
+            if d >= SceneRenderer.blobFarFrom { band &+= c.sections[sy].kinds; bandSecs += 1 }
+        }
+        let bandKinds: [String] = (0..<16).compactMap { k -> String? in MeshKind.names[k].isEmpty ? nil : "\(MeshKind.names[k]) \(band[k])" }
+        let bandLine: String = "from \(Int(SceneRenderer.blobFarFrom)) blocks to the far switch (\(bandSecs) sections): " + bandKinds.joined(separator: ", ")
+        return bandLine + "\n    kinds " + ["within", "past"].enumerated().map { f, n in
             let parts = (0..<16).compactMap { k -> String? in MeshKind.names[k].isEmpty ? nil : "\(MeshKind.names[k]) \(q[f][k])" }
             let bur = (0..<16).compactMap { k -> String? in MeshKind.names[k].isEmpty || buried[f][k] == 0 ? nil : "\(MeshKind.names[k]) \(buried[f][k])" }
             return "\(n) \(Int(GroundMerge.farDistance)) blocks (\(secs[f]) sections): " + parts.joined(separator: ", ")
@@ -1488,10 +1577,36 @@ final class SceneRenderer {
         guard SceneRenderer.drawMerged else { return false }
         return simd_length_squared(q - recEye) >= f * f
     }
+    @inline(__always) private func detailFar(_ c: Chunk, _ sy: Int) -> Bool {
+        let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
+        let q = simd_clamp(recEye, mn, mn + V3(16, 16, 16))
+        let f = min(GroundMerge.farDistance, SceneRenderer.trunkFarFrom)
+        guard SceneRenderer.drawMerged else { return false }
+        return simd_length_squared(q - recEye) >= f * f
+    }
     private(set) var mergedSections = 0
     // P453: how far out the trees switch to their far shell (blocks; the ground's switch, GroundMerge.farDistance,
     // when it is that or more). BS_BLOBFAR=N sets it (BS_BLOBFAR=999: as before).
     static var blobFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBFAR"] ?? "") ?? 64
+    // Nov 5 (P453, "simplify trees"): how far out the detail stream (trunks, limbs, round shapes) switches to its far
+    // copy, the trunks at the mid sides (Mesher.trunkFar); the ground's switch when that is nearer. At 64 it cut 1-2% of
+    // the quads drawn at his jungle and birch spots (nearly every trunk drawn is nearer), at 32 4-10%, and the same
+    // views render alike. BS_TRUNKFROM=N sets it; BS_TRUNKFAR=0 meshes the old copy, drawn past the ground's switch.
+    static var trunkCutFrom: Float = Float(ProcessInfo.processInfo.environment["BS_TRUNKCUT"] ?? "") ?? 1e9
+    private(set) var skippedTrunks = 0
+    // Nov 11 (far canopy tier, his say pending): BS_CANOPY=N meshes the canopy (Mesher.canopy) and draws it from N blocks
+    // (no nearer than GroundMerge.farDistance, the far copy's own switch) in place of the leaf blobs' far shells.
+    static var canopyFrom: Float = Float(ProcessInfo.processInfo.environment["BS_CANOPY"] ?? "") ?? 1e9
+    private(set) var drawnCanopy = 0
+    private var canopyOn: [Bool] = []          // (this frame: the far canopy drawn for list entry i)
+    static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(ProcessInfo.processInfo.environment["BS_TRUNKFROM"] ?? "") ?? 32) : 1e9
+    // Nov 5 (P453 again): from this far out to blobFarFrom the leaf blobs draw their outer cutout shell alone, not the
+    // darker one inside it (the Mesher puts the outer shells first). BS_BLOBMID=999: both shells to blobFarFrom.
+    static var blobMidFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBMID"] ?? "") ?? 24
+    // Nov 6 (frame rate): from this far out the small ground plants (Mesher.farPlantT: grass tufts, ferns, flowers), the
+    // last of a section's cutout quads before its far tail, are left out: at 64 blocks a tuft is about a pixel and a half
+    // at headset resolution. BS_PLANTFAR=N sets it (BS_FARPLANTS=0 meshes them in place, as before).
+    static var plantFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_PLANTFAR"] ?? "") ?? 64
     static var drawMerged = true                  // (questcheck --view --pixelpair: the full grid everywhere for the left shot)
     func writeRecords(_ s: Slot, eye: V3) {
         recEye = eye
@@ -1582,7 +1697,7 @@ final class SceneRenderer {
                 let fSkip = detail ? sec.detailFarSkip : sec.farSkip, fExtra = detail ? sec.detailFarExtra : sec.farExtra
                 var cutFrom = solid
                 let cutSwitch = !detail && (sec.farCut > 0 || tail > 0)
-                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && (detail ? detailFar(c, sy) : mergedFar(c, sy)) {
                     mergedSections += 1
                     if solid > fSkip {
                         batchCount[k] += 1
@@ -1650,7 +1765,7 @@ final class SceneRenderer {
 
     // Opaque terrain: solid faces first (no alpha test), then cutout faces, near to far.
     func drawOpaque(_ s: Slot) {
-        drawCalls = 0; drawnQuads = 0; batchedSections = 0; indirectUsed = 0; mergedSections = 0
+        drawCalls = 0; drawnQuads = 0; drawnDetail = 0; drawnBand = 0; skippedInner = 0; skippedPlants = 0; skippedTrunks = 0; drawnCanopy = 0; if SceneRenderer.tallyDetail { for b in 0..<4 { detailBands[b] = 0 }; detailNoFar = 0; for b in 0..<20 { opaqueParts[b] = 0 } }; batchedSections = 0; indirectUsed = 0; mergedSections = 0
         bindTerrainBuffers(s)
         anyDetail = false
         if tableFrame {
@@ -1674,7 +1789,7 @@ final class SceneRenderer {
                 var first = pass & 1 == 0 ? 0 : solid, count = pass & 1 == 0 ? solid : total - solid
                 let fSkip = detail ? sec.detailFarSkip : sec.farSkip, fExtra = detail ? sec.detailFarExtra : sec.farExtra
                 let cutSwitch = !detail && (sec.farCut > 0 || tail > 0)
-                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && mergedFar(c, sy) {
+                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= SceneRenderer.maxQuads && (detail ? detailFar(c, sy) : mergedFar(c, sy)) {
                     if pass & 1 == 0 {
                         mergedSections += 1                // P375, P384: the far copies in place of what they stand for
                         if fExtra > 0 { drawSection(s, i, buf, tb, first: quads, count: fExtra, stride: detail ? 16 : 8) }
@@ -1870,8 +1985,8 @@ extension SceneRenderer {
             if s.opaqueQuads > 0, let b = s.opaqueBuf {
                 e.oPair = pairOf(slabOf(b), ts); e.oVo = Int32(b.offset / 8)
                 e.quads = Int32(s.opaqueQuads); e.solid = Int32(s.solidQuads); e.fSkip = Int32(s.farSkip); e.fExtra = Int32(s.farExtra)
-                e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail)
-                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN)
+                e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail); e.pN = Int32(s.farPlants)
+                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN); e.cN = Int32(s.canopyN); e.cT = s.canopyTrunks
             }
             if s.detailQuads > 0, let b = s.detailBuf {
                 e.dPair = pairOf(slabOf(b), ts); e.dVo = Int32(b.offset / 16)
@@ -2016,7 +2131,7 @@ extension SceneRenderer {
                 for dz in -R...R {
                     for dx in -R...R {
                         var m = Int16(NSEC)
-                        for ox in max(-R, dx - 1)...min(R, dx + 1) {
+                        for ox in thru(max(-R, dx - 1), min(R, dx + 1)) {
                             let ns = sX[ox + R] + sZ[dz + R]
                             if tc[ns].present && tc[ns].openLow < m { m = tc[ns].openLow }
                         }
@@ -2027,7 +2142,7 @@ extension SceneRenderer {
                 for dz in -R...R {
                     for dx in -R...R {
                         var m = Int16(NSEC)
-                        for oz in max(-R, dz - 1)...min(R, dz + 1) { m = min(m, sealRow[(dx + R) + (oz + R) * span]) }
+                        for oz in thru(max(-R, dz - 1), min(R, dz + 1)) { m = min(m, sealRow[(dx + R) + (oz + R) * span]) }
                         let x0 = Float((pcx + dx) * CS), z0 = Float((pcz + dz) * CS)
                         let nx = max(x0, min(eye.x, x0 + 16)) - eye.x, nz = max(z0, min(eye.z, z0 + 16)) - eye.z
                         let slot = sX[dx + R] + sZ[dz + R]
@@ -2464,10 +2579,12 @@ extension SceneRenderer {
         let ts = tabSec, tc = tabCol, vv = vl
         var anyDet = false
         for i in 0..<nRec where ts[Int(vv[i])].dQuads > 0 { anyDet = true; break }
+        if canopyOn.count < nRec { canopyOn.append(contentsOf: repeatElement(false, count: nRec - canopyOn.count)) }
         anyDetail = anyDet
         let mq = Int32(SceneRenderer.maxQuads)
         let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
-        let bf = min(mf, SceneRenderer.blobFarFrom)
+        let bf = min(mf, SceneRenderer.blobFarFrom), tf = min(mf, SceneRenderer.trunkFarFrom), bm = min(bf, SceneRenderer.blobMidFrom)
+        let pf = SceneRenderer.plantFarFrom, dc = SceneRenderer.trunkCutFrom, cf = SceneRenderer.canopyFrom
         for half in 0..<2 {
             let detail = half == 1
             if detail && !anyDet { break }
@@ -2480,6 +2597,7 @@ extension SceneRenderer {
             for i in 0..<nRec {
                 let v = Int(vv[i])
                 let e = ts[v]
+                if !detail { canopyOn[i] = false }
                 let pr = detail ? e.dPair : e.oPair
                 let quads = detail ? e.dQuads : e.quads
                 guard pr >= 0, quads > 0 else { continue }
@@ -2492,16 +2610,30 @@ extension SceneRenderer {
                 let fSkip = detail ? e.dSkip : e.fSkip, fExtra = detail ? e.dExtra : e.fExtra
                 var cutFrom = solid
                 let cutSwitch = !detail && (e.farCut > 0 || tail > 0)
-                var far = false, band = false
-                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= mq && mergeOn {
+                var far = false, band = false, mid = false, d2: Float = 0
+                // (Nov 6: the small plants, the last pN quads before the tail, near only and nearer than plantFarFrom)
+                var plantsOut = false
+                if !detail && e.pN > 0 && total == quads - tail {
+                    let ci = tc[v / NSEC]
+                    let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
+                    let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
+                    if simd_length_squared(qn - re) >= pf * pf { plantsOut = true; total -= e.pN; skippedPlants += Int(e.pN) }
+                }
+                if (fExtra > 0 || cutSwitch || !detail && e.cN > 0) && solid >= fSkip && quads + fExtra <= mq && mergeOn {
                     // (mergedFar: past the merged ground distance)
                     let ci = tc[v / NSEC]
                     let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
                     let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
-                    let d2 = simd_length_squared(qn - re)
-                    far = d2 >= mf * mf
+                    d2 = simd_length_squared(qn - re)
+                    far = d2 >= (detail ? tf * tf : mf * mf)
                     band = !far && !detail && e.bN > 0 && d2 >= bf * bf
+                    mid = !far && !band && !detail && e.bN > 0 && e.bCut >= 2 && e.bCut & 1 == 0 && d2 >= bm * bm
                 }
+                // (Nov 11 experiment, BS_TRUNKCUT=N: the round shapes' far copies, trunks mostly, left out past N blocks)
+                if detail && far && d2 >= dc * dc { skippedTrunks += Int(fExtra - fSkip) + Int(total); continue }
+                // (Nov 11, BS_CANOPYLOGS=1: where the opaque half drew the far canopy with the logs in it, the trunks'
+                // detail quads are left out, near or in the far copy)
+                let trunksOut = detail && canopyOn[i] && e.cT[1] > e.cT[0]
                 if far {
                     merged += 1
                     if solid > fSkip {
@@ -2509,13 +2641,41 @@ extension SceneRenderer {
                         pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((solid - fSkip) * 6), instanceCount: 1,
                                                                              firstIndex: UInt32(fSkip * 6), vertexOffset: vo, firstInstance: UInt32(i))))
                     }
-                    if fExtra > 0 {
+                    // (Nov 11, BS_CANOPY: past canopyFrom the far copy up to its leaf shells, then the canopy stored after it)
+                    let canopy = !detail && e.cN > 0 && e.bAt + e.bN == fExtra && fExtra + e.cN <= mq && d2 >= cf * cf
+                    if canopy { canopyOn[i] = true }
+                    let farN = trunksOut && e.cT[2] >= 0 ? min(e.cT[2], fExtra) : fExtra
+                    if farN < fExtra { skippedTrunks += Int(fExtra - farN); quadsDrawn -= Int(fExtra - farN) }
+                    if canopy {
+                        if e.bAt > 0 {
+                            batchCount[k] += 1
+                            pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.bAt * 6), instanceCount: 1, firstIndex: 0,
+                                                                                 vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
+                        }
                         batchCount[k] += 1
-                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(fExtra * 6), instanceCount: 1, firstIndex: 0,
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.cN * 6), instanceCount: 1, firstIndex: UInt32(fExtra * 6),
+                                                                             vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
+                        quadsDrawn += Int(e.cN - e.bN); drawnCanopy += Int(e.cN)
+                    } else if farN > 0 {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(farN * 6), instanceCount: 1, firstIndex: 0,
                                                                              vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
                     }
-                    if !detail { cutFrom = min(total, solid + e.farCut); total = min(quads, mq) }
+                    if !detail { cutFrom = min(total, solid + e.farCut); if !plantsOut { total = min(quads, mq) } }
                     quadsDrawn += Int(fExtra - fSkip - (cutFrom - solid))
+                } else if trunksOut {
+                    let a = min(e.cT[0], solid), b = min(e.cT[1], solid)
+                    if a > 0 {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(a * 6), instanceCount: 1, firstIndex: 0,
+                                                                             vertexOffset: vo, firstInstance: UInt32(i))))
+                    }
+                    if solid > b {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((solid - b) * 6), instanceCount: 1, firstIndex: UInt32(b * 6),
+                                                                             vertexOffset: vo, firstInstance: UInt32(i))))
+                    }
+                    skippedTrunks += Int(b - a); quadsDrawn -= Int(b - a)
                 } else if solid > 0 {
                     batchCount[k] += 1
                     pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(solid * 6), instanceCount: 1, firstIndex: 0,
@@ -2529,17 +2689,58 @@ extension SceneRenderer {
                     pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.bN * 6), instanceCount: 1, firstIndex: UInt32(e.bAt * 6),
                                                                          vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
                     cutFrom = min(total, solid + e.bCut)
-                    quadsDrawn += Int(e.bN - (cutFrom - solid))
+                    quadsDrawn += Int(e.bN - (cutFrom - solid)); drawnBand += Int(e.bN)
+                }
+                if mid {
+                    // (the outer shells, then past the inner ones to the rest of the cutout quads)
+                    let outerEnd = min(total, solid + e.bCut / 2)
+                    if outerEnd > solid {
+                        batchCut[k] += 1
+                        pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((outerEnd - solid) * 6), instanceCount: 1,
+                                                                           firstIndex: UInt32(solid * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                    }
+                    cutFrom = min(total, solid + e.bCut)
+                    quadsDrawn -= Int(cutFrom - outerEnd); skippedInner += Int(cutFrom - outerEnd)
+                }
+                if far && plantsOut && tail > 0 {
+                    // (the far-only tail after the plants left out: its own range)
+                    batchCut[k] += 1
+                    pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(tail * 6), instanceCount: 1,
+                                                                       firstIndex: UInt32((quads - tail) * 6), vertexOffset: vo, firstInstance: UInt32(i))))
+                    quadsDrawn += Int(tail)
                 }
                 if total > cutFrom {
                     batchCut[k] += 1
                     pendingCut.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((total - cutFrom) * 6), instanceCount: 1,
                                                                        firstIndex: UInt32(cutFrom * 6), vertexOffset: vo, firstInstance: UInt32(i))))
                 }
+                if detail && SceneRenderer.tallyDetail {
+                    let ci = tc[v / NSEC]
+                    let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
+                    let dd = simd_length(simd_clamp(re, mn, mn + V3(16, 16, 16)) - re)
+                    let q = far ? Int(fExtra - fSkip) + Int(total) : Int(total)
+                    detailBands[dd < 16 ? 0 : (dd < 32 ? 1 : (dd < 64 ? 2 : 3))] += q
+                    if !far && dd >= tf { detailNoFar += q }
+                }
+                if !detail && SceneRenderer.tallyDetail {
+                    let ci = tc[v / NSEC]
+                    let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
+                    let dd = simd_length(simd_clamp(re, mn, mn + V3(16, 16, 16)) - re)
+                    let b = dd < 16 ? 0 : (dd < 32 ? 1 : (dd < 64 ? 2 : 3))
+                    if far { opaqueParts[16 + b] += Int(fExtra) + Int(solid - fSkip) + Int(total - cutFrom) }
+                    else {
+                        opaqueParts[b] += Int(solid)
+                        let leaf = band ? 0 : (mid ? Int(e.bCut / 2) : Int(max(0, min(e.bCut, total - solid))))
+                        opaqueParts[4 + b] += leaf
+                        if band { opaqueParts[8 + b] += Int(e.bN) }
+                        opaqueParts[12 + b] += Int(total - cutFrom) - (band || mid ? 0 : leaf)
+                    }
+                }
                 quadsDrawn += Int(total)
             }
             for pr in keysT { pairK[Int(pr)] = -1 }
             drawnQuads += quadsDrawn; mergedSections += merged
+            if detail { drawnDetail += quadsDrawn }
             self.keysT = keysT; self.batchCount = batchCount; self.batchCut = batchCut
             self.pendingDraws = pendingDraws; self.pendingCut = pendingCut; self.pairK = pairK
             for pass in 0..<2 {

@@ -152,7 +152,8 @@ extension Game {
             let y = world.topY(ix, iz)
             guard y > 0, !Blocks.isLiquid(world.builtBlock(ix, y, iz)) else { continue }
             let land = V3(x, Float(y + 1), z)
-            let from = land + V3(cosf(a) * 240, 70, sinf(a) * 240)
+            let far = world.pastFog(240, size: 16)          // (Nov 4, ledger 16: 240, inside the fog at view 16)
+            let from = land + V3(cosf(a) * far, 70, sinf(a) * far)
             if world.ships.callDropship(faction: f, from: from, to: land, game: self, sync: sync, troops: 5, rocketeer: true) { landed += 1 }
         }
         guard landed > 0 else { return 0 }

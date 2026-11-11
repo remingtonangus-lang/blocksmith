@@ -182,24 +182,31 @@ enum VRMeleeTests {
         }
 
         // 5. A melee weapon never mines with a mob near; a pickaxe does; the sword mines once it is gone.
+        // (Nov 4: in survival, dirt taking 0.75 s by hand: P483 made a sword in creative break nothing, so in creative
+        // "the sword mines once it is gone" could never pass.)
         do {
             game.swingMelee = true
+            game.survival = true
+            defer { game.survival = false }
             p.pitch = -1.55
             let z = zombie(P + V3(2.5, 0, -2.5))
-            ticks(20) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true }
+            ticks(300) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true; game.health = 20 }
             let guarded = game.world.block(dirt.x, dirt.y, dirt.z) == Blocks.id("dirt")
             game.inventory.held = ItemStack(Items.id("iron_pickaxe"), 1)
-            ticks(20) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true }
+            ticks(300) { z.pos = P + V3(2.5, 0, -2.5); z.vel = .zero; game.input.leftDown = true; game.health = 20 }
             let pick = game.world.block(dirt.x, dirt.y, dirt.z) != Blocks.id("dirt")
             game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
             remove(z)
             game.inventory.held = sword
-            ticks(20) { game.input.leftDown = true }
+            var at60 = ""
+            var n = 0
+            ticks(300) { game.input.leftDown = true; game.health = 20; n += 1
+                if n == 60 { at60 = String(format: "at 1 s: on the ground %@, progress %.2f", p.onGround ? "yes" : "no", game.mineProgress) } }
             let alone = game.world.block(dirt.x, dirt.y, dirt.z) != Blocks.id("dirt")
             game.input.leftDown = false
             ticks(2)
             game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
-            check(guarded && pick && alone, "trigger mining: sword with a zombie near breaks nothing \(guarded), pickaxe mines \(pick), sword alone mines \(alone)")
+            check(guarded && pick && alone, "trigger mining: sword with a zombie near breaks nothing \(guarded), pickaxe mines \(pick), sword alone mines \(alone) (\(at60))")
         }
 
         // 5b. Verifier round (Oct 10). Swing melee holding a non-weapon (torch, bread, the bare hand): the trigger
@@ -248,8 +255,10 @@ enum VRMeleeTests {
             game.swingMelee = false
             let trigger = dealt({ _ in game.input.leftClicked = true }, wait: 90)
             // +-1: the merged build sees 8 or 9 for the charged swing run to run (health rounding); 1 HP is not a balance gap.
-            check(swingFull > 0 && abs(swingFull - trigger) <= 1 && swingAgain * 2 < swingFull,
-                  "swing damage follows the attack charge: charged swing \(swingFull) = trigger \(trigger), immediate re-swing \(swingAgain)")
+            // (R11, Oct 13: a real swing's damage comes from the blade's speed alone, not the click cooldown, so a re-swing
+            // as fast deals the same; this asked it to be weak, from before R11.)
+            check(swingFull > 0 && abs(swingFull - trigger) <= 1 && abs(swingAgain - swingFull) <= 1,
+                  "swing damage: a swing as hard as the trigger's charged hit, a quick re-swing as hard again (R11): charged swing \(swingFull) = trigger \(trigger), immediate re-swing \(swingAgain)")
             game.swingMelee = true
             game.inventory.held = sword
         }
@@ -275,12 +284,14 @@ enum VRMeleeTests {
         // 5 blocks away does.
         do {
             p.pitch = -1.55
-            func mines(_ kind: MobKind, _ off: V3) -> Bool {
+            // (a sword in survival, as in 5: P483's creative sword breaks nothing)
+            func mines(_ kind: MobKind, _ off: V3, survival: Bool = false) -> Bool {
                 let m = Mob(kind, at: P + off)
                 game.mobs.mobs.append(m)
-                defer { remove(m) }
+                game.survival = survival
+                defer { remove(m); game.survival = false }
                 game.world.setBlock(dirt.x, dirt.y, dirt.z, Blocks.id("dirt"))
-                ticks(20) { m.pos = P + off; m.vel = .zero; game.input.leftDown = true }
+                ticks(survival ? 300 : 20) { m.pos = P + off; m.vel = .zero; game.input.leftDown = true; game.health = 20 }
                 game.input.leftDown = false
                 ticks(2) { m.pos = P + off; m.vel = .zero }
                 let broke = game.world.block(dirt.x, dirt.y, dirt.z) != Blocks.id("dirt")
@@ -289,7 +300,8 @@ enum VRMeleeTests {
             }
             let keep = game.inventory.held
             game.inventory.held = ItemStack(Items.id("iron_sword"), 1)
-            let cowFar = mines(.cow, V3(0, 0, -4)), cowNear = mines(.cow, V3(0, 0, -2)), zombieFar = mines(.husk, V3(0, 0, -5))
+            let cowFar = mines(.cow, V3(0, 0, -4), survival: true), cowNear = mines(.cow, V3(0, 0, -2), survival: true)
+            let zombieFar = mines(.husk, V3(0, 0, -5), survival: true)
             check(cowFar && !cowNear && !zombieFar, "sword mining guard: cow 4 away mines \(cowFar), cow 2 away \(cowNear), husk 5 away \(zombieFar)")
             // An axe is a tool: a cow beside it doesn't stop it chopping, a hostile still does.
             game.inventory.held = ItemStack(Items.id("iron_axe"), 1)

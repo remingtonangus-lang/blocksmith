@@ -53,6 +53,7 @@ enum DropLift {
 }
 
 final class CapitalState {
+    static let oldCrewAim = ProcessInfo.processInfo.environment["BS_OLDCREWAIM"] == "1"   // (harness: cleared as before)
     // P476 (Oct 27, "these four giant things are engines... thruster blocks back here. The engines connect to the
     // thruster blocks and somehow are what drives the frigate... if it doesn't have enough thrust, it doesn't get off
     // the ground"): the stern's thruster cores as built (the cells by the exhaust mouths), how many still burn, and
@@ -205,7 +206,7 @@ struct VehicleWheel {
 struct CapTarget {
     var point: V3
     var vel: V3
-    weak var ship: Ship?
+    @WeakLink var ship: Ship? = nil
     weak var mob: Mob?
     var player = false
     var seat = 0                      // split screen: which player (frigates engaged only player 1)
@@ -245,8 +246,71 @@ final class HullBuilder {
         guard gx >= 0 && gx < sx && y >= 0 && y < sy && z >= 0 && z < sz else { return AIR }
         return blocks[gx + z * sx + y * sx * sz]
     }
+    // Pieces of the hull that touch the rest only along edges or corners (a skin stepping two blocks a cell): each gets one
+    // block of its own kind in an open cell beside it that meets the main hull face to face (stairs count as one flight,
+    // as FrigateLayoutCheck counts them). Returns the blocks added.
+    static var keepIslands = false                  // (FrigateLayoutCheck: a hull as built, to list what floats)
+    @discardableResult
+    func joinIslands() -> Int {
+        if HullBuilder.keepIslands { return 0 }
+        let n = sx * sy * sz
+        guard let start = blocks.firstIndex(where: { $0 != AIR }) else { return 0 }
+        var main = [Bool](repeating: false, count: n)
+        let faces: [(Int, Int, Int)] = [(0, 0, 1), (0, 0, -1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)]
+        func idx(_ x: Int, _ y: Int, _ z: Int) -> Int? {
+            guard x >= 0 && x < sx && y >= 0 && y < sy && z >= 0 && z < sz else { return nil }
+            return x + z * sx + y * sx * sz
+        }
+        func flood(_ from: Int) {
+            var stack = [from]
+            main[from] = true
+            while let i = stack.popLast() {
+                let x = i % sx, z = (i / sx) % sz, y = i / (sx * sz)
+                for (dx, dy, dz) in faces { if let j = idx(x + dx, y + dy, z + dz), !main[j], blocks[j] != AIR { main[j] = true; stack.append(j) } }
+                if Blocks.shape[Int(blocks[i])] == "stairs" {
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { for dy in [1, -1] {
+                        if let j = idx(x + dx, y + dy, z + dz), !main[j], Blocks.shape[Int(blocks[j])] == "stairs" { main[j] = true; stack.append(j) }
+                    } }
+                }
+            }
+        }
+        // (the largest piece is the hull)
+        var seen = [Bool](repeating: false, count: n)
+        var best = start, bestSize = 0
+        for i in 0..<n where blocks[i] != AIR && !seen[i] {
+            var stack = [i], size = 0
+            seen[i] = true
+            while let k = stack.popLast() {
+                size += 1
+                let x = k % sx, z = (k / sx) % sz, y = k / (sx * sz)
+                for (dx, dy, dz) in faces { if let j = idx(x + dx, y + dy, z + dz), !seen[j], blocks[j] != AIR { seen[j] = true; stack.append(j) } }
+            }
+            if size > bestSize { bestSize = size; best = i }
+        }
+        flood(best)
+        var added = 0
+        for _ in 0..<4 {
+            var changed = false
+            for i in 0..<n where blocks[i] != AIR && !main[i] {
+                let x = i % sx, z = (i / sx) % sz, y = i / (sx * sz)
+                for (dx, dy, dz) in faces {
+                    guard let j = idx(x + dx, y + dy, z + dz), blocks[j] == AIR else { continue }
+                    let jx = x + dx, jy = y + dy, jz = z + dz
+                    let meets = faces.contains { f in idx(jx + f.0, jy + f.1, jz + f.2).map { main[$0] } ?? false }
+                    guard meets else { continue }
+                    blocks[j] = Blocks.shape[Int(blocks[i])] == "stairs" ? (Blocks.has("frigate_hull") ? Blocks.id("frigate_hull") : STONE) : blocks[i]
+                    added += 1
+                    flood(j)
+                    changed = true
+                    break
+                }
+            }
+            if !changed { break }
+        }
+        return added
+    }
     func fill(_ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int, _ z0: Int, _ z1: Int, _ b: BlockID) {
-        for y in min(y0, y1)...max(y0, y1) { for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) { set(x, y, z, b) } } }
+        for y in thru(min(y0, y1), max(y0, y1)) { for z in thru(min(z0, z1), max(z0, z1)) { for x in thru(min(x0, x1), max(x0, x1)) { set(x, y, z, b) } } }
     }
     func grid(_ x: Int, _ y: Int, _ z: Int) -> IVec3 { IVec3(x + ox, y, z) }
 }
@@ -517,6 +581,7 @@ enum Capital {
             hb.fill(x, x, 62, 64, z - 1, z + 1, iron)
             hb.pods.append((V3(Float(x + W) + 0.5 + Float(sx) * 1.5, 63.5, Float(z) + 0.5), simd_normalize(V3(Float(sx), 1.2, 0))))
         } }
+        hb.joinIslands()                         // (P512: no piece of the hull hangs on nothing: FrigateLayoutCheck)
         return hb
     }
 
@@ -640,6 +705,7 @@ enum Capital {
             hb.fill(sx * 8, sx * 8, 25, 26, z, z + 1, iron)
             hb.pods.append((V3(Float(sx * 9 + W) + 0.5, 26.5, Float(z) + 1), simd_normalize(V3(Float(sx) * 0.5, 1.5, -0.3))))
         } }
+        hb.joinIslands()                         // (P512: no piece of the hull hangs on nothing: FrigateLayoutCheck)
         return hb
     }
 
@@ -898,7 +964,9 @@ enum Capital {
     }
 
     static func makeShips(_ hb: HullBuilder, ids: [Int], name: String, role: String, faction: Faction) -> [Ship] {
-        let s = Ship(id: ids[0], grid: ShipGrid(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks))
+        let hull = ShipGrid(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks)
+        if role != "dropship" { Capital.addGunStations(hull, rings: hb.turrets.map { $0.ring }) }     // P512 (GunStations.swift)
+        let s = Ship(id: ids[0], grid: hull)
         s.name = name
         s.role = role
         s.kinematic = true
@@ -1007,6 +1075,11 @@ extension Ship {
     var isFlyingCapital: Bool { role == "warfrigate" || role == "capfrigate" }
 }
 
+extension Capital {
+    static let oldCrawlerGround = ProcessInfo.processInfo.environment["BS_OLDCRAWLERGROUND"] == "1"
+    static let oldPlans = ProcessInfo.processInfo.environment["BS_OLDPLANS"] == "1"     // (harness: batch 3.9/3.10 as before)
+}
+
 extension Mob {
     var factionValue: Faction {
         // P507 (Nov 1 12:38:28-12:38:32, a Greywall truck bringing reinforcements "somehow blew up... like the soldier
@@ -1023,13 +1096,20 @@ extension Mob {
 extension ShipManager {
     // P464: the capital vessels he has taken (saved in takencaps.json, Ships.swift) come back where he left them, his,
     // unmanned and whole (their grids are too big to save: the hull is built afresh from its plans).
-    func restoreTaken() {
+    func restoreTaken(_ g: Game? = nil) {
         guard !takenStarted else { return }
         takenStarted = true
+        // (code reader Nov 10, batch 3.4: they are built on a worker, and a save made aboard one left him standing on
+        // nothing until she was there. He is held where he is (the arrival hold, ledger 40) until she is, 4 s at most.)
+        if let g, Game.arrivalHold, !ShipManager.oldTakenGrid, g.arrivalSince == nil,
+           takenToRestore.contains(where: { $0.pos.count == 3 && simd_length(V3($0.pos[0], $0.pos[1], $0.pos[2]) - g.player.pos) < 400 }) {
+            g.arrivalSince = g.clock; g.arrivalOpened = -1
+        }
         for c in takenToRestore where c.pos.count == 3 && c.rot.count == 4 {
             let p = V3(c.pos[0], c.pos[1], c.pos[2])
             spawnCapital(c.kind, home: IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))), yaw: 0, region: nil,
-                         faction: Faction(rawValue: c.faction), taken: (p, Quat(vector: V4(c.rot[0], c.rot[1], c.rot[2], c.rot[3])), c.name))
+                         faction: Faction(rawValue: c.faction), taken: (p, Quat(vector: V4(c.rot[0], c.rot[1], c.rot[2], c.rot[3])), c.name),
+                         takenSave: c)
         }
         takenToRestore.removeAll { $0.pos.count != 3 || $0.rot.count != 4 }     // (the rest leave the list as each is installed)
     }
@@ -1038,7 +1118,7 @@ extension ShipManager {
     // turrets when finished (capitalTick picks it up).
     // (taken: one of his, built where he left it.)
     func spawnCapital(_ kind: String, home: IVec3, yaw: Float, region: String?, sync: Bool = false, faction: Faction? = nil,
-                      taken: (V3, Quat, String)? = nil) {
+                      taken: (V3, Quat, String)? = nil, takenSave: ShipManager.TakenCap? = nil) {
         if let r = region { capitalPending.insert(r) }
         let ids = (0..<24).map { _ in newId() }
         let gen = world.gen
@@ -1048,8 +1128,36 @@ extension ShipManager {
             let hb = cap ? Capital.capitalFrigate() : (frigate ? Capital.frigate() : Capital.crawler())
             let own: Faction = (faction ?? (cap ? .meridian : (frigate ? .stormwarden : .greywall))).side
             let name = cap ? "Meridian Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
-            let ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
+            var ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
+            // (batch 3.4) a taken one comes back as he left her: her hull's cells and her chests from the save, and her
+            // turrets as they were (matched by their mounts; one shot away stays away).
+            let asBuilt = s.blockCount
+            if let ts = takenSave, let size = ts.size, let pal = ts.palette, let cells = ts.cells,
+               let blocks = ShipManager.unpackGrid(size, pal, cells) {
+                s.grid = ShipGrid(sx: size[0], sy: size[1], sz: size[2], blocks: blocks)
+                s.rebuild()
+                if let ents = ts.entities {
+                    s.blockEntities = [:]
+                    for (k, v) in ents {
+                        let p = k.split(separator: ",").compactMap { Int($0) }
+                        if p.count == 3 { s.blockEntities[IVec3(p[0], p[1], p[2])] = v }
+                    }
+                }
+                if let saved = ts.turrets {
+                    var keep = [s]
+                    for t in ships.dropFirst() {
+                        guard let sv = saved.first(where: { $0.mount.count == 3 && simd_length(V3($0.mount[0], $0.mount[1], $0.mount[2]) - t.mountLocal) < 0.01 }) else { continue }
+                        if sv.size.count == 3, let tb = ShipManager.unpackGrid(sv.size, sv.palette, sv.cells),
+                           sv.size == [t.grid.sx, t.grid.sy, t.grid.sz] {
+                            t.grid = ShipGrid(sx: sv.size[0], sy: sv.size[1], sz: sv.size[2], blocks: tb)
+                            t.rebuild()
+                        }
+                        keep.append(t)
+                    }
+                    ships = keep
+                }
+            }
             let st = CapitalState()
             st.region = region
             st.engines0 = s.engines
@@ -1071,12 +1179,12 @@ extension ShipManager {
             }
             if cap, Blocks.has("frigate_reactor") {
                 let core = Blocks.id("frigate_reactor"), gr = s.grid, c = hb.grid(0, 17, 128)
-                for y in max(0, c.y - 12)...(c.y + 12) { for z in (c.z - 10)...(c.z + 10) { for x in (c.x - 10)...(c.x + 10) where gr.get(x, y, z) == core {
+                for y in thru(max(0, c.y - 12), (c.y + 12)) { for z in (c.z - 10)...(c.z + 10) { for x in (c.x - 10)...(c.x + 10) where gr.get(x, y, z) == core {
                     st.reactorCells.append(IVec3(x, y, z))
                 } } }
                 st.reactorLive = st.reactorCells.count
             }
-            st.blocks0 = s.blockCount
+            st.blocks0 = asBuilt
             st.crew = hb.crew
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
@@ -1119,7 +1227,7 @@ extension ShipManager {
             }
             s.prevPos = s.pos; s.prevRot = s.rot
             s.home = V3(hx, s.pos.y, hz)
-            s.initialBlocks = s.blockCount
+            s.initialBlocks = takenSave?.initial ?? asBuilt
             s.updateBounds()
             for t in ships.dropFirst() { t.followParent(0); t.prevPos = t.pos; t.prevRot = t.rot }
             return (ships, st)
@@ -1128,9 +1236,9 @@ extension ShipManager {
             installCapital(work())
             return
         }
-        DispatchQueue.global(qos: .utility).async { [weak self] in
+        DispatchQueue.global(qos: .utility).async { [me = weakLink] in    // (item 8: by link: WeakLink.swift)
             let built = work()
-            guard let self else { return }
+            guard let self = me.wrappedValue else { return }
             self.capitalLock.lock()
             self.capitalReady.append(built)
             self.capitalLock.unlock()
@@ -1245,11 +1353,20 @@ extension ShipManager {
     // again once it is whole), then those nearest where the ingot was used, and smooths the chipped plating there.
     // The plans are drawn up from her builder off the frame the first time she is his (requestBlueprint).
     func requestBlueprint(_ s: Ship, _ st: CapitalState) {
-        guard !st.blueprintAsked, ["capfrigate", "frigate", "crawler"].contains(s.role ?? "") else { return }
+        // (code reader Nov 10, batch 3.9: the Stormwarden spawns as "warfrigate", which this list and the builder below
+        // didn't know, so a Stormwarden he took had no plans: no patching with ingots, no hull %, no helm back once shot
+        // away. Batch 3.10: the crawler's plans had her rear ramp lowered, which he had twice asked gone (P511), so a
+        // patch near the stern put it back; the plans now have it raised, as his crawler keeps it.)
+        let roles = Capital.oldPlans ? ["capfrigate", "frigate", "crawler"] : ["capfrigate", "warfrigate", "frigate", "crawler"]
+        guard !st.blueprintAsked, roles.contains(s.role ?? "") else { return }
         st.blueprintAsked = true
         let role = s.role ?? "", sx = s.grid.sx, sy = s.grid.sy, sz = s.grid.sz, id = s.id
         DispatchQueue.global(qos: .utility).async {
-            let hb = role == "capfrigate" ? Capital.capitalFrigate() : (role == "frigate" ? Capital.frigate() : Capital.crawler())
+            let hb = role == "capfrigate" ? Capital.capitalFrigate() : (role == "crawler" ? Capital.crawler() : Capital.frigate())
+            if role == "crawler" && !Capital.oldPlans {
+                for (c, _) in Capital.crawlerRamp(down: true) { hb.set(c.x, c.y, c.z, AIR) }
+                for (c, b) in Capital.crawlerRamp(down: false) { hb.set(c.x, c.y, c.z, b) }
+            }
             guard hb.sx == sx && hb.sy == sy && hb.sz == sz else { return }
             let solid = hb.blocks.reduce(0) { $0 + ($1 == AIR ? 0 : 1) }
             ShipManager.plansLock.lock()
@@ -1427,7 +1544,7 @@ extension ShipManager {
         capitalLock.unlock()
         for b in ready { installCapital(b) }
         guard dt > 0 else { return }
-        restoreTaken()
+        restoreTaken(g)
         salvagedGunsTick(dt, g)
         for s in capitals {
             guard let st = capState[s.id] else { continue }
@@ -1660,6 +1777,17 @@ extension ShipManager {
             let dir = to / d
             if d > 40 { want = dir; speed = 9 * fast }
             else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * 0.3); speed = 4 * fast }
+        } else if let goal = st.goal {
+            // Nov 4 (ledger 16): sent for someone (the Reckoning's warship, made past the fog: from there her circle round
+            // home never came near him): fly in, then circle the spot with her near end 120 off until she has him in her
+            // sight. (Circling with her middle 100 off, a 480-block hull hung over him and its own decks hid him from every
+            // gun: --huntwarship, build 138.)
+            let to = V2(goal.x - s.pos.x, goal.z - s.pos.z)
+            let d = max(1, simd_length(to))
+            let dir = to / d
+            let near = boundsDistance(s, goal)
+            if near > 180 { want = dir; speed = 10 * fast }
+            else { want = simd_normalize(V2(-dir.y, dir.x) * st.orbitDir + dir * ((near - 120) / 60)); speed = 6 * fast }
         } else if let isle = st.isles?.first {
             // T11: a frigate with a sky isle near its home keeps its own route: a wide circle round the isle, at
             // cruise clearance over its turf (the altitude below counts the isle as ground).
@@ -1909,7 +2037,10 @@ extension ShipManager {
         driveGlow(s, st, boundsDistance(s, g.player.pos), dt, g)
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
-        for t in turrets(of: s) { t.aimAt = nil }
+        // (code reader Nov 10, batch 3.1: this ran after the crews laid their guns (gunCrewTick, earlier in the same
+        // update), so on a frigate he had taken the crew's guns never turned onto anything and only fired at what
+        // happened to lie in line. A gun a crew laid this update keeps its mark.)
+        for t in turrets(of: s) where CapitalState.oldCrewAim || t.crewAimStamp != riderStamp { t.aimAt = nil }   // (batch 3.1)
     }
 
     // P483: a frigate he took that crashed keeps its guns. Manned at the helm the turrets and the Tidebreaker work as
@@ -1918,7 +2049,7 @@ extension ShipManager {
         st.target = nil
         st.mainGunCD -= dt
         if s.role == "capfrigate" { mainGunTick(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
-        for t in turrets(of: s) { t.aimAt = nil }
+        for t in turrets(of: s) where CapitalState.oldCrewAim || t.crewAimStamp != riderStamp { t.aimAt = nil }   // (batch 3.1)
     }
 
     // P325 (c) (Oct 15 19:15, "a drivable ship where I angle it and momentum goes forward, not this up and down, left,
@@ -2388,7 +2519,9 @@ extension ShipManager {
             var wy = Int(g) + 1, k = 0
             while k < 64 && wy < CH - 1 && Blocks.isLiquid(world.rawBlock(x, wy, z)) { wy += 1; k += 1 }
             guard k > 0 else { return g }
-            wet += 1
+            // (batch 3.8: only water deeper than her draft, where she swims, slows her; on her wheels in the shallows
+            // she keeps her pace)
+            if Capital.oldCrawlerGround || Float(k) > ShipManager.crawlerDraft { wet += 1 }
             return max(g, Float(wy) - ShipManager.crawlerDraft)
         }
         let half: Float = 28, track: Float = 13
@@ -2402,8 +2535,19 @@ extension ShipManager {
         // the stick still turns it, or backs it off.
         if wet >= 2 { speed *= 0.35; ShipManager.crawlerWaded += 1 }
         if turnRate > 0 || (piloted && speed > 0) {
-            let hA = ground(c2 + fh * (half + 14))
-            if (hA < Float(SEA) && !piloted) || hA - hF > 8 {
+            let ahead = c2 + fh * (half + 14)
+            let hA = ground(ahead)
+            // (code reader Nov 10, batch 3.8: the cliff test took one column under the bow against one 14 ahead, so a
+            // crater, a rail cutting or a gully under the bow alone stopped her dead with level ground ahead. A cliff is
+            // ground ahead 8 over where she stands, across the whole of her bow's width.)
+            let cliff: Bool
+            if Capital.oldCrawlerGround { cliff = hA - hF > 8 }
+            else {
+                let low = min(hA, ground(ahead + side * track * 0.6), ground(ahead - side * track * 0.6))
+                let base = max(hF, (st.ground?.x ?? (hF + hB + hL + hR) * 0.25 + 1) - 1)
+                cliff = low - base > 8
+            }
+            if (hA < Float(SEA) && !piloted) || cliff {
                 if piloted { speed = min(speed, 0) }
                 else { want = V2(-fh.y, fh.x) * st.orbitDir; speed = min(speed, 1.5) }
             }
@@ -2650,7 +2794,7 @@ extension ShipManager {
                 guard world.isLoaded(x, z) else { continue }
                 // (ground standing up into the wheel's lower rows: on a rise the wheel cuts its track into the ground
                 // instead of sinking through it, 12:07:07 "its wheels morphing through the terrain")
-                for ly in wh.lo.y...min(wh.hi.y, wh.lo.y + 1) {
+                for ly in thru(wh.lo.y, min(wh.hi.y, wh.lo.y + 1)) {
                     let cp = s.toWorld(V3(Float(lx) + 0.5, Float(ly) + 0.5, Float(lz) + 0.5))
                     let cb = world.rawBlock(Int(floor(cp.x)), Int(floor(cp.y)), Int(floor(cp.z)))
                     if ShipManager.groundBlock[Int(cb)] && hardnessOK(cb) { sunk += 1 }
@@ -2943,9 +3087,9 @@ extension ShipManager {
         }
         g.sfx(.engineStart, 1, at: at)
         if sync { installCapital(work()); return true }
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        DispatchQueue.global(qos: .userInitiated).async { [me = weakLink] in    // (item 8: by link: WeakLink.swift)
             let built = work()
-            guard let self else { return }
+            guard let self = me.wrappedValue else { return }
             self.capitalLock.lock()
             self.capitalReady.append(built)
             self.capitalLock.unlock()
@@ -3412,6 +3556,28 @@ extension ShipManager {
 
 // MARK: Breakaway pieces (block-based damage on capital hulls)
 
+enum DetachLooseTiming {
+    static let oldSearch = ProcessInfo.processInfo.environment["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
+    // detachLoose's cell table (the main thread's blasts only), grown to the largest hull blasted; `base` moves past
+    // each blast's searches, so the table is never cleared (but when it would run past the top).
+    private static var buf: UnsafeMutablePointer<UInt32>? = nil
+    private static var cap = 0
+    static var base: UInt32 = 1
+    static func table(_ n: Int) -> UnsafeMutablePointer<UInt32> {
+        if n > cap || buf == nil {
+            buf?.deallocate()
+            cap = max(n, 1 << 16)
+            buf = UnsafeMutablePointer<UInt32>.allocate(capacity: cap)
+            buf!.initialize(repeating: 0, count: cap)
+            base = 1
+        } else if base > UInt32.max - 1024 {
+            buf!.update(repeating: 0, count: cap)
+            base = 1
+        }
+        return buf!
+    }
+}
+
 extension ShipManager {
     // After a blast on a capital hull: flood out from the cells next to the hole, each search capped at `limit`
     // cells. A search that runs dry before the cap found a piece no longer joined to the hull: it breaks away as a
@@ -3431,25 +3597,68 @@ extension ShipManager {
         // (P461: a small hull, the dropship's 295 blocks, is itself under the limit: one block melted or shot out of
         // it cut the whole craft loose as a wreck. A piece holding half the hull or more is the hull and stays.)
         let limit = min(limit, max(1, s.blockCount / 2))
-        for st in starts where !seen.contains(st) {
-            var comp: [IVec3] = [st]
-            var local = Set<IVec3>([st])
-            var head = 0
-            var open = true
-            while head < comp.count {
-                let c = comp[head]; head += 1
-                for d in dirs {
-                    let n = c + d
-                    if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
-                    let b = g.get(n.x, n.y, n.z)
-                    if b == AIR { continue }
-                    local.insert(n)
-                    comp.append(n)
+        // (Nov 4, the worst-case soak: one shell's blast on a crawler took 11 of its 12 ms here. A search from the far
+        // side of the hole never met the cells an earlier search had already found joined to the hull, and walked its
+        // own 4,000 again, up to 400 times a blast. Every cell already seen is the hull's (a loose piece's search runs
+        // dry, so no later search can reach its cells): meeting one, the search is joined to the hull and stops.)
+        if DetachLooseTiming.oldSearch {
+            for st in starts where !seen.contains(st) {
+                var comp: [IVec3] = [st]
+                var local = Set<IVec3>([st])
+                var head = 0
+                var open = true
+                while head < comp.count {
+                    let c = comp[head]; head += 1
+                    for d in dirs {
+                        let n = c + d
+                        if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
+                        let b = g.get(n.x, n.y, n.z)
+                        if b == AIR { continue }
+                        local.insert(n)
+                        comp.append(n)
+                    }
+                    if comp.count > limit { open = false; break }
                 }
-                if comp.count > limit { open = false; break }
+                seen.formUnion(local)
+                if open && comp.count >= 1 { pieces.append(comp) }
             }
-            seen.formUnion(local)
-            if open && comp.count >= 1 { pieces.append(comp) }
+        } else {
+            // (one table of cell index -> the search that found it, in place of a set per search and their union. Nov 4,
+            // the next profile: as a dictionary it was still 4.6 million instructions a blast on the crawler in game,
+            // the first search's 4,000 cells hashed six times each; now a flat buffer over the grid, reused from blast
+            // to blast: a cell holds base + its search, anything under base is unseen.)
+            let cells = g.sx * g.sy * g.sz
+            let owner = DetachLooseTiming.table(cells)
+            let base = DetachLooseTiming.base
+            var k: UInt32 = 0
+            defer { DetachLooseTiming.base = base + k + 1 }
+            for st in starts {
+                let si = g.index(st.x, st.y, st.z)
+                if owner[si] >= base { continue }
+                k += 1
+                owner[si] = base + k
+                var comp: [IVec3] = [st]
+                var head = 0
+                var open = true
+                search: while head < comp.count {
+                    let c = comp[head]; head += 1
+                    for d in dirs {
+                        let n = c + d
+                        guard g.inside(n.x, n.y, n.z) else { continue }
+                        let ni = g.index(n.x, n.y, n.z)
+                        let o = owner[ni]
+                        if o >= base {
+                            if o == base + k { continue }
+                            open = false; break search             // an earlier search's cell: joined to the hull
+                        }
+                        if g.get(n.x, n.y, n.z) == AIR { continue }
+                        owner[ni] = base + k
+                        comp.append(n)
+                    }
+                    if comp.count > limit { open = false; break }
+                }
+                if open { pieces.append(comp) }
+            }
         }
         guard !pieces.isEmpty else { return }
         let kinds = ShipParts.kinds

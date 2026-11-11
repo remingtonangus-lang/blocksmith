@@ -84,7 +84,30 @@ enum StructureTip {
     // held by the world, or into unloaded ground or a docked vessel); then level by level up the hole, the part of it
     // over the level joined to the hole (two towers met below the level are two pieces there) is weighed.
     static func check(_ w: World, at p: IVec3, r: Int) -> [IVec3]? { var n = 0; return check(w, at: p, r: r, count: &n) }
+    // Nov 9 (frame rate, the worst-case soak: a 6,381-block citadel piece took 3.2-4.5 ms of the frame thread's own time
+    // in every run): the fill asked the world again for every open or natural cell each time it met one (up to 18
+    // times), and the footings asked it again for the blocks under each block, most of them blocks of the piece itself.
+    // Each cell the fill meets that isn't of the piece is marked in the grid now (cleared after), and a block under
+    // another that is of the piece is known to be built on without asking (no block the piece can hold is ground,
+    // water or bedrock: `partAnchors`). BS_TIPOLD=1: as before; BS_TIPVERIFY=1: both, every difference printed.
+    static let tipOld = ProcessInfo.processInfo.environment["BS_TIPOLD"] == "1"
+    static let tipVerify = ProcessInfo.processInfo.environment["BS_TIPVERIFY"] == "1"
+    static var verified = 0, verifyDiffs = 0
+    static let partAnchors: Bool = (0..<Blocks.count).contains { i in
+        Structure.table[i] != nil && (Blocks.isLiquid(BlockID(i)) || Blocks.hardness[i] < 0 && Blocks.collide[i])
+    }
     static func check(_ w: World, at p: IVec3, r: Int, count: inout Int) -> [IVec3]? {
+        if tipVerify {
+            var n0 = 0
+            let a = check(w, at: p, r: r, count: &n0, marks: false)
+            let b = check(w, at: p, r: r, count: &count, marks: true)
+            verified += 1
+            if a != b || n0 != count { verifyDiffs += 1; print("tipverify: DIFFERS at \(p) r \(r): \(n0) vs \(count) cells, \(a?.count ?? -1) vs \(b?.count ?? -1) tipping") }
+            return b
+        }
+        return check(w, at: p, r: r, count: &count, marks: !tipOld && !partAnchors)
+    }
+    static func check(_ w: World, at p: IVec3, r: Int, count: inout Int, marks: Bool) -> [IVec3]? {
         let began = CFAbsoluteTimeGetCurrent()
         fillAt = 0; groundAt = 0
         defer {
@@ -103,10 +126,16 @@ enum StructureTip {
         var k = ChunkCursor(w)
         var cells: [IVec3] = [], mats: [Structure.Mat] = []
         var links: [Float] = []                                   // per cell: the bonds of its joints out past `side`
-        defer { for q in cells { grid[slot(q)] = -1 } }
+        var open: [Int32] = []                                    // (marks: the cells met that aren't of the piece, -2)
+        defer { for q in cells { grid[slot(q)] = -1 }; for i in open { grid[Int(i)] = -1 } }
         func add(_ q: IVec3) -> Bool {
-            guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY, grid[slot(q)] < 0,
-                  let m = Structure.part(&k, q.x, q.y, q.z) else { return true }
+            guard abs(q.x - p.x) <= side, abs(q.y - p.y) <= up, abs(q.z - p.z) <= side, q.y >= floorY else { return true }
+            let si = slot(q)
+            guard grid[si] == -1 else { return true }
+            guard let m = Structure.part(&k, q.x, q.y, q.z) else {
+                if marks { grid[si] = -2; open.append(Int32(si)) }
+                return true
+            }
             if Structure.helm[Int(k.built(q.x, q.y, q.z))] { return false }
             grid[slot(q)] = Int32(cells.count)
             cells.append(q); mats.append(m); links.append(0)
@@ -148,8 +177,11 @@ enum StructureTip {
             let c = cells[i]
             for d in Structure.nbrs where d.y == -1 {
                 let q = c + d
+                // (a block of the piece: built on, never ground; a cell the fill met that isn't: not built on)
+                let g: Int32 = marks && q.y >= floorY && abs(q.x - p.x) <= side && abs(q.z - p.z) <= side ? grid[slot(q)] : -1
+                if g >= 0 { onBlock[i] = true; continue }
                 if Structure.anchor(&k, q.x, q.y, q.z) { ground[i] = true; break }
-                if Structure.part(&k, q.x, q.y, q.z) != nil { onBlock[i] = true }
+                if g == -1 && Structure.part(&k, q.x, q.y, q.z) != nil { onBlock[i] = true }
             }
             if !ground[i] { for d in World.allDirs where d.y == 0 && Structure.anchor(&k, c.x + d.x, c.y, c.z + d.z) { ground[i] = true; break } }
         }
@@ -163,15 +195,26 @@ enum StructureTip {
         var byLevel = [[Int32]](repeating: [], count: maxY - floorY + 1)
         for i in 0..<n { byLevel[cells[i].y - floorY].append(Int32(i)) }
         let nearIdx = (0..<n).filter { near(cells[$0]) }
-        var parent = [Int32](repeating: -1, count: n)
-        var size = [Int32](repeating: 0, count: n)
-        var weight = [Float](repeating: 0, count: n), mx = [Float](repeating: 0, count: n), mz = [Float](repeating: 0, count: n)
-        var gFeet = [Int32](repeating: 0, count: n), gHold = [Float](repeating: 0, count: n)
-        var gLo = [SIMD2<Int32>](repeating: SIMD2(Int32.max, Int32.max), count: n), gHi = [SIMD2<Int32>](repeating: SIMD2(Int32.min, Int32.min), count: n)
-        var linkHead = [Int32](repeating: -1, count: n), linkTail = [Int32](repeating: -1, count: n), linkNext = [Int32](repeating: -1, count: n)
-        var lvStamp = [Int32](repeating: Int32.min, count: n), evStamp = [Int32](repeating: Int32.min, count: n)
-        var lvFeet = [Int32](repeating: 0, count: n), lvHold = [Float](repeating: 0, count: n)
-        var lvLo = [SIMD2<Int32>](repeating: .zero, count: n), lvHi = [SIMD2<Int32>](repeating: .zero, count: n)
+        // (Nov 9, callgrind of the worst-case soak: as arrays captured by find and union, every write to them took a
+        // uniqueness check through the closures' boxes, and finding the pieces' roots was 60% of the check: buffers now,
+        // the same values)
+        var bufs: [UnsafeMutableRawPointer] = []
+        defer { for b in bufs { b.deallocate() } }
+        func buf<T>(_ v: T) -> UnsafeMutablePointer<T> {
+            let b = UnsafeMutablePointer<T>.allocate(capacity: n)
+            b.initialize(repeating: v, count: n)
+            bufs.append(UnsafeMutableRawPointer(b))
+            return b
+        }
+        let parent = buf(Int32(-1))
+        let size = buf(Int32(0))
+        let weight = buf(Float(0)), mx = buf(Float(0)), mz = buf(Float(0))
+        let gFeet = buf(Int32(0)), gHold = buf(Float(0))
+        let gLo = buf(SIMD2<Int32>(Int32.max, Int32.max)), gHi = buf(SIMD2<Int32>(Int32.min, Int32.min))
+        let linkHead = buf(Int32(-1)), linkTail = buf(Int32(-1)), linkNext = buf(Int32(-1))
+        let lvStamp = buf(Int32.min), evStamp = buf(Int32.min)
+        let lvFeet = buf(Int32(0)), lvHold = buf(Float(0))
+        let lvLo = buf(SIMD2<Int32>.zero), lvHi = buf(SIMD2<Int32>.zero)
         func find(_ i: Int32) -> Int32 {
             var a = i
             while parent[Int(a)] != a { let gp = parent[Int(parent[Int(a)])]; parent[Int(a)] = gp; a = gp }
@@ -266,7 +309,88 @@ enum StructureTip {
     // root, a brace under the pad, holds far more than one course), over two. One the blast cut a joint of that turns
     // harder than its joints hold comes away and falls whole.
     static let hangLimit = 2000, hangOut = 24
+    // Nov 4 (frame rate, the worst-case soak: one blast's overhang check took 16 ms of a frame): the fill kept what it
+    // had met in a set of cells and asked the world again for every neighbour of every cell (18 each, an air cell beside
+    // the piece asked once per block beside it), then again for each block's material and each neighbour when it summed
+    // the joints. It now marks each cell it meets, in the piece or not built on, in a box reused from check to check (a
+    // new mark each side, so it's never cleared), and keeps each block's material with it. (BS_HANGOLD=1: as before.)
+    static let hangOld = ProcessInfo.processInfo.environment["BS_HANGOLD"] == "1"
+    private static let hangR = hangOut + 1, hangW = 2 * hangR + 1
+    private static let hangGrid: UnsafeMutablePointer<UInt32> = {
+        let n = hangW * hangW * hangW
+        let b = UnsafeMutablePointer<UInt32>.allocate(capacity: n)
+        b.initialize(repeating: 0, count: n)
+        return b
+    }()
+    private static var hangMark: UInt32 = 0
     static func cantilever(_ w: World, at p: IVec3, r: Int) -> [IVec3]? {
+        if hangOld { return cantileverOld(w, at: p, r: r) }
+        let r = max(1, min(r, 8))
+        var k = ChunkCursor(w)
+        let grid = hangGrid, R = hangR, W = hangW
+        @inline(__always) func slot(_ q: IVec3) -> Int { (q.x - p.x + R) + (q.y - p.y + R) * W + (q.z - p.z + R) * W * W }
+        // (a cell's mark this side: 2 x side's mark in the piece, + 1 not built on; anything else not met yet)
+        if hangMark > UInt32.max / 2 - 8 { grid.update(repeating: 0, count: W * W * W); hangMark = 0 }
+        var piece: [IVec3] = [], mats: [Structure.Mat] = []
+        piece.reserveCapacity(hangLimit); mats.reserveCapacity(hangLimit)
+        for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+            @inline(__always) func beyond(_ q: IVec3) -> Int { (q.x - p.x) * d.x + (q.z - p.z) * d.z }
+            hangMark += 1
+            let inPiece = hangMark * 2, notBuilt = hangMark * 2 + 1
+            piece.removeAll(keepingCapacity: true); mats.removeAll(keepingCapacity: true)
+            var ok = true
+            func add(_ q: IVec3) {
+                guard ok, beyond(q) >= 1 else { return }
+                let i = slot(q), g = grid[i]
+                if g == inPiece || g == notBuilt { return }
+                guard let m = Structure.part(&k, q.x, q.y, q.z) else { grid[i] = notBuilt; return }
+                if piece.count >= hangLimit || abs(q.x - p.x) > hangOut || abs(q.y - p.y) > hangOut || abs(q.z - p.z) > hangOut || !k.loaded(q.x, q.z)
+                    || Structure.helm[Int(k.built(q.x, q.y, q.z))] { ok = false; return }
+                grid[i] = inPiece; piece.append(q); mats.append(m)
+                if Structure.anchor(&k, q.x, q.y - 1, q.z) { ok = false; return }
+                for n in World.allDirs where n.y == 0 && Structure.anchor(&k, q.x + n.x, q.y, q.z + n.z) { ok = false; return }
+            }
+            for y in (p.y - r - 1)...(p.y + r + 1) { for b in 1...(r + 1) { for a in (-r - 1)...(r + 1) {
+                let q = d.x != 0 ? IVec3(p.x + d.x * b, y, p.z + a) : IVec3(p.x + a, y, p.z + d.z * b)
+                add(q)
+            } } }
+            var head = 0
+            while ok && head < piece.count {
+                let c = piece[head]; head += 1
+                for n in Structure.nbrs { add(c + n) }
+            }
+            guard ok, piece.count >= 4 else { continue }
+            var joints: [(y: Int, at: Int, hold: Float)] = []
+            var cut = false
+            var weight: Float = 0, wOut: Float = 0
+            for (ci, c) in piece.enumerated() {
+                let m = mats[ci]
+                weight += m.weight
+                wOut += m.weight * Float(beyond(c))
+                for n in Structure.nbrs {
+                    let q = c + n
+                    let g = grid[slot(q)]
+                    if g == inPiece { continue }
+                    if g != notBuilt, let mq = Structure.part(&k, q.x, q.y, q.z) {
+                        let edge = abs(n.x) + abs(n.y) + abs(n.z) == 2
+                        joints.append((c.y, beyond(c), min(m.bond, mq.bond) * (edge ? 0.5 : 1)))
+                    } else if !cut && beyond(q) <= beyond(c) {
+                        let o = V3(Float(q.x - p.x), Float(q.y - p.y), Float(q.z - p.z))
+                        if simd_length(o) <= Float(r) + 0.5 { cut = true }
+                    }
+                }
+            }
+            guard cut, weight > 0 else { continue }
+            if joints.isEmpty { continue }
+            let root = Float(joints.reduce(Int.max) { min($0, $1.at) }) - 0.5
+            let moment = wOut - weight * root
+            let mid = Float(joints.reduce(0) { $0 + $1.y }) / Float(joints.count)
+            let hold = joints.reduce(Float(0)) { $0 + $1.hold * (0.5 + abs(Float($1.y) - mid)) } * turnHold
+            if moment > hold { return piece.sorted { $0.y < $1.y } }
+        }
+        return nil
+    }
+    static func cantileverOld(_ w: World, at p: IVec3, r: Int) -> [IVec3]? {
         let r = max(1, min(r, 8))
         var k = ChunkCursor(w)                                             // (as check's fill)
         for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
@@ -475,5 +599,23 @@ enum StructureTipCheck {
         let held = StructureTip.check(w, at: IVec3(kx, ky + 3, kz + 6), r: 4) == nil
         ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         check(held && ms < 40, String(format: "P503: a blast on a whole keep's wall leaves it standing (%@), the check took %.1f ms", held ? "held" : "TIPPED", ms))
+        // Nov 4: the overhang check at blasts on the keep (its wall low and high, its top floor's middle, its top course's
+        // corner), as it is and as it was before (BS_HANGOLD): the same pieces, and what each took.
+        let spots = [IVec3(kx, ky + 4, kz + 6), IVec3(kx, ky + 15, kz + 6), IVec3(kx + 6, ky + 18, kz + 6), IVec3(kx + 12, ky + 23, kz + 12)]
+        var same = true, newMs = 0.0, oldMs = 0.0, pieces: [Int] = []
+        for _ in 0..<3 { for q in spots {
+            let a0 = CFAbsoluteTimeGetCurrent()
+            let a = StructureTip.cantilever(w, at: q, r: 4)
+            let a1 = CFAbsoluteTimeGetCurrent()
+            let b = StructureTip.cantileverOld(w, at: q, r: 4)
+            let b1 = CFAbsoluteTimeGetCurrent()
+            newMs = max(newMs, (a1 - a0) * 1000); oldMs = max(oldMs, (b1 - a1) * 1000)
+            if a?.count != b?.count || a.map({ Set($0) }) != b.map({ Set($0) }) { same = false }
+            if pieces.count < spots.count { pieces.append(a?.count ?? 0) }
+        } }
+        // (CI's host job runs an unoptimized build, about 4x slower: 12.6 ms there, against 18.9 the old way)
+        let want: Double = _isDebugAssertConfiguration() ? 16 : 4
+        check(same && newMs < want, String(format: "Nov 4: the overhang check at four blasts on the keep finds the same pieces as before (%@, %@ falling), its slowest %.2f ms (before %.2f; want under %.0f)",
+                                         same ? "same" : "DIFFERENT", "\(pieces)", newMs, oldMs, want))
     }
 }

@@ -5,7 +5,7 @@ import simd
 // Owns all loaded chunks of one dimension. Generation and meshing run on a concurrent background
 // queue; results are applied on the main thread in update(). Chunk block arrays are Swift
 // copy-on-write values, so handing snapshots to worker threads is safe.
-final class World {
+final class World: LifeLinked {
     var damage: [IVec3: UInt8] = [:]      // progressive block damage (chip, damageList)
     var bites: [IVec3: [Bite]] = [:]      // realistic world: where blows struck a block (Craters.swift; biteList)
     let gen: TerrainGenerator
@@ -159,7 +159,15 @@ final class World {
     // a worker thread: hence the lock (as Chunk.alive).
     static let aliveLock = NSLock()
     private(set) static var alive = 0
-    static let registry = NSHashTable<World>.weakObjects()
+    // (the live worlds, for the bench's leak check; links, not weak references: WeakLink.swift)
+    private static var links: [LifeLink] = []
+    private static let linksLock = NSLock()            // (not aliveLock: a link let go here may end a world, whose deinit takes that)
+    static var live: [World] {
+        linksLock.lock(); defer { linksLock.unlock() }
+        links.removeAll { $0.object == nil }
+        return links.compactMap { $0.object as? World }
+    }
+    lazy var lifeLink = LifeLink(self)         // (item 8: WeakLink.swift)
     deinit { World.aliveLock.lock(); World.alive -= 1; World.aliveLock.unlock() }
     var debugState: String {
         lock.lock(); let gr = genResults.count, mr = meshResults.count; lock.unlock()     // workers append under the lock
@@ -167,6 +175,9 @@ final class World {
     }
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
+        ChunkKey.oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
+        IVec3.oldHash = ProcessInfo.processInfo.environment["BS_OLDCELLHASH"] == "1"
+        World.oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
         World.aliveLock.lock(); World.alive += 1; World.aliveLock.unlock()
         self.seed = seed
         self.dim = dim
@@ -232,7 +243,7 @@ final class World {
             dg.ground.guardSet.chunks = save.structureGuard(file: "structure-guard-p326.txt")      // AshFront.swift
         }
         if dim == .deep { AshWar.setFront((gen as? DeepGen)?.ground.guardSet ?? DeepGuard()) }   // (P326's sites: off old ground)
-        World.registry.add(self)
+        World.linksLock.lock(); World.links.removeAll { $0.object == nil }; World.links.append(lifeLink); World.linksLock.unlock()
     }
 
     // Chunks to load: the meshed disc grown by one chunk (every meshed chunk needs its 8 neighbours).
@@ -412,6 +423,39 @@ final class World {
         guard let c = chunkAt(x, z), !c.hollow else { return AIR }
         return c.blocks.raw(Chunk.index(mod(x, CS), y, mod(z, CS)))
     }
+    // Every cell of a box whose block passes `want`, a chunk at a time: one chunk lookup per chunk, its columns read
+    // straight (Nov 5: the lookup was most of a cell-by-cell scan's cost; the conduit search round a swimmer was 30 M
+    // instructions a second). As builtBlock reads cells, or with `ground` as block() does (the field's ground too).
+    // `hit` returns false to stop. Through a ship frame, or when `want` takes what is read outside the chunks (air,
+    // bedrock), cell by cell.
+    func scanBuilt(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, ground: Bool = false,
+                   want: (BlockID) -> Bool, hit: (Int, Int, Int) -> Bool) {
+        let whole = ground || !fieldTerrain             // (rawBlock's reading: builtBlock is block() in block worlds)
+        if frame != nil || want(AIR) || (y0 < 0 && want(BEDROCK)) {
+            for y in y0...y1 { for z in z0...z1 { for x in x0...x1 where want(whole ? block(x, y, z) : builtBlock(x, y, z)) {
+                if !hit(x, y, z) { return }
+            } } }
+            return
+        }
+        let ya = max(0, y0), yb = min(CH - 1, y1)
+        guard ya <= yb else { return }
+        let stone = whole && want(STONE)                // (a shell reads as stone under its heights)
+        for cz in floorDiv(z0, CS)...floorDiv(z1, CS) { for cx in floorDiv(x0, CS)...floorDiv(x1, CS) {
+            guard let ch = chunks[ChunkKey(x: cx, z: cz)], !ch.hollow || stone else { continue }
+            let bx = cx * CS, bz = cz * CS
+            for z in thru(max(z0, bz), min(z1, bz + CS - 1)) { for x in thru(max(x0, bx), min(x1, bx + CS - 1)) {
+                let lx = x - bx, lz = z - bz
+                if ch.hollow {
+                    let top = min(yb, Int(ch.height[lx + lz * CS]))
+                    if top >= ya { for y in ya...top { if !hit(x, y, z) { return } } }
+                } else if whole {
+                    for y in ya...yb where want(ch.blocks[Chunk.index(lx, y, lz)]) { if !hit(x, y, z) { return } }
+                } else {
+                    for y in ya...yb where want(ch.blocks.raw(Chunk.index(lx, y, lz))) { if !hit(x, y, z) { return } }
+                }
+            } }
+        } }
+    }
     // The cell is inside the field's ground (its density > 0); never in block worlds.
     @inline(__always) func groundAt(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard fieldTerrain, frame == nil, y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
@@ -477,7 +521,40 @@ final class World {
             let l = sl[lx + lz * CS + (y & 15) * CSQ]
             return (Int(l >> 4), Int(l & 15))
         }
-        return (y > Int(c.height[lx + lz * CS]) ? 15 : 0, 0)
+        // Ledger 25 (Nov 5): not lit by the mesher yet (ground still streaming in): straight down from the sky through
+        // whatever lets light by (leaves, glass, plants), a level lost a block as the mesher's flood loses it. It was 0
+        // under anything at all, so under a tree's crown a section not yet meshed read pitch dark at noon: monsters came
+        // up there in daylight (the world audit: under oak, spruce and acacia crowns 4 to 11 up) and stayed all day.
+        let h = Int(c.height[lx + lz * CS])
+        if y > h { return (15, 0) }
+        if World.oldUnlit { return (0, 0) }             // (BS_OLDUNLIT=1: as before, for the audit's numbers)
+        let d = h + 1 - y
+        guard d < 15 else { return (0, 0) }
+        let lo = Blocks.lightOpaque
+        for yy in y...h where lo[Int(c.blocks.raw(Chunk.index(lx, yy, lz)))] { return (0, 0) }
+        return (15 - d, 0)
+    }
+
+    // Ledger 64: the light for something drawn where it lies (a particle, a dropped item, an arrow in the ground). A field
+    // world's surface runs above its cell's floor, so a thing lying on it is often inside a ground cell, which lets no
+    // light by: it drew at the 15% light floor, near black (the void shots: a trail of black squares where he walked, the
+    // dust his steps kicked up lying on the sand). A cell reading no light at all reads the cell above it, or the one
+    // above that, as the debris pieces already did. (Light only, no look at what the cell is: block() in a field world
+    // works the ground out from the field, and asking it for every particle every frame took the worst scene's particle
+    // drawing from 0.12 to 0.63 ms.) BS_OLDOPENLIGHT=1: the cell's own light, as before.
+    static let oldOpenLight = ProcessInfo.processInfo.environment["BS_OLDOPENLIGHT"] == "1"
+    func lightOpen(_ x: Int, _ y: Int, _ z: Int) -> (sky: Int, block: Int) {
+        let l = lightAt(x, y, z)
+        if World.oldOpenLight || l.sky > 0 || l.block > 0 { return l }
+        let a = lightAt(x, y + 1, z)
+        return a.sky > 0 || a.block > 0 ? a : lightAt(x, y + 2, z)
+    }
+    static let oldUnlit = ProcessInfo.processInfo.environment["BS_OLDUNLIT"] == "1"
+    static let oldStep = ProcessInfo.processInfo.environment["BS_OLDSTEP"] == "1"      // (the full lift only, as before Nov 5)
+    // (the world audit: whether the mesher has lit the cell's section yet)
+    func litByMesher(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard y >= 0, y < CH, let c = chunkAt(x, z) else { return false }
+        return c.light[y >> 4] != nil
     }
 
     func topY(_ x: Int, _ z: Int) -> Int {
@@ -537,13 +614,22 @@ final class World {
         // neighbour only on their border); the rest follows on a worker ahead of the queue.
         let r = SmoothTerrain.enabled || fieldTerrain ? 2 : 1
         let cell = (lo: IVec3(x, y, z), hi: IVec3(x, y, z))
-        for dz in -r...r {
-            for dx in -r...r {
-                for dy in -r...r {
-                    let yy = y + dy
-                    guard yy >= 0 && yy < CH, let n = chunkAt(x + dx, z + dz) else { continue }
-                    let sy = yy >> 4
-                    if !sync.contains(where: { $0.0 === n && $0.1 == sy }) { sync.append((n, sy)) }
+        // Item 61 (the collapse soak, build 232): the sections within r of the block, found column by column (at most 4
+        // chunk lookups); it looked up the chunk of each of the 125 cells round it, 135 lookups a block cleared, the most
+        // of a building's crumbs' and a blast's cost. The same sections in the same order (BS_OLDSECTIONS=1: as before).
+        if World.oldSections {
+            for dz in -r...r { for dx in -r...r { for dy in -r...r {
+                let yy = y + dy
+                guard yy >= 0 && yy < CH, let n = chunkAt(x + dx, z + dz) else { continue }
+                let sy = yy >> 4
+                if !sync.contains(where: { $0.0 === n && $0.1 == sy }) { sync.append((n, sy)) }
+            } } }
+        } else {
+            let s0 = max(0, y - r) >> 4, s1 = min(CH - 1, y + r) >> 4
+            for cz in floorDiv(z - r, CS)...floorDiv(z + r, CS) {
+                for cx in floorDiv(x - r, CS)...floorDiv(x + r, CS) {
+                    guard let n = chunkAt(cx * CS, cz * CS) else { continue }
+                    for sy in s0...s1 { sync.append((n, sy)) }
                 }
             }
         }
@@ -684,11 +770,15 @@ final class World {
             let i = Chunk.index(mod(x, CS), y, mod(z, CS))
             if fieldNear(c, x, y, z, i) { if fieldSplit { fieldBoxes(x, y, z, &fieldSink) } else { fieldBoxes(x, y, z, &out) } }
             b = Int(c.blocks.raw(i))
-        } else {
-            if let s = frame, fieldTerrain, let top = s.frameGroundTop(x, y, z, self) {
+        } else if let s = frame {
+            // (item 7, build 238's worst-case profile: the frame was taken twice a cell, here and again in block(); a
+            // ship is reference counted the slow way (weak links to it), 1.4% of the scene for the second take)
+            if fieldTerrain, let top = s.frameGroundTop(x, y, z, self) {
                 if top > 0.02 { out.append((V3(Float(x), Float(y), Float(z)), V3(Float(x + 1), Float(y) + top, Float(z + 1)))) }
                 return
             }
+            b = Int(s.frameBlock(x, y, z, self))
+        } else {
             b = Int(block(x, y, z))
         }
         if plain && !pieceCells.isEmpty, let pb = pieceCells[IVec3(x, y, z)] { out.append(contentsOf: pb) }
@@ -860,7 +950,7 @@ final class World {
                 // One chunk lookup per column (it was a dictionary lookup per block); empty cells skip straight on.
                 if plain {
                     guard let c = chunkAt(x, z) else {
-                        if y0 < 0 { for y in y0...min(y1, -1) { collisionBoxes(x, y, z, &boxes) } }   // bedrock below 0
+                        if y0 < 0 { for y in thru(y0, min(y1, -1)) { collisionBoxes(x, y, z, &boxes) } }   // bedrock below 0
                         continue
                     }
                     let lx = mod(x, CS), lz = mod(z, CS)
@@ -1003,8 +1093,19 @@ final class World {
                     if gain > 1e-4 { p = p3; hx = hx2; hz = hz2; hy = true; return true }
                     return false
                 }
-                // Smooth terrain: a one-block step of natural ground is a slope, walked up without a jump.
-                if !tryStep(step) && step < 1 && SmoothTerrain.enabled && naturalStep(box(pos + V3(sd.x, 0, sd.z))) { _ = tryStep(1.01) }
+                if !tryStep(step) {
+                    // Nov 5 (bug hunt, the capitals night check: a townsperson stood all night where the street's slab
+                    // paving meets a full paving block under a birch's leaves 2 blocks over it): the full lift took a
+                    // 1.95-tall body's head into the low ceiling over the step, though it fits standing there. Lifted
+                    // only as high as the step's top (found by dropping a thin box at the full lift over the cell
+                    // ahead), it walks on.
+                    let ahead = pos + V3(sd.x, 0, sd.z)
+                    let lo = V3(ahead.x - halfW, pos.y + step, ahead.z - halfW), hi = V3(ahead.x + halfW, pos.y + step + 0.01, ahead.z + halfW)
+                    let need = step + sweep(lo, hi, axis: 1, -step) + 0.002
+                    if !(!World.oldStep && need > 0.02 && need < step - 0.01 && tryStep(need))
+                        // Smooth terrain: a one-block step of natural ground is a slope, walked up without a jump.
+                        && step < 1 && SmoothTerrain.enabled && naturalStep(box(pos + V3(sd.x, 0, sd.z))) { _ = tryStep(1.01) }
+                }
             }
             pos = p
             bx = bx || hx; by = by || hy; bz = bz || hz
@@ -1163,9 +1264,9 @@ final class World {
         for key in edited { editLatest[key] = ticket }
         lock.unlock()
         let lane = edited.count <= 4 ? World.quickQueue : World.editQueue
-        lane.async { [weak self] in
-            guard let self else { return }
-            let out = builds.map { b in
+        lane.async { [me = weakLink] in              // (item 8: a link, not a weak reference: WeakLink.swift)
+            guard let self = me.wrappedValue else { return }
+            var out = builds.map { b in
                 b { k, sy in
                     let key = World.sectionKey(k, sy)
                     self.lock.lock(); defer { self.lock.unlock() }
@@ -1174,6 +1275,7 @@ final class World {
                     return false
                 }
             }
+            for i in out.indices { for j in out[i].1.indices { self.upload(&out[i].1[j].2) } }      // (Nov 9: World.upload)
             self.lock.lock()
             for key in edited where self.editLatest[key] == ticket { self.editLatest[key] = nil }
             self.meshResults.append(contentsOf: out)
@@ -1255,7 +1357,7 @@ final class World {
         } else {
             for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
                 guard let ch = chunks[ChunkKey(x: cx, z: cz)] else { continue }
-                for sy in max(0, (p.y - r) >> 4)...min(NSEC - 1, (p.y + r) >> 4) { ch.sections[sy].version += 1 }
+                for sy in thru(max(0, (p.y - r) >> 4), min(NSEC - 1, (p.y + r) >> 4)) { ch.sections[sy].version += 1 }
             } }
         }
     }
@@ -1270,7 +1372,7 @@ final class World {
         damage[p] = UInt8((f & 7) << 5 | min(7, lv))
         for dz in -1...1 { for dx in -1...1 {
             guard let n = chunkAt(p.x + dx * 16, p.z + dz * 16) else { continue }
-            for sy in max(0, (p.y - 16) >> 4)...min(NSEC - 1, (p.y + 16) >> 4) { n.sections[sy].version += 1 }
+            for sy in thru(max(0, (p.y - 16) >> 4), min(NSEC - 1, (p.y + 16) >> 4)) { n.sections[sy].version += 1 }
         } }
     }
 
@@ -1293,7 +1395,7 @@ final class World {
             let r = 3 + SmoothTerrain.relax
             for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
                 guard let c = chunks[ChunkKey(x: cx, z: cz)] else { continue }
-                for sy in max(0, (p.y - r) >> 4)...min(NSEC - 1, (p.y + r) >> 4) {
+                for sy in thru(max(0, (p.y - r) >> 4), min(NSEC - 1, (p.y + r) >> 4)) {
                     let near = cx >= floorDiv(p.x - 1, CS) && cx <= floorDiv(p.x + 1, CS) && cz >= floorDiv(p.z - 1, CS) && cz <= floorDiv(p.z + 1, CS)
                         && sy >= (p.y - 1) >> 4 && sy <= (p.y + 1) >> 4
                     if !near { c.sections[sy].version += 1 }
@@ -1305,6 +1407,12 @@ final class World {
     private func makeBuffer(_ words: [UInt32]) -> MeshSlice? {
         if words.isEmpty { return nil }
         return words.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
+    }
+    // (two parts written one after the other into one slice, without joining the arrays first; BS_OLDLOOKUPS=1 joins them)
+    private func makeBuffer(_ a: [UInt32], _ b: [UInt32]) -> MeshSlice? {
+        if b.isEmpty { return makeBuffer(a) }
+        if World.oldLookups { return makeBuffer(a + b) }
+        return a.withUnsafeBytes { pa in b.withUnsafeBytes { pb in MeshArena.shared.alloc(device, pa, pb) } }
     }
 
     // P446 (Oct 25, new land: "it's literally trying to render it from the bottom up"; a village half drawn for 20 s): a
@@ -1332,14 +1440,23 @@ final class World {
     struct WearZone { var id: Int; var x0: Int, z0: Int, x1: Int, z1: Int; var until: Double }
     private static var zones: [WearZone] = []
     private static let zoneLock = NSLock()
+    // Frame rate (the collapse soak's profile, build 234): every section version bump (27 for a block cleared on its
+    // own, World.setBlockAsync) asked this under the lock, and compared vehicleWear's string, with no vehicle wearing
+    // anything: a quarter of clearing a block. The latest zone's end is kept beside the list, so with none live the
+    // answer needs no lock (BS_OLDWEAR=1: as before).
+    private static var zonesUntil = -Double.infinity
+    static let oldWear = ProcessInfo.processInfo.environment["BS_OLDWEAR"] == "1"
+    static let wearOn = vehicleWear != "0"
     static func wearZone(_ id: Int, cx0: Int, cz0: Int, cx1: Int, cz1: Int) {
         zoneLock.lock()
         let z = WearZone(id: id, x0: cx0 - 2, z0: cz0 - 2, x1: cx1 + 2, z1: cz1 + 2, until: frameNow + wearGap * 2)
         if let i = zones.firstIndex(where: { $0.id == id }) { zones[i] = z } else { zones.append(z) }
         zones.removeAll { $0.until < frameNow }
+        zonesUntil = zones.reduce(-Double.infinity) { max($0, $1.until) }
         zoneLock.unlock()
     }
     static func inWearZone(_ cx: Int, _ cz: Int) -> Bool {
+        if !oldWear && zonesUntil < frameNow { return false }
         zoneLock.lock(); defer { zoneLock.unlock() }
         for z in zones where z.until >= frameNow && cx >= z.x0 && cx <= z.x1 && cz >= z.z0 && cz <= z.z1 { return true }
         return false
@@ -1373,7 +1490,7 @@ final class World {
     @inline(__always) private var settleNearGap: Double {
         simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast ? World.settleGap : World.settleNear
     }
-    @inline(__always) private func worn(_ c: Chunk) -> Bool { c.vehicleWorn && !c.urgent && World.vehicleWear != "0" }
+    @inline(__always) private func worn(_ c: Chunk) -> Bool { c.vehicleWorn && !c.urgent && (World.oldWear ? World.vehicleWear != "0" : World.wearOn) }
     // P511 (build 80, his spot: worn chunks still took both workers, 15 s of meshing in 12 s, whole columns at 200 ms a
     // job, and no new land was generated at all): a worn chunk also waits while another worn chunk's job is out, so one
     // worker at most is ever on the crawler's wear and the other brings the land in.
@@ -1387,6 +1504,35 @@ final class World {
         return true
     }
     static var staleMeshes = 0, staleDrawn = 0      // (harness --streamtest: meshes for a changed section; of them drawn)
+    // Nov 9 (after #688, a callgrind of the peaks flight: a third of what was left of taking chunks in on the frame thread
+    // was World.apply copying each finished mesh into the mesh slabs): the mesh worker copies its meshes into slices
+    // itself (MeshArena.alloc takes its lock only to find the room; the copy is outside it) and lets go of the word
+    // arrays there; apply only hangs the slices on the section. A mesh thrown away later gives its slices back as
+    // before. BS_OLDUPLOAD=1: copied in apply; BS_UPLOADVERIFY=1: both, the slices' bytes compared (the soak prints it).
+    static let oldUpload = ProcessInfo.processInfo.environment["BS_OLDUPLOAD"] == "1"
+    static let uploadVerify = ProcessInfo.processInfo.environment["BS_UPLOADVERIFY"] == "1"
+    static var uploadVerified = 0, uploadVerifyDiffs = 0
+    static var uploadVerifyLine: String { "upload verify: \(uploadVerified) section meshes copied both ways, \(uploadVerifyDiffs) differ" }
+    // (a mesh worker, on a mesh it just made)
+    func upload(_ m: inout SectionMesh) {
+        guard !World.oldUpload else { return }
+        var u = SectionMesh.Uploaded()
+        u.opaqueWords = m.opaque.count; u.farWords = m.farGround.count; u.transWords = m.trans.count
+        u.detailWords = m.detail.count; u.detailFarWords = m.detailFar.count
+        u.opaque = makeBuffer(m.opaque, m.farGround)
+        u.trans = makeBuffer(m.trans)
+        u.detail = makeBuffer(m.detail, m.detailFar)
+        m.uploaded = u
+        if !World.uploadVerify { m.opaque = []; m.farGround = []; m.trans = []; m.detail = []; m.detailFar = [] }
+    }
+    private static func sameBytes(_ sl: MeshSlice?, _ a: [UInt32], _ b: [UInt32] = []) -> Bool {
+        guard let sl else { return a.isEmpty && b.isEmpty }
+        guard sl.length == (a.count + b.count) * 4 else { return false }
+        let p = sl.buffer.contents() + sl.offset
+        let sa = a.isEmpty || a.withUnsafeBytes { memcmp(p, $0.baseAddress!, $0.count) == 0 }
+        let sb = b.isEmpty || b.withUnsafeBytes { memcmp(p + a.count * 4, $0.baseAddress!, $0.count) == 0 }
+        return sa && sb
+    }
     private func apply(_ m: SectionMesh, to c: Chunk, sy: Int, version: Int) {
         let s = c.sections[sy]
         if let l = m.light { c.light[sy] = l }
@@ -1395,21 +1541,32 @@ final class World {
             guard World.keepStale && version > s.meshedVersion else { return }
             World.staleDrawn &+= 1
         }
-        s.opaqueBuf = makeBuffer(m.farGround.isEmpty ? m.opaque : m.opaque + m.farGround)
-        s.opaqueQuads = m.opaque.count / 8
+        let up = m.uploaded
+        if let up, World.uploadVerify {
+            World.uploadVerified += 1
+            if !World.sameBytes(up.opaque, m.opaque, m.farGround) || !World.sameBytes(up.trans, m.trans) || !World.sameBytes(up.detail, m.detail, m.detailFar) {
+                World.uploadVerifyDiffs += 1
+            }
+        }
+        let opaqueW = up?.opaqueWords ?? m.opaque.count, farW = up?.farWords ?? m.farGround.count
+        let transW = up?.transWords ?? m.trans.count
+        let detailW = up?.detailWords ?? m.detail.count, detailFarW = up?.detailFarWords ?? m.detailFar.count
+        s.opaqueBuf = up.map { $0.opaque } ?? makeBuffer(m.opaque, m.farGround)
+        s.opaqueQuads = opaqueW / 8
         s.solidQuads = m.solidQuads
-        s.farSkip = m.farGround.isEmpty ? 0 : m.farSkip; s.farExtra = m.farGround.count / 8
-        s.farCut = m.farCut; s.farTail = m.farTail
-        s.blobFarN = m.farGround.isEmpty ? 0 : Int(m.farParts[2]); s.blobFarAt = Int(m.farParts[0] + m.farParts[1])
+        s.canopyN = farW == 0 ? 0 : m.canopyN; s.canopyTrunks = s.canopyN > 0 ? m.canopyTrunks : SIMD3<Int32>(0, 0, -1)
+        s.farSkip = farW == 0 ? 0 : m.farSkip; s.farExtra = farW / 8 - s.canopyN
+        s.farCut = m.farCut; s.farTail = m.farTail; s.farPlants = m.farPlants
+        s.blobFarN = farW == 0 ? 0 : Int(m.farParts[2]); s.blobFarAt = Int(m.farParts[0] + m.farParts[1])
         s.blobCutN = s.blobFarN > 0 ? max(0, m.farCut - Int(m.farParts[3])) : 0
-        s.transBuf = makeBuffer(m.trans)
-        s.transQuads = m.trans.count / 8
+        s.transBuf = up.map { $0.trans } ?? makeBuffer(m.trans)
+        s.transQuads = transW / 8
         s.meshedVersion = version
         s.vis = m.vis
         s.leafy = m.leafy
-        s.detailBuf = makeBuffer(m.detailFar.isEmpty ? m.detail : m.detail + m.detailFar)
-        s.detailQuads = m.detail.count / DetailMesh.wordsPerQuad
-        s.detailFarSkip = m.detailFar.isEmpty ? 0 : m.detailFarSkip; s.detailFarExtra = m.detailFar.count / DetailMesh.wordsPerQuad
+        s.detailBuf = up.map { $0.detail } ?? makeBuffer(m.detail, m.detailFar)
+        s.detailQuads = detailW / DetailMesh.wordsPerQuad
+        s.detailFarSkip = detailFarW == 0 ? 0 : m.detailFarSkip; s.detailFarExtra = detailFarW / DetailMesh.wordsPerQuad
         s.detailSolid = m.detailSolid
         s.groundQuads = m.groundQuads; s.blobQuads = m.blobQuads; s.naturalCubes = m.naturalCubes; s.solidFull = m.solidFull
         s.kinds = m.kinds
@@ -1438,6 +1595,7 @@ final class World {
     static var handoverSeconds = 0.004
 
     var lead = V3.zero          // P414: the player's horizontal velocity (Game.tickSeat), for the ground made first
+    static let oldUnload = ProcessInfo.processInfo.environment["BS_OLDUNLOAD"] == "1"     // (ledger 83)
     func update(center pos: V3) {
         let tUpdate = CFAbsoluteTimeGetCurrent()
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
@@ -1482,7 +1640,7 @@ final class World {
             if let c = chunks[k] { if c.hollow { refill(c, p) }; World.noteResult(ti, "refill"); continue }
             if let e = p.cached { installShell(k, e); World.noteResult(ti, "shell from the cache"); continue }
             install(k, p)
-            World.noteResult(ti, p.fromDisk ? "install (saved)" : "install (generated)")
+            if World.resultsProfile { World.noteResult(ti, (p.fromDisk ? "install (saved): " : "install (generated): ") + World.installSplit) }
         }
         while mi < mr.count && (mi <= nearMeshes || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, list) = mr[mi]; mi += 1
@@ -1523,15 +1681,38 @@ final class World {
             lastExtra = extra
             // Unload outside the load disc grown by one more chunk (hysteresis when walking back and forth).
             var gone: [ChunkKey] = []
-            for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2)
-                && !(extra.map { World.inDisc(k.x - $0.x, k.z - $0.z, renderDistance, grow: 2) } ?? false) {
+            for k in chunks.keys where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2)
+                && !(extra.map { World.inDisc(k.x - $0.x, k.z - $0.z, renderDistance, grow: 2) } ?? false) { gone.append(k) }
+            // Ledger 83 (Nov 11, the VR fuzz: a 10.9 ms frame after Go To a Place; triptest's rifts 10.7-13.8 ms): a jump
+            // within a dimension dropped the whole old view in one frame, and the frame both wrote out each chunk's mesh
+            // file (the snapshot of its sections, P376) and freed it (its blocks, light and sections). A large drop (8 or
+            // more) now goes to a worker for both, as a dimension change's freeing does (ledger 40, unloadAll); nothing
+            // reaches a chunk once it is out of `chunks`. The blocks and field edits are still handed to the save here.
+            // BS_OLDUNLOAD=1: all on the frame, as before.
+            let offFrame = !World.oldUnload && gone.count >= 8
+            let box = ChunksBox([:])
+            for k in gone {
+                guard let c = chunks[k] else { continue }
                 if c.needsSave && !c.hollow { save?.saveChunkAsync(k, c.blocks) }
                 if c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }
-                cacheMeshes(k, c)                                   // P376 (ChunkShells)
-                gone.append(k)
+                if offFrame { box.all[k] = c } else { cacheMeshes(k, c) }                  // P376 (ChunkShells)
             }
+            TickProf.mark("world.unload: save + mesh files")
             for k in gone { chunks.removeValue(forKey: k) }
+            if offFrame {
+                let mc = World.shells ? meshCache : nil
+                DispatchQueue.global(qos: .utility).async {
+                    if let mc {
+                        for (k, c) in box.all where c.meshedOnce && !c.needsMesh && !c.meshInFlight {
+                            mc.write(k, c, occ: c.hollow ? c.hollowOcc : c.occluderTop)
+                        }
+                    }
+                    box.all = [:]
+                }
+            }
+            TickProf.mark("world.unload: drop")
             reshell()                                               // P376: drop the data of finished far chunks
+            TickProf.mark("world.unload: reshell")
             // Chunks crossing the LOD boundary get remeshed at their new detail level.
             for (k, c) in chunks {
                 let (ox, oz) = nearOff(k)
@@ -1847,11 +2028,16 @@ final class World {
             jobs += 1
             if wornJob { lock.lock(); wornOut += 1; lock.unlock(); wornBusy = true }
             // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
-            let job: () -> Void = { [weak self] in
-                guard let self else { return }
+            // (Item 8: by link, not a weak reference, which sent all the World's reference counting down the slow path.)
+            let job: () -> Void = { [me = weakLink] in
+                guard let self = me.wrappedValue else { return }
                 let t0 = CFAbsoluteTimeGetCurrent()
                 var out: [(Int, Int, SectionMesh)] = []
-                for (sy, v) in list { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond))) }
+                for (sy, v) in list {
+                    var m = Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)
+                    self.upload(&m)
+                    out.append((sy, v, m))
+                }
                 let el = CFAbsoluteTimeGetCurrent() - t0
                 if World.meshLog { print(String(format: "meshlog: %@ d%d lod%d low%d secs %@ %.1f ms", why, dist, lod, lowSec, list.map { String($0.0) }.joined(separator: ","), el * 1000)) }
                 self.lock.lock()
@@ -1887,11 +2073,56 @@ final class World {
         var mobs: [(String, V3)]
         var tracked: [IVec3] = []            // circuit components needing periodic work (found off the main thread)
         var emitMask: UInt32 = ~0            // sections holding light emitters (BlockStore.emitMask)
+        var tickMask: UInt32 = ~0            // sections holding random-ticking cells (BlockStore.tickMask)
         var springs: [IVec3] = []            // fluid cells open to air (World.springs: flow once loaded)
         var field: [Int32: UInt16] = [:]     // PG1: saved terrain field edits (TerrainField.swift)
         var ground: FieldData? = nil         // PG1 rewrite: the chunk's density field (field worlds, FieldTerrain.swift)
         var cached: MeshCache.Entry? = nil   // P376: a shell's meshes read from the disk cache (ChunkShells)
+        var store: BlockStore? = nil         // Nov 9: the chunk's block store, made on the worker (World.storeOnWorker)
     }
+
+    // Nov 9 (the soak flying over jagged peaks at the creative sprint: taking new chunks in cost 0.45-0.49 ms of the
+    // frame thread every frame): the chunk's BlockStore was made in install, on the frame thread. Making it scans each
+    // layer down from the top for its highest filled cell (field worlds: ~60,000 cells of air in the built layer and as
+    // many over the ground in the field) and copies the layers: 92% of install's instructions in a callgrind of the
+    // flight. The worker that made the chunk makes its store now, and lets go of the full arrays there (freeing them
+    // was the frame's too). BS_OLDSTORE=1: made in install, as before; BS_STOREVERIFY=1: both, compared (the soak prints
+    // the tally).
+    static let oldStore = ProcessInfo.processInfo.environment["BS_OLDSTORE"] == "1"
+    static let storeVerify = ProcessInfo.processInfo.environment["BS_STOREVERIFY"] == "1"
+    static var storeVerified = 0, storeVerifyDiffs = 0
+    private static func withStore(_ r: Produced) -> Produced {
+        guard !oldStore, r.cached == nil else { return r }
+        var r = r
+        var s = r.ground.map { BlockStore(r.blocks, field: $0) } ?? BlockStore(r.blocks)
+        s.emitMask = r.emitMask
+        s.tickMask = r.tickMask
+        if !oldSprings { s.fluidEdges = BlockStore.fluidEdges(of: r.blocks) }
+        r.store = s
+        if !storeVerify {
+            r.blocks = []
+            if r.ground != nil { r.ground!.fd = []; r.ground!.fm = []; r.ground!.fine = [:] }
+        }
+        return r
+    }
+    // The store install and refill use: the worker's, or made here (BS_OLDSTORE=1); with BS_STOREVERIFY=1 both, compared.
+    static func store(of p: Produced) -> BlockStore {
+        func made() -> BlockStore {
+            var s = p.ground.map { BlockStore(p.blocks, field: $0) } ?? BlockStore(p.blocks)
+            s.emitMask = p.emitMask
+            s.tickMask = p.tickMask
+            if !oldSprings && !oldStore { s.fluidEdges = BlockStore.fluidEdges(of: p.blocks) }
+            return s
+        }
+        guard let s = p.store else { return made() }
+        if storeVerify {
+            let o = made()
+            storeVerified += 1
+            if !s.sameStore(o) { storeVerifyDiffs += 1 }
+        }
+        return s
+    }
+    static var storeVerifyLine: String { "store verify: \(storeVerified) chunk stores made both ways, \(storeVerifyDiffs) differ" }
 
     // Fluid cells beside or over air: scheduled for a fluid update on install so underground sources spill into caves
     // as waterfalls (reference: aquifer fluid ticks on generation) instead of standing as a wall of water until something
@@ -1927,17 +2158,24 @@ final class World {
     // Fluid on one side of a chunk border with air on the other (World.springs sees one chunk's interior only): lava at
     // a chunk's edge facing a cave in the next chunk stood still for good (Oct 11 playtest P18 at 12:42: "lava that should
     // be spilling into me, but isn't"). Checked as each chunk joins its loaded neighbours, up to the taller column + 2.
+    // Nov 9: a pair of cells where neither is a fluid does nothing, so sections where neither chunk has a fluid on the
+    // facing side (BlockStore.fluidEdges) are passed over: most sides of most chunks. BS_OLDSPRINGS=1: every cell.
+    static let oldSprings = ProcessInfo.processInfo.environment["BS_OLDSPRINGS"] == "1"
     func borderSprings(_ c: Chunk) {
         let fk = Blocks.fluidKind
         for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
             guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
+            // (c's side facing n, and n's facing c: x 15 against x 0, z 15 against z 0)
+            let cs = dx == 1 ? 0 : dx == -1 ? 1 : dz == 1 ? 2 : 3, ns = cs ^ 1
+            let mask: UInt32 = World.oldSprings ? ~0 : c.blocks.fluidEdges[cs] | n.blocks.fluidEdges[ns]
+            guard mask != 0 else { continue }
             for i in 0..<CS {
                 // The facing columns: c's edge (lx, lz) and n's (nx, nz).
                 let lx = dx == 1 ? 15 : (dx == -1 ? 0 : i), lz = dz == 1 ? 15 : (dz == -1 ? 0 : i)
                 let nx = dx == 0 ? lx : 15 - lx, nz = dz == 0 ? lz : 15 - lz
                 let top = min(CH - 1, max(Int(c.height[lx + lz * CS]), Int(n.height[nx + nz * CS])) + 2)
                 guard top > 1 else { continue }
-                for y in 1...top {
+                for y in 1...top where mask & (1 << UInt32(y >> 4)) != 0 {
                     // (The built layer, and the field's ground as a filled cell: P377 step 2.)
                     let ia = Chunk.index(lx, y, lz), ib = Chunk.index(nx, y, nz)
                     let a = c.blocks.raw(ia), b = n.blocks.raw(ib)
@@ -1982,8 +2220,8 @@ final class World {
         genInFlight.insert(k)
         jobs += 1
         let mc = shell ? meshCache : nil
-        let job: () -> Void = { [weak self] in
-            guard let self else { return }
+        let job: () -> Void = { [me = weakLink] in        // (item 8: see meshing's job)
+            guard let self = me.wrappedValue else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
             var r: Produced
             if let e = mc?.read(k) { r = Produced(blocks: [], height: [], tint: [], fromDisk: false, entities: [], mobs: []); r.cached = e }
@@ -2030,10 +2268,12 @@ final class World {
             var merged = blocks
             FieldTerrain.merge(&merged, g)
             let heights = Chunk.computeHeights(merged)
-            return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
-                            fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
-                            emitMask: BlockStore.emitMask(of: merged), springs: World.springs(merged, k, heights), field: field,
-                            ground: g)
+            var r = Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
+                             emitMask: BlockStore.emitMask(of: merged), springs: World.springs(merged, k, heights), field: field,
+                             ground: g)
+            r.tickMask = BlockStore.tickMask(of: merged)
+            return World.withStore(r)
         }
         _ = PlantSupport.dropFloating(&blocks)
         let heights = Chunk.computeHeights(blocks)
@@ -2043,13 +2283,17 @@ final class World {
             // PG1: the host's chunk (a co-op guest of a field world) becomes the field and the built layer.
             let merged = blocks
             let f = FieldTerrain.split(&blocks, cx: k.x, cz: k.z, gen: gen)
-            return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
-                            fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
-                            emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f)
+            var r = Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                             fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
+                             emitMask: BlockStore.emitMask(of: merged), springs: springs, field: field, ground: f)
+            r.tickMask = BlockStore.tickMask(of: merged)
+            return World.withStore(r)
         }
-        return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
-                        fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
-                        emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field)
+        var r = Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: tracked,
+                         emitMask: BlockStore.emitMask(of: blocks), springs: springs, field: field)
+        r.tickMask = BlockStore.tickMask(of: blocks)
+        return World.withStore(r)
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -2078,21 +2322,30 @@ final class World {
         return out
     }
 
+    static var installSplit = ""                         // (the soak: where the last install's time went)
     private func install(_ k: ChunkKey, _ p: Produced) {
+        let prof = World.resultsProfile
+        let t0 = prof ? CFAbsoluteTimeGetCurrent() : 0
         if p.ground != nil { fieldStamp &+= 1 }              // (cached field collision at its border reads it now)
-        let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint, field: p.ground)
+        let c = Chunk(cx: k.x, cz: k.z, store: World.store(of: p), height: p.height, tint: p.tint)
         c.world = self
-        c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk
         if p.fromDisk { c.markSaved() }
         c.fieldEdits = p.field
         if !p.fromDisk, let gd = p.ground { c.borderSeeds = gd.borderSeeds }     // P380 (2)
         chunks[k] = c
+        let t1 = prof ? CFAbsoluteTimeGetCurrent() : 0
         GroundSettle.borderCheck(self, around: k)
+        let t2 = prof ? CFAbsoluteTimeGetCurrent() : 0
         for t in p.tracked { redstone.tracked.insert(t) }
         // Lava springs go to the lava queue: the water tick skips lava, so generated lavafalls never started.
         for q in p.springs { if Blocks.fluidKind[Int(rawBlock(q.x, q.y, q.z))] == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) } }
         borderSprings(c)
+        if prof {
+            let t3 = CFAbsoluteTimeGetCurrent()
+            World.installSplit = String(format: "chunk %.1f, border settle %.1f, springs %.1f; %ld springs, %ld tracked", (t1 - t0) * 1000, (t2 - t1) * 1000,
+                                        (t3 - t2) * 1000, p.springs.count, p.tracked.count)
+        }
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.
@@ -2221,13 +2474,25 @@ final class World {
 
     // Drops every chunk (after saving) — used when leaving a dimension.
     func unloadAll() {
-        chunks.removeAll()
+        // (Ledger 40: the chunks are let go on a worker; freeing some 600 of them, their sections and mesh slices took
+        // 2.7-4.9 ms of a trip's frame on the host, build 211. Chunks already die on workers: Chunk.aliveLock.)
+        // (held in a box the worker empties, so the last reference is always dropped there, never on the frame)
+        let gone = ChunksBox(chunks)
+        chunks = [:]
+        DispatchQueue.global(qos: .utility).async { gone.all = [:] }
         lastCenter = nil
+        // (Ledger 40: a world unloaded on a trip and come back to at the same chunk read as "nothing new since the last
+        // scan" (same centre, no results), so World.update scheduled nothing and only the chunks loadSync made were there.)
+        scanCenter = nil; scanEpoch = -1
         fluidPending.removeAll(); lavaPending.removeAll()
     }
 
     var savingFalling: [(IVec3, BlockID)] = []       // (P395: Game.saveNow's falling blocks, for saveAll)
+    static var saveLaps = ""                          // (--triptest: where the last saveAll's time went)
     func saveAll(background: Bool = false) {
+        var lt = CFAbsoluteTimeGetCurrent()
+        World.saveLaps = ""
+        func lap(_ s: String) { let t = CFAbsoluteTimeGetCurrent(); let ms = (t - lt) * 1000; if ms >= 0.5 { World.saveLaps += String(format: "%@ %.1f ", s, ms) }; lt = t }
         // Only chunks changed since their last save, written on the background save queue.
         // P395: blocks falling as entities (Game.falling) are saved in the cell each has reached; a save taken mid-fall
         // lost them (the cell they left was saved empty, and the entity isn't kept). The live chunk keeps them falling,
@@ -2246,15 +2511,17 @@ final class World {
             save?.saveChunkAsync(k, c.blocks)
             c.markSaved()
         }
+        lap("chunks")
         for (k, c) in chunks where c.fieldDirty { save?.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }   // PG1
-        savePieces()
-        saveObjects()                                    // P389
-        Trains.save(self)                                // P337 step 6
-        save?.saveBlockEntities(blockEntities, background: background)
-        redstone.save(background: background)            // W1: pending circuit ticks and edges (circuit.json)
-        save?.savePortals(Array(portals))
-        ships.save(background: background)
-        saveMeshCache()                                  // P400 step 2 (ChunkShells)
+        lap("field")
+        savePieces(background: background); lap("pieces")
+        saveObjects(background: background); lap("objects")                    // P389
+        Trains.save(self, background: background); lap("trains")                 // P337 step 6
+        save?.saveBlockEntities(blockEntities, background: background); lap("block entities")
+        redstone.save(background: background); lap("circuits")             // W1: pending circuit ticks and edges (circuit.json)
+        save?.savePortals(Array(portals), background: background); lap("portals")
+        ships.save(background: background); lap("ships")
+        saveMeshCache(); lap("mesh cache")               // P400 step 2 (ChunkShells)
     }
 
     // MARK: Raycast (voxel DDA + per-box tests for partial blocks)
@@ -2305,9 +2572,24 @@ final class World {
         let len = simd_length(d)
         if len < 0.01 { return true }
         let steps = Int(len / 0.25) + 1
-        for i in 1..<steps {
-            let p = a + d * (Float(i) / Float(steps))
-            if opaqueAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { return false }     // (P377 step 2: the ground by its field)
+        if World.oldLookups {
+            for i in 1..<steps {
+                let p = a + d * (Float(i) / Float(steps))
+                if opaqueAt(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { return false }     // (P377 step 2: the ground by its field)
+            }
+        } else {
+            // Item 7 (callgrind of the worst-case soak, build 235: chunk lookups a fifth of the tick, sight lines 14% of
+            // them): each step read the cell's chunk twice, four steps a cell. The chunk is kept between steps and a
+            // cell already read is not read again (BS_OLDLOOKUPS=1: as before).
+            var k = ChunkCursor(self)
+            var last = IVec3(Int.min, 0, 0)
+            for i in 1..<steps {
+                let p = a + d * (Float(i) / Float(steps))
+                let q = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+                if q == last { continue }
+                last = q
+                if Blocks.opaque[Int(k.built(q.x, q.y, q.z))] || k.ground(q.x, q.y, q.z) { return false }
+            }
         }
         // P434 (a): a ship's hull (a frigate's deck and doors) hides what is behind it too.
         if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: -1) != nil { return false }
@@ -2321,9 +2603,13 @@ final class World {
         let len = simd_length(d)
         if len < 0.01 { return true }
         let steps = Int(len / 0.2) + 1
+        var last = IVec3(Int.min, 0, 0)
         for i in 1..<steps {
             let p = a + d * (Float(i) / Float(steps))
-            let id = Int(block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))
+            let q = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+            if q == last && !World.oldLookups { continue }        // (item 7: a cell already read, five steps a cell)
+            last = q
+            let id = Int(block(q.x, q.y, q.z))
             if Blocks.collide[id] && Blocks.fluidKind[id] == 0 { return false }
         }
         if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: -1) != nil { return false }      // (P434 a)
@@ -2351,13 +2637,14 @@ final class World {
         if fieldTerrain && fieldDensity(at: origin) > 0 {
             while fieldFrom < maxDist && fieldDensity(at: origin + dir * fieldFrom) > 0 { fieldFrom += 0.05 }
         }
+        var cur = ChunkCursor(self)          // (item 7: one chunk find per chunk crossed, not per cell; BS_OLDLOOKUPS=1 per cell)
         while t <= maxDist {
             var b: BlockID = AIR
             // PG2 rewrite: in a field world the ray meets the ground where the field crosses zero (the drawn surface), and
             // the cell it names is the ground cell there; built blocks are targeted as blocks. (P377 step 2: the cell
             // is read through the built layer only.)
             if !fieldTerrain || y < 0 || y >= CH { b = block(x, y, z) }
-            else if let c = chunkAt(x, z) {
+            else if let c = World.oldLookups ? chunkAt(x, z) : cur.chunk(x, z) {
                 let i = Chunk.index(mod(x, CS), y, mod(z, CS))
                 let end = min(tmx, tmy, tmz, maxDist)
                 if fieldNear(c, x, y, z, i), max(t, fieldFrom) <= end, var h = fieldRaySegment(origin, dir, from: max(t, fieldFrom), to: end) {
@@ -2456,8 +2743,26 @@ final class World {
     private func fluidCanEnter(_ id: BlockID, level: Int, kind: UInt8) -> Bool {
         let l = Int(Blocks.fluidLevel[Int(id)])
         if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 && l < 8 && l > level }
-        return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
+        return id == AIR || Blocks.replaceable[Int(id)] || World.washedAway[Int(id)]
     }
+
+    // Ledger 55 (week item 62, "no torches in lava"): every torch, standing or on a wall (torch, soul, copper, signal),
+    // gives way to water and lava as the reference's do. Only the standing torch did (TORCH), so a wall torch, a soul
+    // or copper torch or a signal torch stood on in a flow or a lava pool. The game drops what a flow takes
+    // (onWashedAway); lava burns it. The same for the other small things the reference's water washes off: crops,
+    // copper wire, repeaters and comparators, tripwire and cobwebs (a flow stopped at them as at a wall: a flooded
+    // field's wheat stood in the water's edge, dry).
+    // (BS_OLDTORCHES=1: as before, the standing torch only, and torches go into pools: the check's before.)
+    static let oldTorches = ProcessInfo.processInfo.environment["BS_OLDTORCHES"] == "1"
+    static let oldSections = ProcessInfo.processInfo.environment["BS_OLDSECTIONS"] == "1"
+    static var oldLookups = false             // (set in init from BS_OLDLOOKUPS: no swift_once check on each read)
+    static let washedAway: [Bool] = (0..<Blocks.count).map { i in
+        if oldTorches { return BlockID(i) == TORCH }
+        return Blocks.shape[i] == "torch" || World.washedKeys.contains(Blocks.key(Blocks.groupBase[i]))
+    }
+    static let washedKeys: Set<String> = ["redstone_torch", "wheat", "carrots", "potatoes", "beetroots", "torchflower_crop", "pitcher_crop",
+                                           "redstone_wire", "repeater", "comparator", "tripwire", "cobweb"]
+    var onWashedAway: ((IVec3, BlockID, BlockID) -> Void)?     // (the cell, the torch the fluid took, the fluid)
 
     // Steps from q to the nearest spot fluid could fall from (a passable cell over a passable or flowing one), searching
     // passable cells up to `reach` away and never back through the source; 1000 when there is none.
@@ -2489,7 +2794,7 @@ final class World {
             let id = fluidCell(c.x, c.y, c.z)
             let l = Int(Blocks.fluidLevel[Int(id)])
             if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 }
-            return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH || shallowGround(c.x, c.y, c.z)
+            return id == AIR || Blocks.replaceable[Int(id)] || World.washedAway[Int(id)] || shallowGround(c.x, c.y, c.z)
         }
         func hole(_ c: IVec3) -> Bool { c.y > 0 && passable(IVec3(c.x, c.y - 1, c.z)) }
         if hole(q) { return 0 }
@@ -2514,9 +2819,13 @@ final class World {
     }
 
     private func setFluid(_ p: IVec3, _ id: BlockID) {
+        let was = builtBlock(p.x, p.y, p.z)
         BlockStore.keepGround = fieldTerrain
         defer { BlockStore.keepGround = false }
-        if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
+        if setBlockAsync(p.x, p.y, p.z, id) {
+            scheduleFluid(around: p)
+            if World.washedAway[Int(was)] { onWashedAway?(p, was, id) }
+        }
     }
 
     // Waterlogged states whose shape closes the floor (bottom slabs and stairs): their water can't pour down.
@@ -2861,4 +3170,10 @@ struct FluidQueue {
         if urgentTaken > 0 { for p in urgentBatch.suffix(n) { insert(p) }; return }
         head -= n
     }
+}
+
+// (World.unloadAll: an unloaded world's chunks, let go on a worker)
+final class ChunksBox: @unchecked Sendable {
+    var all: [ChunkKey: Chunk]
+    init(_ c: [ChunkKey: Chunk]) { all = c }
 }

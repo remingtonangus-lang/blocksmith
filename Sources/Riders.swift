@@ -29,6 +29,7 @@ enum Riders {
             && !g.mobs.mobs.contains(where: { isRider($0) && $0.health > 0 && $0.mount === h }) { h.posse = 0 }
         g.mobs.mobs.removeAll { m in
             guard isRider(m) || (m.kind == .horse && m.posse == riding) else { return false }
+            guard simd_length(m.pos - p) > 40, MobManager.canVanish(m, g) else { return false }     // (item 27: never in plain sight)
             if simd_length(m.pos - p) > 160 { return true }
             // Unhorsed or without a destination (a reload drops both): nowhere to ride, so they leave once out of the way.
             if isRider(m) && (m.mount == nil || m.patrolGoal == nil) && simd_length(m.pos - p) > 40 { return true }
@@ -81,6 +82,11 @@ enum Riders {
         guard g.world.isLoaded(x, z) else { why = "unloaded at \(x),\(z)"; return nil }
         let y = g.world.topY(x, z) + 1
         guard !Blocks.isLiquid(g.world.builtBlock(x, y - 1, z)) else { why = "liquid at \(x),\(y - 1),\(z)"; return nil }
+        // Item 71: a rider 50-80 blocks along an open road came in in front of him; he rides in from out of sight (a
+        // later roll tries again). The checks' forced road keeps its rider.
+        if forceRoad == nil && !Game.oldSpawnSight && !g.spawnHidden(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5), min: 40) {
+            why = "in sight at \(x),\(z)"; return nil
+        }
         let at = g.world.freeSpawn(V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
         let horse = Mob(.horse, at: at)
         if horse.collides(horse.pos, g.world) { why = "horse in \(Blocks.key(g.world.builtBlock(x, y, z))) at \(x),\(y),\(z) (spawn y \(at.y))"; return nil }
@@ -187,6 +193,8 @@ enum Riders {
                   abs(Float(y) - g.player.pos.y) < 12 || abs(Float(y) - feet) < 12 else { continue }
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             if k < 20 && w.canSee(at + V3(0, 1.6, 0), g.player.eye) { continue }
+            // Item 71: then out of his view at least (behind him or behind cover) before anywhere at all.
+            if k < 40 && !Game.oldSpawnSight && !g.spawnHidden(at, min: 20, near: 0) { continue }
             let m = gunman(g, at: w.freeSpawn(at), role: "posse", name: "\(town) Posse")
             if m.collides(m.pos, w) { continue }
             if var v = m.villager { v.town = town; m.villager = v }

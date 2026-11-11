@@ -219,10 +219,55 @@ extension TownTests {
         check(!workers.isEmpty && atWork * 10 >= workers.count * 9,
               "capitals: \(atWork)/\(workers.count) citizens reach their office desks in work hours" + (late.isEmpty ? "" : " (\(late.joined(separator: ", ")))"))
         // Night: citizens and keepers in bed.
-        g.time = 0.67 * DAY_LENGTH        // the saloon closes at 0.66
-        let sleepers = people.filter { ["citizen", "shopkeeper"].contains($0.villager?.role ?? "") }
+        g.time = 0.67 * DAY_LENGTH
+        // (The barkeep minds the saloon all night: P456, "the saloon should always be open". The check counted him
+        // from when the saloon shut at 0.66, so he stood awake in every run and left the rest a margin of two.)
+        let sleepers = people.filter { ["citizen", "shopkeeper"].contains($0.villager?.role ?? "") && $0.villager?.shop != ShopKind.saloon.rawValue }
         var slept = Set<ObjectIdentifier>()
-        run(150) { for m in sleepers where m.lying { slept.insert(ObjectIdentifier(m)) } }
+        // CAPITAL_DEBUG: each sleeper's way to bed, a line a second (printed for those who never lie down).
+        let traceNight = ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil
+        var nightLog: [ObjectIdentifier: [String]] = [:]
+        var stuckDump: [ObjectIdentifier: String] = [:]
+        var second = 0
+        run(150) {
+            for m in sleepers where m.lying { slept.insert(ObjectIdentifier(m)) }
+            if traceNight {
+                // The first time each one stands stalled on its path: the blocks round its next cell and a test step.
+                for m in sleepers where !slept.contains(ObjectIdentifier(m)) && stuckDump[ObjectIdentifier(m)] == nil
+                    && m.path.stallTime > 3 && m.path.index < m.path.nodes.count {
+                    let n = m.path.nodes[m.path.index]
+                    var d = String(format: "    stalled at %.3f %.3f %.3f (on the ground %@) for the cell %d,%d,%d\n", m.pos.x, m.pos.y, m.pos.z, m.onGround ? "yes" : "no", n.x, n.y, n.z)
+                    for y in (n.y - 1)...(n.y + 2) { for z in (n.z - 1)...(n.z + 1) { for x in (n.x - 1)...(n.x + 1) {
+                        let b = w.block(x, y, z)
+                        var bx: [(V3, V3)] = []; w.collisionBoxes(x, y, z, &bx)
+                        guard !bx.isEmpty || Blocks.key(b) != "air" || w.groundAt(x, y, z) else { continue }
+                        d += "      \(x),\(y),\(z) \(Blocks.def(b).name)\(w.groundAt(x, y, z) ? " (ground)" : "") boxes " + bx.map { String(format: "[%.2f %.2f %.2f - %.2f %.2f %.2f]", $0.0.x, $0.0.y, $0.0.z, $0.1.x, $0.1.y, $0.1.z) }.joined(separator: " ") + "\n"
+                    } } }
+                    let to = V3(Float(n.x) + 0.5, m.pos.y, Float(n.z) + 0.5) - m.pos
+                    let dir = simd_length(V2(to.x, to.z)) > 0.01 ? simd_normalize(V3(to.x, 0, to.z)) : V3(0, 0, -1)
+                    var p0 = m.pos
+                    let hit = w.moveBody(&p0, halfW: m.halfW, height: m.height, dir * 0.08, step: 0.6, onGround: true)
+                    let lo = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), hi = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
+                    d += String(format: "      a test step of 0.08 toward it: moved %.3f %.3f %.3f (blocked x %@ y %@ z %@); room to rise %.3f, to fall %.3f",
+                                p0.x - m.pos.x, p0.y - m.pos.y, p0.z - m.pos.z, hit.x ? "y" : "n", hit.y ? "y" : "n", hit.z ? "y" : "n",
+                                w.sweep(lo, hi, axis: 1, 0.6), w.sweep(lo, hi, axis: 1, -0.6))
+                    stuckDump[ObjectIdentifier(m)] = d
+                }
+                for m in sleepers where !slept.contains(ObjectIdentifier(m)) {
+                    let f = m.path.nodes.first.map { "\($0.x),\($0.y),\($0.z)" } ?? "-", l = m.path.nodes.last.map { "\($0.x),\($0.y),\($0.z)" } ?? "-"
+                    nightLog[ObjectIdentifier(m), default: []].append(String(format: "%3ds at %.1f %.1f %.1f yaw %.0f moving %@ path %d/%d %@..%@ partial %@ goal %.1f %.1f %.1f search %@ unreach %.1f stall %.1f",
+                        second, m.pos.x, m.pos.y, m.pos.z, m.yaw * 180 / .pi, m.moving ? "y" : "n", m.path.index, m.path.nodes.count, f, l,
+                        m.path.partial ? "y" : "n", m.path.goal.x, m.path.goal.y, m.path.goal.z, m.path.search == nil ? "n" : "y", m.unreachableTimer, m.path.stallTime))
+                }
+            }
+            second += 1
+        }
+        if traceNight {
+            for m in sleepers where !slept.contains(ObjectIdentifier(m)) {
+                print("  night of \(m.villager?.person ?? "?"):"); for l in nightLog[ObjectIdentifier(m)] ?? [] { print("    " + l) }
+                if let d = stuckDump[ObjectIdentifier(m)] { print(d) }
+            }
+        }
         let noBed = sleepers.filter { $0.villager?.bed == nil }.count
         let awake = sleepers.filter { !slept.contains(ObjectIdentifier($0)) }.prefix(4).map { m -> String in
             let b = m.villager?.bed.map { String(format: "%.0f", simd_length(V3(Float($0[0]) + 0.5, Float($0[1]), Float($0[2]) + 0.5) - m.pos)) } ?? "no"
@@ -239,6 +284,22 @@ extension TownTests {
                 }
                 print("    next " + m.path.nodes.dropFirst(m.path.index).prefix(4).map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: " "))
                 print("  awake \(m.villager?.person ?? "?") \(m.villager?.role ?? "") \(m.villager?.shop ?? "") at \(m.pos) bed \(m.villager?.bed ?? []) path \(m.path.nodes.count) idx \(m.path.index) partial \(m.path.partial) gaveUp \(m.unreachableTimer)")
+                if let b = m.villager?.bed {
+                    let goal = V3(Float(b[0]) + 0.5, Float(b[1]), Float(b[2]) + 0.5)
+                    for n in [1500, 8000] {
+                        let r = PathFinder.find(w, from: m.pos, to: goal, profile: m.pathProfile(g), maxNodes: n)
+                        let end = r?.last.map { "\($0.x),\($0.y),\($0.z)" } ?? "none"
+                        print("    a path to the bed within \(n) cells: \(r?.count ?? -1) steps, ending \(end)")
+                    }
+                }
+                print("    foe \(m.town.foe.map { "\($0.kind)" } ?? "none") anger \(m.town.anger) handsUp \(m.town.handsUp) out \(m.town.out) brawl \(m.town.brawl) active \(w.activeHere(m.pos)) hurt \(m.hurt) panic \(m.panic)")
+            }
+            // Tick by tick: whether each one lies down and what gets them up again.
+            let watch = sleepers.filter { !slept.contains(ObjectIdentifier($0)) }
+            for i in 0..<12 where !watch.isEmpty {
+                g.player.vel = .zero; g.player.pos = centre + V3(0, 60, 0)
+                g.tick(0.05)
+                print("    tick \(i): " + watch.map { m in String(format: "%@ lying %@ y %.3f z %.3f", m.villager?.person ?? "?", m.lying ? "yes" : "no", m.pos.y, m.pos.z) }.joined(separator: " | "))
             }
         }
         check(!sleepers.isEmpty && slept.count * 10 >= sleepers.count * 9 && noBed * 10 <= sleepers.count,

@@ -15,6 +15,9 @@ import simd
 //                                                  +----------+        (loopDeep south, loopOut past E)
 extension Railways {
     static let loopOut = 12, loopDeep = 16, loopBack = 14
+    // (out past the end, deep to the side): P511's, then the wider and deeper ones for an end it doesn't fit (Nov 4)
+    static let loopShapes: [(Int, Int)] = [(loopOut, loopDeep), (26, loopDeep), (loopOut, 28), (34, 28), (loopOut, 10)]
+    static let loopReach = loopShapes.map { $0.0 + $0.1 }.max()!
     static let loopFlipE: Int64 = 1 << 61, loopFlipW: Int64 = 1 << 62      // (a loop's id: its line's with bit 61 / 62 flipped)
     static var loopsOn = true
     static func loopKey(_ row: Int, _ s: Int, east: Bool) -> Int64 { key(row, s) ^ (east ? loopFlipE : loopFlipW) }
@@ -48,12 +51,16 @@ extension Railways {
         guard back >= 3 else { loopNote?("loop: the end station too near the end"); return nil }
         let j = east ? n - 1 - back : back
         guard l.cells[j].z == e.z else { loopNote?("loop: no straight for the junction"); return nil }
-        for k in min(j, east ? n - 1 : 0)...max(j, east ? n - 1 : 0) where l.cells[k].z != e.z { loopNote?("loop: no straight for the junction"); return nil }
-        let xo = e.x + dx * loopOut, xj = e.x - dx * back
-        var cells: [(Int, Int)]? = nil
+        for k in thru(min(j, east ? n - 1 : 0), max(j, east ? n - 1 : 0)) where l.cells[k].z != e.z { loopNote?("loop: no straight for the junction"); return nil }
+        let xj = e.x - dx * back
+        var cells: [(Int, Int)]? = nil, shaped = 0
         // Away from the town first (it stands north of the line), else the other way.
-        for side in [1, -1] {
-            let zd = e.z + side * loopDeep
+        // (Nov 4, bug hunt: 9 of 256 line ends kept their buffers, the loop "blocked both ways" by a structure or the
+        // sea, and the train stopped there (FAILURES 3). The first shape is P511's; where it fits nowhere, wider and
+        // deeper ones are tried, round whatever stood in the first's way, on ground no save had before them.)
+        shapes: for (si, (out, deep)) in loopShapes.enumerated() { for side in [1, -1] {
+            let xo = e.x + dx * out
+            let zd = e.z + side * deep
             if blocked(gen, sc, x0: min(xj, xo), z0: min(e.z + side, zd), x1: max(xj, xo), z1: max(e.z + side, zd), except: []) { continue }
             var c: [(Int, Int)] = []
             for x in stride(from: e.x + dx, through: xo, by: dx) { c.append((x, e.z)) }
@@ -61,13 +68,14 @@ extension Railways {
             for x in stride(from: xo - dx, through: xj, by: -dx) { c.append((x, zd)) }
             for z in stride(from: zd - side, through: e.z + side, by: -side) { c.append((xj, z)) }
             if stride(from: 0, to: c.count, by: 3).contains(where: { gen.column(c[$0].0, c[$0].1).biome.isOcean }) { continue }
-            cells = c
-            break
-        }
+            cells = c; shaped = si
+            break shapes
+        } }
         guard let run = cells else { loopNote?("loop: blocked both ways"); return nil }
+        if shaped > 0 { loopNote?("loop: shape \(shaped)") }
         for (i, c) in run.enumerated() where i % 6 == 0 || i == run.count - 1 {
             let cx = floorDiv(c.0, CS), cz = floorDiv(c.1, CS)
-            for gs in [sc.legacyC1, sc.legacyP510, sc.legacyP511] where !gs.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: gs) {
+            for gs in [sc.legacyC1, sc.legacyP510, sc.legacyP511, shaped > 0 ? sc.legacyP512 : []] where !gs.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: gs) {
                 loopNote?("loop: old ground"); return nil
             }
         }
@@ -88,7 +96,7 @@ extension Railways {
     // Loops whose track may pass within `pad` blocks of the box (drawn with the lines).
     static func loopsNear(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true) -> [Line] {
         guard on, loopsOn else { return [] }
-        let reach = loopOut + loopDeep + 4
+        let reach = loopReach + 4
         var out: [Line] = []
         for l in near(gen, x0: x0 - reach, z0: z0 - reach, x1: x1 + reach, z1: z1 + reach, pad: pad, wait: wait) {
             let (w, e) = loops(gen, l, wait: wait)

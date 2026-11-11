@@ -318,7 +318,10 @@ extension Game {
         for i in 0..<n {
             let side: Float = i == 0 ? 1 : -1
             let off = V3(cosf(m.yaw) * 2.2 * side, 0, -sinf(m.yaw) * 2.2 * side)
-            let crew = Mob(.soldierCrew, at: m.pos + off)
+            // On the ground beside the hull (2.2 off at the hull's height stood in a slope's rock, a wall or a tree, or
+            // over a drop: the trader llamas' bug, Nov 4), failing that on the hull's own spot; on a ship's deck, where
+            // the land's blocks say nothing, as before.
+            let crew = Mob(.soldierCrew, at: m.deck == nil ? (MobManager.groundSpot(world, near: m.pos + off) ?? m.pos) : m.pos + off)
             if !m.boreal { crew.ashSetup() } else { crew.faction = Faction.meridian.rawValue }   // (P460, P504: a Boreal tank's crew are the station's)
             crew.aggro = true
             crew.fire = 3                                  // out of a burning hull
@@ -353,7 +356,7 @@ extension Game {
         // Once a second: squads and patrols left far behind (over 160 blocks) stand down and go.
         if Int(clock) != Int(clock - Double(dt)) {
             let p = player.pos
-            mobs.mobs.removeAll { $0.brain?.extra == true && simd_length_squared($0.pos - p) > 160 * 160 }
+            mobs.mobs.removeAll { $0.brain?.extra == true && simd_length_squared($0.pos - p) > 160 * 160 && MobManager.canVanish($0, self) }
             ashClearedTick()
         }
         // Reinforcements, patrols, the radio rooms.
@@ -511,7 +514,9 @@ extension Game {
         while kinds.count < size { kinds.append((kinds.count % 2 == 0 ? .soldierTrooper : .soldierRecruit, 0)) }
         for (i, (k, role)) in kinds.enumerated() {
             let a = Float(i) * 2.1
-            let m = Mob(k, at: at + V3(cosf(a) * 1.6, 0, sinf(a) * 1.6))
+            // Round the spot on the ground there (at its height a ring 1.6 out stood in a slope's rock or over a drop: the
+            // trader llamas' bug, Nov 4), failing that on the spot itself.
+            let m = Mob(k, at: MobManager.groundSpot(world, near: at + V3(cosf(a) * 1.6, 0, sinf(a) * 1.6)) ?? at)
             m.ashSetup()
             if role != 0 { m.ashTakeRole(role) }
             m.persistent = true                     // kept by the war, not the spawner; far stragglers go in ashAlarmTick

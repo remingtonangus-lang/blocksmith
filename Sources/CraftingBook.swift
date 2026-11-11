@@ -144,10 +144,26 @@ enum CraftBook {
 
 // Text search over item names (display name or key; spaces, hyphens and underscores alike).
 enum ItemSearch {
+    // Ledger 81 (Nov 11, the VR fuzz's stack sampler: a 13.8 ms frame typing a letter into the crafting book's search):
+    // each key tested every recipe's result, and each test normalized the query and the item's name again (lowercase,
+    // trim and two replacements: some 1,500 recipes, six string passes each); the pack's search lit its slots the same
+    // way on every frame. The query is normalized once per change and the names once per game, on a worker as a world
+    // loads (warm, with the creative palette's). BS_OLDSEARCH=1: as before.
+    static let oldSearch = ProcessInfo.processInfo.environment["BS_OLDSEARCH"] == "1"
+    static let names: [String] = (0..<Items.count).map { Game.norm(Items.name(ItemID($0))) }
     static func matches(_ item: ItemID, _ q: String) -> Bool {
-        let n = Game.norm(q)
+        if oldSearch {
+            let n = Game.norm(q)
+            guard !n.isEmpty else { return true }
+            return Game.norm(Items.name(item)).contains(n) || Items.key(item).contains(n)
+        }
+        return matches(item, normed: Game.norm(q))
+    }
+    // n: the query already through Game.norm (normalized once per change by the caller).
+    static func matches(_ item: ItemID, normed n: String) -> Bool {
         guard !n.isEmpty else { return true }
-        return Game.norm(Items.name(item)).contains(n) || Items.key(item).contains(n)
+        let i = Int(item)
+        return (i < names.count ? names[i] : Game.norm(Items.name(item))).contains(n) || Items.key(item).contains(n)
     }
     // Typing into a search query: backspace, Enter/Tab end the search (returns false), length capped.
     static func type(_ s: String, into q: inout String) -> Bool {
@@ -274,7 +290,9 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         pool = CraftBook.pool(game)
         let cat = CraftingBookMenu.catalogue(size)
         if !query.isEmpty {
-            list = CraftCategory.allCases.dropFirst().flatMap { cat[$0] ?? [] }.filter { ItemSearch.matches(Recipes.all[$0].result.item, query) }
+            let n = Game.norm(query)
+            list = CraftCategory.allCases.dropFirst().flatMap { cat[$0] ?? [] }.filter {
+                ItemSearch.oldSearch ? ItemSearch.matches(Recipes.all[$0].result.item, query) : ItemSearch.matches(Recipes.all[$0].result.item, normed: n) }
         } else if tab == .craftable {
             list = CraftCategory.allCases.dropFirst().flatMap { cat[$0] ?? [] }.filter { RecipeBook.craftable(Recipes.all[$0], pool) }
         } else {

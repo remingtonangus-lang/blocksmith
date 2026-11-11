@@ -261,7 +261,7 @@ final class VaultGround {
             let river = creek(wx, wz, front: false)
             let oldF = DeepGen.floorBase + Int(base(wx, wz, front: false).rounded()) - (river ? 2 : 0)
             if river {
-                for y in max(lo, oldF - 1)...min(hi, oldF + 2) {
+                for y in thru(max(lo, oldF - 1), min(hi, oldF + 2)) {
                     let i = Chunk.index(lx, y, lz)
                     if Blocks.fluidKind[Int(b[i])] == 2 { b[i] = field ? AIR : mud }
                 }

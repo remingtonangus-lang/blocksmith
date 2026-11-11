@@ -7,6 +7,23 @@ import simd
 //                                  riding the deck, save/load, docking); prints PASS/FAIL lines and the
 //                                  snapshot shows the boat at the end. Exit status 1 when a check fails.
 enum ShipTest {
+    // The middle of the nearest stretch of a biome (Snapshot.findBiome's rule, the centre and three of four points 24
+    // blocks out), spiralling out in 48-block steps; here so the headset build (no Mac main.swift) runs these checks.
+    static func biomeSpot(_ gen: TerrainGenerator, _ want: String) -> V3? {
+        var x = 0, z = 0, dx = 0, dz = -1
+        for _ in 0..<40000 {
+            let wx = x * 48 + 8, wz = z * 48 + 8
+            var hits = 0
+            for (k, p) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)].enumerated() {
+                if gen.column(wx + p.0, wz + p.1).biome.name == want { hits += 1 } else if k == 0 { break }
+            }
+            if hits >= 3 { return V3(Float(wx) + 0.5, Float(max(gen.column(wx, wz).height, SEA) + 1), Float(wz) + 0.5) }
+            if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
+            x += dx; z += dz
+        }
+        print("biome \(want) not found")
+        return nil
+    }
     static func id(_ n: String) -> BlockID { Blocks.has(n) ? Blocks.id(n) : PLANKS }
 
     // Top of the water column at x, z (the highest water block), nil on land.
@@ -323,7 +340,7 @@ enum ShipTest {
         w.ships.encounters = false
 
         // 1. Boat: floats, sails, turns, carries a rider, saves and loads.
-        guard let sea = Snapshot.findBiome(w.gen, "ocean") else { print("physicstest: no ocean"); return 1 }
+        guard let sea = ShipTest.biomeSpot(w.gen, "ocean") else { print("physicstest: no ocean"); return 1 }
         _ = w.loadSync(center: sea, radius: max(rd, 6))
         let helm = place(w, "boat", near: sea)
         let (boatOpt, msg) = w.ships.assemble(at: helm, game: g)
@@ -455,7 +472,7 @@ enum ShipTest {
         } else { check(false, "two boats assemble") }
 
         // 2. Airship: hovers, climbs, flies forward.
-        let land = Snapshot.findBiome(w.gen, "plains") ?? V3(sea.x + 400, 80, sea.z)
+        let land = ShipTest.biomeSpot(w.gen, "plains") ?? V3(sea.x + 400, 80, sea.z)
         _ = w.loadSync(center: land, radius: max(rd, 6))
         let ah = place(w, "airship", near: land)
         let (airOpt, amsg) = w.ships.assemble(at: ah, game: g)
@@ -636,6 +653,10 @@ enum ShipTest {
         let cx = Int(vc.x), cz = Int(vc.z)
         levelPad(w, cx, cz, half: 40)
         let cg = w.ships.spawnVessel("carriage", home: IVec3(cx, groundTop(w, cx, cz) + 1, cz), game: g)
+        // (Nov 5: the player watches from beside it. He was left at the frigate's helm 230 blocks off, and since P376 a
+        // vehicle past the active distance sleeps: the carriage never settled or rolled.)
+        g.player.flying = true
+        g.player.pos = V3(vc.x, Float(groundTop(w, cx, cz) + 30), vc.z + 40); g.player.vel = .zero
         run(g, seconds: 3)
         let c0 = cg.pos
         for _ in 0..<6 { w.ships.crewTick(1, game: g); run(g, seconds: 1) }
@@ -681,11 +702,13 @@ enum ShipTest {
 
         // Far ships sleep and give their meshes back; they wake when the player returns.
         let fpos = fg.pos
+        // (Nov 5: a frame of the player's own ship update too, as the game runs it: since P414 a ship the player is aboard
+        // stays awake, and he was still counted aboard the frigate he had just left the helm of, 600 blocks off)
         g.player.pos = fpos + V3(600, 0, 0)
-        w.ships.update(1.0 / 60, game: g)
+        run(g, seconds: 1.0 / 60)
         let slept = fg.asleep && fg.mesh.released
         g.player.pos = fpos + V3(20, 10, 0)
-        w.ships.update(1.0 / 60, game: g)
+        run(g, seconds: 1.0 / 60)
         print("physicstest sleep: 600 blocks away asleep+released \(slept), back near awake \(!fg.asleep) meshed \(!fg.mesh.released)")
         check(slept && !fg.asleep && !fg.mesh.released, "far ships sleep and wake")
 

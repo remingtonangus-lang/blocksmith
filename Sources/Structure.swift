@@ -199,8 +199,47 @@ enum Structure {
     // Greywall fortress every check filled to it and ran its reach passes over all of it (85-125 ms a check in a debug
     // build, one a frame while anything in the base changed). 1,536 blocks 16 out still reaches past every material's
     // reach (log 6) and its load path to the ground nearby; the far walls are held, as before.
+    // Nov 9 (callgrind of the worst soak's load checks, 2.6-4.6 ms in its slow frames): a round searched the piece
+    // afresh for every material's reach, from the ground and then from the blocks found sound so far; the first of those
+    // is the search from the ground again, and each later one only adds blocks to start from, so each is now the last
+    // one carried on from the blocks newly found sound (the same distances: a search that lowers a block's distance
+    // puts it back in the queue, so it settles on the shortest way whatever order it goes in). The load's order is
+    // sorted on one number a block. (BS_LOADOLD=1: as before; BS_LOADVERIFY=1: each check run both ways and compared)
+    static var loadOld = ProcessInfo.processInfo.environment["BS_LOADOLD"] == "1"
+    static let loadVerify = ProcessInfo.processInfo.environment["BS_LOADVERIFY"] == "1"
+    static var loadVerified = 0, loadVerifyDiffs = 0, loadVerifyOldMs = 0.0, loadVerifyNewMs = 0.0
+    static var verifyLine: String {
+        let n = Double(max(1, loadVerified))
+        return String(format: "load checks run both ways (BS_LOADVERIFY): %d, differing %d; %.3f ms a check before, %.3f now",
+                      loadVerified, loadVerifyDiffs, loadVerifyOldMs / n, loadVerifyNewMs / n)
+    }
     static func analyse(_ w: World, at p: IVec3, limit: Int = 1536, out: Int = 16, collect: Bool = false) -> Result {
+        guard loadVerify else { return analyseOnce(w, at: p, limit: limit, out: out, collect: collect) }
+        let was = loadOld
+        defer { loadOld = was }
+        func run(_ old: Bool) -> (Result, Double) {
+            loadOld = old
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let r = analyseOnce(w, at: p, limit: limit, out: out, collect: true)
+            return (r, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
+        }
+        // (alternate which goes first: the second runs on warm caches)
+        let first = loadVerified % 2 == 0
+        let (a, ta) = run(first), (b, tb) = run(!first)
+        let (o, n) = first ? (a, b) : (b, a)
+        loadVerified += 1
+        loadVerifyOldMs += first ? ta : tb; loadVerifyNewMs += first ? tb : ta
+        let same = o.cells == n.cells && o.all == n.all && o.falls == n.falls && o.capped == n.capped && o.reachBreaks == n.reachBreaks
+            && o.jointBreaks == n.jointBreaks && o.dists == n.dists && o.why.map { "\($0.0) \($0.1) \($0.2)" } == n.why.map { "\($0.0) \($0.1) \($0.2)" }
+            && o.joints.map { "\($0.0) \($0.1) \($0.2)" } == n.joints.map { "\($0.0) \($0.1) \($0.2)" }
+        if !same { loadVerifyDiffs += 1; print("loadverify: DIFFERS at \(p): \(o.cells) vs \(n.cells) cells, \(o.falls.count) vs \(n.falls.count) falls, breaks \(o.reachBreaks)/\(o.jointBreaks) vs \(n.reachBreaks)/\(n.jointBreaks)") }
+        var r = n
+        if !collect { r.all = []; r.why = []; r.dists = []; r.joints = [] }
+        return r
+    }
+    private static func analyseOnce(_ w: World, at p: IVec3, limit: Int, out: Int, collect: Bool) -> Result {
         var res = Result()
+        let old = loadOld
         let useGrid = out < gridR
         // (the tables as locals: each use of a global in the fill's loops went through its lazy start)
         let grid = Structure.grid, nbrs = Structure.nbrs, stepCost = Structure.stepCost, backCost = Structure.backCost
@@ -221,20 +260,27 @@ enum Structure {
         }
         defer { if useGrid { for q in cells { grid[slot(q)] = -1 } } }
         var cur = ChunkCursor(w)
+        let K = nbrs.count
         for d in [IVec3(0, 0, 0)] + nbrs {
             let q = p + d
             if find(q) == nil, let m = part(&cur, q.x, q.y, q.z) { add(q, m) }
         }
         // Breadth first, nearest blocks first; where the fill stops (more than `limit` blocks, or `out` away) the blocks it
         // didn't get past are taken as held: a big building's far walls stand, so the check is of what's near the change.
+        // (Nov 9, the per-instruction profile: two fifths of a check went in `find`'s bounds checks and slot sums for
+        // each block's 18 neighbours. Every block the fill reaches is within out + 1 of p and its neighbours within
+        // out + 2: inside the grid when that's within gridR, so a neighbour's slot is its block's plus a fixed offset.)
+        let quick = !old && useGrid && out + 2 <= gridR
+        let off: [Int] = nbrs.map { $0.x + $0.y * gridW + $0.z * gridW * gridW }
         var head = 0
         while head < cells.count {
             let c = cells[head]
             if cells.count > limit || abs(c.x - p.x) > out || abs(c.y - p.y) > out || abs(c.z - p.z) > out { break }
             head += 1
-            for d in nbrs {
-                let q = c + d
-                if find(q) != nil { continue }
+            let base = quick ? slot(c) : 0
+            for k in 0..<K {
+                let q = c + nbrs[k]
+                if quick { if grid[base + off[k]] >= 0 { continue } } else if find(q) != nil { continue }
                 guard cur.loaded(q.x, q.z) else { if collect { res.all = cells }; return res }
                 if let m = part(&cur, q.x, q.y, q.z) { add(q, m) }
             }
@@ -243,7 +289,7 @@ enum Structure {
         res.cells = cells.count
         res.capped = head < cells.count
         if collect { res.all = cells }
-        let n = cells.count, K = nbrs.count
+        let n = cells.count
         var alive = [Bool](repeating: true, count: n)
         var root = [Bool](repeating: false, count: n)
         // Each block's neighbours in the piece, once (-1: none), in the order of `nbrs`.
@@ -253,16 +299,20 @@ enum Structure {
             if helm[Int(cur.built(c.x, c.y, c.z))] { res.cells = 0; return res }
             if i >= head { root[i] = true }
             else { for d in allDirs where anchor(&cur, c.x + d.x, c.y + d.y, c.z + d.z) { root[i] = true; break } }
-            for k in 0..<K { if let j = find(c + nbrs[k]) { nb[i * K + k] = Int32(j) } }
+            if quick {
+                let base = slot(c)
+                for k in 0..<K { nb[i * K + k] = grid[base + off[k]] }      // (-1 where none, as the table starts)
+            } else {
+                for k in 0..<K { if let j = find(c + nbrs[k]) { nb[i * K + k] = Int32(j) } }
+            }
         }
         // What a joint holds against a face joint: along an edge `edgeJoint` sideways, `slopeJoint` on a slope.
         let jf: [Float] = nbrs.map { abs($0.x) + abs($0.y) + abs($0.z) == 1 ? 1 : $0.y == 0 ? edgeJoint : slopeJoint }
         // 0-1 breadth first from `from`: a step that climbs costs nothing, any other one.
-        func reachFrom(_ from: [Bool]) -> [Int] {
-            var dist = [Int](repeating: Int.max, count: n)
-            var dq: [Int] = [], front: [Int] = []
-            for i in 0..<n where alive[i] && from[i] { dist[i] = 0; front.append(i) }
-            var h = 0
+        // (each block whose distance drops goes back in the queue: the search settles on the shortest ways from the
+        // blocks in `front`, whatever it starts from in `dist` as long as each is the length of some way there)
+        func spread(_ dist: inout [Int], _ front: inout [Int]) {
+            var dq: [Int] = [], h = 0
             while !front.isEmpty || h < dq.count {
                 let i: Int
                 if let f = front.popLast() { i = f } else { i = dq[h]; h += 1 }
@@ -274,6 +324,12 @@ enum Structure {
                     if di + cost < dist[j] { dist[j] = di + cost; if cost == 0 { front.append(j) } else { dq.append(j) } }
                 }
             }
+        }
+        func reachFrom(_ from: [Bool]) -> [Int] {
+            var dist = [Int](repeating: Int.max, count: n)
+            var front: [Int] = []
+            for i in 0..<n where alive[i] && from[i] { dist[i] = 0; front.append(i) }
+            spread(&dist, &front)
             return dist
         }
         // What carrying `b` on `a` costs over the step itself.
@@ -282,6 +338,7 @@ enum Structure {
         }
         // The cheapest way down from each block (buckets by cost: steps cost 0, 1, weakStep or weakStep + 1).
         func routeFrom(_ from: [Bool]) -> [Int] {
+            if !old { return routeQuick(from) }
             var d = [Int](repeating: Int.max, count: n)
             var buckets = [[Int]](repeating: [], count: weakStep + 2)
             var left = 0
@@ -303,9 +360,41 @@ enum Structure {
             }
             return d
         }
+        // (the same search: the buckets as lists in one pool, not an array of arrays checked for sharing at every
+        // push (a sixth of the check in the profile), and the bucket a step lands in without a division)
+        func routeQuick(_ from: [Bool]) -> [Int] {
+            var d = [Int](repeating: Int.max, count: n)
+            let B = (stepCost.max() ?? 1) + weakStep + 1     // (a step lands at most this far on: its bucket is free again)
+            var top = [Int](repeating: -1, count: B)       // each bucket's last entry in the pool
+            var pv: [Int] = [], pn: [Int] = []              // the pool: a block, the entry under it
+            pv.reserveCapacity(2 * n); pn.reserveCapacity(2 * n)
+            var left = 0
+            for i in 0..<n where alive[i] && from[i] { d[i] = 0; pv.append(i); pn.append(top[0]); top[0] = pv.count - 1; left += 1 }
+            var c = 0, s = 0
+            while left > 0 {
+                while top[s] >= 0 {
+                    let e = top[s]; top[s] = pn[e]
+                    let i = pv[e]
+                    left -= 1
+                    guard d[i] == c else { continue }
+                    for k in 0..<K {
+                        let j = Int(nb[i * K + k])
+                        guard j >= 0, alive[j] else { continue }
+                        let step = stepCost[k] + weakCost(i, j), nd = c + step
+                        if nd < d[j] {
+                            d[j] = nd
+                            var t = s + step; if t >= B { t -= B }
+                            pv.append(j); pn.append(top[t]); top[t] = pv.count - 1; left += 1
+                        }
+                    }
+                }
+                c += 1; s += 1; if s == B { s = 0 }
+            }
+            return d
+        }
         // (the cascade: what broke goes, the rest is checked again; a few rounds at most)
         var fell: [Int] = []
-        var to: [Int] = [], tk: [Int] = []
+        var to: [Int] = [], tk: [Int] = [], fresh: [Int] = [], keys: [UInt64] = []
         for _ in 0..<6 {
             // Reach from the ground.
             let dist = reachFrom(root)
@@ -316,19 +405,27 @@ enum Structure {
             // strong as it (a glass panel set in a slab is held by the slab round it, not by the far walls), the
             // longest-reaching materials first. A block resting on one at its own reach is carried by that one.
             var sound = root
-            var reaches = Array(Set((0..<n).filter { alive[$0] && dist[$0] != Int.max }.map { mats[$0].reach }))
+            var reaches: [Int] = []
+            if old {
+                reaches = Array(Set((0..<n).filter { alive[$0] && dist[$0] != Int.max }.map { mats[$0].reach }))
+            } else {
+                for i in 0..<n where alive[i] && dist[i] != Int.max { let r = mats[i].reach; if !reaches.contains(r) { reaches.append(r) } }
+            }
             reaches.sort(by: >)
+            // (the search from the sound blocks, carried on from those found sound since: at first that's the ground)
+            var dr = old ? [] : dist
+            fresh.removeAll(keepingCapacity: true)
             for r in reaches {
-                let dr = reachFrom(sound)
+                if old { dr = reachFrom(sound) } else if !fresh.isEmpty { for i in fresh { dr[i] = 0 }; spread(&dr, &fresh) }
                 for i in 0..<n where alive[i] && dist[i] != Int.max && mats[i].reach == r && !sound[i] && !mats[i].fixture {
                     var rests = false
                     for k in 0..<K where backCost[k] == 0 { let j = Int(nb[i * K + k]); if j >= 0, alive[j], dr[j] == dr[i] { rests = true; break } }
-                    if rests || dr[i] <= r { sound[i] = true } else { broke.append(i); res.reachBreaks += 1; if collect { res.why.append((cells[i], dr[i] == Int.max ? dist[i] : dr[i], false)) } }
+                    if rests || dr[i] <= r { sound[i] = true; if !old { fresh.append(i) } } else { broke.append(i); res.reachBreaks += 1; if collect { res.why.append((cells[i], dr[i] == Int.max ? dist[i] : dr[i], false)) } }
                 }
             }
             // Fittings last, their reach counted from any sound block (a lantern hung from a roof, a fence on a deck).
             if (0..<n).contains(where: { alive[$0] && mats[$0].fixture }) {
-                let dr = reachFrom(sound)
+                if old { dr = reachFrom(sound) } else if !fresh.isEmpty { for i in fresh { dr[i] = 0 }; spread(&dr, &fresh) }
                 for i in 0..<n where alive[i] && dist[i] != Int.max && mats[i].fixture && !sound[i] {
                     if dr[i] <= mats[i].reach { sound[i] = true } else { broke.append(i); res.reachBreaks += 1; if collect { res.why.append((cells[i], dr[i] == Int.max ? dist[i] : dr[i], false)) } }
                 }
@@ -341,7 +438,22 @@ enum Structure {
                 let route = routeFrom(root)
                 var load = [Float](repeating: 0, count: n)
                 var order = (0..<n).filter { alive[$0] && route[$0] != Int.max }
-                order.sort { route[$0] != route[$1] ? route[$0] > route[$1] : cells[$0].y > cells[$1].y }
+                // (furthest from the ground first, then highest, then in the fill's order: one number a block, sorted)
+                var rMax = 0, yLo = Int.max, yHi = Int.min
+                for i in order { rMax = max(rMax, route[i]); yLo = min(yLo, cells[i].y); yHi = max(yHi, cells[i].y) }
+                // (ledger 68: with every block fallen there is nothing to order, and yHi - yLo, Int.min - Int.max, trapped
+                // the checked build; on the headset it wrapped)
+                if !old && !order.isEmpty && n < 1 << 24 && rMax < 1 << 24 && yHi - yLo < 1 << 16 {
+                    keys.removeAll(keepingCapacity: true)
+                    for i in order {
+                        let kr = UInt64(rMax - route[i]) << 40, ky = UInt64(yHi - cells[i].y) << 24
+                        keys.append(kr | ky | UInt64(i))
+                    }
+                    keys.sort()
+                    for (o, key) in keys.enumerated() { order[o] = Int(key & 0xFF_FFFF) }
+                } else {
+                    order.sort { route[$0] != route[$1] ? route[$0] > route[$1] : cells[$0].y > cells[$1].y }
+                }
                 for i in order {
                     load[i] += mats[i].weight
                     if root[i] { continue }
@@ -378,9 +490,21 @@ enum Structure {
     }
 
     // The queue: World.setBlock notes structural changes; a few are checked a frame.
+    // Store review (build 111's citadel soak: a load check, up to 4.8 ms, ran beside the soldiers' 3-6 ms): in the
+    // game's tick a check waits for a frame with the carving allowance left (CraterJob.allowance, which goes by what the
+    // tick has left), at most `maxWait` frames; it spends the allowance. Seeded runs and harnesses check as before.
+    static var wantSeconds = 0.0012, maxWait = 3          // (one check a frame was all it ever ran: a short wait)
+    private static var waited = 0
     static func tick(_ g: Game) {
         let w = g.world
         guard enabled, !w.loadQueue.isEmpty else { return }
+        let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
+        if paced {
+            if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
+            waited = 0
+        }
+        let began = CFAbsoluteTimeGetCurrent()
+        defer { if paced { CraterJob.spend(CFAbsoluteTimeGetCurrent() - began) } }
         var budget = 1
         while budget > 0, !w.loadQueue.isEmpty {
             let p = w.loadQueue.removeFirst()
@@ -440,19 +564,44 @@ enum Structure {
     // P407 (Oct 22 22:06, "it turned into square blocks there when I broke it, and it fell"): a tree, or a piece of
     // `wholeMin` blocks or more, comes down whole, as one body drawn with its own mesh (Game.topple); crumbs fall block by block.
     static let wholeMin = 12
+    static var dropWorstMs = 0.0, dropWorst = ""         // (the soak: the slowest drop and its parts)
+    static var crumbMs = 0.0, crumbN = 0                  // (the soak: the crumbs' clearing, all of it)
     static func drop(_ g: Game, _ all: [IVec3]) {
         let w = g.world
-        var crumbs = Set<IVec3>()
-        for comp in components(all) {
-            let tree = comp.contains { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
-            if comp.count >= wholeMin || tree && comp.count >= 2 { g.topple(comp) } else { crumbs.formUnion(comp) }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var tSplit = t0, tWhole = t0, wholes = 0, nCrumbs = 0
+        defer {
+            let t3 = CFAbsoluteTimeGetCurrent(), ms = (t3 - t0) * 1000
+            crumbMs += (t3 - tWhole) * 1000
+            if ms > dropWorstMs {
+                dropWorstMs = ms
+                dropWorst = String(format: "%d blocks: pieces %.1f, %d whole %.1f, %d crumbs %.1f", all.count, (tSplit - t0) * 1000, wholes,
+                                   (tWhole - tSplit) * 1000, nCrumbs, (t3 - tWhole) * 1000)
+            }
         }
+        var crumbs = Set<IVec3>()
+        let comps = components(all)
+        tSplit = CFAbsoluteTimeGetCurrent()
+        for comp in comps {
+            let tree = comp.contains { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
+            if comp.count >= wholeMin || tree && comp.count >= 2 { g.topple(comp); wholes += 1 } else { crumbs.formUnion(comp) }
+        }
+        tWhole = CFAbsoluteTimeGetCurrent()
         let cells = all.filter { crumbs.contains($0) }
-        for c in cells {
-            let b = w.builtBlock(c.x, c.y, c.z)
-            guard member[Int(b)] else { continue }
-            w.setBlock(c.x, c.y, c.z, AIR)
-            g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+        nCrumbs = cells.count
+        // (item 61, ledger 45's bloom: with no circuit part near, the crumbs go without the circuit's marks round each
+        // cell, as a blast's crater, a felled tree and dropped ground do)
+        let quiet0 = w.circuitQuiet
+        if Explosion.circuitCalm && !cells.isEmpty && !w.circuitNear(cells, margin: 3) { w.circuitQuiet = true }
+        defer { w.circuitQuiet = quiet0 }
+        w.editBatch {                                  // (ledger 44: one remesh for all the crumbs)
+            for c in cells {
+                let b = w.builtBlock(c.x, c.y, c.z)
+                guard member[Int(b)] else { continue }
+                w.setBlock(c.x, c.y, c.z, AIR)
+                g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
+                crumbN += 1
+            }
         }
         if let c = cells.first {
             let b = g.falling.last?.block ?? STONE
@@ -486,6 +635,7 @@ enum Structure {
         let held = looseHeld, seen = looseSeen
         held.removeAll()
         var cur = ChunkCursor(w)
+        let K = nbrs.count
         for d in [IVec3(0, 0, 0)] + nbrs {
             let s0 = p + d
             guard !held.contains(s0), part(&cur, s0.x, s0.y, s0.z) != nil else { continue }

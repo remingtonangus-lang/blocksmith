@@ -106,3 +106,9 @@ Built and run unchanged in a worktree of 581dfc8, the same as with the horse cha
   run on the PR #56 branch read 17 (the main gun's shell and its blast landing in one tick). Random spread in the shell
   and blast damage, not this PR (nothing here touches the Ashguard's guns or the player's damage). Left as is; if it
   recurs, measure the shell + blast sum the check means and widen the limit or count them as one hit.
+
+## Horse gap: the sliding stop (Nov 11, build 320)
+Once in a full CI-style run (`--render --questsim`) both horses in "a level-4 horse stops in N blocks" stood still through
+the 3 s gallop at full stamina (speed 0, ridden, gait gallop, at the lane's start). Alone (`--horse-only`) it passed 3 of 3,
+and the next full run passed 1345 of 1345. The failure message now also gives health, downed, held in a hand, rear, the
+asked speed, the player's move yaw and whether the ground is loaded, so the next time names what held them.

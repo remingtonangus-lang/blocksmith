@@ -43,9 +43,10 @@ enum QuestLaunch {
 
     static func run(ctx: VkContext) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
-        World.fluidSeconds = 0.002; World.handoverSeconds = 0.0015; World.lodNear = 99; World.leafNear = 99   // (QuestApp)
+        QuestApp.headsetWorld()                                                       // (as on the headset)
         SceneRenderer.skipGPU = true
         RandomTickRng.profile = true
+        TroopVanish.on = true
         World.resultsProfile = true
         let rd = Int(arg("--rd") ?? "") ?? 24
         let prepare = arg("--launch-prepare")
@@ -76,6 +77,8 @@ enum QuestLaunch {
         clock.mark(meta == nil ? "new world made (spawn found, meta saved)" : "saved world opened")
         let near = game.world.loadSync(center: game.player.pos, radius: min(3, game.world.renderDistance))
         clock.mark(String(format: "near ring (radius 3: %d chunks; gen %.2f s, mesh %.2f s)", game.world.chunks.count, near.gen, near.mesh))
+        print("launch: rail plans in the near ring: \(Railways.railPlansMade) made, \(Railways.railPlansWaited) waited for another thread's")
+        print("launch: structure starts in the near ring: \(StructureCache.startsMade) made, \(StructureCache.startsWaited) waited for another thread's, \(StructureCache.startsTwice) made twice")
         HorizonRing.shared.request(game, eye: game.player.eye)
         FarRing.shared.request(game, eye: game.player.eye)
         clock.mark("horizon and middle rings")
@@ -175,6 +178,8 @@ enum QuestLaunch {
         if let mc = game.world.meshCache { print("launch: mesh cache reads \(mc.reads), refused \(mc.refused)") }
         print(String(format: "launch: while filling: worst tick %.1f ms (%d over 13.9), worst record %.1f ms (%d over 13.9)", worstTick, slowTick, worstRecord, slowRecord))
         print(String(format: "launch: worst tick's stages (%.1f s in): ", worstTickAt) + worstTickWhy)
+        print(String(format: "launch: slowest save on the frame %.1f ms: ", Game.saveWorstMs) + Game.saveWorstLaps)
+        print("launch: soldiers gone without dying: " + TroopVanish.line)
         print(String(format: "launch: worst record's stages (%.1f s in): ", worstRecordAt) + worstRecordWhy)
         print(String(format: "launch: slowest random tick %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat))
         print("launch: slow ticks by their slowest stage: " + slowWhy.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
@@ -182,6 +187,9 @@ enum QuestLaunch {
                      World.resultsWorstMs, World.resultsWorst, MeshArena.shared.slabCount, MeshArena.shared.slabMsWorst, MeshArena.shared.slabMsTotal))
         print("launch: stages " + clock.marks.map { String(format: "%@ %.2f", $0.0, $0.1) }.joined(separator: "; "))
         print(String(format: "launch: resident %.0f MB", QuestPerf.rssMB()))
+        print("launch: rail plans: \(Railways.railPlansMade) made, \(Railways.railPlansWaited) waited for another thread's")
+        print("launch: structure starts: \(StructureCache.startsMade) made, \(StructureCache.startsWaited) waited for another thread's, \(StructureCache.startsTwice) made twice")
+        if SaveBytes.verify { print("launch: save bytes verify: \(SaveBytes.verified) files packed or unpacked both ways, \(SaveBytes.differ) differ") }
 
         if prepare != nil {
             // His edits by the spawn: a pit dug, a hut built, a tunnel carved; then saved and quit as the app does.

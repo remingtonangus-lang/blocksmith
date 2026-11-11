@@ -5,6 +5,9 @@ import simd
 // Quest host check in questcheck (--p11-only stops after them).
 enum PlaytestOct11Tests {
     static func run(_ game: Game, _ check: (Bool, String) -> Void) {
+        // (alive and fed: the render suite runs long enough in survival scenes that he had starved by here, and a dead
+        // player takes no rounds and reloads nothing: P30 and P56 failed on that, not on what they test)
+        game.alive = true; game.health = 20; game.hunger = 20; game.saturation = 5
         iceInWater(game, check)
         dripstone(game, check)
         farCaveFaces(game, check)
@@ -955,7 +958,21 @@ enum PlaytestOct11Tests {
         g.survival = true; g.mobs.mobs = []; g.money = 0; TownLaw.state.bounty = [:]
         g.alive = true; g.riding = nil; g.vrAim = nil            // (whatever an earlier check left: on foot, aiming with the view)
         // Up in the open air (whatever ground an earlier check left the player on: nothing between gun and rider).
-        g.player.pos.y = Float(g.world.topY(Int(floor(pos0.x)), Int(floor(pos0.z))) + 24)
+        // (Nov 8, check fix: --groundcheck and --saveacross left him over the sea at 4723 1697, and the rider, sent 10-16
+        // blocks along the road from him, was refused on water every try. He stands over the nearest loaded stretch whose
+        // road 18 blocks either way is dry land first.)
+        func dry(_ x: Int, _ z: Int) -> Bool {
+            stride(from: -18, through: 18, by: 2).allSatisfy { dx in
+                let t = g.world.topY(x + dx, z)
+                return t > SEA - 1 && !Blocks.isLiquid(g.world.builtBlock(x + dx, t, z)) && !Blocks.isLiquid(g.world.builtBlock(x + dx, t + 1, z))
+            }
+        }
+        let x0 = Int(floor(pos0.x)), z0 = Int(floor(pos0.z))
+        var spot = (x0, z0)
+        search: for r in stride(from: 0, through: 96, by: 8) { for dz in stride(from: -r, through: r, by: 8) { for dx in stride(from: -r, through: r, by: 8)
+            where max(abs(dx), abs(dz)) == r && dry(x0 + dx, z0 + dz) { spot = (x0 + dx, z0 + dz); break search } } }
+        g.player.pos.x = Float(spot.0) + 0.5; g.player.pos.z = Float(spot.1) + 0.5
+        g.player.pos.y = Float(g.world.topY(spot.0, spot.1) + 24)
         let p = g.player.pos
         Riders.forceRoad = (Roads.Seg(a: V2(p.x - 120, p.z), b: V2(p.x + 120, p.z), phase: 0), 0.5)
         Riders.along = 10...16                 // (inside the host check's loaded ground)

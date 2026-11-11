@@ -54,7 +54,17 @@ final class JobPool {
         idle.unlock()
     }
 
+    // Store review (the citadel soak): the frame's own helpers (the mobs' vertices, FrameWork) are woken each frame and
+    // wanted within a millisecond or two, but with every core busy with these workers' chunk jobs the scheduler could
+    // leave one waiting for its turn, and the frame thread then did that work itself (44 of 2,376 frames, 4-6 ms each).
+    // Linux and Android give each thread its own nice value: the world workers run a few steps nicer, so a woken frame
+    // helper (or the frame thread) goes first. The Mac keeps its quality-of-service classes. BS_WORKERNICE=0: as before.
+    static let nice: Int32 = Int32(ProcessInfo.processInfo.environment["BS_WORKERNICE"] ?? "") ?? 5
+
     private func run() {
+        #if os(Linux) || os(Android)
+        if JobPool.nice > 0 { _ = jobPoolSetPriority(0, 0, JobPool.nice) }      // (PRIO_PROCESS, this thread)
+        #endif
         while true {
             cond.lock()
             while head == jobs.count { cond.wait() }
@@ -78,3 +88,9 @@ final class JobPool {
         }
     }
 }
+
+#if os(Linux) || os(Android)
+// setpriority(2) by its C signature (Glibc and Bionic import its first argument as different types). With PRIO_PROCESS
+// and who 0, Linux sets the calling thread's nice value alone.
+@_silgen_name("setpriority") private func jobPoolSetPriority(_ which: Int32, _ who: UInt32, _ prio: Int32) -> Int32
+#endif

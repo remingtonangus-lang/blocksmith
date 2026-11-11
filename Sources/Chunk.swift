@@ -36,6 +36,24 @@ enum CullNotes {
 struct ChunkKey: Hashable {
     let x: Int
     let z: Int
+
+    // Item 7 (Nov 7): the world's chunk table is asked for a chunk hundreds of thousands of times a second (mobs' sight
+    // lines and steps, debris, the ground field); the standard hash (a SipHash per find: seed, two combines, finalize) was
+    // two thirds of those finds' cost, 13% of the worst-case soak's instructions. The table's own seed is mixed into one
+    // 64-bit word by a fixed mixer instead (the same buckets spread; nothing outside the process sees them).
+    // BS_OLDHASH=1: the standard hash.
+    // (a plain static var with a literal start is set up at load, not on first use: a `static let` read from the
+    // environment cost a swift_once check in every hash, 5.6M a run; World.init reads BS_OLDHASH)
+    static var oldHash = false
+    func hash(into h: inout Hasher) { h.combine(x); h.combine(z) }
+    func _rawHashValue(seed: Int) -> Int {
+        if ChunkKey.oldHash { var h = Hasher(); h.combine(seed); h.combine(x); h.combine(z); return h.finalize() }
+        var v = UInt64(UInt32(truncatingIfNeeded: x)) | (UInt64(UInt32(truncatingIfNeeded: z)) << 32)
+        v ^= UInt64(UInt(bitPattern: seed)) &* 0x9E37_79B9_7F4A_7C15
+        v = (v ^ (v >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        v = (v ^ (v >> 27)) &* 0x94D0_49BB_1331_11EB
+        return Int(Int64(bitPattern: v ^ (v >> 31)))
+    }
 }
 
 // Counts section invalidations (main thread): World.update skips its scheduling scan while nothing changed.
@@ -52,9 +70,14 @@ final class Section {
     var farExtra = 0            //   merged quads stored after the opaque ones in the same buffer
     var farCut = 0              // P384: far, the first farCut cutout quads (the leaf blobs' two shells) are left out too
     var farTail = 0             // P384: the last farTail cutout quads are drawn far only (things laid on the ground)
+    var farPlants = 0           // Nov 6: the farPlants cutout quads before the far tail: small ground plants (near only)
     // P453: the leaf blobs' part of the far copy (blobFarN quads from blobFarAt in it) and of the cutout quads (the
     // first blobCutN), so the trees switch to their far shell nearer than the ground does (SceneRenderer.blobFarFrom).
     var blobFarAt = 0, blobFarN = 0, blobCutN = 0
+    // Nov 11 (BS_CANOPY): the far canopy, canopyN quads stored after the farExtra ones (not counted in farExtra), drawn
+    // past SceneRenderer.canopyFrom in place of the leaf blobs' far shells.
+    var canopyN = 0
+    var canopyTrunks = SIMD3<Int32>(0, 0, -1)   // (with its logs: SectionMesh.canopyTrunks)
     var detailFarSkip = 0       // P384: far, the first detailFarSkip detail quads give way to the detailFarExtra stored
     var detailFarExtra = 0      //   after the detail ones in the same buffer
     var transBuf: MeshSlice?
@@ -79,7 +102,7 @@ final class Section {
             if World.vehicleEdits { o.vehicleWorn = true; o.wornAt = World.frameNow }
             if World.ramEdits { o.urgent = true; if World.meshLog { World.noteUrgent("ram") } }
             else if !World.backgroundEdits {
-                if World.vehicleWear != "0" && (World.frameNow - o.wornAt < World.wearGap * 2 || World.inWearZone(o.cx, o.cz)) { o.vehicleWorn = true }
+                if (World.oldWear ? World.vehicleWear != "0" : World.wearOn) && (World.frameNow - o.wornAt < World.wearGap * 2 || World.inWearZone(o.cx, o.cz)) { o.vehicleWorn = true }
                 else { o.urgent = true; if World.meshLog { World.noteUrgent(World.vehicleEdits ? "edit in wear" : "edit") } }
             }
             o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
@@ -140,6 +163,74 @@ struct BlockStore {
     // Bit per 16-high section that may hold a light-emitting block (all set = unknown). The mesher skips the
     // block-light pass when no section around the one it meshes has one (most of the surface).
     var emitMask: UInt32 = ~0
+    // Nov 9 (the soak's random ticks: 0.5-0.9 ms of the frame thread's own time every game tick, picking ~15,000
+    // scattered cells, most in buried stone where nothing ticks): bit per 16-high section that may hold a block that
+    // takes random ticks (Blocks.randomTicks, the ground's material counted as its block), all set = unknown. Made exact
+    // by the chunk workers; a write only ever adds its section (Game.randomTicks skips the clear ones).
+    var tickMask: UInt32 = ~0
+    static func tickMask(of blocks: [BlockID]) -> UInt32 {
+        let rt = Blocks.randomTicks
+        var m: UInt32 = 0
+        var i = 0
+        while i < blocks.count {
+            if rt[Int(blocks[i])] {
+                let sec = i / section
+                m |= 1 << UInt32(sec)
+                i = (sec + 1) * section
+                continue
+            }
+            i += 1
+        }
+        return m
+    }
+    // Nov 9 (taking a chunk in, World.borderSprings: its four sides against the neighbours' read every cell up to the
+    // taller column, ~12,000 pairs, nearly all neither one a fluid): per side of the chunk (0: x 15, 1: x 0, 2: z 15,
+    // 3: z 0), a bit per 16-high section whose cells on that side may hold a fluid (the built layer: the ground never is
+    // one), all set = unknown. Made exact by the chunk workers; a write only ever adds.
+    var fluidEdges = SIMD4<UInt32>(repeating: ~0)
+    @inline(__always) static func edgeBits(_ i: Int) -> SIMD4<UInt32> {
+        let lx = i & 15, lz = (i >> 4) & 15, bit = UInt32(1) << UInt32(i / section)
+        return SIMD4(lx == 15 ? bit : 0, lx == 0 ? bit : 0, lz == 15 ? bit : 0, lz == 0 ? bit : 0)
+    }
+    static func fluidEdges(of blocks: [BlockID]) -> SIMD4<UInt32> {
+        let fk = Blocks.fluidKind
+        var m = SIMD4<UInt32>(repeating: 0)
+        let rows = min(CH, blocks.count / CSQ)
+        for y in 0..<rows {
+            let row = y * CSQ
+            for k in 0..<CS {
+                // (x 15, x 0, z 15, z 0)
+                if fk[Int(blocks[row + 15 + k * CS])] != 0 { m |= edgeBits(row + 15 + k * CS) }
+                if fk[Int(blocks[row + k * CS])] != 0 { m |= edgeBits(row + k * CS) }
+                if fk[Int(blocks[row + k + 15 * CS])] != 0 { m |= edgeBits(row + k + 15 * CS) }
+                if fk[Int(blocks[row + k])] != 0 { m |= edgeBits(row + k) }
+            }
+        }
+        return m
+    }
+    // (harness: a side's section whose bit is clear but whose cells on that side hold a fluid; must never happen)
+    func fluidEdgeMisses() -> Int {
+        let fk = Blocks.fluidKind
+        var miss = 0
+        for i in 0..<data.count where fk[Int(data[i])] != 0 {
+            let e = BlockStore.edgeBits(i)
+            if e != (e & fluidEdges) { miss += 1 }
+        }
+        return miss
+    }
+    // (harness: a section whose bit is clear but that holds a ticking cell; must never happen)
+    func tickMaskMisses() -> Int {
+        let rt = Blocks.randomTicks, mats = FieldMat.blocks
+        var miss = 0
+        for sec in 0..<min(32, (storedCount + BlockStore.section - 1) / BlockStore.section) where tickMask & (1 << UInt32(sec)) == 0 {
+            for i in (sec * BlockStore.section)..<((sec + 1) * BlockStore.section) {
+                var b = raw(i)
+                if b == AIR && ground(i) { b = mats[Int(material(i))] }
+                if rt[Int(b)] { miss += 1; break }
+            }
+        }
+        return miss
+    }
 
     // Exact emitter mask of a full block array (chunk workers).
     static func emitMask(of blocks: [BlockID]) -> UInt32 {
@@ -165,6 +256,7 @@ struct BlockStore {
         data = keep >= full.count ? full : Array(full[0..<keep])
         // Whole sections only (the mesher copies stored rows a section at a time): a short input is padded with air.
         if data.count < keep { data.append(contentsOf: repeatElement(AIR, count: keep - data.count)) }
+        if data.isEmpty { fluidEdges = .zero }        // (a shell's store, or nothing built: no fluid anywhere)
     }
 
     init(_ full: [BlockID], field: FieldData) {
@@ -178,6 +270,11 @@ struct BlockStore {
             fd.append(contentsOf: repeatElement(FieldTerrain.outside, count: keep - fd.count))
             fm.append(contentsOf: repeatElement(0, count: keep - fm.count))
         }
+    }
+
+    // (World.storeVerify: the same layers, edits and masks)
+    func sameStore(_ o: BlockStore) -> Bool {
+        data == o.data && fd == o.fd && fm == o.fm && fine == o.fine && emitMask == o.emitMask && tickMask == o.tickMask && fluidEdges == o.fluidEdges
     }
 
     var count: Int { CSQ * CH }             // logical size
@@ -218,6 +315,7 @@ struct BlockStore {
                 let m = FieldMat.index[Int(newValue)]
                 if m != 0 {
                     if Blocks.emit[Int(newValue)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
+                    if Blocks.randomTicks[Int(newValue)] { tickMask |= 1 << UInt32(i / BlockStore.section) }
                     // (Ground turned into other ground, grass creeping onto dirt or dying back, keeps its shape: it filled
                     // the cell out to a full block, a little bump in the slope wherever the grass went.)
                     setDensity(i, ground(i) ? density(i) : max(density(i), FieldTerrain.cellIn), material: m)
@@ -235,7 +333,9 @@ struct BlockStore {
                 data.append(contentsOf: repeatElement(AIR, count: need - data.count))
             }
             data[i] = newValue
+            if Blocks.fluidKind[Int(newValue)] != 0 { fluidEdges |= BlockStore.edgeBits(i) }
             if Blocks.emit[Int(newValue)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
+            if Blocks.randomTicks[Int(newValue)] { tickMask |= 1 << UInt32(i / BlockStore.section) }
         }
     }
 
@@ -254,6 +354,7 @@ struct BlockStore {
         if follow && !fine.isEmpty && fd[i] != d { FineField.follow(&fine, i, from: fd[i], to: d) }
         fd[i] = d
         if let m { fm[i] = m }
+        if d > 0 && Blocks.randomTicks[Int(FieldMat.blocks[Int(fm[i])])] { tickMask |= 1 << UInt32(i / BlockStore.section) }
     }
 
     // Full-height copy of what the cells read as (tree growth scratch, the co-op wire).
@@ -386,7 +487,8 @@ final class Chunk {
     var lod = 0 {                  // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
     }
-    weak var world: World?         // the world it is installed in (its dirty list; set by World.install)
+    @WeakLink var world: World? = nil         // the world it is installed in (its dirty list; set by World.install)
+    var prefetchMark = 0           // (World.notePrefetched: told apart from a later chunk at the same address)
 
     // Live Chunk objects, for the smoke test's memory line (an unloaded chunk should be freed: memory grew ~20 MB/s
     // while the smoke test flew, runs 605-634). Chunks die on worker threads too, hence the lock.
@@ -402,11 +504,14 @@ final class Chunk {
     var cullWatched = false          // held by the Quest's cull table: changes are noted (CullNotes)
 
     var borderSeeds: [Int] = []                      // P380 (2): small pieces at the side, checked once the neighbours exist
-    init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32], field: FieldData? = nil) {
+    convenience init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32], field: FieldData? = nil) {
+        self.init(cx: cx, cz: cz, store: field.map { BlockStore(blocks, field: $0) } ?? BlockStore(blocks), height: height, tint: tint)
+    }
+    init(cx: Int, cz: Int, store: BlockStore, height: [Int16], tint: [UInt32]) {
         Chunk.aliveLock.lock(); Chunk.alive += 1; Chunk.aliveLock.unlock()
         self.cx = cx
         self.cz = cz
-        self.blocks = field.map { BlockStore(blocks, field: $0) } ?? BlockStore(blocks)
+        self.blocks = store
         self.height = height
         heightMax = Int(height.max() ?? -1)
         self.tint = tint

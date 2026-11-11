@@ -36,7 +36,7 @@ struct TreeDraft {
     @discardableResult
     mutating func limb(_ x: Int, _ y: Int, _ z: Int, _ dx: Float, _ dz: Float, _ len: Int, rise: Int) -> IVec3 {
         var tip = IVec3(x, y, z)
-        for i in 1...max(1, len) {
+        for i in thru(1, max(1, len)) {
             let t = Float(i)
             let lx = x + Int((dx * t).rounded()), lz = z + Int((dz * t).rounded())
             let ly = y + Int((Float(rise) * t / Float(max(1, len))).rounded())

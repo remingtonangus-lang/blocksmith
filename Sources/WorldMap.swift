@@ -338,7 +338,7 @@ final class MapCache {
     private func scan(_ g: Game, _ sc: StructureCache, _ at: V3) {
         let px = Int(floor(at.x)), pz = Int(floor(at.z))
         for t in sc.types where t.name == "military_base" || t.name == "village" || t.name == "capital_city" || t.name == "boreal_station" || t.name == Greywall.kind {
-            for s in sc.startsNear(cx: floorDiv(px, CS), cz: floorDiv(pz, CS), t) {
+            for s in sc.startsNearMade(cx: floorDiv(px, CS), cz: floorDiv(pz, CS), t) {
                 let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2
                 let dx = cx - px, dz = cz - pz
                 let r = t.name == "capital_city" ? 150 : 96

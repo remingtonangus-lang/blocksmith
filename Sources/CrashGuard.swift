@@ -14,13 +14,33 @@ import Darwin
 enum CrashGuard {
     private(set) static var crashed = false
     static var told = false
+    // (code reader Nov 10, batch 2.8: after any crash the player was told to put back the last backup, though the world
+    // is saved every minute and a damaged file already falls back to its backup by itself (S1). The backup is up to
+    // five minutes older than that, its chunks aren't in it (blocks mined since stayed mined, the items came back), it
+    // was offered in whichever world opened next, and the new session's first save rotated the crashed one's copy away.
+    // Now the session marker names its world: the offer is made only in that world, only for the first ten minutes,
+    // during which that world's backup isn't rotated, and the notice no longer tells him to use it.)
+    static let oldAdvice = ProcessInfo.processInfo.environment["BS_OLDCRASHADVICE"] == "1"
+    private(set) static var crashedWorld: String?
+    private static var began = CFAbsoluteTimeGetCurrent()
+    static var world = "" { didSet { if world != oldValue { mark(true) } } }
+    static func crashedHere(_ dir: URL?) -> Bool {
+        guard crashed, let dir else { return false }
+        if oldAdvice { return true }
+        return crashedWorld == dir.lastPathComponent && CFAbsoluteTimeGetCurrent() - began < 600
+    }
     private static var lockPath = ""
     private static var logFD: Int32 = -1
 
     static func begin(root: String) {
         lockPath = root + "/session.lock"
         crashed = FileManager.default.fileExists(atPath: lockPath)
-        if crashed { print("crash guard: the last session ended unexpectedly") }
+        began = CFAbsoluteTimeGetCurrent()
+        if crashed, let s = try? String(contentsOfFile: lockPath, encoding: .utf8) {
+            let lines = s.split(separator: "\n", omittingEmptySubsequences: true)
+            crashedWorld = lines.count > 1 ? String(lines[1]) : nil
+        }
+        if crashed { print("crash guard: the last session ended unexpectedly (world \(crashedWorld ?? "unknown"))") }
         mark(true)
         logFD = open(root + "/crash.log", O_WRONLY | O_CREAT | O_APPEND, 0o644)
         for s in [SIGSEGV, SIGABRT, SIGBUS, SIGILL, SIGFPE, SIGTRAP] { signal(s, CrashGuard.onSignal) }
@@ -29,7 +49,7 @@ enum CrashGuard {
     // On while the app runs in front; off when it pauses or exits cleanly.
     static func mark(_ running: Bool) {
         guard !lockPath.isEmpty else { return }
-        if running { FileManager.default.createFile(atPath: lockPath, contents: Data(ISO8601DateFormatter().string(from: Date()).utf8)) }
+        if running { FileManager.default.createFile(atPath: lockPath, contents: Data((ISO8601DateFormatter().string(from: Date()) + "\n" + world).utf8)) }
         else { try? FileManager.default.removeItem(atPath: lockPath) }
     }
 

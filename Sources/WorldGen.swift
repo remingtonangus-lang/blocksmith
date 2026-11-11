@@ -59,7 +59,7 @@ final class WorldGen: TerrainGenerator {
         // P173: the Ancient Spire (great_ruin) no longer generates; its 183-block shaft read as an odd tower on the
         // skyline. Lookups by name (locate, landmark impostors) find no type and skip it.
         structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), CapitalRail.type(self), CapitalCity.type(self), BorealStation.type(self), Greywall.type(self), Depots.type(self), SkyIsle.type(self)], fixed: Stronghold.starts(seed: seed))
-        structures?.after = { [unowned self] w, cx, cz in Roads.draw(self, &w, cx, cz); Railways.draw(self, &w, cx, cz) }      // P51, C1
+        structures?.after = { [weak self] w, cx, cz in guard let self else { return }; Roads.draw(self, &w, cx, cz); Railways.draw(self, &w, cx, cz) }      // P51, C1 (weak: see the structure types)
     }
 
     // MARK: Cave climate
@@ -532,7 +532,7 @@ final class WorldGen: TerrainGenerator {
                 let surf = b[Chunk.index(lx, top, lz)]
                 if yg < top { for y in (yg + 1)...top { b[Chunk.index(lx, y, lz)] = y <= wl ? WATER : AIR } }
                 b[Chunk.index(lx, yg, lz)] = yg < wl ? (hash3(wx, yg, wz, 0x5A3F) % 5 == 0 ? clayB : mudB) : surf
-                for y in max(1, yg - 1)...min(CH - 1, yg + 2) { FieldTerrain.carveMin(cd, Chunk.index(lx, y, lz), (H - (Float(y) + 0.5)) * scale) }
+                for y in thru(max(1, yg - 1), min(CH - 1, yg + 2)) { FieldTerrain.carveMin(cd, Chunk.index(lx, y, lz), (H - (Float(y) + 0.5)) * scale) }
                 tops[k] = yg
                 continue
             }
@@ -698,7 +698,7 @@ final class WorldGen: TerrainGenerator {
             // Up to the column's own top (a cave cut right under the surface left a lone grass block hanging over it,
             // 3 blocks from seed 12345's spawn). Ores go with one neighbour left too (5 open sides: the reference
             // discards ore exposed to air the same way).
-            for y in 6...min(top, CH - 2) {
+            for y in thru(6, min(top, CH - 2)) {
                 let i = Chunk.index(lx, y, lz)
                 let c = b[i]
                 if c == AIR || !Blocks.opaque[Int(c)] { continue }        // (lichen, vines, buds: held from the next chunk)
@@ -828,7 +828,7 @@ final class WorldGen: TerrainGenerator {
             let spire = abs(surfN.noise2(Float(wx) / 5, Float(wz) / 5))
             if spire > 0.35 {
                 let hgt = Int((spire - 0.35) * 60)
-                if hgt > 0 && top + 1 <= CH - 2 { for yy in (top + 1)...min(CH - 2, top + hgt) { b[Chunk.index(lx, yy, lz)] = bands[yy & 63] } }
+                if hgt > 0 && top + 1 <= CH - 2 { for yy in thru((top + 1), min(CH - 2, top + hgt)) { b[Chunk.index(lx, yy, lz)] = bands[yy & 63] } }
             }
         }
         // Water up to the local water level (ice and snow come in the final freeze pass).
@@ -1130,8 +1130,8 @@ final class WorldGen: TerrainGenerator {
                     let ext = cd != nil ? 1 : 0                 // (field worlds: the rock just past the ends gets its distance)
                     let y0 = max(6, Int(py - hh) - ext), y1 = min(CH - 2, Int(py + hh) + ext)
                     guard y0 <= y1 else { continue }
-                    for z in max(bz, cz - ir)...min(bz + CS - 1, cz + ir) {
-                        for x in max(bx, cx - ir)...min(bx + CS - 1, cx + ir) {
+                    for z in thru(max(bz, cz - ir), min(bz + CS - 1, cz + ir)) {
+                        for x in thru(max(bx, cx - ir), min(bx + CS - 1, cx + ir)) {
                             let dx = Float(x) + 0.5 - px, dz = Float(z) + 0.5 - pz
                             let lx = x - bx, lz = z - bz
                             let top = tops[lx + lz * CS]
@@ -1197,8 +1197,8 @@ final class WorldGen: TerrainGenerator {
                     let dome = r > r0 * 2
                     let y0 = max(6, Int(cy - (dome ? r * 0.6 : 0.5))), y1 = min(CH - 2, Int(cy + (dome ? r * 0.8 : 0.5)))
                     guard y0 <= y1 else { continue }
-                    for z in max(bz, iz - ir)...min(bz + CS - 1, iz + ir) {
-                        for x in max(bx, ix - ir)...min(bx + CS - 1, ix + ir) {
+                    for z in thru(max(bz, iz - ir), min(bz + CS - 1, iz + ir)) {
+                        for x in thru(max(bx, ix - ir), min(bx + CS - 1, ix + ir)) {
                             let lx = x - bx, lz = z - bz
                             if tops[lx + lz * CS] < wls[lx + lz * CS] + 2 { continue }      // never under water
                             let dx = Float(x) + 0.5 - cx, dz = Float(z) + 0.5 - cz
