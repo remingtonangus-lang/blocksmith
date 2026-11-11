@@ -22,13 +22,11 @@ XF = 0.5          # crossfade seconds
 # options: ss = start this far into the clip, speed = play faster (1.5 = 50 % faster), xf = the cross-fade into this
 # shot (0 = a hard cut). Sections fade into each other; shots inside a section cut hard.
 CUT = [
-    ("frigate_strike", 2.4, None, [(0.3, "explodeLarge.wav", 1.0), (0.35, "explodeLarge_1.wav", 1.0)], {"ss": 0.7}),
     ("town_crane", 3.5, "One open world, built from blocks", [], {"xf": 0}),
-    ("town_street", 2.8, None, [], {"xf": 0, "ss": 1.5}),
+    ("town_street", 2.8, None, [], {"xf": 0, "ss": 2.2}),
     ("capital", 3.0, None, [], {"xf": 0, "ss": 0.5}),
-    ("train", 3.5, "Ride the rails across the frontier", [], {"xf": 0}),
+    ("train", 3.5, "Ride the rails across the frontier", [], {"xf": 0, "ss": 2.5}),
     ("build_cabin", 4.5, "Build anything, block by block", [], {"xf": 0, "speed": 1.6}),
-    ("cave", 3.0, "Dig into the caves below", [], {"xf": 0}),
     ("station_air", 3.2, "Infiltrate a secret base in the snow", [], {"xf": 0, "ss": 2.0}),
     ("station_gate", 2.2, None, [], {"xf": 0, "ss": 0.8}),
     ("station_corridor", 1.5, None, [], {"xf": 0}),
@@ -36,8 +34,7 @@ CUT = [
     ("frigate_fire", 3.0, "Command a warship in the sky", [], {"xf": 0, "ss": 0.5}),
     ("frigate_strike", 3.6, "and bring its main gun to bear", [(1.0, "explodeLarge.wav", 1.0), (1.05, "explodeLarge_1.wav", 1.0)], {"xf": 0}),
     ("hell", 3.0, "Then go deeper", [], {"xf": 0, "speed": 1.3}),
-    ("ash_vault", 3.2, "and fight through the last war", [], {"xf": 0, "ss": 1.6}),
-    ("tank_breakup", 3.0, None, [(0.6, "explodeLarge_2.wav", 1.0)], {"xf": 0, "ss": 1.0}),
+    ("ash_vault", 4.0, "and fight through the last war", [], {"xf": 0, "ss": 1.0}),
     ("finale", 4.0, None, [], {"xf": 0}),
 ]
 TITLE = 4.0       # the closing title card
