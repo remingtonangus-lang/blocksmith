@@ -37,7 +37,15 @@ enum HellLooks {
     static let cinderRock: Gen = HDTex.stone([(0, 0x15100D), (0.35, 0x241C17), (0.7, 0x362B23), (1, 0x4B3D32)], veins: 0.35, strata: 0.03)
     static let cinderstone: Gen = seams(cinderRock, cells: 5, share: 0.42, hot: 0xFF6A1A)
     static let ashSilt: Gen = HDTex.soil([(0, 0x4E4842), (0.5, 0x645C55), (1, 0x7C736A)], pebble: 0x2E2A26, pebbles: 10, clods: 6)
-    static let paleAsh: Gen = rippled(HDTex.soil([(0, 0x847E74), (0.5, 0xA29C90), (1, 0xC0BAAE)], pebble: 0x4A4640, pebbles: 16, clods: 4))
+    // Trailer, Nov 11 ("Then go deeper": a pale grey slab bottom right that reads as untextured ground): the drift was
+    // 0.63 grey on average, four times the cinderstone round it, so under hell's dim light it read as snow or a flat
+    // unlit slab, its fine grain gone to one grey at a distance, and at a border its bright grains won the blend
+    // (chunk_solid.frag: brighter ground pokes through first) in saw-tooth spikes on the dark rock. It is a sooty grey
+    // now (0.45), with deeper ripples and broad soot mottling that a distance keeps. BS_OLDASH=1: the old drift.
+    static let oldAsh = ProcessInfo.processInfo.environment["BS_OLDASH"] == "1"
+    static let paleAsh: Gen = oldAsh
+        ? rippled(HDTex.soil([(0, 0x847E74), (0.5, 0xA29C90), (1, 0xC0BAAE)], pebble: 0x4A4640, pebbles: 16, clods: 4))
+        : sooty(rippled(HDTex.soil([(0, 0x5C564E), (0.5, 0x777068), (1, 0x948C80)], pebble: 0x2C2824, pebbles: 16, clods: 4), deep: true))
     static let emberMoss: Gen = fibres(HDTex.soil([(0, 0x150D0A), (0.5, 0x241410), (1, 0x341C14)], pebble: 0xC04A1A, pebbles: 14, clods: 8),
                                        colour: 0x7A3218, tip: 0xFF8A34, count: 150, salt: 11)
     static let gloamMoss: Gen = fibres(HDTex.soil([(0, 0x110F18), (0.5, 0x1C1828), (1, 0x2A2438)], pebble: 0x6A5AB0, pebbles: 10, clods: 8),
@@ -68,20 +76,37 @@ enum HellLooks {
     }
 
     // Wind ripples over a drift (soft bright and dark bands along a wandering direction).
-    static func rippled(_ base: @escaping Gen) -> Gen {
+    static func rippled(_ base: @escaping Gen, deep: Bool = false) -> Gen {
         { (n: Int, s: Int) -> HDTex.Img in
             var img = base(n, s)
             let w = HDTex.fbm(n, n / 4, 2, s &+ 41)
             let fn = Float(n)
+            let k0: Float = deep ? 0.87 : 0.94, k1: Float = deep ? 0.16 : 0.09
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
                 let along: Float = (Float(y) + Float(x) * 0.25) / fn
                 let wob: Float = (w[i] - 0.5) * 5
                 let ph: Float = along * 12 * Float.pi + wob
-                let k: Float = 0.94 + 0.09 * sinf(ph)
+                let k: Float = k0 + k1 * sinf(ph)
                 let p = img.px[i]
                 img.px[i] = V4(min(1, p.x * k), min(1, p.y * k), min(1, p.z * k), p.w)
             } }
+            return img
+        }
+    }
+
+    // Broad soot patches over a ground (a few big soft blotches a tile, darker by up to a third): variation that
+    // survives the mip chain, so the ground still reads as ground from across a valley.
+    static func sooty(_ base: @escaping Gen) -> Gen {
+        { (n: Int, s: Int) -> HDTex.Img in
+            var img = base(n, s)
+            let f = HDTex.fbm(n, n / 2, 3, s &+ 97)
+            for i in 0..<(n * n) {
+                let t: Float = max(0, min(1, (f[i] - 0.35) * 2.2))
+                let k: Float = 1.08 - 0.36 * t
+                let p = img.px[i]
+                img.px[i] = V4(min(1, p.x * k), min(1, p.y * k * 0.99), min(1, p.z * k * 0.97), p.w)
+            }
             return img
         }
     }
@@ -441,7 +466,7 @@ extension TextureGen {
             return seam ? hex(0xE8641C, 0.85 + 0.3 * r(x, y, 4403)) : hex(0x2C231D, 0.75 + 0.45 * r(x, y, 4404))
         }
         p["netherrack"] = rock
-        p["soul_sand"] = noisy(0xA49E92, 4405)
+        p["soul_sand"] = HellLooks.oldAsh ? noisy(0xA49E92, 4405) : { x, y in hex(r(x / 4, y / 4, 4428) > 0.6 ? 0x5E5850 : 0x766F66, 0.82 + 0.3 * r(x, y, 4405)) }
         p["soul_soil"] = noisy(0x665E56, 4406)
         let ember: Painter = { x, y in r(x, y, 4407) > 0.8 ? hex(0xE8742C) : hex(0x3A1C12, 0.8 + 0.4 * r(x, y, 4408)) }
         let gloam: Painter = { x, y in r(x, y, 4409) > 0.82 ? hex(0xA894F0) : hex(0x241E36, 0.8 + 0.4 * r(x, y, 4410)) }
