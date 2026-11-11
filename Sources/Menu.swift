@@ -395,11 +395,14 @@ final class InventoryMenu: Menu, HasRecipeBook {
     static let sortBtn = 481            // Q2c-console-21
     static let journalBtn = 482         // P296: the journal, a tab under the crafting book's, beside the armour
     var sortedAt: Double = -10
-    var query = ""                     // search: matching slots light up, the rest dim (Renderer)
+    var query = "" { didSet { normed = Game.norm(query) } }   // search: matching slots light up, the rest dim (Renderer)
+    private var normed = ""            // (ledger 81: normalized once per change, not per slot per frame)
     var searching = false
     override var capturesText: Bool { searching }
     override func typed(_ s: String) { searching = ItemSearch.type(s, into: &query) }
-    func matches(_ st: ItemStack) -> Bool { !st.isEmpty && ItemSearch.matches(st.item, query) }
+    func matches(_ st: ItemStack) -> Bool {
+        !st.isEmpty && (ItemSearch.oldSearch ? ItemSearch.matches(st.item, query) : ItemSearch.matches(st.item, normed: normed))
+    }
     override func buttonPressed(_ i: Int) {
         if i == InventoryMenu.sortBtn {
             InventoryMenu.sortPack(game.inventory.main)

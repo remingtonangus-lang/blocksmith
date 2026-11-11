@@ -46,7 +46,7 @@ final class CreativeMenu: Menu {
     static let searchNames: [(ItemID, String, String)] = every.map { ($0, Items.def($0).display.lowercased(), Items.key($0)) }
     static func warm() {
         guard !oldTabs && !CommandLine.arguments.contains("--cold") else { return }      // (--creativetabs --cold: the pass timed itself)
-        DispatchQueue.global(qos: .utility).async { _ = byTab.count; _ = searchNames.count }
+        DispatchQueue.global(qos: .utility).async { _ = byTab.count; _ = searchNames.count; if !ItemSearch.oldSearch { _ = ItemSearch.names.count } }
     }
     var all: [ItemID] = CreativeMenu.every
     var tab: Tab = .all
