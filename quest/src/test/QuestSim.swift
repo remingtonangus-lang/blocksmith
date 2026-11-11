@@ -1003,10 +1003,20 @@ enum QuestSim {
                 // The mark is what the laser falls on (seen from 100+ m behind the hull, not the hand's own bearing).
                 guard let mark = QuestControls.chaseAimPoint else { check(false, "VR helm aim: a chase view at the \(s.name)'s helm"); break }
                 var errs: [Float] = []
-                for t in guns {
+                var why: [String] = []
+                for (gi, t) in guns.enumerated() {
                     let (c, d) = t.cannons[0]
-                    errs.append(off(bearing(t.dirToWorld(d)), bearing(mark - t.toWorld(c))))
+                    let e = off(bearing(t.dirToWorld(d)), bearing(mark - t.toWorld(c)))
+                    errs.append(e)
+                    // (where a gun is off: how far the mark is from its muzzle, its turn against the bearing wanted, and
+                    // what the bearing from the pivot would be (an offset barrel laid from the pivot misses near marks))
+                    if e >= 8 {
+                        why.append(String(format: "gun %d off %.0f: mark %.1f m from the muzzle, %.1f from the pivot, yaw %.2f wanted %@, from the pivot %.0f off",
+                                          gi, e, simd_length(mark - t.toWorld(c)), simd_length(mark - t.toWorld(t.pivot)), t.turretYaw,
+                                          t.aimYaw.map { String(format: "%.2f", $0) } ?? "nil", off(bearing(t.dirToWorld(d)), bearing(mark - t.toWorld(t.pivot)))))
+                    }
                 }
+                if !why.isEmpty { print("questsim: VR helm aim \(s.name) at \(Int(rel * 180 / .pi)): " + why.joined(separator: "; ")) }
                 let e = errs.max() ?? 0
                 worst = max(worst, e)
                 // Fire them as the helm does and read the shells' heading.

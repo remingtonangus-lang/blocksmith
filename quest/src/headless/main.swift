@@ -3311,21 +3311,24 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
     } catch { check(false, "render: \(error)") }
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
 }
+var fuzzLast: (() -> Void)?           // the VR monkey input, run after the shared checks (--questsim)
 if let out = arg("--questsim"), let ctx = vkctx {
     // (Nov 10: the VR layer's settings stayed on for the shared checks after it, CI's host job only: with swing melee on and
     // a sword in hand the trigger never hits a creature, so the balance duels killed nothing in 60 s. Put back below.)
     let vrSet0 = (game.bufferAttacks, game.swingMelee, game.steadySaddle, game.knockbackScale, game.vrShake, game.padHotbarScroll,
                   game.vrTwoHanded, game.screen)
     let vrStatic0 = (GunActions.manual, VRReload.reclined)      // (swing play's hand-worked bolts: the deep balance duels fired once)
-    // (and what a minute of monkey input in both modes leaves: the walk after it died over and over, hunters outlawed
-    // him; the shared checks start from the world they start from without the sim)
+    // (and his life, wallet and standing: the shared checks start from what they start from without the sim)
     let vrLife0 = (game.health, game.hunger, game.saturation, game.difficulty, game.townWallet, TownLaw.state)
-    let vrMobs0 = game.mobs.mobs
     do { try QuestSim.run(game: game, ctx: ctx, out: out, check: check) } catch { check(false, "questsim: \(error)") }
     // Monkey input through the VR layer (QuestFuzz): BLOCKSMITH_FUZZ_SECONDS / --fuzz-seed to run longer or another seed.
     let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
     let fuzzSeed = UInt64(arg("--fuzz-seed") ?? "") ?? 1
-    do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") }
+    // (Nov 11: run last, after the shared checks. A minute of monkey input in both modes leaves him starving, on fire,
+    // outlawed, at war with the Meridian Navy and somewhere else, and the walk, the hunters and the roads checks after it
+    // met that: ledger 75. With --questsim-only it runs here.)
+    let fuzz = { do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") } }
+    if CommandLine.arguments.contains("--questsim-only") { fuzz() } else { fuzzLast = fuzz }
     // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
     game.vrHead = nil; game.vrHeadYaw = nil; game.vrHeadPitch = nil; game.vrAim = nil          // the VR layer set them each frame; the shared checks after this run off the headset
@@ -3333,7 +3336,6 @@ if let out = arg("--questsim"), let ctx = vkctx {
      game.vrTwoHanded, game.screen) = vrSet0
     (GunActions.manual, VRReload.reclined) = vrStatic0
     (game.health, game.hunger, game.saturation, game.difficulty, game.townWallet, TownLaw.state) = vrLife0
-    game.mobs.mobs = vrMobs0.filter { $0.health > 0 }; game.mobs.rebuildIndex()
     if game.menu != nil { game.closeMenu() }
     game.alive = true
     game.vrBow = nil; game.vrBlade = nil; game.vrPinch = nil; game.swingPower = 0; game.swingMob = nil
@@ -3681,6 +3683,9 @@ HorseTests.run(game: game, check: check)
 // The pose oracle (Sources/PoseCheck.swift; the Mac fast lane runs it too): limbs, soldiers' hands, heads and weapons in
 // every stance.
 check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
+
+// The VR monkey input (--questsim), last: what it leaves behind meets no check after it.
+if let f = fuzzLast { f() }
 
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")

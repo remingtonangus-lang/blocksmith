@@ -274,26 +274,31 @@ enum QuestTouchMatrix {
             reset()
             g.player.flying = true
             let p0 = g.player.pos
-            func carried(_ f: @escaping (inout XRHand, inout XRHand) -> Void = { _, _ in }) { g.player.pos.z -= 4.3 / 72; frame(f) }
-            for i in 0..<20 {
-                if i < 3 {
-                    // (where a carried step goes: printed once per run)
-                    let z0 = g.player.pos.z
-                    g.player.pos.z -= 4.3 / 72
-                    let z1 = g.player.pos.z
-                    let (l, r) = idle()
-                    sim.hands[0] = l; sim.hands[1] = r
-                    rig.update(xr: sim, game: g); let z2 = g.player.pos.z
-                    qc.update(dt: dt); let z3 = g.player.pos.z
-                    g.tick(Double(dt)); let z4 = g.player.pos.z
-                    qc.afterTick(dt: dt); let z5 = g.player.pos.z
-                    print(String(format: "touchmatrix reader 2.2 step %d: z %.3f set %.3f rig %.3f controls %.3f tick %.3f after %.3f", i, z0, z1, z2, z3, z4, z5)
-                        + " (alive \(g.alive), menu \(g.menu.map { "\(type(of: $0))" } ?? "-"), paused \(g.paused), flying \(g.player.flying), ducking \(g.player.ducking), sneaking \(g.player.sneaking), riding \(g.riding != nil), frame \(g.world.frame != nil), aboard \(g.world.ships.aboard != nil), loaded \(g.world.isLoaded(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.z)))))")
-                } else { carried() }
+            // (each step says where it was pulled back, if it was: the first five)
+            var pulls = 0, steps = 0
+            func carried(_ f: @escaping (inout XRHand, inout XRHand) -> Void = { _, _ in }) {
+                g.player.pos.z -= 4.3 / 72
+                let z1 = g.player.pos.z
+                var (l, r) = idle()
+                f(&l, &r)
+                sim.hands[0] = l; sim.hands[1] = r
+                rig.update(xr: sim, game: g); let z2 = g.player.pos.z
+                qc.update(dt: dt); let z3 = g.player.pos.z
+                g.tick(Double(dt)); let z4 = g.player.pos.z
+                qc.afterTick(dt: dt); let z5 = g.player.pos.z
+                steps += 1
+                if abs(z5 - z1) > 0.01 && pulls < 5 {
+                    pulls += 1
+                    print(String(format: "touchmatrix reader 2.2 step %d pulled: set %.3f rig %.3f controls %.3f tick %.3f after %.3f", steps, z1, z2, z3, z4, z5)
+                        + " (alive \(g.alive), menu \(g.menu.map { "\(type(of: $0))" } ?? "-"), flying \(g.player.flying), riding \(g.riding != nil), frame \(g.world.frame != nil), selected \(g.selected))")
+                }
             }
-            let c0 = state(g)
+            for _ in 0..<20 { carried() }
+            let c0 = state(g), zA = g.player.pos.z
             for _ in 0..<22 { carried { _, r in r.squeeze = 1 } }
+            let zB = g.player.pos.z
             for _ in 0..<12 { carried() }
+            print(String(format: "touchmatrix reader 2.2: z from %.2f: %.2f after 20 steps, %.2f after the grip, %.2f at the end (%d steps, %d pulled back)", p0.z, zA, zB, g.player.pos.z, steps, pulls))
             g.player.flying = false
             let c1 = state(g)
             let moved = simd_length(V2(g.player.pos.x - p0.x, g.player.pos.z - p0.z))
