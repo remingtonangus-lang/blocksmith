@@ -3325,7 +3325,7 @@ if let out = arg("--questsim"), let ctx = vkctx {
     // (Nov 11: run last, after the shared checks. A minute of monkey input in both modes leaves him starving, on fire,
     // outlawed, at war with the Meridian Navy and somewhere else, and the walk, the hunters and the roads checks after it
     // met that: ledger 75. With --questsim-only it runs here.)
-    let fuzz = { do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, check: check) } catch { check(false, "questfuzz: \(error)") } }
+    let fuzz = { do { try QuestFuzz.run(game: game, ctx: ctx, seconds: fuzzSeconds, seed: fuzzSeed, at: arg("--fuzz-at"), check: check) } catch { check(false, "questfuzz: \(error)") } }
     // Touch input conflicts per context (quest/src/test/QuestTouchMatrix.swift, Q2).
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
     // (Nov 11: with --questsim-only too the monkey goes after the touch matrix: after seed 7's five minutes of it the

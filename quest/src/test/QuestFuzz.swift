@@ -9,7 +9,7 @@ import CVulkan
 // frame: the player, rig and panels stay finite, the player stays in the world; at the end the B / menu buttons must
 // get back to play from whatever menu is open (no dead ends). A crash fails the run by itself.
 enum QuestFuzz {
-    static func run(game: Game, ctx: VkContext, seconds: Int, seed: UInt64, check: (Bool, String) -> Void) throws {
+    static func run(game: Game, ctx: VkContext, seconds: Int, seed: UInt64, at place: String? = nil, check: (Bool, String) -> Void) throws {
         let scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
         try scene.uploadTextures()
         let host = SimHost(scene: scene)
@@ -30,6 +30,23 @@ enum QuestFuzz {
         // workers, trips waiting for their ground, a block edit meshed off the frame (World.editLane), the per-frame
         // budgets. The host checks plan, load and mesh on the frame, and the stall oracle charged that to the frame:
         // bases found 25-160 ms, trips 39-1772 ms, a placed block's remesh 14.5 ms, none of which the headset has.)
+        // (Nov 11) --fuzz-at KEY: the run starts at the nearest place of that kind (a structure's key, or a vessel's:
+        // frigate, crawler, carriage, warfrigate) instead of where the checks left him, to reach towns, bases and decks.
+        if let place {
+            var at: (Int, Int)?
+            if ["warfrigate", "crawler", "frigate", "carriage"].contains(place) {
+                at = Game.vesselRegions(place, from: game.player.pos, seed: game.world.seed, gen: game.world.gen, fleetSails: true).map { ($0.0.x, $0.0.z) }
+            } else if let s = game.world.gen.structures?.nearest(place, x: Int(game.player.pos.x), z: Int(game.player.pos.z), maxRegions: 40) {
+                at = (s.anchor.x, s.anchor.z)
+            }
+            if let (x, z) = at {
+                let g = game.world.gen.column(x, z).0
+                game.player.pos = game.settleSpawn(V3(Float(x) + 0.5, Float(g + 2), Float(z) + 0.5)); game.player.vel = .zero
+                game.player.airPeak = game.player.pos.y
+                _ = game.world.loadSync(center: game.player.pos, radius: min(4, game.world.renderDistance))
+                print(String(format: "questfuzz: starting at the %@ near %d %d (%.0f %.0f %.0f)", place, x, z, game.player.pos.x, game.player.pos.y - 64, game.player.pos.z))
+            } else { print("questfuzz: no \(place) found; starting where he is") }
+        }
         let rules0 = (StructureCache.plansOffThread, Game.arrivalHold, World.editLane, World.fluidSeconds, World.handoverSeconds,
                       DebrisWorld.budget, World.lodNear, GroundSettle.spread, World.leafNear, BlastShape.deferred)
         QuestApp.headsetWorld()
