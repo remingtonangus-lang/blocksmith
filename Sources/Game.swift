@@ -1971,7 +1971,7 @@ final class Game: LifeLinked {
         }
         if Blocks.has(key + "[x]") && Blocks.shape[Int(blockItem)].isEmpty {
             // Pillars (logs, stems, basalt...) lie along the axis of the clicked face.
-            if t.normal.x != 0 { id = Blocks.id(key + "[x]") } else if t.normal.z != 0 { id = Blocks.id(key + "[z]") }
+            id = Game.axisPlaced(blockItem, key, normal: t.normal)
         }
         let fracY = hitPoint(t).y - Float(t.hit.y)
         let upperHalf = t.normal.y == -1 || (t.normal.y == 0 && fracY > 0.5)
@@ -3239,6 +3239,17 @@ final class Game: LifeLinked {
         // Q2c-console-4: in his words ("You were slain by...", "You drowned"), with where his things are.
         let said = cause.hasPrefix("was ") ? "You were " + cause.dropFirst(4) : "You " + cause
         openMenu(DeathMenu(game: self, message: said, detail: deathDetail(lost: !lost.isEmpty, stashed: stashed)))
+    }
+
+    // Ledger 84 (Nov 11, the VR fuzz started at a Brigand Roost: "Fatal error: unknown block ash_standard_2[z]"): a
+    // block with an "[x]" state was taken for a three-way pillar (base, [x], [z]), so placing one of the two-way pieces
+    // (the Ashguard banners' and standard's cloth: base and [x] only, both in the creative palette) against the side of
+    // a block that faces z asked for a "[z]" state that isn't there, and the game stopped. The same in a ship's
+    // grid. A piece with no "[z]" keeps its base state there.
+    static func axisPlaced(_ item: BlockID, _ key: String, normal: IVec3) -> BlockID {
+        if normal.x != 0 { return Blocks.id(key + "[x]") }
+        if normal.z != 0, Blocks.has(key + "[z]") { return Blocks.id(key + "[z]") }
+        return item
     }
 
     // Respawn (from the death screen): anchor, bed/world spawn.

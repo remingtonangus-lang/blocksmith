@@ -152,7 +152,16 @@ enum QuestTouchMatrix {
             ("at a deck gun", {
                 let m = Mob(.deckGun, at: start + V3(-4, 0, -4)); g.mobs.mobs.append(m); gun = m
                 Turrets.shared.mount(g, m)
-                for _ in 0..<5 { frame() }
+                for i in 0..<5 {
+                    frame()
+                    // (Nov 11: let go now and then in a --questsim-only run, with no reason given: say what let go)
+                    if Turrets.shared.manned !== m {
+                        why = String(format: "let go at frame %d: gun health %d, listed %@, %.1f blocks off, menu %@, alive %@", i, m.health,
+                                     g.mobs.mobs.contains { $0 === m } ? "yes" : "no", simd_length(m.pos - g.player.pos),
+                                     g.menu.map { String(describing: type(of: $0)) } ?? "none", g.alive ? "yes" : "no")
+                        break
+                    }
+                }
                 return Turrets.shared.manned === m
             }),
             ("swimming", {
