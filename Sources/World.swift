@@ -1595,6 +1595,7 @@ final class World: LifeLinked {
     static var handoverSeconds = 0.004
 
     var lead = V3.zero          // P414: the player's horizontal velocity (Game.tickSeat), for the ground made first
+    static let oldUnload = ProcessInfo.processInfo.environment["BS_OLDUNLOAD"] == "1"     // (ledger 83)
     func update(center pos: V3) {
         let tUpdate = CFAbsoluteTimeGetCurrent()
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
@@ -1687,7 +1688,16 @@ final class World: LifeLinked {
                 cacheMeshes(k, c)                                   // P376 (ChunkShells)
                 gone.append(k)
             }
-            for k in gone { chunks.removeValue(forKey: k) }
+            // Ledger 83 (Nov 11, the VR fuzz: a 10.9 ms frame after Go To a Place; triptest's rifts 6.5-8.8 ms): a jump
+            // within a dimension dropped the whole old view in one frame and freed it there (each chunk's blocks, light
+            // and sections). They are now let go on a worker, as a dimension change's are (ledger 40, unloadAll).
+            // BS_OLDUNLOAD=1: freed on the frame, as before.
+            if World.oldUnload || gone.count < 8 { for k in gone { chunks.removeValue(forKey: k) } }
+            else {
+                let box = ChunksBox([:])
+                for k in gone { if let c = chunks.removeValue(forKey: k) { box.all[k] = c } }
+                DispatchQueue.global(qos: .utility).async { box.all = [:] }
+            }
             reshell()                                               // P376: drop the data of finished far chunks
             // Chunks crossing the LOD boundary get remeshed at their new detail level.
             for (k, c) in chunks {
