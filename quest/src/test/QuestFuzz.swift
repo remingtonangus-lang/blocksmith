@@ -37,6 +37,7 @@ enum QuestFuzz {
             if game.menu != nil { game.closeMenu() }
             game.paused = false
             game.survival = keepSurvival
+            game.arrivalSince = nil; game.arrivalThen = nil                          // (a trip still waiting for its ground)
             game.player.pos = keepPos; game.player.vel = .zero
             PadManager.shared.touch = nil
             scene.waitIdle()
