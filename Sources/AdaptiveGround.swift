@@ -451,13 +451,13 @@ enum AdaptiveGround {
     // the number of quads removed.
     @discardableResult
     static func simplify(_ buf: GrowBuf<UInt32>, from: Int, tol: Float, exact: UnsafePointer<Float>? = nil, capture capt: Bool = true,
-                         blob: Bool = false) -> Int {
+                         blob: Bool = false, oTol: Double? = nil, lTol: Double? = nil) -> Int {
         var none: [UInt32] = []
-        return simplify(buf, from: from, tol: tol, exact: exact, capture: capt, blob: blob, farTol: 0, farWords: &none)
+        return simplify(buf, from: from, tol: tol, exact: exact, capture: capt, blob: blob, farTol: 0, farWords: &none, oTol: oTol, lTol: lTol)
     }
     // (farTol > 0: farWords also gets the near result simplified on by farTol, as quads)
     static func simplify(_ buf: GrowBuf<UInt32>, from: Int, tol: Float, exact: UnsafePointer<Float>? = nil, capture capt: Bool = true,
-                         blob: Bool = false, farTol: Float, farWords: inout [UInt32]) -> Int {
+                         blob: Bool = false, farTol: Float, farWords: inout [UInt32], oTol: Double? = nil, lTol: Double? = nil) -> Int {
         let nq = (buf.count - from) / 8
         guard nq >= 4 else { return 0 }
         let p = buf.ptr + from
@@ -501,6 +501,8 @@ enum AdaptiveGround {
         // (Nov 6: a leaf blob's far shell, drawn past 64 blocks, lets its corners' shading (AO) run looser: the AO bound
         // was what kept the shells from simplifying, a 4-block position bound still left 64k quads at the jungle spot)
         if blob && tol == blobFarTolerance { gg.oTol = blobFarAO + 1e-9 }
+        if let o = oTol { gg.oTol = o + 1e-9 }                  // (Nov 11: the far canopy tier's own bounds)
+        if let l = lTol { gg.lTol = l + 1e-9 }
         let live = collapse(pos: pos, grid: grid, tris: tris, tol: tol, guard: gg)
         let out = pairQuads(live)
         if farTol > 0 {

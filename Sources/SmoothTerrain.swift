@@ -361,10 +361,11 @@ extension Mesher {
                             stored: UnsafeMutablePointer<Int8>? = nil, sy: Int = 0,
                             leaves: Bool = false, shells: Int = 2, leafHoles: Bool = false, detailHoles: Bool = false, world: SIMD3<Int>? = nil,
                             crater: CraterSet? = nil, carveOut: GrowBuf<UInt32>? = nil, merge: GroundMerge? = nil,
-                            exact: GrowBuf<Float>? = nil, tri: Bool = false,
+                            exact: GrowBuf<Float>? = nil, tri: Bool = false, canopy: Bool = false,
                             pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = nil,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
-        let leafT = Mesher.leafT
+        // (Nov 11, `canopy`: the far canopy tier's shell of the trees' logs, Mesher.canopyLogs)
+        let leafT = canopy ? Mesher.canopyT : Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let texT = Blocks.tex, tintT = Blocks.tint, pinT = detailHoles ? SmoothTerrain.pinsDetail : SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot
         let detT = Mesher.detailT

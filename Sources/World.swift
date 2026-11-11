@@ -1554,7 +1554,8 @@ final class World: LifeLinked {
         s.opaqueBuf = up.map { $0.opaque } ?? makeBuffer(m.opaque, m.farGround)
         s.opaqueQuads = opaqueW / 8
         s.solidQuads = m.solidQuads
-        s.farSkip = farW == 0 ? 0 : m.farSkip; s.farExtra = farW / 8
+        s.canopyN = farW == 0 ? 0 : m.canopyN; s.canopyTrunks = s.canopyN > 0 ? m.canopyTrunks : SIMD3<Int32>(0, 0, -1)
+        s.farSkip = farW == 0 ? 0 : m.farSkip; s.farExtra = farW / 8 - s.canopyN
         s.farCut = m.farCut; s.farTail = m.farTail; s.farPlants = m.farPlants
         s.blobFarN = farW == 0 ? 0 : Int(m.farParts[2]); s.blobFarAt = Int(m.farParts[0] + m.farParts[1])
         s.blobCutN = s.blobFarN > 0 ? max(0, m.farCut - Int(m.farParts[3])) : 0
