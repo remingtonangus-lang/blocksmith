@@ -4,11 +4,12 @@
 questcheck can't time the Quest's GPU, and quads drawn say little about what a pixel costs: in a forest most of the
 GPU's time goes on shading fragments, several deep where leaves, plants and water lie over one another.
 
-  quest/tools/overdraw.py shaders DIR [solid,cut,other]
+  quest/tools/overdraw.py shaders DIR [SPLIT]
       writes a counting copy of every fragment shader into DIR (DIR/<name>.frag.spv): each runs the real shader
       (so cut-out texels still discard) and then writes 1/255 into one channel: red for the terrain's and ships'
       solid passes, green for their cut-out passes (leaves, plants, vines), blue for everything else (water, sky,
-      clouds, mobs, entities, particles, panels).
+      clouds, mobs, entities, particles, panels). SPLIT takes the rest apart instead: "sky,clouds/simple" counts
+      the sky and clouds in red, simple.frag (particles, the far ring, horizon, landmarks) in green, the rest in blue.
   BS_OVERDRAW=1 BS_SPVDIR=DIR questcheck --view out.png ...
       renders with every colour pipeline additive and the target cleared to black, so each pixel holds how many
       fragments passed the depth test there, by pass (draw order as in play: solid near to far, then cut-out).
@@ -25,7 +26,10 @@ CUT = {'chunk_cut.frag', 'ship_cut.frag'}
 SKIP = {'swdepth.frag', 'swmotion.frag'}     # SpaceWarp's motion passes (off in the harness)
 
 
-def shaders(out):
+def shaders(out, split=None):
+    # split (the "other" pass taken apart): red for these shaders, green for those, blue for the rest, e.g.
+    # "sky,clouds,star/simple" (names without .frag); the terrain's own passes then count in no channel.
+    groups = [set(g.split(',')) for g in split.split('/')] if split else None
     os.makedirs(out, exist_ok=True)
     common = open(os.path.join(src, 'common.glsl')).read()
     tmp = tempfile.mkdtemp()
@@ -35,6 +39,10 @@ def shaders(out):
         text = open(os.path.join(src, name)).read().replace('#include "common.glsl"', '#define BS_FRAG 1\n' + common)
         assert text.count('void main()') == 1, name
         inc = '1.0, 0.0, 0.0' if name in SOLID else '0.0, 1.0, 0.0' if name in CUT else '0.0, 0.0, 1.0'
+        if groups:
+            base = name[:-5]
+            inc = ('1.0, 0.0, 0.0' if base in groups[0] else '0.0, 1.0, 0.0' if len(groups) > 1 and base in groups[1]
+                   else '0.0, 0.0, 0.0' if name in SOLID or name in CUT else '0.0, 0.0, 1.0')
         text = text.replace('void main()', 'void main_counted()')
         text += '\nvoid main() { main_counted(); outColor = vec4(%s, 0.0) / 255.0; }\n' % inc
         path = os.path.join(tmp, name)
@@ -69,7 +77,7 @@ def stats(png, heat=None):
 
 if __name__ == '__main__':
     if len(sys.argv) >= 3 and sys.argv[1] == 'shaders':
-        shaders(sys.argv[2])
+        shaders(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
     elif len(sys.argv) >= 3 and sys.argv[1] == 'stats':
         for p in sys.argv[2:3]:
             stats(p, sys.argv[3] if len(sys.argv) > 3 else None)
