@@ -26,7 +26,13 @@ enum QuestFuzz {
         let target = try scene.makeTarget(image: img.image, width: size, height: size)
         let keepSurvival = game.survival, keepPos = game.player.pos
         let teleport0 = QuestSettings.teleport, smooth0 = QuestSettings.smoothTurn, seated0 = QuestSettings.seated
+        // (Nov 11, check fix 35: structure starts planned on workers, as the game does (QuestApp). The host checks plan
+        // them on the frame so a base is found at once, and the stall oracle charged those plans to the frame.
+        // Trips wait for their ground as on the headset too (Game.arrivalHold), not loaded on the frame.)
+        let plans0 = StructureCache.plansOffThread, hold0 = Game.arrivalHold
+        StructureCache.plansOffThread = true; Game.arrivalHold = true
         defer {
+            StructureCache.plansOffThread = plans0; Game.arrivalHold = hold0
             QuestSettings.teleport = teleport0; QuestSettings.smoothTurn = smooth0; QuestSettings.seated = seated0
             if game.menu != nil { game.closeMenu() }
             game.paused = false
