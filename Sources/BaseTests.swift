@@ -155,7 +155,7 @@ enum BaseTests {
             check(back != nil, "the patrol returns", String(format: "after %.0f s", back ?? -1))
             if back == nil {
                 for m in b.patrols[key] ?? [] {
-                    let post = b.posts[ObjectIdentifier(m)] ?? rec().gate
+                    let post = b.posts[m] ?? rec().gate
                     print(String(format: "basetest log: straggler %@ at %.0f,%.0f,%.0f post %.0f,%.0f,%.0f order %@", m.kind.key, m.pos.x, m.pos.y, m.pos.z,
                                  post.x, post.y, post.z, m.soldierBrain.order.map { String(format: "%.0f,%.0f,%.0f", $0.x, $0.y, $0.z) } ?? "none"))
                 }

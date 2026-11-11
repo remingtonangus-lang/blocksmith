@@ -1494,7 +1494,7 @@ enum HDTex {
                     }
                     // Awns: thin bristles off the grain head.
                     if inHead, let hc = head, Int(up) % max(2, n / 32) == 0 {
-                        for a in 1...max(2, n / 28) {
+                        for a in thru(1, max(2, n / 28)) {
                             for side in [-1, 1] { plot(Int(cx) + side * (Int(w) + a), yy - a, col(hc) * 1.05) }
                         }
                     }

@@ -232,17 +232,22 @@ enum QuestTouchMatrix {
                 let sel0 = g.selected
                 for _ in 0..<3 { frame { l, r in hold(&l, &r); l.squeeze = 1 } }
                 for _ in 0..<5 { frame { l, r in hold(&l, &r) } }
-                // (On the front grip the squeeze holds the rifle braced, R6: it doesn't step the hotbar there.)
-                let front = pname0 == "on the front grip"
-                let stepped = front ? g.selected == sel0 : g.selected != sel0
+                // (P510, Nov 1: "can't left grip" with a gun out: a tap steps the hotbar wherever the hand is, the front
+                // grip too; only a grip held past 0.35 s is a brace. This check still wanted R6's no-step there.)
+                let stepped = g.selected != sel0
                 check(walked > base * 0.9 && base > 0.1 && stepped, "R1: gun in hand, off hand \(pname): the left stick walks (\(String(format: "%.1f", walked)) blocks, \(String(format: "%.1f", base)) without the gun) and the left grip steps the hotbar (\(sel0) -> \(g.selected))")
             } }
         }
         // S7: Dominant Hand Left mirrors every per-hand binding: each control pressed on the other controller does on foot
         // what it does right-handed (the Menu button stays on the left controller, the only one that has it).
         do {
+            // (each tap from the same start: a Y tap calls his horse, and a call can find the horse gone and end the
+            // bond, so the next tap opened the inventory instead; Nov 10, the code reader's 2.5)
+            let bond0 = g.horseBond, grave0 = g.horseGrave
+            defer { g.horseBond = bond0; g.horseGrave = grave0 }
             func tap(_ press: @escaping (inout XRHand, inout XRHand) -> Void) -> [String] {
                 reset()
+                g.horseBond = bond0; g.horseGrave = grave0
                 let s0 = state(g)
                 for _ in 0..<2 { frame(press) }
                 for _ in 0..<12 { frame() }
@@ -259,6 +264,80 @@ enum QuestTouchMatrix {
             QuestSettings.leftHanded = false
             reset()
             check(mism.isEmpty, "S7: the left-handed swap mirrors every Touch control on foot" + (mism.isEmpty ? "" : ": " + mism.joined(separator: "; ")))
+        }
+        // The code reader's Nov 10 batch 2, through the real VR path: 2.2 a grip held a moment while walking keeps the
+        // held item; 2.4 sitting down in standing play stops sneaking after 3 s (a duck still crouches); 2.3 with a menu
+        // open the head moves in the world instead of the world sliding with it.
+        do {
+            // (carried along at a sprint, 4.3 blocks a second, the hands still in the play space: the sim's stick walk
+            // was too slow to show it)
+            reset()
+            // (the way clear: the taps before this placed blocks round the start, and one ahead of him stopped the walk
+            // at 0.2 blocks, every fifth frame put back by the tick's collision)
+            for z in (bz - 6)...bz { for y in (py + 1)...(py + 3) { for x in (bx - 1)...(bx + 1) where w.block(x, y, z) != AIR { put(x, y, z, AIR) } } }
+            g.player.flying = true
+            let p0 = g.player.pos
+            // (each step says where it was pulled back, if it was: the first five)
+            var pulls = 0, steps = 0
+            func carried(_ f: @escaping (inout XRHand, inout XRHand) -> Void = { _, _ in }) {
+                g.player.pos.z -= 4.3 / 72
+                let z1 = g.player.pos.z
+                var (l, r) = idle()
+                f(&l, &r)
+                sim.hands[0] = l; sim.hands[1] = r
+                rig.update(xr: sim, game: g); let z2 = g.player.pos.z
+                qc.update(dt: dt); let z3 = g.player.pos.z
+                g.tick(Double(dt)); let z4 = g.player.pos.z
+                qc.afterTick(dt: dt); let z5 = g.player.pos.z
+                steps += 1
+                if abs(z5 - z1) > 0.01 && pulls < 5 {
+                    pulls += 1
+                    print(String(format: "touchmatrix reader 2.2 step %d pulled: set %.3f rig %.3f controls %.3f tick %.3f after %.3f", steps, z1, z2, z3, z4, z5)
+                        + " (alive \(g.alive), menu \(g.menu.map { "\(type(of: $0))" } ?? "-"), flying \(g.player.flying), riding \(g.riding != nil), frame \(g.world.frame != nil), selected \(g.selected))")
+                }
+            }
+            for _ in 0..<20 { carried() }
+            let c0 = state(g), zA = g.player.pos.z
+            for _ in 0..<22 { carried { _, r in r.squeeze = 1 } }
+            let zB = g.player.pos.z
+            for _ in 0..<12 { carried() }
+            print(String(format: "touchmatrix reader 2.2: z from %.2f: %.2f after 20 steps, %.2f after the grip, %.2f at the end (%d steps, %d pulled back)", p0.z, zA, zB, g.player.pos.z, steps, pulls))
+            g.player.flying = false
+            let c1 = state(g)
+            let moved = simd_length(V2(g.player.pos.x - p0.x, g.player.pos.z - p0.z))
+            print("touchmatrix reader 2.2 (\(QuestControls.oldThrow ? "BS_OLDTHROW" : "new")): walked \(String(format: "%.1f", moved)) blocks with the grip held 0.3 s, carried \(c0.carried) -> \(c1.carried)")
+            check(QuestControls.oldThrow || (c1.carried == c0.carried && moved > 0.5),
+                  "reader 2.2: the right grip held 0.3 s while walking doesn't throw the held item (carried \(c0.carried) -> \(c1.carried), walked \(String(format: "%.1f", moved)))")
+
+            reset()
+            let stand = sim.headPos
+            defer { sim.headPos = stand }
+            sim.headPos.y = stand.y - 0.6
+            for _ in 0..<72 { frame() }
+            let ducked = g.player.sneaking
+            for _ in 0..<(72 * 3) { frame() }
+            let sat = !g.player.sneaking
+            let eye = rig.headWorld.y - g.player.pos.y
+            sim.headPos = stand
+            for _ in 0..<72 { frame() }
+            let stoodEye = rig.headWorld.y - g.player.pos.y
+            print("touchmatrix reader 2.4 (\(QuestControls.oldSit ? "BS_OLDSIT" : "new")): head 0.6 m low: sneaking after 1 s \(ducked), after 4 s \(!sat), eye \(String(format: "%.2f", eye)) over the feet; stood up: \(String(format: "%.2f", stoodEye))")
+            check(ducked && (QuestControls.oldSit || sat && abs(eye - QuestRig.eyeHeight) < 0.1 && abs(stoodEye - QuestRig.eyeHeight) < 0.1),
+                  "reader 2.4: a duck crouches (\(ducked)); sat 4 s he isn't sneaking (\(sat)) and sees from eye height (\(String(format: "%.2f", eye))), and stood up again from eye height (\(String(format: "%.2f", stoodEye)))")
+
+            reset()
+            g.openInventory()
+            for _ in 0..<6 { frame() }
+            let h0 = rig.headWorld, f0 = g.player.pos
+            sim.headPos.x += 0.3
+            for _ in 0..<10 { frame() }
+            let dh = simd_length(V2(rig.headWorld.x - h0.x, rig.headWorld.z - h0.z)), df = simd_length(g.player.pos - f0)
+            sim.headPos = stand
+            print("touchmatrix reader 2.3 (\(QuestControls.oldMenuSlide ? "BS_OLDMENUSLIDE" : "new")): menu open, head 0.30 m aside: the eye moved \(String(format: "%.2f", dh)) in the world, the body \(String(format: "%.2f", df))")
+            check(QuestControls.oldMenuSlide || dh > 0.25 && df < 0.05,
+                  "reader 2.3: with a menu open the head moves in the world (\(String(format: "%.2f", dh)) of 0.30) and the body stays (\(String(format: "%.2f", df)))")
+            if g.menu != nil { g.closeMenu() }
+            for _ in 0..<5 { frame() }
         }
         for r in rows { print("touchmatrix " + r) }
         for c in conflicts { print("touchmatrix CONFLICT: " + c) }

@@ -342,10 +342,13 @@ enum SaveIO {
             guard fm.createFile(atPath: tmp.path, contents: nil) else {
                 throw NSError(domain: "save", code: 1, userInfo: [NSLocalizedDescriptionKey: "can't create a file (is the storage full?)"])
             }
+            // (code reader Nov 10, batch 2.9: FileHandle's old write(_:) and synchronizeFile() end the app when the
+            // storage is full (a try! inside them on the headset, an exception on the Mac), so a full storage crashed
+            // the save instead of being reported. The throwing calls report it and the old file stays.)
             let h = try FileHandle(forWritingTo: tmp)
-            h.write(data)
-            h.synchronizeFile()
-            h.closeFile()
+            defer { try? h.close() }
+            try h.write(contentsOf: data)
+            try h.synchronize()
             if rename(tmp.path, url.path) != 0 {
                 throw NSError(domain: "save", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: String(cString: strerror(errno))])
             }
@@ -353,6 +356,12 @@ enum SaveIO {
             try? FileManager.default.removeItem(at: tmp)
             report("Couldn't save \(url.lastPathComponent): \(error.localizedDescription)")
         }
+    }
+    // Appends to a log without ending the app on a full storage (see store): false when it couldn't.
+    @discardableResult static func append(_ data: Data, toFile path: String) -> Bool {
+        guard let h = FileHandle(forWritingAtPath: path) else { return FileManager.default.createFile(atPath: path, contents: data) }
+        defer { try? h.close() }
+        do { _ = try h.seekToEnd(); try h.write(contentsOf: data); return true } catch { return false }
     }
     static func storeJSON<T: Encodable>(_ value: T, to url: URL, pretty: Bool = false) {
         let enc = encoder()
@@ -386,6 +395,7 @@ enum SaveIO {
         if due { lastSnapshot[key] = now }
         lock.unlock()
         guard due else { return }
+        if CrashGuard.crashedHere(dir) && !CrashGuard.oldAdvice { return }      // (the crashed session's copy is kept while it's offered)
         queue.async {
             let fm = FileManager.default
             let root = dir.appendingPathComponent("backups", isDirectory: true)

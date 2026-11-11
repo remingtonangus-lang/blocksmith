@@ -51,7 +51,7 @@ extension Railways {
         guard back >= 3 else { loopNote?("loop: the end station too near the end"); return nil }
         let j = east ? n - 1 - back : back
         guard l.cells[j].z == e.z else { loopNote?("loop: no straight for the junction"); return nil }
-        for k in min(j, east ? n - 1 : 0)...max(j, east ? n - 1 : 0) where l.cells[k].z != e.z { loopNote?("loop: no straight for the junction"); return nil }
+        for k in thru(min(j, east ? n - 1 : 0), max(j, east ? n - 1 : 0)) where l.cells[k].z != e.z { loopNote?("loop: no straight for the junction"); return nil }
         let xj = e.x - dx * back
         var cells: [(Int, Int)]? = nil, shaped = 0
         // Away from the town first (it stands north of the line), else the other way.

@@ -134,7 +134,7 @@ class ListMenu: Menu, CustomDrawnMenu {
         let o = origin(L)
         let keep = scroll
         defer { scroll = keep }
-        for sc in 0...max(0, rows.count - ListMenu.visible) {
+        for sc in thru(0, max(0, rows.count - ListMenu.visible)) {
             scroll = sc
             for l in drawLines(L, o) {
                 let w = l.box?.x ?? Float(Font.width(l.text)) * l.scale

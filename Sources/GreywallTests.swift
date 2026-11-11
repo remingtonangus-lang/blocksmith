@@ -18,6 +18,7 @@ enum GreywallTests {
         defer { game.player.flying = fly0; game.menu = menu0 }       // (the turret check flies; the war table opens a report)
         faction(game, check)
         alarm(game, check)
+        alarmHeir(check)
         capture(game, check)
         turret(game, check)
         let seeds: [UInt64] = (arg("--greywall-seeds") ?? "12345,777,424242").split(separator: ",").compactMap { UInt64($0) }
@@ -206,7 +207,10 @@ enum GreywallTests {
         g.greywallAlarm.sites[key] = site
         g.player.pos = V3(Float(cx) + 0.5, Float(S + 1), Float(cz) + 0.5)
         g.survival = true
-        guard let guardMob = Mob.structureMob("soldier_trooper@grey\(Greywall.leashTag(cx, cz, t))", at: V3(Float(cx) + 6.5, Float(S + 1), Float(cz) + 0.5)) else {
+        // (a trooper's spot: a quarter of the spots make an officer (Soldier.garrison), who holds his post in an alarm by
+        // design. The VR sim before the shared checks leaves the player elsewhere, and the officer's spot failed this.)
+        let gx = (6...14).first { Soldier.garrison(.soldierTrooper, at: V3(Float(cx + $0) + 0.5, Float(S + 1), Float(cz) + 0.5)) == .soldierTrooper } ?? 6
+        guard let guardMob = Mob.structureMob("soldier_trooper@grey\(Greywall.leashTag(cx, cz, t))", at: V3(Float(cx + gx) + 0.5, Float(S + 1), Float(cz) + 0.5)) else {
             check(false, "greywall alarm: a leashed trooper parses"); return
         }
         g.mobs.mobs = [guardMob]
@@ -215,6 +219,10 @@ enum GreywallTests {
         g.bases.noises = []
         let on = g.greywallAlarm.sites[key]?.on ?? false
         let lit = site.lamps.filter { let b = g.world.block($0.x, $0.y, $0.z); return b >= Blocks.id("alarm_lamp_lit") && b < Blocks.id("alarm_lamp_lit") + 4 }.count
+        if !guardMob.aggro {
+            let p = AlarmWaves.plans[key]
+            print("greywall alarm: the trooper didn't stand to: \(guardMob.kind), plan \(p != nil) (start \(p.map { String(format: "%.1f", $0.start) } ?? "-"), clock \(String(format: "%.1f", g.clock))), his entry \(p?.entry(guardMob).map { "role \($0.role)" } ?? "none"), order \(p.map { "\(AlarmWaves.order(guardMob, $0, now: g.clock))" } ?? "-"), gun post \(guardMob.brain?.gunPost != nil), in mobs \(g.mobs.mobs.contains { $0 === guardMob }), health \(guardMob.health), leash \(guardMob.leash != nil), sites \(g.greywallAlarm.sites.count)")
+        }
         check(on && lit == 3 && guardMob.aggro && said.contains { $0.contains("alarm") },
               "greywall alarm: a shot inside the walls sets it off: \(lit)/3 lamps lit, the garrison stands to (\(guardMob.aggro)), \"\(said.first ?? "")\"")
         for _ in 0..<30 { g.greywallAlarmTick(g.bases, 1) }
@@ -262,6 +270,25 @@ enum GreywallTests {
         let front = m.pos.z > Float(cz + t.half) && steps < 600
         check(held == 0 && back > 0 && toward && front,
               String(format: "greywall leash: a step out past the wall is held (%.2f), a soldier outside walks round to the gate side (%.2f, south %@) and is back at the front after %d steps (%@)", held, back, toward ? "yes" : "no", steps, front ? "yes" : "no"))
+    }
+
+    // An alarm's plan outlives the men in it (15 s): a soldier made at a dead holder's address isn't taken for him.
+    static func alarmHeir(_ check: (Bool, String) -> Void) {
+        var holder: Mob? = Mob(.soldierTrooper, at: .zero)
+        let id = ObjectIdentifier(holder!)
+        let plan = AlarmWaves.Plan(0)
+        plan.set(holder!, 0)
+        holder = nil
+        var keep: [Mob] = [], heir: Mob?
+        for _ in 0..<400 {
+            let m = Mob(.soldierTrooper, at: .zero)
+            if ObjectIdentifier(m) == id { heir = m; break }
+            keep.append(m)
+        }
+        guard let heir else { print("greywall alarm: no soldier got a dead holder's address in 400 (not checked)"); return }
+        let o = AlarmWaves.order(heir, plan, now: 0)
+        print("greywall alarm: a soldier made at a dead holder's address (after \(keep.count) others) is told to \(o) (\(AlarmWaves.oldKeys ? "BS_OLDALARMKEYS" : "new"))")
+        check(AlarmWaves.oldKeys || o == .go, "greywall alarm: a soldier who came after the alarm goes, though a dead holder had his address (\(o))")
     }
 
     // A1c: a cleared base held at its command console for 10 s is the player's: the alarm silent for good, the deck

@@ -147,6 +147,9 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     }
     let dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
     QuestPaths.setDataRoot(dataPath)
+    // The world meshes outside the backed-up files (ChunkShells MeshCache.outside): <app data>/no_backup, which
+    // Android's backup leaves out.
+    MeshCache.outside = URL(fileURLWithPath: (dataPath as NSString).deletingLastPathComponent + "/no_backup/meshcache", isDirectory: true)
     CrashGuard.begin(root: dataPath)
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
     if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }

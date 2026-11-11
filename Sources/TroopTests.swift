@@ -43,8 +43,11 @@ enum TroopTests {
                     // Capital's class guns (Brecher, Blitzlanze, rotary) stay with the Capital's own troops.
                     let fits: Bool
                     switch c {
+                    // (P501, Oct 31: two Greywall heavies in five carry the Sturmbrecher, the one Capital arm Greywall takes
+                    // up; this check predated it and failed whenever the draw gave an ironclad one.)
                     case .regular, .specOps: fits = Guns.isGreyArm(gun) || [Guns.revolver, Guns.kessel].contains(gun)
-                    case .hannibal: fits = gun == Guns.repeater
+                        || k == "soldier_ironclad" && gun == Guns.autoShotgun
+                    case .hannibal: fits = gun == Guns.repeater || gun == Guns.autoShotgun
                     }
                     if !fits || m.variant != gun { ok = false; rows.append("\(t) \(k) \(c.name) carries \(Guns.all[gun].name)") }
                 }

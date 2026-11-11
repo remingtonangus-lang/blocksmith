@@ -151,7 +151,7 @@ enum ShapeTrunks {
                     else { kind = 2 }                                               // a post (built timber)
                     if kind != 0 {
                         let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(max(5, H + 4)) : 0.45)
-                        for yy in max(y, -M)...min(top, 15 + M) where logC(x, yy, z) {      // (P433: not the cut's cells)
+                        for yy in thru(max(y, -M), min(top, 15 + M)) where logC(x, yy, z) {      // (P433: not the cut's cells)
                             let i = wi(x, yy, z)
                             s.col[i] = kind
                             let t = (Float(yy - bot) + 0.5) / Float(H)

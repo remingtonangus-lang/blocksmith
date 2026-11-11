@@ -797,7 +797,10 @@ final class Game: LifeLinked {
         for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r {
             guard let c = w.chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.meshedOnce else { return false }
         } }
-        return true
+        // (a taken capital he may stand on: built. Only one near him: one that never got built, or one far off, would
+        // otherwise hold every arrival to its 4 s limit)
+        let p = player.pos
+        return ShipManager.oldTakenGrid || !w.ships.takenToRestore.contains { $0.pos.count == 3 && simd_length(V3($0.pos[0], $0.pos[1], $0.pos[2]) - p) < 400 }
     }
     func changeDimension(to d: Dim, at p: V3, syncRadius: Int? = nil, then: (() -> Void)? = nil) {
         var lt = CFAbsoluteTimeGetCurrent()
@@ -1425,7 +1428,7 @@ final class Game: LifeLinked {
         // Within reach of a helm the player can take (ShipPlay.commandeerable): use takes it, unless aimed at a door,
         // chest or other usable block, or a ship's container.
         if useNow && !(input.shift || p.b), let s = commandeerable(), !(target.map { isInteractive($0.hit) } ?? false),
-           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false) {
+           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false), !useMeantForHull(s) {
             takeCommand(s); return
         }
         // Skinning a body you're aiming at (Hunting.swift): before guns, which take the use button to aim.
@@ -3622,9 +3625,10 @@ final class Game: LifeLinked {
         if autosaveTimer > 60 { autosaveTimer = 0; saveNow(background: true) }
         for msg in SaveIO.takeProblems() { onToast?(msg); SaveBadge.failedAt = clock }          // S2: save problems reach the player
         if persistent { StorageCheck.tick(self) }                                               // Q2c-console-51
-        if CrashGuard.crashed && !CrashGuard.told && clock > 3 {    // S4
+        if CrashGuard.crashedHere(save?.dir) && !CrashGuard.told && clock > 3 {    // S4
             CrashGuard.told = true
-            onToast?("The last session ended unexpectedly. Pause > Restore Last Backup puts back the last saved copy")
+            onToast?(CrashGuard.oldAdvice ? "The last session ended unexpectedly. Pause > Restore Last Backup puts back the last saved copy"
+                     : "The last session ended unexpectedly. The world is as it was last saved")
         }
         TickProf.mark("autosave")
     }

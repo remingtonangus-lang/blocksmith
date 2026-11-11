@@ -98,5 +98,12 @@ struct Frustum {
     Float(hash3(x, y, z, seed) & 0xFFFFFF) / Float(0x1000000)
 }
 
+// lo through hi, empty when hi < lo. `lo...hi` with hi < lo is a trap in a checked build and, with the check compiled
+// out (-Ounchecked, the headset), a loop that runs on through every integer: a freeze (the code reader's Nov 10 batch:
+// CrewLookout's deck ranges from a crewman on a hull's top layer or a 2-high torn-off piece). Every loop over a range
+// clamped to a box (max(...) through min(...)) goes through this.
+@inline(__always) func thru<T: Strideable>(_ lo: T, _ hi: T) -> Range<T> where T.Stride: SignedInteger {
+    lo..<Swift.max(lo, hi.advanced(by: 1))
+}
 @inline(__always) func floorDiv(_ a: Int, _ b: Int) -> Int { a >= 0 ? a / b : (a - b + 1) / b }
 @inline(__always) func mod(_ a: Int, _ b: Int) -> Int { let r = a % b; return r < 0 ? r + b : r }

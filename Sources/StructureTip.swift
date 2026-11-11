@@ -613,7 +613,9 @@ enum StructureTipCheck {
             if a?.count != b?.count || a.map({ Set($0) }) != b.map({ Set($0) }) { same = false }
             if pieces.count < spots.count { pieces.append(a?.count ?? 0) }
         } }
-        check(same && newMs < 4, String(format: "Nov 4: the overhang check at four blasts on the keep finds the same pieces as before (%@, %@ falling), its slowest %.2f ms (before %.2f; want under 4)",
-                                         same ? "same" : "DIFFERENT", "\(pieces)", newMs, oldMs))
+        // (CI's host job runs an unoptimized build, about 4x slower: 12.6 ms there, against 18.9 the old way)
+        let want: Double = _isDebugAssertConfiguration() ? 16 : 4
+        check(same && newMs < want, String(format: "Nov 4: the overhang check at four blasts on the keep finds the same pieces as before (%@, %@ falling), its slowest %.2f ms (before %.2f; want under %.0f)",
+                                         same ? "same" : "DIFFERENT", "\(pieces)", newMs, oldMs, want))
     }
 }

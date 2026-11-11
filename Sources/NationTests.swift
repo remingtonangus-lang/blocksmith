@@ -130,7 +130,7 @@ enum NationTests {
                     for x in stride(from: tx - r, through: tx + r, by: 1) { for z in stride(from: tz - r, through: tz + r, by: 1) where w.isLoaded(x, z) {
                         let top = w.topY(x, z)
                         guard top > 0 else { continue }
-                        for y in max(1, top - 4)...min(CH - 1, top + 12) { undo.append((IVec3(x, y, z), w.block(x, y, z))) }
+                        for y in thru(max(1, top - 4), min(CH - 1, top + 12)) { undo.append((IVec3(x, y, z), w.block(x, y, z))) }
                     } }
                 }
             }

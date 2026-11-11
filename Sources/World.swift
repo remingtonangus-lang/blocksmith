@@ -443,7 +443,7 @@ final class World: LifeLinked {
         for cz in floorDiv(z0, CS)...floorDiv(z1, CS) { for cx in floorDiv(x0, CS)...floorDiv(x1, CS) {
             guard let ch = chunks[ChunkKey(x: cx, z: cz)], !ch.hollow || stone else { continue }
             let bx = cx * CS, bz = cz * CS
-            for z in max(z0, bz)...min(z1, bz + CS - 1) { for x in max(x0, bx)...min(x1, bx + CS - 1) {
+            for z in thru(max(z0, bz), min(z1, bz + CS - 1)) { for x in thru(max(x0, bx), min(x1, bx + CS - 1)) {
                 let lx = x - bx, lz = z - bz
                 if ch.hollow {
                     let top = min(yb, Int(ch.height[lx + lz * CS]))
@@ -950,7 +950,7 @@ final class World: LifeLinked {
                 // One chunk lookup per column (it was a dictionary lookup per block); empty cells skip straight on.
                 if plain {
                     guard let c = chunkAt(x, z) else {
-                        if y0 < 0 { for y in y0...min(y1, -1) { collisionBoxes(x, y, z, &boxes) } }   // bedrock below 0
+                        if y0 < 0 { for y in thru(y0, min(y1, -1)) { collisionBoxes(x, y, z, &boxes) } }   // bedrock below 0
                         continue
                     }
                     let lx = mod(x, CS), lz = mod(z, CS)
@@ -1357,7 +1357,7 @@ final class World: LifeLinked {
         } else {
             for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
                 guard let ch = chunks[ChunkKey(x: cx, z: cz)] else { continue }
-                for sy in max(0, (p.y - r) >> 4)...min(NSEC - 1, (p.y + r) >> 4) { ch.sections[sy].version += 1 }
+                for sy in thru(max(0, (p.y - r) >> 4), min(NSEC - 1, (p.y + r) >> 4)) { ch.sections[sy].version += 1 }
             } }
         }
     }
@@ -1372,7 +1372,7 @@ final class World: LifeLinked {
         damage[p] = UInt8((f & 7) << 5 | min(7, lv))
         for dz in -1...1 { for dx in -1...1 {
             guard let n = chunkAt(p.x + dx * 16, p.z + dz * 16) else { continue }
-            for sy in max(0, (p.y - 16) >> 4)...min(NSEC - 1, (p.y + 16) >> 4) { n.sections[sy].version += 1 }
+            for sy in thru(max(0, (p.y - 16) >> 4), min(NSEC - 1, (p.y + 16) >> 4)) { n.sections[sy].version += 1 }
         } }
     }
 
@@ -1395,7 +1395,7 @@ final class World: LifeLinked {
             let r = 3 + SmoothTerrain.relax
             for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
                 guard let c = chunks[ChunkKey(x: cx, z: cz)] else { continue }
-                for sy in max(0, (p.y - r) >> 4)...min(NSEC - 1, (p.y + r) >> 4) {
+                for sy in thru(max(0, (p.y - r) >> 4), min(NSEC - 1, (p.y + r) >> 4)) {
                     let near = cx >= floorDiv(p.x - 1, CS) && cx <= floorDiv(p.x + 1, CS) && cz >= floorDiv(p.z - 1, CS) && cz <= floorDiv(p.z + 1, CS)
                         && sy >= (p.y - 1) >> 4 && sy <= (p.y + 1) >> 4
                     if !near { c.sections[sy].version += 1 }

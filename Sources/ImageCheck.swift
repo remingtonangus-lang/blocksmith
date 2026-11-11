@@ -74,10 +74,6 @@ enum ImageCheck {
         if let f = flicker { line += String(format: " flicker=%.5f", f) }
         print(line)
         let logPath = "snaps/imagecheck.log"
-        if let h = FileHandle(forWritingAtPath: logPath) {
-            h.seekToEndOfFile(); h.write((line + "\n").data(using: .utf8)!); h.closeFile()
-        } else {
-            try? (line + "\n").write(toFile: logPath, atomically: true, encoding: .utf8)
-        }
+        SaveIO.append(Data((line + "\n").utf8), toFile: logPath)
     }
 }

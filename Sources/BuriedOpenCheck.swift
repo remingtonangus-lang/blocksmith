@@ -28,7 +28,9 @@ enum BuriedOpenCheck {
         let job = CraterJob(at: V3(Float(cx) + 0.5, Float(ty) + 0.5, Float(cz) + 0.5), radius: MainGun.craterRadius, cap: MainGun.craterCap,
                             game: g, quiet: true, depth: MainGun.craterDepth, along: V3(0, -1, 0.3))
         var steps = 0
-        while !job.done && steps < 400 { job.step(g, blocks: CraterJob.blocksPerFrame); g.tick(1.0 / 72); steps += 1 }
+        // (the carving shares a frame's time budget, so a slow build takes more frames: CI's checked build ran out of
+        // 400 with the bowl not yet down to the floor)
+        while !job.done && steps < 4000 { job.step(g, blocks: CraterJob.blocksPerFrame); g.tick(1.0 / 72); steps += 1 }
         for _ in 0..<600 { g.tick(1.0 / 72) }
         let open = !w.groundAt(cx, floorY + 2, cz)
         let below = (0..<12).first { w.groundAt(cx, floorY - $0, cz) }.map { floorY - $0 } ?? -1

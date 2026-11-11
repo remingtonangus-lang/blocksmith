@@ -743,7 +743,7 @@ extension Capital {
         func ix(_ x: Int, _ z: Int) -> Int { (x + xr) + (z - z0) * W }
         func at(_ x: Int, _ z: Int) -> UInt8 { x < -xr || x > xr || z < z0 || z > z1 ? 0 : t[ix(x, z)] }
         for z in z0...z1 { for x in -xr...xr where inner(x, y, z) && inner(x, y + 1, z) { t[ix(x, z)] = 1 } }
-        for (xa, xb, za, zb) in corridors { for z in max(z0, za)...min(z1, zb) { for x in xa...xb where at(x, z) == 1 { t[ix(x, z)] = 2 } } }
+        for (xa, xb, za, zb) in corridors { for z in thru(max(z0, za), min(z1, zb)) { for x in xa...xb where at(x, z) == 1 { t[ix(x, z)] = 2 } } }
         let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         for z in z0...z1 { for x in -xr...xr where at(x, z) == 1 {
             if z == z0 || dirs.contains(where: { at(x + $0.0, z + $0.1) == 2 }) { t[ix(x, z)] = 3 }

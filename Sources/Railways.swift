@@ -723,7 +723,7 @@ enum Railways {
             // (A dog-leg one or two blocks across has two curves close together: the second takes the first's level.)
             let window = target[max(0, i - 2)...min(n - 1, i + 2)].sorted()
             let lv = fixed[i] ?? fixed[i - 1] ?? window[window.count / 2]
-            for j in max(0, i - 1)...min(n - 1, i + 1) { fixed[j] = fixed[j] ?? lv }
+            for j in thru(max(0, i - 1), min(n - 1, i + 1)) { fixed[j] = fixed[j] ?? lv }
         }
         for st in stations {
             let a = max(0, st.index - 8), b = min(n - 1, st.index + 8)
@@ -803,10 +803,10 @@ enum Railways {
             var lv = fixed[i] ?? window[window.count / 2]
             if floatCurves && fixed[i] == nil {
                 var lo: Float = -1e9, hi: Float = 1e9
-                for j in max(0, i - 1)...min(n - 1, i + 1) { let b = band(j); lo = max(lo, b.0); hi = min(hi, b.1) }
+                for j in thru(max(0, i - 1), min(n - 1, i + 1)) { let b = band(j); lo = max(lo, b.0); hi = min(hi, b.1) }
                 if lo <= hi { lv = max(lo, min(hi, lv)) }
             }
-            for j in max(0, i - 1)...min(n - 1, i + 1) { fixed[j] = fixed[j] ?? lv }
+            for j in thru(max(0, i - 1), min(n - 1, i + 1)) { fixed[j] = fixed[j] ?? lv }
         }
         for st in stations {
             let a = max(0, st.index - 8), b = min(n - 1, st.index + 8)

@@ -497,7 +497,7 @@ enum Greywall {
                 wallLamp(alarm, r.x0, 4, r.z0, wall: 0)
             case "mess":
                 let tz = (r.z0 + r.z1) / 2
-                for dx in (r.x0 + 1)...max(r.x0 + 1, r.x1 - 1) where r.z1 > r.z0 {
+                for dx in thru((r.x0 + 1), max(r.x0 + 1, r.x1 - 1)) where r.z1 > r.z0 {
                     put(dx, 1, tz, steelSlabTop)
                     if tz + 1 <= r.z1 { put(dx, 1, tz + 1, slab) }
                 }

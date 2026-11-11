@@ -18,10 +18,19 @@ enum AlarmWaves {
     final class Plan {
         var start: Double
         var last: Double
-        var role: [ObjectIdentifier: Int] = [:]  // 0 holds, 1...waves answers in that wave
-        var sent = Set<ObjectIdentifier>()       // already sent toward the alarm (a wave's first call aims him)
+        // 0 holds, 1...waves answers in that wave; sent: already sent toward the alarm (a wave's first call aims him).
+        // (Nov 10: keyed by the soldier's address alone, a soldier made after a man of the plan died could be given his
+        // place and hold his post or wait for his wave, or never be aimed; the entry holds the man it is for.)
+        struct Entry { weak var mob: Mob?; var role: Int; var sent = false }
+        var roles: [ObjectIdentifier: Entry] = [:]
         init(_ t: Double) { start = t; last = t }
+        func entry(_ m: Mob) -> Entry? {
+            guard let e = roles[ObjectIdentifier(m)], AlarmWaves.oldKeys || e.mob === m else { return nil }
+            return e
+        }
+        func set(_ m: Mob, _ r: Int) { roles[ObjectIdentifier(m)] = Entry(mob: m, role: r) }
     }
+    static let oldKeys = ProcessInfo.processInfo.environment["BS_OLDALARMKEYS"] == "1"
     static var plans: [String: Plan] = [:]
 
     // The plan of an alarm at `key`, made when the alarm is new (or after 15 s without a call: it stood down).
@@ -30,16 +39,16 @@ enum AlarmWaves {
         let p = Plan(now)
         var rest: [Mob] = []
         for m in garrison {
-            if m.kind == .soldierMarksman || m.kind == .soldierOfficer || m.brain?.gunPost != nil { p.role[ObjectIdentifier(m)] = 0 } else { rest.append(m) }
+            if m.kind == .soldierMarksman || m.kind == .soldierOfficer || m.brain?.gunPost != nil { p.set(m, 0) } else { rest.append(m) }
         }
         rest.sort { simd_length_squared($0.pos - src) < simd_length_squared($1.pos - src) }
         var answer: [Mob] = []
         for (i, m) in rest.enumerated() {
             // (the nearest man always answers: an alarm of one soldier still sends him)
-            if i > 0 && i % holdShare == holdShare - 1 { p.role[ObjectIdentifier(m)] = 0 } else { answer.append(m) }
+            if i > 0 && i % holdShare == holdShare - 1 { p.set(m, 0) } else { answer.append(m) }
         }
         let per = max(1, Int((Float(answer.count) / Float(waves)).rounded(.up)))
-        for (i, m) in answer.enumerated() { p.role[ObjectIdentifier(m)] = min(waves, 1 + i / per) }
+        for (i, m) in answer.enumerated() { p.set(m, min(waves, 1 + i / per)) }
         plans[key] = p
         if plans.count > 32 { plans = plans.filter { now - $0.value.last < 60 } }
         return p
@@ -50,10 +59,15 @@ enum AlarmWaves {
     static func send(_ m: Mob, _ p: Plan, now: Double) -> (Order, Bool) {
         let o = order(m, p, now: now)
         guard o == .go else { return (o, false) }
-        return (o, p.sent.insert(ObjectIdentifier(m)).inserted)
+        // (a reinforcement gets an entry of his own the first time: the first wave's)
+        var e = p.entry(m) ?? Plan.Entry(mob: m, role: 1)
+        let first = !e.sent
+        e.sent = true
+        p.roles[ObjectIdentifier(m)] = e
+        return (o, first)
     }
     static func order(_ m: Mob, _ p: Plan, now: Double) -> Order {
-        guard let r = p.role[ObjectIdentifier(m)] else { return .go }      // came after the alarm: a reinforcement
+        guard let r = p.entry(m)?.role else { return .go }      // came after the alarm: a reinforcement
         if r == 0 { return .hold }
         return now - p.start >= Double(r - 1) * every ? .go : .wait
     }

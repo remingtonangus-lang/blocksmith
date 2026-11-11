@@ -211,7 +211,7 @@ enum HollowSpire {
                 put(a, 0, b, purpur)                                   // deck
                 if abs(b) == half { put(a, 1, b, purpur) }             // gunwale
             }
-            for b in -max(0, half - 1)...max(0, half - 1) { put(a, -1, b, purpur) }
+            for b in thru(-max(0, half - 1), max(0, half - 1)) { put(a, -1, b, purpur) }
             put(a, -2, 0, OBSIDIAN)
         }
         // Hold (below deck, two blocks tall so it can be walked) with chests, and a two-step hatch down into it.

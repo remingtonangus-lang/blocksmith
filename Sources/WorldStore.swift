@@ -75,6 +75,7 @@ enum WorldStore {
         if to == from { return to }
         guard exists(from), !exists(to) else { return nil }
         do { try FileManager.default.moveItem(at: url(from), to: url(to)) } catch { return nil }
+        if let a = MeshCache.outsideDir(url(from)), let b = MeshCache.outsideDir(url(to)) { try? FileManager.default.moveItem(at: a, to: b) }
         if UserDefaults.standard.string(forKey: "lastWorld") == from { UserDefaults.standard.set(to, forKey: "lastWorld") }
         return to
     }
@@ -95,6 +96,7 @@ enum WorldStore {
     static func delete(_ name: String) -> Bool {
         guard exists(name) else { return false }
         let fm = FileManager.default
+        if let m = MeshCache.outsideDir(url(name)) { try? fm.removeItem(at: m) }
         if useTrash, (try? fm.trashItem(at: url(name), resultingItemURL: nil)) != nil { return true }
         return (try? fm.removeItem(at: url(name))) != nil
     }

@@ -31,8 +31,8 @@
         android:label="Sunderfall"
         android:hasCode="false"
         android:extractNativeLibs="true"
-        android:allowBackup="false">
-        <meta-data android:name="com.oculus.supportedDevices" android:value="quest3|quest3s|quest2|questpro" />
+        android:allowBackup="true">
+        <meta-data android:name="com.oculus.supportedDevices" android:value="quest3|quest3s" />
         <meta-data android:name="com.oculus.vr.focusaware" android:value="true" />
 
         <activity

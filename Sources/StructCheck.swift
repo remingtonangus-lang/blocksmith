@@ -171,6 +171,7 @@ enum StructCheck {
         for seed in seeds {
             for dim in dims {
                 let world = World(seed: seed, device: device, save: nil, dim: dim)
+                if meet { world.makeFieldWorld() }          // (--meet: the headset's ground, a density field)
                 guard let cache = world.gen.structures else { continue }
                 var kinds: [(String, [StructureStart])] = []
                 for t in cache.types where only == nil || only!.contains(t.name) {
@@ -237,6 +238,22 @@ enum StructCheck {
             lines.append("- **\(i.cls)** \(i.kind) " + where_ + ": \(i.detail)  `\(snap)`")
             if !i.view.isEmpty { lines.append("  - view: `\(i.view)`") }
         }
+        if meet {
+            lines.append("")
+            lines.append("## Meeting the ground (--meet): outside columns over the drawn ground by more than 0.3 blocks")
+            lines.append("")
+            lines.append("| kind | columns | over a gap | worst |")
+            lines.append("|---|---|---|---|")
+            for (k, v) in meetCols.sorted(by: { $0.key < $1.key }) {
+                lines.append(String(format: "| %@ | %ld | %ld | %.2f |", k, v.cols, v.gaps, v.worst))
+                print(String(format: "structmeet: %@ %ld columns, %ld over a gap of 0.3-1.5, worst %.2f", k, v.cols, v.gaps, v.worst))
+            }
+            let h = meetHist.map(String.init).joined(separator: " / ")
+            lines.append("")
+            lines.append("Every outside column: gap up to 0.3 / 0.3-0.6 / 0.6-1.0 / 1.0-1.5 / no ground within 1.5: " + h)
+            print("structmeet: every outside column: gap up to 0.3 / 0.3-0.6 / 0.6-1.0 / 1.0-1.5 / no ground within 1.5: " + h)
+            print("structmeet: the gaps: \(meetUnder[0]) with ground in the cell under the block, \(meetUnder[1]) with none there")
+        }
         let report = lines.joined(separator: "\n") + "\n"
         if let out = arg("--out") { try? report.write(toFile: out, atomically: true, encoding: .utf8) }
         for l in lines.prefix(6 + stats.count) { print("structcheck " + l) }
@@ -246,6 +263,103 @@ enum StructCheck {
         print(String(format: "structcheck: %ld instances, %ld issues (%@) in %.1f s", stats.values.reduce(0) { $0 + $1.n }, issues.count,
                      summary.isEmpty ? "none" : summary, CFAbsoluteTimeGetCurrent() - t0))
         return CommandLine.arguments.contains("--strict") && !issues.isEmpty ? 2 : 0
+    }
+
+    // MARK: Meeting the ground (--meet)
+
+    // Week item 60 ("built things sit on the ground", a trailer bug: houses floating off slopes). In a field world (the
+    // headset's: natural ground is a density field drawn smooth, buildings stay blocks) each column's lowest built block
+    // that rests on its floor, on the building's outside (open to one side), is measured against the drawn ground under
+    // it (World.floorGap: its corners, edge middles and middle). A gap over 0.3 blocks shows daylight under the wall.
+    static let meet = CommandLine.arguments.contains("--meet")
+    static var meetCols: [String: (cols: Int, gaps: Int, worst: Float)] = [:]
+    static var meetTraced = 0
+    static var meetUnder = [0, 0]                              // gaps over ground in the cell under the block / over none
+    static var meetHist = [Int](repeating: 0, count: 5)       // gap <= 0.3, 0.3-0.6, 0.6-1.0, 1.0-1.5, none within 1.5
+    // World.floorGap, leaving out the samples on a side where a built block stands beside it, at its level or under it:
+    // the ground meets that block's side there (a wall going on down, the next course of a foundation), out of sight
+    // (build 305's traces: most "gaps" were the drawn ground dipping beside a deeper log or plank of the same building).
+    static func sideGap(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float {
+        func walled(_ dx: Int, _ dz: Int) -> Bool {
+            Blocks.collide[Int(w.builtBlock(x + dx, y - 1, z + dz))] || Blocks.collide[Int(w.builtBlock(x + dx, y, z + dz))]
+        }
+        let wx0 = walled(-1, 0), wx1 = walled(1, 0), wz0 = walled(0, -1), wz1 = walled(0, 1)
+        var worst: Float = 0
+        for k in 0..<9 {
+            let i = k % 3, j = k / 3
+            if i == 0 && wx0 || i == 2 && wx1 || j == 0 && wz0 || j == 2 && wz1 { continue }
+            let o = V3(Float(x) + 0.02 + Float(i) * 0.48, Float(y) + 0.02, Float(z) + 0.02 + Float(j) * 0.48)
+            guard w.fieldDensity(at: o) <= 0 else { continue }
+            if let h = w.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5) { worst = max(worst, Float(y) - h.at.y) } else { worst = max(worst, 1.5) }
+        }
+        return worst
+    }
+    static func meetCheck(_ w: World, _ s: StructureStart, typeName: String, seed: UInt64) -> [Issue] {
+        let kind = s.kind
+        if noWalk.contains(typeName) || fromInside.contains(typeName) || ["sky_isle", "end_centre", "ruined_portal"].contains(typeName) { return [] }
+        var gaps: [(IVec3, Float)] = []
+        var cols = 0
+        let y0 = max(2, s.min.y), y1 = min(CH - 2, s.max.y)
+        for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            var found: Int? = nil
+            var y = y0
+            while y <= y1 {
+                let b = Int(w.builtBlock(x, y, z))
+                if Blocks.collide[b] {
+                    if World.restsOnFloor[b] && !Blocks.collide[Int(w.builtBlock(x, y - 1, z))] { found = y }
+                    break
+                }
+                y += 1
+            }
+            guard let yb = found else { continue }
+            var open = false
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where !Blocks.collide[Int(w.builtBlock(x + dx, yb, z + dz))] {
+                if w.fieldDensity(at: V3(Float(x + dx) + 0.5, Float(yb) + 0.5, Float(z + dz) + 0.5)) <= 0 { open = true; break }
+            }
+            guard open else { continue }
+            cols += 1
+            // (1.5: no ground within a block and a half under it: eaves, a balcony, a bridge deck: held by what it's
+            // built on, and a base hanging that far is the block-world check's `floating`. The bug is a base standing a
+            // little proud of the smoothed slope.)
+            let g = sideGap(w, x, yb, z)
+            meetHist[g <= 0.3 ? 0 : g < 0.6 ? 1 : g < 1.0 ? 2 : g < 1.49 ? 3 : 4] += 1
+            if g > 0.3 && g < 1.49 {
+                gaps.append((IVec3(x, yb, z), g))
+                // (what is under it: ground in the cell below (the drawn ground curving away at its edge), or not)
+                meetUnder[w.fieldDensity(at: V3(Float(x) + 0.5, Float(yb) - 0.5, Float(z) + 0.5)) > 0 ? 0 : 1] += 1
+                if meetTraced < 16 {
+                    meetTraced += 1
+                    func dc(_ ax: Int, _ ay: Int, _ az: Int) -> String {
+                        String(format: "%.2f", w.fieldDensity(at: V3(Float(ax) + 0.5, Float(ay) + 0.5, Float(az) + 0.5)))
+                    }
+                    var samples: [String] = []
+                    for k in 0..<9 {
+                        let px = Float(x) + 0.02 + Float(k % 3) * 0.48, pz = Float(z) + 0.02 + Float(k / 3) * 0.48
+                        let o = V3(px, Float(yb) + 0.02, pz)
+                        if w.fieldDensity(at: o) > 0 { samples.append("in"); continue }
+                        if let h = w.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5) { samples.append(String(format: "%.2f", Float(yb) - h.at.y)) }
+                        else { samples.append("-") }
+                    }
+                    var nb: [String] = []
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                        let k0 = Blocks.key(w.builtBlock(x + dx, yb - 1, z + dz)), k1 = Blocks.key(w.builtBlock(x + dx, yb, z + dz))
+                        nb.append("\(dx),\(dz): below \(dc(x + dx, yb - 1, z + dz)) \(k0) / level \(dc(x + dx, yb, z + dz)) \(k1)")
+                    }
+                    print("structmeet trace: \(kind) \(x) \(yb - YOFF) \(z) \(Blocks.key(w.builtBlock(x, yb, z))) gap \(String(format: "%.2f", g)); samples \(samples.joined(separator: " ")); cell under \(dc(x, yb - 1, z)) \(Blocks.key(w.builtBlock(x, yb - 1, z))), own \(dc(x, yb, z)); " + nb.joined(separator: "; "))
+                }
+            }
+        } }
+        let worst = gaps.map { $0.1 }.max() ?? 0
+        var m = meetCols[kind] ?? (0, 0, 0)
+        m.cols += cols; m.gaps += gaps.count; m.worst = max(m.worst, worst)
+        meetCols[kind] = m
+        guard let first = gaps.max(by: { $0.1 < $1.1 }) else { return [] }
+        let p = first.0
+        let blk = Blocks.key(Blocks.groupBase[Int(w.builtBlock(p.x, p.y, p.z))])
+        var out = [Issue(cls: "floor_gap", kind: kind, seed: seed, pos: p,
+                         detail: String(format: "%ld of %ld outside columns stand over the drawn ground, worst %.2f blocks (%@)", gaps.count, cols, worst, blk))]
+        out[0].view = "--view v.png --seed \(seed) --at \(p.x + 4),\(p.y + 1),\(p.z) --look 90,-15 --field"
+        return out
     }
 
     // MARK: One instance
@@ -297,6 +411,7 @@ enum StructCheck {
         // Very large structures (strongholds' bounding boxes can be huge): skip anything over 24x24 chunks.
         guard (cx1 - cx0) <= 24 && (cz1 - cz0) <= 24 else { return ([], 0, 0, 0) }
         w.loadBlocks(cx0: cx0 - 1, cz0: cz0 - 1, cx1: cx1 + 1, cz1: cz1 + 1)
+        if meet { return (meetCheck(w, s, typeName: typeName, seed: seed), 0, 0, 0) }
         // Blocks the structure wrote: compare with the bare terrain.
         var written = Set<Int>()
         var writtenSolid: [Int: [Int]] = [:]           // column key -> written solid y values
@@ -306,7 +421,7 @@ enum StructCheck {
             for z in 0..<CS { for x in 0..<CS {
                 let wx = cx * CS + x, wz = cz * CS + z
                 if wx < s.min.x || wx > s.max.x || wz < s.min.z || wz > s.max.z { continue }
-                for y in max(1, s.min.y)...min(CH - 2, s.max.y) {
+                for y in thru(max(1, s.min.y), min(CH - 2, s.max.y)) {
                     let b = w.block(wx, y, wz)
                     if b == raw[Chunk.index(x, y, z)] { continue }
                     written.insert(key(wx, y, wz))
@@ -363,7 +478,7 @@ enum StructCheck {
         var explained = false
         var viewArgs = ""
         if walk {
-            for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 let b = w.block(x, y, z)
                 guard Blocks.shape[Int(b)] == "door" else { continue }
                 let st = Int(b - Blocks.groupBase[Int(b)])
@@ -433,7 +548,7 @@ enum StructCheck {
                 }
             }
             // Points of interest and beds.
-            for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 guard written.contains(key(x, y, z)) else { continue }
                 let b = w.block(x, y, z)
                 let base = Blocks.key(Blocks.groupBase[Int(b)])
@@ -572,7 +687,7 @@ enum StructCheck {
         }
         // Torches the structure placed: a standing one needs a top to stand on, a wall one a block behind it.
         var torchIssues = 0
-        for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+        for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             guard written.contains(key(x, y, z)) else { continue }
             let b = w.block(x, y, z)
             guard Blocks.shape[Int(b)] == "torch" else { continue }
@@ -594,7 +709,7 @@ enum StructCheck {
         // Ladders the structure placed: each needs a block behind it (ledger 30: a depot tank wagon's side ladder hung
         // on a corner). State f's panel is on side [1, 0, 3, 2][f] (BlocksBuilding), so its back is that side's cell.
         var ladderIssues = 0
-        for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+        for y in thru(max(1, s.min.y), min(CH - 3, s.max.y)) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             guard written.contains(key(x, y, z)) else { continue }
             let b = w.block(x, y, z)
             guard Blocks.shape[Int(b)] == "ladder" else { continue }
@@ -642,7 +757,23 @@ enum StructCheck {
                 var gap = 0
                 var yy = y0 - 1
                 while yy > 0 && top(w, x, yy, z) < 0.4 && Blocks.fluidKind[Int(w.builtBlock(x, yy, z))] == 0 && gap < 8 { gap += 1; yy -= 1 }
-                if gap >= 2 { floating.append(IVec3(x, y0, z)) }
+                // (check fix: a roof over a room whose floor matched the ground it was laid on, so it was never counted as
+                // written: every way out of the room under it, along the gap's top, meets a written wall within 8. The
+                // pueblo's upper tiers on the lower tier's roofs, seed 99: 41 columns. An overhang on a slope is open on
+                // its downhill side and still counts.)
+                var walled = true
+                if gap >= 2 {
+                    for (ex, ez) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                        var k = 1, met = false
+                        while k <= 8 {
+                            let qx = x + ex * k, qz = z + ez * k
+                            if top(w, qx, y0 - 1, qz) >= 0.4 { met = written.contains(key(qx, y0 - 1, qz)); break }
+                            k += 1
+                        }
+                        if !met { walled = false; break }
+                    }
+                }
+                if gap >= 2 && !walled { floating.append(IVec3(x, y0, z)) }
             }
         } }
         if floating.count >= 3 && !["end_city", "fortress", "bastion", "ruined_portal", "end_centre", "sky_isle"].contains(typeName) && kind != "end_centre" {   // the Hollow's exit-portal island and the sky isles (C7) float by design

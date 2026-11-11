@@ -624,7 +624,7 @@ extension Mob {
         while o <= halfW + 0.01 && gone < 6 {
             let q = pos + dir * reach + side * o
             let x = Int(floor(q.x)), z = Int(floor(q.z))
-            for y in y0...max(y0, y1) where gone < 6 {
+            for y in thru(y0, max(y0, y1)) where gone < 6 {
                 let b = w.block(x, y, z)
                 guard b != AIR, !Blocks.isLiquid(b), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
                 let hard = Blocks.hardness[Int(b)]

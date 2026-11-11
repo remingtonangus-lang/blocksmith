@@ -24,6 +24,9 @@ VERSION_CODE="${VERSION_CODE:-1}"
 # STORE=1: the store build. Leaves out the playtest-only voice bug notes (microphone code, RECORD_AUDIO permission);
 # quest/tools/storecheck.sh proves it. A head commit message containing [store] also builds and checks one in CI.
 STORE="${STORE:-0}"
+# (code reader Nov 10, batch 2.6: the store APK went out without the platform loader, so the entitlement check never ran.
+# A store build now always carries the store app ID and libovrplatformloader.so; storecheck.sh fails one without them.)
+[ "$STORE" = 1 ] && QUEST_APP_ID="${QUEST_APP_ID:-1396130500248132}"
 MILESTONE="${MILESTONE:-$(cat quest/MILESTONE 2>/dev/null || echo dev)}"
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 PKG=build/quest-pkg.new
@@ -177,6 +180,10 @@ echo "library: $SO"
 cp "$SO" "$STAGE/lib/arm64-v8a/"
 cp "$BPKG/libs/libopenxr_loader.so" "$STAGE/lib/arm64-v8a/"
 cp "$SYSROOT/usr/lib/aarch64-linux-android/libc++_shared.so" "$STAGE/lib/arm64-v8a/"
+if [ -n "${QUEST_APP_ID:-}" ]; then          # the entitlement check's platform loader (opened at run time, not linked)
+  [ -f build/ovrplatform.aar ] || quest/tools/fetch-ovrplatform.sh
+  unzip -q -o -j build/ovrplatform.aar jni/arm64-v8a/libovrplatformloader.so -d "$STAGE/lib/arm64-v8a/"
+fi
 READELF="$PREBUILT/bin/llvm-readelf"
 # Any non-system library libblocksmith still needs (if the Swift runtime was not linked statically) comes from the SDK.
 SDKDIR=$(find ${SWIFT_SDKS_PATH:+"$SWIFT_SDKS_PATH"} "$HOME"/.swiftpm/swift-sdks "$HOME"/.config/swiftpm/swift-sdks -maxdepth 1 -name "${SDK}*" -print -quit 2>/dev/null || true)

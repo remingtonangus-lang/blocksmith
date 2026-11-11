@@ -20,7 +20,11 @@ final class QuestRig {
         let before = chase
         chase += (target - chase) * min(1, dt * 2.5)
         if simd_length(target - chase) < 0.01 { chase = target }
-        chaseSpeed = simd_length(chase - before) / max(dt, 1e-3)
+        // (code reader Nov 10, batch 3.7: with the chase view ~77 blocks behind a crawler's helm every slow turn or rock of
+        // the hull swung it round at 10-15 blocks a second, which read as the view easing out and closed the vignette to
+        // half the view. Only the view easing out or back in counts now; the hull's turning has its own term.)
+        chaseSpeed = QuestRig.oldChaseVignette ? simd_length(chase - before) / max(dt, 1e-3)
+            : abs(simd_length(chase) - simd_length(before)) / max(dt, 1e-3)
     }
     private(set) var lastCam: EyeCamera?        // the last frame's eye cameras (the scope's crosshair projects with them)
     var needsRecenter = true
@@ -38,6 +42,7 @@ final class QuestRig {
     private var moveYawSet = false
     private(set) var headPitch: Float = 0
     static let eyeHeight: Float = 1.62
+    static let oldChaseVignette = ProcessInfo.processInfo.environment["BS_OLDCHASEVIG"] == "1"
     // Reclined play: the tracking space is also tilted so the gaze at the last recentre becomes the level, forward
     // direction (world, horizon, HUD and panels all follow). Identity when standing or seated upright.
     private(set) var tilt = simd_quatf()
@@ -80,6 +85,7 @@ final class QuestRig {
         if needsRecenter {
             needsRecenter = false
             recenters += 1
+            satDown = false
             anchor = V3(trackingHead.x, 0, trackingHead.z)
             // Standing or seated, the current head height becomes the game's eye height (ducking still lowers the view).
             // S6: standing with a measured height (first-launch setup), that height is the eye height instead, so a
@@ -147,6 +153,23 @@ final class QuestRig {
     }
     private var heaveY: Float?
     private var crouchDip: Float = 0
+
+    // Standing play, sat down (QuestControls.roomScale): the head where it is now becomes the eye height, until he
+    // stands again (or recentres).
+    private(set) var satDown = false
+    private var standOffset: Float = 0, standPivot: Float = 0
+    func sitAt(_ h: Float) {
+        guard !satDown else { return }
+        standOffset = heightOffset; standPivot = pivotY
+        heightOffset = QuestRig.eyeHeight - h; pivotY = h
+        satDown = true
+        print(String(format: "rig: sat down, head %.2f m: the view is raised to the eye height", h))
+    }
+    func standAgain() {
+        guard satDown else { return }
+        heightOffset = standOffset; pivotY = standPivot
+        satDown = false
+    }
 
     // Loading scene: raw tracking space (no player yet).
     func updateLoading(xr: XRInput) {

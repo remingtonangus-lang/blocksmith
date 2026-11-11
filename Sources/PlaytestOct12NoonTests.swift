@@ -171,7 +171,7 @@ enum PlaytestOct12NoonTests {
         let through = (x0...(x0 + 2)).allSatisfy { w.block($0, a.py + 3, a.fz) != stone }
         // How wide the hole goes right through the wall at the impact's height (P70's blast alone: about 3).
         let wide = ((a.fz - 6)...(a.fz + 6)).filter { z in (x0...(x0 + 2)).allSatisfy { w.block($0, a.py + 3, z) != stone } }.count
-        check(jobs == 1 && gone >= 80 && through && wide >= 7 && frames >= 2,
+        check(jobs == 1 && gone >= 80 && through && wide >= 6 && frames >= 2,      // (the edge is hashed by place, 0.8-1 of the radius: 6 to 8 wide by where the arena falls)
               "P103 breach: one manned shell opens \(gone) of \(placed.count) blocks of a 3-thick Capital stone wall, a hole \(wide) wide right through, "
               + "carved over \(frames) frames")
     }

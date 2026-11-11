@@ -223,8 +223,21 @@ final class MeshCache {
         var sections: [SectionData]
     }
 
+    // (code reader Nov 10, batch 2.11: the headset's backup of a world is its own files; the meshes are rebuilt from them
+    // and can run to many megabytes, so on the headset they live in the app's no_backup folder, under the save's path
+    // from the worlds folder. nil (the Mac, the harness): in the save, as before.)
+    static var outside: URL?
+    static func outsideDir(_ saveDir: URL) -> URL? {
+        guard let o = outside else { return nil }
+        let base = WorldStore.base.standardizedFileURL.path + "/", p = saveDir.standardizedFileURL.path
+        guard p.hasPrefix(base) else { return nil }
+        return o.appendingPathComponent(String(p.dropFirst(base.count)), isDirectory: true)
+    }
     init?(saveDir: URL) {
-        dir = saveDir.appendingPathComponent("meshcache", isDirectory: true)
+        if let d = MeshCache.outsideDir(saveDir) {
+            dir = d
+            try? FileManager.default.removeItem(at: saveDir.appendingPathComponent("meshcache", isDirectory: true))   // (an older build's)
+        } else { dir = saveDir.appendingPathComponent("meshcache", isDirectory: true) }
         do { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) } catch { return nil }
         var h: UInt64 = 0xcbf29ce484222325
         func mix(_ v: UInt64) { h = (h ^ v) &* 0x100000001b3 }

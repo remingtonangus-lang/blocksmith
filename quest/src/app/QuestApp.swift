@@ -63,6 +63,7 @@ final class QuestApp {
     // F3: a world being saved behind the loading scene ("Saving the world"), and a quit waiting for that save.
     private var savingGame: Game?
     private var exitWhenSaved = false
+    static let oldExitSave = ProcessInfo.processInfo.environment["BS_OLDEXITSAVE"] == "1"
     private var saveDone = false
     private var loadStatus = "Starting"
     private var loadProgress: Float = 0
@@ -107,7 +108,7 @@ final class QuestApp {
         stats.dynResProbe = { [weak self] in self?.dynRes.lastProbe ?? 0 }
         stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && !(self?.xr.foveated ?? true) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
-        startLoading()
+        startLoading(WorldRequest(survival: true))       // (code reader Nov 10, batch 2.1: a buyer's first world was Creative: no camp, no goals)
     }
 
     // MARK: Loading
@@ -136,6 +137,7 @@ final class QuestApp {
                 self?.status("Saving the world", 0.02)
                 let a = CFAbsoluteTimeGetCurrent()
                 if quitting {
+                    g.closeMenusForExit()
                     g.saveNow()
                     SaveIO.flush()
                     g.world.meshCache?.flush()           // (P400: the view's meshes on disk for the next launch)
@@ -250,6 +252,7 @@ final class QuestApp {
         defer { took("game, renderer, sound, controls"); firstWorldFrames = 4 }
         self.save = save
         self.game = game
+        CrashGuard.world = save?.dir.lastPathComponent ?? ""        // (the session marker names the open world)
         game.paused = false
         game.hideHUD = false
         game.sound = SoundEngine()
@@ -510,11 +513,7 @@ final class QuestApp {
         print("hitch: " + line, terminator: "")
         let path = QuestPaths.root + "/hitches.log"
         DispatchQueue.global(qos: .utility).async {
-            if let h = FileHandle(forWritingAtPath: path) {
-                h.seekToEndOfFile(); h.write(line.data(using: .utf8) ?? Data()); h.closeFile()
-            } else {
-                try? line.write(toFile: path, atomically: true, encoding: .utf8)
-            }
+            SaveIO.append(Data(line.utf8), toFile: path)
         }
     }
 
@@ -530,6 +529,10 @@ final class QuestApp {
     // Saves the world (activity paused / exiting).
     func saveNow() {
         guard let g = game else { return }
+        // (code reader Nov 10, batch 2.7: the headset's own exits (paused, sent away, the system's Quit) saved with a
+        // screen open, so the item on the cursor and the crafting grid weren't in the save, and lost if the system then
+        // ended the app. As the Mac's quit does, every open screen hands them back first; the pause menu stays.)
+        if !(g.menu is PauseMenu) && !QuestApp.oldExitSave { g.closeMenusForExit() }
         g.saveNow()
         SaveIO.flush()
         print("save: world saved")

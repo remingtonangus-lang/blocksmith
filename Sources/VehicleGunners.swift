@@ -20,6 +20,7 @@ enum VehicleGunners {
     static var seats: [Seat] = []
     static let board: Float = 32
     static let stayNear: Float = 24
+    static let oldNear = ProcessInfo.processInfo.environment["BS_OLDGUNNERNEAR"] == "1"
     static let volunteerReach: Float = 28
     static let sight: Float = 70                 // how far a gunner looks for what's out for him
     static var volunteers = 0                    // (harness)
@@ -99,7 +100,11 @@ extension Game {
             guard let m = st.mob, let v = st.vehicle, st.rider || st.turret != nil else { continue }
             let gunThere = st.rider || ships.list.contains { $0 === st.turret }
             let there = m.health > 0 && m.hired && !v.wrecked && gunThere && ships.list.contains { $0 === v }
-            let near = ships.pilot === v || simd_length(player.pos - v.pos) < VehicleGunners.stayNear
+            // (code reader Nov 10, batch 3.6: "near" was within 24 of the hull's middle, so on the Stormwarden (480 long, her
+            // helm 160 from the middle) his crew left their stations the moment he let go of the helm. Aboard her, or within
+            // 24 of her hull, they stay.)
+            let near = ships.pilot === v || (VehicleGunners.oldNear ? simd_length(player.pos - v.pos) < VehicleGunners.stayNear
+                : ships.aboard?.root === v || ships.boundsDistance(v, player.pos) < VehicleGunners.stayNear)
             if there && near { keep.append(st); continue }
             m.deck = nil                                             // climbs down: back to following him
             if m.health > 0 { m.pos += V3(0, 0.2, 0) }

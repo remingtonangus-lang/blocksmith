@@ -168,10 +168,11 @@ extension Game {
                 if let top = g.surface(x, z) { dest = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5) }
             }
             let d = dest ?? V3(3.5, Float(fountainY + 1), 3.5)
-            _ = world.loadSync(center: d, radius: 2)
-            player.pos = V3(d.x, Float(world.topY(Int(floor(d.x)), Int(floor(d.z))) + 1), d.z)
-            player.vel = .zero
-            player.airPeak = player.pos.y
+            riftArrive(d) { [self] in
+                player.pos = V3(d.x, Float(world.topY(Int(floor(d.x)), Int(floor(d.z))) + 1), d.z)
+                player.vel = .zero
+                player.airPeak = player.pos.y
+            }
             sfx(.levelUp, 0.4)
             return
         }
@@ -185,7 +186,28 @@ extension Game {
             r += 16
         }
         let dest = spot ?? V3(dir.x * 1024, Float(YOFF + 70), dir.y * 1024)
-        _ = world.loadSync(center: dest, radius: 2)
+        riftArrive(dest) { [self] in riftLand(dest, dir: dir, found: spot != nil) }
+    }
+
+    // The code reader's Nov 10 batch, 4: a rift loaded 2 chunks round where it threw him on the frame (as the dimension
+    // trips did before ledger 40). On the headset (Game.arrivalHold) he now waits there, the view dark, while the
+    // ground streams in on the workers, and the landing (his height, the return rift) is done once it is drawn; the
+    // host checks load it at once as before. BS_OLDRIFT=1: on the frame on the headset too.
+    static let oldRift = ProcessInfo.processInfo.environment["BS_OLDRIFT"] == "1"
+    func riftArrive(_ at: V3, then: @escaping () -> Void) {
+        player.pos = at
+        player.vel = .zero
+        player.airPeak = at.y
+        if Game.arrivalHold && !Game.oldRift {
+            arrivalSince = clock; arrivalOpened = -1; arrivalThen = then
+            return
+        }
+        _ = world.loadSync(center: at, radius: 2)
+        then()
+    }
+
+    private func riftLand(_ dest: V3, dir: V2, found: Bool) {
+        let spot: V3? = found ? dest : nil
         let bx = Int(floor(dest.x)), bz = Int(floor(dest.z))
         if spot == nil {
             // No island found: a small hollow stone platform.
@@ -193,7 +215,7 @@ extension Game {
         }
         // Return rift two blocks toward the centre, standing on the island (step up onto its bedrock base).
         let rx = bx - Int((dir.x * 2).rounded()), rz = bz - Int((dir.y * 2).rounded())
-        if !(max(0, Int(dest.y) - 3)...min(CH - 1, Int(dest.y) + 6)).contains(where: { Blocks.key(world.materialAt(rx, $0, rz)) == "end_gateway" }) {
+        if !thru(max(0, Int(dest.y) - 3), min(CH - 1, Int(dest.y) + 6)).contains(where: { Blocks.key(world.materialAt(rx, $0, rz)) == "end_gateway" }) {
             let base = max(Int(dest.y), world.topY(rx, rz) + 1)
             if world.isAir(rx, base - 1, rz) { world.setBlock(rx, base - 1, rz, Blocks.id("end_stone")) }
             world.setBlock(rx, base, rz, BEDROCK)

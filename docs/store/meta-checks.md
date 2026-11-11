@@ -11,7 +11,7 @@ Checked against Meta's hz-store-submit skill (github.com/meta-quest/agentic-tool
 | VR intent category | Pass (com.oculus.intent.category.VR on the launch activity) | quest/android/AndroidManifest.xml |
 | Permissions | Pass: OpenXR and INTERNET (the in-game bug and idea reporter, P480; co-op and its Wi-Fi permissions are gone, P479). RECORD_AUDIO is deleted from the store build. storecheck fails any prohibited permission | storecheck.sh |
 | Focus awareness: pause when the headset comes off or the system menu opens | Pass: the game pauses and saves when the session leaves FOCUSED; hands and controllers are dropped and input ignored (XRSession.pollInput), haptics stop | quest/src/app/QuestApp.swift, quest/src/xr/XRSession.swift |
-| Entitlement within 10 s | Code ready (QuestEntitlement, asked at launch, answered offline by the platform); the store app ID is 1396130500248132: build the store APK with `QUEST_APP_ID=1396130500248132 STORE=1` and add the platform loader library | quest/src/common/QuestEntitlement.swift |
+| Entitlement within 10 s | Code ready (QuestEntitlement, asked at launch, answered offline by the platform); the store app ID is 1396130500248132: every `STORE=1` build now sets that ID and bundles libovrplatformloader.so (quest/tools/fetch-ovrplatform.sh, Maven Central, pinned + checksummed); storecheck fails a store APK without either | quest/src/common/QuestEntitlement.swift |
 | No crash in a 30 min soak | Needs the headset: run `questcheck --questsim` for 30 minutes on device | |
 | 72 Hz sustained, no thermal throttling in 5 min, interactive in 15 s | Needs the headset (with P339's performance work) | |
 | Store assets | Plan in art-plan.md; captured on device | docs/store/art-plan.md |

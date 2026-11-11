@@ -250,7 +250,7 @@ enum TreePlacer {
         // step, never a gap: gencheck trunk_floating). Returns the tip.
         func limb(_ sx: Int, _ sy: Int, _ sz: Int, _ dx: Float, _ dz: Float, _ len: Int, rise: Int, _ log: BlockID) -> (Int, Int, Int) {
             var tip = (sx, sy, sz)
-            for i in 1...max(1, len) {
+            for i in thru(1, max(1, len)) {
                 let t = Float(i)
                 let lx = sx + Int((dx * t).rounded()), lz = sz + Int((dz * t).rounded())
                 let ly = sy + Int((Float(rise) * t / Float(max(1, len))).rounded())

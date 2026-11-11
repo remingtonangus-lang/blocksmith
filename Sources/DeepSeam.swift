@@ -56,7 +56,7 @@ extension Game {
                 return
             }
             // Climbing out into the surface's Wardstone floor cuts a way up through it (the floor below stays shut).
-            for y in feet...(down ? feet + 1 : max(feet + 1, HellGate.floorTop)) where !world.isAir(x, y, z) { world.setBlock(x, y, z, AIR) }
+            for y in thru(feet, (down ? feet + 1 : max(feet + 1, HellGate.floorTop))) where !world.isAir(x, y, z) { world.setBlock(x, y, z, AIR) }
             if !world.opaqueAt(x, feet - 1, z) { world.setBlock(x, feet - 1, z, EMBERSLATE) }
             player.pos = to
             player.vel = .zero

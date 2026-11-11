@@ -159,7 +159,7 @@ enum MobTests {
         let cx: Int, cz: Int, gy: Int
         func set(_ u: Int, _ y: Int, _ v: Int, _ b: BlockID) { w.setBlockAsync(cx + u, gy + y, cz + v, b) }
         func fill(_ u0: Int, _ y0: Int, _ v0: Int, _ u1: Int, _ y1: Int, _ v1: Int, _ b: BlockID) {
-            for u in min(u0, u1)...max(u0, u1) { for y in min(y0, y1)...max(y0, y1) { for v in min(v0, v1)...max(v0, v1) { set(u, y, v, b) } } }
+            for u in thru(min(u0, u1), max(u0, u1)) { for y in thru(min(y0, y1), max(y0, y1)) { for v in thru(min(v0, v1), max(v0, v1)) { set(u, y, v, b) } } }
         }
         func p(_ u: Int, _ y: Int, _ v: Int) -> V3 { V3(Float(cx + u) + 0.5, Float(gy + y), Float(cz + v) + 0.5) }
         func local(_ n: IVec3) -> (Int, Int, Int) { (n.x - cx, n.y - gy, n.z - cz) }

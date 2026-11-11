@@ -646,8 +646,8 @@ enum QuestSim {
         check(fast.0 > 0 && fast.1 == 1 && fast.2 > 0, "VR swing: a fast blade swing through a husk 1.6 ahead: \(fast.0) damage, \(fast.1) contact (want 1), haptics \(fast.2)")
         check(controls.trailPeak >= 2, "VR swing: the fast swing leaves a blade trail (\(controls.trailPeak) segments at most; \(trail0) before)")
         // (c1) Oct 11 playtest P13/P16: every swing direction hits. An uppercut (the hand rising through a husk ahead), a
-        // downward chop at a low mob (a cave spider, 0.5 tall) and quick back-and-forth swings landing several hits.
-        func swingPath(_ kind: MobKind, dist: Float, from: V3, to: V3, rot: simd_quatf, frames n: Int, back: Bool = false) -> (Int, Int) {
+        // downward chop at a low mob (a cave spider, 0.5 tall then) and quick back-and-forth swings landing several hits.
+        func swingPath(_ kind: MobKind, dist: Float, from: V3, to: V3, rot: simd_quatf, frames n: Int, back: Bool = false, away: Bool = false) -> (Int, Int) {
             frames(8) { _ in idleHands(); sim.hands[1].aimPos = sim.headPos + from; sim.hands[1].aimRot = rot }
             let at = ahead(dist)
             let z = Mob(kind, at: at)
@@ -656,6 +656,10 @@ enum QuestSim {
             let h0 = z.health, c0 = controls.bladeContacts
             frames(n + 1) { i in
                 z.pos = at; z.vel = .zero
+                if away {
+                    let f = V2(at.x - rig.headWorld.x, at.z - rig.headWorld.z)
+                    if simd_length(f) > 0.01 { z.yaw = atan2f(-f.x, -f.y) }
+                }
                 var t = Float(i) / Float(n)
                 if back { t = Float(i % 8) / 4; if t > 1 { t = 2 - t } }          // there and back every 8 frames
                 idleHands()
@@ -669,12 +673,14 @@ enum QuestSim {
         }
         let level = simd_quatf(angle: -1.0, axis: V3(1, 0, 0))                // the blade pointing ahead
         let upper = swingPath(.husk, dist: 1.4, from: V3(0, -1.0, -0.35), to: V3(0, 0.2, -0.35), rot: level, frames: 4)
-        let chop = swingPath(.caveSpider, dist: 1.3, from: V3(0, 0.1, -0.4), to: V3(0, -1.2, -0.4), rot: simd_quatf(angle: -1.4, axis: V3(1, 0, 0)), frames: 4)
+        // (the cave spider is the Gravesworn Squire since P246, a duellist whose guard takes a blow from the front: one
+        // made facing him clanged the chop off, by how it happened to be turned. Turned away, as the swing is the test.)
+        let chop = swingPath(.caveSpider, dist: 1.3, from: V3(0, 0.1, -0.4), to: V3(0, -1.2, -0.4), rot: simd_quatf(angle: -1.4, axis: V3(1, 0, 0)), frames: 4, away: true)
         let flurry = swingPath(.husk, dist: 1.5, from: V3(0.6, -0.35, -0.3), to: V3(-0.6, -0.35, -0.3), rot: tilt, frames: 72, back: true)
         // P459 (Oct 25 17:05, "way too generous"): quick back-and-forth swings land two or three cuts a second, not one
         // every turn.
         check(upper.0 > 0 && chop.0 > 0 && flurry.1 >= 2 && flurry.1 <= 3,
-              "VR swing P13/P16: an uppercut hits (\(upper.0) damage), a chop at a low cave spider hits (\(chop.0)), quick swings land \(flurry.1) hits in 1 s (\(flurry.0) damage, one fast swing \(fast.0))")
+              "VR swing P13/P16: an uppercut hits (\(upper.0) damage), a chop at a Gravesworn Squire hits (\(chop.0)), quick swings land \(flurry.1) hits in 1 s (\(flurry.0) damage, one fast swing \(fast.0))")
         // P459 ("I'm just pretty much helicoptering my hand here"): the hand held still and the blade twirled round it
         // twice a second through a husk ahead (the tip at ~17 m/s) only grazes it: no damage.
         let twirl: (Int, Int) = {
@@ -997,10 +1003,20 @@ enum QuestSim {
                 // The mark is what the laser falls on (seen from 100+ m behind the hull, not the hand's own bearing).
                 guard let mark = QuestControls.chaseAimPoint else { check(false, "VR helm aim: a chase view at the \(s.name)'s helm"); break }
                 var errs: [Float] = []
-                for t in guns {
+                var why: [String] = []
+                for (gi, t) in guns.enumerated() {
                     let (c, d) = t.cannons[0]
-                    errs.append(off(bearing(t.dirToWorld(d)), bearing(mark - t.toWorld(c))))
+                    let e = off(bearing(t.dirToWorld(d)), bearing(mark - t.toWorld(c)))
+                    errs.append(e)
+                    // (where a gun is off: how far the mark is from its muzzle, its turn against the bearing wanted, and
+                    // what the bearing from the pivot would be (an offset barrel laid from the pivot misses near marks))
+                    if e >= 8 {
+                        why.append(String(format: "gun %d off %.0f: mark %.1f m from the muzzle, %.1f from the pivot, yaw %.2f wanted %@, from the pivot %.0f off",
+                                          gi, e, simd_length(mark - t.toWorld(c)), simd_length(mark - t.toWorld(t.pivot)), t.turretYaw,
+                                          t.aimYaw.map { String(format: "%.2f", $0) } ?? "nil", off(bearing(t.dirToWorld(d)), bearing(mark - t.toWorld(t.pivot)))))
+                    }
                 }
+                if !why.isEmpty { print("questsim: VR helm aim \(s.name) at \(Int(rel * 180 / .pi)): " + why.joined(separator: "; ")) }
                 let e = errs.max() ?? 0
                 worst = max(worst, e)
                 // Fire them as the helm does and read the shells' heading.

@@ -305,7 +305,7 @@ final class PauseMenu: Menu {
                 rows.insert(("Report a Bug or Idea", "report"), at: at)
             }
             // S4: after a crash, the newest rolling backup of this world can be put back.
-            if CrashGuard.crashed && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
+            if CrashGuard.crashedHere(g.save?.dir) && g.coop.current == 0 { rows.insert(("Restore Last Backup (after a crash)", "restorebackup"), at: 1) }
         case .options:
             // Q2c-console-1: the host's own page list (the Quest leaves out Keyboard & Mouse) and page names.
             let shown = PauseMenu.shownCats
