@@ -27,6 +27,8 @@ struct SectionMesh {
     var detailFarSkip = 0
     var detailFar: [UInt32] = []
     var canopyN = 0         // Nov 11 (BS_CANOPY): the far canopy's quads, the last of farGround (after the leaf blobs' far shells)
+    // (and with its logs, the trunks' detail quads it stands in for: near from, to; in the far copy from (to its end), -1 none)
+    var canopyTrunks = SIMD3<Int32>(0, 0, -1)
     var solidFull = false   // P376 step 5: every cell of the section is opaque (an occluder for SceneRenderer.occlusionCull)
     var kinds = SIMD16<Int32>()   // P384 step 1: quads by kind (MeshKind), for questcheck --perfscenes
     var ground: GroundTris? = nil   // P386: the drawn ground for bodies and rays (GroundFeet.swift)
@@ -2212,29 +2214,39 @@ enum Mesher {
                         AdaptiveGround.simplify(blobFar, from: 0, tol: AdaptiveGround.blobFarTolerance,
                                                 exact: ex.count == blobFar.count / 2 * 3 ? ex.ptr : nil, capture: false, blob: true)
                     }
-                    // Nov 11 (the far canopy tier, behind BS_CANOPY until he has judged it): a second, coarser shell of
-                    // the same leaves (the logs too with BS_CANOPYLOGS=1), drawn past SceneRenderer.canopyFrom in place
-                    // of the far shell: no clump noise (BS_CANOPYNOISE=1 keeps it), simplified to a looser bound
-                    // (BS_CANOPYTOL blocks; a pixel at 182 blocks is about 0.16 block at the lens's sharpest, most of the
-                    // band is farther and drawn under dynamic resolution), its corner shading and light free to
-                    // interpolate (BS_CANOPYLT levels of light; BS_CANOPYSTEP=N: light in steps of N first).
-                    if Mesher.canopy && AdaptiveGround.enabled {
-                        ex.count = 0
-                        solidOut = canopyFar; counting = false
-                        let step = Mesher.canopyStep
-                        smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: 1, world: Mesher.canopyNoise ? wo : nil, exact: ex, tri: true,
-                                    canopy: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
-                            curCut = false
-                            let sky = min(15, ((l >> 4) + step / 2) / step * step), blk = (l & 15) / step * step
-                            groundVert(x16, y16, z16, f, tint, layer, ao, sky << 4 | blk, ncode)
-                        }
-                        solidOut = opq; counting = true
-                        AdaptiveGround.simplify(canopyFar, from: 0, tol: Mesher.canopyTol, exact: ex.count == canopyFar.count / 2 * 3 ? ex.ptr : nil,
-                                                capture: false, blob: true, oTol: 4, lTol: Mesher.canopyLightTol)
-                        Mesher.canopyTally(blobFar.count / 8, canopyFar.count / 8)
-                    }
                 }
             }
+        }
+        // Nov 11 (the far canopy tier, behind BS_CANOPY until he has judged it): a second, coarser shell of the leaves
+        // (and a shell of the trees' logs with BS_CANOPYLOGS=1, so the trunks' far copies can go too), drawn past
+        // SceneRenderer.canopyFrom in place of the leaf blobs' far shells: simplified to a looser bound (BS_CANOPYTOL
+        // blocks; a pixel at 182 blocks is about 0.16 block at the lens's sharpest, most of the band is farther and drawn
+        // under dynamic resolution), its corner shading and light free to interpolate (BS_CANOPYLT levels of light).
+        var canopyLogsHere = false
+        if Mesher.canopy && Mesher.canopyLogs && leafBlob && farCopies && SmoothTerrain.triGround && detailDraw {
+            let logT = ShapeTrunks.isLog
+            scanLogs: for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where logT[Int(R[(x + C0) + (z + C0) * RW + (y + C0) * RL])] {
+                canopyLogsHere = true; break scanLogs
+            } } }
+        }
+        if Mesher.canopy && AdaptiveGround.enabled && leafBlob && farCopies && SmoothTerrain.triGround && (blobFar.count > 0 || canopyLogsHere) {
+            // (the leaves: the far shell itself simplified on, not a shell meshed again: that took 44% more meshing time)
+            for k in 0..<blobFar.count { canopyFar.append(blobFar.ptr[k]) }
+            AdaptiveGround.simplify(canopyFar, from: 0, tol: Mesher.canopyTol, capture: false, blob: true, oTol: 4, lTol: Mesher.canopyLightTol)
+            if canopyLogsHere {
+                // (the logs: their own shell after it, as smooth as the leaves' and simplified the same way)
+                let ex = sc.blobExact, at = canopyFar.count
+                ex.count = 0
+                solidOut = canopyFar; counting = false
+                smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: 1, world: nil, exact: ex, tri: true, canopy: true) { x16, y16, z16, f, tint, layer, ao, l, ncode in
+                    curCut = false
+                    groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
+                }
+                solidOut = opq; counting = true
+                AdaptiveGround.simplify(canopyFar, from: at, tol: Mesher.canopyTol, exact: ex.count == (canopyFar.count - at) / 2 * 3 ? ex.ptr : nil,
+                                        capture: false, blob: true, oTol: 4, lTol: Mesher.canopyLightTol)
+            }
+            Mesher.canopyTally(blobFar.count / 8, canopyFar.count / 8)
         }
         // Merge the collected faces: grow each run along a, then along b while the whole row matches.
         kindNow = MeshKind.cube; dropNow = false
@@ -2376,14 +2388,15 @@ enum Mesher {
             let blobs = blobFar.count > 0 ? blobCut.count : 0
             if fc.count + drapeFar.count < groundEnd + bev.count + blobs + drapeNear.count {
                 farCopy = fc; farSkipOut = (groundEnd + bev.count) / 8; farCut = (blobs + drapeNear.count) / 8; farTail = drapeFar.count / 8
-                // (Nov 11: the far canopy last, kept when it is smaller than the far shells it stands in for)
-                if canopyFar.count > 0 && blobFar.count > 0 && canopyFar.count < blobFar.count {
-                    farCopy.append(contentsOf: UnsafeBufferPointer(start: canopyFar.ptr, count: canopyFar.count))
-                    canopyN = canopyFar.count / 8
-                }
             } else {
                 parts = SIMD4<Int32>(Int32(farGround.count / 8), 0, 0, 0)
             }
+        }
+        // (Nov 11: the far canopy last: where the far copy holds the leaf blobs' far shells, and with the logs in it, where
+        // the section has logs and no leaves; leaves alone, kept when smaller than the shells it stands in for)
+        if canopyFar.count > 0 && (parts[2] > 0 && (canopyLogsHere || canopyFar.count < blobFar.count) || canopyLogsHere && blobCut.count == 0) {
+            farCopy.append(contentsOf: UnsafeBufferPointer(start: canopyFar.ptr, count: canopyFar.count))
+            canopyN = canopyFar.count / 8
         }
         opaqueOut.reserveCapacity(opq.count + bev.count + blobCut.count + drapeNear.count + cut.count + farPlantCut.count + farTail * 8)
         // (P384: the ground, the bevelled faces, the rest of the solid quads; the blobs' cutout shells, the things laid
@@ -2405,6 +2418,11 @@ enum Mesher {
         // P384 step 3: the detail stream's solid quads simplified to the far bound (FarCopy.swift), kept when it saves a
         // tenth or more.
         var detailFar: [UInt32] = [], detailFarSkip = 0
+        // (Nov 11: with the logs in the far canopy, the trunks' quads in the detail stream and in its far copy, which the
+        // renderer leaves out where it draws the canopy)
+        let wq = DetailMesh.wordsPerQuad
+        var canopyTrunks = SIMD3<Int32>(0, 0, -1)
+        if canopyN > 0 && canopyLogsHere && trunkTo > trunkFrom { canopyTrunks = SIMD3<Int32>(Int32(trunkFrom / wq), Int32(trunkTo / wq), -1) }
         if farCopies && AdaptiveGround.enabled && det.count >= 8 * DetailMesh.wordsPerQuad {
             let df = sc.detFar
             df.count = 0
@@ -2426,12 +2444,13 @@ enum Mesher {
             }
             if df.count * 10 <= det.count * 9 {
                 detailFar = Array(UnsafeBufferPointer(start: df.ptr, count: df.count)); detailFarSkip = det.count / DetailMesh.wordsPerQuad
+                if canopyTrunks[1] > canopyTrunks[0] && trunkFar && trunkCtx != nil { canopyTrunks[2] = Int32((trunkFrom + det.count - trunkTo) / wq) }
             }
         }
         return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
                            farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farPlants: farPlantCut.count / 8, farParts: parts,
-                           detailFarSkip: detailFarSkip, detailFar: detailFar, canopyN: canopyN, solidFull: solidFull, kinds: kv, ground: groundTris)
+                           detailFarSkip: detailFarSkip, detailFar: detailFar, canopyN: canopyN, canopyTrunks: canopyTrunks, solidFull: solidFull, kinds: kv, ground: groundTris)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -2478,10 +2497,8 @@ enum Mesher {
     static var canopy = ProcessInfo.processInfo.environment["BS_CANOPY"] != nil
     static var canopyTol: Float = Float(ProcessInfo.processInfo.environment["BS_CANOPYTOL"] ?? "") ?? 1.0
     static var canopyLightTol: Double = Double(ProcessInfo.processInfo.environment["BS_CANOPYLT"] ?? "") ?? 2
-    static var canopyStep = max(1, Int(ProcessInfo.processInfo.environment["BS_CANOPYSTEP"] ?? "") ?? 1)
-    static var canopyNoise = ProcessInfo.processInfo.environment["BS_CANOPYNOISE"] == "1"
     static let canopyLogs = ProcessInfo.processInfo.environment["BS_CANOPYLOGS"] == "1"
-    static let canopyT: [Bool] = (0..<Blocks.count).map { leafT[$0] || canopyLogs && ShapeTrunks.isLog[$0] }
+    static let canopyT: [Bool] = ShapeTrunks.isLog                  // (the far canopy's own shell: the logs)
     // (harness: the far shells' quads and the canopy's, every section meshed with both)
     static var canopyCounts = (sections: 0, shells: 0, canopy: 0)
     static let canopyLock = NSLock()

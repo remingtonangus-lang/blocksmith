@@ -364,7 +364,7 @@ extension Mesher {
                             exact: GrowBuf<Float>? = nil, tri: Bool = false, canopy: Bool = false,
                             pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = nil,
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
-        // (Nov 11, `canopy`: the far canopy tier's leaves, with the trees' logs when Mesher.canopyLogs)
+        // (Nov 11, `canopy`: the far canopy tier's shell of the trees' logs, Mesher.canopyLogs)
         let leafT = canopy ? Mesher.canopyT : Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let texT = Blocks.tex, tintT = Blocks.tint, pinT = detailHoles ? SmoothTerrain.pinsDetail : SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot

@@ -1083,6 +1083,7 @@ final class SceneRenderer {
         var oPair: Int32 = -1, oVo: Int32 = 0, quads: Int32 = 0, solid: Int32 = 0, fSkip: Int32 = 0, fExtra: Int32 = 0
         var farCut: Int32 = 0, farTail: Int32 = 0, bAt: Int32 = 0, bN: Int32 = 0, bCut: Int32 = 0     // (P453: Section.blobFar*)
         var cN: Int32 = 0                      // (Nov 11: Section.canopyN)
+        var cT = SIMD3<Int32>(0, 0, -1)        // (Nov 11: Section.canopyTrunks)
         var pN: Int32 = 0                      // (Nov 6: Section.farPlants)
         var dPair: Int32 = -1, dVo: Int32 = 0, dQuads: Int32 = 0, dSolid: Int32 = 0, dSkip: Int32 = 0, dExtra: Int32 = 0
         var tPair: Int32 = -1, tVo: Int32 = 0, tQuads: Int32 = 0
@@ -1597,6 +1598,7 @@ final class SceneRenderer {
     // (no nearer than GroundMerge.farDistance, the far copy's own switch) in place of the leaf blobs' far shells.
     static var canopyFrom: Float = Float(ProcessInfo.processInfo.environment["BS_CANOPY"] ?? "") ?? 1e9
     private(set) var drawnCanopy = 0
+    private var canopyOn: [Bool] = []          // (this frame: the far canopy drawn for list entry i)
     static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(ProcessInfo.processInfo.environment["BS_TRUNKFROM"] ?? "") ?? 32) : 1e9
     // Nov 5 (P453 again): from this far out to blobFarFrom the leaf blobs draw their outer cutout shell alone, not the
     // darker one inside it (the Mesher puts the outer shells first). BS_BLOBMID=999: both shells to blobFarFrom.
@@ -1984,7 +1986,7 @@ extension SceneRenderer {
                 e.oPair = pairOf(slabOf(b), ts); e.oVo = Int32(b.offset / 8)
                 e.quads = Int32(s.opaqueQuads); e.solid = Int32(s.solidQuads); e.fSkip = Int32(s.farSkip); e.fExtra = Int32(s.farExtra)
                 e.farCut = Int32(s.farCut); e.farTail = Int32(s.farTail); e.pN = Int32(s.farPlants)
-                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN); e.cN = Int32(s.canopyN)
+                e.bAt = Int32(s.blobFarAt); e.bN = Int32(s.blobFarN); e.bCut = Int32(s.blobCutN); e.cN = Int32(s.canopyN); e.cT = s.canopyTrunks
             }
             if s.detailQuads > 0, let b = s.detailBuf {
                 e.dPair = pairOf(slabOf(b), ts); e.dVo = Int32(b.offset / 16)
@@ -2577,6 +2579,7 @@ extension SceneRenderer {
         let ts = tabSec, tc = tabCol, vv = vl
         var anyDet = false
         for i in 0..<nRec where ts[Int(vv[i])].dQuads > 0 { anyDet = true; break }
+        if canopyOn.count < nRec { canopyOn.append(contentsOf: repeatElement(false, count: nRec - canopyOn.count)) }
         anyDetail = anyDet
         let mq = Int32(SceneRenderer.maxQuads)
         let mergeOn = SceneRenderer.drawMerged, re = recEye, mf = GroundMerge.farDistance
@@ -2594,6 +2597,7 @@ extension SceneRenderer {
             for i in 0..<nRec {
                 let v = Int(vv[i])
                 let e = ts[v]
+                if !detail { canopyOn[i] = false }
                 let pr = detail ? e.dPair : e.oPair
                 let quads = detail ? e.dQuads : e.quads
                 guard pr >= 0, quads > 0 else { continue }
@@ -2615,7 +2619,7 @@ extension SceneRenderer {
                     let qn = simd_clamp(re, mn, mn + V3(16, 16, 16))
                     if simd_length_squared(qn - re) >= pf * pf { plantsOut = true; total -= e.pN; skippedPlants += Int(e.pN) }
                 }
-                if (fExtra > 0 || cutSwitch) && solid >= fSkip && quads + fExtra <= mq && mergeOn {
+                if (fExtra > 0 || cutSwitch || !detail && e.cN > 0) && solid >= fSkip && quads + fExtra <= mq && mergeOn {
                     // (mergedFar: past the merged ground distance)
                     let ci = tc[v / NSEC]
                     let mn = V3(Float(Int(ci.cx) * CS), Float((v % NSEC) * 16), Float(Int(ci.cz) * CS))
@@ -2627,6 +2631,9 @@ extension SceneRenderer {
                 }
                 // (Nov 11 experiment, BS_TRUNKCUT=N: the round shapes' far copies, trunks mostly, left out past N blocks)
                 if detail && far && d2 >= dc * dc { skippedTrunks += Int(fExtra - fSkip) + Int(total); continue }
+                // (Nov 11, BS_CANOPYLOGS=1: where the opaque half drew the far canopy with the logs in it, the trunks'
+                // detail quads are left out, near or in the far copy)
+                let trunksOut = detail && canopyOn[i] && e.cT[1] > e.cT[0]
                 if far {
                     merged += 1
                     if solid > fSkip {
@@ -2636,6 +2643,9 @@ extension SceneRenderer {
                     }
                     // (Nov 11, BS_CANOPY: past canopyFrom the far copy up to its leaf shells, then the canopy stored after it)
                     let canopy = !detail && e.cN > 0 && e.bAt + e.bN == fExtra && fExtra + e.cN <= mq && d2 >= cf * cf
+                    if canopy { canopyOn[i] = true }
+                    let farN = trunksOut && e.cT[2] >= 0 ? min(e.cT[2], fExtra) : fExtra
+                    if farN < fExtra { skippedTrunks += Int(fExtra - farN); quadsDrawn -= Int(fExtra - farN) }
                     if canopy {
                         if e.bAt > 0 {
                             batchCount[k] += 1
@@ -2646,13 +2656,26 @@ extension SceneRenderer {
                         pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(e.cN * 6), instanceCount: 1, firstIndex: UInt32(fExtra * 6),
                                                                              vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
                         quadsDrawn += Int(e.cN - e.bN); drawnCanopy += Int(e.cN)
-                    } else if fExtra > 0 {
+                    } else if farN > 0 {
                         batchCount[k] += 1
-                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(fExtra * 6), instanceCount: 1, firstIndex: 0,
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(farN * 6), instanceCount: 1, firstIndex: 0,
                                                                              vertexOffset: vo + quads * 4, firstInstance: UInt32(i))))
                     }
                     if !detail { cutFrom = min(total, solid + e.farCut); if !plantsOut { total = min(quads, mq) } }
                     quadsDrawn += Int(fExtra - fSkip - (cutFrom - solid))
+                } else if trunksOut {
+                    let a = min(e.cT[0], solid), b = min(e.cT[1], solid)
+                    if a > 0 {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(a * 6), instanceCount: 1, firstIndex: 0,
+                                                                             vertexOffset: vo, firstInstance: UInt32(i))))
+                    }
+                    if solid > b {
+                        batchCount[k] += 1
+                        pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32((solid - b) * 6), instanceCount: 1, firstIndex: UInt32(b * 6),
+                                                                             vertexOffset: vo, firstInstance: UInt32(i))))
+                    }
+                    skippedTrunks += Int(b - a); quadsDrawn -= Int(b - a)
                 } else if solid > 0 {
                     batchCount[k] += 1
                     pendingDraws.append((k, VkDrawIndexedIndirectCommand(indexCount: UInt32(solid * 6), instanceCount: 1, firstIndex: 0,

@@ -77,6 +77,7 @@ final class Section {
     // Nov 11 (BS_CANOPY): the far canopy, canopyN quads stored after the farExtra ones (not counted in farExtra), drawn
     // past SceneRenderer.canopyFrom in place of the leaf blobs' far shells.
     var canopyN = 0
+    var canopyTrunks = SIMD3<Int32>(0, 0, -1)   // (with its logs: SectionMesh.canopyTrunks)
     var detailFarSkip = 0       // P384: far, the first detailFarSkip detail quads give way to the detailFarExtra stored
     var detailFarExtra = 0      //   after the detail ones in the same buffer
     var transBuf: MeshSlice?
