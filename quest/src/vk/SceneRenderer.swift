@@ -415,6 +415,12 @@ final class SceneRenderer {
         return m
     }
 
+    // Nov 11 (frame rate, the GPU side): BS_OVERDRAW=1 with BS_SPVDIR holding counting fragment shaders
+    // (quest/tools/overdraw.py) makes every colour pipeline additive and clears to black, so a --view render counts the
+    // fragments each pixel shaded, split by pass into the channels (questcheck can't time the headset's GPU; the
+    // fragments it shades are most of what it spends in a forest).
+    static let overdraw = ProcessInfo.processInfo.environment["BS_OVERDRAW"] == "1"
+
     func makePipeline(_ p: PipeDesc, renderPass rp: VkRenderPass? = nil) throws -> VkPipeline {
         let a = PtrArena()
         let main = a.cstr("main")
@@ -494,7 +500,12 @@ final class SceneRenderer {
         ds.depthCompareOp = p.compare
         var att = VkPipelineColorBlendAttachmentState()
         att.colorWriteMask = p.colorWrite ? 0xF : 0
-        if p.blend {
+        if SceneRenderer.overdraw && p.colorWrite {
+            // (overdraw count: every fragment that passes the depth test adds what its counting shader writes)
+            att.blendEnable = 1
+            att.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE; att.colorBlendOp = VK_BLEND_OP_ADD
+            att.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.alphaBlendOp = VK_BLEND_OP_ADD
+        } else if p.blend {
             att.blendEnable = 1
             att.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA
             att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
@@ -867,7 +878,7 @@ final class SceneRenderer {
     func beginPass(_ s: Slot, _ t: RenderTarget, clear: V3) {
         let (w, h) = viewExtent(t)
         var clears = [VkClearValue(), VkClearValue()]
-        clears[0].color.float32 = (clear.x, clear.y, clear.z, 1)
+        clears[0].color.float32 = SceneRenderer.overdraw ? (0, 0, 0, 0) : (clear.x, clear.y, clear.z, 1)
         clears[1].depthStencil = VkClearDepthStencilValue(depth: 1, stencil: 0)
         var rb = VkRenderPassBeginInfo()
         rb.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
