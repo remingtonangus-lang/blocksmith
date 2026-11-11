@@ -1586,7 +1586,7 @@ if let out = arg("--view"), let ctx = vkctx {
             let holes = vc.holes, below = vc.below, backstop = vc.backstop, rows = vc.rows, cols = vc.cols, marks = vc.marks
             print(String(format: "voidcount: %d of %d pixels below the horizon show through (%.4f%%), in %d by %d cells of 8 px; seed %@ at %.1f %.1f %.1f look %.0f %.0f",
                          holes, below, Double(holes) * 100 / Double(max(1, below)), cols.count, rows.count, arg("--seed") ?? "?",
-                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0)
+                         vg.player.pos.x, vg.player.pos.y + 64, vg.player.pos.z, look.first ?? 0, look.count > 1 ? look[1] : 0.0)
                   + String(format: "; backstop %d (only the fog floor under the horizon ground)", backstop))
             if holes > 0 {
                 for (mx, my) in marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {

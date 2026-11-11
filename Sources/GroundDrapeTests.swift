@@ -119,8 +119,8 @@ extension GroundDrape {
             let t = byKind[key]!
             byKind[key] = nil
             lines.append(String(format: "  %@: %d placed, %d lowest point under the ground, %d floating over 0.13, %d not found; foot gaps %.3f...%.3f (mean %.3f, %d points); steepest cell rise %.2f",
-                                key, t.n, t.buried, t.floating, t.lost, t.feet > 0 ? t.lo : 0, t.feet > 0 ? t.hi : 0,
-                                t.feet > 0 ? t.sum / Float(t.feet) : 0, t.feet, t.rise))
+                                key, t.n, t.buried, t.floating, t.lost, t.feet > 0 ? t.lo : 0.0, t.feet > 0 ? t.hi : 0.0,
+                                t.feet > 0 ? t.sum / Float(t.feet) : 0.0, t.feet, t.rise))
         }
         return lines.joined(separator: "\n")
     }

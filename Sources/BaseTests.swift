@@ -71,7 +71,7 @@ enum BaseTests {
         var phaseT0 = CFAbsoluteTimeGetCurrent(), simT0 = t
         func lap(_ n: String) {
             let real = CFAbsoluteTimeGetCurrent() - phaseT0, game = t - simT0
-            print(String(format: "basetest phase %@: %.0f s of game in %.1f s (%.2f ms a tick)", n, game, real, game > 0 ? real * 1000 / Double(game / 0.05) : 0))
+            print(String(format: "basetest phase %@: %.0f s of game in %.1f s (%.2f ms a tick)", n, game, real, game > 0 ? real * 1000 / Double(game / 0.05) : 0.0))
             phaseT0 = CFAbsoluteTimeGetCurrent(); simT0 = t
         }
 
