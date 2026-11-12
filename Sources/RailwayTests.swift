@@ -276,9 +276,11 @@ enum RailwayTests {
             }
             if let st = Trains.now(tr).stop { stops.insert(st) }
             // (Nov 12: driven, the train runs through the stations: each one its head passes counts)
-            for (k, st) in l.stations.enumerated() where abs(s - Float(st.index)) < 1.5 {
+            // (within 0.6 of its cell: a frame at 28 b/s moves 0.47, so none is missed, and the last one ends the ride
+            // with the head on it; standing counts once it has got going, not its start from the first)
+            for (k, st) in l.stations.enumerated() where abs(s - Float(st.index)) < 0.6 {
                 stops.insert(k)
-                if tr.blocksPerSec < 0.05 { stood += 1 }
+                if tr.blocksPerSec < 0.05 && peak > 1 { stood += 1 }
             }
             let e = g.player.eye
             if world.solidAt(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))) {

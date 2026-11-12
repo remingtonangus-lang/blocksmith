@@ -611,7 +611,7 @@ enum Trains {
     // timetable takes the train up where it is. BS_OLDCAB=1: the old regulator over the timetable.
     static let oldCab = ProcessInfo.processInfo.environment["BS_OLDCAB"] == "1"
     static let topSpeed: Float = 28, backSpeed: Float = 7       // blocks a second at full regulator, ahead and backing
-    static let tractive: Float = 1.5, coast: Float = 0.35, brakeRate: Float = 5      // blocks a second, each second
+    static let tractive: Float = 2.2, coast: Float = 0.35, brakeRate: Float = 5      // blocks a second, each second
     static let tenderStart: Float = 24, tenderMax: Float = 64
     static var coalBurned: Float = 0                             // (checks)
 
@@ -651,6 +651,8 @@ enum Trains {
         }
         let stopping = brakeRate * max(tr.cabBrake, tr.brake) * dt
         v = v > 0 ? max(0, v - stopping) : min(0, v + stopping)
+        // A block he put on the rail ahead (place: heldBy) stops it there; he can still back away from it.
+        if tr.heldBy && v > 0 { v = 0 }
         // The track's ends (where no link runs on) and a real-size train's own length hold it off the buffers.
         var s = tr.driveS + tr.driveFwd * v * dt
         if !t.cyclic {
