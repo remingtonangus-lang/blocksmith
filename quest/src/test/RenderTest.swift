@@ -168,8 +168,11 @@ extension RenderTest {
     // more than 12 degrees below the horizon (it meets ground within the loaded land on all but a cliff's edge): the gaps
     // the sky shows through. Pure green ones (only the horizon's fog floor, Renderer.buildHorizon, met the ray: no hole,
     // but no ground either) are counted apart. `img` holds `eyes` views side by side, each width x height.
-    struct VoidCount { var holes = 0, below = 0, backstop = 0; var rows = Set<Int>(), cols = Set<Int>(); var marks: [(Int, Int)] = [] }
-    static func countVoid(_ img: [UInt8], width vwid: Int, height vhei: Int, eyes: Int, fovDeg vfov: Float, pitch: Float) -> VoidCount {
+    struct VoidCount { var holes = 0, below = 0, backstop = 0, edge = 0; var rows = Set<Int>(), cols = Set<Int>(); var marks: [(Int, Int)] = [] }
+    // `edgeTan` (a world with no far ring: the Deep, the nether): a sight line that drops less than this per block
+    // out leaves the loaded ground before it could come down to the lowest of it, so the sky there is the edge of what
+    // is loaded (fogged out), not a hole; those pixels are counted in `edge` instead.
+    static func countVoid(_ img: [UInt8], width vwid: Int, height vhei: Int, eyes: Int, fovDeg vfov: Float, pitch: Float, edgeTan: Float = 0) -> VoidCount {
         var c = VoidCount()
         let tw = tanf(vfov * .pi / 360), th = tw * Float(vhei) / Float(vwid)
         let cp = cosf(pitch), sp = sinf(pitch), lim = sinf(-12 * .pi / 180)
@@ -181,6 +184,10 @@ extension RenderTest {
                 guard wy < lim else { continue }
                 c.below += 1
                 let i = ((y * vwid * eyes) + eye * vwid + x) * 4
+                if edgeTan > 0 && -wy < edgeTan * sqrtf(max(1e-6, 1 - wy * wy)) {
+                    if i + 2 < img.count, img[i] > 235, img[i + 1] < 25, img[i + 2] > 235 { c.edge += 1 }
+                    continue
+                }
                 if i + 2 < img.count, img[i] < 25, img[i + 1] > 235, img[i + 2] < 25 { c.backstop += 1 }
                 guard i + 2 < img.count, img[i] > 235, img[i + 1] < 25, img[i + 2] > 235 else { continue }
                 c.holes += 1; c.rows.insert(y / 8); c.cols.insert((eye * vwid + x) / 8)

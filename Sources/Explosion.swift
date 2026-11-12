@@ -478,6 +478,25 @@ final class CraterJob {
     static let oldFetch = ProcessInfo.processInfo.environment["BS_OLDBOWLFETCH"] == "1"
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
+    // (Nov 12, Remington on the trailer's main-gun strike: "the crater took too long to form"): the frames a bowl took to
+    // open, by what each went on (MainGun.stepBowls tallies them; MainGunTests prints them).
+    var stepPhase: String?
+    private(set) var phaseFrames: [String: Int] = [:]
+    private(set) var frames = 0
+    private(set) var takenAt = -1            // the frame its last block went
+    func tally(_ p: String) {
+        let k = p.hasPrefix("field ball: fine") ? "ball prefetch" : p.hasPrefix("field ball") ? "field ball" : p.hasSuffix("scorch") ? "scorch"
+            : p.hasPrefix("carving") ? "carving" : p
+        phaseFrames[k, default: 0] += 1; frames += 1
+        if carved && takenAt < 0 { takenAt = frames }
+    }
+    var openSummary: String {
+        let order = ["starved", "wait", "fine prefetch", "circuit scan", "carving", "ball prefetch", "field ball", "scorch"]
+        let parts = order.compactMap { k in phaseFrames[k].map { "\(k) \($0)" } }
+        let carve = phaseFrames["carving"] ?? 0
+        return String(format: "%ld frames (%.2f s at 72 Hz): ", frames, Double(frames) / 72) + parts.joined(separator: ", ")
+            + String(format: "; %ld blocks, %.0f a carving frame, all taken by frame %ld", removed, carve > 0 ? Double(removed) / Double(carve) : 0, takenAt)
+    }
 
     // `quiet`: only the carving (a crater dug when its ground loads, long after the blast: MainGun pending craters).
     init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false, depth: Int? = nil, along: V3? = nil) {
@@ -534,6 +553,7 @@ final class CraterJob {
         // allowance looked at every 2 blocks; where its time went: before the loop, and the slowest span between looks.)
         var carveAt = 0.0, slowSpan = 0.0, slowIds = ""
         defer {
+            if stepPhase == nil { stepPhase = phase }     // (the innermost call's: a scan that finds nothing carves at once)
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
             // (sections given their fine samples by a step that was not a prefetch: one at a time or not, a frame's cost)
@@ -603,8 +623,10 @@ final class CraterJob {
                 } } }
             } }
             scanY = yEnd + 1
-            if found { circuitsNear = true } else if scanY > y1 { circuitsNear = false } else if blocks != .max { return false }
-            if circuitsNear == nil { return step(g, blocks: blocks) }   // (all at once: the harness's Explosion.crater)
+            // (Nov 12, "the crater took too long to form": the carving waited the scan's 9-10 frames. It starts now with the
+            // circuit marks on, as if parts were near, and goes quiet once the scan has found none. BS_OLDCRATERWARM=1: waits.)
+            if found { circuitsNear = true } else if scanY > y1 { circuitsNear = false } else if blocks != .max && MainGun.oldWarm { return false }
+            if circuitsNear == nil && blocks == .max { return step(g, blocks: blocks) }   // (all at once: the harness's Explosion.crater)
         }
         phase = "carving"; removed0 = removed
         let quiet0 = w.circuitQuiet

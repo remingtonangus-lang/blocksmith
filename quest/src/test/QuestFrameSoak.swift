@@ -154,6 +154,85 @@ enum QuestFrameSoak {
         })
     }
 
+    // Nov 12 13:26-13:28 playtest (his afternoon world, the Gloamwood and the Charwood Thicket at -460..-710, y 177-275,
+    // 680-800: "frame rate in here might be bad... we need some optimizations though for down below"): the Emberdeep's
+    // two forests at his spots, flying a slow circle 40 across through the caverns under the trees and their motes.
+    static let afternoonSeed: UInt64 = 9055077199578326761
+    static func emberForest(_ name: String, biome: String, at p: V3) -> Setup {
+        var centre = p
+        return Setup(name: name, what: "the Deep's \(name == "gloamwood" ? "Gloamwood" : "Charwood Thicket") at his Nov 12 spot, flying a slow circle among the trees",
+                     seed: afternoonSeed, dim: .deep, at: p, prepare: { g in
+            // (open air near his height: two clear cells over ground within 24 below, nearest his y)
+            let w = g.world
+            var x = Int(floor(p.x)), z = Int(floor(p.z))
+            // (his range holds both forests: the nearest column of this one, 8 blocks a step out to 200)
+            find: for r in stride(from: 0, through: 200, by: 8) { for dz in stride(from: -r, through: r, by: 8) { for dx in stride(from: -r, through: r, by: 8)
+                where max(abs(dx), abs(dz)) == r && w.gen.column(x + dx, z + dz).biome.name == biome { x += dx; z += dz; break find } } }
+            _ = w.loadSync(center: V3(Float(x), p.y, Float(z)), radius: w.renderDistance)
+            var best = Int(p.y), bestD = Int.max
+            for y in 8..<(CH - 8) where !w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z) && abs(y - Int(p.y)) < bestD {
+                var floor = false
+                for d in 1...24 where w.solidAt(x, y - d, z) { floor = true; break }
+                if floor { best = y; bestD = abs(y - Int(p.y)) }
+            }
+            centre = V3(Float(x) + 0.5, Float(best) + 0.5, Float(z) + 0.5)
+            g.player.pos = centre
+            g.player.flying = true
+            g.player.pitch = -0.15
+            print(String(format: "framesoak: %@ at %.0f %.0f %.0f (%@)", name, centre.x, centre.y, centre.z, w.gen.column(x, z).biome.name))
+        }, step: { g, f in
+            g.player.flying = true
+            let a = Float(f) / 72 * (4.0 / 20)                  // (4 b/s round a circle 20 out)
+            g.player.pos = centre + V3(cosf(a) * 20, 0, sinf(a) * 20)
+            g.player.yaw = -a                                   // (looking along the way it goes)
+            g.player.vel = .zero
+        })
+    }
+
+    // Nov 12 (Remington on the trailer's strike: "the crater took too long to form"): a Meridian frigate he holds,
+    // standing in the air over plains, its Tidebreaker charged and fired every 9 s at the ground 100-180 blocks ahead,
+    // the player 50 blocks to one side of where it lands. Each bowl's opening is printed: the frames it took and what
+    // they went on (MainGun.lastOpen), on the headset's world (a Polygons field, its fine samples made as needed).
+    static func strikeScene() -> Setup {
+        var ship: Ship?
+        var reported = 0
+        var hold: (V3, Quat)?
+        return Setup(name: "strike", what: "a frigate's Tidebreaker charged and fired at the ground 50 blocks from him every 9 s",
+                     seed: biomeSeed, at: V3(0, 70 + Float(YOFF), 0), prepare: { g in
+            let w = g.world
+            w.ships.encounters = false
+            goTo(g, biome: "plains")
+            let p = g.player.pos
+            w.ships.spawnCapital("capfrigate", home: IVec3(Int(floor(p.x)), 0, Int(floor(p.z)) + 140), yaw: 0, region: nil, sync: true)
+            guard let s = w.ships.capitals.first(where: { $0.role == "capfrigate" }), let st = w.ships.capState[s.id] else {
+                print("framesoak: no frigate could be spawned"); return
+            }
+            s.captured = true; st.crewDone = Set(0..<st.crew.count); st.crewless = true
+            s.vel = .zero; s.angVel = .zero
+            // (the steepest pitch that lands on ground within the loaded world)
+            var land = p
+            for k in 0..<10 {
+                w.ships.pointHull(s, pitch: -Capital.maxPitch + Float(k) * 0.03)
+                if let a = w.ships.mainGunAimPoint(s, st), simd_length(V2(a.x - p.x, a.z - p.z)) < 200 { land = a; break }
+            }
+            ship = s
+            hold = (s.pos, s.rot)
+            g.player.flying = true
+            g.player.pos = land + V3(50, 12, 0)
+            g.player.yaw = .pi / 2; g.player.pitch = -0.2         // (facing west, at the landing)
+            print(String(format: "framesoak: strike: the frigate at %.0f %.0f %.0f, its shot landing at %.0f %.0f %.0f", s.pos.x, s.pos.y, s.pos.z, land.x, land.y, land.z))
+        }, step: { g, f in
+            guard let s = ship, let st = g.world.ships.capState[s.id] else { return }
+            if let h = hold { s.pos = h.0; s.rot = h.1; s.prevRot = h.1 }; s.vel = .zero; s.angVel = .zero    // (held where it was laid)
+            g.player.vel = .zero
+            if f % 648 == 72 { st.mainGunCD = 0; _ = g.world.ships.playerMainGun(s, game: g) }
+            if MainGun.lastOpenFrames >= 0 && MainGun.impacts > reported {
+                reported = MainGun.impacts
+                print("framesoak: strike: bowl \(reported) opened over " + MainGun.lastOpen + " (\(MainGun.warmed) sections warmed in charges so far)")
+            }
+        })
+    }
+
     // The biggest battle: the Ash Vault citadel's north gate at Total War (AshVaultGapTests.battleScene).
     static func battleScene() -> Setup {
         var stand = V3(0, 0, 0)
@@ -450,7 +529,9 @@ enum QuestFrameSoak {
          townScene("city", "walking into the capital city, its garrison about", kind: "capital_city"),
          hollowScene(), frigateScene(),
          trainScene(.cargo, name: "freight"), trainScene(.troop, name: "troops"),
-         seaHuntScene(), worstScene(), collapseScene()]
+         seaHuntScene(), worstScene(), collapseScene(),
+         emberForest("gloamwood", biome: "warped_forest", at: V3(-520, 226 + 64, 700)),
+         emberForest("charwood", biome: "crimson_forest", at: V3(-650, 226 + 64, 780)), strikeScene()]
     }
 
     static var scenes: [Setup] { ordinary + [crawlerScene(parkedBy: false), crawlerScene(parkedBy: true), navalScene(), trainScene(), hellScene(), battleScene()] + more }
@@ -509,6 +590,25 @@ enum QuestFrameSoak {
         // far ring and sky are off (WorldRenderer.uniforms), so the clear past the drawn sea floor is the fog he sees
         // everywhere past 18-56 blocks: not a hole. Those shots are counted apart. Under lava the same.)
         let submerged = g.player.headInWater || g.player.headInLava
+        // (Nov 12, the Deep's Gloamwood flown at his height, 60 over the trees: 3895 "voids" at the top of the 25-degree
+        // shots, all sky past the loaded ground's edge. Only the overworld has a far ring; elsewhere the fog ends at the
+        // loaded edge, so a sight line that leaves it before it could come down to the lowest loaded ground is the edge.)
+        // (The floor under the eye: build 373 took the heightmap's lowest top and excluded nothing in the Gloamwood. Every
+        // 4th column of each loaded chunk, down from the eye to the first solid block.)
+        var edgeTan: Float = 0, edge = 0, lo = Int.max
+        let noRing = g.dim.dim != .overworld
+        if noRing {
+            let w = g.world, top = min(CH - 1, Int(eye.y))
+            for (k, _) in w.chunks { for sz in stride(from: 0, to: CS, by: 4) { for sx in stride(from: 0, to: CS, by: 4) {
+                let x = k.x * CS + sx, z = k.z * CS + sz
+                var y = top
+                while y > 0 && !w.solidAt(x, y, z) { y -= 1 }
+                lo = min(lo, y)
+            } } }
+            let radius = Float(w.renderDistance * CS)
+            if lo != .max && radius > 0 { edgeTan = max(0, eye.y - Float(lo)) / radius }
+        }
+        defer { if noRing { print(String(format: "    voids: the loaded edge (no far ring here; floor %ld under the eye at %.0f, sight lines dropping under %.2f a block) %ld pixels, not counted", lo == .max ? -1 : lo, eye.y, edgeTan, edge)) } }
         var first = true
         ParticleManager.drawnCount = 0; ParticleManager.darkCount = 0
         defer { print("    void shots: particles drawn \(ParticleManager.drawnCount), with no light at all \(ParticleManager.darkCount) (ledger 64)") }
@@ -516,7 +616,8 @@ enum QuestFrameSoak {
             let yaw = yaw0 + Float(k) * .pi / 2, pitch = -down * .pi / 180
             guard let img = try? rig.grab(eye: eye, yaw: yaw, pitch: pitch, frames: first ? 3 : 2) else { continue }
             first = false
-            let c = RenderTest.countVoid(img, width: size, height: size, eyes: 1, fovDeg: fov, pitch: pitch)
+            let c = RenderTest.countVoid(img, width: size, height: size, eyes: 1, fovDeg: fov, pitch: pitch, edgeTan: edgeTan)
+            edge += c.edge
             if submerged { water += c.holes } else { holes += c.holes }
             below += c.below; backstop += c.backstop
             // (BS_VOIDSHOTS=DIR: every shot saved there, each hole ringed in green)

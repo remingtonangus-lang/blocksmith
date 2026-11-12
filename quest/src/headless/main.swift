@@ -2320,7 +2320,15 @@ if let a = arg("--railprobe") {
         tried += 1
         guard let l = Railways.plan(gen, row: row, stretch: st) else { continue }
         found += 1
-        print("railprobe: \(l.name): \(l.stations.count) stations \(l.stations.map { "\($0.name) \($0.x) \($0.z)" }), x \(l.minX)...\(l.maxX), z \(l.minZ)...\(l.maxZ)")
+        // (N12: a diagonal line's longest run of turn cells, its middle: where a render sees a diagonal leg)
+        var run = 0, best = 0, at = 0
+        for i in 1..<max(1, l.cells.count - 1) {
+            let p = l.cells[i - 1], c = l.cells[i], q = l.cells[i + 1]
+            if q.x - c.x != c.x - p.x || q.z - c.z != c.z - p.z { run += 1; if run > best { best = run; at = i - run / 2 } } else { run = 0 }
+        }
+        let mid = l.cells[at]
+        print("railprobe: \(l.name): \(l.stations.count) stations \(l.stations.map { "\($0.name) \($0.x) \($0.z)" }), x \(l.minX)...\(l.maxX), z \(l.minZ)...\(l.maxZ)"
+              + (l.diagonal ? ", diagonal (longest leg \(best) turn cells, middle \(mid.x) \(mid.y) \(mid.z))" : ""))
     } }
     print(String(format: "railprobe: %d of %d stretches have a line (%.1f s); no line: ", found, tried, CFAbsoluteTimeGetCurrent() - t0)
           + why.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))

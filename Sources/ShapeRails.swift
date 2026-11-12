@@ -34,6 +34,7 @@ enum ShapeRails {
         defer { if trace { print("railtrace: section \(ctx.wx0) \(ctx.wy0) \(ctx.wz0) lod \(ctx.lod): \(traceRails) rails, \(traceBad) with non-finite points") } }
         let steelL = Int(Blocks.tex[Int(steel) * 6 + 2]), woodL = Int(Blocks.tex[Int(timber) * 6 + 2]), stripL = Int(Blocks.tex[Int(strip) * 6 + 2])
         let curveSegs = ctx.lod == 0 ? 4 : 2
+        let smooth = ctx.field != nil && !Railways.oldRails
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isRail[Int(b)] else { continue }
@@ -41,6 +42,13 @@ enum ShapeRails {
             let shape = Int(b - Blocks.groupBase[Int(b)]) % (powered ? 6 : 100)     // (a powered rail's lit states: +6)
             let o = SIMD3<Float>(Float(x), Float(y), Float(z))
             let big = mainline(ctx, x, y, z, shape)
+            // N12: a main line's rail near a turn is drawn along the line smoothed through its neighbours' centres
+            // (Trains.Track runs the same line), so a diagonal staircase is one straight diagonal and a turn an arc.
+            if smooth && big && !powered, let path = smoothPath(ctx, x, y, z) {
+                if trace { traceRails += 1 }
+                emitPath(ctx, path, big: true, powered: false, steelL: steelL, woodL: woodL, stripL: stripL)
+                continue
+            }
             // The centre line through the block, as points.
             var pts: [SIMD3<Float>]
             // Quarter circles of radius 0.5 round the corner a curve (shape 6-9) turns about.
@@ -125,6 +133,145 @@ enum ShapeRails {
                 }
             } }
         } } }
+    }
+
+    // MARK: N12 smooth main lines
+
+    // The rail cells joined to the rail at section-local (x, y, z) through their exits (a rail a block up or down
+    // counts: a field line's cells climb its grade).
+    static func joined(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> [SIMD3<Int>] {
+        let b = ctx.block(x, y, z)
+        guard isRail[Int(b)] else { return [] }
+        let sh = Rails.shape(b)
+        guard sh < Rails.exits.count else { return [] }
+        var out: [SIMD3<Int>] = []
+        for e in Rails.exits[sh] {
+            let nx = x + e.0, nz = z + e.2
+            for dy in [e.1, 0, 1, -1] {
+                let nb = ctx.block(nx, y + dy, nz)
+                guard isRail[Int(nb)] else { continue }
+                let ns = Rails.shape(nb)
+                if ns < Rails.exits.count && Rails.exits[ns].contains(where: { $0.0 == -e.0 && $0.2 == -e.2 }) {
+                    if !out.contains(SIMD3(nx, y + dy, nz)) { out.append(SIMD3(nx, y + dy, nz)) }
+                    break
+                }
+            }
+        }
+        return out
+    }
+
+    // The smoothing of a line's rail centres (Trains.Track's too): four passes of (1, 2, 1) / 4 across, the ends held,
+    // heights as they are. A staircase comes out on its diagonal, a turn as an arc over three or four cells each side.
+    static let smoothPasses = 4
+    static func smoothed(_ pts: [SIMD3<Float>], cyclic: Bool = false) -> [SIMD3<Float>] {
+        let n = pts.count
+        guard n >= 3 else { return pts }
+        var sm = pts
+        for _ in 0..<smoothPasses {
+            var next = sm
+            for i in 0..<n {
+                if !cyclic && (i == 0 || i == n - 1) { continue }
+                let a = sm[(i - 1 + n) % n], c = sm[(i + 1) % n]
+                next[i].x = (a.x + 2 * sm[i].x + c.x) * 0.25
+                next[i].z = (a.z + 2 * sm[i].z + c.z) * 0.25
+            }
+            sm = next
+        }
+        return sm
+    }
+
+    // The drawn centre line of a main line's rail at (x, y, z) near a turn (nil on a plain straight: drawn as before),
+    // in section-local coordinates (as the cells are): from halfway to the cell before to halfway to the cell after along the smoothed line,
+    // as Hermite curves (so neighbouring cells meet end to end with one tangent).
+    static func smoothPath(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> [SIMD3<Float>]? {
+        let me = SIMD3(x, y, z)
+        let nbs = joined(ctx, x, y, z)
+        guard nbs.count == 2 else { return nil }
+        let window = smoothPasses + 2
+        func walk(_ start: SIMD3<Int>) -> [SIMD3<Int>] {
+            var chain: [SIMD3<Int>] = [], prev = me, cur = start
+            for _ in 0..<window {
+                chain.append(cur)
+                let next = joined(ctx, cur.x, cur.y, cur.z).filter { $0 != prev }
+                guard next.count == 1, next[0] != me else { break }
+                prev = cur; cur = next[0]
+            }
+            return chain
+        }
+        let back = walk(nbs[0]), fwd = walk(nbs[1])
+        let nodes = Array(back.reversed()) + [me] + fwd
+        guard nodes.contains(where: { Rails.shape(ctx.block($0.x, $0.y, $0.z)) >= 6 }) else { return nil }
+        let raw: [SIMD3<Float>] = nodes.map { c in
+            SIMD3(Float(c.x) + 0.5, Float(c.y) + (bedTop(ctx, c.x, c.y, c.z) ?? 0), Float(c.z) + 0.5)
+        }
+        let sm = smoothed(raw)
+        let ci = back.count
+        func dir(_ a: Int, _ b: Int) -> SIMD3<Float> {
+            let d = sm[b] - sm[a], l = simd_length(d)
+            return l > 1e-4 ? d / l : SIMD3(1, 0, 0)
+        }
+        let tMid = dir(ci - 1, ci + 1)
+        let sub = ctx.lod == 0 ? 2 : 1
+        var out: [SIMD3<Float>] = []
+        for (p0, p1, t0, t1) in [((sm[ci - 1] + sm[ci]) * 0.5, sm[ci], dir(ci - 1, ci), tMid),
+                                 (sm[ci], (sm[ci] + sm[ci + 1]) * 0.5, tMid, dir(ci, ci + 1))] {
+            let chord = simd_length(p1 - p0)
+            for k in 0...sub where !(k == 0 && !out.isEmpty) {
+                let u = Float(k) / Float(sub), u2 = u * u, u3 = u2 * u
+                let a0: Float = 2 * u3 - 3 * u2 + 1, a1: Float = u3 - 2 * u2 + u, b0: Float = 3 * u2 - 2 * u3, b1: Float = u3 - u2
+                let p: SIMD3<Float> = p0 * a0 + t0 * (chord * a1) + p1 * b0 + t1 * (chord * b1)
+                out.append(p)
+            }
+        }
+        // (points along one straight: the middle ones go)
+        var lean: [SIMD3<Float>] = [out[0]]
+        for i in 1..<(out.count - 1) {
+            let a = simd_normalize(out[i] - lean[lean.count - 1]), b = simd_normalize(out[i + 1] - out[i])
+            if simd_dot(a, b) < 0.9995 { lean.append(out[i]) }
+        }
+        lean.append(out[out.count - 1])
+        guard lean.allSatisfy({ $0.x.isFinite && $0.y.isFinite && $0.z.isFinite }) else { return nil }
+        return lean
+    }
+
+    // Track along a drawn centre line (section-local coordinates): the rails on every piece, the sleepers every half block of its
+    // whole length (not of each piece: a curve's short pieces would crowd them).
+    static func emitPath(_ ctx: DetailContext, _ local: [SIMD3<Float>], big: Bool, powered: Bool, steelL: Int, woodL: Int, stripL: Int) {
+        guard local.count >= 2 else { return }
+        var lens: [Float] = [], total: Float = 0
+        for k in 0..<(local.count - 1) { let l = simd_length(local[k + 1] - local[k]); lens.append(l); total += l }
+        guard total > 1e-3 else { return }
+        func frame(_ k: Int) -> (SIMD3<Float>, SIMD3<Float>, SIMD3<Float>)? {
+            let d = local[k + 1] - local[k], l = lens[k]
+            guard l > 1e-4 else { return nil }
+            let a = d / l
+            let c = simd_cross(SIMD3<Float>(0, 1, 0), a), cl = simd_length(c)
+            guard cl > 1e-4 else { return nil }
+            let s = c / cl
+            return (a, s, simd_cross(a, s))
+        }
+        let n = max(1, Int((total / 0.5).rounded()))
+        var k = 0, at: Float = 0
+        for j in 0..<n {
+            let want = (Float(j) + 0.5) * total / Float(n)
+            while k < lens.count - 1 && at + lens[k] < want { at += lens[k]; k += 1 }
+            guard let (a, s, h) = frame(k) else { continue }
+            let c = local[k] + (local[k + 1] - local[k]) * ((want - at) / max(1e-4, lens[k])) + h * (big ? 0.07 : 0.06)
+            box(ctx, c, a, s, h, big ? 0.12 : 0.09, big ? 1.22 : 0.46, big ? 0.06 : 0.05, woodL)
+        }
+        for k in 0..<(local.count - 1) {
+            guard let (a, s, h) = frame(k) else { continue }
+            let p0 = local[k], p1 = local[k + 1]
+            // (a little longer than the piece, so the pieces of a turn meet with no gap at the outer rail)
+            for side: Float in [-1, 1] {
+                let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
+                box(ctx, c, a, s, h, lens[k] * 0.5 + (big ? 0.03 : 0.015), big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
+            }
+            if powered {
+                let c = (p0 + p1) * 0.5 + h * (big ? 0.15 : 0.11)
+                box(ctx, c, a, s, h, lens[k] * 0.5 + 0.01, big ? 0.09 : 0.05, 0.02, stripL)
+            }
+        }
     }
 
     // A railway's rail (P470): on the line's bed, the bed cells either side of it open above.

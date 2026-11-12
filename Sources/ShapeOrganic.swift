@@ -12,6 +12,7 @@ import simd
 // stripes, wrapped round the curve.
 enum ShapeOrganic {
     static let isOrganic: [Bool] = ShapeClass.kind.map { $0 == .organic }
+    static let oldOrganic = ProcessInfo.processInfo.environment["BS_OLDORGANIC"] == "1"
 
     struct Form {
         var r: [Float]          // rounding radius per side (+X -X +Y -Y +Z -Z), 0 where it continues
@@ -25,7 +26,12 @@ enum ShapeOrganic {
         var any = false
         scan: for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where isOrganic[Int(ctx.R[ctx.ri(x, y, z)])] { any = true; break scan } } }
         guard any else { return }
-        let grid = ctx.lod == 1 ? 3 : (ctx.lod == 2 ? 4 : 5)
+        // Nov 12 (his 13:21 playtest, "we need some optimizations though for down below": Gloamwood at -518 294 755
+        // drew 865k quads, 756k of them wart canopies here): a rounded side was 7 x 7 quads near and 6 x 6 past
+        // leafNear. Near it is now 6 x 6 (one tick fewer across the flat middle: the lumps shade from the normals),
+        // and past leafNear (64 blocks on the headset, where a 0.3-block rounding is a few pixels) each rounded edge is
+        // one bevel and the middle one quad: 3 x 3, a side that continues 1. BS_OLDORGANIC=1: as before.
+        let grid = oldOrganic ? (ctx.lod == 1 ? 3 : (ctx.lod == 2 ? 4 : 5)) : (ctx.lod == 0 ? 4 : 2)
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.block(x, y, z)                  // (P389: a struck object's cell reads as air)
             guard isOrganic[Int(b)] else { continue }
@@ -161,11 +167,12 @@ enum ShapeOrganic {
         func ticks(_ ax: Int) -> [Float] {
             let lo = form.r[ax * 2 + 1], hi = form.r[ax * 2]
             var t: [Float] = [0]
-            if lo > 0.02 { t.append(lo * 0.5); t.append(lo) }
+            let bevel = grid <= 2                   // (one segment round each edge)
+            if lo > 0.02 { if !bevel { t.append(lo * 0.5) }; t.append(lo) }
             let mid = max(1, grid - 2)
             let a0 = lo, a1v = 1 - hi
             for k in 1..<mid { t.append(a0 + (a1v - a0) * Float(k) / Float(mid)) }
-            if hi > 0.02 { t.append(1 - hi); t.append(1 - hi * 0.5) }
+            if hi > 0.02 { t.append(1 - hi); if !bevel { t.append(1 - hi * 0.5) } }
             t.append(1)
             var out: [Float] = []
             for v in t.sorted() where out.isEmpty || v - out.last! > 0.01 { out.append(v) }

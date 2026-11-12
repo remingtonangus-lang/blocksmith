@@ -37,6 +37,10 @@ extension Railways {
     static var loopNote: ((String) -> Void)?                // (checks: why an end keeps its buffers)
 
     static func planLoop(_ gen: WorldGen, row: Int, stretch s: Int, east: Bool) -> Line? {
+        gated(gen, old: { planLoop(gen, row: row, stretch: s, east: east, diagonal: false) },
+              new: { planLoop(gen, row: row, stretch: s, east: east, diagonal: true) })
+    }
+    static func planLoop(_ gen: WorldGen, row: Int, stretch s: Int, east: Bool, diagonal: Bool) -> Line? {
         guard hasLine(gen, row, s), let l = line(gen, row: row, stretch: s), let sc = gen.structures, l.cells.count > 40 else { return nil }
         if east ? link(gen, row: row, stretch: s) != nil : incoming(gen, row, s) != nil { return nil }   // (it runs on)
         let n = l.cells.count
@@ -62,6 +66,19 @@ extension Railways {
             let xo = e.x + dx * out
             let zd = e.z + side * deep
             if blocked(gen, sc, x0: min(xj, xo), z0: min(e.z + side, zd), x1: max(xj, xo), z1: max(e.z + side, zd), except: []) { continue }
+            // N12: the loop's three corners eased round (radius 3-7), its ends where the square loop's are.
+            if diagonal {
+                let r = Float(min(7, max(3, min(deep / 2 - 1, (out + back) / 3))))
+                let rc = rasterPolyline(roundPolyline([(Float(e.x + dx), Float(e.z)), (Float(xo), Float(e.z)), (Float(xo), Float(zd)),
+                                                       (Float(xj), Float(zd)), (Float(xj), Float(e.z + side))], radius: r, arcStep: 1.5))
+                let lo = min(xj, e.x), hi = max(xj, e.x)
+                let bySide = rc.dropFirst().dropLast().contains { ($0.1 == e.z || $0.1 == e.z + side) && $0.0 >= lo && $0.0 <= hi }
+                if let f = rc.first, let l = rc.last, f == (e.x + dx, e.z), l == (xj, e.z + side), !bySide, !touchesItself(rc),
+                   !stride(from: 0, to: rc.count, by: 3).contains(where: { gen.column(rc[$0].0, rc[$0].1).biome.isOcean }) {
+                    cells = rc; shaped = si
+                    break shapes
+                }
+            }
             var c: [(Int, Int)] = []
             for x in stride(from: e.x + dx, through: xo, by: dx) { c.append((x, e.z)) }
             for z in stride(from: e.z + side, through: zd, by: side) { c.append((xo, z)) }
@@ -82,9 +99,10 @@ extension Railways {
         let flat = run.map { IVec3($0.0, 0, $0.1) }
         let key = loopKey(row, s, east: east)
         if gen.fieldWorld, let hs = l.heights {
-            guard let h = gentleProfile(gen, flat, [], ends: (hs[east ? n - 1 : 0], hs[j]), floatCurves: true) else { loopNote?("loop: field grade"); return nil }
+            guard let h = gentleProfile(gen, flat, [], ends: (hs[east ? n - 1 : 0], hs[j]), floatCurves: true, diagonal: diagonal) else { loopNote?("loop: field grade"); return nil }
             let lp = Line(id: key, name: l.name, cells: flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }, stations: [], heights: h)
             lp.joins = j
+            lp.diagonal = diagonal
             return lp
         }
         guard let lv = profile(gen, flat, [], ends: (e.y, l.cells[j].y)) else { loopNote?("loop: block profile"); return nil }

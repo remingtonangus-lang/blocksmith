@@ -110,6 +110,7 @@ final class CapitalState {
     var gunByPlayer = false            // the charge was started from the helm (fires along the barrel, P325)
     var gunPulse: Float = 0            // seconds to the next haptic coil thump while charging
     var aimPoint: V3?                  // the helm's predicted impact (MainGun.swift mainGunAimTick), nil when off the world
+    var gunWarm: V3?                   // where the charging Tidebreaker's shot looked set to land at the charge's start (MainGun.warmBowl)
     var bombardAt: V3?                 // P99: the ground the crew's charging Tidebreaker will strike near a player
     var pingAt: V3?                    // C8: where its sonar last heard a submarine (it steers there while nothing is in sight)
     var pingT: Float = 0               // ... seconds since that ping (it gives up after 60)
@@ -2078,13 +2079,19 @@ extension ShipManager {
             if over { overdriveGlow(s, st, g) }
         } else {
             flyCommandeered(s, st, dt, g)
+            TickProf.mark("cap: commandeered: fly")
             hullContact(s, st, dt, g)
             if s.wrecked { return }
         }
+        TickProf.mark("cap: commandeered: contact")
         st.target = nil
         driveGlow(s, st, boundsDistance(s, g.player.pos), dt, g)
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
-        if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
+        if s.role == "capfrigate" {
+            mainGunTick(s, st, dt, g); TickProf.mark("cap: commandeered: main gun")
+            boardingWinch(s, st, dt, g)
+            if pilot === s { mainGunAimTick(s, st, dt, g); TickProf.mark("cap: commandeered: aim") }
+        }
         // (code reader Nov 10, batch 3.1: this ran after the crews laid their guns (gunCrewTick, earlier in the same
         // update), so on a frigate he had taken the crew's guns never turned onto anything and only fired at what
         // happened to lie in line. A gun a crew laid this update keeps its mark.)
