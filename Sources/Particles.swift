@@ -201,8 +201,15 @@ final class ParticleManager {
     // (isGlowPuff), false the rest.
     static let oldSmoke = ProcessInfo.processInfo.environment["BS_OLDSMOKE"] == "1"
     static let smokeLayer = Int(Tex.id("smoke")), puffLayer = Int(Tex.id("puff"))
+    // (Nov 12, the trailer's main-gun strike at 31.8 s: the shockwave's dust (grey-brown) and the fireball's soot (warm
+    // grey) are greys tinted a little, so they stayed in the solid pass: a field of hard puffs popping in and out a frame
+    // at a time under the fireball. A grey within a quarter of its brightest channel is smoke too; BS_OLDSMOKEGREY=1.)
+    static let oldGrey = ProcessInfo.processInfo.environment["BS_OLDSMOKEGREY"] == "1"
     @inline(__always) static func isSmoke(_ p: Particle) -> Bool {
-        !p.glow && (p.layer == smokeLayer || p.layer == puffLayer) && p.color.x == p.color.y && p.color.y == p.color.z
+        guard !p.glow && (p.layer == smokeLayer || p.layer == puffLayer) else { return false }
+        if oldGrey { return p.color.x == p.color.y && p.color.y == p.color.z }
+        let hi = max(p.color.x, max(p.color.y, p.color.z)), lo = min(p.color.x, min(p.color.y, p.color.z))
+        return hi - lo <= 0.25 * hi
     }
     // (t22.5 of the trailer: big glowing puffs on the "smoke" picture, fireballs and flak bursts, hung in the night sky as
     // orange discs whose holes read as eyes. A glowing puff half a block or more across draws the solid "puff" round and

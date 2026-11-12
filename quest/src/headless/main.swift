@@ -2736,6 +2736,11 @@ if CommandLine.arguments.contains("--crawlerhits") {
     CrawlerHits.run(game, check)
     print(failures == 0 ? "crawlerhits: all checks passed" : "crawlerhits: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --strikelook: Nov 12 trailer, a main-gun strike's wake, puffs and debris (Sources/StrikeLook.swift).
+if CommandLine.arguments.contains("--strikelook") {
+    StrikeLook.run(game, check)
+    print(failures == 0 ? "strikelook: all checks passed" : "strikelook: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --navalblow: P471, a crew's heavy naval shell on the levels and through Capital stone (Sources/NavalBlowCheck.swift).
 if CommandLine.arguments.contains("--navalblow") {
     NavalBlowCheck.run(game, check)

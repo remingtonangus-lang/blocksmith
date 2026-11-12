@@ -22,6 +22,7 @@ enum MainGun {
     static let playerReload: Float = 22
     static let aiReload: Float = 30
     static let slugSpeed: Float = 700
+    static let oldWake = ProcessInfo.processInfo.environment["BS_OLDWAKE"] == "1"
     static let craterRadius: Float = 13
     // P99 (Remington, Oct 12: "a crater at least 20 blocks deep"): the bowl reaches 26 down at its deepest (the
     // ragged edge takes up to a fifth off, so never less than 20 under the impact); it was two thirds of the radius.

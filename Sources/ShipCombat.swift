@@ -206,10 +206,15 @@ extension ShipManager {
             // The Tidebreaker's slug leaves a glowing wake that hangs in the air for a moment.
             if sh.kind == 3, sh.parked < 0, let g = game {
                 let layer = Int(Tex.id("puff"))
-                for k in 0..<3 {
-                    let at = start + sh.vel * (dt * Float(k) / 3)
+                // Nov 12 (the trailer's strike, 31.8 s: "the white tracer is dashed and moves between frames"): three
+                // motes a frame over the ~10 blocks the slug covers left 3-block gaps; one a block now, a little
+                // shorter lived, so the wake is one line (BS_OLDWAKE=1: three).
+                let n = MainGun.oldWake ? 3 : max(3, min(16, Int(simd_length(sh.vel) * dt)))
+                let life: Float = MainGun.oldWake ? 0.7 : 0.45
+                for k in 0..<n {
+                    let at = start + sh.vel * (dt * Float(k) / Float(n))
                     g.particles.add(Particle(pos: at, vel: V3(Rand.float(in: -0.3...0.3), Rand.float(in: 0...0.5), Rand.float(in: -0.3...0.3)),
-                                             life: 0.7, maxLife: 0.7, layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.5...0.8),
+                                             life: life, maxLife: life, layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.5...0.8),
                                              gravity: 0, color: V3(0.6, 0.85, 1), collide: false, glow: true))
                 }
             }
