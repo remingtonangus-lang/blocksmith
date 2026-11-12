@@ -1061,6 +1061,7 @@ extension Mob {
         NavalGuns.hurtEffects(self, dt, g)
         GunParts.update(self, g)                                                  // P372
         if Turrets.shared.manned === self { vel = .zero; soldierBrain.kick = max(0, soldierBrain.kick - dt * 1.5); return }   // the player has it (VehicleControls.swift)
+        Turrets.restock(self, dt)                                                 // (Nov 12: his magazine, refilled)
         let b = soldierBrain
         vel = .zero
         // P288 (d): a Boreal Station gun goes dead with the station's generator (it neither sees nor fires).
@@ -1120,7 +1121,13 @@ extension Mob {
         let radar = canTarget && deck == nil && !grey && b.radarOK
         let armed = g.heldGun != nil || g.world.ships.pilot != nil || Turrets.shared.manned != nil
         let greyHolds = grey && !aggro && !armed && !g.bases.greywall.sites.values.contains { $0.on && Greywall.inside($0, pos, pad: 4) }
-        if (b.sees || radar) && canTarget && !greyHolds {
+        // Nov 12 playtest (06:15:34, on foot in the plains 130 blocks from a Capital tower: "naval guns are already firing
+        // at me even though I didn't pull my weapon out"; P501, Oct 31: "they shouldn't be automatically hostile to me
+        // unless I have a gun in my hand"): the Capital's guns, as Greywall's, hold their fire on him unprovoked while
+        // his hands are empty of a weapon (GarrisonTown.weaponOut) and he works no vehicle or gun; drawn, or the base
+        // already fighting, the radar lays them on him as before (P504). BS_OLDUNARMED=1: the radar fires on him anyway.
+        let capHolds = !HeavyTurret.oldUnarmed && deck == nil && factionValue == .steelhold && !aggro && !armed && !GarrisonTown.weaponOut(g)
+        if (b.sees || radar) && canTarget && !greyHolds && !capHolds {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
             b.lastSeen = player
             b.seenAgo = 0
@@ -1477,6 +1484,7 @@ enum HeavyTurret {
     // citadel tower): a far bigger burst that bites through armoured stone (blocks count at most `mannedBreach` blast
     // resistance: Capital stone is 9), and a ship hull hit tears like a power-11 charge.
     static let mannedPower: Float = 5, mannedBreach: Float = 3, mannedShipPower: Float = 11
+    static let oldUnarmed = ProcessInfo.processInfo.environment["BS_OLDUNARMED"] == "1"
 
     // Two calibres (T6, Greywall's shore bases): the heavy gun, and a light quick-firer (deck_gun variant 9) built at
     // 0.4 scale that fires small shells four times as often and turns four times as fast.
@@ -1707,7 +1715,7 @@ func deckGunParts(_ m: Mob) -> [Part] {
     // A light coastal gun (T6) is the same gun built at 0.4 scale.
     let k = HeavyTurret.scale(m)
     if k != 1 { for i in p.indices { p[i].mn *= k; p[i].mx *= k; p[i].pivot *= k } }
-    return p + GunParts.handles(p)
+    return p + GunParts.handles(p, tied: true)
 }
 
 // P222: the Capital's small guns, drawn in the big gun's units (1/16 block before HeavyTurret.scale) round the same

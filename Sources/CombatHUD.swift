@@ -190,6 +190,12 @@ final class CombatHUD {
             out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, 46 * s)))
             out.append(HudLine(text: tr.track.name, x: x, y: y0, scale: s, color: V4(1, 0.9, 0.6, 1)))
             out.append(HudLine(text: String(format: "%3.0f km/h", tr.blocksPerSec * 3.6), x: x, y: y0 + 11 * s, scale: s))
+            if !Trains.oldCab && g.survival {
+                // Nov 12: the tender's coal (Trains.driveCab), red once it runs low.
+                let c = "Coal \(Int(tr.coal.rounded(.up)))"
+                out.append(HudLine(text: c, x: x + w - Float(Font.width(c)) * s, y: y0 + 11 * s, scale: s,
+                                   color: tr.coal < 4 ? V4(1, 0.4, 0.3, 1) : V4(0.85, 0.85, 0.85, 1)))
+            }
             let reg = tr.throttle < 0 ? "Reverse" : "Regulator"
             out.append(HudLine(text: reg, x: x, y: y0 + 22 * s, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
             let bx = x + 44 * s, bw = w - 44 * s, mid = bx + bw / 3
@@ -213,6 +219,12 @@ final class CombatHUD {
             let w = 40 * s, x = cx - w / 2, y = cy + 14 * s
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, 0.55), box: V2(w, 4 * s)))
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: r <= 0 ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1), box: V2(w * max(0, 1 - r / (HeavyTurret.reload * 0.6)), 4 * s)))
+            // Nov 12: the shells left in its magazine (Turrets.magazine), red when it runs low.
+            if let gm = Turrets.shared.manned, Turrets.magazine(gm, g) >= 0 {
+                let n = Turrets.magazine(gm, g), t = "Shells \(n)"
+                out.append(HudLine(text: t, x: cx - Float(Font.width(t)) * s / 2, y: y + 6 * s, scale: s,
+                                   color: n * 5 < Turrets.magazineSize(gm) ? V4(1, 0.4, 0.3, 1) : V4(0.9, 0.9, 0.9, 1)))
+            }
         }
         out += WeaponWheel.shared.lines(g, L)
         return out
