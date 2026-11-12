@@ -22,13 +22,15 @@ BIOMES=(plains forest jungle taiga desert savanna swamp beach river meadow badla
 SEEDS=(7653607216494784574 1091709452045888406 4256271160485884755)
 PITCHES=(-20 -35 -55 -80)
 [ "$QUICK" = --quick ] && { BIOMES=(plains forest jungle); SEEDS=(7653607216494784574); PITCHES=(-35 -60); }
+RD=6
 run() {   # name, then questcheck's view arguments
   local name="$1"; shift
   local line
-  line=$(timeout 300 "$QC" --view "$OUT/$name.png" --field --questlod --rd 6 --w 480 --h 480 --time 0.25 --voidcount "$@" 2>&1 | grep '^voidcount:' | head -1)
+  line=$(timeout 300 "$QC" --view "$OUT/$name.png" --field --questlod --rd $RD --w 480 --h 480 --time 0.25 --voidcount "$@" 2>&1 | grep '^voidcount:' | head -1)
   [ -n "$line" ] && echo "$name $line" >> "$OUT/summary.txt" || echo "$name voidcount: none (no frame)" >> "$OUT/summary.txt"
   rm -f "$OUT/$name.png"
 }
+if [ "${VOIDSWEEP_CORNERS:-}" != only ]; then
 i=0
 for s in "${SPOTS[@]}"; do
   set -- $s
@@ -40,6 +42,38 @@ done
 for seed in "${SEEDS[@]}"; do for b in "${BIOMES[@]}"; do for p in "${PITCHES[@]}"; do for yaw in 0 120 240; do
   run "$b-$seed-p${p#-}-y$yaw" --seed "$seed" --at "0,100,0" --find "$b" --up 2 --look "$yaw,$p"
 done; done; done; done
+fi
+# Nov 12 (FAILURES 4 again: sky triangles in the grass where four chunks meet, 3903.9 65.9 1025.2 and 3919 64.5 1041.4 on
+# seed 632461258612199693): half-block ground (the ground round a built or dug block) beside whole-cell ground at a chunk
+# corner. The eye stands over a corner of four chunks (--corner) and chunks round it are given half-block samples
+# (--finechunks, offsets from the eye's chunk), in every layout of half-block and whole-cell sections round the corner
+# (one of the four whole-cell, two side by side, one alone, two across), each turned four ways, looking down and along.
+#   VOIDSWEEP_CORNERS=only: just these views.
+LAYOUTS=("-1,1;1,-1" "-2,0" "-2,-2" "-2,-2;1,1" "-2,0;0,-2" "-2,1" "-3,0;-2,0")
+CBIOMES=(plains forest desert taiga savanna meadow stony_peaks)
+CSEEDS=(632461258612199693 7653607216494784574)
+[ "$QUICK" = --quick ] && { CBIOMES=(plains forest); CSEEDS=(632461258612199693); }
+rot() {   # a layout turned N quarter turns about the corner: chunk (dx, dz) -> (-dz - 1, dx)
+  local l="$1" n="$2" out="" p
+  for p in ${l//;/ }; do
+    local dx=${p%,*} dz=${p#*,} i t
+    for ((i = 0; i < n; i++)); do t=$dx; dx=$((-dz - 1)); dz=$t; done
+    out="$out${out:+;}$dx,$dz"
+  done
+  echo "$out"
+}
+RD=4
+[ "${VOIDSWEEP_CORNERS:-}" = only ] && : > "$OUT/summary.txt"
+for seed in "${CSEEDS[@]}"; do for b in "${CBIOMES[@]}"; do li=0; for l in "${LAYOUTS[@]}"; do for n in 0 1 2 3; do
+  fc=$(rot "$l" $n)
+  run "corner-$b-$seed-l$li-r$n-down" --seed "$seed" --at "0,100,0" --find "$b" --corner --finechunks "$fc" --up 2.5 --look "$((n * 90 + 30)),-78" &
+  run "corner-$b-$seed-l$li-r$n-along" --seed "$seed" --at "0,100,0" --find "$b" --corner --finechunks "$fc" --up 1.7 --look "$((n * 90 + 45)),-32" &
+  wait
+done; li=$((li + 1)); done; done; done
+RD=6
+# A corner view looking down sees ground only: any pixel of the fog floor under the ground (the count after "backstop")
+# is a hole in it. (The plain count misses these: under a hole lies the floor, not the sky.)
+holes() { awk '{ bad = ($0 !~ /: 0 of/); if ($1 ~ /^corner-.*-down$/ && match($0, /backstop [0-9]+/)) { if (substr($0, RSTART + 9, RLENGTH - 9) + 0 > 0) bad = 1 } if (bad) print }' "$OUT/summary.txt"; }
 echo "== views with gaps, worst first"
-grep -v ": 0 of" "$OUT/summary.txt" | sort -t: -k2 -rn | awk '{print}' | sort -k3 -rn | head -60
-echo "== $(grep -c . "$OUT/summary.txt") views, $(grep -c ': 0 of' "$OUT/summary.txt") clean"
+holes | sort -k3 -rn | head -60
+echo "== $(grep -c . "$OUT/summary.txt") views, $(( $(grep -c . "$OUT/summary.txt") - $(holes | grep -c .) )) clean"

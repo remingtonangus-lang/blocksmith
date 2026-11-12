@@ -60,6 +60,7 @@ enum SmoothTerrain {
     }
     static let snowLayer = Int(Blocks.id("snow"))
     static let oldBuiltPin = ProcessInfo.processInfo.environment["BS_OLDBUILTPIN"] == "1"
+    static let oldWetTurf = ProcessInfo.processInfo.environment["BS_OLDWETTURF"] == "1"
     // The blocks a rock face polls: the 3x3x3 round it.
     static let voteProbe: [(Int, Int, Int)] = {
         var r: [(Int, Int, Int)] = []
@@ -369,7 +370,7 @@ extension Mesher {
         let leafT = canopy ? Mesher.canopyT : Mesher.leafT
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let texT = Blocks.tex, tintT = Blocks.tint, pinT = detailHoles ? SmoothTerrain.pinsDetail : SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot
-        let detT = Mesher.detailT
+        let detT = Mesher.detailT, fkT = Blocks.fluidKind
         let skyL = sc.sky, blkL = sc.blk
         // (P474: the static tables read per quad and per vertex, held once here: each read of a static was a lazy
         // global's check and a retain.)
@@ -604,9 +605,11 @@ extension Mesher {
                 // turf where the ground faces up, else the commonest ground among its 8 blocks; -1 keeps the quad's own.
                 let up = -g.y / max(1e-6, simd_length(g))
                 var m = -1, mn = 0, turf = -1, snow = false
+                var wetN = 0
                 for c in 0..<8 {
                     let b = Int(R[ri(cx + (c & 1), cy + ((c >> 1) & 1), cz + (c >> 2))])
                     if b == snowL { snow = true; continue }
+                    if fkT[b] == 1 { wetN += 1 }
                     guard blendT[b] else { continue }
                     if tintT[b] == 3 { turf = b }
                     if b == m { mn += 1; continue }
@@ -633,6 +636,10 @@ extension Mesher {
                 }
                 if snow && up > 0.3 { m = snowB }
                 else if turf >= 0 && up > 0.35 && (!sampled || m == dirtID || tintT[m] == 3) { m = turf }
+                // Nov 12 (playtest 06:13:16, a forest pond: "didn't fill in here"): the bed of a pool laid over a
+                // meadow kept its turf, bright grass seen through a sheet of clear water, which read as glass over a
+                // dry hollow. Ground under water is earth, not lawn. BS_OLDWETTURF=1: as before.
+                if wetN >= 2 && m >= 0 && tintT[m] == 3 && !SmoothTerrain.oldWetTurf { m = dirtID }
                 VM[vi] = Int32(m)
             }
             VL[vi] = Int32(l | ao << 8)
@@ -772,7 +779,9 @@ extension Mesher {
                 // P141/P142: dirt facing up under a neighbour's turf shows the turf (on a hillside every block row exposes the
                 // dirt under the row above's grass, which striped slopes grass/dirt/grass: the checkered look).
                 var id = blockID
-                if id == dirtID && nrm.y > 0.35 * len {
+                let under = !SmoothTerrain.oldWetTurf && fkT[Int(R[ri(s[0], s[1] + 1, s[2])])] == 1       // (Nov 12: a pool's bed)
+                if under && nat[id] && tintT[id] == 3 { id = dirtID }
+                if id == dirtID && nrm.y > 0.35 * len && !under {
                     turf: for (dx, dy, dz) in turfProbe {
                         let t = Int(R[ri(s[0] + dx, s[1] + dy, s[2] + dz)])
                         if nat[t] && tintT[t] == 3 { id = t; break turf }

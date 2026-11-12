@@ -115,6 +115,13 @@ enum Mesher {
     // texture repeats every block). BS_OLDFOOTV=1: as before. `uvOverflow` (the check after load): any vertex given a
     // u or v past 5 bits since it was cleared.
     static let oldFootV = ProcessInfo.processInfo.environment["BS_OLDFOOTV"] == "1"
+    static let oldFineCorners = ProcessInfo.processInfo.environment["BS_OLDFINECORNERS"] == "1"
+    // (Nov 12: a border vertex just under a section line, FineField's `edge`. BS_OLDFINEEDGE=1: the upper section leaves it loose.)
+    static let oldFineEdge = oldFineCorners || ProcessInfo.processInfo.environment["BS_OLDFINEEDGE"] == "1"
+    // BS_FINEDEBUG="cx,cz[;cx,cz...]": each half-block section meshed in those chunks prints what it took its neighbours for.
+    static let fineDebug: [SIMD2<Int>] = (ProcessInfo.processInfo.environment["BS_FINEDEBUG"] ?? "").split(separator: ";").compactMap {
+        let v = $0.split(separator: ",").compactMap { Int($0) }; return v.count == 2 ? SIMD2(v[0], v[1]) : nil }
+    static let oldTrunkFeet = ProcessInfo.processInfo.environment["BS_OLDTRUNKFEET"] == "1"
     static var uvOverflow = -1           // (u * 1000 + v of the last such vertex; -1 none)
     // Nov 6 (jungle perf spot: bamboo was 27k of the 43k cutout quads past 64 blocks): a stack of one thin model (one box,
     // full height, clear of the cell's sides: bamboo, chains, rods) lit alike all the way up is drawn as one box per run
@@ -941,12 +948,23 @@ enum Mesher {
                 groundV += 1
                 groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
             }
+            if !Mesher.fineDebug.isEmpty, let ch = chunk, Mesher.fineDebug.contains(SIMD2(ch.x, ch.z)) {
+                let own = (0..<9).map { n9[$0].fine.keys.sorted().map(String.init).joined(separator: ",") }.joined(separator: "|")
+                print("finedebug: chunk \(ch.x) \(ch.z) section \(sy) lod \(lod): sides \(sc.dbgCoarse.0), 26 \(String(sc.dbgCoarse.1, radix: 2)), beyond \(fineBeyond.count), 3x3 fine [\(own)], ground words \(opq.count - g0), loose cells found wider \(sc.dbgCoarse.2 % 1000), not at all \(sc.dbgCoarse.2 / 1000 % 1000), closing vertices \(sc.fineFins.count), closings without a look \(sc.dbgCoarse.2 / 1_000_000)")
+            }
             if AdaptiveGround.enabled && adaptiveOK {
                 let t0 = Mesher.fineTiming ? CFAbsoluteTimeGetCurrent() : 0
                 groundV -= AdaptiveGround.mesh(opq, from: g0, exact: ex.count == (opq.count - g0) / 2 * 3 ? ex.ptr : nil,
                                                farSkip: &farSkip, farGround: &farGround) * 4    // P381, P383
                 if Mesher.fineTiming { Mesher.fineT.adaptive += CFAbsoluteTimeGetCurrent() - t0 }
             }
+            // (Nov 12: the steps a vertex drawn on its section line leaves on a border, FineField's `edge`)
+            for v in sc.fineFins {
+                curCut = false
+                groundV += 1
+                groundVert(v.0, v.1, v.2, v.3, v.4, v.5, v.6, v.7, v.8)
+            }
+            sc.fineFins.removeAll(keepingCapacity: true)
         } else if smooth {
             // (P381: the adaptive ground replaces the pixel-error merge in field worlds.)
             let adaptive = fieldOn && AdaptiveGround.enabled && adaptiveOK
@@ -1251,7 +1269,17 @@ enum Mesher {
                                 // (density - 8): where the ground is thin (a wall a cell thick) the level running
                                 // on through it came out on the far side as a sheet of water on the wall (15:38).
                                 let gTop: Float = dens[i + RL] > 0 ? 1.5 : 0.5 + Float(dens[i]) / 32
-                                if collideT[b] { f = Lc - 0.5 }
+                                if collideT[b] {
+                                    f = Lc - 0.5
+                                    // Nov 12 (playtest 06:14:33, Plains: "sky-blue triangle voids" in the grass, gone when
+                                    // the block under one was broken): a low hump of ground in a pond (its drawn top just
+                                    // at the water's level) took the level like any solid, so the water's surface ran
+                                    // through it at the ground's own height and the two fought: triangles of water over
+                                    // the grass. Natural ground whose drawn top reaches the level keeps the level a
+                                    // quarter block inside its own surface, as the open bank cells do (ground under the
+                                    // level stays covered; a cell filled solid is untouched).
+                                    if natT[b] && dens[i] > 0 && gTop >= Lc - 0.05 && !Mesher.oldWaterGround { f = min(f, (Float(dens[i]) - 8) / 32) }
+                                }
                                 else if gTop >= L - 0.05 { f = min(L - 0.5, (Float(dens[i]) - 8) / 32) }
                                 else { f = max(-1, Lt - 0.5) }
                             }
@@ -1372,6 +1400,15 @@ enum Mesher {
         func blockFoot(_ i: Int, _ x: Int, _ y: Int, _ z: Int, _ ly: Int) {
             let a = i + RL, ab = Int(R[a])
             guard renderT[ab] == rCube, opaqueT[ab], dens[a] <= 0, layerT[ab] == solidLayer, fkT[ab] == 0, !leafT[ab] else { return }
+            // Nov 12 (playtest 06:13:25-36, "every stump has some sort of block problem where it's showing a face of a...
+            // logged block"; flat plates at dark oak feet): the foot is for a block drawn as a cube. A log is drawn round
+            // by ShapeTrunks (thinner than its cell) and an object by its own mesh, so the cube's side planes carried on
+            // down stood out of every tree's foot as flat bark cards half a block high, at the cell's sides.
+            // BS_OLDTRUNKFEET=1: as before.
+            if !Mesher.oldTrunkFeet {
+                if detailDraw && detT[ab] { return }
+                if let sk = objSkip, ly + 1 < 16, sk[(x - C0) + (z - C0) * 16 + (ly + 1) * 256] { return }
+            }
             let bx16 = (x - C0) * 16, by16 = ly * 16, bz16 = (z - C0) * 16
             let tintB = Int(tintT[ab]), tintV = tintB == 3 ? 1 : tintB
             let cut0 = curCut, kind0 = kindNow
@@ -2534,6 +2571,8 @@ enum Mesher {
         return Float(dx * dx + dz * dz).squareRoot()
     }
     static var fluidNets = ProcessInfo.processInfo.environment["BS_FLUIDNETS"] != "0"
+    // Nov 12: the water level kept inside low natural ground (BS_OLDWATERGROUND=1: through it at its height, as before).
+    static let oldWaterGround = ProcessInfo.processInfo.environment["BS_OLDWATERGROUND"] == "1"
     // The twelve edges of a cell's corner cube (corner k: x = k & 1, y = (k >> 1) & 1, z = (k >> 2) & 1).
     static let cubeEdges: [(Int, Int)] = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)]
     static var farDarkCull = true
@@ -2616,6 +2655,8 @@ final class FineFill {
     deinit { r.deallocate(); d.deallocate(); s.deallocate(); b.deallocate() }
 }
 final class MeshScratch {
+    var fineFins: [(Int, Int, Int, Int, Int, Int, Int, Int, Int)] = []      // (fineGround's closing triangles, drawn after its ground)
+    var dbgCoarse: (Int, UInt32, Int) = (0, 0, 0)        // (BS_FINEDEBUG: fineGround's side bits, 26-neighbour bits, quads)
     let region = UnsafeMutablePointer<BlockID>.allocate(capacity: Mesher.RL * Mesher.RH)
     let sky = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)
     let blk = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)

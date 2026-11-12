@@ -204,6 +204,38 @@ enum QuestStreamTest {
             let now = CFAbsoluteTimeGetCurrent()
             if due > now { usleep(useconds_t((due - now) * 1_000_000)) }
         }
+        // --stalecheck R (Nov 12, FAILURES 4): once the workers are idle, every drawn section within R chunks is meshed
+        // again and compared with what is drawn (World.staleCheck): a section that differs is a hole waiting for an edit.
+        // --endshots "X,Y,Z,YAW,PITCH;...": he is set at each spot (internal y) and a shot taken (OUT/end-N.png), with
+        // the pixels that show the sky's blue from a view looking down counted.
+        if let r = Int(arg("--stalecheck") ?? "") {
+            var waited = 0
+            while (w.pendingJobs > 0 || World.leftWaiting > 0) && waited < 72 * 20 { g.tick(dt); usleep(13_000); waited += 1 }
+            for _ in 0..<30 { g.tick(dt); usleep(13_000) }
+            let sc = w.staleCheck(center: p.pos, radius: r)
+            print("streamtest: stale check: \(sc.checked) drawn sections within \(r) chunks meshed again, \(sc.stale.count) differ from what is drawn (waited \(waited) frames for the workers)")
+            for l in sc.stale.prefix(60) { print("streamtest: stale: " + l) }
+            // (the sections with half-block samples, chunk by chunk, 9x9 round him: what the corner pinning goes by)
+            let ccx = floorDiv(Int(floor(p.pos.x)), CS), ccz = floorDiv(Int(floor(p.pos.z)), CS)
+            for dz in -4...4 {
+                let row = (-4...4).map { dx -> String in
+                    guard let c = w.chunks[ChunkKey(x: ccx + dx, z: ccz + dz)] else { return "?" }
+                    let ks = c.blocks.fine.keys.sorted()
+                    return (ks.isEmpty ? "." : ks.map(String.init).joined(separator: ",")) + (c.lod != 0 ? "L\(c.lod)" : "")
+                }
+                print("streamtest: fine map z \(ccz + dz), x \(ccx - 4)...: " + row.joined(separator: " | "))
+            }
+        }
+        if let es = arg("--endshots"), let ctx {
+            for (n, spec) in es.split(separator: ";").enumerated() {
+                let v = spec.split(separator: ",").compactMap { Float($0) }
+                guard v.count == 5 else { continue }
+                p.pos = V3(v[0], v[1], v[2])
+                let path = "\(out)/end-\(n).png"
+                do { try RenderTest.render(game: g, ctx: ctx, path: path, width: 640, height: 640, yaw: -v[3] * .pi / 180, pitch: v[4] * .pi / 180); print("streamtest: \(path)") }
+                catch { print("streamtest: shot failed: \(error)") }
+            }
+        }
         if tally {
             let top = (World.editTally ?? [:]).sorted { $0.value > $1.value }.prefix(12).map { k, n in
                 "\(k >> 32 != 0 ? "async " : "")\(Blocks.key(BlockID(truncatingIfNeeded: (k >> 16) & 0xFFFF))) -> \(Blocks.key(BlockID(truncatingIfNeeded: k & 0xFFFF))) x\(n)"
