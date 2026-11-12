@@ -1861,8 +1861,9 @@ if let out = arg("--view"), let ctx = vkctx {
                         v.append(P(x: Int32(c.cx * 256) + Int32(w0 & 511), y: Int32(sy * 256) + Int32((w0 >> 9) & 511), z: Int32(c.cz * 256) + Int32((w0 >> 18) & 511)))
                     }
                     guard ground else { continue }
-                    let key = v.sorted { ($0.x, $0.y, $0.z) < ($1.x, $1.y, $1.z) }
-                    guard seenQ.insert(key).inserted else { continue }       // (a closing triangle is drawn from both sides)
+                    // (a closing triangle is drawn from both sides, a quad with a doubled corner each way: its distinct points)
+                    let key = Array(Set(v)).sorted { ($0.x, $0.y, $0.z) < ($1.x, $1.y, $1.z) }
+                    guard key.count >= 3, seenQ.insert(key).inserted else { continue }
                     quads += 1
                     for k in 0..<4 where v[k] != v[(k + 1) & 3] { count[ord(v[k], v[(k + 1) & 3]), default: 0] += 1 }
                 }
@@ -1924,7 +1925,9 @@ if let out = arg("--view"), let ctx = vkctx {
                 }
             }
             func f(_ p: P) -> String { String(format: "%.2f %.2f %.2f", Float(p.x) / 16, Float(p.y) / 16, Float(p.z) / 16) }
-            print("watertight: \(quads) ground quads, \(open.count) open edges in \(groups.count) groups within \(wr) blocks of the eye")
+            // (a hole has a rim of three edges or more; one or two open edges alone are a fold, not a hole)
+            let rims = groups.filter { $0.count >= 3 }
+            print("watertight: \(quads) ground quads, \(open.count) open edges in \(groups.count) groups within \(wr) blocks of the eye; holes (3 edges or more) \(rims.count), their edges \(rims.reduce(0) { $0 + $1.count })")
             let far = arg("--watertight-all") != nil ? 400 : 24
             for g in groups.sorted(by: { $0.count > $1.count }).prefix(far) {
                 var lo = g[0].a, hi = g[0].a
