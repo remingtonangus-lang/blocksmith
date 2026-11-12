@@ -511,8 +511,13 @@ enum Trains {
                     g.world.setBlock(c.x, c.y, c.z, Blocks.id("rail") + BlockID(sh[i]))
                     cleared += 1
                 } else { g.world.setBlock(c.x, c.y, c.z, AIR); cleared += 1 }
-            } else if tr.heldBy && tr.driven && tr.heldWay != 0 && !Blocks.collide[Int(b)] {
-                tr.heldBy = false; tr.brake = 0; tr.stoppedFor = 0      // (driven: his block taken away, or backed off it)
+            } else if tr.heldBy && tr.driven && tr.heldWay != 0 {
+                // (driven: once his block is gone from the end it stopped, the train is his again; stood still, the end
+                // looked at above is its front whichever way it was going, so the held end is looked at itself)
+                let hd = tr.driveFwd * tr.heldWay
+                let hc = t.cell(tr.layout.isEmpty ? s0 + hd * (gap * 0.75 + 1.2) : tr.lastS + hd * (tr.length / 2 + 1.5))
+                let hb = g.world.block(hc.x, hc.y, hc.z)
+                if !(Blocks.collide[Int(hb)] && !Rails.isRail(hb)) { tr.heldBy = false; tr.brake = 0; tr.stoppedFor = 0 }
             }
             holdUpTick(g, tr, dt)
             if !tr.layout.isEmpty {
