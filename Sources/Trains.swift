@@ -137,6 +137,7 @@ enum Trains {
         var stoppedFor: Float = 0
         var holdUp: Float = 0
         var heldBy = false                      // the player stopped it (a hold-up or a block on the line)
+        var heldWay: Float = 0                  // driven: the way it was going when his block stopped it (0: both ways)
         var cars: [Mob] = []
         var cracks = 0
         var robbedDay = -1
@@ -504,12 +505,14 @@ enum Trains {
                 // it, ground that grew back) held the train for good: it let go a minute later or once he was 48 blocks
                 // off, then met the same block at once. The train clears it and the rail is put back.
                 if placed[c] != nil {
-                    if !tr.heldBy { tr.heldBy = true; tr.stoppedFor = 0; whistle(g, tr) }
+                    if !tr.heldBy { tr.heldBy = true; tr.heldWay = tr.driven && tr.driveV < 0 ? -1 : 1; tr.stoppedFor = 0; whistle(g, tr) }
                 } else if let sh = t.shapes, Blocks.has("rail") {
                     let i = t.cyclic ? Int(t.wrap(ahead.rounded())) % t.cells.count : max(0, min(t.cells.count - 1, Int(ahead.rounded())))
                     g.world.setBlock(c.x, c.y, c.z, Blocks.id("rail") + BlockID(sh[i]))
                     cleared += 1
                 } else { g.world.setBlock(c.x, c.y, c.z, AIR); cleared += 1 }
+            } else if tr.heldBy && tr.driven && tr.heldWay != 0 && !Blocks.collide[Int(b)] {
+                tr.heldBy = false; tr.brake = 0; tr.stoppedFor = 0      // (driven: his block taken away, or backed off it)
             }
             holdUpTick(g, tr, dt)
             if !tr.layout.isEmpty {
@@ -651,8 +654,9 @@ enum Trains {
         }
         let stopping = brakeRate * max(tr.cabBrake, tr.brake) * dt
         v = v > 0 ? max(0, v - stopping) : min(0, v + stopping)
-        // A block he put on the rail ahead (place: heldBy) stops it there; he can still back away from it.
-        if tr.heldBy && v > 0 { v = 0 }
+        // A block he put on the rail ahead (place: heldBy) stops it there, backing or not; he can still pull away from
+        // it the other way.
+        if tr.heldBy && (tr.heldWay == 0 || v * tr.heldWay > 0) { v = 0 }
         // The track's ends (where no link runs on) and a real-size train's own length hold it off the buffers.
         var s = tr.driveS + tr.driveFwd * v * dt
         if !t.cyclic {
@@ -732,7 +736,7 @@ enum Trains {
         guard d > 1, d < 20, simd_dot(to / d, dir) > 0.985, g.world.canSee(from, cab) else { tr.holdUp = max(0, tr.holdUp - dt); return }
         tr.holdUp += dt
         if tr.holdUp >= holdUpTime {
-            tr.heldBy = true; tr.stoppedFor = 0
+            tr.heldBy = true; tr.heldWay = 0; tr.stoppedFor = 0
             whistle(g, tr)
             g.onToast?("The driver throws on the brakes")
         }
