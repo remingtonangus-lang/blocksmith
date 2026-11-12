@@ -1056,6 +1056,15 @@ enum Railways {
         }
         for i in 1..<n where abs(h[i] - h[i - 1]) > grade + 0.01 { return nil }
         for i in 0..<n where abs(h[i] - target[i]) > 28 { tally?("grade: track 28+ off the land"); return nil }
+        // (N12: with its turns free to climb, a diagonal line's valley floor or crest can round one cell a block off both
+        // its neighbours, a rail a step down and up again (the rail check's dip/hump, 3 of 151 lines): that cell's height
+        // is moved to the edge of its neighbours' block, an eighth of a block at most)
+        if diagonal {
+            for i in 1..<(n - 1) {
+                let a = h[i - 1].rounded(), b = h[i].rounded(), c = h[i + 1].rounded()
+                if a == c && b != a { h[i] = b < a ? a - 0.499 : a + 0.499 }
+            }
+        }
         return h
     }
 

@@ -56,6 +56,7 @@ enum RailwayTests {
     // N12 keeps that way exactly (the gate); a train's heading turns at most a few tens of degrees a block (it was 90
     // in one cell at every dog-leg) and it runs the timetable's pace along the smoothed line, diagonal or straight.
     static func diagonals(_ check: (Bool, String) -> Void) {
+        guard !Railways.oldRails else { print("rail: N12 diagonals skipped (BS_OLDRAILS=1)"); return }
         var lines = 0, diag = 0, legs = 0, bad: [String] = [], gateOK = 0, gateTried = 0
         var worstTurn: Float = 0, worstOldTurn: Float = 0, worstPace: Float = 0, longest = 0
         func turnPerBlock(_ t: Trains.Track) -> Float {
@@ -332,7 +333,11 @@ enum RailwayTests {
             }
             tr.throttle = 2
             let s = Trains.now(tr).s
-            maxS = max(maxS, s)
+            // (N12: a station counts once the engine's head has come to it: a real-size train's middle is held half its
+            // length and 3 off the line's end, short of an end station that stands nearer the end than that, as the
+            // diagonal lines' pick, Greywall & Elk, has: its middle stood at cell 407 of 441, the station past it)
+            let head = tr.layout.isEmpty ? s : tr.track.advance(s, by: tr.dir * tr.length / 2)
+            maxS = max(maxS, head)
             peak = max(peak, tr.blocksPerSec)
             let i = max(0, min(l.cells.count - 1, Int(s.rounded())))
             if tag[i] != 0 { passed.insert(tag[i]) }
@@ -359,9 +364,9 @@ enum RailwayTests {
             // (Nov 12: driven, the train runs through the stations: each one its head passes counts)
             // (within 0.6 of its cell: a frame at 28 b/s moves 0.47, so none is missed, and the last one ends the ride
             // with the head on it; standing counts once it has got going, not its start from the first)
-            for (k, st) in l.stations.enumerated() where abs(s - Float(st.index)) < 0.6 {
+            for (k, st) in l.stations.enumerated() where abs(s - Float(st.index)) < 0.6 || head >= Float(st.index) - 0.6 {
                 stops.insert(k)
-                if tr.blocksPerSec < 0.05 && peak > 1 { stood += 1 }
+                if abs(s - Float(st.index)) < 0.6 && tr.blocksPerSec < 0.05 && peak > 1 { stood += 1 }
             }
             let e = g.player.eye
             if world.solidAt(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))) {

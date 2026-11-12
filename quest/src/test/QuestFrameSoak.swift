@@ -590,6 +590,17 @@ enum QuestFrameSoak {
         // far ring and sky are off (WorldRenderer.uniforms), so the clear past the drawn sea floor is the fog he sees
         // everywhere past 18-56 blocks: not a hole. Those shots are counted apart. Under lava the same.)
         let submerged = g.player.headInWater || g.player.headInLava
+        // (Nov 12, the Deep's Gloamwood flown at his height, 60 over the trees: 3895 "voids" at the top of the 25-degree
+        // shots, all sky past the loaded ground's edge. Only the overworld has a far ring; elsewhere the fog ends at the
+        // loaded edge, so a sight line that leaves it before it could come down to the lowest loaded ground is the edge.)
+        var edgeTan: Float = 0, edge = 0
+        if g.dim.dim != .overworld {
+            var lo = Int.max
+            for (_, c) in g.world.chunks { for h in c.height where h >= 0 { lo = min(lo, Int(h)) } }
+            let radius = Float(g.world.renderDistance * 16)
+            if lo != .max && radius > 0 { edgeTan = max(0, eye.y - Float(lo)) / radius }
+        }
+        defer { if edgeTan > 0 { print(String(format: "    voids: the loaded edge (no far ring here; sight lines dropping under %.2f a block) %d pixels, not counted", edgeTan, edge)) } }
         var first = true
         ParticleManager.drawnCount = 0; ParticleManager.darkCount = 0
         defer { print("    void shots: particles drawn \(ParticleManager.drawnCount), with no light at all \(ParticleManager.darkCount) (ledger 64)") }
@@ -597,7 +608,8 @@ enum QuestFrameSoak {
             let yaw = yaw0 + Float(k) * .pi / 2, pitch = -down * .pi / 180
             guard let img = try? rig.grab(eye: eye, yaw: yaw, pitch: pitch, frames: first ? 3 : 2) else { continue }
             first = false
-            let c = RenderTest.countVoid(img, width: size, height: size, eyes: 1, fovDeg: fov, pitch: pitch)
+            let c = RenderTest.countVoid(img, width: size, height: size, eyes: 1, fovDeg: fov, pitch: pitch, edgeTan: edgeTan)
+            edge += c.edge
             if submerged { water += c.holes } else { holes += c.holes }
             below += c.below; backstop += c.backstop
             // (BS_VOIDSHOTS=DIR: every shot saved there, each hole ringed in green)
