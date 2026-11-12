@@ -33,21 +33,28 @@ if [ "$EXPECT" = 0 ]; then
   pk "minSdk >= 29 ($sdk)" "$([ "${sdk:-0}" -ge 29 ] && echo 1)"
   pk "targetSdk >= 32 ($tsdk)" "$([ "${tsdk:-0}" -ge 32 ] && echo 1)"
   # (code reader Nov 10, batch 2.6) the launch entitlement check: the platform loader and the store app ID
-  pk "entitlement: platform loader in the APK" "$(unzip -Z1 "$APK" | grep -qx 'lib/arm64-v8a/libovrplatformloader.so' && echo 1)"
-  pk "entitlement: store app ID set" "$(strings -a "$SO" | grep -q '1396130500248132' && echo 1)"
-  other=$(unzip -Z1 "$APK" | grep '^lib/' | grep -vc '^lib/arm64-v8a/')
+  # (Nov 12, store build 131: both failed on an APK that had them. Under pipefail a `producer | grep -q` pipeline fails
+  # whenever grep finds the match and exits before the producer is done writing: the producer dies of SIGPIPE (141)
+  # and the pipeline's status is that, not grep's 0. strings over the 30 MB library always outlives the match. Every
+  # check here reads a whole listing into a variable or counts with grep -c, which reads to the end; none pipes into -q.)
+  LIBS=$(unzip -Z1 "$APK")
+  APPID="${QUEST_APP_ID:-1396130500248132}"
+  pk "entitlement: platform loader in the APK" "$(grep -qx 'lib/arm64-v8a/libovrplatformloader.so' <<< "$LIBS" && echo 1)"
+  idn=$(strings -a "$SO" | grep -cF "$APPID")
+  pk "entitlement: store app ID set ($APPID, $idn)" "$([ "${idn:-0}" -gt 0 ] && echo 1)"
+  other=$(grep '^lib/' <<< "$LIBS" | grep -vc '^lib/arm64-v8a/')
   pk "arm64-v8a libraries only ($other others)" "$([ "$other" -eq 0 ] && echo 1)"
   pk "VR intent category" "$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null | grep -c 'com.oculus.intent.category.VR' | grep -qv '^0$' && echo 1)"
   XT=$("$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null)
   pk "Vulkan or GLES version declared (Meta upload rule)" "$(echo "$XT" | grep -cE 'android.hardware.vulkan.version|glEsVersion' | grep -qv '^0$' && echo 1)"
-  pk "hand tracking feature has its permission (Meta upload rule)" "$( { ! echo "$XT" | grep -q 'oculus.software.handtracking' || echo "$XT" | grep -q 'com.oculus.permission.HAND_TRACKING'; } && echo 1)"
+  pk "hand tracking feature has its permission (Meta upload rule)" "$( { ! grep -q 'oculus.software.handtracking' <<< "$XT" || grep -q 'com.oculus.permission.HAND_TRACKING' <<< "$XT"; } && echo 1)"
   bad=$(echo "$MAN" | grep -cE "uses-permission: name='android.permission.(CALL_PHONE|SEND_SMS|READ_SMS|READ_CONTACTS|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|READ_EXTERNAL_STORAGE|CAMERA|READ_PHONE_STATE)'")
   pk "no prohibited permissions ($bad)" "$([ "$bad" -eq 0 ] && echo 1)"
   if [ -n "${APKSIGNER:-}" ]; then
     SIG=$("$APKSIGNER" verify --verbose --print-certs "$APK" 2>/dev/null)
     # (v2 or later: with minSdk 29 apksigner signs v3 only, which Quest OS verifies and which supersedes v2)
-    pk "APK Signature Scheme v2 or later" "$(echo "$SIG" | grep -qE 'v[23] scheme \(APK Signature Scheme v[23]\): true' && echo 1)"
-    if echo "$SIG" | grep -qiE 'DN: CN=[^,]*Debug'; then
+    pk "APK Signature Scheme v2 or later" "$(grep -qE 'v[23] scheme \(APK Signature Scheme v[23]\): true' <<< "$SIG" && echo 1)"
+    if grep -qiE 'DN: CN=[^,]*Debug' <<< "$SIG"; then
       if [ -n "${STORE_KEYSTORE:-}" ]; then pk "release key (debug-signed)" 0; else echo "storecheck: note debug-signed (set STORE_KEYSTORE for the upload)"; fi
     else pk "release key" 1; fi
   fi
