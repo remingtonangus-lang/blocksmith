@@ -561,6 +561,7 @@ enum Cinema {
                     hd.gripRot = head * down; hd.aimRot = hd.gripRot
                     sim.hands[hi] = hd
                 }
+                host!.handed.refresh(dt: 1.0 / 30, walk: false)      // the hands as QuestControls reads them
                 host!.rig.update(xr: sim, game: game)
             }
             let cam = EyeCamera(center: eye, viewProj: [vp, vp], cullViewProj: vp, yaw: yaw, pitch: pitch, far: far)
