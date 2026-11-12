@@ -1431,6 +1431,43 @@ if let out = arg("--view"), let ctx = vkctx {
         } catch { print("view: well shots failed: \(error)") }
         exit(0)
     }
+    // --scene orbit KIND[,KIND...] (the well's bloom: every structure that lays natural blocks in the built layer): the
+    // nearest of each kind from --at, shot from 8 points round it (its box's half diagonal + 6 blocks out, 3 over the
+    // ground there) looking at its middle; with QUEST_VOIDPROBE=1 QUEST_SKIP=sky,landmarks, the magenta pixels below
+    // the horizon in each (RenderTest.countVoid), per kind and in all. --orbitshots writes OUT-KIND-k.png.
+    if let kinds = arg("--scene").flatMap({ $0 == "orbit" ? arg("--kinds") : nil }) {
+        var all = 0
+        do {
+            let rig = try RenderTest.ShotRig(game: vg, ctx: ctx, width: 640, height: 480, fovDeg: 70)
+            let base = out.hasSuffix(".png") ? String(out.dropLast(4)) : out
+            for kind in kinds.split(separator: ",").map(String.init) {
+                guard let st = vw.gen.structures?.nearest(kind, x: Int(at[0]), z: Int(at[2]), maxRegions: 24) else { print("view: orbit \(kind): none near"); continue }
+                let cx = Float(st.min.x + st.max.x) / 2 + 0.5, cz = Float(st.min.z + st.max.z) / 2 + 0.5
+                let r = simd_length(V2(Float(st.max.x - st.min.x), Float(st.max.z - st.min.z))) / 2 + 6
+                _ = vw.loadSync(center: V3(cx, Float(st.anchor.y), cz), radius: max(3, Int(r / 16) + 2))
+                var per: [Int] = []
+                for k in 0..<8 {
+                    let a = Float(k) * .pi / 4
+                    let px = cx + cosf(a) * r, pz = cz + sinf(a) * r
+                    let gy = Float(vw.topY(Int(floor(px)), Int(floor(pz))) + 1)
+                    let eye = V3(px, max(gy, Float(st.anchor.y)) + 3, pz)
+                    let tgt = V3(cx, Float(st.anchor.y) + 1, cz)
+                    let d = tgt - eye
+                    let yaw = atan2f(-d.x, -d.z), pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
+                    let img = try rig.grab(eye: eye, yaw: yaw, pitch: pitch)
+                    let n = RenderTest.countVoid(img, width: 640, height: 480, eyes: 1, fovDeg: 70, pitch: pitch).holes
+                    per.append(n)
+                    if CommandLine.arguments.contains("--orbitshots") {
+                        try PNG.encode(rgba: img, width: 640, height: 480).write(to: URL(fileURLWithPath: "\(base)-\(kind)-\(k).png"))
+                    }
+                }
+                all += per.reduce(0, +)
+                print("view: orbit \(kind) at \(st.anchor.x) \(st.anchor.y) \(st.anchor.z) (\(vw.gen.column(st.anchor.x, st.anchor.z).biome.name)): \(per.reduce(0, +)) holes below the horizon \(per)")
+            }
+        } catch { print("view: orbit shots failed: \(error)") }
+        print("view: orbit: \(all) holes in all")
+        exit(0)
+    }
     // --mob KEY[,KEY...]: those mobs side by side --mobdist blocks ahead (default 3), facing the camera (model checks,
     // P185); --aggro shows them hostile.
     if let ks = arg("--mob") {
