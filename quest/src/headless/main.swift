@@ -1135,6 +1135,43 @@ if let out = arg("--view"), let ctx = vkctx {
         if inTick { BlastShape.deferred = deferred0 }
         print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after; shapings queued \(queued), left \(BlastShape.queue.count)")
     }
+    // --shells YAWS,PITCHES (Nov 12, the hovering tower top): heavy shells as he fires them from a manned deck gun
+    // (VehicleControls.shoot: his power and breach), from the eye, at each yaw and pitch (degrees, "a:b:step" or one
+    // value), half a second of play after each, then --settle SECS (default 6) more; --floatscan R lists every built
+    // piece within R blocks (default 40) of where they burst that nothing holds up (FloatScan).
+    if let sv = arg("--shells")?.split(separator: ","), sv.count == 2 {
+        func range(_ t: Substring) -> [Float] {
+            let p = t.split(separator: ":").compactMap { Float($0) }
+            guard p.count == 3, p[2] > 0 else { return p.prefix(1).map { $0 } }
+            return Array(stride(from: p[0], through: p[1], by: p[2]))
+        }
+        vg.paused = false
+        vg.survival = false; vg.player.flying = true
+        let eye = vg.player.eye
+        var bursts: [V3] = []
+        let d0 = Armory.detonations
+        for yd in range(sv[0]) { for pd in range(sv[1]) {
+            let y = yd * .pi / 180, pt = pd * .pi / 180
+            let fwd = V3(-sinf(y) * cosf(pt), sinf(pt), -cosf(y) * cosf(pt))
+            var sl = Slug(pos: eye + fwd * 2, vel: fwd * HeavyTurret.speed, kind: .shell, damage: 0, fromPlayer: true,
+                          shooter: nil, by: "Player", life: 12, gravity: HeavyTurret.gravity)
+            HeavyTurret.arm(&sl)
+            sl.power = HeavyTurret.mannedPower; sl.breach = HeavyTurret.mannedBreach
+            vg.arms.spawn(sl)
+            var k = 0
+            while !vg.arms.slugs.isEmpty && k < 72 * 4 { let last = vg.arms.slugs.last!.pos; vg.tick(1.0 / 72); k += 1; if vg.arms.slugs.isEmpty { bursts.append(last) } }
+            for _ in 0..<36 { vg.tick(1.0 / 72) }
+            vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero
+        } }
+        let settle = Double(arg("--settle") ?? "") ?? 6
+        for _ in 0..<Int(settle * 72) { vg.tick(1.0 / 72); vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero }
+        print("view: shells: \(Armory.detonations - d0) bursts, \(Structure.checks) load checks, \(Structure.fallen) blocks fell, \(Felling.toppled) pieces toppled, \(vg.falling.count) falling")
+        if !bursts.isEmpty {
+            let c = bursts.reduce(V3(0, 0, 0), +) / Float(bursts.count)
+            print("view: shells burst round \(Int(c.x)) \(Int(c.y)) \(Int(c.z))")
+            print(FloatScan.scan(vw, around: IVec3(Int(c.x), Int(c.y), Int(c.z)), r: Int(arg("--floatscan") ?? "") ?? 40))
+        }
+    }
     // --troops R (P471): every soldier within R blocks of the eye after the run (--tick): what it is, whose, its gun,
     // whether it has seen him, and which way it faces from him (0: toward him).
     if let rr = Float(arg("--troops") ?? "") {
