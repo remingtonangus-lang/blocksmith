@@ -2736,6 +2736,11 @@ if CommandLine.arguments.contains("--crawlerhits") {
     CrawlerHits.run(game, check)
     print(failures == 0 ? "crawlerhits: all checks passed" : "crawlerhits: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --gunstation: Nov 12, he works a disabled crawler's gun from its station (Sources/GunStationPlay.swift).
+if CommandLine.arguments.contains("--gunstation") {
+    GunStationCheck.run(game, check)
+    print(failures == 0 ? "gunstation: all checks passed" : "gunstation: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --strikelook: Nov 12 trailer, a main-gun strike's wake, puffs and debris (Sources/StrikeLook.swift).
 if CommandLine.arguments.contains("--strikelook") {
     StrikeLook.run(game, check)

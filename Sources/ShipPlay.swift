@@ -26,6 +26,7 @@ extension Game {
         if let s = ships.pilot {
             if pilotTick(s, mi, dt) { ships.riderShip = nil; return }
         }
+        if GunStationPlay.cur != nil, gunStationTick(mi, dt) { ships.riderShip = nil; return }     // (Nov 12: in a gun's chair)
         commandeerHintTick()
         let p = player
         var cand = ships.frameShip(for: p.pos, height: p.height, current: ships.aboard)
@@ -535,6 +536,11 @@ extension Game {
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float, useHeld: Bool = false) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt
+        if GunStationPlay.cur != nil {                                   // (Nov 12: the trigger in a gun station's chair)
+            ships.target = nil; target = nil; mining = nil
+            gunStationFire(breakNow: breakNow, breakHeld: breakHeld)
+            return true
+        }
         if let s = ships.pilot {
             ships.target = nil; target = nil; mining = nil
             // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later along the bow), else
@@ -738,6 +744,7 @@ extension Game {
             onToast?("Named the ship \(label)")
             return true
         }
+        if !sneak && ShipParts.console[Int(b)] && s.helm != cell && takeGunStation(s, cell) { return true }   // (Nov 12: a gun's station)
         if (ShipParts.kinds[Int(b)] == .helm || ShipParts.console[Int(b)]) && s.helm == cell {
             // Capital fliers can be commandeered; other Capital ships can't be steered or taken apart: break the helm to
             // cripple one (CapitalShips.swift).
