@@ -2694,6 +2694,11 @@ if CommandLine.arguments.contains("--gunroom") {
     GunRoomCheck.run(game, check)
     print(failures == 0 ? "gunroom: all checks passed" : "gunroom: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --crawlerhits: Nov 12, heavy shells (his and a crew's) into an Ironback Crawler, shot by shot (Sources/CrawlerHits.swift).
+if CommandLine.arguments.contains("--crawlerhits") {
+    CrawlerHits.run(game, check)
+    print(failures == 0 ? "crawlerhits: all checks passed" : "crawlerhits: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --navalblow: P471, a crew's heavy naval shell on the levels and through Capital stone (Sources/NavalBlowCheck.swift).
 if CommandLine.arguments.contains("--navalblow") {
     NavalBlowCheck.run(game, check)
