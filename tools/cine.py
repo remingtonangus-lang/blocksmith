@@ -23,7 +23,7 @@ XF = 0.5          # crossfade seconds
 # shot (0 = a hard cut). Sections fade into each other; shots inside a section cut hard.
 CUT = [
     ("town_crane", 3.5, "One open world, built from blocks", [], {"xf": 0}),
-    ("town_street", 2.8, None, [], {"xf": 0, "ss": 2.2}),
+    ("town_street", 2.8, None, [], {"xf": 0, "ss": 2.85}),
     ("capital", 3.0, None, [], {"xf": 0, "ss": 0.5}),
     ("train", 3.5, "Ride the rails across the frontier", [], {"xf": 0, "ss": 2.5}),
     ("build_cabin", 4.5, "Build anything, block by block", [], {"xf": 0, "speed": 1.6}),
