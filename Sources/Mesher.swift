@@ -118,9 +118,11 @@ enum Mesher {
     static let oldFineCorners = ProcessInfo.processInfo.environment["BS_OLDFINECORNERS"] == "1"
     // (Nov 12: a border vertex just under a section line, FineField's `edge`. BS_OLDFINEEDGE=1: the upper section leaves it loose.)
     static let oldFineEdge = oldFineCorners || ProcessInfo.processInfo.environment["BS_OLDFINEEDGE"] == "1"
+    static let oldFineStitch = oldFineEdge || ProcessInfo.processInfo.environment["BS_OLDFINESTITCH"] == "1"
     // BS_FINEDEBUG="cx,cz[;cx,cz...]": each half-block section meshed in those chunks prints what it took its neighbours for.
     static let fineDebug: [SIMD2<Int>] = (ProcessInfo.processInfo.environment["BS_FINEDEBUG"] ?? "").split(separator: ";").compactMap {
         let v = $0.split(separator: ",").compactMap { Int($0) }; return v.count == 2 ? SIMD2(v[0], v[1]) : nil }
+    static let fineTrace = ProcessInfo.processInfo.environment["BS_FINETRACE"] == "1"     // (with BS_FINEDEBUG: every border pin near a section's upright edges)
     static let oldTrunkFeet = ProcessInfo.processInfo.environment["BS_OLDTRUNKFEET"] == "1"
     static var uvOverflow = -1           // (u * 1000 + v of the last such vertex; -1 none)
     // Nov 6 (jungle perf spot: bamboo was 27k of the 43k cutout quads past 64 blocks): a stack of one thin model (one box,
@@ -943,14 +945,16 @@ enum Mesher {
             let g0 = opq.count
             let ex = sc.groundExact
             ex.count = 0
+            sc.dbgTrace.removeAll(keepingCapacity: true)
             fineGround(n9, sy: sy, R, sc, leafHoles: leafBlob, detailHoles: detail, exact: ex, fineBeyond: fineBeyond) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 curCut = false
                 groundV += 1
                 groundVert(x16, y16, z16, f, tint, layer, ao, l, ncode)
             }
             if !Mesher.fineDebug.isEmpty, let ch = chunk, Mesher.fineDebug.contains(SIMD2(ch.x, ch.z)) {
+                for t in sc.dbgTrace { print("finetrace: chunk \(ch.x) \(ch.z) section \(sy): \(t)") }
                 let own = (0..<9).map { n9[$0].fine.keys.sorted().map(String.init).joined(separator: ",") }.joined(separator: "|")
-                print("finedebug: chunk \(ch.x) \(ch.z) section \(sy) lod \(lod): sides \(sc.dbgCoarse.0), 26 \(String(sc.dbgCoarse.1, radix: 2)), beyond \(fineBeyond.count), 3x3 fine [\(own)], ground words \(opq.count - g0), loose cells found wider \(sc.dbgCoarse.2 % 1000), not at all \(sc.dbgCoarse.2 / 1000 % 1000), closing vertices \(sc.fineFins.count), closings without a look \(sc.dbgCoarse.2 / 1_000_000)")
+                print("finedebug: chunk \(ch.x) \(ch.z) section \(sy) lod \(lod): sides \(sc.dbgCoarse.0), 26 \(String(sc.dbgCoarse.1, radix: 2)), beyond \(fineBeyond.count), 3x3 fine [\(own)], ground words \(opq.count - g0), loose cells found wider \(sc.dbgCoarse.2 % 1000), not at all \(sc.dbgCoarse.2 / 1000 % 1000), closing vertices \(sc.fineFins.count), closings without a look \(sc.dbgCoarse.2 / 1_000_000 % 1000), edges with no way along the border \(sc.dbgCoarse.2 / 1_000_000_000)")
             }
             if AdaptiveGround.enabled && adaptiveOK {
                 let t0 = Mesher.fineTiming ? CFAbsoluteTimeGetCurrent() : 0
@@ -2656,6 +2660,7 @@ final class FineFill {
 }
 final class MeshScratch {
     var fineFins: [(Int, Int, Int, Int, Int, Int, Int, Int, Int)] = []      // (fineGround's closing triangles, drawn after its ground)
+    var dbgTrace: [String] = []
     var dbgCoarse: (Int, UInt32, Int) = (0, 0, 0)        // (BS_FINEDEBUG: fineGround's side bits, 26-neighbour bits, quads)
     let region = UnsafeMutablePointer<BlockID>.allocate(capacity: Mesher.RL * Mesher.RH)
     let sky = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)

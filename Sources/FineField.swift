@@ -469,6 +469,62 @@ extension Mesher {
         var finAt: [SIMD3<Int32>: Int] = [:]
         var lastAttr: (Int, Int, Int, Int, Int, Int)? = nil
         var pinnedTo: Set<Int> = []          // (BS_FINEDEBUG: the cells' vertices a half-block cell was put on)
+        // Nov 12, third cause (a steep slope across the border): half-block cells are put on the nearest of the border's
+        // vertices, which leaves out the ones in between where the neighbour's ground climbs faster than a cell a cell
+        // (a wall running along the border has a stair of them). The neighbour's edge runs through every one; the
+        // half-block ground's edge cut the corner: a slit seen from the side. Every drawn half-block edge between two
+        // border vertices that are not neighbours is now walked along the border's own vertices and the gap between
+        // filled with a fan of triangles (`stitch`). BS_OLDFINESTITCH=1: no fan.
+        let stitchOn = !Mesher.oldFineStitch
+        var pinCell: [SIMD3<Int32>: (SIMD3<Int>, SIMD3<Int>)] = [:]     // (a drawn point: the cells' cell, the axes fixed)
+        var quad: [(SIMD3<Int32>, (Int, Int, Int, Int, Int, Int))] = []
+        var stitchDone: Set<Int> = []
+        var stitches: [(SIMD3<Int32>, SIMD3<Int32>, SIMD3<Int32>, (Int, Int, Int, Int, Int, Int))] = []
+        func stitch(_ p: SIMD3<Int32>, _ q: SIMD3<Int32>, _ at: (Int, Int, Int, Int, Int, Int)) {
+            guard let (cp, fp) = pinCell[p], let (cq, fq) = pinCell[q], cp != cq else { return }
+            var a = -1
+            for k in 0..<3 where fp[k] >= 0 && fp[k] == fq[k] && cp[k] == cq[k] { a = k; break }
+            guard a >= 0 else { return }
+            let u = (a + 1) % 3, w = (a + 2) % 3
+            if abs(cp[u] - cq[u]) + abs(cp[w] - cq[w]) <= 1 { return }
+            func vi(_ c: SIMD3<Int>) -> Int { (c.x + KOc) + (c.z + KOc) * Kc + (c.y + KOc) * KKc }
+            let key = min(vi(cp), vi(cq)) * (Kc * KKc) + max(vi(cp), vi(cq))
+            guard stitchDone.insert(key).inserted else { return }
+            // The shortest way from one to the other over the border's vertices (cells side by side, then corner to corner).
+            for diag in [false, true] {
+                var from: [Int: Int] = [vi(cp): -1]
+                var cellOf: [Int: SIMD3<Int>] = [vi(cp): cp]
+                var front = [cp], found = false, depth = 0
+                while !front.isEmpty && !found && depth < 14 {
+                    depth += 1
+                    var next: [SIMD3<Int>] = []
+                    for c in front {
+                        for du in -1...1 { for dw in -1...1 where (du != 0 || dw != 0) && (diag || du == 0 || dw == 0) {
+                            var n = c
+                            n[u] += du; n[w] += dw
+                            guard n[u] >= 0, n[w] >= 0, n[u] <= 16, n[w] <= 16 else { continue }
+                            let i = vi(n)
+                            guard VLc[i] >= 0, from[i] == nil else { continue }
+                            from[i] = vi(c); cellOf[i] = n
+                            if n == cq { found = true }
+                            next.append(n)
+                        } }
+                    }
+                    front = next
+                }
+                guard found else { continue }
+                var path: [SIMD3<Int32>] = [q]
+                var i = from[vi(cq)]!
+                while i != vi(cp) && i >= 0 {
+                    let x16 = (SIMD3<Float>(VPc[i * 3], VPc[i * 3 + 1], VPc[i * 3 + 2]) * 16).rounded(.toNearestOrAwayFromZero)
+                    if x16.x >= 0 && x16.y >= 0 && x16.z >= 0 { path.append(SIMD3<Int32>(Int32(x16.x), Int32(x16.y), Int32(x16.z))) }
+                    i = from[i]!
+                }
+                for k in 1..<path.count { stitches.append((p, path[k - 1], path[k], at)) }
+                return
+            }
+            sc.dbgCoarse.2 += 1_000_000_000
+        }
         let dbg = !Mesher.fineDebug.isEmpty
         sc.fineFins.removeAll(keepingCapacity: true)
         defer {
@@ -486,6 +542,15 @@ extension Mesher {
                     } }
                 }
                 if missed > 0 { print("finedebug: sy \(sy) border vertices no half-block cell took: \(missed):\(line)") }
+            }
+            if Mesher.fineTrace {
+                for t in stitches { sc.dbgTrace.append("stitch \(t.0) \(t.1) \(t.2)") }
+                for f in fins { sc.dbgTrace.append("fin true \(f.0) drawn \(f.1) to \(f.2) look \(f.3 != nil)") }
+            }
+            for t in stitches {
+                for p in [t.0, t.1, t.2, t.2, t.2, t.1, t.0, t.0] {
+                    sc.fineFins.append((Int(p.x), Int(p.y), Int(p.z), t.3.0, t.3.1, t.3.2, t.3.3, t.3.4, t.3.5))
+                }
             }
             for fin in fins {
                 guard let at = fin.3 ?? lastAttr else { sc.dbgCoarse.2 += 1_000_000; continue }
@@ -554,7 +619,11 @@ extension Mesher {
                         }
                     }
                 }
-                guard fx >= 0 || fy >= 0 || fz >= 0 else { return nil }
+                let trace = Mesher.fineTrace && (gx <= 2 || gx >= 30) && (gz <= 2 || gz >= 30)
+                guard fx >= 0 || fy >= 0 || fz >= 0 else {
+                    if trace { sc.dbgTrace.append(String(format: "free g %d,%d,%d at %.2f,%.2f,%.2f", gx, gy, gz, (p.x + off.x) * 0.5, (p.y + off.y) * 0.5, (p.z + off.z) * 0.5)) }
+                    return nil
+                }
                 // On the other axes the cells' cell holding the half-block cell (odd), or the two it straddles (even):
                 // the cells' cell c holds a vertex in c + 0.5 ... c + 1.5, the half-block cell g in g / 2 + 0.25 ... + 0.75.
                 // Nov 12 (FAILURES 4, his second spot, 3919 64.5 1041.4, "a really big one"): the outermost half-block
@@ -606,7 +675,10 @@ extension Mesher {
                         print(String(format: "finedebug: loose sy %d cell %d,%d,%d fixed %d,%d,%d at %.2f,%.2f,%.2f; the cells' vertices near:%@", sy, gx, gy, gz, fx, fy, fz, pw.x, pw.y, pw.z, near))
                     }
                 }
-                guard bestD < .infinity else { return nil }
+                guard bestD < .infinity else {
+                    if trace { sc.dbgTrace.append(String(format: "none g %d,%d,%d fixed %d,%d,%d at %.2f,%.2f,%.2f", gx, gy, gz, fx, fy, fz, pw.x, pw.y, pw.z)) }
+                    return nil
+                }
                 if dbg { pinnedTo.insert((bestC.x + KOc) + (bestC.z + KOc) * Kc + (bestC.y + KOc) * KKc) }
                 var q16 = (best * 16).rounded(.toNearestOrAwayFromZero)
                 if edgeFix {
@@ -643,11 +715,22 @@ extension Mesher {
                         }
                     }
                 }
+                if trace { sc.dbgTrace.append(String(format: "pin g %d,%d,%d fixed %d,%d,%d at %.2f,%.2f,%.2f cell %d,%d,%d true %.3f,%.3f,%.3f drawn %.3f,%.3f,%.3f", gx, gy, gz, fx, fy, fz, pw.x, pw.y, pw.z, bestC.x, bestC.y, bestC.z, best.x, best.y, best.z, q16.x / 16, q16.y / 16, q16.z / 16)) }
+                if stitchOn { pinCell[SIMD3<Int32>(Int32(q16.x), Int32(q16.y), Int32(q16.z))] = (bestC, SIMD3<Int>(fx, fy, fz)) }
                 return q16 / 16 * 2 - off
             }
+            quad.removeAll(keepingCapacity: true)
             smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact, pin: pin) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 emitted += 1
                 let ex = (x16 + vx * 256) >> 1, ey = (y16 + vy * 256) >> 1, ez = (z16 + vz * 256) >> 1
+                if stitchOn && !pinCell.isEmpty {
+                    // (each drawn quad's four edges: both ends on the border, not neighbours there)
+                    quad.append((SIMD3<Int32>(Int32(ex), Int32(ey), Int32(ez)), (f, tint, layer, ao, l, ncode)))
+                    if quad.count == 4 {
+                        for k in 0..<4 where quad[k].0 != quad[(k + 1) & 3].0 { stitch(quad[k].0, quad[(k + 1) & 3].0, quad[k].1) }
+                        quad.removeAll(keepingCapacity: true)
+                    }
+                }
                 if !fins.isEmpty {
                     lastAttr = (f, tint, layer, ao, l, ncode)
                     if let i = finAt[SIMD3<Int32>(Int32(ex), Int32(ey), Int32(ez))], fins[i].3 == nil { fins[i].3 = (f, tint, layer, ao, l, ncode) }
