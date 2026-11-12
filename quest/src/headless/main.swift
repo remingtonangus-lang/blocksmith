@@ -2017,13 +2017,20 @@ do {
     var feet = 0
     for (k, b) in [SNOW, GRASS].enumerated() {
         let x = Int(floor(at.x)) + k * 6, z = Int(floor(at.z))
-        let gy = fw.topY(x, z)
-        guard fw.fieldTerrain, gy > 0 else { continue }
+        var gy = CH - 2
+        while gy > 1 && !(SmoothTerrain.natural[Int(fw.block(x, gy, z))] && Blocks.opaque[Int(fw.block(x, gy, z))]) { gy -= 1 }
+        guard fw.fieldTerrain, gy > 1, fw.fieldDensity(x, gy, z) > 0 else { continue }
         fw.setBlock(x, gy + 1, z, b)
         fw.setBlock(x + 1, gy, z, AIR); fw.setBlock(x - 1, gy, z, AIR); fw.setBlock(x, gy, z + 1, AIR)
         feet += 1
     }
-    _ = fw.loadSync(center: at, radius: 2)
+    // (on the frame, whatever lane edits take here: the sections round both spots)
+    for dz in -1...1 { for dx in -1...2 {
+        guard let c = fw.chunkAt(Int(floor(at.x)) + dx * CS, Int(floor(at.z)) + dz * CS) else { continue }
+        var gy = CH - 2
+        while gy > 1 && !Blocks.opaque[Int(fw.block(Int(floor(at.x)), gy, Int(floor(at.z))))] { gy -= 1 }
+        for sy in max(0, gy / 16 - 1)...min(NSEC - 1, gy / 16 + 1) { fw.remeshSync(c, sy) }
+    } }
     let ov = Mesher.uvOverflow
     check(feet == 2 && ov < 0, "block feet: a snow block and a grass block over dug field ground mesh with every u and v in 5 bits (\(feet) set\(ov < 0 ? "" : ", u \(ov / 1000) v \(ov % 1000)"))")
     SmoothTerrain.set(smooth0, world: nil)
