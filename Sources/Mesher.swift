@@ -108,6 +108,14 @@ enum Mesher {
 
     // P508: built cubes on the field's ground get a foot down into it (BS_FEET=0 leaves them off: before/after renders).
     static let blockFeet = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
+    // Ledger 89 (trailer item 5, the snow base gate: "green and black striped band under the deck"): a foot's lower
+    // corners carried v = 32 in the vertex's 5-bit v, which carried into the layer field: the foot drew the texture
+    // registered after the block's own (snow -> cactus side) wherever the ground beside a built block dips (a blast
+    // by the gate, any dug ground, any bank lower than the block's bottom). Now v runs 0...16 (the same texels: the
+    // texture repeats every block). BS_OLDFOOTV=1: as before. `uvOverflow` (the check after load): any vertex given a
+    // u or v past 5 bits since it was cleared.
+    static let oldFootV = ProcessInfo.processInfo.environment["BS_OLDFOOTV"] == "1"
+    static var uvOverflow = -1           // (u * 1000 + v of the last such vertex; -1 none)
     // Nov 6 (jungle perf spot: bamboo was 27k of the 43k cutout quads past 64 blocks): a stack of one thin model (one box,
     // full height, clear of the cell's sides: bamboo, chains, rods) lit alike all the way up is drawn as one box per run
     // in the section. Its sides take the face-projected texture (u = v = 31 in chunk.vert), which repeats per block
@@ -643,6 +651,7 @@ enum Mesher {
         func vert(_ trans: Bool, _ x16: Int, _ y16: Int, _ z16: Int, _ shade: Int, _ tint: Int,
                   _ u: Int, _ v: Int, _ layer: Int, _ ao: Int, _ l: Int, _ overlay: Bool) {
             let w0 = UInt32(x16) | (UInt32(y16) << 9) | (UInt32(z16) << 18) | (UInt32(shade) << 27) | (UInt32(tint) << 30)
+            if (u | v) > 31 { Mesher.uvOverflow = u * 1000 + v }
             let uv: UInt32 = UInt32(u) | (UInt32(v) << 5)
             let w1: UInt32 = uv | (UInt32(layer) << 10) | (UInt32(ao) << 20)
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
@@ -1374,12 +1383,18 @@ enum Mesher {
                 let gTop: Float = dens[beside + RL] > 0 ? 1.5 : 0.5 + Float(dens[beside]) / 32
                 guard gTop < 0.97 else { continue }
                 let l = max(0, light(x + NT[f * 3], y + 1, z + NT[f * 3 + 2]))
-                let layer = Int(texT[ab * 6 + f])
+                // (Ledger 89: the texture repeats a block down, so a side with a top fringe, grass or snow over dirt, drew
+                // its fringe again under the block: a turf block's foot is its bottom, the dirt, untinted.)
+                let side0 = Int(texT[ab * 6 + f]), bottom = Int(texT[ab * 6 + 3])
+                let turf = !Mesher.oldFootV && natT[ab] && side0 != bottom && side0 != Int(texT[ab * 6 + 2])
+                let layer = turf ? bottom : side0
+                let tintF = turf ? (tintB == 3 ? 0 : tintB) : tintV, overF = !turf && tintB == 3
                 for k in 0..<4 {
                     let ci = (f * 4 + k) * 3
                     let px = CT[ci] * 16, top = CT[ci + 1] == 1, pz = CT[ci + 2] * 16
                     let (u, _) = Mesher.faceUV(f, px, 16, pz)
-                    vert(false, bx16 + px, by16 + (top ? 16 : 0), bz16 + pz, f, tintV, u, top ? 16 : 32, layer, 3, l, tintB == 3)   // (the whole cell: a dip under half a block showed a dark corner)
+                    let v = Mesher.oldFootV ? (top ? 16 : 32) : (top ? 0 : 16)
+                    vert(false, bx16 + px, by16 + (top ? 16 : 0), bz16 + pz, f, tintF, u, v, layer, 3, l, overF)   // (the whole cell: a dip under half a block showed a dark corner)
                 }
             }
             curCut = cut0; kindNow = kind0

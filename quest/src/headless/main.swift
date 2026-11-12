@@ -1992,6 +1992,32 @@ do {
     check(groups > 20 && twoWay >= 13 && wrong.isEmpty,
           "axis place: \(groups) blocks with an [x] state (\(twoWay) two-way, no [z]) placed along x, z and y, each a state of its own (wrong: \(wrong))")
 }
+// Ledger 89 (trailer item 5): a built block over the field's ground beside a dip draws a foot down into it; its lower
+// corners carried a v past the vertex's 5 bits into the layer (a snow block's foot drew cactus). Dig beside a snow
+// block and a grass block set on the ground of a small field world, remesh, and no vertex may carry a u or v past 31.
+do {
+    let fw = World(seed: seed, device: device, save: nil)
+    fw.makeFieldWorld()
+    fw.renderDistance = 2
+    let smooth0 = SmoothTerrain.enabled
+    SmoothTerrain.use(world: true, world: fw)
+    let at = V3(spawn.x + 40, spawn.y, spawn.z)
+    _ = fw.loadSync(center: at, radius: 2)
+    Mesher.uvOverflow = -1
+    var feet = 0
+    for (k, b) in [SNOW, GRASS].enumerated() {
+        let x = Int(floor(at.x)) + k * 6, z = Int(floor(at.z))
+        let gy = fw.topY(x, z)
+        guard fw.fieldTerrain, gy > 0 else { continue }
+        fw.setBlock(x, gy + 1, z, b)
+        fw.setBlock(x + 1, gy, z, AIR); fw.setBlock(x - 1, gy, z, AIR); fw.setBlock(x, gy, z + 1, AIR)
+        feet += 1
+    }
+    _ = fw.loadSync(center: at, radius: 2)
+    let ov = Mesher.uvOverflow
+    check(feet == 2 && ov < 0, "block feet: a snow block and a grass block over dug field ground mesh with every u and v in 5 bits (\(feet) set\(ov < 0 ? "" : ", u \(ov / 1000) v \(ov % 1000)"))")
+    SmoothTerrain.set(smooth0, world: nil)
+}
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
 // titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
 if CommandLine.arguments.contains("--loadtest") {
