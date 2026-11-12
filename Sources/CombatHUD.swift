@@ -377,4 +377,12 @@ final class WeaponWheel {
 extension Game {
     // At the controls of a vehicle (a ship, a land vehicle, an aircraft) or a locomotive's cab: the toolbar is hidden.
     var drivingHUD: Bool { !CombatHUD.oldPanel && (world.ships.pilot != nil || Trains.cab(self) != nil) }
+    // Nov 12 playtest (base guns held fire on him in the Ironback Crawler): the root id of the vessel he drives or rides,
+    // whose hull a foe's sight line and line of fire to him pass (the vessel is what they see and hit), -1 on foot.
+    // BS_OLDCARRIER=1: the hull hid him, as before.
+    var playerCarrier: Int {
+        guard !Game.oldCarrier, let s = world.ships.pilot ?? world.ships.aboard else { return -1 }
+        return s.root.id
+    }
+    static let oldCarrier = ProcessInfo.processInfo.environment["BS_OLDCARRIER"] == "1"
 }
