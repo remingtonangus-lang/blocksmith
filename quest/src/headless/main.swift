@@ -1166,7 +1166,10 @@ if let out = arg("--view"), let ctx = vkctx {
         let settle = Double(arg("--settle") ?? "") ?? 6
         for _ in 0..<Int(settle * 72) { vg.tick(1.0 / 72); vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero }
         print("view: shells: \(Armory.detonations - d0) bursts, \(Structure.checks) load checks, \(Structure.fallen) blocks fell, \(Felling.toppled) pieces toppled, \(vg.falling.count) falling")
-        if !bursts.isEmpty {
+        // (--floatat X,Y,Z: scan round that point instead of the bursts' middle: shells through a shot-out frame burst far off)
+        if let fa = arg("--floatat")?.split(separator: ",").compactMap({ Int($0) }), fa.count == 3 {
+            print(FloatScan.scan(vw, around: IVec3(fa[0], fa[1], fa[2]), r: Int(arg("--floatscan") ?? "") ?? 40))
+        } else if !bursts.isEmpty {
             let c = bursts.reduce(V3(0, 0, 0), +) / Float(bursts.count)
             print("view: shells burst round \(Int(c.x)) \(Int(c.y)) \(Int(c.z))")
             print(FloatScan.scan(vw, around: IVec3(Int(c.x), Int(c.y), Int(c.z)), r: Int(arg("--floatscan") ?? "") ?? 40))
