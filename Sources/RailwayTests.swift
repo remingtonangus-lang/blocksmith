@@ -341,7 +341,8 @@ enum RailwayTests {
                      tr.throttle * 50, moving0, stopAfter, tr.blocksPerSec))
         // P510 (Nov 1 20:39, "Train's broken... Fix it"): a block on the rail that he didn't put there (a structure or a
         // tree drawn over the line) is cleared and the rail put back; one he placed still stops the train.
-        func aheadCell(_ k: Float) -> IVec3 { l.cells[max(0, min(l.cells.count - 1, Int((tr.lastS + tr.dir * (tr.length / 2 + k)).rounded())))] }
+        // (on the train's own track: driven, it runs on through links, where the line's own cells no longer index it)
+        func aheadCell(_ k: Float) -> IVec3 { tr.track.cell(tr.lastS + tr.dir * (tr.length / 2 + k)) }
         let stray = aheadCell(14)
         let stone = Blocks.id("stone")
         world.setBlock(stray.x, stray.y, stray.z, stone)
@@ -390,6 +391,9 @@ enum RailwayTests {
             }
             g.inventory.held = ItemStack(Items.id("coal"), 5)
             let fed = Trains.use(g, lead2)
+            // (it may have rolled up to the line's buffers while the fire was out: then it backs away)
+            let room = tr.driveFwd > 0 ? tn2 - 1 - tr.driveS : tr.driveS
+            tr.throttle = room < tr.length / 2 + 20 ? -1 : 2
             let tender = tr.coal, left = g.inventory.held.count
             for _ in 0..<(60 * 6) { g.time += Double(dt); Trains.drive(lead2, dt, g) }
             check(pedal > 1 && Trains.coalBurned > burned0 && dryAfter > 0 && fed && tender >= 5 && left == 0 && tr.blocksPerSec > 1,
