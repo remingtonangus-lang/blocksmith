@@ -551,6 +551,7 @@ extension World {
     @discardableResult
     // `keepSolid`: only the surface moves (a blast's bowl walls, a bullet's dent): no cell turns from ground to open or
     // back, so nothing is removed without its drop.
+    static let oldSphere = ProcessInfo.processInfo.environment["BS_OLDSPHERE"] == "1"
     func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
                      remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []
@@ -571,6 +572,7 @@ extension World {
         // chunk is looked up when the row crosses into another)
         var lkx = Int.min, lkz = Int.min
         var lc: Chunk?
+        let skip: Int8 = carve ? FieldTerrain.outside : FieldTerrain.inside, skipOn = !World.oldSphere
         for y in stride(from: max(0, cyI - reach), through: min(CH - 1, cyI + reach), by: 1) {
             for z in (czI - reach)...(czI + reach) {
                 for x in (cxI - reach)...(cxI + reach) {
@@ -580,10 +582,12 @@ extension World {
                     }
                     guard let c = lc else { continue }
                     guard c.blocks.isField else { continue }
+                    let i = Chunk.index(mod(x, CS), y, mod(z, CS))
+                    let dv = c.blocks.density(i)
+                    if skipOn && dv == skip { continue }                          // (at the far end already: fineSphere's note)
                     let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
                     let dist = simd_length(p - ctr)
-                    let i = Chunk.index(mod(x, CS), y, mod(z, CS))
-                    let d0 = FieldTerrain.f(c.blocks.density(i))
+                    let d0 = FieldTerrain.f(dv)
                     let d1 = carve ? min(d0, dist - r) : max(d0, r - dist)
                     var q = FieldTerrain.q(d1)
                     let was = d0 > 0
