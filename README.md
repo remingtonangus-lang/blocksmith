@@ -27,5 +27,5 @@ Fixed after his Nov 11 notes and the 1000-frame dissection:
 - Gate: starts past a gap under the snow ledge. Cabin: its footing goes two courses into the slope (a dark slot
   showed under it). Hell: framed off a pale ground patch. The cave and the tank shots are out of the cut.
 
-Known, passed to the game lane: small see-through wedges at the savanna village well's outer corners (its terracotta
-ring is smoothed like natural ground), visible for a moment in the street shot.
+Nov 12: the street shot re-rendered with the game's fix for the savanna well's corners (PR #706; the crack detector
+finds no sky round the well now), and it starts a moment later, past a dark shape at the frame's edge.
