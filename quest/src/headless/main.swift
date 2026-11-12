@@ -229,6 +229,16 @@ if let out = arg("--view"), let ctx = vkctx {
             print("view: farcitadel: \(n) blast spheres on \(key)")
         }
     }
+    // --station NAME (trailer item 5): the eye at a Boreal Station camera spot (BorealStation.views) of the nearest
+    // station from --at, plus --stationoff DX,DY,DZ (default 0,1.6,3: the trailer's gate shot), facing north.
+    if let sn = arg("--station"), let st = vw.gen.structures?.nearest(BorealStation.kind, x: Int(at[0]), z: Int(at[2]), maxRegions: 16) {
+        _ = vw.loadSync(center: V3(Float(st.anchor.x), Float(st.anchor.y), Float(st.anchor.z)), radius: 3)
+        if let v = BorealStation.views(vw, st).first(where: { $0.0 == sn }) {
+            let o = (arg("--stationoff") ?? "0,1.6,3").split(separator: ",").compactMap { Float($0) }
+            vg.player.pos = v.1 + V3(o[0], o[1] - vg.player.eyeHeight, o[2]); nearYaw = 0
+            print("view: station \(sn) at \(v.1.x) \(v.1.y) \(v.1.z)")
+        }
+    }
     // --rail [N]: the eye beside the nearest town railway's middle (P337 looks work), 8 blocks south and 5 up, facing
     // north; N picks the cell at N/100 along the line instead of the middle.
     var railLine: Railways.Line?, railCell = 0
@@ -1108,6 +1118,15 @@ if let out = arg("--view"), let ctx = vkctx {
         if arg("--troops") != nil { vg.survival = true; vg.player.flying = false }
         for _ in 0..<Int(secs * 72) { vg.tick(1.0 / 72) }
     }
+    // --blast X,Y,Z[,POWER] (ledger 90, trailer item 5's dark hole): a blast there after the load (and --tick), then
+    // --blastticks N game ticks (default 2) before the render: a fresh crater as the next frames draw it.
+    if let bv = arg("--blast")?.split(separator: ",").compactMap({ Float($0) }), bv.count >= 3 {
+        vg.paused = false
+        Explosion.explode(at: V3(bv[0], bv[1], bv[2]), power: bv.count > 3 ? bv[3] : 4, game: vg)
+        let n = Int(arg("--blastticks") ?? "") ?? 2
+        for _ in 0..<n { vg.tick(1.0 / 72) }
+        print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after")
+    }
     // --troops R (P471): every soldier within R blocks of the eye after the run (--tick): what it is, whose, its gun,
     // whether it has seen him, and which way it faces from him (0: toward him).
     if let rr = Float(arg("--troops") ?? "") {
@@ -1693,6 +1712,56 @@ if let out = arg("--view"), let ctx = vkctx {
         // FAILURES 4: --voidcount (with QUEST_VOIDPROBE=1 QUEST_SKIP=sky): magenta pixels where a ray goes more than
         // 12 degrees below the horizon (it meets ground within the loaded land on all but a cliff's edge): the gaps
         // the sky shows through. Written marked (OUT-void.png) when there are any.
+        // --pick PX,PY[;PX,PY...] (trailer item 5): the blocks along the left eye's ray through those pixels, with the
+        // field's density in each, to the first 3 solid cells (what a strange face on screen belongs to).
+        if let pk = arg("--pick") {
+            let t = tanf(vfov * .pi / 360), tv = t * Float(vhei) / Float(vwid)
+            let fwd = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch)), rt = V3(cosf(yaw), 0, -sinf(yaw))
+            let upv = simd_cross(rt, fwd)
+            for pp in pk.split(separator: ";") {
+                let c = pp.split(separator: ",").compactMap { Float($0) }
+                guard c.count == 2 else { continue }
+                let nx = (2 * (c[0] + 0.5) / Float(vwid) - 1) * t, ny = (1 - 2 * (c[1] + 0.5) / Float(vhei)) * tv
+                let d = simd_normalize(fwd + rt * nx + upv * ny)
+                let e = vg.player.eye
+                var seen: [String] = [], last = IVec3(Int.min, 0, 0), solid = 0
+                var k: Float = 0
+                while k < 80 && solid < 3 {
+                    let q = e + d * k
+                    let cell = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                    if cell != last {
+                        last = cell
+                        let b = vw.block(cell.x, cell.y, cell.z)
+                        if b != AIR {
+                            seen.append("\(Blocks.key(b)) at \(cell.x) \(cell.y) \(cell.z) d \(String(format: "%.2f", vw.fieldDensity(cell.x, cell.y, cell.z))) k \(String(format: "%.1f", k))")
+                            if Blocks.opaque[Int(b)] { solid += 1 }
+                        }
+                    }
+                    k += 0.05
+                }
+                // (QUEST_LAYERPROBE=1: the layer drawn at the pixel, from chunk_probe.frag's colour)
+                let pi = ((Int(c[1]) * vwid * 2) + Int(c[0])) * 4, img = RenderTest.lastRGBA
+                if SceneRenderer.layerProbe, pi + 2 < img.count {
+                    let l = Int(img[pi]) | (Int(img[pi + 1]) & 7) << 8, bb = Int(img[pi + 2]), other = bb & 63
+                    let nm = l < Tex.names.count ? Tex.names[l] : "?"
+                    let alts = other == 63 ? "" : ", blends " + Tex.names.indices.filter { $0 & 63 == other }.prefix(6).map { Tex.names[$0] }.joined(separator: "|")
+                    let how = (img[pi + 1] & 8 != 0 ? ", per-position" : "") + (bb & 128 != 0 ? ", tinted" : "") + (bb & 64 != 0 ? ", detail" : "")
+                    seen.insert("drawn \(nm) (layer \(l), face \(Int(img[pi + 1]) >> 4)\(how)\(alts))", at: 0)
+                }
+                print("view: pick \(Int(c[0])),\(Int(c[1])): " + seen.joined(separator: "; "))
+            }
+        }
+        // --dump X0,X1,Y0,Y1,Z0,Z1: every block in the box, a column a line, with the field's density (after --tick:
+        // what play changed).
+        if let dm = arg("--dump")?.split(separator: ",").compactMap({ Int($0) }), dm.count == 6 {
+            for z in dm[4]...dm[5] { for x in dm[0]...dm[1] {
+                var col: [String] = []
+                for y in dm[2]...dm[3] where vw.block(x, y, z) != AIR {
+                    col.append("\(y):\(Blocks.key(vw.block(x, y, z)))(\(String(format: "%.2f", vw.fieldDensity(x, y, z))))")
+                }
+                print("view: dump \(x) \(z): " + col.joined(separator: " "))
+            } }
+        }
         if CommandLine.arguments.contains("--voidcount") {
             var img = RenderTest.lastRGBA
             let vc = RenderTest.countVoid(img, width: vwid, height: vhei, eyes: 2, fovDeg: vfov, pitch: pitch)
@@ -1931,6 +2000,42 @@ do {
     check(turns.0 && turns.1 && turns.2, "axis place: a two-way cloth piece turns with a quarter turn and stays with a half (\(turns))")
     check(groups > 20 && twoWay >= 13 && wrong.isEmpty,
           "axis place: \(groups) blocks with an [x] state (\(twoWay) two-way, no [z]) placed along x, z and y, each a state of its own (wrong: \(wrong))")
+}
+// Ledger 89 (trailer item 5): a built block over the field's ground beside a dip draws a foot down into it; its lower
+// corners carried a v past the vertex's 5 bits into the layer (a snow block's foot drew cactus). Dig beside a stone
+// brick and a plank set on the ground of a small field world, remesh, and no vertex may carry a u or v past 31.
+do {
+    let fw = World(seed: seed, device: device, save: nil)
+    fw.makeFieldWorld()
+    fw.renderDistance = 2
+    let smooth0 = SmoothTerrain.enabled
+    SmoothTerrain.use(world: true, world: fw)
+    let at = V3(spawn.x + 40, spawn.y, spawn.z)
+    _ = fw.loadSync(center: at, radius: 2)
+    let uvBefore = Mesher.uvOverflow                     // (kept for the whole run's check at the end)
+    Mesher.uvOverflow = -1
+    var feet = 0
+    // (built blocks: a natural block he places joins the field's ground and is drawn smooth, with no foot)
+    for (k, b) in [Blocks.id("stone_bricks"), Blocks.id("oak_planks")].enumerated() {
+        let x = Int(floor(at.x)) + k * 6, z = Int(floor(at.z))
+        var gy = CH - 2
+        while gy > 1 && !(SmoothTerrain.natural[Int(fw.block(x, gy, z))] && Blocks.opaque[Int(fw.block(x, gy, z))]) { gy -= 1 }
+        guard fw.fieldTerrain, gy > 1, fw.fieldDensity(x, gy, z) > 0 else { continue }
+        fw.setBlock(x, gy + 1, z, b)
+        fw.setBlock(x + 1, gy, z, AIR); fw.setBlock(x - 1, gy, z, AIR); fw.setBlock(x, gy, z + 1, AIR)
+        feet += 1
+    }
+    // (on the frame, whatever lane edits take here: the sections round both spots)
+    for dz in -1...1 { for dx in -1...2 {
+        guard let c = fw.chunkAt(Int(floor(at.x)) + dx * CS, Int(floor(at.z)) + dz * CS) else { continue }
+        var gy = CH - 2
+        while gy > 1 && !Blocks.opaque[Int(fw.block(Int(floor(at.x)), gy, Int(floor(at.z))))] { gy -= 1 }
+        for sy in max(0, gy / 16 - 1)...min(NSEC - 1, gy / 16 + 1) { fw.remeshSync(c, sy) }
+    } }
+    let ov = Mesher.uvOverflow
+    check(feet == 2 && ov < 0, "block feet: a stone brick and a plank over dug field ground mesh with every u and v in 5 bits (\(feet) set\(ov < 0 ? "" : ", u \(ov / 1000) v \(ov % 1000)"))")
+    SmoothTerrain.set(smooth0, world: nil)
+    if Mesher.uvOverflow < 0 { Mesher.uvOverflow = uvBefore }
 }
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
 // titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
@@ -3993,6 +4098,10 @@ check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed 
 
 // The VR monkey input (--questsim), last: what it leaves behind meets no check after it.
 if let f = fuzzLast { f() }
+// Ledger 89's bloom: nothing the whole run meshed (both worlds, every scene, the VR sim and its fuzz) gave a vertex a u
+// or v past the 5 bits it has (it carries into the layer: a face draws the next texture).
+let uvo = Mesher.uvOverflow
+check(uvo < 0, "mesh vertices: every u and v the whole run meshed fits its 5 bits\(uvo < 0 ? "" : " (last past it: u \(uvo / 1000) v \(uvo % 1000))")")
 
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")
