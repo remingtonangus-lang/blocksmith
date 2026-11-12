@@ -295,6 +295,12 @@ enum Cinema {
                     }
                     g.mobs.mobs.removeAll { $0.health <= 0 && [MobKind.ashTank, .ashHalftrack, .ashArtillery, .ashTruck, .ashBehemoth].contains($0.kind) }
                     g.mobs.rebuildIndex()
+                case "clear":                                // every mob of kind `mob` within `spread` of the spot leaves the shot
+                    let r = e.spread ?? 16
+                    if let k = MobKind.named(e.mob ?? "") {
+                        g.mobs.mobs.removeAll { $0.kind == k && simd_length($0.pos - p) < r }
+                        g.mobs.rebuildIndex()
+                    }
                 case "frigate":
                     let n0 = w.ships.list.count
                     w.ships.spawnCapital("capfrigate", home: IVec3(Int(p.x), 0, Int(p.z)), yaw: (e.yaw ?? 0) * .pi / 180, region: nil, sync: true)
