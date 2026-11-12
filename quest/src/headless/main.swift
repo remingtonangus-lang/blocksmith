@@ -229,6 +229,16 @@ if let out = arg("--view"), let ctx = vkctx {
             print("view: farcitadel: \(n) blast spheres on \(key)")
         }
     }
+    // --station NAME (trailer item 5): the eye at a Boreal Station camera spot (BorealStation.views) of the nearest
+    // station from --at, plus --stationoff DX,DY,DZ (default 0,1.6,3: the trailer's gate shot), facing north.
+    if let sn = arg("--station"), let st = vw.gen.structures?.nearest(BorealStation.kind, x: Int(at[0]), z: Int(at[2]), maxRegions: 16) {
+        _ = vw.loadSync(center: V3(Float(st.anchor.x), Float(st.anchor.y), Float(st.anchor.z)), radius: 3)
+        if let v = BorealStation.views(vw, st).first(where: { $0.0 == sn }) {
+            let o = (arg("--stationoff") ?? "0,1.6,3").split(separator: ",").compactMap { Float($0) }
+            vg.player.pos = v.1 + V3(o[0], o[1] - vg.player.eyeHeight, o[2]); nearYaw = 0
+            print("view: station \(sn) at \(v.1.x) \(v.1.y) \(v.1.z)")
+        }
+    }
     // --rail [N]: the eye beside the nearest town railway's middle (P337 looks work), 8 blocks south and 5 up, facing
     // north; N picks the cell at N/100 along the line instead of the middle.
     var railLine: Railways.Line?, railCell = 0
@@ -1693,6 +1703,36 @@ if let out = arg("--view"), let ctx = vkctx {
         // FAILURES 4: --voidcount (with QUEST_VOIDPROBE=1 QUEST_SKIP=sky): magenta pixels where a ray goes more than
         // 12 degrees below the horizon (it meets ground within the loaded land on all but a cliff's edge): the gaps
         // the sky shows through. Written marked (OUT-void.png) when there are any.
+        // --pick PX,PY[;PX,PY...] (trailer item 5): the blocks along the left eye's ray through those pixels, with the
+        // field's density in each, to the first 3 solid cells (what a strange face on screen belongs to).
+        if let pk = arg("--pick") {
+            let t = tanf(vfov * .pi / 360), tv = t * Float(vhei) / Float(vwid)
+            let fwd = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch)), rt = V3(cosf(yaw), 0, -sinf(yaw))
+            let upv = simd_cross(rt, fwd)
+            for pp in pk.split(separator: ";") {
+                let c = pp.split(separator: ",").compactMap { Float($0) }
+                guard c.count == 2 else { continue }
+                let nx = (2 * (c[0] + 0.5) / Float(vwid) - 1) * t, ny = (1 - 2 * (c[1] + 0.5) / Float(vhei)) * tv
+                let d = simd_normalize(fwd + rt * nx + upv * ny)
+                let e = vg.player.eye
+                var seen: [String] = [], last = IVec3(Int.min, 0, 0), solid = 0
+                var k: Float = 0
+                while k < 80 && solid < 3 {
+                    let q = e + d * k
+                    let cell = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                    if cell != last {
+                        last = cell
+                        let b = vw.block(cell.x, cell.y, cell.z)
+                        if b != AIR {
+                            seen.append("\(Blocks.key(b)) at \(cell.x) \(cell.y) \(cell.z) d \(String(format: "%.2f", vw.fieldDensity(cell.x, cell.y, cell.z))) k \(String(format: "%.1f", k))")
+                            if Blocks.opaque[Int(b)] { solid += 1 }
+                        }
+                    }
+                    k += 0.05
+                }
+                print("view: pick \(Int(c[0])),\(Int(c[1])): " + seen.joined(separator: "; "))
+            }
+        }
         if CommandLine.arguments.contains("--voidcount") {
             var img = RenderTest.lastRGBA
             let vc = RenderTest.countVoid(img, width: vwid, height: vhei, eyes: 2, fovDeg: vfov, pitch: pitch)
