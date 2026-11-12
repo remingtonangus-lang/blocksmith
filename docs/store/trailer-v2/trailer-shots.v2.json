@@ -257,7 +257,7 @@
     ],
     "look": [
      25,
-     -5,
+     -11,
      2
     ],
     "ground": true
@@ -271,14 +271,14 @@
     ],
     "look": [
      55,
-     -5,
+     -11,
      -1
     ],
     "ground": true
    }
   ],
   "playerMount": "horse",
-  "hold": "hands"
+  "hold": "lead"
  },
  {
   "name": "train_pass",
