@@ -1118,6 +1118,15 @@ if let out = arg("--view"), let ctx = vkctx {
         if arg("--troops") != nil { vg.survival = true; vg.player.flying = false }
         for _ in 0..<Int(secs * 72) { vg.tick(1.0 / 72) }
     }
+    // --blast X,Y,Z[,POWER] (ledger 90, trailer item 5's dark hole): a blast there after the load (and --tick), then
+    // --blastticks N game ticks (default 2) before the render: a fresh crater as the next frames draw it.
+    if let bv = arg("--blast")?.split(separator: ",").compactMap({ Float($0) }), bv.count >= 3 {
+        vg.paused = false
+        Explosion.explode(at: V3(bv[0], bv[1], bv[2]), power: bv.count > 3 ? bv[3] : 4, game: vg)
+        let n = Int(arg("--blastticks") ?? "") ?? 2
+        for _ in 0..<n { vg.tick(1.0 / 72) }
+        print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after")
+    }
     // --troops R (P471): every soldier within R blocks of the eye after the run (--tick): what it is, whose, its gun,
     // whether it has seen him, and which way it faces from him (0: toward him).
     if let rr = Float(arg("--troops") ?? "") {
@@ -2003,6 +2012,7 @@ do {
     SmoothTerrain.use(world: true, world: fw)
     let at = V3(spawn.x + 40, spawn.y, spawn.z)
     _ = fw.loadSync(center: at, radius: 2)
+    let uvBefore = Mesher.uvOverflow                     // (kept for the whole run's check at the end)
     Mesher.uvOverflow = -1
     var feet = 0
     for (k, b) in [SNOW, GRASS].enumerated() {
@@ -2017,6 +2027,7 @@ do {
     let ov = Mesher.uvOverflow
     check(feet == 2 && ov < 0, "block feet: a snow block and a grass block over dug field ground mesh with every u and v in 5 bits (\(feet) set\(ov < 0 ? "" : ", u \(ov / 1000) v \(ov % 1000)"))")
     SmoothTerrain.set(smooth0, world: nil)
+    if Mesher.uvOverflow < 0 { Mesher.uvOverflow = uvBefore }
 }
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
 // titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
@@ -4079,6 +4090,10 @@ check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed 
 
 // The VR monkey input (--questsim), last: what it leaves behind meets no check after it.
 if let f = fuzzLast { f() }
+// Ledger 89's bloom: nothing the whole run meshed (both worlds, every scene, the VR sim and its fuzz) gave a vertex a u
+// or v past the 5 bits it has (it carries into the layer: a face draws the next texture).
+let uvo = Mesher.uvOverflow
+check(uvo < 0, "mesh vertices: every u and v the whole run meshed fits its 5 bits\(uvo < 0 ? "" : " (last past it: u \(uvo / 1000) v \(uvo % 1000))")")
 
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")
