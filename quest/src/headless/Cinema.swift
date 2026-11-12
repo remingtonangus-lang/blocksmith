@@ -389,7 +389,11 @@ enum Cinema {
         var cells: [(IVec3, BlockID)] = []
         let half = (sz + 1) / 2
         // the plot cleared first (grass tufts, flowers, a stray branch's leaves over it)
+        // (the ground itself only inside the walls: clearing it in the margin round them cut a trench into an uphill
+        // plot, a dark slot along the footing in the trailer, Nov 11)
         for y in 1...(h + half + 2) { for z in -1...sz { for x in -1...sx where !w.isAir(o.x + x, o.y + y, o.z + z) {
+            let margin = x < 0 || z < 0 || x >= sx || z >= sz
+            if margin && (w.solidAt(o.x + x, o.y + y, o.z + z) || w.groundAt(o.x + x, o.y + y, o.z + z)) { continue }
             cells.append((IVec3(o.x + x, o.y + y, o.z + z), AIR))
         } } }
         // footing: a stone course under the whole floor, carried down to firm ground wherever the plot falls away
