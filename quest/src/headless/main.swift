@@ -1380,6 +1380,94 @@ if let out = arg("--view"), let ctx = vkctx {
         }
         print("view: smoke scene, \(vg.particles.list.count) particles")
     }
+    // --scene well (trailer, Nov 11: see-through wedges at the savanna well's outer corners): the nearest village's well
+    // (found by its bell) from --at; prints the blocks and field densities round each outer corner, then shoots each
+    // corner from 3.5 blocks out and 2 up (OUT-c0..3.png) and counts the magenta pixels below the horizon (run with
+    // QUEST_VOIDPROBE=1 QUEST_SKIP=sky,landmarks: the gaps the clear colour shows through).
+    if arg("--scene") == "well" {
+        let bell = Blocks.id("bell")
+        var well: IVec3? = nil
+        if let st = vw.gen.structures?.nearest("village", x: Int(at[0]), z: Int(at[2]), maxRegions: 16) {
+            let c = V3(Float(st.min.x + st.max.x) / 2, Float(st.anchor.y + 2), Float(st.min.z + st.max.z) / 2)
+            _ = vw.loadSync(center: c, radius: 3)
+            search: for y in (st.anchor.y - 8)...(st.anchor.y + 12) { for z in st.min.z...st.max.z { for x in st.min.x...st.max.x where vw.block(x, y, z) == bell {
+                well = IVec3(x - 3, y - 1, z + 3); break search
+            } } }
+        }
+        guard let wp = well else { print("view: well: no village bell found"); exit(1) }
+        vg.player.pos = V3(Float(wp.x) + 0.5, Float(wp.y + 2), Float(wp.z) + 6.5)
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        print("view: well at \(wp.x) \(wp.y) \(wp.z) (\(Blocks.key(vw.block(wp.x - 1, wp.y, wp.z - 1))))")
+        let corners = [(-1, -1, -1, -1), (2, -1, 1, -1), (-1, 2, -1, 1), (2, 2, 1, 1)]     // (cell dx, dz, outward x, z)
+        for (ci, (dx, dz, ox, oz)) in corners.enumerated() {
+            let x = wp.x + dx, z = wp.z + dz
+            var lines: [String] = []
+            for y in (wp.y - 1)...(wp.y + 1) {
+                var row: [String] = []
+                for (ax, az) in [(0, 0), (ox, 0), (0, oz), (ox, oz)] {
+                    let b = vw.block(x + ax, y, z + az)
+                    row.append(Blocks.key(b) + " " + String(format: "%.2f", vw.fieldDensity(x + ax, y, z + az)))
+                }
+                lines.append("y\(y - wp.y): " + row.joined(separator: " | "))
+            }
+            print("view: well corner \(ci): " + lines.joined(separator: "; "))
+        }
+        do {
+            let rig = try RenderTest.ShotRig(game: vg, ctx: ctx, width: 640, height: 480, fovDeg: 70)
+            let base = out.hasSuffix(".png") ? String(out.dropLast(4)) : out
+            var total = 0
+            for (ci, (dx, dz, ox, oz)) in corners.enumerated() {
+                let c = V3(Float(wp.x + dx) + (ox > 0 ? 1 : 0), Float(wp.y) + 0.9, Float(wp.z + dz) + (oz > 0 ? 1 : 0))
+                let eye = c + V3(Float(ox), 0, Float(oz)) * 3.5 + V3(0, 2.0, 0)
+                let d = c - eye
+                let yaw = atan2f(-d.x, -d.z), pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
+                let img = try rig.grab(eye: eye, yaw: yaw, pitch: pitch)
+                let n = RenderTest.countVoid(img, width: 640, height: 480, eyes: 1, fovDeg: 70, pitch: pitch).holes   // (below the horizon)
+                total += n
+                try PNG.encode(rgba: img, width: 640, height: 480).write(to: URL(fileURLWithPath: "\(base)-c\(ci).png"))
+                print("view: well corner \(ci): \(n) magenta pixels")
+            }
+            print("view: well: \(total) magenta pixels at the four corners")
+        } catch { print("view: well shots failed: \(error)") }
+        exit(0)
+    }
+    // --scene orbit KIND[,KIND...] (the well's bloom: every structure that lays natural blocks in the built layer): the
+    // nearest of each kind from --at, shot from 8 points round it (its box's half diagonal + 6 blocks out, 3 over the
+    // ground there) looking at its middle; with QUEST_VOIDPROBE=1 QUEST_SKIP=sky,landmarks, the magenta pixels below
+    // the horizon in each (RenderTest.countVoid), per kind and in all. --orbitshots writes OUT-KIND-k.png.
+    if let kinds = arg("--scene").flatMap({ $0 == "orbit" ? arg("--kinds") : nil }) {
+        var all = 0
+        do {
+            let rig = try RenderTest.ShotRig(game: vg, ctx: ctx, width: 640, height: 480, fovDeg: 70)
+            let base = out.hasSuffix(".png") ? String(out.dropLast(4)) : out
+            for kind in kinds.split(separator: ",").map(String.init) {
+                guard let st = vw.gen.structures?.nearest(kind, x: Int(at[0]), z: Int(at[2]), maxRegions: 24) else { print("view: orbit \(kind): none near"); continue }
+                let cx = Float(st.min.x + st.max.x) / 2 + 0.5, cz = Float(st.min.z + st.max.z) / 2 + 0.5
+                let r = simd_length(V2(Float(st.max.x - st.min.x), Float(st.max.z - st.min.z))) / 2 + 6
+                _ = vw.loadSync(center: V3(cx, Float(st.anchor.y), cz), radius: max(3, Int(r / 16) + 2))
+                var per: [Int] = []
+                for k in 0..<8 {
+                    let a = Float(k) * .pi / 4
+                    let px = cx + cosf(a) * r, pz = cz + sinf(a) * r
+                    let gy = Float(vw.topY(Int(floor(px)), Int(floor(pz))) + 1)
+                    let eye = V3(px, max(gy, Float(st.anchor.y)) + 3, pz)
+                    let tgt = V3(cx, Float(st.anchor.y) + 1, cz)
+                    let d = tgt - eye
+                    let yaw = atan2f(-d.x, -d.z), pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
+                    let img = try rig.grab(eye: eye, yaw: yaw, pitch: pitch)
+                    let n = RenderTest.countVoid(img, width: 640, height: 480, eyes: 1, fovDeg: 70, pitch: pitch).holes
+                    per.append(n)
+                    if CommandLine.arguments.contains("--orbitshots") {
+                        try PNG.encode(rgba: img, width: 640, height: 480).write(to: URL(fileURLWithPath: "\(base)-\(kind)-\(k).png"))
+                    }
+                }
+                all += per.reduce(0, +)
+                print("view: orbit \(kind) at \(st.anchor.x) \(st.anchor.y) \(st.anchor.z) (\(vw.gen.column(st.anchor.x, st.anchor.z).biome.name)): \(per.reduce(0, +)) holes below the horizon \(per)")
+            }
+        } catch { print("view: orbit shots failed: \(error)") }
+        print("view: orbit: \(all) holes in all")
+        exit(0)
+    }
     // --mob KEY[,KEY...]: those mobs side by side --mobdist blocks ahead (default 3), facing the camera (model checks,
     // P185); --aggro shows them hostile.
     if let ks = arg("--mob") {
