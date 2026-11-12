@@ -558,7 +558,7 @@ final class SceneRenderer {
         let defs: [String: PipeDesc] = [
             "solid": PipeDesc(vert: "chunk.vert", frag: SceneRenderer.layerProbe ? "chunk_probe.frag" : "chunk_solid.frag", input: .chunk),
             "cut": PipeDesc(vert: "chunk.vert", frag: "chunk_cut.frag", input: .chunk),
-            "detail": PipeDesc(vert: "chunk_detail.vert", frag: SceneRenderer.layerProbe ? "chunk_probe.frag" : "chunk_solid.frag", input: .detail),
+            "detail": PipeDesc(vert: "chunk_detail.vert", frag: SceneRenderer.layerProbe ? "chunk_probe_detail.frag" : "chunk_solid.frag", input: .detail),
             "detailCut": PipeDesc(vert: "chunk_detail.vert", frag: "chunk_cut.frag", input: .detail, cull: none),
             // Translucent faces cull their backs from above the water: with no depth write and no per-face sorting, the
             // inner side faces of a pool's edge, a drop-off or a waterfall blended over the surface in front of them (the

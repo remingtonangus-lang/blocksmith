@@ -1733,10 +1733,11 @@ if let out = arg("--view"), let ctx = vkctx {
                 // (QUEST_LAYERPROBE=1: the layer drawn at the pixel, from chunk_probe.frag's colour)
                 let pi = ((Int(c[1]) * vwid * 2) + Int(c[0])) * 4, img = RenderTest.lastRGBA
                 if SceneRenderer.layerProbe, pi + 2 < img.count {
-                    let l = Int(img[pi]) | (Int(img[pi + 1]) & 7) << 8, other = Int(img[pi + 2])
+                    let l = Int(img[pi]) | (Int(img[pi + 1]) & 7) << 8, bb = Int(img[pi + 2]), other = bb & 63
                     let nm = l < Tex.names.count ? Tex.names[l] : "?"
-                    let alts = other == 255 ? "" : ", blends " + Tex.names.indices.filter { $0 & 255 == other }.map { Tex.names[$0] }.joined(separator: "|")
-                    seen.insert("drawn \(nm) (layer \(l), face \(Int(img[pi + 1]) >> 4)\(img[pi + 1] & 8 != 0 ? ", per-position" : "")\(alts))", at: 0)
+                    let alts = other == 63 ? "" : ", blends " + Tex.names.indices.filter { $0 & 63 == other }.prefix(6).map { Tex.names[$0] }.joined(separator: "|")
+                    let how = (img[pi + 1] & 8 != 0 ? ", per-position" : "") + (bb & 128 != 0 ? ", tinted" : "") + (bb & 64 != 0 ? ", detail" : "")
+                    seen.insert("drawn \(nm) (layer \(l), face \(Int(img[pi + 1]) >> 4)\(how)\(alts))", at: 0)
                 }
                 print("view: pick \(Int(c[0])),\(Int(c[1])): " + seen.joined(separator: "; "))
             }
