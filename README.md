@@ -1,31 +1,31 @@
-# Store media candidates, Oct 31 (updated Nov 3; none final until Remington picks)
+# Store media candidates (updated Nov 11; none final until Remington picks)
 
 Rendered in the cloud by the game's own Quest renderer (questcheck --cine, branch claude/project-thread-1q6065), his
 world seed 7639458412018979794. No other game's names, logos or looks; no HUD; no real-world insignia.
 
-- sunderfall_trailer_captions.mp4: 51 s, 1920x1080, 30 fps, AAC audio (peaks about -3 dB). Story order:
-  frigate strike (cold open) / "One open world, built from blocks" (frontier town from above, its street, the Capital) / "Ride the rails
-  across the frontier" / "Build anything, block by block" / "Dig into the caves below" / "Infiltrate a secret base in
-  the snow" (air, gate, corridor) / "Shoot it out with outlaws" / "Command a warship in the sky" "and bring its main
-  gun to bear" / "Then go deeper" (hell) / "and fight through the last war" (Ash Vault troops and tank) / sunset over
-  the town / title card.
+- sunderfall_trailer_captions.mp4: 1920x1080, 30 fps, AAC audio. Story order: "One open world, built from blocks"
+  (frontier town from above, its street, the Capital) / "Ride the rails across the frontier" / "Build anything, block
+  by block" / "Infiltrate a secret base in the snow" (air, gate, corridor) / "Shoot it out with outlaws" / "Command a
+  warship in the sky" "and bring its main gun to bear" / "Then go deeper" (hell) / "and fight through the last war"
+  (Ash Vault) / the town at sunset / title card.
 - sunderfall_trailer_clean.mp4: the same without captions.
-- screenshots/: 15 action stills, 2560x1440 (drawn at 5120x2880, scaled down). The surface tank still is gone (the
-  Ashguard don't fight on the surface); the two battle stills are now the outlaw fight.
-- clips/: each shot on its own (1920x1080) for re-editing.
+- covers/: brighter cover candidates, 2560x1440 (1 is the pick: the frigate over a frontier village at midday), plus
+  square (1024x1024), portrait (1440x2560) and small landscape (1280x720) versions of the strongest two.
+- screenshots/: 13 stills, 2560x1440 (drawn at 5120x2880, scaled down), daytime except the dusk town.
+- clips/ (project files only): each shot on its own, 1920x1080, for re-editing.
 
-Changed after his Nov 1 16:36/16:38 notes:
-- Hell now comes before the Ash Vault, and "Then go deeper" leads into the Ashguard fight; the trailer ends on sunset.
-- No Ashguard on the surface: the surface battle is frontier outlaws, and the tank breakup is at the Ash Vault.
-- The frigate flies bow first.
-- Void cracks: thin gaps in the game's meshes (stepped village roofs and wall bases, a Boreal Station's deck edge).
-  Fixed in the game (PR #650, Nov 3) and every shot and still re-rendered on that build: the village street shot is
-  back in the cut and the gate shot has its full approach again. High shots checked: the land past the edge now
-  ends in fog, not sky.
-- Hell shows the new Hell lands (spires, ember groves).
-- Captions spell out the mix (open block world, frontier, spy base, outlaws, warship, the last war) without naming
-  any game.
+Fixed after his Nov 11 notes and the 1000-frame dissection:
+- Cracks: the village gables and wall corners showed sky through 1/16 slits where the realistic world's edge chamfer
+  met stairs and slabs. Fixed in the mesher (no chamfer on a side a stair or slab closes whole); every village shot
+  re-rendered and swept with the crack detector.
+- The frigate: she stepped back every few frames (ships moved at 60 Hz under a 72 Hz camera) and drifted engine first
+  (her own patrol AI overrode the cruise). She now moves every frame at the headset rate and flies bow first.
+- "Ghost" buildings and slabs were cross-fades between shots: every cut is now a hard cut.
+- Outlaw fight: the blasts no longer fell trees (felled trunks and leaves showed black in the sky).
+- Snow base by day (its smoke showed black at night); the town opening at full daylight; the street walk no longer
+  brushes the well roof or passes a townsperson in silhouette; the train now comes up the line close to camera.
+- Gate: starts past a gap under the snow ledge. Cabin: its footing goes two courses into the slope (a dark slot
+  showed under it). Hell: framed off a pale ground patch. The cave and the tank shots are out of the cut.
 
-Earlier fixes (his 09:31 review): no floating far stand-ins, cabin on a stone footing, front engine on the train (the
-rear engine faces backwards on purpose), no torches or lava in the cave, nobody walking into the lens.
-Known: the snow base searchlight glows on its tower at night.
+Known, passed to the game lane: small see-through wedges at the savanna village well's outer corners (its terracotta
+ring is smoothed like natural ground), visible for a moment in the street shot.
