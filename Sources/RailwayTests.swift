@@ -36,6 +36,7 @@ enum RailwayTests {
         }
         let area = Float(2 * half) * Float(2 * half) * Float(seeds) / (4000 * 4000)
         sites(check)
+        diagonals(check)
         let perSquare = Float(lines) / area
         print(String(format: "rail: %d lines (%d stations) over %d seeds in %.1f s", lines, stations, seeds, CFAbsoluteTimeGetCurrent() - t0))
         check(perSquare > 0.15 && perSquare < 4.5 && stations   // (P470: two stations make a line on new ground, about 3 a square)
@@ -50,6 +51,86 @@ enum RailwayTests {
               "C1 the Vault: \(vt.count) armoured lines, stops \(vt.map { $0.stops.count }), \(vt.map { $0.cells.count }) cells")
     }
 
+    // N12 (diagonal railways): field-world lines over 8 seeds. Most run diagonal legs (a staircase of turn cells, on
+    // its diagonal when drawn and run); the plans keep their rules; a line whose old way lies on ground saved before
+    // N12 keeps that way exactly (the gate); a train's heading turns at most a few tens of degrees a block (it was 90
+    // in one cell at every dog-leg) and it runs the timetable's pace along the smoothed line, diagonal or straight.
+    static func diagonals(_ check: (Bool, String) -> Void) {
+        var lines = 0, diag = 0, legs = 0, bad: [String] = [], gateOK = 0, gateTried = 0
+        var worstTurn: Float = 0, worstOldTurn: Float = 0, worstPace: Float = 0, longest = 0
+        func turnPerBlock(_ t: Trains.Track) -> Float {
+            var worst: Float = 0, s: Float = 2
+            let n = Float(t.cells.count)
+            var prev: V3? = nil
+            while s < n - 3 {
+                let a = t.point(s), b = t.point(t.advance(s, by: 1))
+                let d = V3(b.x - a.x, 0, b.z - a.z)
+                if simd_length(d) > 0.3 {
+                    let u = simd_normalize(d)
+                    if let p = prev { worst = max(worst, acosf(max(-1, min(1, simd_dot(p, u)))) * 180 / .pi) }
+                    prev = u
+                }
+                s = t.advance(s, by: 1)
+            }
+            return worst
+        }
+        for k in 0..<8 {
+            let gen = WorldGen(seed: UInt64(1000 + k * 7919))
+            gen.fieldWorld = true
+            guard let sc = gen.structures else { continue }
+            for l in Railways.near(gen, x0: -5000, z0: -5000, x1: 5000, z1: 5000, pad: 0) {
+                lines += 1
+                bad += planProblems(gen, l).map { "seed \(gen.seed) \(l.name): \($0)" }
+                guard l.diagonal else { continue }
+                diag += 1
+                // (a diagonal leg: 12 or more turn cells in a row)
+                var run = 0, best = 0
+                for i in 1..<(l.cells.count - 1) {
+                    let a = l.cells[i - 1], c = l.cells[i], b = l.cells[i + 1]
+                    if b.x - c.x != c.x - a.x || b.z - c.z != c.z - a.z { run += 1; best = max(best, run) } else { run = 0 }
+                }
+                longest = max(longest, best)
+                if best >= 12 { legs += 1 }
+                let t = Trains.track(l)
+                worstTurn = max(worstTurn, turnPerBlock(t))
+                // (the pace along the line: a leg's middle, 20 samples a second)
+                // (the timetable eases in and out of stops: the pace wanted at f through a leg is its mean times 1 - cos 2 pi f)
+                if let leg = t.legs.first(where: { $0.2 != $0.3 && $0.1 > 20 }) {
+                    let ph = t.phase, mean = abs(t.arcAt(leg.3) - t.arcAt(leg.2)) / Float(leg.1)
+                    var u = leg.0 + leg.1 * 0.3
+                    while u < leg.0 + leg.1 * 0.7 {
+                        let p0 = t.point(t.at(u - ph).s), p1 = t.point(t.at(u - ph + 0.05).s)
+                        let v = simd_length(V2(p1.x - p0.x, p1.z - p0.z)) / 0.05
+                        let f = Float((u + 0.025 - leg.0) / leg.1)
+                        worstPace = max(worstPace, abs(v / (mean * (1 - cosf(2 * .pi * f))) - 1))
+                        u += 0.5
+                    }
+                }
+                let (row, st) = Railways.rowStretch(l.id)
+                if let old = Railways.plan(gen, row: row, stretch: st, diagonal: false) {
+                    worstOldTurn = max(worstOldTurn, turnPerBlock(Trains.track(old)))
+                    // The gate: ground saved before N12 under the old way's middle -> the old way, cell for cell.
+                    if gateTried < 6 {
+                        gateTried += 1
+                        let m = old.cells[old.cells.count / 2]
+                        let keep = sc.legacyN12
+                        sc.legacyN12 = [StructureCache.key(floorDiv(m.x, CS), floorDiv(m.z, CS))]
+                        let g = Railways.gated(gen, old: { Railways.plan(gen, row: row, stretch: st, diagonal: false) },
+                                               new: { Railways.plan(gen, row: row, stretch: st, diagonal: true) })
+                        sc.legacyN12 = keep
+                        if let g, !g.diagonal, g.cells == old.cells { gateOK += 1 }
+                    }
+                }
+            }
+        }
+        print(String(format: "rail: N12 %d field lines, %d diagonal (%d with a diagonal leg, longest %d turn cells); heading at most %.0f deg a block (old ways %.0f); pace off by %.0f%%; gate %d of %d",
+                     lines, diag, legs, longest, worstTurn, worstOldTurn, worstPace * 100, gateOK, gateTried))
+        check(lines > 0 && diag * 10 >= lines * 9 && legs > 0 && bad.isEmpty && worstTurn < 35 && worstPace < 0.12 && gateTried > 0 && gateOK == gateTried,
+              String(format: "N12 diagonal rails: %d of %d field lines diagonal, %d with a diagonal leg; plan problems %d; heading at most %.0f deg a block (old ways %.0f); pace off by %.0f%%; saved ground keeps the old way %d of %d",
+                     diag, lines, legs, bad.count, worstTurn, worstOldTurn, worstPace * 100, gateOK, gateTried)
+              + (bad.isEmpty ? "" : ": " + bad.prefix(3).joined(separator: "; ")))
+    }
+
     static func planProblems(_ gen: WorldGen, _ l: Railways.Line) -> [String] {
         var out: [String] = []
         let c = l.cells
@@ -60,7 +141,7 @@ enum RailwayTests {
         }
         for i in 1..<(c.count - 1) {
             let curve = c[i + 1].x - c[i].x != c[i].x - c[i - 1].x || c[i + 1].z - c[i].z != c[i].z - c[i - 1].z
-            if curve && (c[i - 1].y != c[i].y || c[i + 1].y != c[i].y) { out.append("curve \(i) not level"); break }
+            if curve && !l.diagonal && (c[i - 1].y != c[i].y || c[i + 1].y != c[i].y) { out.append("curve \(i) not level"); break }   // (N12: a diagonal line's turns climb)
             if (c[i - 1].y > c[i].y && c[i + 1].y > c[i].y) || (c[i - 1].y < c[i].y && c[i + 1].y < c[i].y) { out.append("dip/hump at \(i)"); break }
         }
         guard let sc = gen.structures else { return out }
@@ -342,7 +423,7 @@ enum RailwayTests {
         // P510 (Nov 1 20:39, "Train's broken... Fix it"): a block on the rail that he didn't put there (a structure or a
         // tree drawn over the line) is cleared and the rail put back; one he placed still stops the train.
         // (on the train's own track: driven, it runs on through links, where the line's own cells no longer index it)
-        func aheadCell(_ k: Float) -> IVec3 { tr.track.cell(tr.lastS + tr.dir * (tr.length / 2 + k)) }
+        func aheadCell(_ k: Float) -> IVec3 { tr.track.cell(tr.track.advance(tr.lastS, by: tr.dir * (tr.length / 2 + k))) }
         let stray = aheadCell(14)
         let stone = Blocks.id("stone")
         // (Nov 12: the train runs on from where he stands; a cell ahead in a chunk not loaded took no block, read air,

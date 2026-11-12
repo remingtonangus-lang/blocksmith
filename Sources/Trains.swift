@@ -51,12 +51,31 @@ enum Trains {
         let legs: [(Double, Double, Float, Float)]
         let period: Double
         let phase: Double
+        // N12: a field line runs its centres smoothed as ShapeRails draws them (a staircase as its diagonal, a turn as
+        // an arc), and its place s (a cell index) moves by the distance along them: `pts`, `arc` (the distance to each
+        // cell's centre; a circuit's last entry its whole length) and `smooth` (false: the centres as they are, one
+        // block a cell: every sum below as before).
+        let pts: [V3]
+        let arc: [Float]
+        let smooth: Bool
         init(id: Int64, name: String, cells: [IVec3], slopes: [Bool], stops: [Int], stopNames: [String], armoured: Bool, dim: Dim,
              heights: [Float]? = nil, cyclic: Bool = false) {
             self.id = id; self.name = name; self.cells = cells; self.stops = stops; self.stopNames = stopNames
             self.armoured = armoured; self.dim = dim; self.cyclic = cyclic
             // (P379 step 3: a field world's line runs at its planned heights, the drawn track's.)
-            ys = heights?.map { $0 + 0.0625 } ?? cells.indices.map { Float(cells[$0].y) + (slopes[$0] ? 0.5 : 0) + 0.0625 }
+            let ys = heights?.map { $0 + 0.0625 } ?? cells.indices.map { Float(cells[$0].y) + (slopes[$0] ? 0.5 : 0) + 0.0625 }
+            self.ys = ys
+            let raw = cells.indices.map { SIMD3<Float>(Float(cells[$0].x) + 0.5, ys[$0], Float(cells[$0].z) + 0.5) }
+            let sm = heights != nil && !Railways.oldRails && cells.count >= 3
+            let p = sm ? ShapeRails.smoothed(raw, cyclic: cyclic) : raw
+            pts = p.map { V3($0.x, $0.y, $0.z) }
+            smooth = sm
+            var cum = [Float](repeating: 0, count: cells.count + (cyclic ? 1 : 0))
+            for i in 1..<max(1, cum.count) {
+                let a = p[i - 1], b = p[i % cells.count]
+                cum[i] = cum[i - 1] + (sm ? max(0.05, simd_length(SIMD2<Float>(b.x - a.x, b.z - a.z))) : 1)
+            }
+            arc = cum
             var legs: [(Double, Double, Float, Float)] = [], t: Double = 0
             // A line runs out and back (its ends turn it round); a circuit runs on round (the last stop's leg ends at
             // the first stop a lap on).
@@ -65,7 +84,8 @@ enum Trains {
                 let a = order[k]
                 let b = cyclic && k + 1 == order.count ? order[0] + cells.count : order[(k + 1) % order.count]
                 legs.append((t, Trains.dwell, Float(a), Float(a))); t += Trains.dwell
-                let d = Double(abs(b - a)) / Double(Trains.speed * (armoured ? 1.3 : 1))
+                let run = sm ? abs(Track.arcAt(cum, Float(b), cells.count, cyclic) - Track.arcAt(cum, Float(a), cells.count, cyclic)) : Float(abs(b - a))
+                let d = Double(run) / Double(Trains.speed * (armoured ? 1.3 : 1))
                 legs.append((t, d, Float(a), Float(b))); t += d
             }
             self.legs = legs
@@ -88,6 +108,7 @@ enum Trains {
             // Ease in and out of each stop (no speed at either end).
             let f = Float(max(0, min(1, (u - t0) / d)))
             let e = f - sinf(2 * .pi * f) / (2 * .pi)
+            if smooth { let da = arcAt(a), db = arcAt(b); return (wrap(sAt(da + (db - da) * e)), b > a ? 1 : -1, nil) }
             return (wrap(a + (b - a) * e), b > a ? 1 : -1, nil)
         }
         // A circuit's place taken round to [0, cells): a lap on is the same place.
@@ -103,6 +124,42 @@ enum Trains {
             if cyclic { let n = Float(cells.count); if d > n / 2 { d -= n } else if d < -n / 2 { d += n } }
             return d
         }
+        // The distance along the line to place s (past a line's ends a block a cell; a circuit's laps counted).
+        static func arcAt(_ arc: [Float], _ s: Float, _ n: Int, _ cyclic: Bool) -> Float {
+            guard n >= 2 else { return s }
+            if cyclic {
+                let N = Float(n), laps = floorf(s / N), w = s - laps * N
+                let i = min(n - 1, max(0, Int(w))), f = w - Float(i)
+                return laps * arc[n] + arc[i] + (arc[i + 1] - arc[i]) * f
+            }
+            if s <= 0 { return s }
+            if s >= Float(n - 1) { return arc[n - 1] + s - Float(n - 1) }
+            let i = Int(s), f = s - Float(i)
+            return arc[i] + (arc[i + 1] - arc[i]) * f
+        }
+        func arcAt(_ s: Float) -> Float { smooth ? Track.arcAt(arc, s, cells.count, cyclic) : s }
+        // The place at distance d along the line (arcAt's inverse).
+        func sAt(_ d: Float) -> Float {
+            guard smooth else { return d }
+            let n = cells.count
+            var laps: Float = 0, x = d
+            if cyclic { let L = arc[n]; laps = floorf(d / L); x = d - laps * L }
+            else {
+                if x <= 0 { return x }
+                if x >= arc[n - 1] { return Float(n - 1) + x - arc[n - 1] }
+            }
+            var lo = 0, hi = arc.count - 1
+            while lo + 1 < hi { let m = (lo + hi) / 2; if arc[m] <= x { lo = m } else { hi = m } }
+            return laps * Float(n) + Float(lo) + (x - arc[lo]) / max(1e-4, arc[hi] - arc[lo])
+        }
+        // The place `by` blocks on along the line from s (back for a negative distance), and the distance from a to b.
+        func advance(_ s: Float, by d: Float) -> Float { smooth ? sAt(arcAt(s) + d) : s + d }
+        func distance(_ a: Float, _ b: Float) -> Float {
+            guard smooth else { return delta(a, b) }
+            var d = arcAt(b) - arcAt(a)
+            if cyclic { let L = arc[cells.count]; if d > L / 2 { d -= L } else if d < -L / 2 { d += L } }
+            return d
+        }
         func cell(_ s: Float) -> IVec3 {
             let n = cells.count
             if cyclic { return cells[min(n - 1, Int(wrap(s.rounded())))] }
@@ -110,6 +167,16 @@ enum Trains {
         }
         func point(_ s: Float) -> V3 {
             let n = cells.count
+            if smooth {
+                if cyclic {
+                    let w = wrap(s)
+                    let i = min(n - 1, Int(w)), f = w - Float(i)
+                    return pts[i] + (pts[(i + 1) % n] - pts[i]) * f
+                }
+                let s = max(0, min(Float(n - 1), s))
+                let i = min(n - 2, Int(s)), f = s - Float(i)
+                return pts[i] + (pts[i + 1] - pts[i]) * f
+            }
             if cyclic {
                 let w = wrap(s)
                 let i = min(n - 1, Int(w)), f = w - Float(i), k = (i + 1) % n
@@ -297,7 +364,7 @@ enum Trains {
             let head = t.point(at.s)
             // (and a built train stays while its tail is still in reach: one running away from him went with its last
             // cars in sight when its head passed the line)
-            let tail = t.point(at.s - at.dir * tr.length)
+            let tail = t.point(t.advance(at.s, by: -at.dir * tr.length))
             guard simd_length(head - p) < R || (!tr.cars.isEmpty && simd_length(tail - p) < R) else { continue }
             // Only where the track was laid (ground a save had generated before keeps no rails).
             let c0 = t.cells[max(0, min(t.cells.count - 1, Int(at.s)))]
@@ -496,7 +563,7 @@ enum Trains {
         // line climbs a grade, and into a cutting's side on a curve, and read as a blocked line).
         if dt > 0, tr.cars.first != nil {
             let (s0, dir0, _) = now(tr)
-            let ahead = tr.layout.isEmpty ? s0 + dir0 * (gap * 0.75 + 1.2) : tr.lastS + dir0 * (tr.length / 2 + 1.5)    // (P470: the front's nose)
+            let ahead = tr.layout.isEmpty ? t.advance(s0, by: dir0 * (gap * 0.75 + 1.2)) : t.advance(tr.lastS, by: dir0 * (tr.length / 2 + 1.5))    // (P470: the front's nose)
             let c = t.cell(ahead)
             let b = g.world.block(c.x, c.y, c.z)
             if let w = Trains.watch, tr.driven, abs(c.x - w.x) + abs(c.z - w.z) < 12 {
@@ -520,7 +587,7 @@ enum Trains {
                 // (driven: once his block is gone from the end it stopped, the train is his again; stood still, the end
                 // looked at above is its front whichever way it was going, so the held end is looked at itself)
                 let hd = tr.driveFwd * tr.heldWay
-                let hc = t.cell(tr.layout.isEmpty ? s0 + hd * (gap * 0.75 + 1.2) : tr.lastS + hd * (tr.length / 2 + 1.5))
+                let hc = t.cell(tr.layout.isEmpty ? t.advance(s0, by: hd * (gap * 0.75 + 1.2)) : t.advance(tr.lastS, by: hd * (tr.length / 2 + 1.5)))
                 let hb = g.world.block(hc.x, hc.y, hc.z)
                 if !(Blocks.collide[Int(hb)] && !Rails.isRail(hb)) { tr.heldBy = false; tr.brake = 0; tr.stoppedFor = 0 }
             }
@@ -570,13 +637,13 @@ enum Trains {
             if tr.fresh || d > 96 || !looking { tr.facing = dir }
         }
         tr.fresh = false
-        let moving = big ? placeBig(tr, s, dir, dt) : abs(t.delta(tr.lastS, s))
+        let moving = big ? placeBig(tr, s, dir, dt) : abs(t.distance(tr.lastS, s))
         if !big { tr.lastS = s }
         if dt > 0 { tr.blocksPerSec += (moving / dt - tr.blocksPerSec) * min(1, dt * 4) }
         for (k, m) in tr.cars.enumerated() where !big {
-            let sk = s - dir * gap * Float(k)
+            let sk = t.advance(s, by: -dir * gap * Float(k))
             let p = t.point(sk)
-            let d = t.point(sk + dir * 0.7) - t.point(sk - dir * 0.7)
+            let d = t.point(t.advance(sk, by: dir * 0.7)) - t.point(t.advance(sk, by: -dir * 0.7))
             m.pos = p
             m.vel = dt > 0 ? d * (moving / max(dt, 1e-4) / 1.4) : .zero
             if simd_length(V2(d.x, d.z)) > 0.01 { m.yaw = atan2f(-d.x, -d.z) }
@@ -669,11 +736,11 @@ enum Trains {
         // it the other way.
         if tr.heldBy && (tr.heldWay == 0 || v * tr.heldWay > 0) { v = 0 }
         // The track's ends (where no link runs on) and a real-size train's own length hold it off the buffers.
-        var s = tr.driveS + tr.driveFwd * v * dt
+        var s = t.advance(tr.driveS, by: tr.driveFwd * v * dt)
         if !t.cyclic {
             let n = Float(t.cells.count)
             let half = tr.layout.isEmpty ? 0 : tr.length / 2
-            let lo = tr.layout.isEmpty ? Float(0) : half + 3, hi = tr.layout.isEmpty ? n - 1 : n - 4 - half
+            let lo = tr.layout.isEmpty ? Float(0) : t.advance(0, by: half + 3), hi = tr.layout.isEmpty ? n - 1 : t.advance(n - 1, by: -(half + 4) + 1)
             if lo <= hi && (s < lo || s > hi) { s = max(lo, min(hi, s)); v = 0 }
         } else { s = t.wrap(s) }
         tr.driveS = s

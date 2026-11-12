@@ -47,6 +47,7 @@ enum Railways {
         var heights: [Float]? = nil
         var target: Int64 = 0              // a link's: the key of the line it runs on to (0: a line, or a link of before)
         var joins = -1                     // P511, a loop's (RailLoops.swift): the line's cell it comes back into
+        var diagonal = false               // N12: planned with diagonal legs and eased turns (wider bed, beds by nearest cell)
         init(id: Int64, name: String, cells: [IVec3], stations: [Station], heights: [Float]? = nil) {
             self.id = id; self.name = name; self.cells = cells; self.stations = stations; self.heights = heights
             minX = cells.map { $0.x }.min() ?? 0; maxX = cells.map { $0.x }.max() ?? 0
@@ -99,6 +100,31 @@ enum Railways {
     // every caller plans it, as before. railPlansMade / railPlansWaited count them (the launch harness prints them).
     static let oldWait = ProcessInfo.processInfo.environment["BS_OLDRAILWAIT"] == "1"
     private(set) static var railPlansMade = 0, railPlansWaited = 0
+    // N12 (Nov 12 06:19:15-06:19:55, riding a line: "we need to make sure is that the tracks aren't so autistic. Like
+    // currently they're following block patterns... We want them to be able to go diagonal", "Diagonal is a value",
+    // "when they turn, do a 90-degree turn, that's not natural"; Carbon's proposal docs/carbon/diagonal-rails.md, applied
+    // by intent): in a field world a line's legs between towns, a link's way and a loop's corners run diagonal with
+    // eased turns, as a staircase of cells (the rails stay 4-connected for minecarts and saves) that ShapeRails draws
+    // and Trains.Track runs as one smooth line. Already-generated lines don't move: a line, link or loop whose old way
+    // or new way comes within 3 chunks of ground a save had before N12 (structure-guard-n12.txt) keeps its old way
+    // exactly. BS_OLDRAILS=1: the old ways everywhere (and the old drawing and train paths).
+    static let oldRails = ProcessInfo.processInfo.environment["BS_OLDRAILS"] == "1"
+    // Whether any of these cells comes within `reach` chunks of ground saved before N12.
+    static func savedBeforeN12(_ sc: StructureCache, _ cells: [IVec3], reach: Int = 3) -> Bool {
+        guard !sc.legacyN12.isEmpty, !cells.isEmpty else { return false }
+        for i in stride(from: 0, to: cells.count, by: 8) where !sc.clear(cx: floorDiv(cells[i].x, CS), cz: floorDiv(cells[i].z, CS), reach: reach, guardSet: sc.legacyN12) { return true }
+        let l = cells[cells.count - 1]
+        return !sc.clear(cx: floorDiv(l.x, CS), cz: floorDiv(l.z, CS), reach: reach, guardSet: sc.legacyN12)
+    }
+    // The N12 gate: the old plan where saved ground holds it (or would hold the new one), else the new plan (else the old).
+    static func gated(_ gen: WorldGen, old: () -> Line?, new: () -> Line?) -> Line? {
+        guard !oldRails, gen.fieldWorld, let sc = gen.structures else { return old() }
+        if sc.legacyN12.isEmpty { return new() ?? old() }
+        let o = old()
+        if let o, savedBeforeN12(sc, o.cells) { return o }
+        guard let d = new(), !savedBeforeN12(sc, d.cells) else { return o }
+        return d
+    }
 
     static func key(_ row: Int, _ s: Int) -> Int64 { Int64(row) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: s))) }
 
@@ -254,6 +280,9 @@ enum Railways {
     }
 
     static func planLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        gated(gen, old: { planLink(gen, row: row, stretch: s, diagonal: false) }, new: { planLink(gen, row: row, stretch: s, diagonal: true) })
+    }
+    static func planLink(_ gen: WorldGen, row: Int, stretch s: Int, diagonal: Bool) -> Line? {
         guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures else { return nil }
         var b: Line? = nil, bKey: Int64 = 0
         for k in 1...linkReach where hasLine(gen, row, s + k) {
@@ -278,7 +307,10 @@ enum Railways {
         let gap = pb.x - pa.x
         guard gap >= 40 else { tally?("link: lines overlap"); return nil }
         var cells: [(Int, Int)]? = nil
-        for k in 0..<7 {
+        // N12: a diagonal leg with eased turns first (as a line's legs), off the sea.
+        if diagonal, let l = smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: []),
+           !stride(from: 0, to: l.count, by: 4).contains(where: { gen.column(l[$0].0, l[$0].1).biome.isOcean }) { cells = l }
+        for k in 0..<7 where cells == nil {
             let xm = pa.x + gap / 2 + [0, -gap / 5, gap / 5, -gap / 3, gap / 3, -gap * 2 / 5, gap * 2 / 5][k]
             if xm - pa.x < 12 || pb.x - xm < 12 { continue }
             if blocked(gen, sc, x0: pa.x + 3, z0: pa.z, x1: xm, z1: pa.z, except: []) { continue }
@@ -301,7 +333,7 @@ enum Railways {
         // finds its way round them (route) as a road does, keeping off the sea and old ground.
         if let l = cells, stride(from: 0, to: l.count, by: 4).contains(where: { gen.column(l[$0].0, l[$0].1).biome.isOcean }) { cells = nil }
         let routed = cells == nil
-        if routed { cells = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z)) }
+        if routed { cells = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: diagonal) }
         guard let run = cells, run.count > 8 else { tally?("link: blocked"); return nil }
         // Only on ground no save had before railways or before links (no half a link under explored land), never over
         // the open sea.
@@ -314,10 +346,11 @@ enum Railways {
         let name = a.name
         if gen.fieldWorld {
             let h0 = a.heights?.last ?? Float(pa.y), h1 = b.heights?.first ?? Float(pb.y)
-            guard let h = gentleProfile(gen, flat, [], ends: (h0, h1)) else { tally?("link: field grade"); return nil }
+            guard let h = gentleProfile(gen, flat, [], ends: (h0, h1), diagonal: diagonal) else { tally?("link: field grade"); return nil }
             let c = flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }
             let lk = Line(id: linkKey(row, s), name: name, cells: c, stations: [], heights: h)
             lk.target = bKey
+            lk.diagonal = diagonal
             return lk
         }
         guard let lv = profile(gen, flat, [], ends: (pa.y, pb.y)) else { tally?("link: block profile"); return nil }
@@ -337,7 +370,7 @@ enum Railways {
     // coast across the whole band, and the band's edges): a link may cross open water on a trestle for up to seaRun
     // squares together (a bridge as a line takes over a lake), each such square costing seaCost.
     static let seaRun = 6, seaCost: Int32 = 6
-    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int)) -> [(Int, Int)]? {
+    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false) -> [(Int, Int)]? {
         let G = routeCell
         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
         let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
@@ -470,6 +503,14 @@ enum Railways {
             if q - p != r - q { pts.append(((gx0 + q % nx) * G + G / 2, (gz0 + q / nx) * G + G / 2)) }
         }
         pts.append(e0)
+        // N12: the way's corners pulled straight where the straight is clear (a diagonal across the squares between),
+        // then eased round, the whole way checked again; else the square way below.
+        if diagonal, let d = diagonalWay(gen, sc, pts, from: a, to: b, open: { x, z in
+            let qx = floorDiv(x, G) - gx0, qz = floorDiv(z, G) - gz0
+            guard qx >= 0 && qx < nx && qz >= 0 && qz < nz else { return false }
+            let i = qz * nx + qx
+            return open(i) && looked[i] == 1
+        }) { return d }
         // Along x then z between points, one block a step; then on to b along its row.
         var cells: [(Int, Int)] = []
         for x in (a.0 + 1)...s0.0 { cells.append((x, a.1)) }
@@ -508,6 +549,165 @@ enum Railways {
     // Kinds the track keeps clear of: everything on the surface (underground and sky kinds are left out; a cutting at
     // most a few blocks deep doesn't reach them).
     static let skipKinds: Set<String> = ["mineshaft", "ancient_city", "trial_chambers", "fossil", "buried_treasure", "stronghold"]
+
+    // MARK: N12 diagonal ways (Carbon's proposal, docs/carbon/diagonal-rails.md)
+
+    // A polyline with each inner corner eased by a circular arc of up to `radius` blocks (less where its legs are short).
+    static func roundPolyline(_ pts: [(Float, Float)], radius: Float, arcStep: Float = 2) -> [(Float, Float)] {
+        var clean: [(Float, Float)] = []
+        for p in pts { if let l = clean.last, hypotf(p.0 - l.0, p.1 - l.1) < 0.25 { continue }; clean.append(p) }
+        guard clean.count >= 3 else { return clean }
+        var out: [(Float, Float)] = [clean[0]]
+        for i in 1..<(clean.count - 1) {
+            let p0 = clean[i - 1], p1 = clean[i], p2 = clean[i + 1]
+            let v1 = SIMD2<Float>(p0.0 - p1.0, p0.1 - p1.1), v2 = SIMD2<Float>(p2.0 - p1.0, p2.1 - p1.1)
+            let l1 = simd_length(v1), l2 = simd_length(v2)
+            guard l1 > 0.5, l2 > 0.5 else { out.append(p1); continue }
+            let u1 = v1 / l1, u2 = v2 / l2
+            let ang = acosf(max(-0.9999, min(0.9999, simd_dot(u1, u2))))          // (the angle between the legs)
+            let tanHalf = tanf(ang * 0.5)
+            guard Float.pi - ang >= 0.06, tanHalf > 0.02 else { out.append(p1); continue }
+            let t = min(min(l1, l2) * 0.46, radius / tanHalf)
+            let r = t * tanHalf
+            guard r >= 1.5 else { out.append(p1); continue }
+            let c1 = SIMD2<Float>(p1.0, p1.1)
+            let t1 = c1 + u1 * t, t2 = c1 + u2 * t
+            let centre = c1 + simd_normalize(u1 + u2) * (r / max(0.02, sinf(ang * 0.5)))
+            let a1 = atan2f(t1.y - centre.y, t1.x - centre.x), a2 = atan2f(t2.y - centre.y, t2.x - centre.x)
+            var da = a2 - a1
+            while da > .pi { da -= 2 * .pi }
+            while da < -.pi { da += 2 * .pi }
+            let segs = max(3, Int(ceilf(abs(da) * r / max(0.75, arcStep))))
+            for k in 0...segs {
+                let a = a1 + da * Float(k) / Float(segs)
+                let q = (centre.x + r * cosf(a), centre.y + r * sinf(a))
+                if let l = out.last, hypotf(q.0 - l.0, q.1 - l.1) < 0.2 { continue }
+                out.append(q)
+            }
+        }
+        let last = clean[clean.count - 1]
+        if let l = out.last, hypotf(last.0 - l.0, last.1 - l.1) < 0.2 { out[out.count - 1] = last } else { out.append(last) }
+        return out
+    }
+
+    // The 4-connected cells along a polyline (one step apart, each cell once: a loop the rounding made is cut out),
+    // from the cell at its first point to the cell at its last.
+    static func rasterPolyline(_ pts: [(Float, Float)]) -> [(Int, Int)] {
+        guard let f = pts.first else { return [] }
+        var raw: [(Int, Int)] = [(Int(f.0.rounded()), Int(f.1.rounded()))]
+        for i in 1..<max(1, pts.count) {
+            let p0 = pts[i - 1], p1 = pts[i]
+            let dx = p1.0 - p0.0, dz = p1.1 - p0.1
+            let steps = max(1, Int(ceilf(hypotf(dx, dz) * 3)))
+            for k in 1...steps {
+                let u = Float(k) / Float(steps)
+                let px = p0.0 + dx * u, pz = p0.1 + dz * u
+                let gx = Int(px.rounded()), gz = Int(pz.rounded())
+                while raw[raw.count - 1].0 != gx || raw[raw.count - 1].1 != gz {
+                    let c = raw[raw.count - 1]
+                    let sx = gx - c.0, sz = gz - c.1
+                    if sx != 0 && sz != 0 {
+                        // (the side step nearer the line)
+                        let ex = abs(Float(c.0 + sx.signum()) - px) + abs(Float(c.1) - pz)
+                        let ez = abs(Float(c.0) - px) + abs(Float(c.1 + sz.signum()) - pz)
+                        raw.append(ex <= ez ? (c.0 + sx.signum(), c.1) : (c.0, c.1 + sz.signum()))
+                    } else if sx != 0 { raw.append((c.0 + sx.signum(), c.1)) } else { raw.append((c.0, c.1 + sz.signum())) }
+                }
+            }
+        }
+        var out: [(Int, Int)] = [], at: [Int64: Int] = [:]
+        for c in raw {
+            let k = colKey(c.0, c.1)
+            if let j = at[k] { while out.count - 1 > j { at[colKey(out.last!.0, out.last!.1)] = nil; out.removeLast() } }
+            else { at[k] = out.count; out.append(c) }
+        }
+        return out
+    }
+
+    // Whether cells two or more steps apart along the run touch side by side (the rails would join there).
+    static func touchesItself(_ cells: [(Int, Int)]) -> Bool {
+        var at: [Int64: Int] = [:]
+        for (i, c) in cells.enumerated() { at[colKey(c.0, c.1)] = i }
+        for (i, c) in cells.enumerated() {
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { if let j = at[colKey(c.0 + dx, c.1 + dz)], abs(j - i) > 1 { return true } }
+        }
+        return false
+    }
+
+    // `blocked` along a run of cells, eight at a time (the ends' `skipEnds` cells left out).
+    static func polylineBlocked(_ gen: WorldGen, _ sc: StructureCache, _ cells: [(Int, Int)], skipEnds: Int, except: Set<Int64>) -> Bool {
+        var i = skipEnds
+        let last = cells.count - 1 - skipEnds
+        while i <= last {
+            let j = min(last, i + 7)
+            var x0 = Int.max, x1 = Int.min, z0 = Int.max, z1 = Int.min
+            for k in i...j { x0 = min(x0, cells[k].0); x1 = max(x1, cells[k].0); z0 = min(z0, cells[k].1); z1 = max(z1, cells[k].1) }
+            if blocked(gen, sc, x0: x0, z0: z0, x1: x1, z1: z1, except: except) { return true }
+            i = j + 1
+        }
+        return false
+    }
+
+    // A leg between two eastbound straights (from just east of `pe` to just west of `dst`): a diagonal across with
+    // eased turns (45 degrees first, then shallower and steeper, its middle shifted either way), nil where none is clear.
+    static func smoothDogLeg(_ gen: WorldGen, _ sc: StructureCache, from pe: (x: Int, z: Int), to dst: (x: Int, z: Int),
+                             lead: Int, except: Set<Int64>) -> [(Int, Int)]? {
+        let gap = dst.x - pe.x, dz = dst.z - pe.z, adz = abs(dz)
+        guard gap >= max(24, lead * 2) else { return nil }
+        let a = (Float(pe.x + 1), Float(pe.z)), b = (Float(dst.x - 1), Float(dst.z))
+        func ok(_ c: [(Int, Int)]) -> Bool {
+            guard let f = c.first, let l = c.last, f == (pe.x + 1, pe.z), l == (dst.x - 1, dst.z) else { return false }
+            return !touchesItself(c) && !polylineBlocked(gen, sc, c, skipEnds: 0, except: except)
+        }
+        if adz <= 2 {
+            var poly = [a]
+            if dz != 0 { poly += [(Float(pe.x) + Float(gap) * 0.35, Float(pe.z)), (Float(pe.x) + Float(gap) * 0.65, Float(dst.z))] }
+            poly.append(b)
+            let c = rasterPolyline(roundPolyline(poly, radius: 14))
+            return ok(c) ? c : nil
+        }
+        for want in [adz, adz * 5 / 4, adz * 3 / 2, adz * 3 / 4, max(8, adz / 2), 0] {
+            let span = min(gap - 2 * lead, want)
+            if span < 0 { continue }
+            for sh in [0, -gap / 6, gap / 6, -gap / 4, gap / 4, -gap / 3, gap / 3] {
+                let x1 = pe.x + gap / 2 + sh - span / 2, x2 = x1 + span
+                if x1 - pe.x < lead || dst.x - x2 < lead { continue }
+                let rad = Float(min(22, max(6, min(x1 - pe.x - 2, dst.x - x2 - 2, adz / 2))))
+                let c = rasterPolyline(roundPolyline([a, (Float(x1), Float(pe.z)), (Float(x2), Float(dst.z)), b], radius: rad))
+                if ok(c) { return c }
+            }
+        }
+        return nil
+    }
+
+    // A link's routed way (route's corner points, `open` saying which ground a straight may cross) pulled straight
+    // between corners where clear, eased round its turns, from just east of a to just west of b.
+    static func diagonalWay(_ gen: WorldGen, _ sc: StructureCache, _ pts: [(Int, Int)], from a: (Int, Int), to b: (Int, Int),
+                            open: (Int, Int) -> Bool) -> [(Int, Int)]? {
+        guard pts.count >= 2 else { return nil }
+        func clear(_ p: (Int, Int), _ q: (Int, Int)) -> Bool {
+            let n = max(1, Int(hypotf(Float(q.0 - p.0), Float(q.1 - p.1)) / 4))
+            for k in 0...n {
+                let u = Float(k) / Float(n)
+                if !open(Int((Float(p.0) + Float(q.0 - p.0) * u).rounded()), Int((Float(p.1) + Float(q.1 - p.1) * u).rounded())) { return false }
+            }
+            return true
+        }
+        var keep = [pts[0]], i = 0
+        while i < pts.count - 1 {
+            var j = pts.count - 1
+            while j > i + 1 && !clear(pts[i], pts[j]) { j -= 1 }
+            keep.append(pts[j]); i = j
+        }
+        var poly: [(Float, Float)] = [(Float(a.0 + 1), Float(a.1))]
+        poly += keep.map { (Float($0.0), Float($0.1)) }
+        poly.append((Float(b.0 - 1), Float(b.1)))
+        let c = rasterPolyline(roundPolyline(poly, radius: 14))
+        guard let f = c.first, let l = c.last, f == (a.0 + 1, a.1), l == (b.0 - 1, b.1), c.count > 8, !touchesItself(c),
+              !polylineBlocked(gen, sc, c, skipEnds: 2, except: []),
+              !stride(from: 0, to: c.count, by: 4).contains(where: { gen.column(c[$0].0, c[$0].1).biome.isOcean }) else { return nil }
+        return c
+    }
 
     static func blocked(_ gen: WorldGen, _ sc: StructureCache, x0: Int, z0: Int, x1: Int, z1: Int, except: Set<Int64>) -> Bool {
         let pad = 4
@@ -565,19 +765,22 @@ enum Railways {
     }
 
     static func plan(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
-        if let l = plan(gen, row: row, stretch: s, avoid: nil, need: oldMinStations) { return l }
+        gated(gen, old: { plan(gen, row: row, stretch: s, diagonal: false) }, new: { plan(gen, row: row, stretch: s, diagonal: true) })
+    }
+    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, diagonal: Bool) -> Line? {
+        if let l = plan(gen, row: row, stretch: s, avoid: nil, need: oldMinStations, diagonal: diagonal) { return l }
         guard let sc = gen.structures else { return nil }
         // Y5: the line as before failed; on an old save, its stations and legs on fresh ground still make a line.
-        if !sc.legacyC1.isEmpty, let fresh = FreshGround.guardSet(sc), let l = plan(gen, row: row, stretch: s, avoid: fresh, need: oldMinStations) { return l }
+        if !sc.legacyC1.isEmpty, let fresh = FreshGround.guardSet(sc), let l = plan(gen, row: row, stretch: s, avoid: fresh, need: oldMinStations, diagonal: diagonal) { return l }
         // P470 ("the trains were never added": over his playtests he never met one; 64 of 80 stretches round his
         // Capital City had fewer than three towns): two stations (towns or major sites) make a line, on ground no save
         // had generated before P470 (structure-guard-p470.txt), so explored land never grows half a railway.
-        return plan(gen, row: row, stretch: s, avoid: sc.legacyP470.isEmpty ? nil : sc.legacyP470, need: minStations)
+        return plan(gen, row: row, stretch: s, avoid: sc.legacyP470.isEmpty ? nil : sc.legacyP470, need: minStations, diagonal: diagonal)
     }
 
     // `avoid`: chunks no part of the line may come within 3 chunks of (a town or leg there ends the run).
     // `need`: stations a line needs (P470: with two, the major sites count toward it before the towns are counted).
-    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, avoid: Set<Int64>?, need: Int) -> Line? {
+    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, avoid: Set<Int64>?, need: Int, diagonal: Bool = false) -> Line? {
         guard let sc = gen.structures, let vt = sc.types.first(where: { $0.name == "village" }) else { return nil }
         func fresh(_ cells: [(Int, Int)]) -> Bool {
             guard let avoid, !avoid.isEmpty else { return true }
@@ -621,6 +824,8 @@ enum Railways {
         }
         // A dog-leg from the last town's straight to this one.
         func dogLeg(_ pe: (x: Int, z: Int), _ xa: Int, _ z: Int) -> [(Int, Int)]? {
+            // (N12: a diagonal leg with eased turns where one fits)
+            if diagonal, let l = smoothDogLeg(gen, sc, from: pe, to: (xa, z), lead: 8, except: except), fresh(l) { return l }
             var leg: [(Int, Int)]?
             let gap = xa - pe.x
             if gap >= 24 {
@@ -683,9 +888,11 @@ enum Railways {
         let first = bestStations.first!.name, last = bestStations.last!.name
         let name = lineName(first, last, gen.seed, row, s)
         if gen.fieldWorld {
-            guard let h = gentleProfile(gen, best, bestStations) else { tally?("field grade"); return nil }
+            guard let h = gentleProfile(gen, best, bestStations, diagonal: diagonal) else { tally?("field grade"); return nil }
             let cells = best.indices.map { IVec3(best[$0].x, Int(h[$0].rounded()), best[$0].z) }
-            return Line(id: key(row, s), name: name, cells: cells, stations: bestStations, heights: h)
+            let l = Line(id: key(row, s), name: name, cells: cells, stations: bestStations, heights: h)
+            l.diagonal = diagonal
+            return l
         }
         guard let levels = profile(gen, best, bestStations) else { tally?("block profile"); return nil }
         let cells = best.indices.map { IVec3(best[$0].x, levels[$0], best[$0].z) }
@@ -775,7 +982,8 @@ enum Railways {
     // `floatCurves`: a curve is levelled within what the ends reach at the grade (nearest its ground) instead of at its
     // ground, the track cut or banked to it (a terminus loop: its four corners on ground up to 10 apart were each fixed
     // at their own, and half the loops in the rail check failed the grade: "loop: field grade" 127 of 256 ends).
-    static func gentleProfile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station], ends: (Float, Float)? = nil, floatCurves: Bool = false) -> [Float]? {
+    static func gentleProfile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station], ends: (Float, Float)? = nil, floatCurves: Bool = false,
+                              diagonal: Bool = false) -> [Float]? {
         let n = cells.count
         guard n > 2 else { return nil }
         var target = [Float](repeating: Float(SEA + 2), count: n)
@@ -786,8 +994,10 @@ enum Railways {
             target[i] = Float(max(SEA + 2, min(CH - 12, g + 1)))
         }
         var fixed = [Float?](repeating: nil, count: n)
+        // (N12: a diagonal line's staircase is all curve cells; ShapeRails draws it as one smooth rail at the bed's own
+        // heights, so its turns climb with the grade like its straights)
         func isCurve(_ i: Int) -> Bool {
-            guard i > 0 && i + 1 < n else { return false }
+            guard !diagonal, i > 0 && i + 1 < n else { return false }
             let a = cells[i], p = cells[i - 1], q = cells[i + 1]
             return (a.x - p.x) != (q.x - a.x) || (a.z - p.z) != (q.z - a.z)
         }
@@ -860,6 +1070,9 @@ enum Railways {
             if !alongX || curve { bed.append((c.x + d, c.z)) }
         }
         if curve { bed += [(c.x - 1, c.z - 1), (c.x + 1, c.z - 1), (c.x - 1, c.z + 1), (c.x + 1, c.z + 1)] }
+        // N12: across a 45-degree staircase the 3 x 3 is 2.1 blocks wide, under a train 2.9 wide: a diagonal line's turn
+        // cells reach two out along both axes (3.5 across the diagonal).
+        if curve && l.diagonal { bed += [(c.x - 2, c.z), (c.x + 2, c.z), (c.x, c.z - 2), (c.x, c.z + 2)] }
         return (alongX, bed)
     }
 
@@ -884,11 +1097,14 @@ enum Railways {
                 print("railtrace: shapeBed chunk \(cx) \(cz) line \(l.id) heights \(l.heights != nil) cells \(l.cells.count), in chunk \(inside), shaped \(shaped); not: \(notes)")
             }
             guard let hs = l.heights else { continue }
+            // (N12: a diagonal line's beds overlap their neighbours' at other heights: each column is shaped by its
+            // nearest rail cell only, so the bed follows the grade across its whole width)
+            let owner = l.diagonal ? nearestCells(l, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1) : [:]
             for i in l.cells.indices {
                 let c = l.cells[i]
                 guard c.x >= bx - 2 && c.x < bx + CS + 2 && c.z >= bz - 2 && c.z < bz + CS + 2, c.y >= 1 && c.y < CH else { continue }
                 let f = max(-0.45, min(0.45, hs[i] - Float(c.y)))
-                for (x, z) in bed(l, i).cells where x >= bx && x < bx + CS && z >= bz && z < bz + CS {
+                for (x, z) in bed(l, i).cells where x >= bx && x < bx + CS && z >= bz && z < bz + CS && (!l.diagonal || owner[colKey(x, z)] == i) {
                     let j = (x - bx) + (z - bz) * CS + c.y * CSQ
                     guard fd[j - CSQ] > 0, fd[j] <= 0 else { continue }
                     fd[j - CSQ] = FieldTerrain.q(0.5 + f)
@@ -896,6 +1112,23 @@ enum Railways {
                 }
             }
         }
+    }
+
+    // N12: the rail cell of l nearest each bed column in the box (the first such cell on a tie), by column key.
+    static func colKey(_ x: Int, _ z: Int) -> Int64 { Int64(x) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: z))) }
+    static func nearestCells(_ l: Line, x0: Int, z0: Int, x1: Int, z1: Int) -> [Int64: Int] {
+        var best: [Int64: (Int, Int)] = [:]
+        guard l.maxX + 2 >= x0 && l.minX - 2 <= x1 && l.maxZ + 2 >= z0 && l.minZ - 2 <= z1 else { return [:] }
+        for i in l.cells.indices {
+            let c = l.cells[i]
+            guard c.x >= x0 - 2 && c.x <= x1 + 2 && c.z >= z0 - 2 && c.z <= z1 + 2 else { continue }
+            for (x, z) in bed(l, i).cells where x >= x0 && x <= x1 && z >= z0 && z <= z1 {
+                let d = (x - c.x) * (x - c.x) + (z - c.z) * (z - c.z), k = colKey(x, z)
+                if let b = best[k], b.0 <= d { continue }
+                best[k] = (d, i)
+            }
+        }
+        return best.mapValues { $0.1 }
     }
 
     // MARK: Drawing
@@ -935,12 +1168,15 @@ enum Railways {
         let bx = w.bx, bz = w.bz
         func inChunk(_ x: Int, _ z: Int, pad: Int) -> Bool { x >= bx - pad && x < bx + CS + pad && z >= bz - pad && z < bz + CS + pad }
         let n = l.cells.count
+        // (N12: on a diagonal line each bed column is laid by its nearest rail cell: a neighbour a block up or down
+        // would put its ballast or its cutting through this cell's)
+        let owner = l.diagonal ? nearestCells(l, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1) : [:]
         for i in 0..<n {
             let c = l.cells[i], y = c.y
             guard inChunk(c.x, c.z, pad: 2) else { continue }
             // Across the track: along x the bed spans z-1...z+1; along z it spans x-1...x+1 (both at a curve).
             let (alongX, bed) = Railways.bed(l, i)
-            for (x, z) in bed where w.inside(x, y, z) {
+            for (x, z) in bed where w.inside(x, y, z) && (!l.diagonal || owner[colKey(x, z)] == i) {
                 // Cutting / tunnel: six clear blocks over the track (P470: a real-size train is four and a half
                 // tall); trees overhead go (no floating trunks).
                 for yy in y...(y + 5) { w.set(x, yy, z, AIR) }
@@ -980,7 +1216,7 @@ enum Railways {
                         Railways.noteLock.lock(); Railways.deckNotes["\(x) \(y) \(z)"] = col; Railways.noteLock.unlock()
                     }
                     w.set(x, y - 1, z, deck)                                       // trestle deck
-                    let edge = (alongX && z != c.z) || (!alongX && x != c.x)
+                    let edge = l.diagonal ? abs(x - c.x) + abs(z - c.z) >= 2 : (alongX && z != c.z) || (!alongX && x != c.x)
                     if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - 48) }
                 }
             }

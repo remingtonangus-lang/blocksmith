@@ -171,22 +171,22 @@ extension Trains {
     static func placeBig(_ tr: Train, _ s: Float, _ dir: Float, _ dt: Float) -> Float {
         let t = tr.track
         let n = Float(t.cells.count), half = tr.length / 2
-        let lo = half + 3, hi = n - 4 - half
+        let lo = t.advance(0, by: half + 3), hi = t.advance(n - 1, by: -(half + 3))      // (N12: in blocks along the line)
         let sc = t.cyclic ? s : lo <= hi ? max(lo, min(hi, s)) : (n - 1) / 2       // (P511: a circuit has no ends to hold off)
-        let moving = abs(t.delta(tr.lastS, sc))
+        let moving = abs(t.distance(tr.lastS, sc))
         tr.lastS = sc
         tr.dir = dir
         let fs = tr.facing < 0 ? Float(-1) : 1                        // P508: the layout mirrored to run with the engine at -s
         for (k, m) in tr.cars.enumerated() where k < tr.layout.count {
             let (_, back0, off0) = tr.layout[k]
             let back = back0 != (fs < 0), off = off0 * fs
-            let sk = sc + off
+            let sk = t.advance(sc, by: off)
             let b = halfLength(m) * 0.7
-            var d = t.point(sk + b) - t.point(sk - b)
+            var d = t.point(t.advance(sk, by: b)) - t.point(t.advance(sk, by: -b))
             if back { d = -d }
             let p = t.point(sk)
             let along = simd_length(V2(d.x, d.z))
-            m.vel = dt > 0 ? simd_normalize(t.point(sk + dir * 0.7) - t.point(sk - dir * 0.7)) * (moving / max(dt, 1e-4)) : .zero
+            m.vel = dt > 0 ? simd_normalize(t.point(t.advance(sk, by: dir * 0.7)) - t.point(t.advance(sk, by: -dir * 0.7))) * (moving / max(dt, 1e-4)) : .zero
             m.pos = p
             if along > 0.01 { m.yaw = atan2f(-d.x, -d.z); m.trainPitch = atan2f(d.y, along) }
             m.walkPhase += moving * dir * (back ? -1 : 1)           // (blocks run forward: the wheels turn by it)
