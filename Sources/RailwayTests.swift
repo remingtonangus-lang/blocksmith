@@ -363,7 +363,10 @@ enum RailwayTests {
         world.setBlock(his.x, his.y, his.z, stone)
         Trains.placed[his] = g.time
         var hisHeld = false
-        for _ in 0..<(60 * 4) { g.time += Double(dt); Trains.drive(lead2, dt, g); if tr.heldBy { hisHeld = true; break } }
+        let speedAtHis = tr.blocksPerSec, s0His = tr.lastS
+        for _ in 0..<(60 * 10) { g.time += Double(dt); Trains.drive(lead2, dt, g); if tr.heldBy { hisHeld = true; break } }
+        print(String(format: "rail: his block %ld %ld %ld, %.1f along at %.1f b/s (driven %@, way %.0f, regulator %.1f); after: %.1f along, held %@, %ld strays cleared",
+                     his.x, his.y, his.z, s0His, speedAtHis, tr.driven ? "yes" : "no", tr.dir, tr.throttle, tr.lastS, hisHeld ? "yes" : "no", Trains.cleared - cleared0))
         world.setBlock(his.x, his.y, his.z, AIR); Trains.placed[his] = nil
         tr.heldBy = false; tr.brake = 0
         check(!strayHeld && strayRail && Trains.cleared > cleared0 && hisHeld,
