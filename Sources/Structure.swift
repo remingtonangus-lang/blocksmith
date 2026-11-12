@@ -530,7 +530,8 @@ enum Structure {
             checks += 1
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             worstMs = max(worstMs, ms); totalMs += ms
-            if r.capped, let piece = loose(w, near: p) { g.topple(piece) }     // P407: a tower cut from its footing
+            let cut = r.capped ? looseAll(w, near: p) : []
+            if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
             else if !r.falls.isEmpty { drop(g, r.falls) }
             if !w.pieces.isEmpty { pieces(g, near: V3(Float(p.x), Float(p.y), Float(p.z))) }
         }
@@ -631,14 +632,21 @@ enum Structure {
     // nothing holds (no block of it on the ground, bedrock or water) is returned to fall as one body. The fill ends at the
     // first block on the ground, so a standing building costs only the way to its nearest footing.
     private static let looseSeen = CellSet(capacity: 8192), looseHeld = CellSet(capacity: 8192)
-    static func loose(_ w: World, near p: IVec3, limit: Int = 24_000) -> [IVec3]? {
+    static func loose(_ w: World, near p: IVec3, limit: Int = 24_000) -> [IVec3]? { looseAll(w, near: p, limit: limit).first }
+    // Nov 12 playtest (06:21:17, a Boreal tower shot through from the roof gun: its top, penthouse and mast, stayed up):
+    // the search above returned the first piece it found loose, and what was taken out with it was taken out quietly (no
+    // check after), so a second piece beside the same change, cut loose by the same shot, hung on. Every loose piece
+    // beside the change is returned now. (BS_OLDLOOSE=1: the first only, as before)
+    static let oldLoose = ProcessInfo.processInfo.environment["BS_OLDLOOSE"] == "1"
+    static func looseAll(_ w: World, near p: IVec3, limit: Int = 24_000) -> [[IVec3]] {
         let held = looseHeld, seen = looseSeen
         held.removeAll()
         var cur = ChunkCursor(w)
         let K = nbrs.count
+        var found: [[IVec3]] = [], taken = Set<IVec3>()
         for d in [IVec3(0, 0, 0)] + nbrs {
             let s0 = p + d
-            guard !held.contains(s0), part(&cur, s0.x, s0.y, s0.z) != nil else { continue }
+            guard !held.contains(s0), !taken.contains(s0), part(&cur, s0.x, s0.y, s0.z) != nil else { continue }
             seen.removeAll(); seen.insert(s0)
             var comp = [s0], h = 0, anchored = false
             fill: while h < comp.count {
@@ -655,9 +663,11 @@ enum Structure {
                 }
             }
             if anchored { for q in comp { held.insert(q) }; continue }
-            return comp
+            found.append(comp)
+            if oldLoose { return found }
+            for q in comp { taken.insert(q) }
         }
-        return nil
+        return found
     }
 
     // (3) A falling block meeting built block `onto` after falling `fell` blocks: does it break through?

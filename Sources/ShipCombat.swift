@@ -130,7 +130,8 @@ extension ShipManager {
             }
             // P507 (Nov 1 12:09:20, a crawler's guns: "we need to increase the rate of fire"): a war vessel's guns he steers
             // reload in 60% of their crews' time.
-            let quickHands: Float = game != nil && pilot?.root === t.root && t.root.role != nil && t.root.role != "dropship" ? 0.6 : 1
+            let quickHands: Float = game != nil && ((pilot?.root === t.root && t.root.role != nil && t.root.role != "dropship")
+                                                    || (!GunStationPlay.old && GunStationPlay.cur?.turret === t)) ? 0.6 : 1   // (his own hands at a gun station too)
             t.reload = (calReload > 0 ? calReload : t.reloadTime * (1 + 0.1 * Float(longest))) * quickHands
         }
         return fired

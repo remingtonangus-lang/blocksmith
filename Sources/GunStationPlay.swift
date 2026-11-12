@@ -140,7 +140,9 @@ enum GunStationCheck {
             ships.update(dt, game: g)
             volleys += ships.shells.dropFirst(min(n0, ships.shells.count)).filter { ids.contains($0.owner) }.count
         }
-        print("gunstation: a stopped crawler's guns fired \(volleys) rounds at him in 10 s")
+        let manned = (0..<ships.turrets(of: v).count).filter { st.turretManned($0) }.count
+        let seen = w.clearShot(v.pos, g.player.eye) || w.clearShot(V3(v.pos.x, v.worldMax.y + 1, v.pos.z), g.player.eye)
+        print("gunstation: a stopped crawler's guns fired \(volleys) rounds at him in 10 s (asleep \(v.asleep), target \(st.target.map { $0.player ? "him" : "other" } ?? "none"), manned \(manned) of \(ships.turrets(of: v).count), in plain sight \(seen), difficulty \(g.difficulty), \(Int(ships.boundsDistance(v, g.player.pos))) off)")
         check(volleys > 0 || ShipManager.oldWreckGuns, "gunstation: a crawler stopped where it stands fights on with its manned guns (\(volleys) rounds in 10 s)")
         // Then he boards her and takes a gun's station.
         let taken = g.takeGunStation(v, seat.console) && GunStationPlay.cur != nil
@@ -160,7 +162,7 @@ enum GunStationCheck {
         let seatW = v.toWorld(V3(Float(seat.chair.x) + 0.5, Float(seat.chair.y) + 0.1, Float(seat.chair.z) + 0.5))
         let inChair = simd_length(g.player.pos - seatW) < 0.2
         let shots0 = GunStationPlay.shots, shells0 = ships.shells.count
-        for _ in 0..<(72 * 6) {
+        for _ in 0..<(72 * 10) {
             _ = g.gunStationTick(MoveInput(), dt)
             g.gunStationFire(breakNow: false, breakHeld: true)
             ships.update(dt, game: g)
