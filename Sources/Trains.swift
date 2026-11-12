@@ -499,6 +499,11 @@ enum Trains {
             let ahead = tr.layout.isEmpty ? s0 + dir0 * (gap * 0.75 + 1.2) : tr.lastS + dir0 * (tr.length / 2 + 1.5)    // (P470: the front's nose)
             let c = t.cell(ahead)
             let b = g.world.block(c.x, c.y, c.z)
+            if let w = Trains.watch, tr.driven, abs(c.x - w.x) + abs(c.z - w.z) < 12 {
+                print(String(format: "train trace: track %ld s %.2f dir %.0f ahead %.2f cell %ld %ld %ld %@ placed %@ stop %@ armoured %@ driveV %.1f",
+                             t.id, tr.lastS, dir0, ahead, c.x, c.y, c.z, Blocks.key(b), placed[c] != nil ? "yes" : "no",
+                             now(tr).stop == nil ? "none" : "yes", t.armoured ? "yes" : "no", tr.driveV))
+            }
             if Blocks.collide[Int(b)] && !Rails.isRail(b) && now(tr).stop == nil && !t.armoured {
                 // P510 (Nov 1 20:39, "Why isn't it moving?... Train's broken for some reason. Fix it"): only a block he
                 // put there stops it. Anything else on the rail (a structure, a road or a tree drawn over the line after
@@ -618,6 +623,7 @@ enum Trains {
     // engine from the cab tops it up; with none the fire dies and the train rolls to a stand. When he leaves the cab the
     // timetable takes the train up where it is. BS_OLDCAB=1: the old regulator over the timetable.
     static let oldCab = ProcessInfo.processInfo.environment["BS_OLDCAB"] == "1"
+    static var watch: IVec3?                                     // (RailwayTests: each frame of a driven train's nose near this cell)
     static let topSpeed: Float = 28, backSpeed: Float = 7       // blocks a second at full regulator, ahead and backing
     static let tractive: Float = 2.2, coast: Float = 0.35, brakeRate: Float = 5      // blocks a second, each second
     static let tenderStart: Float = 24, tenderMax: Float = 64

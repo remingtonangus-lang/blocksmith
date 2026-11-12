@@ -362,6 +362,9 @@ enum RailwayTests {
         let his = aheadCell(6)
         world.setBlock(his.x, his.y, his.z, stone)
         Trains.placed[his] = g.time
+        Trains.watch = his
+        defer { Trains.watch = nil }
+        print(String(format: "rail: his block on track %ld at %ld %ld %ld (%@)", tr.track.id, his.x, his.y, his.z, Blocks.key(world.block(his.x, his.y, his.z))))
         var hisHeld = false
         let speedAtHis = tr.blocksPerSec, s0His = tr.lastS
         for _ in 0..<(60 * 10) { g.time += Double(dt); Trains.drive(lead2, dt, g); if tr.heldBy { hisHeld = true; break } }
