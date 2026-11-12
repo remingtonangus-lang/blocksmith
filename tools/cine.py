@@ -28,7 +28,7 @@ CUT = [
     ("train", 3.5, "Ride the rails across the frontier", [], {"xf": 0, "ss": 2.5}),
     ("build_cabin", 4.5, "Build anything, block by block", [], {"xf": 0, "speed": 1.6}),
     ("station_air", 3.2, "Infiltrate a secret base in the snow", [], {"xf": 0, "ss": 2.0}),
-    ("station_gate", 2.2, None, [], {"xf": 0, "ss": 2.5}),
+    ("station_gate", 2.2, None, [], {"xf": 0, "ss": 0.8}),
     ("station_corridor", 1.5, None, [], {"xf": 0}),
     ("war_advance", 2.8, "Shoot it out with outlaws", [(0.9, "explodeLarge.wav", 1.0), (2.2, "explodeLarge_1.wav", 0.9)], {"xf": 0, "ss": 0.1}),
     ("frigate_fire", 3.0, "Command a warship in the sky", [], {"xf": 0, "ss": 0.5}),
