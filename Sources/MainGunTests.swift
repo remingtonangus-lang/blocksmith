@@ -340,6 +340,7 @@ enum MainGunTests {
             }
         }
         MainGunPerf.finish(budget: 1000.0 / 72)
+        let openInWindow = MainGun.lastOpenFrames            // (-1: still opening when the timed window closed)
         check(w.gravityQueue.count < Game.gravityChecksPerTick * 4,
               "maingun: the crater's support checks drain within the window (\(w.gravityQueue.count) cells left; \(Game.gravityChecksPerTick) a tick)")
         check(impactFrame >= 0 && MainGun.lastCrater > 2000 && MainGun.lastCrater <= MainGun.craterCap,
@@ -368,6 +369,8 @@ enum MainGunTests {
             check(MainGun.lastScorched > 200 && burnt * 2 > solid && burnt > 40 && scorchedRim > 30,
                   "maingun: the crater is scorched (\(MainGun.lastScorched) blocks burnt: \(burnt) of \(solid) solid tops in the bowl black, \(scorchedRim) scorched earth round the rim; bowl tops \(bowlTops.sorted { $0.value > $1.value }.prefix(6).map { "\($0.key) \($0.value)" }.joined(separator: ", ")))")
         }
+        // (Nov 12, Remington: "the crater took too long to form") How long the bowl took to open, through the game's tick.
+        print("maingun: \(MainGun.warmed) ground sections given their fine samples during the charge (BS_OLDCRATERWARM=\(MainGun.oldWarm ? 1 : 0)); the bowl opened over " + MainGun.lastOpen + (openInWindow < 0 ? " (still opening when the 4 s window closed; finished untimed)" : ""))
         if !tickMs.isEmpty {
             let srt = tickMs.sorted()
             print(String(format: "maingun: frame thread for %.1f s after the impact (host): median %.2f ms, p99 %.2f ms, worst %.2f ms; first frame %.2f ms",

@@ -54,7 +54,10 @@ enum MainGun {
     }
 
 
-    static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0; lastScorched = 0 }
+    static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0; lastScorched = 0; lastOpen = ""; lastOpenFrames = -1 }
+    static var lastOpen = "", lastOpenFrames = -1       // the last bowl: frames from the impact until it was open, by phase
+    static let oldWarm = ProcessInfo.processInfo.environment["BS_OLDCRATERWARM"] == "1"   // (ShipManager.warmBowl)
+    static var warmed = 0                               // sections given their fine samples during a charge (MainGunTests)
     static func noteCrater(_ n: Int, scorched: Int = 0) { lastCrater = n; lastScorched = scorched }
     static var craterStepMs: Double = 0                 // the crater's slice this frame, ms (MainGunTests)
     static var impactMs: Double = 0                     // the impact frame's own work, ms
@@ -105,8 +108,9 @@ extension ShipManager {
         // What the slug will land on (a citadel, a Capital city, Boreal Station) is looked up at the impact; a first look
         // at a structure region plans it (76 ms on the host, the impact frame's whole hitch). Plan the regions round the
         // likely landing on a worker during the charge, so the impact finds them cached.
+        st.gunWarm = byPlayer ? mainGunAimPoint(s, st) : st.target?.point      // (warmBowl)
+        let warm = st.gunWarm ?? (s.toWorld(st.mainGunMuzzle) + md * 200)
         if world.dim == .overworld, let sc = world.gen.structures {
-            let warm = (byPlayer ? mainGunAimPoint(s, st) : st.target?.point) ?? (s.toWorld(st.mainGunMuzzle) + md * 200)
             DispatchQueue.global(qos: .utility).async {
                 MainGunStrikes.prewarm(sc, at: warm)
                 _ = Explosion.craterOffsets(Int(ceilf(MainGun.craterRadius)), depth: MainGun.craterDepth)   // (sorted once: the bowl's cells)
@@ -136,12 +140,28 @@ extension ShipManager {
         }
     }
 
+    // (Nov 12, Remington on the trailer's strike: "the crater took too long to form") A bowl waited at its impact for its
+    // ground's chunks (up to 2 s), then gave each ground section it reaches its fine samples one a frame (up to 48 frames,
+    // 0.67 s), then scanned for circuit parts, before a block went. All three are known 2.6 s ahead, during the charge, at
+    // the point the shot will land: the chunks are called back and the sections given their samples then, one a frame out
+    // of the bowls' shared allowance, so at the impact the bowl starts carving on the next frame. BS_OLDCRATERWARM=1: before.
+    func warmBowl(_ st: CapitalState) {
+        guard !MainGun.oldWarm, let p = (st.gunByPlayer ? st.aimPoint : st.bombardAt ?? st.target?.point) ?? st.gunWarm else { return }
+        let reach = Int(ceilf(max(MainGun.craterRadius * 1.5, Float(MainGun.craterDepth)))) + 3
+        guard world.isLoaded(Int(floor(p.x)), Int(floor(p.z))), world.dataReady(around: p, reach: reach) else { return }
+        guard CraterJob.allowance() > 0 else { return }
+        let a = CFAbsoluteTimeGetCurrent()
+        if world.prefetchFine(p, radius: max(MainGun.craterRadius, Float(MainGun.craterDepth))) { MainGun.warmed += 1 }
+        CraterJob.spend(CFAbsoluteTimeGetCurrent() - a)
+    }
+
     // Per frame for every Meridian frigate: the charge's light, sparks, shake and haptics; the shot when it is full.
     func mainGunTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         guard st.gunCharge >= 0 else { return }
         if let b = st.bombardAt { bombardMark(b, charge: st.gunCharge / MainGun.chargeTime, dt: dt, game: g) }
         if s.wrecked && !(s.captured && st.gunByPlayer) || (!st.gunByPlayer && !st.driverAlive) { st.gunCharge = -1; return }   // (P483)
         st.gunCharge += dt
+        warmBowl(st)
         let k = min(1, st.gunCharge / MainGun.chargeTime)
         let md = s.dirToWorld(st.mainGunDir)
         let mw = s.toWorld(st.mainGunMuzzle)
@@ -388,11 +408,15 @@ extension ShipManager {
         for w in shockwaves {
             // (from the frame after the impact: run late in the tick, a wave's age has had this tick's dt added)
             let after = CraterJob.inTick ? w.age > shockDt * 1.5 : w.age > 0
-            if let j = w.crater, !j.done, after, CraterJob.allowance() > 0 {
+            guard let j = w.crater, !j.done, after else { continue }
+            j.stepPhase = nil
+            if CraterJob.allowance() > 0 {
                 let a = CFAbsoluteTimeGetCurrent()
                 if j.step(g, blocks: CraterJob.blocksPerFrame) { MainGun.noteCrater(j.removed, scorched: j.scorched) }
                 MainGun.craterStepMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
             }
+            j.tally(j.stepPhase ?? "starved")
+            if j.done { MainGun.lastOpen = j.openSummary; MainGun.lastOpenFrames = j.frames }
         }
     }
 

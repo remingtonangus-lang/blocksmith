@@ -110,6 +110,7 @@ final class CapitalState {
     var gunByPlayer = false            // the charge was started from the helm (fires along the barrel, P325)
     var gunPulse: Float = 0            // seconds to the next haptic coil thump while charging
     var aimPoint: V3?                  // the helm's predicted impact (MainGun.swift mainGunAimTick), nil when off the world
+    var gunWarm: V3?                   // where the charging Tidebreaker's shot looked set to land at the charge's start (MainGun.warmBowl)
     var bombardAt: V3?                 // P99: the ground the crew's charging Tidebreaker will strike near a player
     var pingAt: V3?                    // C8: where its sonar last heard a submarine (it steers there while nothing is in sight)
     var pingT: Float = 0               // ... seconds since that ping (it gives up after 60)
