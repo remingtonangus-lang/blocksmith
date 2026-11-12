@@ -110,3 +110,7 @@ this list and ask whether the work repeats one of these.
   on a steep forest slope 20 of 28 views still show a hole from low side angles (28 before, a third of the pixels);
   that third cause is open and is the next work. This entry is not closed until that sweep is clean on every biome
   and both seeds.
+- **Third cause (Nov 12, the PR after #711, ledger 98):** steep ground across the border left the neighbour's
+  in-between vertices out; the half-block ground is now stitched along them. Forest: 20 views with a hole
+  (11,341 px) to 13 (698 px); plains clean. STILL NOT DONE: 13 forest views keep a small hole. A new check reads the
+  mesh itself (`--watertight`), so what is left is counted without a camera. Not closed.

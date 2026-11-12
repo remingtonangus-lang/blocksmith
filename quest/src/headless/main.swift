@@ -1837,6 +1837,101 @@ if let out = arg("--view"), let ctx = vkctx {
                 print("view: dump \(x) \(z): " + col.joined(separator: " "))
             } }
         }
+        // --watertight BLOCKS (Nov 12, FAILURES 4): the ground's mesh itself, not a view of it. Every ground quad of the
+        // loaded sections (near meshes), in world 1/16 blocks: an edge only one quad has is open, a hole's rim, unless
+        // other open edges run along it end to end (a vertex on an edge, no gap). Lists the open edges within BLOCKS of
+        // the eye, grouped where they touch. (BS_ADAPTIVE=0: the ground before its flat quads are joined.)
+        if let wr = Int(arg("--watertight") ?? "") {
+            struct P: Hashable { var x: Int32, y: Int32, z: Int32 }
+            struct E: Hashable { var a: P, b: P }
+            func ord(_ a: P, _ b: P) -> E { (a.x, a.y, a.z) < (b.x, b.y, b.z) ? E(a: a, b: b) : E(a: b, b: a) }
+            var count: [E: Int32] = [:]
+            var seenQ = Set<[P]>()
+            var quads = 0
+            for c in vw.chunks.values { for (sy, s) in c.sections.enumerated() {
+                guard let b = s.opaqueBuf, s.opaqueQuads > 0 else { continue }
+                let n = s.opaqueQuads * 4
+                let p = (b.buffer.contents() + b.offset).bindMemory(to: UInt64.self, capacity: n)
+                for q in 0..<s.opaqueQuads {
+                    var v: [P] = []
+                    var ground = true
+                    for k in 0..<4 {
+                        let w = p[q * 4 + k], w0 = UInt32(truncatingIfNeeded: w), u = (w >> 32) & 31
+                        if u != 30 && u != 31 { ground = false; break }
+                        v.append(P(x: Int32(c.cx * 256) + Int32(w0 & 511), y: Int32(sy * 256) + Int32((w0 >> 9) & 511), z: Int32(c.cz * 256) + Int32((w0 >> 18) & 511)))
+                    }
+                    guard ground else { continue }
+                    let key = v.sorted { ($0.x, $0.y, $0.z) < ($1.x, $1.y, $1.z) }
+                    guard seenQ.insert(key).inserted else { continue }       // (a closing triangle is drawn from both sides)
+                    quads += 1
+                    for k in 0..<4 where v[k] != v[(k + 1) & 3] { count[ord(v[k], v[(k + 1) & 3]), default: 0] += 1 }
+                }
+            } }
+            var open = count.filter { $0.value == 1 }.map { $0.key }
+            var from: [P: [P]] = [:]
+            for e in open { from[e.a, default: []].append(e.b); from[e.b, default: []].append(e.a) }
+            // (covered: other open edges run from a to b along the same line)
+            func covered(_ a: P, _ b: P, _ depth: Int) -> Bool {
+                guard depth < 8 else { return false }
+                let dx = Int(b.x - a.x), dy = Int(b.y - a.y), dz = Int(b.z - a.z), len = dx * dx + dy * dy + dz * dz
+                for c in from[a] ?? [] where c != b {
+                    let ex = Int(c.x - a.x), ey = Int(c.y - a.y), ez = Int(c.z - a.z)
+                    guard ey * dz - ez * dy == 0, ez * dx - ex * dz == 0, ex * dy - ey * dx == 0 else { continue }
+                    let dot = ex * dx + ey * dy + ez * dz
+                    guard dot > 0, ex * ex + ey * ey + ez * ez < len else { continue }
+                    if (from[c] ?? []).contains(b) || covered(c, b, depth + 1) { return true }
+                }
+                return false
+            }
+            // (and the pieces that cover a longer edge are closed by it)
+            var closed = Set<E>()
+            for e in open where covered(e.a, e.b, 0) || covered(e.b, e.a, 0) {
+                closed.insert(e)
+                var a = e.a
+                var guardN = 0
+                while a != e.b && guardN < 16 {
+                    guardN += 1
+                    let dx = Int(e.b.x - a.x), dy = Int(e.b.y - a.y), dz = Int(e.b.z - a.z)
+                    var nextP: P? = nil, best = Int.max
+                    for c in from[a] ?? [] {
+                        let ex = Int(c.x - a.x), ey = Int(c.y - a.y), ez = Int(c.z - a.z)
+                        guard ey * dz - ez * dy == 0, ez * dx - ex * dz == 0, ex * dy - ey * dx == 0, ex * dx + ey * dy + ez * dz > 0 else { continue }
+                        let l = ex * ex + ey * ey + ez * ez
+                        if l <= dx * dx + dy * dy + dz * dz && l < best { best = l; nextP = c }
+                    }
+                    guard let np = nextP else { break }
+                    closed.insert(ord(a, np)); a = np
+                }
+            }
+            open = open.filter { !closed.contains($0) }
+            let ex = Int32(vg.player.pos.x * 16), ez = Int32(vg.player.pos.z * 16), lim = Int32(wr * 16)
+            open = open.filter { max(abs($0.a.x - ex), abs($0.a.z - ez)) <= lim && max(abs($0.b.x - ex), abs($0.b.z - ez)) <= lim }
+            // (groups: open edges that share a vertex)
+            var group: [P: Int] = [:], groups: [[E]] = []
+            var adj: [P: [E]] = [:]
+            for e in open { adj[e.a, default: []].append(e); adj[e.b, default: []].append(e) }
+            for e in open where group[e.a] == nil {
+                let g = groups.count
+                groups.append([])
+                var stack = [e.a]
+                group[e.a] = g
+                var inG = Set<E>()
+                while let v = stack.popLast() {
+                    for f in adj[v] ?? [] {
+                        if inG.insert(f).inserted { groups[g].append(f) }
+                        for w in [f.a, f.b] where group[w] == nil { group[w] = g; stack.append(w) }
+                    }
+                }
+            }
+            func f(_ p: P) -> String { String(format: "%.2f %.2f %.2f", Float(p.x) / 16, Float(p.y) / 16, Float(p.z) / 16) }
+            print("watertight: \(quads) ground quads, \(open.count) open edges in \(groups.count) groups within \(wr) blocks of the eye")
+            let far = arg("--watertight-all") != nil ? 400 : 24
+            for g in groups.sorted(by: { $0.count > $1.count }).prefix(far) {
+                var lo = g[0].a, hi = g[0].a
+                for e in g { for v in [e.a, e.b] { lo = P(x: min(lo.x, v.x), y: min(lo.y, v.y), z: min(lo.z, v.z)); hi = P(x: max(hi.x, v.x), y: max(hi.y, v.y), z: max(hi.z, v.z)) } }
+                print("watertight: group of \(g.count) from \(f(lo)) to \(f(hi)): " + g.prefix(10).map { "[\(f($0.a)) | \(f($0.b))]" }.joined(separator: " "))
+            }
+        }
         if CommandLine.arguments.contains("--voidcount") {
             var img = RenderTest.lastRGBA
             let vc = RenderTest.countVoid(img, width: vwid, height: vhei, eyes: 2, fovDeg: vfov, pitch: pitch)

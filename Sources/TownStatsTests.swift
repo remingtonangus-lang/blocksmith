@@ -90,7 +90,11 @@ extension TownTests {
             let torso = townsfolkParts(m, swing: 0).filter { abs($0.mn.y - 13) < 0.01 && abs($0.mx.y - 23.5) < 0.01 }
             return torso.map { $0.mx.x - $0.mn.x }.max() ?? 0
         }
-        check(width(smith) > width(elder) + 0.6, String(format: "variety: a blacksmith is built broader (%.1f px) than an elder (%.1f px)", width(smith), width(elder)))
+        // (Nov 12 check fix: one blacksmith against one elder failed about one run in three on the full suite, 8.4 px
+        // against 7.9: both roll their build, and where the test stands decides the roll. Forty of each, on average.)
+        let smithW = (0..<40).map { width(person("shop_blacksmith", 60 + $0)) }.reduce(0, +) / 40
+        let elderW = (0..<40).map { width(person("elder", 110 + $0)) }.reduce(0, +) / 40
+        check(smithW > elderW + 0.6, String(format: "variety: blacksmiths are built broader (%.1f px on average) than elders (%.1f px)", smithW, elderW))
         let line = TownStatsHUD.describe(smith)
         check(line.hasPrefix(smith.villager?.person ?? "?") && line.contains("blacksmith") && line.contains("strong"), "variety: the crosshair line reads \"\(line)\"")
         g.mobs.mobs = [smith]
