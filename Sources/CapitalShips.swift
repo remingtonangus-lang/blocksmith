@@ -3799,6 +3799,7 @@ extension Capital {
     static let restartTime: Float = 12     // P464: seconds till stopped engines (blocks in place) catch again
     // P483: rounds aboard for the guns he fires from the helm: a dropship's autocannon 600 (four minutes held), a
     // frigate's 40 a gun (each salvo spends one a barrel), a crawler's 30 a gun.
+    static let oldCreativeAmmo = ProcessInfo.processInfo.environment["BS_OLDCREATIVEAMMO"] == "1"
     static func magazine(_ s: Ship, barrels: Int) -> Int {
         if s.role == "dropship" { return 600 }
         // P507 (Nov 1 12:10:30 at a crawler's helm: "The magazine should hold more"): two and a half times what it was

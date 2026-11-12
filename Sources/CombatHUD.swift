@@ -157,7 +157,7 @@ final class CombatHUD {
             // The magazine (P483: a war vessel's guns draw on it), and the tank or the lift.
             let ry = y0 + 11 * s
             var roundsEnd = x
-            if VehicleControls.armed(g, ship), let n = g.world.ships.magazineLeft(ship) {
+            if VehicleControls.armed(g, ship), g.survival || Capital.oldCreativeAmmo, let n = g.world.ships.magazineLeft(ship) {     // (creative: no magazine)
                 let t = "Rounds \(n)"
                 out.append(HudLine(text: t, x: x, y: ry, scale: s, color: n == 0 ? Settings.shared.badColor : V4(0.85, 0.85, 0.85, 1)))
                 roundsEnd = x + Float(Font.width(t)) * s

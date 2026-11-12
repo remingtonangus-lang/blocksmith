@@ -94,7 +94,7 @@ extension Game {
     func gunStationFire(breakNow: Bool, breakHeld: Bool) {
         guard let c = GunStationPlay.cur, let v = c.hull, let t = c.turret, breakNow || breakHeld, t.reload <= 0 else { return }
         let ships = world.ships
-        let st = ships.capState[v.id]
+        let st = survival || Capital.oldCreativeAmmo ? ships.capState[v.id] : nil       // (creative: no magazine)
         if let st, st.rounds < 0 { st.rounds = Capital.magazine(v, barrels: ([v] + ships.turrets(of: v)).reduce(0) { $0 + $1.cannons.count }) }
         if let st, st.rounds <= 0 {
             if breakNow { onToast?("The magazine is empty"); sfx(.click, 0.5) }
