@@ -2002,8 +2002,8 @@ do {
           "axis place: \(groups) blocks with an [x] state (\(twoWay) two-way, no [z]) placed along x, z and y, each a state of its own (wrong: \(wrong))")
 }
 // Ledger 89 (trailer item 5): a built block over the field's ground beside a dip draws a foot down into it; its lower
-// corners carried a v past the vertex's 5 bits into the layer (a snow block's foot drew cactus). Dig beside a snow
-// block and a grass block set on the ground of a small field world, remesh, and no vertex may carry a u or v past 31.
+// corners carried a v past the vertex's 5 bits into the layer (a snow block's foot drew cactus). Dig beside a stone
+// brick and a plank set on the ground of a small field world, remesh, and no vertex may carry a u or v past 31.
 do {
     let fw = World(seed: seed, device: device, save: nil)
     fw.makeFieldWorld()
@@ -2015,7 +2015,8 @@ do {
     let uvBefore = Mesher.uvOverflow                     // (kept for the whole run's check at the end)
     Mesher.uvOverflow = -1
     var feet = 0
-    for (k, b) in [SNOW, GRASS].enumerated() {
+    // (built blocks: a natural block he places joins the field's ground and is drawn smooth, with no foot)
+    for (k, b) in [Blocks.id("stone_bricks"), Blocks.id("oak_planks")].enumerated() {
         let x = Int(floor(at.x)) + k * 6, z = Int(floor(at.z))
         var gy = CH - 2
         while gy > 1 && !(SmoothTerrain.natural[Int(fw.block(x, gy, z))] && Blocks.opaque[Int(fw.block(x, gy, z))]) { gy -= 1 }
@@ -2032,7 +2033,7 @@ do {
         for sy in max(0, gy / 16 - 1)...min(NSEC - 1, gy / 16 + 1) { fw.remeshSync(c, sy) }
     } }
     let ov = Mesher.uvOverflow
-    check(feet == 2 && ov < 0, "block feet: a snow block and a grass block over dug field ground mesh with every u and v in 5 bits (\(feet) set\(ov < 0 ? "" : ", u \(ov / 1000) v \(ov % 1000)"))")
+    check(feet == 2 && ov < 0, "block feet: a stone brick and a plank over dug field ground mesh with every u and v in 5 bits (\(feet) set\(ov < 0 ? "" : ", u \(ov / 1000) v \(ov % 1000)"))")
     SmoothTerrain.set(smooth0, world: nil)
     if Mesher.uvOverflow < 0 { Mesher.uvOverflow = uvBefore }
 }
