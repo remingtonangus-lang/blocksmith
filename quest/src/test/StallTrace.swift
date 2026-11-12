@@ -28,6 +28,7 @@ enum StallTrace {
     static var frame: Int32 = 0
     static var mainThread = pthread_self()
     static var after: UInt64 = 12_000_000              // ns into a frame before sampling starts
+    static var afterNs: UInt64 { after }
     static var baseAddr: UInt = 0
     static var slowFrames: [(Int32, Double, String)] = []
 
@@ -109,6 +110,7 @@ enum StallTrace {
     }
     #else
     static func install() {}
+    static let afterNs: UInt64 = 12_000_000
     @inline(__always) static func begin(_ f: Int) {}
     @inline(__always) static func end(slow: Bool, ms: Double, what: @autoclosure () -> String) {}
     static func write() {}
