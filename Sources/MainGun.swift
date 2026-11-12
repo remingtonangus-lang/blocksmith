@@ -23,6 +23,11 @@ enum MainGun {
     static let aiReload: Float = 30
     static let slugSpeed: Float = 700
     static let oldWake = ProcessInfo.processInfo.environment["BS_OLDWAKE"] == "1"
+    // Nov 12 (his notes on the 08:46 trailer cut, 37-38.5 s, the main-gun strike on the town: "an explosion renders too
+    // slowly"): the fireball's puffs were all made at the impact, but packed into the middle half of the bowl and thrown
+    // out at 8-20 blocks a second, so the ball swelled from a small knot to its full size over about a second and a half.
+    // A blast is full size at once: the puffs start out over the whole ball and only roll on slowly. BS_OLDFIREBALL=1.
+    static let oldFireball = ProcessInfo.processInfo.environment["BS_OLDFIREBALL"] == "1"
     static let craterRadius: Float = 13
     // P99 (Remington, Oct 12: "a crater at least 20 blocks deep"): the bowl reaches 26 down at its deepest (the
     // ragged edge takes up to a fifth off, so never less than 20 under the impact); it was two thirds of the radius.
@@ -313,9 +318,10 @@ extension ShipManager {
     func mainGunFireball(at p: V3, game g: Game) {
         let smoke = Int(Tex.id("puff"))
         let R = MainGun.craterRadius
+        let quick = !MainGun.oldFireball
         // The fireball rolling out over the bowl, hottest at its heart.
         for _ in 0..<16 {
-            let o = V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)) * (R * 0.25)
+            let o = V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)) * (R * (quick ? 0.35 : 0.25))
             g.particles.add(Particle(pos: p + o + V3(0, 3, 0), vel: o * 0.8, life: Rand.float(in: 0.25...0.5), maxLife: 0.5, layer: smoke,
                                      uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 6...10), gravity: -2, color: V3(1, 0.95, 0.7),
                                      collide: false, glow: true))
@@ -325,7 +331,10 @@ extension ShipManager {
             let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)))
             let out = Rand.float(in: 0...1)
             let hot = 1 - out
-            g.particles.add(Particle(pos: p + d * (out * R * 0.5), vel: d * Rand.float(in: 8...20) + V3(0, 5, 0),
+            // (quick: out over the whole ball at once, rolling on at 2-6 a second; the hot heart's puffs stay in close)
+            let at = quick ? p + d * (out * R * 0.85) + V3(0, 2, 0) : p + d * (out * R * 0.5)
+            let speed = quick ? Rand.float(in: 2...6) : Rand.float(in: 8...20)
+            g.particles.add(Particle(pos: at, vel: d * speed + V3(0, quick ? 3 : 5, 0),
                                      life: Rand.float(in: 0.6...1.8), maxLife: 1.8, layer: smoke, uv0: V2(0, 0), uvSize: 1,
                                      size: Rand.float(in: 3.5...9) * (0.7 + 0.5 * out), gravity: -3,
                                      color: V3(1, 0.28 + 0.62 * hot, 0.08 + 0.5 * hot * hot), collide: false, glow: true))
