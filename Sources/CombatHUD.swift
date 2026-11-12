@@ -35,8 +35,9 @@ final class CombatHUD {
     // The panel's box: x - 3s, y0 - 4s, w + 6s wide, `rows` x s high.
     static let oldPanel = ProcessInfo.processInfo.environment["BS_OLDDRIVEHUD"] == "1"      // (before: bottom left, over the toolbar)
     static func panelOrigin(_ g: Game, _ L: HudLayout, rows: Float) -> (x: Float, y0: Float, w: Float) {
-        let s = L.s, w = 104 * s
-        if oldPanel { return (L.insetX + 6 * s, L.H - L.insetY - (rows + 6) * s, w) }
+        let s = L.s
+        if oldPanel { return (L.insetX + 6 * s, L.H - L.insetY - (rows + 6) * s, 104 * s) }
+        let w = 116 * s                                  // (room for a three-figure magazine beside the fuel gauge)
         if g.drivingHUD {
             let bottom = L.hotbarY0 + L.slot + 2 * s
             return (floor((L.W - w) / 2), bottom + 4 * s - rows * s, w)
@@ -155,9 +156,11 @@ final class CombatHUD {
             out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: ic, box: V2((w - 26 * s) * integ, 5 * s)))
             // The magazine (P483: a war vessel's guns draw on it), and the tank or the lift.
             let ry = y0 + 11 * s
+            var roundsEnd = x
             if VehicleControls.armed(g, ship), let n = g.world.ships.magazineLeft(ship) {
                 let t = "Rounds \(n)"
                 out.append(HudLine(text: t, x: x, y: ry, scale: s, color: n == 0 ? Settings.shared.badColor : V4(0.85, 0.85, 0.85, 1)))
+                roundsEnd = x + Float(Font.width(t)) * s
             }
             if kind == .airship {
                 let t = String(format: "Lift %d%%", Int(ship.liftLevel * 100))
@@ -166,9 +169,13 @@ final class CombatHUD {
                 // Q2: the land vehicle's tank (D44), on the panel where it can be seen in play.
                 let f = VehicleDepot.level(ship.root)
                 let fc = f <= VehicleDepot.fumes ? Settings.shared.badColor : (f < VehicleDepot.low ? V4(0.95, 0.75, 0.2, 1) : V4(0.85, 0.85, 0.85, 1))
-                out.append(HudLine(text: "Fuel", x: x + w - 56 * s, y: ry, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
-                out.append(HudLine(text: "", x: x + w - 30 * s, y: ry + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(30 * s, 5 * s)))
-                out.append(HudLine(text: "", x: x + w - 30 * s, y: ry + s, scale: s, bg: fc, box: V2(30 * s * max(0, min(1, f)), 5 * s)))
+                // (Nov 12 shot 062645: "Rounds 73" ran into the Fuel label: the label follows the count, the gauge
+                // taking what is left of the row, at least 16 wide)
+                let fx = min(x + w - 16 * s - 28 * s, max(x + w - 56 * s, roundsEnd + 6 * s))
+                let bx = fx + 26 * s, bw = x + w - bx
+                out.append(HudLine(text: "Fuel", x: fx, y: ry, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
+                out.append(HudLine(text: "", x: bx, y: ry + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
+                out.append(HudLine(text: "", x: bx, y: ry + s, scale: s, bg: fc, box: V2(bw * max(0, min(1, f)), 5 * s)))
             }
             // Throttle: centre line, bar to the right for forward, left for reverse.
             let ty = y0 + 23 * s, mid = x + w / 2
