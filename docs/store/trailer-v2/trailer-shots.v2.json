@@ -52,7 +52,6 @@
  },
  {
   "name": "fp_build",
-  "_vr_todo": "hold: spruce_planks + hammer swing or VR right hand visible; hideSelectionBox: true",
   "anchor": {
    "find": "plains",
    "from": [
@@ -137,11 +136,11 @@
     ],
     "ground": true
    }
-  ]
+  ],
+  "hold": "oak_planks"
  },
  {
   "name": "fp_farm",
-  "_vr_todo": "hold: iron_hoe or wheat in VR right hand; hideSelectionBox: true",
   "anchor": {
    "find": "plains",
    "from": [
@@ -227,11 +226,11 @@
     ],
     "ground": true
    }
-  ]
+  ],
+  "hold": "iron_hoe"
  },
  {
   "name": "fp_ride",
-  "_vr_todo": "CRITICAL ENGINE HOOK: mount g.player onto a saddled horse trotting along yaw 90 (playerMount: 'horse') with reins/hands in lower frame and NO NPC villager riders. Until playerMount is added, DO NOT spawn 'rider' villagers (they stand upright); this camera flies at mounted saddle height (2.25m) across coastal plains.",
   "anchor": {
    "find": "plains",
    "from": [
@@ -275,7 +274,9 @@
     ],
     "ground": true
    }
-  ]
+  ],
+  "playerMount": "horse",
+  "hold": "hands"
  },
  {
   "name": "train_pass",
@@ -370,7 +371,6 @@
  },
  {
   "name": "fp_cave_lush",
-  "_vr_todo": "hold: lantern in VR right hand casting warm foreground light",
   "anchor": {
    "find": "plains",
    "from": [
@@ -426,11 +426,11 @@
      -2.5
     ]
    }
-  ]
+  ],
+  "hold": "lantern"
  },
  {
   "name": "station_approach",
-  "_vr_todo": "Remove skip:['ships'] and clear:deck_gun once Boreal light-gun PR lands on quest-port",
   "anchor": {
    "near": "boreal_station",
    "from": [
@@ -489,7 +489,6 @@
  },
  {
   "name": "station_breach",
-  "_vr_todo": "hold: pistol/rifle in VR right hand; cuts hard mid-shot from gate approach into bunker corridor using Key.cut = true!",
   "anchor": {
    "near": "boreal_station",
    "from": [
@@ -542,11 +541,11 @@
      -22
     ]
    }
-  ]
+  ],
+  "hold": "gun_sidearm"
  },
  {
   "name": "outlaw_fight",
-  "_vr_todo": "hold: rifle in VR hands; requires fixed non-eyed smoke particles",
   "anchor": {
    "at": [
     3090,
@@ -649,11 +648,11 @@
     ],
     "ground": true
    }
-  ]
+  ],
+  "hold": "gun_rifle"
  },
  {
   "name": "frigate_command",
-  "_vr_todo": "Note: 'fire' event marks fr.captured = true and charges mainGun; verify cruise pose doesn't cancel gun charge VFX",
   "anchor": {
    "near": "village",
    "from": [
@@ -711,7 +710,6 @@
  },
  {
   "name": "frigate_strike",
-  "_vr_todo": "DEPENDS ON GAME FIXES: instant crater mesh update, no jagged white/blue tracer line, no strobing puffs, no floating grey debris blocks",
   "anchor": {
    "near": "village",
    "from": [
