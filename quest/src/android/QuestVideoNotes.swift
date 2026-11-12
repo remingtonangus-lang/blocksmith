@@ -65,7 +65,13 @@ enum QuestVideo {
     // MARK: Frame thread
 
     // After the eye pass (and QuestScreenshot.service), before submit: records a capture when one is due.
-    static func service(_ s: SceneRenderer.Slot, ctx: VkContext, image: VkImage, format: VkFormat, width: Int, height: Int) {
+    // Nov 12 playtest (the coordinator's relay: "only the top-left ~60% of each recorded frame is clean"): with dynamic
+    // resolution on (P498) the eye pass draws only the top-left `drawn` part of the eye image; the video blitted the
+    // whole image, the stale rest of it included. It now blits the drawn part to the whole picture (the staging keeps
+    // the full image's size, so a changing resolution reallocates nothing). BS_OLDVIDEOAREA=1: the whole image.
+    static let oldArea = ProcessInfo.processInfo.environment["BS_OLDVIDEOAREA"] == "1"
+    static func service(_ s: SceneRenderer.Slot, ctx: VkContext, image: VkImage, format: VkFormat, width: Int, height: Int,
+                        drawn: (Int, Int)? = nil) {
         lock.lock(); let want = wanted; lock.unlock()
         guard want, width >= 512, height >= 256 else { return }
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -87,7 +93,7 @@ enum QuestVideo {
         if free == nil { dropped += 1 }
         lock.unlock()
         guard let e = free else { return }
-        QuestScreenshot.record(s.cmd, e.st, image: image)
+        QuestScreenshot.record(s.cmd, e.st, image: image, region: oldArea ? nil : drawn)
         e.slot = s; e.ctx = ctx; e.pts = Int64(t0 * 1_000_000)
         lastAt = t0
         let dt = CFAbsoluteTimeGetCurrent() - t0

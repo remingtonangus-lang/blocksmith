@@ -32,7 +32,7 @@ enum TrainArrivals {
         let p = g.player.pos
         for id in Array(kinds.keys) {
             guard let tr = Trains.trains[id] else { kinds[id] = nil; wreckers.remove(id); continue }
-            let head = tr.track.point(tr.track.at(tr.time).s)
+            let head = tr.track.point(Trains.now(tr).s)
             if simd_length(head - p) > max(240, Trains.reach(g) + 40) || tr.wrecked { kinds[id] = nil; wreckers.remove(id); shellAt[id] = nil }
         }
         guard g.dim.dim == .overworld, !tracks.isEmpty, g.alive else { return }

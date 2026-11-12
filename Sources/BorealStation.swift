@@ -880,7 +880,10 @@ enum BorealStation {
         func navy(_ k: String, _ ly: Int) -> String { !grey && k == "soldier_trooper" && ly == 1 ? "soldier_ironclad" : k }
         for (k, dx, ly, dz) in garrison { w.mob(navy(k, ly) + tag, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
         for (k, dx, ly, dz) in surfaceGarrison { w.mob(navy(k, ly) + tag, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
-        w.mob("deck_gun" + tag, V3(Float(X(4)) + 0.5, Float(S + 7), Float(Z(16)) + 0.5))
+        // Nov 12 (the trailer's snow base from the air, "a massive naval gun thing"): the roof gun was the full 42 cm
+        // capital turret, its barrel some 30 blocks out past the fence, looming over the whole yard; a station's roof
+        // takes the light quick-firer the other sites mount (still worked from the gun room). BS_OLDBOREALGUN=1 for the old.
+        w.mob((BorealStation.oldRoofGun ? "deck_gun" : "deck_gun:light") + tag, V3(Float(X(4)) + 0.5, Float(S + 7), Float(Z(16)) + 0.5))
         if p471 { w.mob("soldier_trooper:operator" + tag + "^0", V3(Float(X(3)) + 0.5, Float(S + 1), Float(Z(16)) + 0.5)) }
         // P460 (Oct 25 17:08, "the Boreal guys, make it so they have like their own trucks or something, maybe their own
         // tanks too"): a Capital station keeps its own vehicles in winter colours: a truck in the shed, a fuel truck by
@@ -889,6 +892,7 @@ enum BorealStation {
             for (k, dx, dz) in BorealStation.vehicles { w.mob(k, V3(Float(X(dx)) + 0.5, Float(S + 1), Float(Z(dz)) + 0.5)) }
         }
     }
+    static let oldRoofGun = ProcessInfo.processInfo.environment["BS_OLDBOREALGUN"] == "1"
     // (mob key, dx, dz) on the surface row.
     static let vehicles: [(String, Int, Int)] = [("ash_truck@boreal^270", 19, 9), ("ash_truck:fuel@boreal^0", -15, -9), ("ash_tank@boreal^180", 18, 22)]
 }

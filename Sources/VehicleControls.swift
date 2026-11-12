@@ -159,6 +159,30 @@ final class Turrets {
     var remoteSeat: IVec3?                           // P471: ... in the gun room's chair, sat back in when he leaves
 
     static let roofY: Float = 5.5                    // the heavy turret's gunhouse roof above its origin (HeavyTurret model)
+    static let oldStand = ProcessInfo.processInfo.environment["BS_OLDGUNSTAND"] == "1"
+    // Nov 12 playtest (06:21:27, on a Capital light gun he had turned on its own tower: "This thing should also have
+    // limited ammunition"; 06:28:48, "creative so that all the vehicles have infinite ammunition"): a gun he mans has a
+    // magazine (the heavy turret 24 shells, a light gun 60, a small mount 120, the flak gun 240); in survival each
+    // shell he fires comes out of it, and empty the gun only clicks. Unmanned its crew restocks it, a shell every
+    // 10 s. Creative never runs it down. BS_OLDAMMO=1: no magazine.
+    static let oldAmmo = ProcessInfo.processInfo.environment["BS_OLDAMMO"] == "1"
+    static func magazineSize(_ m: Mob) -> Int {
+        if HeavyTurret.isFlak(m) { return 240 }
+        let k = HeavyTurret.scale(m)
+        return k >= 1 ? 24 : (k >= 0.35 ? 60 : 120)
+    }
+    // Shells left (-1 when not counted: creative, or the flag).
+    static func magazine(_ m: Mob, _ g: Game) -> Int {
+        guard g.survival && !oldAmmo else { return -1 }
+        if m.gunShells < 0 { m.gunShells = magazineSize(m) }
+        return m.gunShells
+    }
+    // The crew's restocking while nobody mans it (Soldiers.updateDeckGun).
+    static func restock(_ m: Mob, _ dt: Float) {
+        guard m.gunShells >= 0, m.gunShells < magazineSize(m) else { return }
+        m.gunRestock += dt
+        if m.gunRestock >= 10 { m.gunRestock = 0; m.gunShells += 1 }
+    }
     static func canMan(_ m: Mob) -> Bool { m.kind == .deckGun && m.health > 0 }
 
     // Rumble / harness helper: true while the player is on a gun.
@@ -214,7 +238,8 @@ final class Turrets {
                 }
             }
         }
-        return m.pos - fwd * 2.5 + V3(0, Turrets.roofY, 0)
+        let k = Turrets.oldStand ? 1 : HeavyTurret.scale(m)
+        return m.pos - fwd * 2.5 * k + V3(0, Turrets.roofY * k, 0)
     }
 
     // Per frame while manning (from Game.tick before movement): true = the gun has the controls this frame.
@@ -244,14 +269,21 @@ final class Turrets {
         b.pitch += max(-1.2 * dt, min(1.2 * dt, g.player.pitch - b.pitch))
         // Stand on the gunhouse roof ahead of the cupola, over the breeches: the eye is above the barrels with a clear
         // view forward (behind the breech put it inside the 5.5 m armoured box, so nothing was visible: Quest round 3).
+        // Nov 12 playtest (06:20:26, on a Capital light gun, "the barrels are disconnected from the gun"): that spot is
+        // the battleship turret's; on a gun built smaller (HeavyTurret.scale: 0.4, 0.26) it stood him in the air over
+        // its roof, looking down past a gunhouse a third the size. The spot is now the gun's own size: on its roof, over
+        // its breeches (BS_OLDGUNSTAND=1: the big turret's spot on every gun).
         let fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
-        g.player.pos = m.pos - fwd * 2.5 + V3(0, Turrets.roofY, 0)
+        let k = Turrets.oldStand ? 1 : HeavyTurret.scale(m)
+        g.player.pos = m.pos - fwd * 2.5 * k + V3(0, Turrets.roofY * k, 0)
         g.player.vel = .zero
         g.player.onGround = true
         reload -= dt
         if reload <= 0 && loaded == 0 { loaded = 2 }
         let fire = g.input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
-        if fire && reload <= 0 && GunParts.canFireAny(m) { shoot(g, m) }
+        let empty = Turrets.magazine(m, g) == 0
+        if fire && empty && reload <= 0 { g.sfx(.click, 0.6); g.onToast?("Out of shells: the gun's magazine is empty"); reload = 1 }
+        else if fire && reload <= 0 && GunParts.canFireAny(m) { shoot(g, m) }
         else if fire { g.sfx(.click, 0.4) }
         g.target = nil
         g.mining = nil
@@ -280,6 +312,7 @@ final class Turrets {
         HeavyTurret.arm(&s)
         s.power = HeavyTurret.mannedPower; s.breach = HeavyTurret.mannedBreach      // P70
         g.arms.spawn(s)
+        if g.survival && !Turrets.oldAmmo { m.gunShells = max(0, Turrets.magazine(m, g) - 1) }
         HeavyTurret.flash(g, muzzle, fwd, smoke: 10)
         b.kick = 1; b.kickSide = sx
         g.sfx(.gun(9), 2, at: pivot)

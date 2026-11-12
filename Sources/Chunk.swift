@@ -145,6 +145,7 @@ struct BlockStore {
     // FineField.index), in fd's units. A section without one is fd alone (untouched land is unchanged). FineField.swift.
     var fine: [Int: [Int8]] = [:]
     static let section = CSQ * 16
+    static let oldFieldTop = ProcessInfo.processInfo.environment["BS_OLDFIELDTOP"] == "1"
     // P338 step 2: reads of a field world's ground as a cell of its material (the block grid), counted while the debug
     // overlay shows them (PerfOverlay). Must read 0 where only the field's surface should be met.
     static var countReads = false
@@ -263,7 +264,15 @@ struct BlockStore {
         self.init(full)
         guard !field.fd.isEmpty else { return }
         var top = min(field.fd.count, CSQ * CH)
-        while top > 0 && field.fd[top - 1] <= 0 { top -= 1 }
+        // Nov 12 playtest (06:16:20, the beach at 6481 64 -808: "looks like some tracks went under gravel here"): the
+        // stored part ended at the section holding the highest ground cell, and a cell past it reads as far outside
+        // the ground. Where that ground was the top row of a section (the line's ballast at y 127 on a flat beach), the
+        // row over it lost what the field had there: the rail cells' bed shaping (-0.5: the bed's top at their floor)
+        // read as -4, so the drawn bed's top sank 0.4 under the rails' cells and the track was laid that far down,
+        // into the ballast drawn as a block. Every row that holds anything but "far outside" is kept now (the open
+        // cells just over the ground carry its surface too). BS_OLDFIELDTOP=1: to the highest ground cell, as before.
+        if BlockStore.oldFieldTop { while top > 0 && field.fd[top - 1] <= 0 { top -= 1 } }
+        else { while top > 0 && field.fd[top - 1] == FieldTerrain.outside { top -= 1 } }
         let keep = max(BlockStore.section, (top + BlockStore.section - 1) / BlockStore.section * BlockStore.section)
         fd = Array(field.fd.prefix(keep)); fm = Array(field.fm.prefix(keep)); fine = field.fine
         if fd.count < keep {
@@ -346,7 +355,9 @@ struct BlockStore {
     mutating func setDensity(_ i: Int, _ d: Int8, material m: UInt8?, follow: Bool = true) {
         guard !fd.isEmpty, i >= 0 && i < CSQ * CH else { return }
         if i >= fd.count {
-            if d <= 0 { return }
+            // (past the stored part every cell reads far outside: only that needs no room; an open cell just over the
+            // ground, a carve's or a bed's -0.5, is stored as any other, BS_OLDFIELDTOP=1: dropped as before)
+            if d == FieldTerrain.outside || (d <= 0 && BlockStore.oldFieldTop) { return }
             let need = min(CSQ * CH, (i / BlockStore.section + 1) * BlockStore.section)
             fd.append(contentsOf: repeatElement(FieldTerrain.outside, count: need - fd.count))
             fm.append(contentsOf: repeatElement(0, count: need - fm.count))

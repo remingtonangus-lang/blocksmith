@@ -2629,7 +2629,9 @@ final class World: LifeLinked {
     }
 
     // Line of sight between two points (only full opaque blocks block it).
-    func canSee(_ a: V3, _ b: V3) -> Bool {
+    // `except`: a ship root id whose hull doesn't hide the far end (the vessel the player is in: a base's gun sees the
+    // crawler he drives, not his eye through its armour; Nov 12, Game.playerCarrier).
+    func canSee(_ a: V3, _ b: V3, except: Int = -1) -> Bool {
         let d = b - a
         let len = simd_length(d)
         if len < 0.01 { return true }
@@ -2654,13 +2656,13 @@ final class World: LifeLinked {
             }
         }
         // P434 (a): a ship's hull (a frigate's deck and doors) hides what is behind it too.
-        if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: -1) != nil { return false }
+        if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: except) != nil { return false }
         return true
     }
 
     /// Line of fire: like canSee, but any block with collision (glass, fences, slabs, stairs, bars, doors) blocks it,
     /// sampled every 0.2 blocks. NPC guns check it from the muzzle before every shot so nothing fires through a wall.
-    func clearShot(_ a: V3, _ b: V3) -> Bool {
+    func clearShot(_ a: V3, _ b: V3, except: Int = -1) -> Bool {
         let d = b - a
         let len = simd_length(d)
         if len < 0.01 { return true }
@@ -2674,7 +2676,7 @@ final class World: LifeLinked {
             let id = Int(block(q.x, q.y, q.z))
             if Blocks.collide[id] && Blocks.fluidKind[id] == 0 { return false }
         }
-        if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: -1) != nil { return false }      // (P434 a)
+        if !ships.list.isEmpty, ships.segmentHit(a, d / len, len, except: except) != nil { return false }      // (P434 a)
         return true
     }
 

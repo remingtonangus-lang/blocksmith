@@ -780,8 +780,10 @@ enum Capital {
             } }
         }
         // Fire control (z 38...48): rangefinder and plotting consoles along both walls, the plot table down the middle.
+        // (Nov 12, "way too many chairs": a seat at every second console, not at each one: BS_OLDCRAWLERDECK=1 a seat at each)
         for sx in [-1, 1] { for z in stride(from: 38, through: 47, by: 2) { put(sx * 7, 22, z, z % 4 == 2 ? term : console); put(sx * 7, 23, z, cab)
-            put(sx * 7, 22, z + 1, cab); put(sx * 7, 23, z + 1, cab); put(sx * 6, 22, z + 1, g("oak_chair[\(sx < 0 ? "west" : "east")]", AIR)) } }
+            put(sx * 7, 22, z + 1, cab); put(sx * 7, 23, z + 1, cab)
+            if oldCrawlerDeck || z % 4 == 2 { put(sx * 6, 22, z + 1, g("oak_chair[\(sx < 0 ? "west" : "east")]", AIR)) } } }
         for z in 41...44 { put(0, 22, z, table); put(-1, 22, z, table); put(1, 22, z, table) }
         // Propellant aft of the last mount, in barrels, two high.
         for x in -7...7 where abs(x) < 3 || abs(x) > 5 { for z in 65...66 { put(x, 22, z, barrel); put(x, 23, z, barrel) } }
@@ -797,6 +799,7 @@ enum Capital {
     // generators along the sides, the engineer's panel, a gantry along each side at the upper deck's height. The
     // command deck gets its chart table, signal consoles and cabinets. Only air inside the hull is filled, the
     // centreline aisle, the ramp's way round the engines, the hatches, ladders and crew posts are left clear.
+    static let oldCrawlerDeck = ProcessInfo.processInfo.environment["BS_OLDCRAWLERDECK"] == "1"
     static func crawlerRooms(_ hb: HullBuilder, chassis: (Int, Int, Int) -> Bool) {
         func g(_ n: String, _ f: BlockID) -> BlockID { id(n, f) }
         let panel = id("warship_panel"), grating = id("steel_grating"), light = id("light_panel"), iron = id("iron_block")
@@ -852,20 +855,58 @@ enum Capital {
         for x in [-8, -7, 7, 8] { room(x, 16, 20, console); chair(x, 16, 19, "south") }
         room(-4, 16, 16, g("greywall_map_table", console)); room(-3, 16, 16, g("greywall_map_table", console))
         room(4, 16, 16, term); chair(4, 16, 17, "north")
-        // Bunks: heads to the bulkheads in pairs along both walls, a locker at each pair.
-        for sx in [-1, 1] { for z0 in stride(from: 23, through: 39, by: 4) {
-            for x in [sx * 9, sx * 7] { bed(x, z0 + 1, z0, sx < 0 ? "light_gray" : "white") }
-            room(sx * 10, 16, z0, barrel); room(sx * 10, 16, z0 + 1, cab)
-        } }
-        // The mess: a long table with chairs either side.
-        for z in 43...49 { room(-6, 16, z, post); room(-6, 17, z, plate); chair(-7, 16, z, "east"); chair(-5, 16, z, "west") }
-        for z in 43...49 { room(6, 16, z, post); room(6, 17, z, plate); chair(7, 16, z, "west"); chair(5, 16, z, "east") }
-        for sx in [-1, 1] { stack(sx * 10, 16, 44, barrel, 1); stack(sx * 10, 16, 46, g("bookshelf", cab), 2) }
-        // The workshop and sick bay.
-        room(8, 16, 52, g(GunsmithBench.key, iron)); room(8, 16, 54, g("anvil", iron)); stack(10, 16, 53, crate, 2)
-        for z in [51, 55] { stack(10, 16, z, cab, 2) }
-        for z0 in [52, 55] { bed(-9, z0 + 1, z0, "white") }
-        room(-10, 16, 51, g("brewing_stand", cab)); stack(-10, 16, 58, cab, 2)
+        // Nov 12 playtest (06:25:07-06:25:16, aboard an Ironback: "the layout inside is still fucked. There's way too many
+        // beds, way too many chairs... Make it realistic", "What would an actual high-tech iron crawler have inside?"):
+        // the upper deck was a warship's, twenty bunks and a mess of fourteen chairs. A land crawler's crew is a dozen
+        // standing watches; most of its room is machinery and electronics. Behind the comms room now (BS_OLDCRAWLERDECK=1:
+        // the old deck): the air plant (filters, ducting and tanks) and a bunk room of four berths with lockers; the
+        // electronics bay (cabinet rows either side, a technician's terminal); the galley (a counter, a table for two)
+        // and a one-bed sick bay; the workshop and the armoury (weapon racks and ammunition) aft. The aisle and every
+        // crew post stay clear.
+        if oldCrawlerDeck {
+            for sx in [-1, 1] { for z0 in stride(from: 23, through: 39, by: 4) {
+                for x in [sx * 9, sx * 7] { bed(x, z0 + 1, z0, sx < 0 ? "light_gray" : "white") }
+                room(sx * 10, 16, z0, barrel); room(sx * 10, 16, z0 + 1, cab)
+            } }
+            for z in 43...49 { room(-6, 16, z, post); room(-6, 17, z, plate); chair(-7, 16, z, "east"); chair(-5, 16, z, "west") }
+            for z in 43...49 { room(6, 16, z, post); room(6, 17, z, plate); chair(7, 16, z, "west"); chair(5, 16, z, "east") }
+            for sx in [-1, 1] { stack(sx * 10, 16, 44, barrel, 1); stack(sx * 10, 16, 46, g("bookshelf", cab), 2) }
+            room(8, 16, 52, g(GunsmithBench.key, iron)); room(8, 16, 54, g("anvil", iron)); stack(10, 16, 53, crate, 2)
+            for z in [51, 55] { stack(10, 16, z, cab, 2) }
+            for z0 in [52, 55] { bed(-9, z0 + 1, z0, "white") }
+            room(-10, 16, 51, g("brewing_stand", cab)); stack(-10, 16, 58, cab, 2)
+        } else {
+            let bars = g("iron_bars", iron)
+            // The air plant (starboard, z 22-31): tanks along the wall, filter vents beside them, ducts to the roof.
+            for z in 22...31 { stack(10, 16, z, z % 3 == 0 ? band : tank, 3) }
+            for z in stride(from: 23, through: 31, by: 2) { stack(9, 16, z, vent, 2) }
+            for z in [24, 28] { for y in 16...19 { room(8, y, z, pipeY) } }
+            for z in 22...31 { room(9, 19, z, pipeZ) }
+            room(7, 16, 31, term)
+            // The bunk room (port, z 22-31): four berths, heads to the wall, a locker between each pair.
+            for z0 in [23, 28] { bed(-9, z0 + 1, z0, "light_gray") }
+            for z in [22, 25, 26, 27, 30, 31] { stack(-10, 16, z, cab, 2) }
+            for z0 in [23, 28] { room(-10, 16, z0, barrel) }
+            // The electronics bay (z 33-41): cabinets two high in rows along both walls, a way in at 37, the
+            // technician's terminal and one seat at it.
+            for sx in [-1, 1] { for z in 33...41 where z != 37 { stack(sx * 10, 16, z, cab, 3); stack(sx * 8, 16, z, cab, 2) } }
+            room(-7, 16, 37, term); chair(-6, 16, 37, "west")
+            room(7, 16, 37, console)
+            for sx in [-1, 1] { for z in 33...41 { room(sx * 9, 19, z, pipeZ) } }
+            // The galley (port, z 43-49): a counter along the wall with the stores, a table for two.
+            for z in 43...49 { room(-10, 16, z, z % 3 == 0 ? barrel : cab) }
+            for z in [44, 48] { room(-10, 17, z, cab) }
+            room(-6, 16, 46, post); room(-6, 17, 46, plate); chair(-7, 16, 46, "east"); chair(-5, 16, 46, "west")
+            // The sick bay (starboard, z 43-49): one bed, the medicine cabinet, cabinets.
+            bed(9, 45, 44, "white")
+            room(10, 16, 47, g("brewing_stand", cab)); stack(10, 16, 48, cab, 2); stack(10, 16, 43, cab, 2)
+            // The workshop (starboard, z 51-58) as it was.
+            room(8, 16, 52, g(GunsmithBench.key, iron)); room(8, 16, 54, g("anvil", iron)); stack(10, 16, 53, crate, 2)
+            for z in [51, 55] { stack(10, 16, z, cab, 2) }
+            // The armoury (port, z 51-58): weapon racks over ammunition boxes along the wall (the post at -7, 54 clear).
+            for z in 51...57 { room(-10, 16, z, z % 2 == 0 ? crate : ash); room(-10, 17, z, bars) }
+            stack(-10, 16, 58, cab, 2); stack(-9, 16, 51, crate, 2)
+        }
         // The engine hall: exhaust stacks from the engine banks to the roof, fuel tanks along the walls, generators and
         // the engineer's panel by the bulkhead, a gantry along each wall at the upper deck's height.
         for sx in [-1, 1] { for z in [64, 68] { for y in 14...19 { room(sx * 4, y, z, pipeY) } } }
@@ -1611,7 +1652,14 @@ extension ShipManager {
             }
             if s.role == "crawler" { crawlerRamp(s, st, dt, g) }
             TickProf.mark("cap: crew, wheels, ramp")             // (store review: the capital tick split for questcheck --framesoak)
-            if s.wrecked { st.gunCharge = -1; founder(s, st, dt, g); continue }      // a charge dies with the ship
+            if s.wrecked {
+                st.gunCharge = -1; founder(s, st, dt, g)              // a charge dies with the ship
+                // Nov 12 (06:34:53, 06:36:33 at a crawler he had stopped: "why aren't the troops inside doing anything?
+                // They're getting attacked", "soldiers here should be manning the guns and shooting back"): a crawler
+                // stopped where it stands fights on with every gun whose gunner lives (a frigate that came down is done).
+                // BS_OLDWRECKGUNS=1: silent once stopped.
+                guard s.role == "crawler" && !ShipManager.oldWreckGuns else { continue }
+            }
             st.retarget -= dt
             if st.retarget <= 0 || (st.target.map { !targetValid($0, g, spareBases: s.factionValue == .steelhold) } ?? false) {
                 st.retarget = 1
@@ -1622,7 +1670,7 @@ extension ShipManager {
                 st.target = t
             }
             TickProf.mark("cap: target")
-            if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
+            if s.wrecked {} else if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             TickProf.mark("cap: drive")
             capitalGuns(s, st, dt, g)
             TickProf.mark("cap: guns")
@@ -2847,9 +2895,10 @@ extension ShipManager {
             st.mainCharge = 0
             return
         }
+        @inline(__always) func why(_ k: String) { if ShipManager.gunTally != nil { ShipManager.gunTally![k, default: 0] += 1 } }
         for (i, tr) in ts.enumerated() {
             // An unmanned turret (its gunner dead) stays where it was left.
-            guard st.turretManned(i) else { tr.aimAt = nil; continue }
+            guard st.turretManned(i) else { tr.aimAt = nil; why("unmanned"); continue }
             let muzzle = tr.toWorld(tr.pivot)
             var aim = t.point
             let flight0 = simd_length(aim - muzzle) / tr.gunSpeed
@@ -2857,7 +2906,7 @@ extension ShipManager {
             tr.aimAt = aim
             let d = aim - muzzle
             let horiz = simd_length(V2(d.x, d.z))
-            if horiz < 6 { continue }
+            if horiz < 6 { why("close"); continue }
             let v = tr.gunSpeed, gr = tr.gunGravity
             let disc: Float = v * v * v * v - gr * (gr * horiz * horiz + 2 * d.y * v * v)
             let elev: Float = disc > 0 ? atanf((v * v - sqrtf(disc)) / (gr * horiz)) : 0.6
@@ -2866,7 +2915,7 @@ extension ShipManager {
             let a = simd_normalize(V2(tf.x, tf.z) + V2(1e-5, 0)), b = simd_normalize(V2(d.x, d.z) + V2(1e-5, 0))
             let aimErr = acosf(max(-1, min(1, simd_dot(a, b))))
             // Out of the barrels' reach (straight below a dorsal gun): hold fire.
-            if elev < tr.pitchMin - 0.05 || elev > tr.pitchMax + 0.05 { continue }
+            if elev < tr.pitchMin - 0.05 || elev > tr.pitchMax + 0.05 { why("out of elevation"); continue }
             // P483 (Oct 28 17:34-17:36, "the frigate's guns aren't hurting me at all", "the little guns just are not
             // shooting where one would expect"): a gun fired while still turning, up to 7 degrees off, so its rounds
             // burst 15 to 40 blocks from a man 150 off. It fires once laid within about two blocks of him (or 0.12 rad,
@@ -2875,7 +2924,9 @@ extension ShipManager {
             // (Dropships as they were: "the aiming for the drop ship... it's actually working".)
             let laid: Float = s.role == "dropship" ? 0.12 : max(0.02, min(0.12, 2.5 / max(1, simd_length(d))))
             let onBearing = tr.aimYaw.map { t in abs(remainderf(t - tr.turretYaw, 2 * .pi)) < 0.01 } ?? false
+            if tr.reload > 0 { why("reloading") } else if !(aimErr < laid || (onBearing && aimErr < 0.12)) { why(onBearing ? "on bearing, off \(Int(aimErr * 100)) crad" : "turning") }
             if (aimErr < laid || (onBearing && aimErr < 0.12)) && tr.reload <= 0 {
+                why("fired")
                 if s.role == "dropship" { dropshipBurst(s, tr, t, pitch: elev, g) } else { fire(tr, pitch: elev, game: g) }
             }
         }
@@ -3748,6 +3799,7 @@ extension Capital {
     static let restartTime: Float = 12     // P464: seconds till stopped engines (blocks in place) catch again
     // P483: rounds aboard for the guns he fires from the helm: a dropship's autocannon 600 (four minutes held), a
     // frigate's 40 a gun (each salvo spends one a barrel), a crawler's 30 a gun.
+    static let oldCreativeAmmo = ProcessInfo.processInfo.environment["BS_OLDCREATIVEAMMO"] == "1"
     static func magazine(_ s: Ship, barrels: Int) -> Int {
         if s.role == "dropship" { return 600 }
         // P507 (Nov 1 12:10:30 at a crawler's helm: "The magazine should hold more"): two and a half times what it was

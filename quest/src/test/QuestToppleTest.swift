@@ -57,6 +57,53 @@ enum QuestToppleTest {
         let left = (1...50).reduce(0) { n, y in n + (w.builtBlock(tx, ty + y, tz) == brick ? 1 : 0) }
         if left > 0 { print("FAIL toppletest: \(left) tower blocks still stand in the air"); fails += 1 }
         settle(tower, "tower cut from its footing")
+        // Nov 12 playtest (06:21:17, "that helipad's hovering": a Boreal tower's top over the floors his shells took out).
+        // (a) A shell's hole: a 6x6 tower 60 high on its own footing, a 4-block-thick slab of it taken out at once (as a
+        // blast carves), the one check the slab queued from a cell in the hole's middle. The top must come down.
+        // (BS_OLDLOADSEED=1: the check found nothing built beside its cell and the top hung.)
+        do {
+            let hx = -4895, hz = 2240
+            var base = 0
+            for dz in -3...2 { for dx in -3...2 { base = max(base, top(hx + dx, hz + dz) + 1) } }
+            w.restoring = true
+            for dz in -3...2 { for dx in -3...2 {
+                for y in (top(hx + dx, hz + dz) + 1)...(base + 60) { w.setBlock(hx + dx, y, hz + dz, brick) }
+            } }
+            let s0 = floorDiv(base + 12, 4) * 4
+            for y in s0...(s0 + 3) { for dz in -3...2 { for dx in -3...2 { w.setBlock(hx + dx, y, hz + dz, AIR) } } }
+            w.restoring = false
+            let p = IVec3(hx - 1, s0 + 1, hz - 1)
+            if w.loadQueued.insert(IVec3(floorDiv(p.x, 4), floorDiv(p.y, 4), floorDiv(p.z, 4))).inserted { w.loadQueue.append(p) }
+            let rim0 = Structure.rimChecks
+            for _ in 0..<40 { g.tick(1.0 / 72) }
+            var up = 0
+            for y in (s0 + 4)...(base + 60) { for dz in -3...2 { for dx in -3...2 where w.builtBlock(hx + dx, y, hz + dz) == brick { up += 1 } } }
+            print("toppletest: a 4-thick hole shot through a 60-high tower, checked from the hole's middle: \(up) blocks of its top still stand (\(Structure.rimChecks - rim0) checks from the hole's rim)")
+            if up > 0 { print("FAIL toppletest: the top of a tower shot through hangs over the hole (\(up) blocks)"); fails += 1 }
+        }
+        // (b) Two pieces cut loose by one change: two 6x6x45 stacks high in the air joined by a single block between
+        // them. Taken out, both must come down. (BS_OLDLOOSE=1: the first piece found fell, the second hung.)
+        do {
+            let sx = -4921, sz = 2282
+            var base = 0
+            for dz in -3...2 { for dx in -3...2 { base = max(base, top(sx + dx, sz + dz) + 1) } }
+            base += 40
+            w.restoring = true
+            for y in 0..<45 { for dz in -3...2 { for dx in -3...2 {
+                w.setBlock(sx + dx, base + y, sz + dz, brick); w.setBlock(sx + dx, base + 46 + y, sz + dz, brick)
+            } } }
+            w.setBlock(sx, base + 45, sz, brick)
+            w.restoring = false
+            w.setBlock(sx, base + 45, sz, AIR)
+            for _ in 0..<60 { g.tick(1.0 / 72) }
+            var low = 0, high = 0
+            for y in 0..<45 { for dz in -3...2 { for dx in -3...2 {
+                if w.builtBlock(sx + dx, base + y, sz + dz) == brick { low += 1 }
+                if w.builtBlock(sx + dx, base + 46 + y, sz + dz) == brick { high += 1 }
+            } } }
+            print("toppletest: two stacks in the air cut apart by one block: \(low) of the lower, \(high) of the upper still stand")
+            if low + high > 0 { print("FAIL toppletest: a piece cut loose with another hangs in the air (\(low), \(high))"); fails += 1 }
+        }
         // The birch, 10 blocks west, on a one-block plinth of planks.
         let log = Blocks.id("birch_log"), leaf = Blocks.id("birch_leaves"), plank = Blocks.id("birch_planks")
         let bx = -4932, bz = 2260, by = top(bx, bz) + 1

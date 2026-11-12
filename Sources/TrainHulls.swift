@@ -157,6 +157,22 @@ enum TrainHulls {
             built += 1
         }
         guard tr.kind == .passenger || tr.kind == .cargo else { return }
+        // Nov 12 playtest (06:16:36, at a line's train: "There's no one driving the train"): the engine's driver on
+        // the footplate, at the regulator's other side from where he stands to drive it (his fireman then).
+        if !Trains.oldCab, let eng = tr.cars.first(where: { Trains.isEngine($0) && $0.variant == Trains.loco }) {
+            let off = V3(-1.5, 6.9, 15) * (eng.scale / 16)
+            let cy = cosf(eng.yaw), sy = sinf(eng.yaw)
+            let m = Mob(.villager, at: eng.pos + V3(cy * off.x + sy * off.z, off.y, -sy * off.x + cy * off.z))
+            m.home = m.pos + V3(Float(Int(truncatingIfNeeded: tr.track.id % 89)), 0, 7)
+            Townsfolk.setup(m, tag: "", game: g)
+            m.home = m.pos
+            m.persistent = false
+            m.mount = eng
+            m.mountOffset = off
+            m.yaw = eng.yaw
+            tr.passengers.append(m)
+            g.mobs.mobs.append(m)
+        }
         // Townsfolk on their way somewhere, standing in the coaches' aisles.
         for (k, car) in tr.cars.enumerated() where car.variant == Trains.coach {
             let h = hash3(Int(truncatingIfNeeded: tr.track.id), k, Int(g.time / DAY_LENGTH), 0x7A55)
@@ -247,7 +263,7 @@ enum TrainHulls {
     static func seatPassengers(_ tr: Trains.Train) {
         for (i, p) in tr.passengers.enumerated() {
             guard let car = p.mount else { continue }
-            p.yaw = car.yaw + (i % 3 == 0 ? .pi : 0)
+            p.yaw = car.yaw + (i % 3 == 0 && !Trains.isEngine(car) ? .pi : 0)       // (the driver faces ahead)
         }
     }
 }
@@ -282,6 +298,11 @@ enum TrainHullCheck {
         let people = tr.passengers.filter { p in p.mount != nil && g.mobs.mobs.contains(where: { $0 === p }) }.count
         check(hulls == tr.cars.count && (tr.kind != .passenger || people >= 2),
               "FAILURES 3 train: \(hulls) of \(tr.cars.count) cars have a body, \(people) townsfolk ride the coaches")
+        if !Trains.oldCab && tr.cars.contains(where: { $0.variant == Trains.loco }) {
+            let driver = tr.passengers.first { p in p.mount.map { Trains.isEngine($0) } ?? false }
+            let onPlate = driver.map { d in d.mount.map { simd_length(d.pos - Trains.seat($0)) < 4 && simd_length(d.pos - Trains.seat($0)) > 0.5 } ?? false } ?? false
+            check(driver != nil && onPlate, "Nov 12 trains: someone drives the engine, on its footplate beside where he would stand (\(driver == nil ? "no driver" : onPlate ? "there" : "elsewhere"))")
+        }
         guard let coach = tr.cars.first(where: { $0.variant == Trains.coach }), let s = TrainHulls.hull(coach) else { return }
         let p = g.player, w = g.world
         let pos0 = p.pos, fly0 = p.flying, yaw0 = p.yaw, my0 = p.moveYaw, ml0 = p.moveLook

@@ -109,7 +109,9 @@ enum QuestScreenshot {
         inFlight = InFlight(path: path, slot: s, ctx: ctx, staging: st, t0: t0)
     }
 
-    static func record(_ cb: VkCommandBuffer, _ st: Staging, image: VkImage) {
+    // `region`: the part of the image this frame drew (dynamic resolution draws the top-left of the eye image: Nov 12,
+    // his bug-note videos showed the stale rest of it), blitted to the whole small image; nil, the whole image.
+    static func record(_ cb: VkCommandBuffer, _ st: Staging, image: VkImage, region: (Int, Int)? = nil) {
         let transfer = VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue
         let colorOut = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue
         let tRead = VK_ACCESS_TRANSFER_READ_BIT.rawValue, tWrite = VK_ACCESS_TRANSFER_WRITE_BIT.rawValue
@@ -125,7 +127,8 @@ enum QuestScreenshot {
                       srcAccess: 0, dstAccess: tWrite, srcStage: transfer, dstStage: transfer)
             var b = VkImageBlit()
             b.srcSubresource = layer0
-            b.srcOffsets = (VkOffset3D(x: 0, y: 0, z: 0), VkOffset3D(x: Int32(st.srcW), y: Int32(st.srcH), z: 1))
+            let rw = min(st.srcW, max(1, region?.0 ?? st.srcW)), rh = min(st.srcH, max(1, region?.1 ?? st.srcH))
+            b.srcOffsets = (VkOffset3D(x: 0, y: 0, z: 0), VkOffset3D(x: Int32(rw), y: Int32(rh), z: 1))
             b.dstSubresource = layer0
             b.dstOffsets = (VkOffset3D(x: 0, y: 0, z: 0), VkOffset3D(x: Int32(st.w), y: Int32(st.h), z: 1))
             vkCmdBlitImage(cb, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, small.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &b,

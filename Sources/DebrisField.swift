@@ -219,6 +219,19 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
     private var topKey = [Int](repeating: Int.min, count: 4096)
     private var topVal = [Float](repeating: 0, count: 4096)
     private var boxes: [(V3, V3)] = []
+    // Nov 12 (the trailer's main-gun strike, 32.6 s: grey pieces hanging still in the sky): a chunk not loaded yet read
+    // as solid all the way up, so a piece thrown into one touched it, slept and hung there. Past the loaded world now the
+    // generator's ground is solid and the air above it open (its column heights cached here). BS_OLDUNLOADEDROCK=1: solid.
+    static let oldUnloaded = ProcessInfo.processInfo.environment["BS_OLDUNLOADEDROCK"] == "1"
+    private var colKey = [Int](repeating: Int.min, count: 1024)
+    private var colTop = [Int](repeating: 0, count: 1024)
+    private func unloadedSolid(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard let g = gen, !WorldGround.oldUnloaded else { return true }
+        let key = (x & 0xFFFFFF) | ((z & 0xFFFFFF) << 24)
+        let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 54)
+        if colKey[slot] != key { colKey[slot] = key; colTop[slot] = g.column(x, z).height }
+        return y <= colTop[slot]
+    }
 
     // PG1 rewrite: a field world's ground is its density field: pieces meet the field's surface (the density about the
     // signed distance, pushed out along its gradient) and built blocks by their boxes.
@@ -236,7 +249,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
         if y >= CH { return -4 }
         let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
         if k != lastKey { lastKey = k; lastChunk = world.chunks[k] }
-        guard let c = lastChunk else { return 4 }               // (unloaded: solid, pieces wait there)
+        guard let c = lastChunk else { return unloadedSolid(x, y, z) ? 4 : -4 }      // (unloaded: the generator's ground)
         return FieldTerrain.f(c.blocks.density(Chunk.index(mod(x, CS), y, mod(z, CS))))
     }
     private func density(at p: SIMD3<Float>) -> Float {
@@ -249,7 +262,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
         if !World.oldLookups && lx < CS - 1 && lz < CS - 1 && y0 >= 0 && y0 + 1 < CH {
             let k = ChunkKey(x: x0 >> 4, z: z0 >> 4)
             if k != lastKey { lastKey = k; lastChunk = world.chunks[k] }
-            guard let c = lastChunk else { return 4 }
+            if let c = lastChunk {
             let b = c.blocks, i = Chunk.index(lx, y0, lz)
             @inline(__always) func d(_ j: Int) -> Float { FieldTerrain.f(b.density(j)) }
             let c000 = d(i), c100 = d(i + 1), c010 = d(i + CSQ), c110 = d(i + CSQ + 1)
@@ -258,6 +271,8 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
             let a1 = c001 * (1 - tx) + c101 * tx, b1 = c011 * (1 - tx) + c111 * tx
             let e0 = a0 * (1 - ty) + b0 * ty, e1 = a1 * (1 - ty) + b1 * ty
             return e0 * (1 - tz) + e1 * tz
+            }
+            if WorldGround.oldUnloaded { return 4 }
         }
         let a0 = density(x0, y0, z0) * (1 - tx) + density(x0 + 1, y0, z0) * tx
         let b0 = density(x0, y0 + 1, z0) * (1 - tx) + density(x0 + 1, y0 + 1, z0) * tx
@@ -285,7 +300,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
         if y >= CH { return AIR }
         let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
         if k != lastKey { lastKey = k; lastChunk = world.chunks[k] }
-        guard let c = lastChunk else { return BEDROCK }          // (unloaded: solid, pieces wait there)
+        guard let c = lastChunk else { return unloadedSolid(x, y, z) ? BEDROCK : AIR }   // (unloaded: the generator's ground)
         let i = Chunk.index(mod(x, CS), y, mod(z, CS))
         return fieldW ? c.blocks.raw(i) : c.blocks[i]          // (field worlds: the built layer; the ground is the field)
     }

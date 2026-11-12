@@ -26,6 +26,7 @@ extension Game {
         if let s = ships.pilot {
             if pilotTick(s, mi, dt) { ships.riderShip = nil; return }
         }
+        if GunStationPlay.cur != nil, gunStationTick(mi, dt) { ships.riderShip = nil; return }     // (Nov 12: in a gun's chair)
         commandeerHintTick()
         let p = player
         var cand = ships.frameShip(for: p.pos, height: p.height, current: ships.aboard)
@@ -226,7 +227,7 @@ extension Game {
         let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
         if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
         if guns > 0, let sight = tankSightHUD(s) { t += sight }                 // D42
-        if guns > 0, s.root.kinematic, let st = world.ships.capState[s.root.id], st.rounds >= 0 { t += "  rounds \(st.rounds)" }   // P483
+        if guns > 0, s.root.kinematic, survival || Capital.oldCreativeAmmo, let st = world.ships.capState[s.root.id], st.rounds >= 0 { t += "  rounds \(st.rounds)" }   // P483
         // P476: a warship he took shows how much of her hull is left once it is under 100%.
         if s.root.kinematic, s.root.captured, let st = world.ships.capState[s.root.id], let k = world.ships.hullShare(s.root, st), k < 0.995 {
             t += String(format: "  hull %d%%", Int((k * 100).rounded(.down)))
@@ -535,6 +536,11 @@ extension Game {
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float, useHeld: Bool = false) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt
+        if GunStationPlay.cur != nil {                                   // (Nov 12: the trigger in a gun station's chair)
+            ships.target = nil; target = nil; mining = nil
+            gunStationFire(breakNow: breakNow, breakHeld: breakHeld)
+            return true
+        }
         if let s = ships.pilot {
             ships.target = nil; target = nil; mining = nil
             // Attack charges the Tidebreaker when a Meridian frigate's is loaded (it fires 2.6 s later along the bow), else
@@ -566,7 +572,10 @@ extension Game {
                 let balls = survival && s.role == nil ? Wrecks.cannonballs(self) : Int.max
                 // P483 (Oct 28 17:40, at a dropship's helm: "there should also be a certain amount of ammo... Should have a
                 // really big magazine... They should run out of ammo eventually"): a war vessel's guns draw on its magazine.
-                let mag = s.root.kinematic && s.root.role != nil ? ships.capState[s.root.id] : nil
+                // Nov 12 playtest (06:28:48, at a crawler's helm: "make it on creative so that all the vehicles have
+                // infinite ammunition"): in creative the magazine is never drawn on (the deck guns' already wasn't).
+                // BS_OLDCREATIVEAMMO=1: spent in creative too.
+                let mag = s.root.kinematic && s.root.role != nil && (survival || Capital.oldCreativeAmmo) ? ships.capState[s.root.id] : nil
                 if let st = mag, st.rounds < 0 {
                     st.rounds = Capital.magazine(s.root, barrels: ([s.root] + ships.turrets(of: s.root)).reduce(0) { $0 + $1.cannons.count })
                 }
@@ -738,6 +747,7 @@ extension Game {
             onToast?("Named the ship \(label)")
             return true
         }
+        if !sneak && ShipParts.console[Int(b)] && s.helm != cell && takeGunStation(s, cell) { return true }   // (Nov 12: a gun's station)
         if (ShipParts.kinds[Int(b)] == .helm || ShipParts.console[Int(b)]) && s.helm == cell {
             // Capital fliers can be commandeered; other Capital ships can't be steered or taken apart: break the helm to
             // cripple one (CapitalShips.swift).

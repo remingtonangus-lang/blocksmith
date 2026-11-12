@@ -164,6 +164,14 @@ enum Trains {
         var facing: Float = 1                   // P508: the way the one engine faces (layout mirrored when -1)
         var fresh = true                        // (just built: it takes the timetable's heading at once)
         var taken = false                       // P510 (MilitaryTrain.swift): a troop train he cleared and took
+        // Nov 12 playtest (Trains.driveCab): driven from the cab the train is his, off the timetable: where it is on
+        // the track, the way the engine faces along it (+1 up the cells), its speed that way (blocks a second; less
+        // than 0 backing) and the coal in its tender (lumps).
+        var driven = false
+        var driveS: Float = 0
+        var driveFwd: Float = 1
+        var driveV: Float = 0
+        var coal: Float = Trains.tenderStart
         init(_ t: Track) {
             track = t
             if let st = Trains.saved[t.id] { delay = st.delay; robbedDay = st.robbedDay; wrecked = st.wrecked }
@@ -284,14 +292,14 @@ enum Trains {
             }
             if tr.wrecked { continue }
             tr.time = g.time - tr.delay
-            let at = t.at(tr.time)
+            let at = now(tr)
             let head = t.point(at.s)
             // (and a built train stays while its tail is still in reach: one running away from him went with its last
             // cars in sight when its head passed the line)
             let tail = t.point(at.s - at.dir * tr.length)
             guard simd_length(head - p) < R || (!tr.cars.isEmpty && simd_length(tail - p) < R) else { continue }
             // Only where the track was laid (ground a save had generated before keeps no rails).
-            let c0 = t.cells[max(0, min(t.cells.count - 1, Int(t.at(tr.time).s)))]
+            let c0 = t.cells[max(0, min(t.cells.count - 1, Int(at.s)))]
             guard g.world.isLoaded(c0.x, c0.z), Rails.isRail(g.world.block(c0.x, c0.y, c0.z)) else { continue }
             want.insert(t.id)
             if tr.cars.isEmpty || tr.cars.contains(where: { $0.health <= 0 && !t.armoured && !tr.bullion && tr.kind != .troop }) || !tr.cars.allSatisfy({ m in g.mobs.mobs.contains { $0 === m } }) {
@@ -329,7 +337,7 @@ enum Trains {
         guard let gen = g.world.gen as? WorldGen, !tr.track.armoured, !tr.track.cyclic, tr.track.dim == .overworld, !tr.track.parts.isEmpty else { return }
         let t = tr.track
         let n = t.cells.count
-        let s = tr.lastS, d = t.at(tr.time).dir
+        let s = tr.lastS, d = now(tr).dir
         var parts = t.parts
         var shift = 0                                  // cells the new track starts east (+) or west (-) of the old
         if d > 0 && Float(n - 1) - s < 200 {
@@ -380,7 +388,7 @@ enum Trains {
         // Its timetable taken up where it is: the moment the longer track's train is at s, heading d (or standing at the
         // same stop).
         let s2 = s - Float(shift)
-        let atStop = t.at(tr.time).stop.map { t.stops[$0] - shift }
+        let atStop = now(tr).stop.map { t.stops[$0] - shift }
         var bestU = -1.0, bestErr = Float.infinity
         var u = 0.0
         while u < t2.period {
@@ -389,7 +397,7 @@ enum Trains {
             if ok { let e = abs(a.s - s2); if e < bestErr { bestErr = e; bestU = u } }
             u += 0.1
         }
-        guard bestU >= 0, bestErr < 6 else { return }
+        guard bestU >= 0, bestErr < 6 || tr.driven else { return }
         var delay = (g.time - (bestU - t2.phase)).truncatingRemainder(dividingBy: t2.period)
         if delay < 0 { delay += t2.period }
         let oldId = t.id
@@ -400,6 +408,7 @@ enum Trains {
         tr.delay = delay
         tr.time = g.time - delay
         tr.lastS = s2
+        tr.driveS -= Float(shift)                      // (driven: his place on the longer track)
         tr.carS = tr.carS.map { $0 - Float(shift) }
         trains[t2.id] = tr
         splices += 1
@@ -485,11 +494,11 @@ enum Trains {
         // P379: the cell ahead is the track's own (a point straight ahead of the locomotive dipped into the bed where the
         // line climbs a grade, and into a cutting's side on a curve, and read as a blocked line).
         if dt > 0, tr.cars.first != nil {
-            let (s0, dir0, _) = t.at(tr.time)
+            let (s0, dir0, _) = now(tr)
             let ahead = tr.layout.isEmpty ? s0 + dir0 * (gap * 0.75 + 1.2) : tr.lastS + dir0 * (tr.length / 2 + 1.5)    // (P470: the front's nose)
             let c = t.cell(ahead)
             let b = g.world.block(c.x, c.y, c.z)
-            if Blocks.collide[Int(b)] && !Rails.isRail(b) && t.at(tr.time).stop == nil && !t.armoured {
+            if Blocks.collide[Int(b)] && !Rails.isRail(b) && now(tr).stop == nil && !t.armoured {
                 // P510 (Nov 1 20:39, "Why isn't it moving?... Train's broken for some reason. Fix it"): only a block he
                 // put there stops it. Anything else on the rail (a structure, a road or a tree drawn over the line after
                 // it, ground that grew back) held the train for good: it let go a minute later or once he was 48 blocks
@@ -514,7 +523,10 @@ enum Trains {
         // P379 step 2: the brake is its own control (jump: the pad's A, the space bar), held to apply it, let go to
         // release; the regulator stays where it was left. The regulator pulls the train's pace toward its setting at
         // steam's pace; the brake pulls it to a stand whatever the regulator says.
-        if dt > 0, let r = g.riding, tr.cars.contains(where: { $0 === r }), isEngine(r) {
+        let drives = dt > 0 && !oldCab && g.riding.map { r in isEngine(r) && tr.cars.contains { $0 === r } } == true
+        if drives { driveCab(g, tr, dt) } else if tr.driven { leaveCab(g, tr) }
+        if drives {
+        } else if dt > 0, let r = g.riding, tr.cars.contains(where: { $0 === r }), isEngine(r) {
             let f = g.rideInput.forward
             if abs(f) > 0.1 { tr.throttle = max(-1, min(2, tr.throttle + f * 0.7 * dt)) }
             let on: Float = g.rideInput.jump ? 1 : 0
@@ -523,20 +535,22 @@ enum Trains {
             tr.throttle += (1 - tr.throttle) * min(1, dt * 0.3)
             tr.cabBrake = max(0, tr.cabBrake - dt * 2)
         }
-        if dt > 0 {
+        if dt > 0 && !tr.driven {
             tr.rate += (tr.throttle - tr.rate) * min(1, dt * 0.6)
             let bite: Float = tr.cabBrake * 1.4 * dt
             tr.rate = tr.rate > 0 ? max(0, tr.rate - bite) : min(0, tr.rate + bite)
         }
-        let rate = tr.rate * (1 - tr.brake)
-        tr.delay += Double(dt * (1 - rate))
+        if !tr.driven {
+            let rate = tr.rate * (1 - tr.brake)
+            tr.delay += Double(dt * (1 - rate))
+        }
         tr.time = g.time - tr.delay
-        let (s, dir, stop) = t.at(tr.time)
+        let (s, dir, stop) = now(tr)
         let before = tr.cars.map { ($0.pos, $0.yaw) }
         let big = !tr.layout.isEmpty
         // P508 (one engine): the train turns to run the other way only where he can't see it happen (at a terminus,
         // 96 blocks off or out of his view); in sight it backs out and turns later.
-        if big && dir != tr.facing {
+        if big && dir != tr.facing && !tr.driven {
             let to = t.point(tr.lastS) - g.player.eye
             let d = simd_length(to)
             let looking = d > 1 && simd_dot(to / d, g.player.look) > 0.2
@@ -570,6 +584,131 @@ enum Trains {
         }
         if let st = stop, t.at(tr.time + 2).stop == nil, t.at(tr.time - Double(dt)).stop == st, tr.brake < 0.1 { whistle(g, tr) }
         if t.armoured || tr.bullion || tr.kind == .troop { gunCar(g, tr, dt) }
+    }
+
+    // Where the train is: its place on the track, the way it runs and the stop it stands at. Its timetable's, or
+    // driven from the cab, where he has it.
+    static func now(_ tr: Train) -> (s: Float, dir: Float, stop: Int?) {
+        guard tr.driven else { return tr.track.at(tr.time) }
+        // (a small train's cars hang behind its head along `dir`: backing, they keep their order)
+        return (tr.driveS, tr.driveV < 0 && !tr.layout.isEmpty ? -tr.driveFwd : tr.driveFwd, nil)
+    }
+
+    // MARK: Nov 12: the cab is his
+
+    // Nov 12 playtest (06:16:36-06:17:47, at the regulator of a line's train: "There's no one driving the train", "I
+    // should be able to speed the train up to like 100... That'll make you use more coal", "I'm forced to stop the train
+    // at the village. I can't make it go anymore", "me pressing on the pedal doesn't do anything... Like a toy ride that
+    // kids get to use at the carnival that, like, they think they're driving, but they're actually not"): the cab ran
+    // the timetable's track at a pace the regulator nudged (at most twice the timetable's, ~50 km/h), stood its 24 s at
+    // every station whatever he did, and the pad's triggers did nothing. Riding the engine now drives it: the train
+    // leaves its timetable and goes as he sets it. The regulator (the stick forward, or the right trigger held: the
+    // pedal) sets the speed it pulls toward, up to 28 blocks a second (100 km/h) at full; the brake (A / space, or the
+    // left trigger) stops it; it runs through the stations unless he stops there, and on past the line's end where a
+    // link runs on (P510's through trains). Steam costs coal: the tender starts with 24 lumps and burns more the wider
+    // the regulator (a lump every 20 s at full, 80 s at the timetable's pace; creative burns none); coal used on the
+    // engine from the cab tops it up; with none the fire dies and the train rolls to a stand. When he leaves the cab the
+    // timetable takes the train up where it is. BS_OLDCAB=1: the old regulator over the timetable.
+    static let oldCab = ProcessInfo.processInfo.environment["BS_OLDCAB"] == "1"
+    static let topSpeed: Float = 28, backSpeed: Float = 7       // blocks a second at full regulator, ahead and backing
+    static let tractive: Float = 2.2, coast: Float = 0.35, brakeRate: Float = 5      // blocks a second, each second
+    static let tenderStart: Float = 24, tenderMax: Float = 64
+    static var coalBurned: Float = 0                             // (checks)
+
+    static func driveCab(_ g: Game, _ tr: Train, _ dt: Float) {
+        let t = tr.track
+        if !tr.driven {
+            let a = t.at(tr.time)
+            tr.driven = true
+            tr.driveS = tr.layout.isEmpty ? a.s : tr.lastS
+            tr.driveFwd = tr.layout.isEmpty ? a.dir : (tr.facing < 0 ? -1 : 1)
+            tr.driveV = tr.blocksPerSec * (a.dir == tr.driveFwd ? 1 : -1)
+            tr.throttle = max(0, tr.throttle)
+        }
+        // The regulator: the stick, or the pedal held (the right trigger, his hands free of a gun); the brake: jump or
+        // the left trigger.
+        let pad = g.heldGun == nil ? g.seatPad : nil
+        let f = g.rideInput.forward + (pad.map { $0.rt > 0.15 ? $0.rt : 0 } ?? 0)
+        if abs(f) > 0.1 { tr.throttle = max(-1, min(2, tr.throttle + f * 0.7 * dt)) }
+        let on: Float = g.rideInput.jump || (pad?.lt ?? 0) > 0.3 ? 1 : 0
+        tr.cabBrake += (on - tr.cabBrake) * min(1, dt * (on > 0 ? 1.5 : 2.5))
+        // Steam: the fire burns with the regulator's opening.
+        let open = max(0, tr.throttle)
+        if g.survival && tr.coal > 0 && open > 0 {
+            let burn = min(tr.coal, open * open * 0.0125 * dt)
+            tr.coal -= burn; coalBurned += burn
+            if tr.coal <= 0 { g.onToast?("The firebox is out of coal") }
+        }
+        let fired = tr.coal > 0 || !g.survival
+        let want: Float = !fired ? 0 : tr.throttle >= 0 ? topSpeed * tr.throttle / 2 : backSpeed * tr.throttle
+        var v = tr.driveV
+        if (want > 0 && v < want) || (want < 0 && v > want) {
+            let a = tractive * (1 - min(0.6, abs(v) / topSpeed * 0.6))         // (steam pulls hardest from a stand)
+            v += want > v ? min(want - v, a * dt) : -min(v - want, a * dt)
+        } else {
+            let drag = coast + abs(v) * 0.01
+            v = v > 0 ? max(want > 0 ? want : 0, v - drag * dt) : min(want < 0 ? want : 0, v + drag * dt)
+        }
+        let stopping = brakeRate * max(tr.cabBrake, tr.brake) * dt
+        v = v > 0 ? max(0, v - stopping) : min(0, v + stopping)
+        // A block he put on the rail ahead (place: heldBy) stops it there; he can still back away from it.
+        if tr.heldBy && v > 0 { v = 0 }
+        // The track's ends (where no link runs on) and a real-size train's own length hold it off the buffers.
+        var s = tr.driveS + tr.driveFwd * v * dt
+        if !t.cyclic {
+            let n = Float(t.cells.count)
+            let half = tr.layout.isEmpty ? 0 : tr.length / 2
+            let lo = tr.layout.isEmpty ? Float(0) : half + 3, hi = tr.layout.isEmpty ? n - 1 : n - 4 - half
+            if lo <= hi && (s < lo || s > hi) { s = max(lo, min(hi, s)); v = 0 }
+        } else { s = t.wrap(s) }
+        tr.driveS = s
+        tr.driveV = v
+        tr.rate = 1
+        tr.delay += Double(dt)                          // (its timetable waits: taken up again where it is when he leaves)
+    }
+
+    // He left the cab: the timetable's moment the train is at s heading dir (P510's search), from then on.
+    static func leaveCab(_ g: Game, _ tr: Train) {
+        guard tr.driven else { return }
+        tr.driven = false
+        let t = tr.track
+        let s = tr.driveS, d: Float = tr.driveV < 0 ? -tr.driveFwd : tr.driveFwd
+        var bestU = -1.0, bestErr = Float.infinity
+        var u = 0.0
+        while u < t.period {
+            let a = t.at(u - t.phase)
+            if a.stop == nil && a.dir == d { let e = abs(t.delta(a.s, s)); if e < bestErr { bestErr = e; bestU = u } }
+            u += 0.1
+        }
+        if bestU < 0 {
+            // (no leg runs that way here: the nearest moment it stands or runs here at all)
+            u = 0
+            while u < t.period { let e = abs(t.delta(t.at(u - t.phase).s, s)); if e < bestErr { bestErr = e; bestU = u }; u += 0.1 }
+        }
+        guard bestU >= 0 else { return }
+        var delay = (g.time - (bestU - t.phase)).truncatingRemainder(dividingBy: t.period)
+        if delay < 0 { delay += t.period }
+        tr.delay = delay
+        tr.time = g.time - delay
+        tr.throttle = 1
+        tr.rate = abs(tr.driveV) / max(1, speed)
+    }
+
+    // Coal used on the engine he drives: into the tender, as much of the stack as it takes.
+    static func feedCoal(_ g: Game, _ tr: Train) -> Bool {
+        var h = g.inventory.held
+        guard !h.isEmpty else { return false }
+        let k = Items.key(h.item)
+        guard k == "coal" || k == "charcoal" || k == "coal_block" else { return false }
+        let per: Float = k == "coal_block" ? 9 : 1
+        let room = Int((tenderMax - tr.coal) / per)
+        guard room > 0 else { g.onToast?("The tender is full"); return true }
+        let n = min(room, h.count)
+        tr.coal += Float(n) * per
+        if g.survival { h.count -= n; g.inventory.held = h.count > 0 ? h : .empty }
+        g.sfx(.place(.stone), 0.7, at: g.player.pos)
+        g.onToast?(String(format: "Tender: %.0f coal", tr.coal))
+        return true
     }
 
     // The train whose locomotive the player rides (drives), if any.
@@ -608,7 +747,7 @@ enum Trains {
         case boxcar:
             return openBoxcar(g, tr, m)
         case coach, loco:
-            if g.riding === m { return false }
+            if g.riding === m { return m.variant == loco && !oldCab && feedCoal(g, tr) }
             if g.riding != nil { g.dismount() }
             g.riding = m
             g.player.pos = seat(m)
@@ -790,15 +929,27 @@ enum Trains {
 
     // MARK: Models (units 1/16 at scale 2: one unit is an eighth of a block; the car faces -Z)
 
+    // A round wheel turning about the axle (x across, at height cy, place z along the car): the regular octagon of
+    // radius r across its flats is the union of four slabs 2r long and 2r tan(22.5 deg) wide, an eighth of a turn apart.
+    static let squareWheels = ProcessInfo.processInfo.environment["BS_SQUAREWHEELS"] == "1"
+    static func roundWheel(_ p: inout [Part], x: Float, w: Float, cy: Float, z: Float, r: Float, spin: Float, color: V3) {
+        if squareWheels {
+            p.append(Part(mn: V3(x, cy - r, z - r), mx: V3(x + w, cy + r, z + r), pivot: V3(x, cy, z), rotX: spin, color: color, pattern: 8))
+            return
+        }
+        let h: Float = r * 0.41421356
+        for k in 0..<4 {
+            p.append(Part(mn: V3(x, cy - h, z - r), mx: V3(x + w, cy + h, z + r), pivot: V3(x, cy, z), rotX: spin + Float(k) * .pi / 4, color: color, pattern: 8))
+        }
+    }
+
     static func parts(_ m: Mob) -> [Part] {
         if isBig(m) { return bigParts(m) }                      // P470 part 2 (TrainCars.swift)
         let iron = V3(0.16, 0.16, 0.17), brass = V3(0.85, 0.66, 0.3), red = V3(0.55, 0.12, 0.1)
         var p: [Part] = []
         func wheels(_ zs: [Float], _ c: V3) {
             let spin = m.walkPhase
-            for z in zs { for x: Float in [-6.6, 5.6] {
-                p.append(Part(mn: V3(x, 0, z - 2), mx: V3(x + 1, 4, z + 2), pivot: V3(x, 2, z), rotX: spin, color: c, pattern: 8))
-            } }
+            for z in zs { for x: Float in [-6.6, 5.6] { roundWheel(&p, x: x, w: 1, cy: 2, z: z, r: 2, spin: spin, color: c) } }
         }
         switch m.variant {
         case loco:
