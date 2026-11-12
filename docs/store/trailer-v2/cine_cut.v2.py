@@ -4,7 +4,7 @@ CUT = [
     ("fp_build",         3.4, "Build anything, block by block", [], {"xf": 0, "ss": 2.0, "speed": 1.5}),
     ("fp_farm",          2.8, "Work the land", [], {"xf": 0, "ss": 1.6, "speed": 1.25}),
     ("fp_ride",          3.2, "Saddle up and ride out", [], {"xf": 0, "ss": 0.4}),
-    ("train_pass",       3.2, "Ride the rails across the frontier", [], {"xf": 0, "ss": 2.4}),
+    ("train_pass",       3.2, "Ride the rails across the frontier", [], {"xf": 0, "ss": 3.6}),
     ("town_life",        2.8, None, [], {"xf": 0, "ss": 0.5}),
     ("fp_cave_lush",     2.8, "Explore the caves below", [], {"xf": 0, "ss": 1.2}),
 
@@ -21,3 +21,5 @@ CUT = [
     ("sunset_finale",    3.3, None, [], {"xf": 0, "ss": 0.8}),
 ]
 TITLE = 4.0       # ~49.5 s total runtime with end card
+SWITCH = "station_approach"   # the battle theme drops here
+FINALE = "sunset_finale"

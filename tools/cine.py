@@ -41,6 +41,8 @@ CUT = [
     ("finale", 4.0, None, [], {"xf": 0}),
 ]
 TITLE = 4.0       # the closing title card
+FINALE = "finale"     # the shot whose last frame is the end card's backdrop
+SWITCH = "station_air"  # the battle theme starts on this shot
 
 
 def run(cmd):
@@ -79,7 +81,7 @@ def cut(d, out, captions):
     # The end card: the last sunset frame, blurred and darkened, under the name.
     n = len(shots)
     bg = os.path.join(d, "_endcard.png")
-    fin = os.path.join(d, "finale.mp4")
+    fin = os.path.join(d, FINALE + ".mp4")
     run(["ffmpeg", "-loglevel", "error", "-y", "-sseof", "-0.2", "-i", fin, "-frames:v", "1",
          "-vf", "scale=1920:1080,boxblur=18:2,eq=brightness=-0.18:saturation=0.8", bg])
     inputs += ["-loop", "1", "-t", f"{TITLE}", "-framerate", str(FPS), "-i", bg]
@@ -104,7 +106,7 @@ def cut(d, out, captions):
     calm = os.path.join(MUSIC, "main_title.m4a")
     war = os.path.join(MUSIC, "ash_vault_battle.m4a")
     names = [s[0] for s in shots]
-    switch = starts[names.index("station_air")] if "station_air" in names else total / 2
+    switch = starts[names.index(SWITCH)] if SWITCH in names else total / 2
     inputs += ["-i", calm, "-i", war]
     a = [f"[{ai}:a]atrim=0:{switch + 2:.3f},asetpts=PTS-STARTPTS,afade=t=in:d=0.8,afade=t=out:st={switch:.3f}:d=1.5,volume=0.75[m0]",
          f"[{ai + 1}:a]atrim=0:{total - switch + 1:.3f},asetpts=PTS-STARTPTS,afade=t=in:d=1.0,afade=t=out:st={total - switch - 3:.3f}:d=3,"
@@ -132,6 +134,11 @@ if __name__ == "__main__":
     if len(sys.argv) >= 3 and sys.argv[1] == "clips":
         clips(sys.argv[2])
     elif len(sys.argv) >= 4 and sys.argv[1] == "cut":
+        if "--cutlist" in sys.argv:          # another cut (e.g. docs/store/trailer-v2/cine_cut.v2.py): its CUT, TITLE, FINALE, SWITCH
+            ns = {}
+            exec(open(sys.argv[sys.argv.index("--cutlist") + 1]).read(), ns)
+            CUT = ns["CUT"]; TITLE = ns.get("TITLE", TITLE)
+            FINALE = ns.get("FINALE", CUT[-1][0]); SWITCH = ns.get("SWITCH", SWITCH)
         cut(sys.argv[2], sys.argv[3], "--captions" in sys.argv)
     else:
         print(__doc__)
