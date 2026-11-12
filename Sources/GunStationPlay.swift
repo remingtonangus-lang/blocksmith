@@ -135,6 +135,8 @@ enum GunStationCheck {
         g.player.pos = V3(Float(fx) + 0.5, Float(w.topY(fx, fz)) + 1, Float(fz) + 0.5)
         let ids = Set(ships.turrets(of: v).map { $0.id })
         var volleys = 0
+        ShipManager.gunTally = [:]
+        defer { ShipManager.gunTally = nil }
         for _ in 0..<(72 * 10) {
             let n0 = ships.shells.count
             ships.update(dt, game: g)
@@ -142,7 +144,8 @@ enum GunStationCheck {
         }
         let manned = (0..<ships.turrets(of: v).count).filter { st.turretManned($0) }.count
         let seen = w.clearShot(v.pos, g.player.eye) || w.clearShot(V3(v.pos.x, v.worldMax.y + 1, v.pos.z), g.player.eye)
-        print("gunstation: a stopped crawler's guns fired \(volleys) rounds at him in 10 s (asleep \(v.asleep), target \(st.target.map { $0.player ? "him" : "other" } ?? "none"), manned \(manned) of \(ships.turrets(of: v).count), in plain sight \(seen), difficulty \(g.difficulty), \(Int(ships.boundsDistance(v, g.player.pos))) off)")
+        print("gunstation: a stopped crawler's guns fired \(volleys) rounds at him in 10 s (asleep \(v.asleep), target \(st.target.map { $0.player ? "him" : "other" } ?? "none"), manned \(manned) of \(ships.turrets(of: v).count), in plain sight \(seen), difficulty \(g.difficulty), \(Int(ships.boundsDistance(v, g.player.pos))) off; gun ticks: \((ShipManager.gunTally ?? [:]).sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")))")
+        ShipManager.gunTally = nil
         check(volleys > 0 || ShipManager.oldWreckGuns, "gunstation: a crawler stopped where it stands fights on with its manned guns (\(volleys) rounds in 10 s)")
         // Then he boards her and takes a gun's station.
         let taken = g.takeGunStation(v, seat.console) && GunStationPlay.cur != nil

@@ -2895,9 +2895,10 @@ extension ShipManager {
             st.mainCharge = 0
             return
         }
+        @inline(__always) func why(_ k: String) { if ShipManager.gunTally != nil { ShipManager.gunTally![k, default: 0] += 1 } }
         for (i, tr) in ts.enumerated() {
             // An unmanned turret (its gunner dead) stays where it was left.
-            guard st.turretManned(i) else { tr.aimAt = nil; continue }
+            guard st.turretManned(i) else { tr.aimAt = nil; why("unmanned"); continue }
             let muzzle = tr.toWorld(tr.pivot)
             var aim = t.point
             let flight0 = simd_length(aim - muzzle) / tr.gunSpeed
@@ -2905,7 +2906,7 @@ extension ShipManager {
             tr.aimAt = aim
             let d = aim - muzzle
             let horiz = simd_length(V2(d.x, d.z))
-            if horiz < 6 { continue }
+            if horiz < 6 { why("close"); continue }
             let v = tr.gunSpeed, gr = tr.gunGravity
             let disc: Float = v * v * v * v - gr * (gr * horiz * horiz + 2 * d.y * v * v)
             let elev: Float = disc > 0 ? atanf((v * v - sqrtf(disc)) / (gr * horiz)) : 0.6
@@ -2914,7 +2915,7 @@ extension ShipManager {
             let a = simd_normalize(V2(tf.x, tf.z) + V2(1e-5, 0)), b = simd_normalize(V2(d.x, d.z) + V2(1e-5, 0))
             let aimErr = acosf(max(-1, min(1, simd_dot(a, b))))
             // Out of the barrels' reach (straight below a dorsal gun): hold fire.
-            if elev < tr.pitchMin - 0.05 || elev > tr.pitchMax + 0.05 { continue }
+            if elev < tr.pitchMin - 0.05 || elev > tr.pitchMax + 0.05 { why("out of elevation"); continue }
             // P483 (Oct 28 17:34-17:36, "the frigate's guns aren't hurting me at all", "the little guns just are not
             // shooting where one would expect"): a gun fired while still turning, up to 7 degrees off, so its rounds
             // burst 15 to 40 blocks from a man 150 off. It fires once laid within about two blocks of him (or 0.12 rad,
@@ -2923,7 +2924,9 @@ extension ShipManager {
             // (Dropships as they were: "the aiming for the drop ship... it's actually working".)
             let laid: Float = s.role == "dropship" ? 0.12 : max(0.02, min(0.12, 2.5 / max(1, simd_length(d))))
             let onBearing = tr.aimYaw.map { t in abs(remainderf(t - tr.turretYaw, 2 * .pi)) < 0.01 } ?? false
+            if tr.reload > 0 { why("reloading") } else if !(aimErr < laid || (onBearing && aimErr < 0.12)) { why(onBearing ? "on bearing, off \(Int(aimErr * 100)) crad" : "turning") }
             if (aimErr < laid || (onBearing && aimErr < 0.12)) && tr.reload <= 0 {
+                why("fired")
                 if s.role == "dropship" { dropshipBurst(s, tr, t, pitch: elev, g) } else { fire(tr, pitch: elev, game: g) }
             }
         }
