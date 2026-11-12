@@ -133,7 +133,7 @@ enum GunStationCheck {
         v.wrecked = true; st.disabledWhy = "engines destroyed"
         let fx = Int(floor(v.pos.x)) + 70, fz = Int(floor(v.pos.z))
         g.player.pos = V3(Float(fx) + 0.5, Float(w.topY(fx, fz)) + 1, Float(fz) + 0.5)
-        let ids = Set(ships.turrets(of: v).map { $0.id })
+        let ids = Set([v.id] + ships.turrets(of: v).map { $0.id })        // (a gun's shells carry its hull's id)
         var volleys = 0
         ShipManager.gunTally = [:]
         defer { ShipManager.gunTally = nil }
