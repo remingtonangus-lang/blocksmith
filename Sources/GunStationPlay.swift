@@ -10,7 +10,13 @@ import simd
 // BS_OLDGUNSTATION=1: the console does nothing, as before.
 enum GunStationPlay {
     static let old = ProcessInfo.processInfo.environment["BS_OLDGUNSTATION"] == "1"
-    struct Seat { @WeakLink var hull: Ship?; @WeakLink var turret: Ship?; var chair: IVec3; var settled = false }
+    struct Seat {
+        @WeakLink var hull: Ship?
+        @WeakLink var turret: Ship?
+        var chair: IVec3
+        var settled = false
+        init(hull: Ship, turret: Ship, chair: IVec3) { self.hull = hull; self.turret = turret; self.chair = chair }
+    }
     static var cur: Seat?
     static var shots = 0                          // (harness: rounds he fired from stations)
 }
