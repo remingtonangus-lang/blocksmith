@@ -331,12 +331,12 @@ extension ShipManager {
             let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)))
             let out = Rand.float(in: 0...1)
             let hot = 1 - out
-            // (quick: out over the whole ball at once, rolling on at 2-6 a second; the hot heart's puffs stay in close)
+            // (quick: out over the whole ball at once, rolling on at 1.5-4 a second and rising slowly; the hot heart's puffs stay in close)
             let at = quick ? p + d * (out * R * 0.85) + V3(0, 2, 0) : p + d * (out * R * 0.5)
-            let speed = quick ? Rand.float(in: 2...6) : Rand.float(in: 8...20)
-            g.particles.add(Particle(pos: at, vel: d * speed + V3(0, quick ? 3 : 5, 0),
+            let speed = quick ? Rand.float(in: 1.5...4) : Rand.float(in: 8...20)
+            g.particles.add(Particle(pos: at, vel: d * speed + V3(0, quick ? 2 : 5, 0),
                                      life: Rand.float(in: 0.6...1.8), maxLife: 1.8, layer: smoke, uv0: V2(0, 0), uvSize: 1,
-                                     size: Rand.float(in: 3.5...9) * (0.7 + 0.5 * out), gravity: -3,
+                                     size: Rand.float(in: 3.5...9) * (0.7 + 0.5 * out), gravity: quick ? -1.5 : -3,
                                      color: V3(1, 0.28 + 0.62 * hot, 0.08 + 0.5 * hot * hot), collide: false, glow: true))
         }
         // Soot rolling out round the fireball's skirt: dark, unlit puffs that break up its outline.

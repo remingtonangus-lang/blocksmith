@@ -41,8 +41,9 @@ enum StrikeLook {
             }
             w.ships.updateShells(dt, game: g)
             if MainGun.impacts > impacts0 { after += 1 }
-            // The fireball's size (the 90th-percentile reach of its glowing puffs from the impact) each frame for 2 s.
-            if after > 0 && after <= 72 * 2 {
+            // The fireball's size (the 90th-percentile reach of its glowing puffs from the impact) over its first second
+            // (after that it is rising and burning out).
+            if after > 0 && after <= 72 {
                 var ds = g.particles.list.filter { $0.glow && $0.size >= 2 }.map { simd_length($0.pos - MainGun.lastImpact) }
                 if ds.count > 10 {
                     ds.sort()
@@ -62,7 +63,7 @@ enum StrikeLook {
         print("strikelook: slug landed \(MainGun.impacts > impacts0) at \(Int(aim.x)) \(Int(aim.y)) \(Int(aim.z)); wake \(motes) motes, widest gap \(String(format: "%.1f", gap)) blocks; big solid puffs born \(hardBorn), popped out \(popped) over \(String(format: "%.1f", secs)) s")
         check(MainGun.impacts > impacts0, "strikelook: the slug lands")
         check(gap >= 0 && gap <= 2, "strikelook: the slug's wake is one line, no gap over 2 blocks (widest \(String(format: "%.1f", gap)), \(motes) motes)")
-        print(String(format: "strikelook: the fireball reaches %.1f blocks 0.1 s after the impact, %.1f at its largest", ball0, ballPeak))
+        print(String(format: "strikelook: the fireball reaches %.1f blocks 0.1 s after the impact, %.1f at its largest in its first second", ball0, ballPeak))
         check(ballPeak > 0 && ball0 >= 0.7 * ballPeak,
               String(format: "strikelook: the fireball is near its full size at once (%.1f of %.1f blocks 0.1 s in)", ball0, ballPeak))
         check(popped <= 20, "strikelook: under the fireball no big solid puffs pop out without fading (\(popped) popped, \(hardBorn) born)")
