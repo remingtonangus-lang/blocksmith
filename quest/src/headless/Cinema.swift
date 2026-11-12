@@ -59,6 +59,8 @@ enum Cinema {
         let cruise: Float?          // the frigate flies on along its keel at this speed (blocks/s), the camera with it
         let skip: [String]?         // render layers left out of this shot only (QUEST_SKIP names, e.g. "ships")
         let follow: Bool?           // false: the camera keeps its own keyframes while the frigate flies past (default true)
+        let hold: String?           // first person: the VR hands drawn, holding this item (an item key; "" or "hands": empty hands)
+        let playerMount: String?    // "horse": the camera rides a saddled horse that gallops along the camera's heading
         let anchor: Anchor?
         let cam: [Key]
         let events: [Ev]?
@@ -81,6 +83,7 @@ enum Cinema {
         for s in shots where only.isEmpty || only.contains(s.name) {
             let skipBase = WorldRenderer.debugSkip
             WorldRenderer.debugSkip.formUnion(s.skip ?? [])
+            WorldRenderer.debugSkip.insert("outline")       // never the aimed-at block's outline (Carbon v2: it showed on the grass in `ride`)
             defer { WorldRenderer.debugSkip = skipBase }
             do { try shoot(s, ctx: ctx, dir: out + "/" + s.name, W: W, H: H, still: still) } catch { print("cine: \(s.name) failed: \(error)"); return 1 }
         }
@@ -239,7 +242,23 @@ enum Cinema {
         // Warm-up: the game runs at the first camera spot.
         let warm = Int((s.warm ?? 3) * 72)
         for i in 0..<warm { hold(start); g.tick(dt); calm(); if i % 144 == 143 { _ = w.loadSync(center: start, radius: w.renderDistance) } }
-        let rig = try Rig(game: g, ctx: ctx, width: W, height: H, fovDeg: s.fov ?? 70)
+        let rig = try Rig(game: g, ctx: ctx, width: W, height: H, fovDeg: s.fov ?? 70, hold: s.hold)
+        // Riding: the player on a saddled horse at the first camera spot, galloping along the camera's heading; the
+        // camera is the rider's eye from then on (the keys only give the look direction).
+        var mount: Mob?
+        if s.playerMount == "horse" {
+            let d0 = sample(s.cam, 0, camLook) - start
+            let hy = atan2f(-d0.x, -d0.z)
+            let h = Mob(.horse, at: V3(start.x, ground(start.x, start.z) + 0.05, start.z))
+            h.variant = (15 << 4) | (8 << 8)
+            h.breed = HorseBreed.saddlebred.rawValue
+            h.owner = true; h.saddled = true; h.persistent = true; h.health = 30
+            h.yaw = hy
+            g.mobs.mobs.append(h); g.mobs.rebuildIndex()
+            g.riding = h; g.player.flying = false; g.player.moveYaw = nil; g.player.yaw = hy
+            g.player.pos = h.pos + V3(0, h.height * 0.75, 0)
+            mount = h
+        }
         let fps = s.fps ?? 30
         let frames = max(1, Int(s.seconds * Double(fps)))
         var events = (s.events ?? []).sorted { $0.t < $1.t }
@@ -376,6 +395,23 @@ enum Cinema {
                 }
             }
             var eye = sample(s.cam, t, camPos), look = sample(s.cam, t, camLook)
+            if let h = mount {
+                let d = look - eye
+                g.player.yaw = atan2f(-d.x, -d.z)
+                g.input.keys.insert(KeyBinds.key(.forward))
+                for _ in 0..<perFrame {
+                    if g.riding !== h { g.riding = h }
+                    g.health = 20
+                    g.tick(dt); tick += 1
+                    calm()
+                }
+                eye = g.player.eye; look = eye + d
+                if f % 30 == 0 { _ = w.loadSync(center: eye, radius: min(w.renderDistance, 6)) }
+                if still && f != frames / 2 { continue }
+                let dn = simd_normalize(d)
+                try rig.shoot(still ? dir + ".png" : String(format: "%@/f%05d.png", dir, f), eye: eye, yaw: atan2f(-dn.x, -dn.z), pitch: asinf(max(-1, min(1, dn.y))))
+                continue
+            }
             let follows = s.cruise != nil && (s.follow ?? true)
             if follows, let fr = frigate {
                 if cruiseFrom == nil { cruiseFrom = fr.pos }
@@ -476,12 +512,24 @@ enum Cinema {
         let game: Game, scene: SceneRenderer, wr: WorldRenderer, img: VkImg, targets: [RenderTarget], readback: VkBuf
         let width: Int, height: Int, proj: float4x4, far: Float
         var n = 0
-        init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float) throws {
+        // First person (Shot.hold): the headset's own hand drawing (QuestControls) on scripted controller poses.
+        let host: SimHost?, controls: QuestControls?
+        init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, hold: String? = nil) throws {
             self.game = game; self.width = width; self.height = height
             scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
             try scene.uploadTextures()
             wr = WorldRenderer(scene: scene, game: game)
             wr.landmarkHost = Renderer(game: game)
+            if let item = hold {
+                let h = SimHost(scene: scene)
+                let c = QuestControls(app: h, game: game, panel: try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH))
+                h.controls = c
+                host = h; controls = c
+                wr.extraOpaque = { s, eye in c.drawOpaque(s, eye: eye) }
+                game.inventory.selected = 0
+                if !item.isEmpty && item != "hands" && Items.has(item) { game.inventory.held = ItemStack(Items.id(item), 1) }
+                else if !item.isEmpty && item != "hands" { print("cine: no item \(item)") }
+            } else { host = nil; controls = nil }
             img = try VkImg(ctx, width: width, height: height, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
                             usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_SRC_BIT.rawValue)
             targets = [try scene.makeTarget(image: img.image, width: width, height: height),
@@ -497,6 +545,24 @@ enum Cinema {
             let head = simd_quatf(angle: yaw, axis: V3(0, 1, 0)) * simd_quatf(angle: pitch, axis: V3(1, 0, 0))
             let vp = proj * XRMath.inversePose(head, .zero)
             game.player.yaw = yaw; game.player.pitch = pitch
+            if let sim = host?.sim {
+                // The head at the tracking origin looking along the camera; the hands at rest below it, the aiming
+                // (right) hand forward, held items pointing a little down. Recentred once so tracking maps onto the eye.
+                let headY: Float = 1.62
+                sim.headPos = V3(0, headY, 0); sim.headRot = head
+                let down = simd_quatf(angle: -0.18, axis: V3(1, 0, 0))
+                let t = Float(n) / 30
+                let bob = V3(0, 0.008 * sinf(t * 2 * .pi * 1.2), 0)
+                for hi in 0..<2 {
+                    var hd = XRHand()
+                    hd.aimValid = true; hd.gripValid = true
+                    let off = hi == 1 ? V3(0.2, -0.27, -0.4) : V3(-0.24, -0.34, -0.33)
+                    hd.gripPos = sim.headPos + head.act(off + bob); hd.aimPos = hd.gripPos
+                    hd.gripRot = head * down; hd.aimRot = hd.gripRot
+                    sim.hands[hi] = hd
+                }
+                host!.rig.update(xr: sim, game: game)
+            }
             let cam = EyeCamera(center: eye, viewProj: [vp, vp], cullViewProj: vp, yaw: yaw, pitch: pitch, far: far)
             // The first frame twice (what it starts building is in it); after that once a frame, as in play.
             for _ in 0..<(n == 0 ? 2 : 1) {
