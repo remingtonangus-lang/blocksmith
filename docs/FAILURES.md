@@ -98,3 +98,15 @@ this list and ask whether the work repeats one of these.
   sweep's own placement (badlands views stood inside the mesa: `--up` now goes over the loaded world's top). On build
   101 all 564 views are clean. Still to check on the headset: his own spots in the Quest's stereo view, since the host
   renders one eye's frustum per side, not the device's.
+- **Asked a fifth time (Nov 12):** "sky-blue triangle voids" in the grass at 3903.9 65.9 1025.2 and 3919.0 64.5 1041.4,
+  "a really big one". The Nov 3 sweep could not see them: they open only where half-block ground (a dug, blasted or
+  built-on chunk) meets ground drawn from whole cells, a layout a fresh `--view` never has, and under such a hole lies
+  the fog floor, which the sweep counted as ground.
+- **Swept again (Nov 12, PR #711):** the sweep now makes those layouts itself (`--corner --finechunks`: seven layouts
+  of half-block and cells-drawn chunks round a chunk corner, each turned four ways) and counts any fog floor seen
+  looking down as a hole. The old code fails 54 of 56 views. Two causes found and fixed (ledger 91, 92): a
+  cells-drawn diagonal neighbour, and a border vertex just under a 16-block section line. His two spots: 5,846 and
+  15,003 sky pixels before, 0 after. Plains: 26 of 28 views with a hole before, 2 after (one pixel each). NOT DONE:
+  on a steep forest slope 20 of 28 views still show a hole from low side angles (28 before, a third of the pixels);
+  that third cause is open and is the next work. This entry is not closed until that sweep is clean on every biome
+  and both seeds.
