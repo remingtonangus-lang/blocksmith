@@ -57,6 +57,7 @@ enum Cinema {
         let survival: Bool?
         let peaceful: Bool?         // night monsters cleared each frame (a town at dusk without the undead)
         let cruise: Float?          // the frigate flies on along its keel at this speed (blocks/s), the camera with it
+        let skip: [String]?         // render layers left out of this shot only (QUEST_SKIP names, e.g. "ships")
         let follow: Bool?           // false: the camera keeps its own keyframes while the frigate flies past (default true)
         let anchor: Anchor?
         let cam: [Key]
@@ -78,6 +79,9 @@ enum Cinema {
         let W = Int(arg("--w") ?? "") ?? 1920, H = Int(arg("--h") ?? "") ?? 1080
         let still = CommandLine.arguments.contains("--still")     // the middle frame of each shot only
         for s in shots where only.isEmpty || only.contains(s.name) {
+            let skipBase = WorldRenderer.debugSkip
+            WorldRenderer.debugSkip.formUnion(s.skip ?? [])
+            defer { WorldRenderer.debugSkip = skipBase }
             do { try shoot(s, ctx: ctx, dir: out + "/" + s.name, W: W, H: H, still: still) } catch { print("cine: \(s.name) failed: \(error)"); return 1 }
         }
         return 0
@@ -307,6 +311,36 @@ enum Cinema {
                     if let fr = frigate { w.ships.mainGunImpact(at: p, owner: fr.id, game: g, along: simd_normalize(p - fr.pos)) }
                 case "build":
                     builds.append((cabin(at: IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))), size: e.size ?? [7, 4, 6], w: w), t, e.dur ?? 6, 0))
+                case "farm":                                 // a field: moist farmland (a water row down the middle) whose crop grows over `dur`
+                    let sz = e.size ?? [9, 9], crop = e.block ?? "wheat"
+                    let top = crop == "beetroots" ? 3 : 7
+                    var soil: [(IVec3, BlockID)] = [], grow: [(IVec3, BlockID)] = []
+                    let x0 = Int(floor(p.x)), z0 = Int(floor(p.z)), y = Int(floor(p.y))
+                    for z in 0..<sz[1] { for x in 0..<sz[0] {
+                        let water = x == sz[0] / 2
+                        soil.append((IVec3(x0 + x, y - 1, z0 + z), water ? WATER : Blocks.id("farmland_moist")))
+                        soil.append((IVec3(x0 + x, y, z0 + z), AIR))
+                    } }
+                    for st in 0...top { for z in 0..<sz[1] { for x in 0..<sz[0] where x != sz[0] / 2 {
+                        grow.append((IVec3(x0 + x, y, z0 + z), Blocks.id(crop) + BlockID(st)))
+                    } } }
+                    builds.append((soil, t, 0.05, 0))
+                    builds.append((grow, t + 0.1, e.dur ?? 5, 0))
+                case "rider":                                // a traveller on horseback trotting off along `yaw`
+                    let ang = (e.yaw ?? 0) * .pi / 180
+                    let at = V3(p.x, p.y + 0.05, p.z)
+                    let horse = Mob(.horse, at: at)
+                    horse.saddled = true; horse.posse = Riders.riding; horse.persistent = true
+                    let r = Mob(.villager, at: at + V3(0, horse.height * 0.8, 0))
+                    r.home = at
+                    Townsfolk.setup(r, game: g)
+                    if var v = r.villager { v.role = "rider"; v.locked = true; v.profession = "none"; r.villager = v }
+                    r.posse = Riders.riding; r.persistent = true; r.mount = horse
+                    let d = e.spread ?? 60
+                    let gx = p.x + sinf(ang) * d, gz = p.z - cosf(ang) * d
+                    r.patrolGoal = V3(gx, ground(gx, gz), gz)
+                    horse.yaw = -ang; r.yaw = -ang
+                    g.mobs.mobs.append(horse); g.mobs.mobs.append(r); g.mobs.rebuildIndex()
                 case "time":
                     g.time = (e.power.map(Double.init) ?? 0.27) * DAY_LENGTH
                 case "place":                                // a block (torch, lantern...) at the spot, and n more round it
