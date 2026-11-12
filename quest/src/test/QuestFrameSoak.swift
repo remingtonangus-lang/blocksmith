@@ -593,14 +593,22 @@ enum QuestFrameSoak {
         // (Nov 12, the Deep's Gloamwood flown at his height, 60 over the trees: 3895 "voids" at the top of the 25-degree
         // shots, all sky past the loaded ground's edge. Only the overworld has a far ring; elsewhere the fog ends at the
         // loaded edge, so a sight line that leaves it before it could come down to the lowest loaded ground is the edge.)
-        var edgeTan: Float = 0, edge = 0
-        if g.dim.dim != .overworld {
-            var lo = Int.max
-            for (_, c) in g.world.chunks { for h in c.height where h >= 0 { lo = min(lo, Int(h)) } }
-            let radius = Float(g.world.renderDistance * 16)
+        // (The floor under the eye: build 373 took the heightmap's lowest top and excluded nothing in the Gloamwood. Every
+        // 4th column of each loaded chunk, down from the eye to the first solid block.)
+        var edgeTan: Float = 0, edge = 0, lo = Int.max
+        let noRing = g.dim.dim != .overworld
+        if noRing {
+            let w = g.world, top = min(CH - 1, Int(eye.y))
+            for (k, _) in w.chunks { for sz in stride(from: 0, to: CS, by: 4) { for sx in stride(from: 0, to: CS, by: 4) {
+                let x = k.x * CS + sx, z = k.z * CS + sz
+                var y = top
+                while y > 0 && !w.solidAt(x, y, z) { y -= 1 }
+                lo = min(lo, y)
+            } } }
+            let radius = Float(w.renderDistance * CS)
             if lo != .max && radius > 0 { edgeTan = max(0, eye.y - Float(lo)) / radius }
         }
-        defer { if edgeTan > 0 { print(String(format: "    voids: the loaded edge (no far ring here; sight lines dropping under %.2f a block) %d pixels, not counted", edgeTan, edge)) } }
+        defer { if noRing { print(String(format: "    voids: the loaded edge (no far ring here; floor %ld under the eye at %.0f, sight lines dropping under %.2f a block) %ld pixels, not counted", lo == .max ? -1 : lo, eye.y, edgeTan, edge)) } }
         var first = true
         ParticleManager.drawnCount = 0; ParticleManager.darkCount = 0
         defer { print("    void shots: particles drawn \(ParticleManager.drawnCount), with no light at all \(ParticleManager.darkCount) (ledger 64)") }

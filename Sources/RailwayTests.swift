@@ -263,9 +263,14 @@ enum RailwayTests {
             var k = Kinds(), tag = [UInt8](repeating: 0, count: l.cells.count)
             for (i, c) in l.cells.enumerated() {
                 let col = gen.column(c.x, c.z), gy = gen.groundY(c.x, c.z)
-                if gy >= c.y + 4 { tag[i] = 2; k.tunnel += 1 }
-                else if gy >= c.y + 1 { tag[i] = 1; k.cut += 1 }
-                else if (col.biome == .river || gy < SEA) && c.y > gy + 2 { tag[i] = 3; k.bridge += 1 }
+                if gy >= c.y + 4 { tag[i] = 2 }
+                else if gy >= c.y + 1 { tag[i] = 1 }
+                else if (col.biome == .river || gy < SEA) && c.y > gy + 2 { tag[i] = 3 }
+            }
+            // (N12: counted between the end stations only, the cells a ride end to end runs over: Greywall & Elk, picked
+            // on its cells' count, gave a ride through its bridge alone)
+            if let a = l.stations.first?.index, let b = l.stations.last?.index, a < b {
+                for i in a...b { switch tag[i] { case 1: k.cut += 1; case 2: k.tunnel += 1; case 3: k.bridge += 1; default: break } }
             }
             return (tag, k)
         }
@@ -341,6 +346,8 @@ enum RailwayTests {
             peak = max(peak, tr.blocksPerSec)
             let i = max(0, min(l.cells.count - 1, Int(s.rounded())))
             if tag[i] != 0 { passed.insert(tag[i]) }
+            let hi = max(0, min(l.cells.count - 1, Int(head.rounded())))     // (what the head runs through counts too)
+            if tag[hi] != 0 { passed.insert(tag[hi]) }
             // P510 ("Wood is a block"): a plank deck over a shallow dry dip, where the bed should be banked with earth.
             if bedSeen.insert(i).inserted {
                 let c = l.cells[i]
@@ -364,7 +371,9 @@ enum RailwayTests {
             // (Nov 12: driven, the train runs through the stations: each one its head passes counts)
             // (within 0.6 of its cell: a frame at 28 b/s moves 0.47, so none is missed, and the last one ends the ride
             // with the head on it; standing counts once it has got going, not its start from the first)
-            for (k, st) in l.stations.enumerated() where abs(s - Float(st.index)) < 0.6 || head >= Float(st.index) - 0.6 {
+            // (the last one only once the train stands with its head at it: the ride runs through to the stop, as before)
+            let lastK = l.stations.count - 1
+            for (k, st) in l.stations.enumerated() where abs(s - Float(st.index)) < 0.6 || (head >= Float(st.index) - 0.6 && (k < lastK || tr.blocksPerSec < 0.05)) {
                 stops.insert(k)
                 if abs(s - Float(st.index)) < 0.6 && tr.blocksPerSec < 0.05 && peak > 1 { stood += 1 }
             }
