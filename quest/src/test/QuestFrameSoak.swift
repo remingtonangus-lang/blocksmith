@@ -489,7 +489,7 @@ enum QuestFrameSoak {
     // frames are done, eight probe shots from where it ended (four quarters round him, 25 and 50 degrees down; the frame
     // cleared to magenta with no sky drawn, RenderTest.countVoid) count the pixels below the horizon that the sky shows
     // through. Not in the Hollow, whose islands hang over open sky. --novoids leaves it out.
-    static func voidCheck(_ g: Game, ctx: VkContext, scene: SceneRenderer, wr: WorldRenderer) -> (holes: Int, below: Int, backstop: Int, worst: String)? {
+    static func voidCheck(_ g: Game, ctx: VkContext, scene: SceneRenderer, wr: WorldRenderer) -> (holes: Int, below: Int, backstop: Int, water: Int, worst: String)? {
         guard g.dim.dim != .end, !CommandLine.arguments.contains("--novoids") else { return nil }
         // (the soak drops its frames' GPU commands, SceneRenderer.skipGPU: these shots are drawn; build 257's were not, and
         // read back whatever the buffer's memory held before)
@@ -503,7 +503,12 @@ enum QuestFrameSoak {
         let size = 256, fov: Float = 90
         guard let rig = try? RenderTest.ShotRig(game: g, scene: scene, wr: wr, ctx: ctx, width: size, height: size, fovDeg: fov, ring: true) else { return nil }
         let eye = g.player.eye
-        var holes = 0, below = 0, backstop = 0, worst = (0, "")
+        var holes = 0, below = 0, backstop = 0, water = 0, worst = (0, "")
+        // (Nov 12, the naval soak on build 356: 1561 "voids" in one view, the soak ending with him sunk to the sea floor
+        // when the frigates had shot his float away. Under water the frame clears to the water's own fog colour and the
+        // far ring and sky are off (WorldRenderer.uniforms), so the clear past the drawn sea floor is the fog he sees
+        // everywhere past 18-56 blocks: not a hole. Those shots are counted apart. Under lava the same.)
+        let submerged = g.player.headInWater || g.player.headInLava
         var first = true
         ParticleManager.drawnCount = 0; ParticleManager.darkCount = 0
         defer { print("    void shots: particles drawn \(ParticleManager.drawnCount), with no light at all \(ParticleManager.darkCount) (ledger 64)") }
@@ -512,7 +517,8 @@ enum QuestFrameSoak {
             guard let img = try? rig.grab(eye: eye, yaw: yaw, pitch: pitch, frames: first ? 3 : 2) else { continue }
             first = false
             let c = RenderTest.countVoid(img, width: size, height: size, eyes: 1, fovDeg: fov, pitch: pitch)
-            holes += c.holes; below += c.below; backstop += c.backstop
+            if submerged { water += c.holes } else { holes += c.holes }
+            below += c.below; backstop += c.backstop
             // (BS_VOIDSHOTS=DIR: every shot saved there, each hole ringed in green)
             if let dir = ProcessInfo.processInfo.environment["BS_VOIDSHOTS"] {
                 var m = img
@@ -525,12 +531,12 @@ enum QuestFrameSoak {
                 let path = String(format: "%@/void-%.0f-%.0f-%.0f.png", dir, eye.x, eye.z, yaw * 180 / .pi + down * 1000)
                 try? PNG.encode(rgba: m, width: size, height: size).write(to: URL(fileURLWithPath: path))
             }
-            if c.holes > worst.0 {
+            if !submerged && c.holes > worst.0 {
                 // (as questcheck --view takes it: --at the feet, internal y; --look yaw is the player's yaw negated)
                 worst = (c.holes, String(format: "--at %.1f,%.1f,%.1f --look %.0f,%.0f: %d", pos0.x, pos0.y, pos0.z, -yaw * 180 / .pi, -down, c.holes))
             }
         } }
-        return (holes, below, backstop, worst.1)
+        return (holes, below, backstop, water, worst.1)
     }
 
     static func scene(_ sc: Setup, rd: Int, secs: Int, ctx: VkContext) throws -> (Bool, String) {
@@ -735,7 +741,8 @@ enum QuestFrameSoak {
         if !StructureCache.framePlans.isEmpty { print("    starts planned on the frame thread: " + StructureCache.framePlans.joined(separator: ", ")) }
         if let v = voids {
             print(String(format: "    voids (week item 63): %d of %d pixels below the horizon show the sky through, in 8 views from where the soak ended%@; fog floor only %d",
-                         v.holes, v.below, v.holes > 0 ? " (most at " + v.worst + ")" : "", v.backstop))
+                         v.holes, v.below, v.holes > 0 ? " (most at " + v.worst + ")" : "", v.backstop)
+                  + (v.water > 0 ? "; his eye under water, the clear past the sea floor (the water's own fog colour there, not a hole) \(v.water)" : ""))
         }
         print("    record stages (ms a frame): " + wr.takeStages())
         print(String(format: "    slowest hand-over of a finished job: %.1f ms (%@)", World.resultsWorstMs, World.resultsWorst))

@@ -519,6 +519,12 @@ final class World: LifeLinked {
         let lx = mod(x, CS), lz = mod(z, CS)
         if let sl = c.light[y >> 4] {
             let l = sl[lx + lz * CS + (y & 15) * CSQ]
+            // Ledger 90 (trailer item 5, the dark hole by the snow base's gate): the light kept is the last mesh's, and
+            // an edit's remesh lands a few frames after it (async). A shell's crater threw its pieces from cells that had
+            // been rock: each read the rock's no light there and the cell above's, and the clump drew near black at noon
+            // for 2-3 frames, then grey. Over the column's top (kept current by every edit) the mesher lights a cell with
+            // the open sky, so a cell over it is lit so now, whatever the kept light says. BS_OLDSTALESKY=1: as before.
+            if l >> 4 < 15 && y > Int(c.height[lx + lz * CS]) && !World.oldStaleSky { return (15, Int(l & 15)) }
             return (Int(l >> 4), Int(l & 15))
         }
         // Ledger 25 (Nov 5): not lit by the mesher yet (ground still streaming in): straight down from the sky through
@@ -550,6 +556,7 @@ final class World: LifeLinked {
         return a.sky > 0 || a.block > 0 ? a : lightAt(x, y + 2, z)
     }
     static let oldUnlit = ProcessInfo.processInfo.environment["BS_OLDUNLIT"] == "1"
+    static let oldStaleSky = ProcessInfo.processInfo.environment["BS_OLDSTALESKY"] == "1"
     static let oldStep = ProcessInfo.processInfo.environment["BS_OLDSTEP"] == "1"      // (the full lift only, as before Nov 5)
     // (the world audit: whether the mesher has lit the cell's section yet)
     func litByMesher(_ x: Int, _ y: Int, _ z: Int) -> Bool {

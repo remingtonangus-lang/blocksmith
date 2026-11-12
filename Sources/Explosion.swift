@@ -530,6 +530,9 @@ final class CraterJob {
         let fine0 = World.fineMade
         if World.fineWhy { World.fineLog.removeAll(keepingCapacity: true) }
         var fetchedNow = false                       // (a lean prefetch beside this step's carving)
+        // (Nov 12, the worst-case soak on build 356: one "carving" step of 59 blocks took 9.2 ms against a 1.6 ms
+        // allowance looked at every 2 blocks; where its time went: before the loop, and the slowest span between looks.)
+        var carveAt = 0.0, slowSpan = 0.0, slowIds = ""
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
             if timed && CraterJob.inTick { CraterJob.used += took }
@@ -547,6 +550,7 @@ final class CraterJob {
             if timed && took * 1000 > CraterJob.worstStepMs {
                 CraterJob.worstStepMs = took * 1000
                 CraterJob.worstStep = String(format: "%@, %ld blocks taken, r %.1f, %ld chunks refilled at once, %ld fine sections made", phase, removed - removed0, r, World.refilledAtOnce - refills0, World.fineMade - fine0)
+                    + (carveAt > 0 ? String(format: "; %.1f ms before the carving, slowest span between looks at the clock %.1f ms (", (carveAt - began) * 1000, slowSpan * 1000) + slowIds + ")" : "")
             }
         }
         let cx = Int(floor(center.x)), cy = Int(floor(center.y)), cz = Int(floor(center.z))
@@ -614,9 +618,17 @@ final class CraterJob {
         // calls, blocks .max, are untimed.)
         let deadline = blocks == .max ? Double.infinity : CFAbsoluteTimeGetCurrent() + max(0, CraterJob.allowance() - (CFAbsoluteTimeGetCurrent() - began))
         var sinceCheck = 0
+        carveAt = CFAbsoluteTimeGetCurrent()
+        var lastLook = carveAt, spanA = AIR, spanB = AIR
         while next < offsets.count && budget > 0 && removed < cap {
             sinceCheck += 1
-            if sinceCheck >= 2 { sinceCheck = 0; if CFAbsoluteTimeGetCurrent() > deadline { break } }   // (build 110: 19 citadel blocks took 3.8 ms, 0.2 ms each, so 8 between looks overran the allowance by 1.6 ms)
+            if sinceCheck >= 2 {
+                sinceCheck = 0
+                let now = CFAbsoluteTimeGetCurrent()
+                if timed && now - lastLook > slowSpan { slowSpan = now - lastLook; slowIds = Blocks.key(spanA) + ", " + Blocks.key(spanB) }
+                lastLook = now; spanA = AIR; spanB = AIR
+                if now > deadline { break }
+            }   // (build 110: 19 citadel blocks took 3.8 ms, 0.2 ms each, so 8 between looks overran the allowance by 1.6 ms)
             let o = offsets[next]
             next += 1
             let dx = Int(o.x), dy = Int(o.y), dz = Int(o.z)
@@ -648,6 +660,7 @@ final class CraterJob {
             }
             for s in Explosion.blastDrops(id) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }      // (P452)
             w.setBlockAsync(x, y, z, AIR)
+            if spanA == AIR { spanA = id } else { spanB = id }
             removed += 1
             budget -= 1
             if d2 > (edge - 1.5) * (edge - 1.5) { rim.append(b) }

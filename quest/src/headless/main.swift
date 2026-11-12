@@ -1122,10 +1122,18 @@ if let out = arg("--view"), let ctx = vkctx {
     // --blastticks N game ticks (default 2) before the render: a fresh crater as the next frames draw it.
     if let bv = arg("--blast")?.split(separator: ",").compactMap({ Float($0) }), bv.count >= 3 {
         vg.paused = false
+        // --blastintick: as a shell's blast in the headset's tick: the bowl's shaping queued for the next frames
+        // (BlastShape.deferred, CraterJob.inTick; with --blastticks 0 the frame drawn is the one before any of it ran).
+        let inTick = CommandLine.arguments.contains("--blastintick")
+        let deferred0 = BlastShape.deferred, inTick0 = CraterJob.inTick
+        if inTick { BlastShape.deferred = true; CraterJob.inTick = true }
         Explosion.explode(at: V3(bv[0], bv[1], bv[2]), power: bv.count > 3 ? bv[3] : 4, game: vg)
+        CraterJob.inTick = inTick0
+        let queued = BlastShape.queue.count
         let n = Int(arg("--blastticks") ?? "") ?? 2
         for _ in 0..<n { vg.tick(1.0 / 72) }
-        print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after")
+        if inTick { BlastShape.deferred = deferred0 }
+        print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after; shapings queued \(queued), left \(BlastShape.queue.count)")
     }
     // --troops R (P471): every soldier within R blocks of the eye after the run (--tick): what it is, whose, its gun,
     // whether it has seen him, and which way it faces from him (0: toward him).
@@ -2036,6 +2044,22 @@ do {
     check(feet == 2 && ov < 0, "block feet: a stone brick and a plank over dug field ground mesh with every u and v in 5 bits (\(feet) set\(ov < 0 ? "" : ", u \(ov / 1000) v \(ov % 1000)"))")
     SmoothTerrain.set(smooth0, world: nil)
     if Mesher.uvOverflow < 0 { Mesher.uvOverflow = uvBefore }
+}
+// Ledger 90 (trailer item 5's dark hole): a cell a blast or a dig opened to the sky reads the sky's light at once, before
+// the edit's remesh lands (the light kept is the last mesh's: a crater's flying pieces read the rock's no light and drew
+// black). Dig a column's top 4 cells in a small world without remeshing; the lowest opened cell must read sky 15.
+do {
+    let lw = World(seed: seed, device: device, save: nil)
+    lw.renderDistance = 2
+    let at = V3(spawn.x - 40, spawn.y, spawn.z)
+    _ = lw.loadSync(center: at, radius: 2)
+    let x = Int(floor(at.x)), z = Int(floor(at.z))
+    var gy = CH - 2
+    while gy > 8 && !Blocks.opaque[Int(lw.block(x, gy, z))] { gy -= 1 }
+    let lit0 = lw.litByMesher(x, gy - 3, z), before = lw.lightAt(x, gy - 3, z).sky
+    for y in (gy - 3)...gy { lw.setBlockAsync(x, y, z, AIR) }
+    let after = lw.lightAt(x, gy - 3, z).sky
+    check(lit0 && before < 15 && after == 15, "stale light: a column dug 4 deep reads the open sky at its floor before its remesh lands (sky \(before) -> \(after), lit by a mesh \(lit0))")
 }
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
 // titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
