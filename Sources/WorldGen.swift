@@ -497,7 +497,19 @@ final class WorldGen: TerrainGenerator {
         // neighbouring ponds and chunks share it and nothing spills. WorldGenTrees puts lily pads on them.
         let mudB = Blocks.id("mud"), clayB = Blocks.id("clay")
         for lz in 0..<CS { for lx in 0..<CS {
-            let biome = biomes[lx + lz * CS]
+            var biome = biomes[lx + lz * CS]
+            // Nov 12 (playtest 06:12:32-06:12:45 by a swamp pond at a forest's edge: "this stump didn't form right"):
+            // the column's biome carries a per-column jitter (the frayed border of ground cover), so along a border
+            // single columns inside a pond were forest and kept their ground: one-block pillars of dirt four high
+            // standing in the water, drawn as pointed stumps. The pond goes by the border without the jitter.
+            if !WorldGen.oldPools {
+                let wxf = Float(bx + lx), wzf = Float(bz + lz)
+                let nT: Float = flora.noise2(wxf / 5 + 311, wzf / 5 - 173), nW: Float = flora.noise2(wxf / 5 - 529, wzf / 5 + 97)
+                let c = cols[lx + lz * CS]
+                let even = terrain.biome(c, c.h, dT: nT * 0.75 * 0.07, dW: nW * 0.75 * 0.09)
+                let base = terrain.biome(c, c.h)
+                biome = even.isDry == base.isDry ? even : base
+            }
             guard biome == .swamp || biome == .mangroveSwamp else { continue }
             let k = lx + lz * CS, top = tops[k], wl = wls[k]
             let rise = top - wl
@@ -562,7 +574,20 @@ final class WorldGen: TerrainGenerator {
             let top = tops[lx + lz * CS]
             let q = flora.noise2(Float(bx + lx) / 11, Float(bz + lz) / 11)
             guard top >= wls[lx + lz * CS], q > 0.02 else { continue }   // more standing water (a swamp shot read as dry grass: critic, run 385)
-            let held = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in tops0[lx + d.0 + (lz + d.1) * CS] >= top }
+            var held = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in tops0[lx + d.0 + (lz + d.1) * CS] >= top }
+            // Nov 12 (playtest 06:12:56 at a swamp creek: "what the fuck's this... this is bad"; 06:12:43): a pool a
+            // block above the swamp's water level was held by its four sides only, so one stood corner to corner with
+            // a pond or a lower pool, a bank a few centimetres high between them: two water levels a step apart, and
+            // the upper one's edge hung over the lower as a streaked see-through sheet across the grass. A pool above
+            // the level needs every column within two of it at its own height or over it (the chunk's own columns:
+            // the same answer whichever chunk is made first). WorldGen.oldPools: as before.
+            if held && top > wls[lx + lz * CS] && !WorldGen.oldPools {
+                scan: for dz in -2...2 { for dx in -2...2 {
+                    let nx = lx + dx, nz = lz + dz
+                    guard nx >= 0 && nx < CS && nz >= 0 && nz < CS else { held = false; break scan }
+                    if tops0[nx + nz * CS] < top { held = false; break scan }
+                } }
+            }
             guard held else { continue }
             // Field worlds: a dip that deepens with the noise (a cell of water once it is half a block deep), not a cell.
             if let cd {
@@ -906,7 +931,10 @@ final class WorldGen: TerrainGenerator {
         let csq = CSQ, ch = CH, yoff = YOFF
         for lz in 0..<CS { for lx in 0..<CS {
             let top = tops[lx + lz * CS]
-            let wetColumn = top < wls[lx + lz * CS] + 2 || cols[lx + lz * CS].rv < 2.5
+            // Nov 12 (playtest 06:12:24, a beach: "a water generation error right here"): a tunnel's mouth opened in
+            // sand two blocks over the sea's level, a dry slot seven deep beside tide pools that stood higher than
+            // its floor. Ground within 4 of its water level keeps its roof (it was 2). WorldGen.oldRavineEnds: as before.
+            let wetColumn = top < wls[lx + lz * CS] + (WorldGen.oldRavineEnds ? 2 : 4) || cols[lx + lz * CS].rv < 2.5
             let wx = bx + lx, wz = bz + lz
             // P373 (b, Oct 18 08:11: "too many caves all out in the open"): tunnels break the surface only in patches
             // (a slow noise: about a quarter of the land, a seventh in forests); elsewhere they keep a 4-block roof.
@@ -1087,6 +1115,11 @@ final class WorldGen: TerrainGenerator {
         return ah % 100 < 22 && y <= ay * 16 + Int(ah >> 8) % 12
     }
 
+    // Nov 12 (A/B switches for the generator fixes of the Nov 12 playtest; each "1" gives the old result)
+    static let oldPools = ProcessInfo.processInfo.environment["BS_OLDPOOLS"] == "1"
+    static let oldRavineEnds = ProcessInfo.processInfo.environment["BS_OLDRAVINEENDS"] == "1"
+    static let oldWideFeet = ProcessInfo.processInfo.environment["BS_OLDWIDEFEET"] == "1"
+
     // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
     // Each 112-block region may hold one; its path depends only on the region, so chunks agree.
     private func carveRavines(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ aquifer: inout [Int32],
@@ -1136,8 +1169,14 @@ final class WorldGen: TerrainGenerator {
                             let lx = x - bx, lz = z - bz
                             let top = tops[lx + lz * CS]
                             let wet = top < wls[lx + lz * CS] + 2
+                            // Nov 12 (playtest 06:12:24 on a beach: "a water generation error right here"): a crack ran
+                            // out onto the shore, where its floor lies under the sea's level beside tide pools, and
+                            // its last blocks (under 1.6 across) cut a dry slot one block wide and five deep through
+                            // the sand. A crack keeps its roof on ground within 4 of the water level and where it is
+                            // too narrow to be a crack. WorldGen.oldRavineEnds: as before.
+                            let roofed = wet || (!WorldGen.oldRavineEnds && (top < wls[lx + lz * CS] + 4 || r < 1.6))
                             for y in y0...y1 {
-                                if wet && y > top - 5 { break }
+                                if roofed && y > top - 5 { break }
                                 let dy = (Float(y) + 0.5 - py) / hh
                                 let jag = cd != nil ? FieldTerrain.roughEdge(x, y, z, s32 ^ 0x5A5B) * 0.3
                                     : (hashf(x, y, z, s32 ^ 0x5A5B) - 0.5) * 0.3

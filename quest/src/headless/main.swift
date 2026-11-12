@@ -257,6 +257,11 @@ if let out = arg("--view"), let ctx = vkctx {
             print("view: railway \(l.name), \(l.cells.count) cells, \(l.stations.count) stations; eye by \(c.x) \(c.y) \(c.z)")
         }
     }
+    // --corner (Nov 12, FAILURES 4: tools/voidsweep.sh's corner views): the eye over the nearest corner of four chunks.
+    if CommandLine.arguments.contains("--corner") {
+        vg.player.pos.x = Float(Int((vg.player.pos.x / Float(CS)).rounded()) * CS) + 0.02
+        vg.player.pos.z = Float(Int((vg.player.pos.z / Float(CS)).rounded()) * CS) + 0.02
+    }
     // --up N: the eye N blocks over the ground (or the sea) under it.
     if let up = Float(arg("--up") ?? "") {
         let h = vw.gen.column(Int(floor(vg.player.pos.x)), Int(floor(vg.player.pos.z))).height
@@ -264,6 +269,28 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
+    // --finechunks "DX,DZ;..." (Nov 12, FAILURES 4): those chunks (offsets from the eye's chunk) get half-block samples
+    // in the sections their ground's top lies in or within 3 blocks of, as a built or dug block gives them, and
+    // everything is meshed again: the layouts of half-block and whole-cell ground round a chunk corner, made at will.
+    if let fc = arg("--finechunks") {
+        let ecx = floorDiv(Int(floor(vg.player.pos.x)), CS), ecz = floorDiv(Int(floor(vg.player.pos.z)), CS)
+        var made = 0
+        for spec in fc.split(separator: ";") {
+            let v = spec.split(separator: ",").compactMap { Int($0) }
+            guard v.count == 2, let c0 = vw.chunks[ChunkKey(x: ecx + v[0], z: ecz + v[1])] else { continue }
+            let c = vw.editing(c0)
+            var secs: Set<Int> = []
+            for (lx, lz) in [(8, 8), (0, 0), (15, 0), (0, 15), (15, 15)] {
+                let top = vw.topY(c.cx * CS + lx, c.cz * CS + lz)
+                guard top >= 0 else { continue }
+                for y in [top - 3, top, top + 3] where y >= 0 && y < CH { secs.insert(y >> 4) }
+            }
+            for sy in secs where vw.ensureFine(c, sy) { made += 1 }
+        }
+        vw.remeshAll()
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        print("view: finechunks: \(made) sections given half-block samples, all meshed again")
+    }
     // (FAILURES 4, the void sweep: the column height is the generator's height map, and in the badlands' mesas and the
     // field's ground the land stands well over it: the eye stood inside the rock, every view 63-88% "void". Over the
     // loaded world's own top once it is there.)

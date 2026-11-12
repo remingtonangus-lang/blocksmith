@@ -233,6 +233,22 @@ enum TreePlacer {
                 w.log(x, y + k, z, log)
                 if wide { w.log(x + 1, y + k, z, log); w.log(x, y + k, z + 1, log); w.log(x + 1, y + k, z + 1, log) }
             }
+            // Nov 12 (playtest 06:12:45 in the swamp: a trunk piece hanging over a pond; dark pits beside stumps): a
+            // four-log trunk was sited by one corner's ground. Where another corner stood over a dip, a pond or a
+            // bank's edge, that corner's logs began in the air over it. Each of the other corners goes on down
+            // through open cells and water to the ground (up to 5), as a buttress standing in the dip. A column's
+            // cells are all in one chunk, so every chunk the trunk crosses decides the same.
+            if wide && !WorldGen.oldWideFeet {
+                for (ox, oz) in [(1, 0), (0, 1), (1, 1)] {
+                    var yy = y - 1
+                    while yy > y - 6, w.inside(x + ox, yy, z + oz) {
+                        let c = w.get(x + ox, yy, z + oz)
+                        guard c == AIR || Blocks.isLiquid(c) || Blocks.replaceable[Int(c)] else { break }
+                        w.force(x + ox, yy, z + oz, log)
+                        yy -= 1
+                    }
+                }
+            }
             if w.inside(x, y - 1, z) && Blocks.key(w.get(x, y - 1, z)).contains("grass") { w.force(x, y - 1, z, DIRT) }
         }
         // The classic small-tree crown: two wide layers then two narrow ones, random corners.

@@ -42,6 +42,8 @@ enum ShapeTrunks {
     static let farFoot = ProcessInfo.processInfo.environment["BS_FARFOOT"] != "0"
     static let farTip = ProcessInfo.processInfo.environment["BS_FARTIP"] != "0"
     static let farLimbSides = ProcessInfo.processInfo.environment["BS_FARLIMB"].flatMap { Int($0) } ?? 4
+    // Nov 12: the foot ring's in-between points on the trunk's edge (BS_OLDFOOTSEAM=1: the lip and its crack, as before).
+    static let footSeam = ProcessInfo.processInfo.environment["BS_OLDFOOTSEAM"] != "1"
     static let farSides = ProcessInfo.processInfo.environment["BS_FARSIDES"].flatMap { Int($0) } ?? 6     // (a trunk's sides there)
     static let W = 16 + 2 * M
 
@@ -500,6 +502,14 @@ enum ShapeTrunks {
                 }
                 ps.append(SIMD3(c.x, h, c.y) + d * rad)
                 ns.append(d)
+            }
+            // Nov 12 (playtest 06:12:32, 06:13:25: "a hairline crack through the stump"): the foot cell goes round
+            // with twice the sides, so its top ring had a point between each pair of the next cell's bottom ring, out
+            // on the circle past that ring's straight edge. That lip stood out of the trunk all the way round and,
+            // seen from above, showed the ground through the trunk's culled inside (a thin green line round every
+            // living tree's foot). The in-between points now sit on the edge the cell above draws.
+            if ring != sides && k == prof.count - 1 && above && ShapeTrunks.footSeam {
+                for a in stride(from: 1, to: ring, by: 2) { ps[a] = (ps[a - 1] + ps[a + 1]) * 0.5 }
             }
             if k > 0 {
                 let (h0, rr0) = prof[k - 1]

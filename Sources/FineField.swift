@@ -134,6 +134,36 @@ extension World {
         } } }
         c.blocks.fine[sy] = f
         World.fineMade &+= 1
+        // Nov 12 (FAILURES 4): the sections round it (3x3 chunks, a section up and down) now draw half-block ground,
+        // and the half-block sections one further out pinned their outer edge onto those sections' cells: the callers
+        // remesh the 3x3, nobody remeshed the ring, whose edge then lay on a line its neighbour no longer drew (a slit
+        // or a sliver of sky until something else remeshed it). The ring's half-block sections go stale here.
+        if !Mesher.oldFineCorners {
+            for dz in -2...2 { for dx in -2...2 where abs(dx) == 2 || abs(dz) == 2 {
+                guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], n.meshedOnce else { continue }
+                for s in max(0, sy - 2)...min(NSEC - 1, sy + 2) {
+                    var drawsFine = false
+                    for oz in -1...1 where !drawsFine { for ox in -1...1 {
+                        guard let m = chunks[ChunkKey(x: n.cx + ox, z: n.cz + oz)], !m.blocks.fine.isEmpty else { continue }
+                        for t in max(0, s - 1)...min(NSEC - 1, s + 1) where m.blocks.fine[t] != nil && !(m === c && t == sy) { drawsFine = true }
+                        if drawsFine { break }
+                    } }
+                    if drawsFine { n.sections[s].version += 1 }
+                }
+            } }
+            for dz in -1...1 { for dx in -1...1 {
+                guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], n.meshedOnce else { continue }
+                for s in [sy - 2, sy + 2] where s >= 0 && s < NSEC {
+                    var drawsFine = false
+                    for oz in -1...1 where !drawsFine { for ox in -1...1 {
+                        guard let m = chunks[ChunkKey(x: n.cx + ox, z: n.cz + oz)], !m.blocks.fine.isEmpty else { continue }
+                        for t in max(0, s - 1)...min(NSEC - 1, s + 1) where m.blocks.fine[t] != nil && !(m === c && t == sy) { drawsFine = true }
+                        if drawsFine { break }
+                    } }
+                    if drawsFine { n.sections[s].version += 1 }
+                }
+            } }
+        }
         if World.fineWhy { World.fineLog.append(SIMD3(Int32(c.cx), Int32(sy), Int32(c.cz))) }
         return true
     }
@@ -315,7 +345,21 @@ extension Mesher {
         // P404: the sides (bits as World.sides: 0 -x, 1 +x, 2 -z, 3 +z; 4 below, 5 above) whose neighbour draws from its
         // cells: no chunk of its 3x3 has fine samples at its height or next to it.
         var coarse = 0
-        if fineBeyond.count == 4 {
+        // Nov 12: the same for all 26 neighbours (bit (ax + 1) + (az + 1) * 3 + (ay + 1) * 9), from the 5x5 masks:
+        // an edge or corner neighbour can draw from its cells while both side neighbours between draw half blocks.
+        var coarseN: UInt32 = 0
+        if fineBeyond.count >= 29 && !Mesher.oldFineCorners {
+            for ay in -1...1 { for az in -1...1 { for ax in -1...1 where ax != 0 || ay != 0 || az != 0 {
+                let t = sy + ay
+                guard t >= 0 && t < NSEC else { continue }
+                var m: UInt32 = 0
+                for oz in -1...1 { for ox in -1...1 { m |= fineBeyond[4 + (ax + ox + 2) + (az + oz + 2) * 5] } }
+                var want: UInt32 = 0
+                for u in max(0, t - 1)...min(NSEC - 1, t + 1) { want |= 1 << UInt32(u) }
+                if m & want == 0 { coarseN |= 1 << UInt32((ax + 1) + (az + 1) * 3 + (ay + 1) * 9) }
+            } } }
+        }
+        if fineBeyond.count >= 4 {
             let lo = max(0, sy - 1), hi = min(NSEC - 1, sy + 1)
             for s in 0..<4 {
                 let (dx, dz) = World.sides[s]
@@ -331,11 +375,12 @@ extension Mesher {
             if sy > 0 && !fineSection(n9, sy: sy - 1) { coarse |= 16 }
             if sy < NSEC - 1 && !fineSection(n9, sy: sy + 1) { coarse |= 32 }
         }
+        sc.dbgCoarse = (coarse, coarseN, 0)
         // The cells' own vertices (the ones the neighbour draws there: the same in every section that meshes them).
         let timing = Mesher.fineTiming
         var tA = timing ? CFAbsoluteTimeGetCurrent() : 0
         defer { if timing { Mesher.fineT.quads += CFAbsoluteTimeGetCurrent() - tA } }
-        if coarse != 0 {
+        if coarse != 0 || coarseN != 0 {
             smoothQuads(R, sc, dmg: [:], stored: dens, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles) { _, _, _, _, _, _, _, _, _ in }
         }
         let KOc = SmoothTerrain.maxRelax, Kc = 17 + 2 * KOc, KKc = Kc * Kc
@@ -419,6 +464,39 @@ extension Mesher {
                 k += 1
             } } }
         }
+        // (Nov 12, `edge` in the pin below: the true point, the point drawn, the border's vertices beside, the look)
+        var fins: [(SIMD3<Int32>, SIMD3<Int32>, [SIMD3<Int32>], (Int, Int, Int, Int, Int, Int)?)] = []
+        var finAt: [SIMD3<Int32>: Int] = [:]
+        var lastAttr: (Int, Int, Int, Int, Int, Int)? = nil
+        var pinnedTo: Set<Int> = []          // (BS_FINEDEBUG: the cells' vertices a half-block cell was put on)
+        let dbg = !Mesher.fineDebug.isEmpty
+        sc.fineFins.removeAll(keepingCapacity: true)
+        defer {
+            if dbg {
+                // (the border's vertices no half-block cell was put on: the neighbour's ground runs through them)
+                var missed = 0, line = ""
+                for sd in 0..<4 where coarse & (1 << sd) != 0 {
+                    let fixed = sd & 1 == 0 ? 0 : 16
+                    for cy in 0...16 { for u in 0...16 {
+                        let cx = sd < 2 ? fixed : u, cz = sd < 2 ? u : fixed
+                        let vi = (cx + KOc) + (cz + KOc) * Kc + (cy + KOc) * KKc
+                        guard VLc[vi] >= 0, !pinnedTo.contains(vi) else { continue }
+                        missed += 1
+                        if missed <= 12 { line += String(format: " %d,%d,%d@%.2f,%.2f,%.2f", cx, cy, cz, VPc[vi * 3], VPc[vi * 3 + 1], VPc[vi * 3 + 2]) }
+                    } }
+                }
+                if missed > 0 { print("finedebug: sy \(sy) border vertices no half-block cell took: \(missed):\(line)") }
+            }
+            for fin in fins {
+                guard let at = fin.3 ?? lastAttr else { sc.dbgCoarse.2 += 1_000_000; continue }
+                for x in fin.2 where x != fin.0 && x != fin.1 {
+                    // (a triangle as a quad with a doubled corner, once for each side)
+                    for p in [fin.0, fin.1, x, x, x, fin.1, fin.0, fin.0] {
+                        sc.fineFins.append((Int(p.x), Int(p.y), Int(p.z), at.0, at.1, at.2, at.3, at.4, at.5))
+                    }
+                }
+            }
+        }
         for v in 0..<8 {
             let vx = v & 1, vy = (v >> 1) & 1, vz = v >> 2
             if oldFill {
@@ -443,7 +521,7 @@ extension Mesher {
             defer { if timing { Mesher.fineT.subs += 1; if emitted == 0 { Mesher.fineT.empty += 1 } } }
             let e0 = exact?.count ?? 0
             let off = SIMD3<Float>(Float(vx * 16), Float(vy * 16), Float(vz * 16))
-            let pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = coarse == 0 ? nil : { hx, hy, hz, p in
+            let pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = coarse == 0 && coarseN == 0 ? nil : { hx, hy, hz, p in
                 let gx = hx + vx * 16, gy = hy + vy * 16, gz = hz + vz * 16          // half-block dual cell, 0...32
                 var fx = -1, fy = -1, fz = -1                                        // the cells' cell a side fixes
                 if coarse & 1 != 0 && gx <= 1 { fx = 0 }
@@ -452,29 +530,129 @@ extension Mesher {
                 if coarse & 8 != 0 && gz >= 31 { fz = 16 }
                 if coarse & 16 != 0 && gy <= 1 { fy = 0 }
                 if coarse & 32 != 0 && gy >= 31 { fy = 16 }
+                if coarseN != 0 {
+                    // The neighbours this half-block cell touches: every mix of its outer sides. One drawn from its
+                    // cells fixes the cell on each axis it lies across.
+                    let zx = gx <= 1 ? -1 : (gx >= 31 ? 1 : 0), zy = gy <= 1 ? -1 : (gy >= 31 ? 1 : 0), zz = gz <= 1 ? -1 : (gz >= 31 ? 1 : 0)
+                    if zx != 0 || zy != 0 || zz != 0 {
+                        for k in 1..<8 {
+                            let ax = k & 1 != 0 ? zx : 0, ay = k & 2 != 0 ? zy : 0, az = k & 4 != 0 ? zz : 0
+                            if (k & 1 != 0 && zx == 0) || (k & 2 != 0 && zy == 0) || (k & 4 != 0 && zz == 0) { continue }
+                            guard coarseN & (1 << UInt32((ax + 1) + (az + 1) * 3 + (ay + 1) * 9)) != 0 else { continue }
+                            // (Only a neighbour none of the nearer ones between stands for: beside a side neighbour drawn
+                            // from its cells, the cell is already on that neighbour's border, whose vertices run on
+                            // across the edge; fixing the other axis too skipped one of them, a slit along the edge.)
+                            var nearer = false
+                            for j in 1..<k where j & k == j {
+                                let bx = j & 1 != 0 ? zx : 0, by = j & 2 != 0 ? zy : 0, bz = j & 4 != 0 ? zz : 0
+                                if coarseN & (1 << UInt32((bx + 1) + (bz + 1) * 3 + (by + 1) * 9)) != 0 { nearer = true; break }
+                            }
+                            if nearer { continue }
+                            if ax != 0 { fx = ax < 0 ? 0 : 16 }
+                            if ay != 0 { fy = ay < 0 ? 0 : 16 }
+                            if az != 0 { fz = az < 0 ? 0 : 16 }
+                        }
+                    }
+                }
                 guard fx >= 0 || fy >= 0 || fz >= 0 else { return nil }
-                // On the other axes the cells' cell holding the half-block cell (odd), or the two it straddles (even).
-                // (Only the cells' own owned cells 0...16: a ring cell's vertex can lie outside the section, below 0.)
+                // On the other axes the cells' cell holding the half-block cell (odd), or the two it straddles (even):
+                // the cells' cell c holds a vertex in c + 0.5 ... c + 1.5, the half-block cell g in g / 2 + 0.25 ... + 0.75.
+                // Nov 12 (FAILURES 4, his second spot, 3919 64.5 1041.4, "a really big one"): the outermost half-block
+                // cell (32) is the next section's cell 0 and straddles the cells' 15 and 16, the next section's -1 and 0.
+                // The next section was offered its 0 alone (a vertex of its -1 can lie below its floor, and a drawn
+                // vertex has no sign), so where the border's vertex lay just under the section line the two half-block
+                // sections put their shared cell on two different points, or the upper one left it loose: a triangle of
+                // sky up to a block wide on the border. Now both take the nearest of the same two cells, and a vertex
+                // under the line is drawn on the line by both (`edge` below closes the step that leaves).
+                let edgeFix = !Mesher.oldFineEdge
                 func cand(_ g: Int, _ fixed: Int) -> [Int] {
-                    fixed >= 0 ? [fixed] : (g & 1 == 1 ? [(g - 1) / 2] : [g / 2 - 1, g / 2]).filter { $0 >= 0 && $0 <= 16 }
+                    if fixed >= 0 { return [fixed] }
+                    return (g & 1 == 1 ? [(g - 1) / 2] : [g / 2 - 1, g / 2]).filter { $0 >= (edgeFix && g == 0 ? -1 : 0) && $0 <= 16 }
                 }
                 let pw = (p + off) * 0.5
-                var best = SIMD3<Float>(repeating: 0), bestD = Float.infinity
+                var best = SIMD3<Float>(repeating: 0), bestD = Float.infinity, bestC = SIMD3<Int>(0, 0, 0)
                 for cx in cand(gx, fx) { for cy in cand(gy, fy) { for cz in cand(gz, fz) {
                     let vi = (cx + KOc) + (cz + KOc) * Kc + (cy + KOc) * KKc
                     guard VLc[vi] >= 0 else { continue }
                     let q = SIMD3<Float>(VPc[vi * 3], VPc[vi * 3 + 1], VPc[vi * 3 + 2])
                     let d = simd_length_squared(q - pw)
-                    if d < bestD { bestD = d; best = q }
+                    if d < bestD { bestD = d; best = q; bestC = SIMD3(cx, cy, cz) }
                 } } }
                 // (On the 1/16 grid the cells' vertex is drawn on, so the half-block vertex, drawn at half its own 1/16
                 // grid, lands on the very same point: a vertex a thirty-second off was still a slit from a low angle.)
+                if bestD == .infinity && !Mesher.oldFineCorners {
+                    // (Still none: the nearest of the cells' vertices one further out on the free axes, on the same border.)
+                    // (A cell two sections share keeps its two: the sections must come to the same answer.)
+                    func wide(_ g: Int, _ fixed: Int) -> [Int] {
+                        if fixed >= 0 { return [fixed] }
+                        if g == 0 || g == 32 { return cand(g, fixed) }
+                        let c = (g - 1) / 2
+                        return Array(max(0, c - 1)...min(16, (g & 1 == 1 ? c : c + 1) + 1))
+                    }
+                    for cx in wide(gx, fx) { for cy in wide(gy, fy) { for cz in wide(gz, fz) {
+                        let vi = (cx + KOc) + (cz + KOc) * Kc + (cy + KOc) * KKc
+                        guard VLc[vi] >= 0 else { continue }
+                        let q = SIMD3<Float>(VPc[vi * 3], VPc[vi * 3 + 1], VPc[vi * 3 + 2])
+                        let d = simd_length_squared(q - pw)
+                        if d < bestD { bestD = d; best = q; bestC = SIMD3(cx, cy, cz) }
+                    } } }
+                    sc.dbgCoarse.2 += bestD < .infinity ? 1 : 1000
+                    if bestD == .infinity && !Mesher.fineDebug.isEmpty && sc.dbgCoarse.2 < 12000 {
+                        var near = ""
+                        for cy in 0...16 { for cz in max(0, gz / 2 - 1)...min(16, gz / 2 + 1) { for cx in max(0, gx / 2 - 2)...min(16, gx / 2 + 1) {
+                            let vi = (cx + KOc) + (cz + KOc) * Kc + (cy + KOc) * KKc
+                            if VLc[vi] >= 0 { near += String(format: " %d,%d,%d@%.2f,%.2f,%.2f", cx, cy, cz, VPc[vi * 3], VPc[vi * 3 + 1], VPc[vi * 3 + 2]) }
+                        } } }
+                        print(String(format: "finedebug: loose sy %d cell %d,%d,%d fixed %d,%d,%d at %.2f,%.2f,%.2f; the cells' vertices near:%@", sy, gx, gy, gz, fx, fy, fz, pw.x, pw.y, pw.z, near))
+                    }
+                }
                 guard bestD < .infinity else { return nil }
-                return (best * 16).rounded(.toNearestOrAwayFromZero) / 16 * 2 - off
+                if dbg { pinnedTo.insert((bestC.x + KOc) + (bestC.z + KOc) * Kc + (bestC.y + KOc) * KKc) }
+                var q16 = (best * 16).rounded(.toNearestOrAwayFromZero)
+                if edgeFix {
+                    // `edge`: a shared cell's vertex under its section line, drawn on the line. The section below (the
+                    // one that can draw the true point) closes the step between the two: a triangle from the pair to
+                    // each of the border's vertices beside it, drawn after the ground (Mesher).
+                    let v16 = q16
+                    let g = SIMD3<Int>(gx, gy, gz), fixed = SIMD3<Int>(fx, fy, fz)
+                    for a in 0..<3 where fixed[a] < 0 {
+                        if g[a] == 0 { q16[a] = max(q16[a], 0) }
+                        if g[a] == 32 { q16[a] = max(q16[a], 256) }
+                    }
+                    if q16 != v16 && v16.x >= 0 && v16.y >= 0 && v16.z >= 0 {
+                        let key = SIMD3<Int32>(Int32(q16.x), Int32(q16.y), Int32(q16.z))
+                        if finAt[key] == nil {
+                            var xs: [SIMD3<Int32>] = []
+                            for oy in -1...1 { for oz in -1...1 { for ox in -1...1 where ox != 0 || oy != 0 || oz != 0 {
+                                let o = SIMD3<Int>(ox, oy, oz)
+                                var ok = true
+                                for a in 0..<3 where o[a] != 0 && fixed[a] >= 0 { ok = false }
+                                let c = bestC &+ o
+                                guard ok, c.x >= 0, c.y >= 0, c.z >= 0, c.x <= 16, c.y <= 16, c.z <= 16 else { continue }
+                                let vi = (c.x + KOc) + (c.z + KOc) * Kc + (c.y + KOc) * KKc
+                                guard VLc[vi] >= 0 else { continue }
+                                let x16 = (SIMD3<Float>(VPc[vi * 3], VPc[vi * 3 + 1], VPc[vi * 3 + 2]) * 16).rounded(.toNearestOrAwayFromZero)
+                                guard x16.x >= 0, x16.y >= 0, x16.z >= 0 else { continue }
+                                var xt = x16
+                                for a in 0..<3 where q16[a] != v16[a] && c[a] == 15 { xt[a] = max(xt[a], 256) }
+                                xs.append(SIMD3<Int32>(Int32(x16.x), Int32(x16.y), Int32(x16.z)))
+                                if xt != x16 { xs.append(SIMD3<Int32>(Int32(xt.x), Int32(xt.y), Int32(xt.z))) }
+                            } } }
+                            finAt[key] = fins.count
+                            fins.append((SIMD3<Int32>(Int32(v16.x), Int32(v16.y), Int32(v16.z)), key, xs, nil))
+                        }
+                    }
+                }
+                return q16 / 16 * 2 - off
             }
             smoothQuads(vR, vs, dmg: [:], stored: vD, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles, exact: exact, pin: pin) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                 emitted += 1
-                emit((x16 + vx * 256) >> 1, (y16 + vy * 256) >> 1, (z16 + vz * 256) >> 1, f, tint, layer, ao, l, ncode)
+                let ex = (x16 + vx * 256) >> 1, ey = (y16 + vy * 256) >> 1, ez = (z16 + vz * 256) >> 1
+                if !fins.isEmpty {
+                    lastAttr = (f, tint, layer, ao, l, ncode)
+                    if let i = finAt[SIMD3<Int32>(Int32(ex), Int32(ey), Int32(ez))], fins[i].3 == nil { fins[i].3 = (f, tint, layer, ao, l, ncode) }
+                }
+                emit(ex, ey, ez, f, tint, layer, ao, l, ncode)
             }
             // (P383: the unsnapped positions, scaled back from half blocks like the snapped ones)
             if let ex = exact {

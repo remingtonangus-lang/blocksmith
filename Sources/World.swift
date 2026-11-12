@@ -117,6 +117,10 @@ final class World: LifeLinked {
     // meshing at the dropship's 60 b/s at view 16); it meshes when he slows or comes down. BS_HIGHFAST=0: off.
     static var highFastNone = ProcessInfo.processInfo.environment["BS_HIGHFAST"] != "0"
     private(set) var flyingFast = false
+    private(set) var groundFast = false
+    static let oldGroundFast = ProcessInfo.processInfo.environment["BS_OLDGROUNDFAST"] == "1"
+    static var groundFastSpeed: Float = Float(ProcessInfo.processInfo.environment["BS_GROUNDFAST"] ?? "") ?? 12
+    static var buriedNearFast = Int(ProcessInfo.processInfo.environment["BS_FASTRING"] ?? "") ?? 0
     private(set) var underground = false
     private var eyeSection = 0                      // the section his eye is in (World.update), P404 (3)
     private var buriedCentre: ChunkKey?
@@ -363,9 +367,14 @@ final class World: LifeLinked {
     // P404: for a chunk whose 3x3 has fine samples (its sections may draw half-block ground, Mesher.fineGround), per side
     // (World.sides order) the sections (bit = section) with fine samples in the three chunks two steps out on that side:
     // with the 3x3 that says which side neighbours draw from their cells. Empty when no section of the chunk can be fine.
+    // Nov 12 (FAILURES 4, the sky triangles in the grass at a chunk corner): the four side masks said nothing of the
+    // diagonal neighbours, so a section whose two side neighbours drew half-block ground and whose corner neighbour drew
+    // from its cells left its corner vertex unpinned: a triangle of sky where the four chunks meet. Now the masks of
+    // the whole 5x5 follow the four (index 4 + (dx + 2) + (dz + 2) * 5; bit = section with fine samples), so the
+    // mesher can tell for each of a section's 26 neighbours what it draws from.
     func fineBeyond(_ c: Chunk, _ n9: [BlockStore]) -> [UInt32] {
         guard fieldTerrain, FineField.enabled, n9.contains(where: { !$0.fine.isEmpty }) else { return [] }
-        return World.sides.map { (dx, dz) in
+        var out: [UInt32] = World.sides.map { (dx, dz) in
             var bits: UInt32 = 0
             for k in -1...1 {
                 guard let n = chunks[ChunkKey(x: c.cx + 2 * dx + (dz != 0 ? k : 0), z: c.cz + 2 * dz + (dx != 0 ? k : 0))] else { continue }
@@ -373,6 +382,16 @@ final class World: LifeLinked {
             }
             return bits
         }
+        for dz in -2...2 { for dx in -2...2 {
+            var bits: UInt32 = 0
+            if abs(dx) <= 1 && abs(dz) <= 1 {
+                for s in n9[(dx + 1) + (dz + 1) * 3].fine.keys where s >= 0 && s < 32 { bits |= 1 << UInt32(s) }      // (as the mesher reads them)
+            } else if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] {
+                for s in n.blocks.fine.keys where s >= 0 && s < 32 { bits |= 1 << UInt32(s) }
+            }
+            out.append(bits)
+        } }
+        return out
     }
 
     @inline(__always) func inMeshRadius(_ dx: Int, _ dz: Int) -> Bool {
@@ -1584,6 +1603,33 @@ final class World: LifeLinked {
         }
     }
 
+    // Nov 12 (FAILURES 4, the triangle voids that "go away when you take a block under them"): a hole a re-mesh cures
+    // is a mesh made from inputs that changed afterwards with nobody asking for it again. This finds every such
+    // section: each drawn, up-to-date section within `radius` chunks is meshed again now, with what a mesh worker would
+    // be given now, and its words compared with the ones on the GPU (questcheck --streamtest --stalecheck R).
+    func staleCheck(center: V3, radius: Int) -> (checked: Int, stale: [String]) {
+        let c0 = ChunkKey(x: floorDiv(Int(floor(center.x)), CS), z: floorDiv(Int(floor(center.z)), CS))
+        var checked = 0, out: [String] = []
+        for dz in -radius...radius { for dx in -radius...radius {
+            let k = ChunkKey(x: c0.x + dx, z: c0.z + dz)
+            guard let c = chunks[k], !c.hollow, c.meshedOnce, !c.meshInFlight, let nb = neighbourhood(c) else { continue }
+            let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c), site = smoothSite(c)
+            let near = nearSides(c, lod: c.lod), beyond = fineBeyond(c, nb.0)
+            for (sy, s) in c.sections.enumerated() where s.meshedVersion == s.version && !s.deferred {
+                let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)
+                checked += 1
+                let o = World.sameBytes(s.opaqueBuf, m.opaque, m.farGround), t = World.sameBytes(s.transBuf, m.trans), d = World.sameBytes(s.detailBuf, m.detail, m.detailFar)
+                if o && t && d { continue }
+                let fine = (-1...1).flatMap { oz in (-1...1).map { ox in chunks[ChunkKey(x: k.x + ox, z: k.z + oz)].map { $0.blocks.fine[sy] != nil ? "F" : ($0.blocks.fine.isEmpty ? "." : "f") } ?? "?" } }.joined()
+                out.append("chunk \(k.x) \(k.z) (blocks \(k.x * CS)..\(k.x * CS + 15), \(k.z * CS)..\(k.z * CS + 15)) section \(sy): "
+                           + (o ? "" : "solid/cut-out \(s.opaqueQuads) quads drawn, \(m.opaque.count / 8) now (ground \(s.groundQuads) -> \(m.groundQuads)); ")
+                           + (t ? "" : "see-through \(s.transQuads) -> \(m.trans.count / 8); ") + (d ? "" : "round shapes \(s.detailQuads) -> \(m.detail.count / DetailMesh.wordsPerQuad); ")
+                           + "half-block ground in its 3x3 at this height: \(fine), beyond \(beyond)")
+            }
+        } }
+        return (checked, out)
+    }
+
     private func dirtySections(_ c: Chunk) -> [(Int, Int)] {
         var out: [(Int, Int)] = []
         for (sy, s) in c.sections.enumerated() where s.needsMesh { out.append((sy, s.version)) }
@@ -1888,7 +1934,7 @@ final class World: LifeLinked {
     }
 
     private func nearBuried(_ k: ChunkKey) -> Bool {
-        let r = underground ? World.buriedNearUnder : flyingHigh ? (flyingFast ? -1 : World.buriedNearHigh) : World.buriedNear
+        let r = underground ? World.buriedNearUnder : flyingHigh ? (flyingFast ? -1 : World.buriedNearHigh) : (groundFast ? World.buriedNearFast : World.buriedNear)
         guard let c0 = buriedCentre else { return true }
         if max(abs(k.x - c0.x), abs(k.z - c0.z)) <= r { return true }
         if let e = buriedExtra, max(abs(k.x - e.x), abs(k.z - e.z)) <= r { return true }
@@ -1992,10 +2038,19 @@ final class World: LifeLinked {
             high = !under && pos.y - Float(y) > (flyingHigh ? 12 : 24)       // (P446)
         }
         let fast = World.highFastNone && simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast
-        guard center != buriedCentre || extra != buriedExtra || under != underground || high != flyingHigh || fast != flyingFast else { return }
+        // Nov 12 (playtest 06:24-06:31, the train at 90-99 km/h and the crawler flat out: "the rendering can't keep
+        // up"): on the ground the ring of chunks whose buried sections mesh (caves and rock he can't see from the
+        // surface) is 7x7, a dozen sections a chunk, and at 25 blocks a second he crosses a chunk every 0.6 s: the
+        // workers meshed rock under him while the land ahead waited. Travelling over groundFastSpeed on the ground the
+        // ring is his own chunk (measured at 27.5 b/s, view 8: with the 3x3 the ring's rock was still a fifth of all
+        // meshing, 143 jobs of 20-40 ms in 14 s for chunks he left 0.6 s later). BS_OLDGROUNDFAST=1: as before.
+        let sp2 = simd_length_squared(V2(lead.x, lead.z))
+        let gfast = !World.oldGroundFast && !under && sp2 > (groundFast ? 9.0 * 9.0 : World.groundFastSpeed * World.groundFastSpeed)
+        guard center != buriedCentre || extra != buriedExtra || under != underground || high != flyingHigh || fast != flyingFast || gfast != groundFast else { return }
+        groundFast = gfast
         let wasUnder = underground
         underground = under; flyingHigh = high; flyingFast = fast; buriedCentre = center; buriedExtra = extra
-        let r = under ? World.buriedNearUnder : high ? (fast ? -1 : World.buriedNearHigh) : World.buriedNear
+        let r = under ? World.buriedNearUnder : high ? (fast ? -1 : World.buriedNearHigh) : (gfast ? World.buriedNearFast : World.buriedNear)
         let rKeep = under ? World.buriedNearUnder : World.buriedNear       // (flying high doesn't give meshes back)
         for (k, c) in chunks where !c.hollow {
             let d = min(max(abs(k.x - center.x), abs(k.z - center.z)), extra.map { max(abs(k.x - $0.x), abs(k.z - $0.z)) } ?? Int.max)
