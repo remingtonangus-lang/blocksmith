@@ -2079,13 +2079,19 @@ extension ShipManager {
             if over { overdriveGlow(s, st, g) }
         } else {
             flyCommandeered(s, st, dt, g)
+            TickProf.mark("cap: commandeered: fly")
             hullContact(s, st, dt, g)
             if s.wrecked { return }
         }
+        TickProf.mark("cap: commandeered: contact")
         st.target = nil
         driveGlow(s, st, boundsDistance(s, g.player.pos), dt, g)
         st.mainGunCD -= dt                                  // the Tidebreaker recharges for its new captain (playerMainGun)
-        if s.role == "capfrigate" { mainGunTick(s, st, dt, g); boardingWinch(s, st, dt, g); if pilot === s { mainGunAimTick(s, st, dt, g) } }
+        if s.role == "capfrigate" {
+            mainGunTick(s, st, dt, g); TickProf.mark("cap: commandeered: main gun")
+            boardingWinch(s, st, dt, g)
+            if pilot === s { mainGunAimTick(s, st, dt, g); TickProf.mark("cap: commandeered: aim") }
+        }
         // (code reader Nov 10, batch 3.1: this ran after the crews laid their guns (gunCrewTick, earlier in the same
         // update), so on a frigate he had taken the crew's guns never turned onto anything and only fired at what
         // happened to lie in line. A gun a crew laid this update keeps its mark.)
