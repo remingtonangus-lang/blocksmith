@@ -821,9 +821,12 @@ final class WorldRenderer {
         if !es.contains("felled") { game.writeFelled(&wr, eye: eye) }   // (P297 d: round felled trunks)
         if !es.contains("debris") { game.debris.write(&wr, eye: eye, world: w, daylight: daylight) }   // (R15: ragdolls and debris in every world)
         let tp0 = CFAbsoluteTimeGetCurrent()
-        if !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight) }
-        particleSec = CFAbsoluteTimeGetCurrent() - tp0
+        let split = !ParticleManager.oldSmoke                       // (smoke in its own see-through pass: Particles.isSmoke)
+        if !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, soft: split ? false : nil) }
         let nItems = wr.n
+        if split && !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, soft: true) }
+        particleSec = CFAbsoluteTimeGetCurrent() - tp0
+        let nSmoke = wr.n
         if !es.contains("shadows") { game.writeShadows(&wr, eye: eye) }
         if !es.contains("halos") { game.writeHalos(&wr, eye: eye, right: right, up: -up) }   // SH1 light halos
         if !es.contains("weather") { game.writeWeather(&wr, eye: eye) }
@@ -847,7 +850,8 @@ final class WorldRenderer {
         scene.commit(off, wr.n, EntityVert.self)
         let stride = MemoryLayout<EntityVert>.stride
         scene.drawScratch(s, "entity", offset: off, count: nItems)
-        if wr.n > nItems { scene.drawScratch(s, "crack", offset: off + nItems * stride, count: wr.n - nItems) }
+        if nSmoke > nItems { scene.drawScratch(s, "smoke", offset: off + nItems * stride, count: nSmoke - nItems) }
+        if wr.n > nSmoke { scene.drawScratch(s, "crack", offset: off + nSmoke * stride, count: wr.n - nSmoke) }
     }
 
     // Target block outline: thin dark boxes (quads, so they read in the headset where 1-pixel lines shimmer).

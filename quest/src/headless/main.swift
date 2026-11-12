@@ -1355,6 +1355,31 @@ if let out = arg("--view"), let ctx = vkctx {
         vg.player.pos = V3(Float(bx) + 0.5, Float(by + 1), Float(bz - 4) + dist); vg.player.vel = .zero
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     }
+    // --scene smoke (trailer, Nov 11: smoke at night drawn as flat black pixel blobs): a snow field at --at, dark and pale
+    // smoke puffs (Particles.smoke) and an explosion's smoke from 0.6 to 7 blocks ahead, the camera looking down a little
+    // at the snow behind them (--time 0.6 for the night, 0.25 noon).
+    if arg("--scene") == "smoke" {
+        let bx = Int(floor(at[0])), by = Int(floor(at[1])), bz = Int(floor(at[2]))
+        for x in (bx - 12)...(bx + 12) { for z in (bz - 20)...(bz + 4) {
+            vw.setBlock(x, by, z, Blocks.id("snow_block"))
+            for y in (by + 1)...(by + 8) { vw.setBlock(x, y, z, AIR) }
+        } }
+        vg.player.pos = V3(Float(bx) + 0.5, Float(by + 3), Float(bz) + 0.5); vg.player.vel = .zero
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        vw.remeshArea(x0: bx - 14, z0: bz - 22, x1: bx + 14, z1: bz + 6, y0: by - 4, y1: by + 10)
+        var rs: UInt32 = 7
+        func rnd() -> Float { rs = rs &* 1664525 &+ 1013904223; return Float(rs >> 8) / Float(1 << 24) }
+        let eye = vg.player.pos + V3(0, 1.62, 0)
+        for i in 0..<70 {
+            let d: Float = 0.6 + 6.4 * rnd(), sx = (rnd() - 0.5) * d * 1.2, sy = (rnd() - 0.6) * d * 0.6
+            vg.particles.smoke(at: eye + V3(sx, sy, -d), dark: i % 4 != 3)
+        }
+        vg.particles.explosion(at: eye + V3(3, -1, -9), power: 3)
+        for i in vg.particles.list.indices {                             // (the puffs fully grown, like the trailer's)
+            vg.particles.list[i].size *= 1.6; vg.particles.list[i].life = vg.particles.list[i].maxLife * (0.3 + 0.7 * rnd())
+        }
+        print("view: smoke scene, \(vg.particles.list.count) particles")
+    }
     // --mob KEY[,KEY...]: those mobs side by side --mobdist blocks ahead (default 3), facing the camera (model checks,
     // P185); --aggro shows them hostile.
     if let ks = arg("--mob") {
@@ -3384,6 +3409,56 @@ if CommandLine.arguments.contains("--creativetabs") {
           + parts.joined(separator: ", ") + "; search keys s-t-o-n-e " + typed.joined(separator: " ") + String(format: " (%d found); worst %.1f ms", m.all.count, worst)
           + (CreativeMenu.oldTabs ? "" : String(format: "; the one pass on the frame's thread %.1f ms", CommandLine.arguments.contains("--cold") ? pass : 0)))
     game.closeMenu()
+    exit(0)
+}
+
+// Ledger 84's bloom: every block item placed against each of the six faces of a stone block, through the game's own
+// placing (the pad's use trigger), in creative. The oracle is the run itself (a missing state or a bad table stops the
+// game), plus how many pieces placed nothing. Prints the count and the items that never placed.
+if CommandLine.arguments.contains("--placeall") {
+    game.survival = false; game.player.flying = true; game.paused = false
+    if game.menu != nil { game.closeMenu() }
+    let cx = Int(floor(game.player.pos.x)) + 40, cz = Int(floor(game.player.pos.z)) + 40
+    _ = world.loadSync(center: V3(Float(cx), 100, Float(cz)), radius: 2)
+    let cy = min(CH - 20, world.topY(cx, cz) + 30)
+    func clearBox() {
+        for y in (cy - 4)...(cy + 4) { for z in (cz - 4)...(cz + 4) { for x in (cx - 4)...(cx + 4) where world.block(x, y, z) != AIR { world.setBlock(x, y, z, AIR) } } }
+        world.setBlock(cx, cy, cz, STONE)
+    }
+    func frame(_ lt: Float) {
+        var p = PadSnapshot(); p.lt = lt
+        PadManager.shared.simulated = p
+        game.tick(1.0 / 72)
+        if game.menu != nil { game.closeMenu() }
+    }
+    let dirs: [V3] = [V3(1, 0, 0), V3(-1, 0, 0), V3(0, 0, 1), V3(0, 0, -1), V3(0, 1, 0), V3(0, -1, 0)]
+    let items = (0..<Items.count).map { ItemID($0) }.filter { Items.def($0).block != nil }
+    var placed = 0, never: [String] = []
+    let t0 = CFAbsoluteTimeGetCurrent()
+    for it in items {
+        var any = false
+        for d in dirs {
+            clearBox()
+            let face = V3(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5) + d * 0.5
+            let eye = face + d * 2.5
+            game.player.flying = true
+            game.player.pos = eye - (game.player.eye - game.player.pos); game.player.vel = .zero
+            game.player.yaw = d.y == 0 ? atan2f(d.x, d.z) : 0
+            game.player.pitch = d.y > 0 ? -1.55 : (d.y < 0 ? 1.55 : 0)
+            game.inventory.main[game.selected] = ItemStack(it, 64)
+            frame(0); frame(1); frame(0); frame(0)
+            var here = false
+            for y in (cy - 2)...(cy + 2) { for z in (cz - 2)...(cz + 2) { for x in (cx - 2)...(cx + 2) where !(x == cx && y == cy && z == cz) {
+                if world.block(x, y, z) != AIR { here = true }
+            } } }
+            if here { placed += 1; any = true }
+        }
+        if !any && never.count < 40 { never.append(Items.key(it)) }
+    }
+    PadManager.shared.simulated = nil
+    clearBox()
+    print(String(format: "placeall: %d block items x 6 faces, %d placings put something down, in %.0f s; never placed (%d shown): ", items.count, placed,
+                 CFAbsoluteTimeGetCurrent() - t0, never.count) + never.joined(separator: ", "))
     exit(0)
 }
 
