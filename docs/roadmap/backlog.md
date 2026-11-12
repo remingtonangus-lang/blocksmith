@@ -215,6 +215,13 @@ P351. [20:04] Realistic physics: "things fall, including trees, including maybe 
 - P356: Kelp still looks bad (P281 was marked done): reopen and fix it in field worlds, near and far. Built Oct 17: (a...
 - P358: P302 built the five levels to his spec (Sources/Difficulty.swift), yet in play Easy still kills him fast and G...
 
+## After the next store submission is up for review (not before; not in the store build)
+
+Remington, Nov 12 11:35 (Winnipeg), on the 08:46 trailer cut: "Don't add it yet for the store but after we get another
+one up for review we will add it."
+- NPCs riding horses (riders out on the roads and plains, not only him).
+- Roads that generate with the terrain ("which has been asked for and never added").
+
 ## On hold (do not start)
 
 - P329: Talking NPCs: the AI voices the characters instead of only directing events (builds on P266, the Director). Hi...
