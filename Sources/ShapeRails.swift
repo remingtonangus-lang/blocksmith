@@ -28,6 +28,10 @@ enum ShapeRails {
         var any = false
         scan: for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where isRail[Int(ctx.R[ctx.ri(x, y, z)])] { any = true; break scan } } }
         guard any else { return }
+        // (BS_RAILTRACE=X,Z: what this section's track drew, for the column's section: rails, non-finite points)
+        var traceRails = 0, traceBad = 0
+        let trace = ShapeRails.trace.map { $0.0 >= ctx.wx0 && $0.0 < ctx.wx0 + 16 && $0.1 >= ctx.wz0 && $0.1 < ctx.wz0 + 16 } ?? false
+        defer { if trace { print("railtrace: section \(ctx.wx0) \(ctx.wy0) \(ctx.wz0) lod \(ctx.lod): \(traceRails) rails, \(traceBad) with non-finite points") } }
         let steelL = Int(Blocks.tex[Int(steel) * 6 + 2]), woodL = Int(Blocks.tex[Int(timber) * 6 + 2]), stripL = Int(Blocks.tex[Int(strip) * 6 + 2])
         let curveSegs = ctx.lod == 0 ? 4 : 2
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
@@ -93,6 +97,11 @@ enum ShapeRails {
                 }
             }
             paths.insert(pts, at: 0)
+            if trace {
+                traceRails += 1
+                if paths.contains(where: { $0.contains { !($0.x.isFinite && $0.y.isFinite && $0.z.isFinite) } }) { traceBad += 1 }
+                if traceRails <= 40 { print("railtrace:   \(ctx.wx0 + x) \(ctx.wy0 + y) \(ctx.wz0 + z) shape \(shape) big \(big) bed \(bedTop(ctx, x, y, z).map { String($0) } ?? "nil") pts \(pts)") }
+            }
             for pts in paths { for k in 0..<(pts.count - 1) {
                 let p0 = o + pts[k], p1 = o + pts[k + 1]
                 let a = simd_normalize(p1 - p0)
@@ -119,6 +128,10 @@ enum ShapeRails {
     }
 
     // A railway's rail (P470): on the line's bed, the bed cells either side of it open above.
+    static let trace: (Int, Int)? = {
+        guard let v = ProcessInfo.processInfo.environment["BS_RAILTRACE"]?.split(separator: ",").compactMap({ Int($0) }), v.count == 2 else { return nil }
+        return (v[0], v[1])
+    }()
     static func mainline(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, _ shape: Int) -> Bool {
         let sides: [(Int, Int)]
         switch shape {
