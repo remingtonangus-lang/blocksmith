@@ -61,6 +61,7 @@ enum MainGun {
     static func noteCrater(_ n: Int, scorched: Int = 0) { lastCrater = n; lastScorched = scorched }
     static var craterStepMs: Double = 0                 // the crater's slice this frame, ms (MainGunTests)
     static var impactMs: Double = 0                     // the impact frame's own work, ms
+    static var fireCost = ""                            // the firing's own work in ms by part (MainGunTests prints it)
     static var impactCost = ""                          // the impact frame's own work in ms by part (MainGunTests prints it)
     static var lastTorn = 0                             // hull blocks the last ship hit tore out
     static var shipHits = 0                             // slugs that struck another ship's hull (ShipCombat)
@@ -236,9 +237,17 @@ extension ShipManager {
         sh.kind = 3
         sh.life = 3.5
         shells.append(sh)
+        // (Nov 12: suite 365's firing frame took 24.2 ms in ships.capital; where it goes: MainGun.fireCost)
+        var t = CFAbsoluteTimeGetCurrent()
+        let t0 = t
+        var cost: [String] = []
+        func lap(_ what: String) { let n = CFAbsoluteTimeGetCurrent(); cost.append(String(format: "%@ %.1f", what, (n - t) * 1000)); t = n }
+        defer { lap("rest"); MainGun.fireCost = String(format: "%.1f ms: ", (t - t0) * 1000) + cost.joined(separator: ", ") }
         let near = MainGun.presence(s, g)
         g.sfx(.mainGunFire, 1, at: near >= 1 ? nil : mw)
+        lap("sfx")
         g.baseNoise(at: mw, kind: .cannon, hostile: true)
+        lap("noise")
         g.addFlash(at: mw + dir * 6, color: V3(4, 6, 10), radius: 56, life: 0.55)
         let layer = Int(Tex.id("puff"))
         // Muzzle blast: a cone of white-hot glow, then a ring of smoke round the bow.
@@ -268,6 +277,7 @@ extension ShipManager {
             }
             z += 6
         }
+        lap("puffs")
         // Recoil: the hull lurches back (its drive takes it up again over a second or two).
         s.vel -= dir * 4
         if near > 0 {

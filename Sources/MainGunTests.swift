@@ -380,6 +380,7 @@ enum MainGunTests {
             for k in slowest where k < detail.count { print("maingun:   #\(k): " + detail[k]) }
             print("maingun: " + MainGunPerf.lastReport)
             print("maingun: the impact's own work (ms): " + MainGun.impactCost)
+            print("maingun: the firing's own work: " + MainGun.fireCost)
             // The impact frame (the crater's first slice comes the frame after): the structure lookup that planned
             // a region here was a 76-125 ms hitch on the host at the gun's biggest moment.
             check(MainGun.impactMs < 12, String(format: "maingun: the impact itself is cheap on the frame thread (%.1f ms: %@)", MainGun.impactMs, MainGun.impactCost))
