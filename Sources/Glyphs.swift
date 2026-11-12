@@ -203,6 +203,7 @@ enum Prompt {
         case reload, wheel, map
     }
 
+    static let oldLegend = ProcessInfo.processInfo.environment["BS_OLDLEGEND"] == "1"     // (Renderer: the menu legend)
     static var pad: Bool {
         switch Settings.shared.glyphStyle {
         case 1: return true
@@ -224,7 +225,7 @@ enum Prompt {
             case .pick, .alt, .delete: return m(.x)
             case .drop: return m(.ddown)
             case .inventory, .quick, .keyboard, .space: return m(.y)
-            case .hotbar, .tabs: return m(.lb) + m(.rb)
+            case .hotbar, .tabs: return m(.lb) + (oldLegend ? "" : "/") + m(.rb)      // (two caps that touched read as one)
             case .fly: return m(.dup)
             case .camera: return m(.view)
             case .pause, .done: return m(.menu)
@@ -278,6 +279,20 @@ enum Prompt {
             let gl = g(item.0)
             return gl.isEmpty ? nil : gl + " " + item.1
         }.joined(separator: "   ")
+    }
+
+    // The legend as drawn: one row, or two (split between items, as even as it goes) when it runs more than a few
+    // characters past the panel (`limit`, in font pixels at the panel's scale). BS_OLDLEGEND=1: always one row.
+    static func legendRows(_ legend: String, limit: Float) -> [String] {
+        guard !oldLegend && Float(Font.width(legend)) > limit else { return [legend] }
+        let parts = legend.components(separatedBy: "   ")
+        guard parts.count > 1 else { return [legend] }
+        var best = 1, bestW = Int.max
+        for k in 1..<parts.count {
+            let w = max(Font.width(parts[..<k].joined(separator: "   ")), Font.width(parts[k...].joined(separator: "   ")))
+            if w < bestW { bestW = w; best = k }
+        }
+        return [parts[..<best].joined(separator: "   "), parts[best...].joined(separator: "   ")]
     }
 
     // The control legend drawn under an open screen; changes with what the cursor is over.

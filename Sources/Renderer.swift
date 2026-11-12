@@ -1938,11 +1938,17 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let legend = Prompt.menuLegend(m, game)
                 // A long legend steps down a text scale until it fits the screen (Q2: the creative legend ran 1386 px
                 // wide at 1280x800, off both edges).
+                // (Nov 12 recording 06:14:54, Carbon's review: under the creative panel the legend ran on past both of
+                // its sides, small and crowded, its glyphs touching. One wider than the panel by more than a few
+                // characters goes on two lines, at the panel's own scale. BS_OLDLEGEND=1: one line, scaled down.)
+                let rows = Prompt.legendRows(legend, limit: Float(m.width) + 40)
                 var ls = s
-                while ls > 1 && textWidth(legend, ls) > W - 8 * ls { ls -= 1 }
-                let lw = textWidth(legend, ls), ly = min(H - 10 * s - ML.insetY, o.y + ph + 4 * s)
-                rect(floor((W - lw) / 2) - 3 * ls, ly - 3 * ls, lw + 6 * ls, 13 * ls, V4(0, 0, 0, 0.35 + Settings.shared.textBackground * 0.5))
-                text(legend, floor((W - lw) / 2), ly, ls)
+                while ls > 1 && rows.contains(where: { textWidth($0, ls) > W - 8 * ls }) { ls -= 1 }
+                let rowH = 12 * ls
+                let ly = min(H - 10 * s - ML.insetY - rowH * Float(rows.count - 1), o.y + ph + 4 * s)
+                let lw = rows.map { textWidth($0, ls) }.max() ?? 0
+                rect(floor((W - lw) / 2) - 3 * ls, ly - 3 * ls, lw + 6 * ls, 13 * ls + rowH * Float(rows.count - 1), V4(0, 0, 0, 0.35 + Settings.shared.textBackground * 0.5))
+                for (i, row) in rows.enumerated() { text(row, floor((W - textWidth(row, ls)) / 2), ly + rowH * Float(i), ls) }
             }
             if let f = m as? FurnaceMenu {
                 // Flame (fuel left) and arrow (cook progress).

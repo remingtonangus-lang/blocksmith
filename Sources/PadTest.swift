@@ -231,6 +231,15 @@ enum PadTest {
         tap(g, "a")
         check(g.inventory.main[1].count == 10 && g.carried.isEmpty, "A puts the counted items back")
         check(Prompt.menuLegend(g.menu!, g).contains("Pick up"), "legend describes the hovered slot")
+        // Nov 12 (Carbon's review of his recording, 06:14:54): the creative legend ran on past both sides of its panel,
+        // small and crowded. Wider than the panel, it goes on two rows, each well inside one row's width.
+        do {
+            let long = Prompt.line([(.select, "Take stack"), (.alt, "Take one"), (.quick, "To inventory"), (.tabs, "Next tab"), (.scroll, "Scroll"), (.back, "Close")])
+            let rows = Prompt.legendRows(long, limit: Float(g.menu!.width) + 40)
+            let widest = rows.map { Font.width($0) }.max() ?? 0
+            check(Prompt.oldLegend || (rows.count == 2 && widest * 10 < Font.width(long) * 6),
+                  "a menu legend wider than its panel goes on \(rows.count) rows (widest \(widest) of \(Font.width(long)) px, panel \(g.menu!.width))")
+        }
         tap(g, "b")
         check(g.menu == nil, "B closes the inventory")
 
