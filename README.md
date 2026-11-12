@@ -13,7 +13,7 @@ world seed 7639458412018979794. No other game's names, logos or looks; no HUD; n
 - covers/: brighter cover candidates, 2560x1440 (1 is the pick: the frigate over a frontier village at midday), plus
   square (1024x1024), portrait (1440x2560) and small landscape (1280x720) versions of the strongest two.
 - screenshots/: 13 stills, 2560x1440 (drawn at 5120x2880, scaled down), daytime except the dusk town.
-- clips/ (project files only): each shot on its own, 1920x1080, for re-editing.
+- clips/: each shot on its own, 1920x1080, for re-editing.
 
 Fixed after his Nov 11 notes and the 1000-frame dissection:
 - Cracks: the village gables and wall corners showed sky through 1/16 slits where the realistic world's edge chamfer
