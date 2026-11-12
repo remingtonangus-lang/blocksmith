@@ -2045,6 +2045,22 @@ do {
     SmoothTerrain.set(smooth0, world: nil)
     if Mesher.uvOverflow < 0 { Mesher.uvOverflow = uvBefore }
 }
+// Ledger 90 (trailer item 5's dark hole): a cell a blast or a dig opened to the sky reads the sky's light at once, before
+// the edit's remesh lands (the light kept is the last mesh's: a crater's flying pieces read the rock's no light and drew
+// black). Dig a column's top 4 cells in a small world without remeshing; the lowest opened cell must read sky 15.
+do {
+    let lw = World(seed: seed, device: device, save: nil)
+    lw.renderDistance = 2
+    let at = V3(spawn.x - 40, spawn.y, spawn.z)
+    _ = lw.loadSync(center: at, radius: 2)
+    let x = Int(floor(at.x)), z = Int(floor(at.z))
+    var gy = CH - 2
+    while gy > 8 && !Blocks.opaque[Int(lw.block(x, gy, z))] { gy -= 1 }
+    let lit0 = lw.litByMesher(x, gy - 3, z), before = lw.lightAt(x, gy - 3, z).sky
+    for y in (gy - 3)...gy { lw.setBlockAsync(x, y, z, AIR) }
+    let after = lw.lightAt(x, gy - 3, z).sky
+    check(lit0 && before < 15 && after == 15, "stale light: a column dug 4 deep reads the open sky at its floor before its remesh lands (sky \(before) -> \(after), lit by a mesh \(lit0))")
+}
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
 // titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
 if CommandLine.arguments.contains("--loadtest") {
