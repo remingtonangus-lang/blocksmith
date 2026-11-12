@@ -879,5 +879,221 @@
     ]
    }
   ]
+ },
+ {
+  "name": "cave_lush",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    3000,
+    1500
+   ],
+   "cave": true
+  },
+  "time": 0.3,
+  "seconds": 6,
+  "warm": 2,
+  "peaceful": true,
+  "rd": 8,
+  "fov": 75,
+  "events": [
+   {
+    "t": 0,
+    "do": "place",
+    "block": "lantern",
+    "at": [
+     6,
+     0,
+     0
+    ],
+    "n": 6,
+    "spread": 7
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -5,
+     2.4,
+     2
+    ],
+    "look": [
+     10,
+     1.2,
+     -1
+    ]
+   },
+   {
+    "t": 6,
+    "pos": [
+     1,
+     2.0,
+     0.5
+    ],
+    "look": [
+     13,
+     1.6,
+     -3
+    ]
+   }
+  ]
+ },
+ {
+  "name": "farm",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    400,
+    400
+   ]
+  },
+  "time": 0.27,
+  "seconds": 6,
+  "warm": 3,
+  "peaceful": true,
+  "events": [
+   {
+    "t": 0,
+    "do": "farm",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "size": [
+     11,
+     9
+    ],
+    "block": "wheat",
+    "dur": 5
+   },
+   {
+    "t": 0,
+    "do": "farm",
+    "at": [
+     0,
+     0,
+     10
+    ],
+    "size": [
+     11,
+     5
+    ],
+    "block": "carrots",
+    "dur": 5
+   },
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "villager:farmer",
+    "at": [
+     12,
+     0,
+     5
+    ],
+    "n": 1,
+    "yaw": 270
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -6,
+     2.2,
+     -4
+    ],
+    "look": [
+     6,
+     0.6,
+     6
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     -4,
+     3.2,
+     8
+    ],
+    "look": [
+     7,
+     0.6,
+     8
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "ride",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ]
+  },
+  "time": 0.26,
+  "seconds": 6,
+  "warm": 4,
+  "peaceful": true,
+  "rd": 16,
+  "events": [
+   {
+    "t": 0,
+    "do": "rider",
+    "at": [
+     -48,
+     0,
+     26
+    ],
+    "yaw": 90,
+    "spread": 60
+   },
+   {
+    "t": 0.6,
+    "do": "rider",
+    "at": [
+     -52,
+     0,
+     29
+    ],
+    "yaw": 90,
+    "spread": 60
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -40,
+     1.8,
+     36
+    ],
+    "look": [
+     -48,
+     2.0,
+     26
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     -36,
+     1.9,
+     37
+    ],
+    "look": [
+     -34,
+     2.0,
+     27
+    ],
+    "ground": true
+   }
+  ]
  }
 ]
