@@ -195,12 +195,6 @@ extension World {
     func fineSphere(_ ctr: V3, radius r: Float, carve: Bool, prepared: [(Chunk, Int, Bool)]) -> [(Chunk, Int)] {
         var changed: [(Chunk, Int)] = []
         let reach = r + 1.0
-        // (Nov 12, the strike soak's slowest bowl step: one field ball of radius 13, 3.6 ms, nearly all of it here, 56^3
-        // half-block samples each measured. A carve only ever lowers a sample and a fill only raises it, so one already
-        // at the far end (open air a carve can't take further, solid a fill can't add to) never changes: passed over
-        // before its distance is taken. The bowl's later balls go down through the earlier ones' open air.
-        // BS_OLDSPHERE=1: measured.)
-        let skip: Int8 = carve ? FieldTerrain.outside : FieldTerrain.inside, skipOn = !World.oldSphere
         for (c, sy, fresh) in prepared {
             guard var f = c.blocks.fine[sy] else { continue }
             c.blocks.fine[sy] = nil                                  // (written back below: no copy on write)
@@ -212,10 +206,9 @@ extension World {
             var any = false
             if x0 <= x1 && y0 <= y1 && z0 <= z1 {
                 for fy in y0...y1 { for fz in z0...z1 { for fx in x0...x1 {
-                    let k = FineField.index(fx, fy, fz)
-                    if skipOn && f[k] == skip { continue }
                     let p = V3(ox + (Float(fx) + 0.5) * 0.5, oy + (Float(fy) + 0.5) * 0.5, oz + (Float(fz) + 0.5) * 0.5)
                     let dist = simd_length(p - ctr)
+                    let k = FineField.index(fx, fy, fz)
                     let d0 = FieldTerrain.f(f[k])
                     let d1 = carve ? min(d0, dist - r) : max(d0, r - dist)
                     var q = FieldTerrain.q(d1)
