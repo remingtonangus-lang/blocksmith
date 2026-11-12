@@ -154,6 +154,41 @@ enum QuestFrameSoak {
         })
     }
 
+    // Nov 12 13:26-13:28 playtest (his afternoon world, the Gloamwood and the Charwood Thicket at -460..-710, y 177-275,
+    // 680-800: "frame rate in here might be bad... we need some optimizations though for down below"): the Emberdeep's
+    // two forests at his spots, flying a slow circle 40 across through the caverns under the trees and their motes.
+    static let afternoonSeed: UInt64 = 9055077199578326761
+    static func emberForest(_ name: String, biome: String, at p: V3) -> Setup {
+        var centre = p
+        return Setup(name: name, what: "the Emberdeep's \(name == "gloamwood" ? "Gloamwood" : "Charwood Thicket") at his Nov 12 spot, flying a slow circle among the trees",
+                     seed: afternoonSeed, dim: .nether, at: p, prepare: { g in
+            // (open air near his height: two clear cells over ground within 24 below, nearest his y)
+            let w = g.world
+            var x = Int(floor(p.x)), z = Int(floor(p.z))
+            // (his range holds both forests: the nearest column of this one, 8 blocks a step out to 200)
+            find: for r in stride(from: 0, through: 200, by: 8) { for dz in stride(from: -r, through: r, by: 8) { for dx in stride(from: -r, through: r, by: 8)
+                where max(abs(dx), abs(dz)) == r && w.gen.column(x + dx, z + dz).biome.name == biome { x += dx; z += dz; break find } } }
+            _ = w.loadSync(center: V3(Float(x), p.y, Float(z)), radius: w.renderDistance)
+            var best = Int(p.y), bestD = Int.max
+            for y in 8..<(CH - 8) where !w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z) && abs(y - Int(p.y)) < bestD {
+                var floor = false
+                for d in 1...24 where w.solidAt(x, y - d, z) { floor = true; break }
+                if floor { best = y; bestD = abs(y - Int(p.y)) }
+            }
+            centre = V3(Float(x) + 0.5, Float(best) + 0.5, Float(z) + 0.5)
+            g.player.pos = centre
+            g.player.flying = true
+            g.player.pitch = -0.15
+            print(String(format: "framesoak: %@ at %.0f %.0f %.0f (%@)", name, centre.x, centre.y, centre.z, w.gen.column(x, z).biome.name))
+        }, step: { g, f in
+            g.player.flying = true
+            let a = Float(f) / 72 * (4.0 / 20)                  // (4 b/s round a circle 20 out)
+            g.player.pos = centre + V3(cosf(a) * 20, 0, sinf(a) * 20)
+            g.player.yaw = -a                                   // (looking along the way it goes)
+            g.player.vel = .zero
+        })
+    }
+
     // The biggest battle: the Ash Vault citadel's north gate at Total War (AshVaultGapTests.battleScene).
     static func battleScene() -> Setup {
         var stand = V3(0, 0, 0)
@@ -450,7 +485,9 @@ enum QuestFrameSoak {
          townScene("city", "walking into the capital city, its garrison about", kind: "capital_city"),
          hollowScene(), frigateScene(),
          trainScene(.cargo, name: "freight"), trainScene(.troop, name: "troops"),
-         seaHuntScene(), worstScene(), collapseScene()]
+         seaHuntScene(), worstScene(), collapseScene(),
+         emberForest("gloamwood", biome: "warped_forest", at: V3(-520, 226 + 64, 700)),
+         emberForest("charwood", biome: "crimson_forest", at: V3(-650, 226 + 64, 780))]
     }
 
     static var scenes: [Setup] { ordinary + [crawlerScene(parkedBy: false), crawlerScene(parkedBy: true), navalScene(), trainScene(), hellScene(), battleScene()] + more }
