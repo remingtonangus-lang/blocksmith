@@ -222,6 +222,9 @@ final class ParticleManager {
                 if sm { alpha = 0.55 * fade }
                 if gp { alpha = 0.85 * fade; layer = ParticleManager.puffLayer }
             }
+            // Nov 12 (the trailer's snow base, 18 s: a burning truck's smoke): a grey puff a block or more across on the
+            // "smoke" picture showed its holes as eyes, as the glowing ones did (t22.5); it takes the solid round puff.
+            if p.size >= 0.5 && p.uvSize >= 1 && layer == ParticleManager.smokeLayer && !ParticleManager.oldSmoke { layer = ParticleManager.puffLayer }
             let c = p.pos - eye
             let l = world.lightOpen(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
             ParticleManager.drawnCount += 1
