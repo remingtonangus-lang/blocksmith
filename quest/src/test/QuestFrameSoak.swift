@@ -160,8 +160,8 @@ enum QuestFrameSoak {
     static let afternoonSeed: UInt64 = 9055077199578326761
     static func emberForest(_ name: String, biome: String, at p: V3) -> Setup {
         var centre = p
-        return Setup(name: name, what: "the Emberdeep's \(name == "gloamwood" ? "Gloamwood" : "Charwood Thicket") at his Nov 12 spot, flying a slow circle among the trees",
-                     seed: afternoonSeed, dim: .nether, at: p, prepare: { g in
+        return Setup(name: name, what: "the Deep's \(name == "gloamwood" ? "Gloamwood" : "Charwood Thicket") at his Nov 12 spot, flying a slow circle among the trees",
+                     seed: afternoonSeed, dim: .deep, at: p, prepare: { g in
             // (open air near his height: two clear cells over ground within 24 below, nearest his y)
             let w = g.world
             var x = Int(floor(p.x)), z = Int(floor(p.z))
