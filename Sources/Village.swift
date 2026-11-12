@@ -9,26 +9,12 @@ enum Village {
     enum Style { case plains, desert, savanna, taiga, snowy }
 
     struct Mats {
-        let planks: BlockID, log: BlockID, wall: BlockID, floor: BlockID
-        var foundation: BlockID
+        let planks: BlockID, log: BlockID, wall: BlockID, floor: BlockID, foundation: BlockID
         let stairs: BlockID, slab: BlockID, fence: BlockID, door: BlockID, path: BlockID, roofFlat: Bool
         let bed: String
     }
 
-    // (Test switch while the savanna well's corner gaps are looked at: BS_WORKEDFOUND=1 lays worked foundations.)
-    static let workedFound = ProcessInfo.processInfo.environment["BS_WORKEDFOUND"] == "1"
     static func mats(_ s: Style) -> Mats {
-        let g = Blocks.id
-        if workedFound {
-            var m = matsBase(s)
-            if s == .savanna { m.foundation = g("cut_red_sandstone") }
-            if s == .desert { m.foundation = g("cut_sandstone") }
-            if s == .snowy { m.foundation = g("stone_bricks") }
-            return m
-        }
-        return matsBase(s)
-    }
-    static func matsBase(_ s: Style) -> Mats {
         let g = Blocks.id
         switch s {
         case .plains:

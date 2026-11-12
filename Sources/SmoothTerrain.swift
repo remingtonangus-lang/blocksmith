@@ -59,6 +59,7 @@ enum SmoothTerrain {
         return natural[i] && !n.hasSuffix("_ore") && !["magma_block", "amethyst_block", "budding_amethyst", "sculk"].contains(n)
     }
     static let snowLayer = Int(Blocks.id("snow"))
+    static let oldBuiltPin = ProcessInfo.processInfo.environment["BS_OLDBUILTPIN"] == "1"
     // The blocks a rock face polls: the 3x3x3 round it.
     static let voteProbe: [(Int, Int, Int)] = {
         var r: [(Int, Int, Int)] = []
@@ -528,7 +529,18 @@ extension Mesher {
                 }
             }
             var pinned = false
-            for c in 0..<8 where !leaves && pinT[Int(R[ri(cx + (c & 1), cy + ((c >> 1) & 1), cz + (c >> 2))])] { pinned = true; break }
+            for c in 0..<8 where !leaves {
+                let r = ri(cx + (c & 1), cy + ((c >> 1) & 1), cz + (c >> 2))
+                let b = Int(R[r])
+                if pinT[b] { pinned = true; break }
+                // Trailer, Nov 11 (the savanna well's outer corners showed the sky at ground level): in a field world a
+                // natural block in the built layer (a structure's terracotta, sandstone, packed ice or stone where the
+                // field is air: stored density <= 0) is drawn as a cube (no smooth quads, below), but the ground's vertices
+                // beside it were not pinned to its corners as a built block's are, so the ground rounded away from the
+                // cube's vertical edges and left a wedge open between them. Such a block pins like any built block.
+                // BS_OLDBUILTPIN=1: as before.
+                if !SmoothTerrain.oldBuiltPin, let E = stored, nat[b], opaqueT[b], E[r] <= 0 { pinned = true; break }
+            }
             let p = pinned ? SIMD3<Float>(Float(cx + 1), Float(cy + 1), Float(cz + 1))
                 : sum / n + SIMD3<Float>(Float(cx) + 0.5, Float(cy) + 0.5, Float(cz) + 0.5)
             VP[vi * 3] = p.x; VP[vi * 3 + 1] = p.y; VP[vi * 3 + 2] = p.z

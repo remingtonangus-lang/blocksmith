@@ -1382,7 +1382,7 @@ if let out = arg("--view"), let ctx = vkctx {
     }
     // --scene well (trailer, Nov 11: see-through wedges at the savanna well's outer corners): the nearest village's well
     // (found by its bell) from --at; prints the blocks and field densities round each outer corner, then shoots each
-    // corner from 2.2 blocks out at knee height (OUT-c0..3.png) and counts the magenta pixels (run with
+    // corner from 3.5 blocks out and 2 up (OUT-c0..3.png) and counts the magenta pixels below the horizon (run with
     // QUEST_VOIDPROBE=1 QUEST_SKIP=sky,landmarks: the gaps the clear colour shows through).
     if arg("--scene") == "well" {
         let bell = Blocks.id("bell")
@@ -1418,12 +1418,11 @@ if let out = arg("--view"), let ctx = vkctx {
             var total = 0
             for (ci, (dx, dz, ox, oz)) in corners.enumerated() {
                 let c = V3(Float(wp.x + dx) + (ox > 0 ? 1 : 0), Float(wp.y) + 0.9, Float(wp.z + dz) + (oz > 0 ? 1 : 0))
-                let eye = c + V3(Float(ox), 0, Float(oz)) * 1.6 + V3(0, 0.9, 0)
+                let eye = c + V3(Float(ox), 0, Float(oz)) * 3.5 + V3(0, 2.0, 0)
                 let d = c - eye
                 let yaw = atan2f(-d.x, -d.z), pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
                 let img = try rig.grab(eye: eye, yaw: yaw, pitch: pitch)
-                var n = 0
-                for i in 0..<(640 * 480) where img[i * 4] > 230 && img[i * 4 + 1] < 30 && img[i * 4 + 2] > 230 { n += 1 }
+                let n = RenderTest.countVoid(img, width: 640, height: 480, eyes: 1, fovDeg: 70, pitch: pitch).holes   // (below the horizon)
                 total += n
                 try PNG.encode(rgba: img, width: 640, height: 480).write(to: URL(fileURLWithPath: "\(base)-c\(ci).png"))
                 print("view: well corner \(ci): \(n) magenta pixels")
