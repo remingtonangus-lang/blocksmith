@@ -345,6 +345,9 @@ enum RailwayTests {
         func aheadCell(_ k: Float) -> IVec3 { tr.track.cell(tr.lastS + tr.dir * (tr.length / 2 + k)) }
         let stray = aheadCell(14)
         let stone = Blocks.id("stone")
+        // (Nov 12: the train runs on from where he stands; a cell ahead in a chunk not loaded took no block, read air,
+        // and the check failed with nothing on the rail: "his block 254 170 5040 (air)". Both cells' ground is loaded first.)
+        _ = world.loadSync(center: V3(Float(stray.x), Float(stray.y), Float(stray.z)), radius: 1)
         world.setBlock(stray.x, stray.y, stray.z, stone)
         Trains.placed[stray] = nil
         let cleared0 = Trains.cleared
@@ -360,6 +363,7 @@ enum RailwayTests {
         var under = 0
         while (Trains.now(tr).stop != nil || tr.blocksPerSec < 1) && under < 60 * 90 { g.time += Double(dt); Trains.drive(lead2, dt, g); under += 1 }
         let his = aheadCell(6)
+        _ = world.loadSync(center: V3(Float(his.x), Float(his.y), Float(his.z)), radius: 1)
         world.setBlock(his.x, his.y, his.z, stone)
         Trains.placed[his] = g.time
         Trains.watch = his
