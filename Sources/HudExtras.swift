@@ -366,7 +366,7 @@ enum HudExtras {
         out += SaveBadge.lines(g, L, below: bn.listening)                 // Q2c-console-2
         out += NowPlaying.lines(g, L)                                       // Q2c-console-14
         // (Not on the headset: the grips step the hotbar there, and he wanted the labels gone: P85, Oct 12 playtest.)
-        if ContextPrompts.shown && Prompt.pad && g.menu == nil && g.vrHead == nil {
+        if ContextPrompts.shown && Prompt.pad && g.menu == nil && g.vrHead == nil && !g.drivingHUD {
             // LB / RB beside the hotbar.
             let s = L.s, y = L.hotbarY0 + L.slot / 2 - 4 * s
             let lb = PadMap.glyph(.lb), rb = PadMap.glyph(.rb)

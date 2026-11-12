@@ -2789,12 +2789,17 @@ final class Renderer: NSObject, MTKViewDelegate {
         let total = slot * 9
         let x0 = L.hotbarX0
         let y0 = L.hotbarY0
-        rect(x0 - 2 * s, y0 - 2 * s, total + 4 * s, slot + 4 * s, V4(0, 0, 0, 0.45))
-        for i in 0..<9 {
-            let x = x0 + Float(i) * slot
-            rect(x + s, y0 + s, slot - 2 * s, slot - 2 * s, V4(0.35, 0.35, 0.38, 0.55))
-            if i == game.selected { frame(x - s, y0 - s, slot + 2 * s, slot + 2 * s, 2 * s, V4(1, 1, 1, 0.95)) }
-            itemIcon(game.inventory.main[i], x + 2 * s, y0 + 2 * s, slot - 4 * s)
+        // Nov 12 playtest (in the Ironback Crawler: the vehicle's hull, rounds and fuel panel lay over the toolbar; "hide
+        // the toolbar when driving"): at a vehicle's helm or a locomotive's regulator the hands are on the controls, the
+        // slots can't be picked (QuestControls.hotbarPointer) and the vehicle panel takes its place (CombatHUD.panelOrigin).
+        if !game.drivingHUD {
+            rect(x0 - 2 * s, y0 - 2 * s, total + 4 * s, slot + 4 * s, V4(0, 0, 0, 0.45))
+            for i in 0..<9 {
+                let x = x0 + Float(i) * slot
+                rect(x + s, y0 + s, slot - 2 * s, slot - 2 * s, V4(0.35, 0.35, 0.38, 0.55))
+                if i == game.selected { frame(x - s, y0 - s, slot + 2 * s, slot + 2 * s, 2 * s, V4(1, 1, 1, 0.95)) }
+                itemIcon(game.inventory.main[i], x + 2 * s, y0 + 2 * s, slot - 4 * s)
+            }
         }
 
         // A ridden horse's stamina (gold; red while it is blown) and bond level, over the right half of the hotbar
@@ -2833,7 +2838,8 @@ final class Renderer: NSObject, MTKViewDelegate {
         // Survival status: XP bar + level, hearts (left), hunger (right), armor, air bubbles.
         if game.survival {
             let isz = 9 * s, step = 8 * s
-            let xpY = y0 - 7 * s
+            // (driving: over the vehicle panel in the toolbar's place, CombatHUD.panelOrigin)
+            let xpY = (CombatHUD.driveTop(game, L).map { min(y0, $0 + 2 * s) } ?? y0) - 7 * s
             // P360 (Oct 17 20:29-20:30: "the hunger bar and experience bar look just like Minecraft's"): the experience bar
             // is a thin pale-gold line on a dark track, and the level shows as marks above its left end (a tall mark per
             // ten levels, a short one per level), no number.

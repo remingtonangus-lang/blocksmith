@@ -2061,6 +2061,43 @@ do {
     let after = lw.lightAt(x, gy - 3, z).sky
     check(lit0 && before < 15 && after == 15, "stale light: a column dug 4 deep reads the open sky at its floor before its remesh lands (sky \(before) -> \(after), lit by a mesh \(lit0))")
 }
+// Nov 12 playtest (driving the Ironback Crawler: the hull / rounds / fuel panel over the toolbar): at the headset's HUD
+// panel (1024 x 640, couch scale) a driver's toolbar is hidden and the vehicle panel sits in its place clear of the
+// hearts and hunger; a passenger keeps the toolbar and the panel clears it. BS_OLDDRIVEHUD=1 for before.
+do {
+    let couch0 = HudLayout.couch, scale0 = HudLayout.userScale, surv0 = game.survival, pos0 = game.player.pos
+    HudLayout.couch = true; HudLayout.userScale = 0; game.survival = true
+    defer { HudLayout.couch = couch0; HudLayout.userScale = scale0; game.survival = surv0; game.player.pos = pos0 }
+    let helm = ShipTest.place(game.world, "car", near: game.player.pos)
+    let (carOpt, msg) = game.world.ships.assemble(at: helm, game: game)
+    if let car = carOpt {
+        let W: Float = 1024, H: Float = 640, L = HudLayout(W, H), s = L.s
+        func near(_ a: V4, _ b: V4) -> Bool { simd_length(a - b) < 0.02 }
+        // What the HUD draws: the hotbar's slot fill, hearts and hunger fills, and the panel's box (its rows' height).
+        func scan(_ rows: Float) -> (slots: Int, overPanel: Int, overBar: Int) {
+            let v = Renderer(game: game).buildHUD(W, H)
+            let (px, py0, pw) = CombatHUD.panelOrigin(game, L, rows: rows)
+            let bx0 = px - 3 * s, bx1 = px + pw + 3 * s, by0 = py0 - 4 * s, by1 = py0 - 4 * s + rows * s
+            var slots = 0, overPanel = 0, overBar = 0
+            for q in v {
+                let c = q.color, p = q.pos
+                let inPanel = p.x > bx0 + 0.5 && p.x < bx1 - 0.5 && p.y > by0 + 0.5 && p.y < by1 - 0.5
+                if near(c, V4(0.35, 0.35, 0.38, 0.55)) { slots += 1; if inPanel { overBar += 1 } }
+                if near(c, V4(0.88, 0.24, 0.2, 1)) || near(c, V4(0.87, 0.66, 0.3, 1)) { if inPanel { overPanel += 1 } }
+            }
+            return (slots, overPanel, overBar)
+        }
+        game.startPiloting(car)
+        let drive = scan(34)
+        game.leaveHelm()
+        game.world.ships.aboard = car
+        let ride = scan(34)
+        game.world.ships.aboard = nil
+        game.world.ships.remove(car)
+        check(drive.slots == 0 && drive.overPanel == 0 && ride.slots > 0 && ride.overPanel == 0 && ride.overBar == 0,
+              "driving HUD: at the helm the toolbar is hidden (\(drive.slots) slot fills) and the panel clears the hearts and hunger (\(drive.overPanel) inside); a passenger keeps it (\(ride.slots)) clear of the panel (\(ride.overBar), \(ride.overPanel))")
+    } else { check(false, "driving HUD: test car assembles (\(msg))") }
+}
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
 // titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
 if CommandLine.arguments.contains("--loadtest") {
@@ -2239,9 +2276,17 @@ if let out = arg("--hudshot") {
     case "map": game.openMenu(MapMenu(game: game))
     case "options": let pm = PauseMenu(game: game); game.openMenu(pm); pm.act("options", back: false); pm.build()
     case "title": let pm = PauseMenu(game: game); pm.page = .title; pm.build(); game.openMenu(pm)
+    case "drive", "aboard":
+        // (Nov 12: the vehicle panel and the toolbar on the headset's HUD panel, at the helm or riding along)
+        HudLayout.couch = true; HudLayout.userScale = 0
+        let helm = ShipTest.place(game.world, "car", near: game.player.pos)
+        if let car = game.world.ships.assemble(at: helm, game: game).0 {
+            if arg("--menu") == "drive" { game.startPiloting(car) } else { game.world.ships.aboard = car }
+        } else { print("hudshot: the test car did not assemble") }
     default: game.openMenu(PauseMenu(game: game))
     }
-    let W = 1280, H = 720
+    let headsetPanel = ["drive", "aboard"].contains(arg("--menu") ?? "")
+    let W = headsetPanel ? 1024 : 1280, H = headsetPanel ? 640 : 720
     let verts = Renderer(game: game).buildHUD(Float(W), Float(H))
     var img = [Float](repeating: 0.25, count: W * H * 3)
     let S = 32

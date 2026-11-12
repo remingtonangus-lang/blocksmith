@@ -27,6 +27,38 @@ final class CombatHUD {
     // P504: the hull reads its blocks left from 100% down to 70% (under 70% of them: 0).
     static func hullMeter(_ share: Float) -> Float { max(0, min(1, (share - 0.7) / 0.3)) }
 
+    // Nov 12 playtest (driving the Ironback Crawler: its hull, rounds and fuel panel lay over the toolbar; "hide the
+    // toolbar when driving"). At a vehicle's helm or a locomotive's regulator the toolbar is hidden (Renderer; its slots
+    // can't be picked there, QuestControls.hotbarPointer) and the panel takes its place at the bottom centre, the
+    // hearts and hunger over the panel. A passenger keeps the toolbar: the panel sits bottom left, lifted over the
+    // toolbar's bars when the two would meet (on the headset's panel, at its HUD scale, they did).
+    // The panel's box: x - 3s, y0 - 4s, w + 6s wide, `rows` x s high.
+    static let oldPanel = ProcessInfo.processInfo.environment["BS_OLDDRIVEHUD"] == "1"      // (before: bottom left, over the toolbar)
+    static func panelOrigin(_ g: Game, _ L: HudLayout, rows: Float) -> (x: Float, y0: Float, w: Float) {
+        let s = L.s, w = 104 * s
+        if oldPanel { return (L.insetX + 6 * s, L.H - L.insetY - (rows + 6) * s, w) }
+        if g.drivingHUD {
+            let bottom = L.hotbarY0 + L.slot + 2 * s
+            return (floor((L.W - w) / 2), bottom + 4 * s - rows * s, w)
+        }
+        let x = L.insetX + 6 * s
+        var y0 = L.H - L.insetY - (rows + 6) * s
+        if x + w + 5 * s > L.hotbarX0 - 2 * s { y0 = min(y0, L.hotbarY0 - 38 * s + 4 * s - rows * s) }
+        return (x, y0, w)
+    }
+
+    // The top of the driving panel's box (the hearts and hunger go over it), or nil when not driving.
+    static func driveTop(_ g: Game, _ L: HudLayout) -> Float? {
+        guard g.drivingHUD, g.menu == nil else { return nil }
+        var rows: Float = 0
+        if let ship = g.world.ships.pilot {
+            rows = 34 + (g.world.ships.mainGunStatus(ship.root) == nil ? 0 : 11)
+                + (VehicleControls.kind(ship) == .warship && g.world.ships.capState[ship.root.id] != nil ? 11 : 0)
+        }
+        if Trains.cab(g) != nil { rows = max(rows, 46) }
+        return panelOrigin(g, L, rows: rows).y0 - 4 * L.s
+    }
+
     func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         var out: [HudLine] = []
         let s = L.s
@@ -85,8 +117,7 @@ final class CombatHUD {
             // altitude. We don't even need speed really... We don't need direction... No need guns ready. And we don't
             // need it to tell us that it's a capital dropship in VTOL mode"): the hull, the magazine, the tank or lift,
             // the throttle, and a warship's drive and big gun; no name, speed, heading, height or gun-ready words.
-            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - (40 + extra) * s
-            let w = 104 * s
+            let (x, y0, w) = CombatHUD.panelOrigin(g, L, rows: 34 + extra)
             out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, (34 + extra) * s)))
             if let st = war {
                 let dy = y0 + 33 * s
@@ -148,7 +179,7 @@ final class CombatHUD {
         }
         // P379 step 2: the locomotive's cab: speed, the regulator (forward right, reverse left) and the brake.
         if let tr = Trains.cab(g), g.menu == nil {
-            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - 52 * s, w = 104 * s
+            let (x, y0, w) = CombatHUD.panelOrigin(g, L, rows: 46)
             out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, 46 * s)))
             out.append(HudLine(text: tr.track.name, x: x, y: y0, scale: s, color: V4(1, 0.9, 0.6, 1)))
             out.append(HudLine(text: String(format: "%3.0f km/h", tr.blocksPerSec * 3.6), x: x, y: y0 + 11 * s, scale: s))
@@ -341,4 +372,9 @@ final class WeaponWheel {
         }
         return out
     }
+}
+
+extension Game {
+    // At the controls of a vehicle (a ship, a land vehicle, an aircraft) or a locomotive's cab: the toolbar is hidden.
+    var drivingHUD: Bool { !CombatHUD.oldPanel && (world.ships.pilot != nil || Trains.cab(self) != nil) }
 }
