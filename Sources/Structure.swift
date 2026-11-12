@@ -521,19 +521,63 @@ enum Structure {
             // beside it rest on the ground, nothing can fall or lose its reach (every way through the cell starts at a
             // block that is itself held, and what sits on such a block hands its weight straight down to it), so the
             // fill is skipped.
-            if grounded(w, p) {
+            let more = oldSeeds ? [] : rimSeeds(w, p)
+            if more.isEmpty && grounded(w, p) {
                 checks += 1
                 if !w.pieces.isEmpty { pieces(g, near: V3(Float(p.x), Float(p.y), Float(p.z))) }
                 continue
             }
-            let r = analyse(w, at: p)
-            checks += 1
+            for s in [p] + more {
+                let r = analyse(w, at: s)
+                checks += 1
+                let cut = r.capped ? looseAll(w, near: s) : []
+                if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
+                else if !r.falls.isEmpty { drop(g, r.falls) }
+            }
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             worstMs = max(worstMs, ms); totalMs += ms
-            if r.capped, let piece = loose(w, near: p) { g.topple(piece) }     // P407: a tower cut from its footing
-            else if !r.falls.isEmpty { drop(g, r.falls) }
             if !w.pieces.isEmpty { pieces(g, near: V3(Float(p.x), Float(p.y), Float(p.z))) }
         }
+    }
+
+    // Nov 12 playtest (06:21:17, a Boreal tower shot through from the roof gun: "that helipad's hovering", its top,
+    // penthouse and mast, hung over the shot-out floors): a change queues one check a 4-cube, from the first cell changed
+    // there. A shell's blast takes out a whole cube or more, so by the time the check ran its cell was in the middle of
+    // the hole, nothing built beside it, and the blocks at the hole's rim, what was left holding the top, were never
+    // checked. Where nothing is built beside the changed cell, the check now starts from the built blocks round the cube that
+    // face an open cell inside it (one for each piece they belong to there, up to four). BS_OLDLOADSEED=1: from the first cell only, as before.
+    static let oldSeeds = ProcessInfo.processInfo.environment["BS_OLDLOADSEED"] == "1"
+    static var rimChecks = 0                                  // (harness: checks started from a hole's rim)
+    static func rimSeeds(_ w: World, _ p: IVec3) -> [IVec3] {
+        // (only where the check from the changed cell itself finds nothing built beside it: a dug block, a placed one,
+        // costs what it did)
+        for d in [IVec3(0, 0, 0)] + nbrs where part(w, p.x + d.x, p.y + d.y, p.z + d.z) != nil { return [] }
+        let b = IVec3(floorDiv(p.x, 4) * 4, floorDiv(p.y, 4) * 4, floorDiv(p.z, 4) * 4)
+        @inline(__always) func inCube(_ q: IVec3) -> Bool { q.x >= b.x && q.x < b.x + 4 && q.y >= b.y && q.y < b.y + 4 && q.z >= b.z && q.z < b.z + 4 }
+        // Built blocks in the cube and the shell round it with an open (not built, not ground) face into the cube.
+        var rim: [IVec3] = []
+        for y in (b.y - 1)...(b.y + 4) { for z in (b.z - 1)...(b.z + 4) { for x in (b.x - 1)...(b.x + 4) {
+            let q = IVec3(x, y, z)
+            guard abs(q.x - p.x) > 1 || abs(q.y - p.y) > 1 || abs(q.z - p.z) > 1, part(w, x, y, z) != nil else { continue }
+            for d in World.allDirs {
+                let o = q + d
+                if inCube(o) && part(w, o.x, o.y, o.z) == nil && !anchor(w, o.x, o.y, o.z) { rim.append(q); break }
+            }
+        } } }
+        guard !rim.isEmpty else { return [] }
+        // One start a piece (joined by faces and edges inside the box).
+        var left = Set(rim), out: [IVec3] = []
+        for c in rim where left.contains(c) {
+            left.remove(c)
+            var comp = [c], h = 0
+            while h < comp.count {
+                let q = comp[h]; h += 1
+                for d in nbrs where left.contains(q + d) { left.remove(q + d); comp.append(q + d) }
+            }
+            if out.count < 4 { out.append(c) }
+        }
+        rimChecks += out.count
+        return out
     }
 
     // The changed cell and every built block beside it stand on a straight column of built blocks down to the ground (or
@@ -631,14 +675,21 @@ enum Structure {
     // nothing holds (no block of it on the ground, bedrock or water) is returned to fall as one body. The fill ends at the
     // first block on the ground, so a standing building costs only the way to its nearest footing.
     private static let looseSeen = CellSet(capacity: 8192), looseHeld = CellSet(capacity: 8192)
-    static func loose(_ w: World, near p: IVec3, limit: Int = 24_000) -> [IVec3]? {
+    static func loose(_ w: World, near p: IVec3, limit: Int = 24_000) -> [IVec3]? { looseAll(w, near: p, limit: limit).first }
+    // Nov 12 playtest (06:21:17, a Boreal tower shot through from the roof gun: its top, penthouse and mast, stayed up):
+    // the search above returned the first piece it found loose, and what was taken out with it was taken out quietly (no
+    // check after), so a second piece beside the same change, cut loose by the same shot, hung on. Every loose piece
+    // beside the change is returned now. (BS_OLDLOOSE=1: the first only, as before)
+    static let oldLoose = ProcessInfo.processInfo.environment["BS_OLDLOOSE"] == "1"
+    static func looseAll(_ w: World, near p: IVec3, limit: Int = 24_000) -> [[IVec3]] {
         let held = looseHeld, seen = looseSeen
         held.removeAll()
         var cur = ChunkCursor(w)
         let K = nbrs.count
+        var found: [[IVec3]] = [], taken = Set<IVec3>()
         for d in [IVec3(0, 0, 0)] + nbrs {
             let s0 = p + d
-            guard !held.contains(s0), part(&cur, s0.x, s0.y, s0.z) != nil else { continue }
+            guard !held.contains(s0), !taken.contains(s0), part(&cur, s0.x, s0.y, s0.z) != nil else { continue }
             seen.removeAll(); seen.insert(s0)
             var comp = [s0], h = 0, anchored = false
             fill: while h < comp.count {
@@ -655,9 +706,11 @@ enum Structure {
                 }
             }
             if anchored { for q in comp { held.insert(q) }; continue }
-            return comp
+            found.append(comp)
+            if oldLoose { return found }
+            for q in comp { taken.insert(q) }
         }
-        return nil
+        return found
     }
 
     // (3) A falling block meeting built block `onto` after falling `fell` blocks: does it break through?

@@ -205,7 +205,7 @@ extension Trains {
         if MilitaryTrain.aboard(g, tr) { tr.roused = true; return }
         let near = tr.cars.contains { simd_length($0.pos - g.player.pos) < 40 }
         let shot = tr.troops.contains { $0.health < $0.spec.health } || tr.cars.contains { $0.variant == gunCar && $0.health < 160 }
-        let stood = tr.blocksPerSec < 0.3 && tr.track.at(tr.time).stop == nil
+        let stood = tr.blocksPerSec < 0.3 && Trains.now(tr).stop == nil
         guard near && (shot || tr.heldBy || stood) else { return }
         tr.roused = true
         for s in aboard {
@@ -247,9 +247,12 @@ extension Trains {
         let freight = m.livery == 1
         var p: [Part] = []
         let run = m.walkPhase, tail = isTrailing(m)
+        // Nov 12 playtest (06:17:31, "its wheels are squares. It doesn't make sense"): a wheel was one square slab
+        // spinning. Now it is round: four slabs as long as the wheel and as wide as an octagon's side, turned an eighth
+        // of a turn apart, make an octagon (Trains.roundWheel); BS_SQUAREWHEELS=1 draws the old square.
         func wheel(_ z: Float, _ r: Float, _ c: V3) {
             for x: Float in [-3.4, 2.4] {
-                p.append(Part(mn: V3(x, 0.05, z - r), mx: V3(x + 1, 0.05 + 2 * r, z + r), pivot: V3(x, 0.05 + r, z), rotX: -run * 4 / r, color: c, pattern: 8))
+                Trains.roundWheel(&p, x: x, w: 1, cy: 0.05 + r, z: z, r: r, spin: -run * 4 / r, color: c)
             }
         }
         func bogie(_ z: Float) {

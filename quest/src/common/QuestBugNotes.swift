@@ -28,7 +28,7 @@ final class BugNotes {
 
 // P368: voice-note video is in quest/src/android/QuestVideoNotes.swift (playtest APKs only).
 enum QuestVideo {
-    static func service(_ s: SceneRenderer.Slot, ctx: VkContext, image: VkImage, format: VkFormat, width: Int, height: Int) {}
+    static func service(_ s: SceneRenderer.Slot, ctx: VkContext, image: VkImage, format: VkFormat, width: Int, height: Int, drawn: (Int, Int)? = nil) {}
     static func collect(began: SceneRenderer.Slot?) {}
 }
 #endif

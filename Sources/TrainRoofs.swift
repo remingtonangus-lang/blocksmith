@@ -131,7 +131,7 @@ extension Trains {
             return
         }
         guard g.survival, g.difficulty > 0, !tr.track.armoured, tr.kind != .troop, !tr.wrecked, tr.robbedDay != day, tr.raidedDay != day,
-              tr.cars.count >= 3, !tr.heldBy, aboard(g, tr), tr.track.at(tr.time).stop == nil else { return }
+              tr.cars.count >= 3, !tr.heldBy, aboard(g, tr), Trains.now(tr).stop == nil else { return }
         guard Rand.float(in: 0..<1) < raidChancePerSecond else { return }
         tr.raidedDay = day
         tr.raidT = 0

@@ -1135,6 +1135,46 @@ if let out = arg("--view"), let ctx = vkctx {
         if inTick { BlastShape.deferred = deferred0 }
         print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after; shapings queued \(queued), left \(BlastShape.queue.count)")
     }
+    // --shells YAWS,PITCHES (Nov 12, the hovering tower top): heavy shells as he fires them from a manned deck gun
+    // (VehicleControls.shoot: his power and breach), from the eye, at each yaw and pitch (degrees, "a:b:step" or one
+    // value), half a second of play after each, then --settle SECS (default 6) more; --floatscan R lists every built
+    // piece within R blocks (default 40) of where they burst that nothing holds up (FloatScan).
+    if let sv = arg("--shells")?.split(separator: ","), sv.count == 2 {
+        func range(_ t: Substring) -> [Float] {
+            let p = t.split(separator: ":").compactMap { Float($0) }
+            guard p.count == 3, p[2] > 0 else { return p.prefix(1).map { $0 } }
+            return Array(stride(from: p[0], through: p[1], by: p[2]))
+        }
+        vg.paused = false
+        vg.survival = false; vg.player.flying = true
+        let eye = vg.player.eye
+        var bursts: [V3] = []
+        let d0 = Armory.detonations
+        for yd in range(sv[0]) { for pd in range(sv[1]) {
+            let y = yd * .pi / 180, pt = pd * .pi / 180
+            let fwd = V3(-sinf(y) * cosf(pt), sinf(pt), -cosf(y) * cosf(pt))
+            var sl = Slug(pos: eye + fwd * 2, vel: fwd * HeavyTurret.speed, kind: .shell, damage: 0, fromPlayer: true,
+                          shooter: nil, by: "Player", life: 12, gravity: HeavyTurret.gravity)
+            HeavyTurret.arm(&sl)
+            sl.power = HeavyTurret.mannedPower; sl.breach = HeavyTurret.mannedBreach
+            vg.arms.spawn(sl)
+            var k = 0
+            while !vg.arms.slugs.isEmpty && k < 72 * 4 { let last = vg.arms.slugs.last!.pos; vg.tick(1.0 / 72); k += 1; if vg.arms.slugs.isEmpty { bursts.append(last) } }
+            for _ in 0..<36 { vg.tick(1.0 / 72) }
+            vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero
+        } }
+        let settle = Double(arg("--settle") ?? "") ?? 6
+        for _ in 0..<Int(settle * 72) { vg.tick(1.0 / 72); vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero }
+        print("view: shells: \(Armory.detonations - d0) bursts, \(Structure.checks) load checks, \(Structure.fallen) blocks fell, \(Felling.toppled) pieces toppled, \(vg.falling.count) falling")
+        // (--floatat X,Y,Z: scan round that point instead of the bursts' middle: shells through a shot-out frame burst far off)
+        if let fa = arg("--floatat")?.split(separator: ",").compactMap({ Int($0) }), fa.count == 3 {
+            print(FloatScan.scan(vw, around: IVec3(fa[0], fa[1], fa[2]), r: Int(arg("--floatscan") ?? "") ?? 40))
+        } else if !bursts.isEmpty {
+            let c = bursts.reduce(V3(0, 0, 0), +) / Float(bursts.count)
+            print("view: shells burst round \(Int(c.x)) \(Int(c.y)) \(Int(c.z))")
+            print(FloatScan.scan(vw, around: IVec3(Int(c.x), Int(c.y), Int(c.z)), r: Int(arg("--floatscan") ?? "") ?? 40))
+        }
+    }
     // --troops R (P471): every soldier within R blocks of the eye after the run (--tick): what it is, whose, its gun,
     // whether it has seen him, and which way it faces from him (0: toward him).
     if let rr = Float(arg("--troops") ?? "") {
@@ -2061,6 +2101,43 @@ do {
     let after = lw.lightAt(x, gy - 3, z).sky
     check(lit0 && before < 15 && after == 15, "stale light: a column dug 4 deep reads the open sky at its floor before its remesh lands (sky \(before) -> \(after), lit by a mesh \(lit0))")
 }
+// Nov 12 playtest (driving the Ironback Crawler: the hull / rounds / fuel panel over the toolbar): at the headset's HUD
+// panel (1024 x 640, couch scale) a driver's toolbar is hidden and the vehicle panel sits in its place clear of the
+// hearts and hunger; a passenger keeps the toolbar and the panel clears it. BS_OLDDRIVEHUD=1 for before.
+do {
+    let couch0 = HudLayout.couch, scale0 = HudLayout.userScale, surv0 = game.survival, pos0 = game.player.pos
+    HudLayout.couch = true; HudLayout.userScale = 0; game.survival = true
+    defer { HudLayout.couch = couch0; HudLayout.userScale = scale0; game.survival = surv0; game.player.pos = pos0 }
+    let helm = ShipTest.place(game.world, "car", near: game.player.pos)
+    let (carOpt, msg) = game.world.ships.assemble(at: helm, game: game)
+    if let car = carOpt {
+        let W: Float = 1024, H: Float = 640, L = HudLayout(W, H), s = L.s
+        func near(_ a: V4, _ b: V4) -> Bool { simd_length(a - b) < 0.02 }
+        // What the HUD draws: the hotbar's slot fill, hearts and hunger fills, and the panel's box (its rows' height).
+        func scan(_ rows: Float) -> (slots: Int, overPanel: Int, overBar: Int) {
+            let v = Renderer(game: game).buildHUD(W, H)
+            let (px, py0, pw) = CombatHUD.panelOrigin(game, L, rows: rows)
+            let bx0 = px - 3 * s, bx1 = px + pw + 3 * s, by0 = py0 - 4 * s, by1 = py0 - 4 * s + rows * s
+            var slots = 0, overPanel = 0, overBar = 0
+            for q in v {
+                let c = q.color, p = q.pos
+                let inPanel = p.x > bx0 + 0.5 && p.x < bx1 - 0.5 && p.y > by0 + 0.5 && p.y < by1 - 0.5
+                if near(c, V4(0.35, 0.35, 0.38, 0.55)) { slots += 1; if inPanel { overBar += 1 } }
+                if near(c, V4(0.88, 0.24, 0.2, 1)) || near(c, V4(0.87, 0.66, 0.3, 1)) { if inPanel { overPanel += 1 } }
+            }
+            return (slots, overPanel, overBar)
+        }
+        game.startPiloting(car)
+        let drive = scan(34)
+        game.leaveHelm()
+        game.world.ships.aboard = car
+        let ride = scan(34)
+        game.world.ships.aboard = nil
+        game.world.ships.remove(car)
+        check(drive.slots == 0 && drive.overPanel == 0 && ride.slots > 0 && ride.overPanel == 0 && ride.overBar == 0,
+              "driving HUD: at the helm the toolbar is hidden (\(drive.slots) slot fills) and the panel clears the hearts and hunger (\(drive.overPanel) inside); a passenger keeps it (\(ride.slots)) clear of the panel (\(ride.overBar), \(ride.overPanel))")
+    } else { check(false, "driving HUD: test car assembles (\(msg))") }
+}
 // --loadtest: P388 weight and bond strength (Sources/StructureTests.swift): the test builds, then a house with the
 // titanium pile that brought the test roof down, built through World.setBlock and left to the game's ticks (the queue checks it, it falls, what lands crushes).
 if CommandLine.arguments.contains("--loadtest") {
@@ -2239,9 +2316,17 @@ if let out = arg("--hudshot") {
     case "map": game.openMenu(MapMenu(game: game))
     case "options": let pm = PauseMenu(game: game); game.openMenu(pm); pm.act("options", back: false); pm.build()
     case "title": let pm = PauseMenu(game: game); pm.page = .title; pm.build(); game.openMenu(pm)
+    case "drive", "aboard":
+        // (Nov 12: the vehicle panel and the toolbar on the headset's HUD panel, at the helm or riding along)
+        HudLayout.couch = true; HudLayout.userScale = 0
+        let helm = ShipTest.place(game.world, "car", near: game.player.pos)
+        if let car = game.world.ships.assemble(at: helm, game: game).0 {
+            if arg("--menu") == "drive" { game.startPiloting(car) } else { game.world.ships.aboard = car }
+        } else { print("hudshot: the test car did not assemble") }
     default: game.openMenu(PauseMenu(game: game))
     }
-    let W = 1280, H = 720
+    let headsetPanel = ["drive", "aboard"].contains(arg("--menu") ?? "")
+    let W = headsetPanel ? 1024 : 1280, H = headsetPanel ? 640 : 720
     let verts = Renderer(game: game).buildHUD(Float(W), Float(H))
     var img = [Float](repeating: 0.25, count: W * H * 3)
     let S = 32
@@ -2648,6 +2733,21 @@ if CommandLine.arguments.contains("--spurcheck") {
 if CommandLine.arguments.contains("--gunroom") {
     GunRoomCheck.run(game, check)
     print(failures == 0 ? "gunroom: all checks passed" : "gunroom: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --crawlerhits: Nov 12, heavy shells (his and a crew's) into an Ironback Crawler, shot by shot (Sources/CrawlerHits.swift).
+if CommandLine.arguments.contains("--crawlerhits") {
+    CrawlerHits.run(game, check)
+    print(failures == 0 ? "crawlerhits: all checks passed" : "crawlerhits: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --gunstation: Nov 12, he works a disabled crawler's gun from its station (Sources/GunStationPlay.swift).
+if CommandLine.arguments.contains("--gunstation") {
+    GunStationCheck.run(game, check)
+    print(failures == 0 ? "gunstation: all checks passed" : "gunstation: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --strikelook: Nov 12 trailer, a main-gun strike's wake, puffs and debris (Sources/StrikeLook.swift).
+if CommandLine.arguments.contains("--strikelook") {
+    StrikeLook.run(game, check)
+    print(failures == 0 ? "strikelook: all checks passed" : "strikelook: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --navalblow: P471, a crew's heavy naval shell on the levels and through Capital stone (Sources/NavalBlowCheck.swift).
 if CommandLine.arguments.contains("--navalblow") {

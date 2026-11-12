@@ -142,11 +142,18 @@ enum GunParts {
     // The handles behind the gun (final model pixels): a post, a cross bar and two yellow spade grips, a hand's
     // height off the deck, at the back of whatever the gun is.
     static let gripColor = V3(0.95, 0.78, 0.12)
-    static func handles(_ p: [Part]) -> [Part] {
-        let rear = (p.map { $0.mx.z }.max() ?? 0) + 3
+    // Nov 12 playtest (06:20:26, at a Capital light gun: "this back bar thing is also disconnected"): the bar stood
+    // on its thin post half a block behind the gunhouse with nothing between; on a gun with a gunhouse (`tied`) an arm
+    // at the bar's height now runs from the gunhouse's back to the post (BS_OLDHANDLES=1: without it).
+    static let oldHandles = ProcessInfo.processInfo.environment["BS_OLDHANDLES"] == "1"
+    static func handles(_ p: [Part], tied: Bool = false) -> [Part] {
+        let back = p.map { $0.mx.z }.max() ?? 0
+        let rear = back + 3
         let dark = V3(0.14, 0.15, 0.16)
-        return [box(-2, -2, rear + 4, 4, 20, 4, dark), box(-10, 15, rear + 4, 20, 3, 3, dark),
-                box(-12, 12, rear + 3, 3, 10, 4, gripColor), box(9, 12, rear + 3, 3, 10, 4, gripColor)]
+        var h = [box(-2, -2, rear + 4, 4, 20, 4, dark), box(-10, 15, rear + 4, 20, 3, 3, dark),
+                 box(-12, 12, rear + 3, 3, 10, 4, gripColor), box(9, 12, rear + 3, 3, 10, 4, gripColor)]
+        if tied && !oldHandles { h.append(box(-1.5, 14, back - 2, 3, 3, rear + 4 - (back - 2), dark)) }
+        return h
     }
     // Where the grips are in the world (between them).
     static func handlePoint(_ m: Mob) -> V3 {

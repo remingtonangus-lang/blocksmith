@@ -340,6 +340,26 @@ extension MobTests {
         gunner.soldierBrain.orderStation = .gunner
         mm.mobs.append(gunner)
         gun.soldierBrain.losTimer = 0
+        // Nov 12 playtest ("naval guns are already firing at me even though I didn't pull my weapon out"): crewed, a
+        // Capital gun holds its fire on him while his hands are empty; a rifle drawn, it lays on him and fires.
+        // (BS_OLDUNARMED=1: it fires on him unarmed.)
+        let held0 = game.inventory.held
+        game.inventory.held = .empty
+        t = 0
+        while t < 12 && shells == 0 {
+            gun.updateDeckGun(0.05, game)
+            shells = game.arms.slugs.filter { $0.kind == .shell }.count
+            game.player.pos = at(0, 0)
+            game.health = 20; game.alive = true
+            t += 0.05
+        }
+        let unarmedShells = shells
+        game.arms.slugs.removeAll(); shells = 0
+        check(HeavyTurret.oldUnarmed || (gun.factionValue == .steelhold && unarmedShells == 0 && !gun.aggro),
+              "crewed Capital deck gun holds fire on him unarmed", "\(unarmedShells) shells in 12 s, faction \(gun.factionValue), provoked \(gun.aggro)")
+        if let rifle = Guns.all.indices.first.map({ _ in Items.id(Guns.all[Guns.rifle].key) }) { game.inventory.held = ItemStack(rifle, 1) }
+        gun.soldierBrain.losTimer = 0
+        defer { game.inventory.held = held0 }
         t = 0
         // A true-scale 42 cm turret traverses at 0.2 rad/s: half a turn takes about 16 s.
         while t < 25 && shells == 0 {
@@ -358,6 +378,81 @@ extension MobTests {
         check(game.arms.slugs.isEmpty, "shells land", String(format: "%.1f s", t))
         mm.mobs.removeAll()
         game.survival = true
+
+        // Nov 12 playtest (driving the Ironback Crawler: "Greywall base guns don't fire at me in the crawler, only on
+        // foot"): the gun's sight line ran to his eye inside the hull, and the hull hid him. Shut in a closed iron cab at
+        // a helm, he is still its target: the vessel is what it sees and shells. (BS_OLDCARRIER=1: it held fire.)
+        do {
+            let cx = Int(floor(at(0, 0).x)), cz = Int(floor(at(0, 0).z))
+            for dx in -2...2 { for dz in -2...2 { for dy in 0...4 {
+                let edge = abs(dx) == 2 || abs(dz) == 2
+                let b: BlockID = dy == 0 ? Blocks.id("oak_planks") : (dy == 4 || edge ? Blocks.id("iron_block") : AIR)
+                world.setBlockAsync(cx + dx, gy + dy, cz + dz, b)
+            } } }
+            world.setBlockAsync(cx, gy + 1, cz, Blocks.id("ship_helm[south]"))
+            world.setBlockAsync(cx, gy + 1, cz + 1, Blocks.id("ship_engine"))
+            let (cabOpt, msg) = world.ships.assemble(at: IVec3(cx, gy + 1, cz), game: game)
+            if let cab = cabOpt {
+                game.startPiloting(cab)
+                let gun2 = Mob(.deckGun, at: at(0, -45)); gun2.persistent = true; gun2.yaw = 0
+                let man2 = Mob(.soldierTrooper, at: gun2.pos + V3(0, 0, -9)); man2.persistent = true
+                man2.soldierBrain.orderStation = .gunner
+                mm.mobs.append(gun2); mm.mobs.append(man2)
+                game.arms.slugs.removeAll()
+                let hidden = !world.canSee(gun2.pos + V3(0, 0.8, 0), game.player.eye)
+                var fired = 0
+                t = 0
+                while t < 25 && fired == 0 {
+                    gun2.updateDeckGun(0.05, game)
+                    fired = game.arms.slugs.filter { $0.kind == .shell }.count
+                    game.health = 20; game.alive = true
+                    t += 0.05
+                }
+                game.leaveHelm()
+                world.ships.remove(cab)
+                game.arms.slugs.removeAll()
+                mm.mobs.removeAll()
+                check(hidden && fired > 0, "deck gun fires on him in a closed vehicle",
+                      String(format: "his eye hidden by the cab %@, %d shells in %.1f s", hidden ? "yes" : "no", fired, t))
+            } else { check(false, "deck gun on a vehicle: the cab assembles", msg) }
+            for dx in -2...2 { for dz in -2...2 { for dy in 0...4 { world.setBlockAsync(cx + dx, gy + dy, cz + dz, AIR) } } }
+            game.player.pos = at(0, 0); game.player.vel = .zero
+        }
+
+        // Nov 12 playtest ("This thing should also have limited ammunition"; creative: infinite): a gun he mans in
+        // survival fires what its magazine holds, then only clicks; in creative it never runs down; unmanned, its crew
+        // restocks it.
+        if !Turrets.oldAmmo {
+            let g3 = Mob(.deckGun, at: at(0, -45)); g3.persistent = true; g3.yaw = 0
+            mm.mobs.append(g3)
+            game.survival = true
+            Turrets.shared.mount(game, g3)
+            g3.gunShells = 2
+            var press = PadSnapshot(); press.rt = 1
+            func pulls(_ n: Int) -> Int {
+                var fired = 0
+                for _ in 0..<n {
+                    game.arms.slugs.removeAll()
+                    Turrets.shared.reload = 0
+                    _ = Turrets.shared.tick(game, press, PadSnapshot(), sneak: false, dt: 0.05)
+                    fired += game.arms.slugs.filter { $0.kind == .shell }.count
+                }
+                return fired
+            }
+            let survivalShots = pulls(6), left = g3.gunShells
+            game.survival = false
+            let creativeShots = pulls(3)
+            game.survival = true
+            Turrets.shared.leave(game)
+            for _ in 0..<(20 * 25) { g3.updateDeckGun(0.05, game) }
+            let restocked = g3.gunShells
+            game.arms.slugs.removeAll()
+            mm.mobs.removeAll()
+            check(survivalShots == 2 && left == 0 && creativeShots == 3 && restocked >= 2,
+                  "his deck gun's magazine runs out in survival, never in creative, and its crew restocks it",
+                  "\(survivalShots) of 6 pulls fired with 2 in it (\(left) left), \(creativeShots) of 3 in creative, \(restocked) after 25 s unmanned")
+            game.player.pos = at(0, 0); game.player.vel = .zero
+        }
 
         // Fallen soldiers drop ammunition for their gun (and sometimes the gun).
         var gunDrops = 0, ammoDrops = 0

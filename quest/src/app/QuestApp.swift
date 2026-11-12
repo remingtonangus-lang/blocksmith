@@ -481,7 +481,7 @@ final class QuestApp {
             }
             // Bug-note screenshot (if one is pending): left eye, HUD panel included, blitted small before release.
             QuestScreenshot.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: viewW, height: viewH)
-            QuestVideo.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: xr.width, height: xr.height)
+            QuestVideo.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: xr.width, height: xr.height, drawn: (viewW, viewH))
             do { try scene.submit(s) } catch { print("submit: \(error)") }
             recordMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
         }

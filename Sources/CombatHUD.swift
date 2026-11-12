@@ -27,6 +27,39 @@ final class CombatHUD {
     // P504: the hull reads its blocks left from 100% down to 70% (under 70% of them: 0).
     static func hullMeter(_ share: Float) -> Float { max(0, min(1, (share - 0.7) / 0.3)) }
 
+    // Nov 12 playtest (driving the Ironback Crawler: its hull, rounds and fuel panel lay over the toolbar; "hide the
+    // toolbar when driving"). At a vehicle's helm or a locomotive's regulator the toolbar is hidden (Renderer; its slots
+    // can't be picked there, QuestControls.hotbarPointer) and the panel takes its place at the bottom centre, the
+    // hearts and hunger over the panel. A passenger keeps the toolbar: the panel sits bottom left, lifted over the
+    // toolbar's bars when the two would meet (on the headset's panel, at its HUD scale, they did).
+    // The panel's box: x - 3s, y0 - 4s, w + 6s wide, `rows` x s high.
+    static let oldPanel = ProcessInfo.processInfo.environment["BS_OLDDRIVEHUD"] == "1"      // (before: bottom left, over the toolbar)
+    static func panelOrigin(_ g: Game, _ L: HudLayout, rows: Float) -> (x: Float, y0: Float, w: Float) {
+        let s = L.s
+        if oldPanel { return (L.insetX + 6 * s, L.H - L.insetY - (rows + 6) * s, 104 * s) }
+        let w = 116 * s                                  // (room for a three-figure magazine beside the fuel gauge)
+        if g.drivingHUD {
+            let bottom = L.hotbarY0 + L.slot + 2 * s
+            return (floor((L.W - w) / 2), bottom + 4 * s - rows * s, w)
+        }
+        let x = L.insetX + 6 * s
+        var y0 = L.H - L.insetY - (rows + 6) * s
+        if x + w + 5 * s > L.hotbarX0 - 2 * s { y0 = min(y0, L.hotbarY0 - 38 * s + 4 * s - rows * s) }
+        return (x, y0, w)
+    }
+
+    // The top of the driving panel's box (the hearts and hunger go over it), or nil when not driving.
+    static func driveTop(_ g: Game, _ L: HudLayout) -> Float? {
+        guard g.drivingHUD, g.menu == nil else { return nil }
+        var rows: Float = 0
+        if let ship = g.world.ships.pilot {
+            rows = 34 + (g.world.ships.mainGunStatus(ship.root) == nil ? 0 : 11)
+                + (VehicleControls.kind(ship) == .warship && g.world.ships.capState[ship.root.id] != nil ? 11 : 0)
+        }
+        if Trains.cab(g) != nil { rows = max(rows, 46) }
+        return panelOrigin(g, L, rows: rows).y0 - 4 * L.s
+    }
+
     func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         var out: [HudLine] = []
         let s = L.s
@@ -85,8 +118,7 @@ final class CombatHUD {
             // altitude. We don't even need speed really... We don't need direction... No need guns ready. And we don't
             // need it to tell us that it's a capital dropship in VTOL mode"): the hull, the magazine, the tank or lift,
             // the throttle, and a warship's drive and big gun; no name, speed, heading, height or gun-ready words.
-            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - (40 + extra) * s
-            let w = 104 * s
+            let (x, y0, w) = CombatHUD.panelOrigin(g, L, rows: 34 + extra)
             out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, (34 + extra) * s)))
             if let st = war {
                 let dy = y0 + 33 * s
@@ -124,9 +156,11 @@ final class CombatHUD {
             out.append(HudLine(text: "", x: x + 26 * s, y: iy + s, scale: s, bg: ic, box: V2((w - 26 * s) * integ, 5 * s)))
             // The magazine (P483: a war vessel's guns draw on it), and the tank or the lift.
             let ry = y0 + 11 * s
-            if VehicleControls.armed(g, ship), let n = g.world.ships.magazineLeft(ship) {
+            var roundsEnd = x
+            if VehicleControls.armed(g, ship), g.survival || Capital.oldCreativeAmmo, let n = g.world.ships.magazineLeft(ship) {     // (creative: no magazine)
                 let t = "Rounds \(n)"
                 out.append(HudLine(text: t, x: x, y: ry, scale: s, color: n == 0 ? Settings.shared.badColor : V4(0.85, 0.85, 0.85, 1)))
+                roundsEnd = x + Float(Font.width(t)) * s
             }
             if kind == .airship {
                 let t = String(format: "Lift %d%%", Int(ship.liftLevel * 100))
@@ -135,9 +169,13 @@ final class CombatHUD {
                 // Q2: the land vehicle's tank (D44), on the panel where it can be seen in play.
                 let f = VehicleDepot.level(ship.root)
                 let fc = f <= VehicleDepot.fumes ? Settings.shared.badColor : (f < VehicleDepot.low ? V4(0.95, 0.75, 0.2, 1) : V4(0.85, 0.85, 0.85, 1))
-                out.append(HudLine(text: "Fuel", x: x + w - 56 * s, y: ry, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
-                out.append(HudLine(text: "", x: x + w - 30 * s, y: ry + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(30 * s, 5 * s)))
-                out.append(HudLine(text: "", x: x + w - 30 * s, y: ry + s, scale: s, bg: fc, box: V2(30 * s * max(0, min(1, f)), 5 * s)))
+                // (Nov 12 shot 062645: "Rounds 73" ran into the Fuel label: the label follows the count, the gauge
+                // taking what is left of the row, at least 16 wide)
+                let fx = min(x + w - 16 * s - 28 * s, max(x + w - 56 * s, roundsEnd + 6 * s))
+                let bx = fx + 26 * s, bw = x + w - bx
+                out.append(HudLine(text: "Fuel", x: fx, y: ry, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
+                out.append(HudLine(text: "", x: bx, y: ry + s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
+                out.append(HudLine(text: "", x: bx, y: ry + s, scale: s, bg: fc, box: V2(bw * max(0, min(1, f)), 5 * s)))
             }
             // Throttle: centre line, bar to the right for forward, left for reverse.
             let ty = y0 + 23 * s, mid = x + w / 2
@@ -148,10 +186,16 @@ final class CombatHUD {
         }
         // P379 step 2: the locomotive's cab: speed, the regulator (forward right, reverse left) and the brake.
         if let tr = Trains.cab(g), g.menu == nil {
-            let x = L.insetX + 6 * s, y0 = L.H - L.insetY - 52 * s, w = 104 * s
+            let (x, y0, w) = CombatHUD.panelOrigin(g, L, rows: 46)
             out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, 46 * s)))
             out.append(HudLine(text: tr.track.name, x: x, y: y0, scale: s, color: V4(1, 0.9, 0.6, 1)))
             out.append(HudLine(text: String(format: "%3.0f km/h", tr.blocksPerSec * 3.6), x: x, y: y0 + 11 * s, scale: s))
+            if !Trains.oldCab && g.survival {
+                // Nov 12: the tender's coal (Trains.driveCab), red once it runs low.
+                let c = "Coal \(Int(tr.coal.rounded(.up)))"
+                out.append(HudLine(text: c, x: x + w - Float(Font.width(c)) * s, y: y0 + 11 * s, scale: s,
+                                   color: tr.coal < 4 ? V4(1, 0.4, 0.3, 1) : V4(0.85, 0.85, 0.85, 1)))
+            }
             let reg = tr.throttle < 0 ? "Reverse" : "Regulator"
             out.append(HudLine(text: reg, x: x, y: y0 + 22 * s, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
             let bx = x + 44 * s, bw = w - 44 * s, mid = bx + bw / 3
@@ -175,6 +219,12 @@ final class CombatHUD {
             let w = 40 * s, x = cx - w / 2, y = cy + 14 * s
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, 0.55), box: V2(w, 4 * s)))
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: r <= 0 ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1), box: V2(w * max(0, 1 - r / (HeavyTurret.reload * 0.6)), 4 * s)))
+            // Nov 12: the shells left in its magazine (Turrets.magazine), red when it runs low.
+            if let gm = Turrets.shared.manned, Turrets.magazine(gm, g) >= 0 {
+                let n = Turrets.magazine(gm, g), t = "Shells \(n)"
+                out.append(HudLine(text: t, x: cx - Float(Font.width(t)) * s / 2, y: y + 6 * s, scale: s,
+                                   color: n * 5 < Turrets.magazineSize(gm) ? V4(1, 0.4, 0.3, 1) : V4(0.9, 0.9, 0.9, 1)))
+            }
         }
         out += WeaponWheel.shared.lines(g, L)
         return out
@@ -341,4 +391,17 @@ final class WeaponWheel {
         }
         return out
     }
+}
+
+extension Game {
+    // At the controls of a vehicle (a ship, a land vehicle, an aircraft) or a locomotive's cab: the toolbar is hidden.
+    var drivingHUD: Bool { !CombatHUD.oldPanel && (world.ships.pilot != nil || Trains.cab(self) != nil) }
+    // Nov 12 playtest (base guns held fire on him in the Ironback Crawler): the root id of the vessel he drives or rides,
+    // whose hull a foe's sight line and line of fire to him pass (the vessel is what they see and hit), -1 on foot.
+    // BS_OLDCARRIER=1: the hull hid him, as before.
+    var playerCarrier: Int {
+        guard !Game.oldCarrier, let s = world.ships.pilot ?? world.ships.aboard else { return -1 }
+        return s.root.id
+    }
+    static let oldCarrier = ProcessInfo.processInfo.environment["BS_OLDCARRIER"] == "1"
 }

@@ -455,7 +455,7 @@ extension Mob {
         if b.losTimer <= 0 {
             b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
             MobManager.stage("before sees")
-            b.sees = canTarget && dist < (aggro ? Soldier.sight(r, gun: b.gun, fighting: true) : Soldier.notice(r, sneaking: g.player.sneaking)) * WeatherWar.sight && w.canSee(eye, g.player.eye)    // O7: fog and storms
+            b.sees = canTarget && dist < (aggro ? Soldier.sight(r, gun: b.gun, fighting: true) : Soldier.notice(r, sneaking: g.player.sneaking)) * WeatherWar.sight && w.canSee(eye, g.player.eye, except: g.playerCarrier)    // O7: fog and storms
             MobManager.stage("sees")
         }
         let sees = b.sees && canTarget
@@ -881,7 +881,9 @@ extension Mob {
         MobManager.stage("fire: aim")
         // (Nov 4, callgrind of the worst-case soak: a soldier ready to fire with a wall in the way traced the line and the
         // thin cover again every tick, 39 a tick, a third of the mob tick; blocked, it looks again in a fifth of a second.)
-        guard g.world.clearShot(muzzle, target) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else {
+        // (Nov 12: at him in a vehicle, its hull is what the rounds strike, not cover: Game.playerCarrier.)
+        let carrier = simd_length(target - g.player.eye) < 1.5 ? g.playerCarrier : -1
+        guard g.world.clearShot(muzzle, target, except: carrier) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else {
             b.aimTime = 0; b.shotTimer = max(b.shotTimer, 0.2); MobManager.stage("fire: line"); return
         }
         MobManager.stage("fire: line")
@@ -1059,6 +1061,7 @@ extension Mob {
         NavalGuns.hurtEffects(self, dt, g)
         GunParts.update(self, g)                                                  // P372
         if Turrets.shared.manned === self { vel = .zero; soldierBrain.kick = max(0, soldierBrain.kick - dt * 1.5); return }   // the player has it (VehicleControls.swift)
+        Turrets.restock(self, dt)                                                 // (Nov 12: his magazine, refilled)
         let b = soldierBrain
         vel = .zero
         // P288 (d): a Boreal Station gun goes dead with the station's generator (it neither sees nor fires).
@@ -1097,12 +1100,15 @@ extension Mob {
             b.losTimer = 0.4
             b.walled = deck == nil && dist < engage && HeavyTurret.sameBase(g, self, g.player.pos)
             b.radarOK = deck != nil || dist >= engage || HeavyTurret.radarUp(g, self)
-            b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye)
+            // Nov 12 playtest (in the Ironback Crawler: "Greywall base guns don't fire at me in the crawler, only on foot"):
+            // the sight line ran to his eye inside the hull, and a ship's hull hides what is behind it (P434 a), so the
+            // crawler hid its own driver. The vessel he is in is what the gun sees (Game.playerCarrier).
+            b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye, except: g.playerCarrier)
             // P504 (Nov 1 07:27:56-07:28:11: "as soon as the base is in [range], it is able to spot me because of its
             // special radar ability. And then its naval guns just immediately evaporate me if they can. Have to have a
             // clear line of fire"): a base's gun knows him in its reach by radar and lays on him; it fires once the
             // line from its muzzle is clear (its own parapet hid him from the turret's middle at a wall's foot).
-            b.lineClear = b.sees || canTarget && g.world.canSee(HeavyTurret.muzzle(self, 0), g.player.eye)
+            b.lineClear = b.sees || canTarget && g.world.canSee(HeavyTurret.muzzle(self, 0), g.player.eye, except: g.playerCarrier)
             b.crewed = deckGunCrewed(g)
             if !b.crewed && factionValue != .greywall && !consoleGun(g) { claimGunner(g) }
             if !GunParts.supported(self, g.world) { GunParts.fall(self, g); return }         // P465: its tower shot away
@@ -1115,7 +1121,13 @@ extension Mob {
         let radar = canTarget && deck == nil && !grey && b.radarOK
         let armed = g.heldGun != nil || g.world.ships.pilot != nil || Turrets.shared.manned != nil
         let greyHolds = grey && !aggro && !armed && !g.bases.greywall.sites.values.contains { $0.on && Greywall.inside($0, pos, pad: 4) }
-        if (b.sees || radar) && canTarget && !greyHolds {
+        // Nov 12 playtest (06:15:34, on foot in the plains 130 blocks from a Capital tower: "naval guns are already firing
+        // at me even though I didn't pull my weapon out"; P501, Oct 31: "they shouldn't be automatically hostile to me
+        // unless I have a gun in my hand"): the Capital's guns, as Greywall's, hold their fire on him unprovoked while
+        // his hands are empty of a weapon (GarrisonTown.weaponOut) and he works no vehicle or gun; drawn, or the base
+        // already fighting, the radar lays them on him as before (P504). BS_OLDUNARMED=1: the radar fires on him anyway.
+        let capHolds = !HeavyTurret.oldUnarmed && deck == nil && factionValue == .steelhold && !aggro && !armed && !GarrisonTown.weaponOut(g)
+        if (b.sees || radar) && canTarget && !greyHolds && !capHolds {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
             b.lastSeen = player
             b.seenAgo = 0
@@ -1472,6 +1484,7 @@ enum HeavyTurret {
     // citadel tower): a far bigger burst that bites through armoured stone (blocks count at most `mannedBreach` blast
     // resistance: Capital stone is 9), and a ship hull hit tears like a power-11 charge.
     static let mannedPower: Float = 5, mannedBreach: Float = 3, mannedShipPower: Float = 11
+    static let oldUnarmed = ProcessInfo.processInfo.environment["BS_OLDUNARMED"] == "1"
 
     // Two calibres (T6, Greywall's shore bases): the heavy gun, and a light quick-firer (deck_gun variant 9) built at
     // 0.4 scale that fires small shells four times as often and turns four times as fast.
@@ -1702,7 +1715,7 @@ func deckGunParts(_ m: Mob) -> [Part] {
     // A light coastal gun (T6) is the same gun built at 0.4 scale.
     let k = HeavyTurret.scale(m)
     if k != 1 { for i in p.indices { p[i].mn *= k; p[i].mx *= k; p[i].pivot *= k } }
-    return p + GunParts.handles(p)
+    return p + GunParts.handles(p, tied: true)
 }
 
 // P222: the Capital's small guns, drawn in the big gun's units (1/16 block before HeavyTurret.scale) round the same

@@ -130,7 +130,8 @@ extension ShipManager {
             }
             // P507 (Nov 1 12:09:20, a crawler's guns: "we need to increase the rate of fire"): a war vessel's guns he steers
             // reload in 60% of their crews' time.
-            let quickHands: Float = game != nil && pilot?.root === t.root && t.root.role != nil && t.root.role != "dropship" ? 0.6 : 1
+            let quickHands: Float = game != nil && ((pilot?.root === t.root && t.root.role != nil && t.root.role != "dropship")
+                                                    || (!GunStationPlay.old && GunStationPlay.cur?.turret === t)) ? 0.6 : 1   // (his own hands at a gun station too)
             t.reload = (calReload > 0 ? calReload : t.reloadTime * (1 + 0.1 * Float(longest))) * quickHands
         }
         return fired
@@ -206,10 +207,15 @@ extension ShipManager {
             // The Tidebreaker's slug leaves a glowing wake that hangs in the air for a moment.
             if sh.kind == 3, sh.parked < 0, let g = game {
                 let layer = Int(Tex.id("puff"))
-                for k in 0..<3 {
-                    let at = start + sh.vel * (dt * Float(k) / 3)
+                // Nov 12 (the trailer's strike, 31.8 s: "the white tracer is dashed and moves between frames"): three
+                // motes a frame over the ~10 blocks the slug covers left 3-block gaps; one a block now, a little
+                // shorter lived, so the wake is one line (BS_OLDWAKE=1: three).
+                let n = MainGun.oldWake ? 3 : max(3, min(16, Int(simd_length(sh.vel) * dt)))
+                let life: Float = MainGun.oldWake ? 0.7 : 0.45
+                for k in 0..<n {
+                    let at = start + sh.vel * (dt * Float(k) / Float(n))
                     g.particles.add(Particle(pos: at, vel: V3(Rand.float(in: -0.3...0.3), Rand.float(in: 0...0.5), Rand.float(in: -0.3...0.3)),
-                                             life: 0.7, maxLife: 0.7, layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.5...0.8),
+                                             life: life, maxLife: life, layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.5...0.8),
                                              gravity: 0, color: V3(0.6, 0.85, 1), collide: false, glow: true))
                 }
             }
@@ -404,6 +410,9 @@ extension ShipManager {
     // gun's shell (one whose burst breaks blocks) fired by him stops the drive, and never on a vessel he has taken;
     // flak bursts at its own strength (every base shell was striking as his 42 cm shell and stopping them: a base's
     // guns wear a frigate down block by block now, its drive failing as they shoot its engines away).
+    static let oldWreckGuns = ProcessInfo.processInfo.environment["BS_OLDWRECKGUNS"] == "1"
+    static var gunTally: [String: Int]? = nil            // (harness: why each capital gun held its fire, a tick at a time)
+    static let oldCrawlerHit = ProcessInfo.processInfo.environment["BS_OLDCRAWLERHIT"] == "1"
     func heavyHit(_ s: Ship, at p: V3, game: Game, power: Float = 6, resistCap: Float = .infinity, stopsEngines: Bool = true) {
         let r = s.root
         blast(at: p, power: power, game: game, resistCap: resistCap)

@@ -503,6 +503,8 @@ final class Mob {
     var stayAt: V3?                 // where a horse of yours was left: it waits, grazes and wanders there (saved)
     weak var mount: Mob?            // rider (raid siegebeast riders)
     var mountOffset: V3?            // P470: where on its mount a rider stands (blocks, the mount's own frame), not on its back
+    var gunShells = -1              // Nov 12: a deck gun's magazine for him (-1 not counted yet: Turrets.magazine)
+    var gunRestock: Float = 0
     var trainPitch: Float = 0       // P470: a train car's tilt up a grade (its nose up, positive)
     var livery: UInt8 = 0           // P470: a train car's paint (Trains.swift)
     @WeakLink var deck: Ship? = nil            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)

@@ -216,7 +216,15 @@ final class Armory {
                     detonate(s, at: at, g)
                     if s.kind == .shell {
                         let pw: Float = s.breach.isFinite ? HeavyTurret.mannedShipPower : (!s.breaks ? max(1, s.power) : 6)   // (P499: a main battery's air shell too)
-                        w.ships.heavyHit(h.1, at: at, game: g, power: pw, resistCap: s.breach, stopsEngines: s.breaks && s.fromPlayer)
+                        // Nov 12 playtest (06:35:59-06:36:06, a Capital base gun he manned at an Ironback Crawler: "when I
+                        // shoot at the crawler it gets obliterated. When the capital shoots at it, nothing happens... I just
+                        // took a few shots at the crawler and absolutely decimated it"): his heavy shell on a crawler's hull
+                        // cut its drive engines outright (Round 4's rule), so his first hit disabled it for good, while a
+                        // crew's shell, the same shell, never did. A crawler now stops when the shells have torn out its
+                        // engines or wheels, or the hull (CapitalShips), whoever fires them (questcheck --crawlerhits).
+                        // BS_OLDCRAWLERHIT=1: his first hit stops it, as before.
+                        let crawler = h.1.root.role == "crawler" && !ShipManager.oldCrawlerHit
+                        w.ships.heavyHit(h.1, at: at, game: g, power: pw, resistCap: s.breach, stopsEngines: s.breaks && s.fromPlayer && !crawler)
                     }
                     continue
                 }

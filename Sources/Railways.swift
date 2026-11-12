@@ -868,8 +868,21 @@ enum Railways {
     // with the track on a slope instead of in block steps. Only ground the field holds (a trestle's deck is a block).
     static func shapeBed(_ gen: WorldGen, _ fd: inout [Int8], cx: Int, cz: Int) {
         let bx = cx * CS, bz = cz * CS
+        // (BS_RAILTRACE=X,Z: for X,Z's chunk, each line found and how many of its bed cells were shaped)
+        let tr = ShapeRails.trace.map { floorDiv($0.0, CS) == cx && floorDiv($0.1, CS) == cz } ?? false
         for l in near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) + linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2)
             + loopsNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) {
+            if tr {
+                var inside = 0, shaped = 0, notes: [String] = []
+                if let hs = l.heights { for i in l.cells.indices {
+                    let c = l.cells[i]
+                    guard c.x >= bx && c.x < bx + CS && c.z >= bz && c.z < bz + CS, c.y >= 1 && c.y < CH else { continue }
+                    inside += 1
+                    let j = (c.x - bx) + (c.z - bz) * CS + c.y * CSQ
+                    if fd[j - CSQ] > 0 && fd[j] <= 0 { shaped += 1 } else if notes.count < 6 { notes.append("\(c.x) \(c.y) \(c.z) h \(hs[i]) under \(fd[j - CSQ]) at \(fd[j]) over \(c.y + 1 < CH ? fd[j + CSQ] : 0)") }
+                } }
+                print("railtrace: shapeBed chunk \(cx) \(cz) line \(l.id) heights \(l.heights != nil) cells \(l.cells.count), in chunk \(inside), shaped \(shaped); not: \(notes)")
+            }
             guard let hs = l.heights else { continue }
             for i in l.cells.indices {
                 let c = l.cells[i]
