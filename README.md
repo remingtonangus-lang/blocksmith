@@ -24,7 +24,7 @@ Fixed after his Nov 11 notes and the 1000-frame dissection:
 - Outlaw fight: the blasts no longer fell trees (felled trunks and leaves showed black in the sky).
 - Snow base by day (its smoke showed black at night); the town opening at full daylight; the street walk no longer
   brushes the well roof or passes a townsperson in silhouette; the train now comes up the line close to camera.
-- Gate: starts past a gap under the snow ledge. Cabin: its footing goes two courses into the slope (a dark slot
+- Gate: the striped band under the snow ledge is fixed in the game (PR #707, a texture off by one); the gate shot has its full approach again. Cabin: its footing goes two courses into the slope (a dark slot
   showed under it). Hell: framed off a pale ground patch. The cave and the tank shots are out of the cut.
 
 Nov 12: the street shot re-rendered with the game's fix for the savanna well's corners (PR #706; the crack detector
