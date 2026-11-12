@@ -409,6 +409,7 @@ extension ShipManager {
     // gun's shell (one whose burst breaks blocks) fired by him stops the drive, and never on a vessel he has taken;
     // flak bursts at its own strength (every base shell was striking as his 42 cm shell and stopping them: a base's
     // guns wear a frigate down block by block now, its drive failing as they shoot its engines away).
+    static let oldWreckGuns = ProcessInfo.processInfo.environment["BS_OLDWRECKGUNS"] == "1"
     static let oldCrawlerHit = ProcessInfo.processInfo.environment["BS_OLDCRAWLERHIT"] == "1"
     func heavyHit(_ s: Ship, at p: V3, game: Game, power: Float = 6, resistCap: Float = .infinity, stopsEngines: Bool = true) {
         let r = s.root

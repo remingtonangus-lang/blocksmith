@@ -1652,7 +1652,14 @@ extension ShipManager {
             }
             if s.role == "crawler" { crawlerRamp(s, st, dt, g) }
             TickProf.mark("cap: crew, wheels, ramp")             // (store review: the capital tick split for questcheck --framesoak)
-            if s.wrecked { st.gunCharge = -1; founder(s, st, dt, g); continue }      // a charge dies with the ship
+            if s.wrecked {
+                st.gunCharge = -1; founder(s, st, dt, g)              // a charge dies with the ship
+                // Nov 12 (06:34:53, 06:36:33 at a crawler he had stopped: "why aren't the troops inside doing anything?
+                // They're getting attacked", "soldiers here should be manning the guns and shooting back"): a crawler
+                // stopped where it stands fights on with every gun whose gunner lives (a frigate that came down is done).
+                // BS_OLDWRECKGUNS=1: silent once stopped.
+                guard s.role == "crawler" && !ShipManager.oldWreckGuns else { continue }
+            }
             st.retarget -= dt
             if st.retarget <= 0 || (st.target.map { !targetValid($0, g, spareBases: s.factionValue == .steelhold) } ?? false) {
                 st.retarget = 1
@@ -1663,7 +1670,7 @@ extension ShipManager {
                 st.target = t
             }
             TickProf.mark("cap: target")
-            if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
+            if s.wrecked {} else if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             TickProf.mark("cap: drive")
             capitalGuns(s, st, dt, g)
             TickProf.mark("cap: guns")

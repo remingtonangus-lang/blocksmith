@@ -122,10 +122,22 @@ enum GunStationCheck {
         // A live crew's hull (its driver at the helm): refused.
         let crewed = !ships.canCommandeer(v)
         let refused = crewed && g.takeGunStation(v, seat.console) && GunStationPlay.cur == nil
-        // Shot to a standstill: taken.
-        v.wrecked = true; st.disabledWhy = "engines destroyed"
-        let taken = g.takeGunStation(v, seat.console) && GunStationPlay.cur != nil
         let dt: Float = 1.0 / 72
+        // Shot to a standstill, with him 70 blocks off in the open: it fights on with the guns its gunners hold.
+        v.wrecked = true; st.disabledWhy = "engines destroyed"
+        let fx = Int(floor(v.pos.x)) + 70, fz = Int(floor(v.pos.z))
+        g.player.pos = V3(Float(fx) + 0.5, Float(w.topY(fx, fz)) + 1, Float(fz) + 0.5)
+        let ids = Set(ships.turrets(of: v).map { $0.id })
+        var volleys = 0
+        for _ in 0..<(72 * 10) {
+            let n0 = ships.shells.count
+            ships.update(dt, game: g)
+            volleys += ships.shells.dropFirst(min(n0, ships.shells.count)).filter { ids.contains($0.owner) }.count
+        }
+        print("gunstation: a stopped crawler's guns fired \(volleys) rounds at him in 10 s")
+        check(volleys > 0 || ShipManager.oldWreckGuns, "gunstation: a crawler stopped where it stands fights on with its manned guns (\(volleys) rounds in 10 s)")
+        // Then he boards her and takes a gun's station.
+        let taken = g.takeGunStation(v, seat.console) && GunStationPlay.cur != nil
         // He looks 90 degrees off the gun's present bearing, a little up.
         let f0 = t.dirToWorld(V3(0, 0, -1))
         let want = atan2f(-f0.x, -f0.z) + .pi / 2
