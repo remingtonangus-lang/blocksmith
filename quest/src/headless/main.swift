@@ -1733,6 +1733,17 @@ if let out = arg("--view"), let ctx = vkctx {
                 print("view: pick \(Int(c[0])),\(Int(c[1])): " + seen.joined(separator: "; "))
             }
         }
+        // --dump X0,X1,Y0,Y1,Z0,Z1: every block in the box, a column a line, with the field's density (after --tick:
+        // what play changed).
+        if let dm = arg("--dump")?.split(separator: ",").compactMap({ Int($0) }), dm.count == 6 {
+            for z in dm[4]...dm[5] { for x in dm[0]...dm[1] {
+                var col: [String] = []
+                for y in dm[2]...dm[3] where vw.block(x, y, z) != AIR {
+                    col.append("\(y):\(Blocks.key(vw.block(x, y, z)))(\(String(format: "%.2f", vw.fieldDensity(x, y, z))))")
+                }
+                print("view: dump \(x) \(z): " + col.joined(separator: " "))
+            } }
+        }
         if CommandLine.arguments.contains("--voidcount") {
             var img = RenderTest.lastRGBA
             let vc = RenderTest.countVoid(img, width: vwid, height: vhei, eyes: 2, fovDeg: vfov, pitch: pitch)
