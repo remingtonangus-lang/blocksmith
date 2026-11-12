@@ -935,6 +935,28 @@ if let out = arg("--view"), let ctx = vkctx {
         vw.remeshArea(x0: Int(fx) - 12, z0: Int(fz) - 12, x1: Int(fx) + 12, z1: Int(fz) + 12, y0: fy - 12, y1: fy + 12)
         print("fieldblast: at \(Int(fx)) \(fy) \(Int(fz))")
     }
+    // --bore N (Nov 12, Carbon's review of his "chasm into void": black cubes hung in the shaft he shot down to the Deep):
+    // power-4 blasts one under the other from the ground 8 blocks ahead, N blocks down, then what is left standing in
+    // the shaft's middle: blocks that are not air in cells the field has open.
+    if let n = Int(arg("--bore") ?? "") {
+        let fx = vg.player.pos.x - sinf(yaw) * 8, fz = vg.player.pos.z - cosf(yaw) * 8
+        var fy = Int(vg.player.pos.y) + 6
+        while fy > 1 && !Blocks.collide[Int(vw.block(Int(floor(fx)), fy, Int(floor(fz))))] { fy -= 1 }
+        var d = 0
+        while d < n && fy - d > 4 {
+            Explosion.explode(at: V3(fx, Float(fy - d) + 0.6, fz), power: 4, game: vg, decay: true)
+            for _ in 0..<4 { vg.tick(1 / 20) }
+            d += 2
+        }
+        vw.remeshArea(x0: Int(fx) - 12, z0: Int(fz) - 12, x1: Int(fx) + 12, z1: Int(fz) + 12, y0: max(0, fy - n - 12), y1: fy + 12)
+        var left: [String: Int] = [:], total = 0
+        for y in max(1, fy - n)...fy { for z in (Int(fz) - 2)...(Int(fz) + 2) { for x in (Int(fx) - 2)...(Int(fx) + 2) {
+            let b = vw.block(x, y, z)
+            guard b != AIR, vw.fieldDensity(x, y, z) <= 0 || !vw.groundAt(x, y, z) else { continue }
+            left[Blocks.key(b), default: 0] += 1; total += 1
+        } } }
+        print("bore: \(n) down from \(Int(fx)) \(fy) \(Int(fz)); left in the shaft's middle \(total): \(left.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+    }
     if CommandLine.arguments.contains("--groundline") {
         var out: [String] = []
         for k in 1...12 {
