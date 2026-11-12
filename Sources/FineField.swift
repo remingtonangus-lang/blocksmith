@@ -770,7 +770,16 @@ extension Mesher {
                     }
                 }
                 if trace { sc.dbgTrace.append(String(format: "pin g %d,%d,%d fixed %d,%d,%d at %.2f,%.2f,%.2f cell %d,%d,%d true %.3f,%.3f,%.3f drawn %.3f,%.3f,%.3f", gx, gy, gz, fx, fy, fz, pw.x, pw.y, pw.z, bestC.x, bestC.y, bestC.z, best.x, best.y, best.z, q16.x / 16, q16.y / 16, q16.z / 16)) }
-                if stitchOn { pinCell[SIMD3<Int32>(Int32(q16.x), Int32(q16.y), Int32(q16.z))] = (bestC, SIMD3<Int>(fx, fy, fz)) }
+                if stitchOn {
+                    // (A vertex where two borders meet is taken by half-block cells fixed on one border, on the other
+                    // and on both; the last to come overwrote the rest, and an edge to a vertex on one border only
+                    // found no border in common: no fan, a hairline at 0 0 in the forest. Now every border any of
+                    // them was fixed on. BS_OLDFINEJOINT=1: the last one's.)
+                    let pk = SIMD3<Int32>(Int32(q16.x), Int32(q16.y), Int32(q16.z))
+                    var fxd = SIMD3<Int>(fx, fy, fz)
+                    if !Mesher.oldFineJoint, let (c0, f0) = pinCell[pk], c0 == bestC { fxd = SIMD3<Int>(max(fxd.x, f0.x), max(fxd.y, f0.y), max(fxd.z, f0.z)) }
+                    pinCell[pk] = (bestC, fxd)
+                }
                 return q16 / 16 * 2 - off
             }
             quad.removeAll(keepingCapacity: true)
