@@ -267,7 +267,7 @@ enum RailLoopCheck {
             prev = s
             if Int(s) >= eastFrom && Int(s) < eastTo { rounded = true }
             if rounded && Int(s) >= eastTo + 30 && Int(s) < westFrom { home = true }
-            if tr.blocksPerSec < 0.05 && tr.track.at(tr.time).stop == nil { stood += 1; worstStood = max(worstStood, stood) } else { stood = 0 }
+            if tr.blocksPerSec < 0.05 && Trains.now(tr).stop == nil { stood += 1; worstStood = max(worstStood, stood) } else { stood = 0 }
             maxS = max(maxS, s)
             // (he keeps by the train, as riding it: left at the station, the loop's far side was out past the
             // check world's active ground and the train stood there)

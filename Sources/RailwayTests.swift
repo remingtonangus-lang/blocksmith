@@ -232,6 +232,7 @@ enum RailwayTests {
         var passed = Set<UInt8>(), stops: Set<Int> = [0], headIn = 0, offTrack = 0, unseated = 0, frames = 0, worst = 0.0
         var lastLoad = g.time, maxS: Float = 0, stall = 0
         var bedSeen = Set<Int>(), shallowDecks = 0
+        var peak: Float = 0, stood = 0                                   // (Nov 12: top speed; frames stood at a station)
         let plankDeck = Blocks.id("spruce_planks"), banked0 = Railways.banked
         let t1 = CFAbsoluteTimeGetCurrent()
         while frames < 60 * 900 {
@@ -249,8 +250,9 @@ enum RailwayTests {
                 unseated += 1; _ = Trains.use(g, lead)
             }
             tr.throttle = 2
-            let s = t.at(tr.time).s
+            let s = Trains.now(tr).s
             maxS = max(maxS, s)
+            peak = max(peak, tr.blocksPerSec)
             let i = max(0, min(l.cells.count - 1, Int(s.rounded())))
             if tag[i] != 0 { passed.insert(tag[i]) }
             // P510 ("Wood is a block"): a plank deck over a shallow dry dip, where the bed should be banked with earth.
@@ -272,7 +274,12 @@ enum RailwayTests {
                     }
                 }
             }
-            if let st = t.at(tr.time).stop { stops.insert(st) }
+            if let st = Trains.now(tr).stop { stops.insert(st) }
+            // (Nov 12: driven, the train runs through the stations: each one its head passes counts)
+            for (k, st) in l.stations.enumerated() where abs(s - Float(st.index)) < 1.5 {
+                stops.insert(k)
+                if tr.blocksPerSec < 0.05 { stood += 1 }
+            }
             let e = g.player.eye
             if world.solidAt(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))) {
                 if headIn == 0 {
@@ -287,7 +294,7 @@ enum RailwayTests {
             if abs(px - l.cells[li].x) > 1 || abs(pz - l.cells[li].z) > 1 || abs(lead.pos.y - hs[li]) > 0.75 { offTrack += 1 }
             if stops.contains(l.stations.count - 1) { break }                // (the last station's dwell)
             // (a stall away from a station: what holds it, printed once)
-            if tr.blocksPerSec < 0.05 && t.at(tr.time).stop == nil { stall += 1 } else { stall = 0 }
+            if tr.blocksPerSec < 0.05 && Trains.now(tr).stop == nil { stall += 1 } else { stall = 0 }
             if stall == 300 {
                 let c = l.cells[i], a = l.cells[min(l.cells.count - 1, i + 3)]
                 print("rail ride: stalled at cell \(i) (\(c.x) \(c.y) \(c.z)): held \(tr.heldBy) brake \(tr.brake) cab brake \(tr.cabBrake) regulator \(tr.throttle) pace \(tr.rate); 3 ahead \(Blocks.key(world.block(a.x, a.y, a.z)))")
@@ -307,15 +314,21 @@ enum RailwayTests {
               "P379 (4): rode \(l.name) end to end from the cab: \(stops.count) of \(l.stations.count) stations, through cutting/tunnel/bridge \(passed.sorted()), unseated \(unseated), head in ground \(headIn) frames, off the track \(offTrack) frames")
         // P379 step 2, leaving the last station (after the ride: at full regulator it ran past the bridge before the ride was counted): the brake alone stops it, the regulator left open; let off, it runs again.
         let lead2 = tr.cars[0]
+        // Nov 12: the cab is his (Trains.driveCab): at full regulator it reached 100 km/h and ran through every station.
+        check(Trains.oldCab || (peak >= 26 && stood == 0),
+              String(format: "Nov 12 trains: driven from the cab at full regulator it reached %.0f km/h and stood %d frames at the stations it passed", peak * 3.6, stood))
         var n = 0
-        while t.at(tr.time).stop != nil && n < 60 * 60 { g.time += Double(dt); Trains.drive(lead2, dt, g); n += 1 }  // (the dwell)
-        for _ in 0..<(60 * 12) { g.time += Double(dt); Trains.drive(lead2, dt, g) }                                      // (up to speed)
+        while Trains.now(tr).stop != nil && n < 60 * 60 { g.time += Double(dt); Trains.drive(lead2, dt, g); n += 1 }  // (the dwell)
+        // (driven, it runs on to the line's buffers where no link runs on: near them, it backs for the brake's check)
+        let tn = Float(tr.track.cells.count)
+        if tr.driven && (tr.driveFwd > 0 ? tn - 1 - tr.driveS : tr.driveS) < 160 { tr.throttle = -1 }
+        for _ in 0..<(60 * 12) { g.time += Double(dt); Trains.drive(lead2, dt, g); if tr.driven && tr.throttle >= 0 { tr.throttle = 2 } }   // (up to speed)
         let moving0 = tr.blocksPerSec
         var stopAfter: Float = -1
         g.rideInput = MoveInput(); g.rideInput.jump = true
         for f in 0..<(60 * 20) {
             g.time += Double(dt); Trains.drive(lead2, dt, g)
-            if tr.blocksPerSec < 0.05 && t.at(tr.time).stop == nil { stopAfter = Float(f) / 60; break }
+            if tr.blocksPerSec < 0.05 && Trains.now(tr).stop == nil { stopAfter = Float(f) / 60; break }
         }
         let braked = tr.cabBrake
         g.rideInput = MoveInput()
@@ -336,13 +349,13 @@ enum RailwayTests {
         for _ in 0..<(60 * 6) {
             g.time += Double(dt); Trains.drive(lead2, dt, g)
             if tr.heldBy { strayHeld = true }
-            if t.at(tr.time).stop != nil { break }
+            if Trains.now(tr).stop != nil { break }
         }
         let strayRail = Rails.isRail(world.block(stray.x, stray.y, stray.z))
         // (under way again first: the stray loop can end at a station's dwell, and a train standing at a platform
         // never came to his block, suite 62)
         var under = 0
-        while (t.at(tr.time).stop != nil || tr.blocksPerSec < 1) && under < 60 * 90 { g.time += Double(dt); Trains.drive(lead2, dt, g); under += 1 }
+        while (Trains.now(tr).stop != nil || tr.blocksPerSec < 1) && under < 60 * 90 { g.time += Double(dt); Trains.drive(lead2, dt, g); under += 1 }
         let his = aheadCell(6)
         world.setBlock(his.x, his.y, his.z, stone)
         Trains.placed[his] = g.time
@@ -352,6 +365,35 @@ enum RailwayTests {
         tr.heldBy = false; tr.brake = 0
         check(!strayHeld && strayRail && Trains.cleared > cleared0 && hisHeld,
               "P510 trains: a stray block on the rail is cleared and the rail put back (held \(strayHeld), rail back \(strayRail)); one he placed stops it (\(hisHeld))")
+        // Nov 12: the pedal (the right trigger) opens the regulator; steam burns coal; with the tender empty the train
+        // rolls to a stand; coal used on the engine from the cab starts it again.
+        if !Trains.oldCab {
+            g.survival = true
+            defer { g.survival = false; g.seatPad = nil }
+            for _ in 0..<(60 * 2) { g.time += Double(dt); Trains.drive(lead2, dt, g) }
+            tr.throttle = 0
+            var pad = PadSnapshot(); pad.rt = 1
+            g.seatPad = pad
+            for _ in 0..<(60 * 2) { g.time += Double(dt); Trains.drive(lead2, dt, g) }
+            let pedal = tr.throttle
+            g.seatPad = nil
+            let tn2 = Float(tr.track.cells.count)
+            tr.throttle = (tr.driveFwd > 0 ? tn2 - 1 - tr.driveS : tr.driveS) < 160 ? -1 : 2
+            tr.coal = 0.4
+            let burned0 = Trains.coalBurned
+            var dryAfter: Float = -1
+            for f in 0..<(60 * 60) {
+                g.time += Double(dt); Trains.drive(lead2, dt, g)
+                if tr.coal <= 0 && tr.blocksPerSec < 0.05 { dryAfter = Float(f) / 60; break }
+            }
+            g.inventory.held = ItemStack(Items.id("coal"), 5)
+            let fed = Trains.use(g, lead2)
+            let tender = tr.coal, left = g.inventory.held.count
+            for _ in 0..<(60 * 6) { g.time += Double(dt); Trains.drive(lead2, dt, g) }
+            check(pedal > 1 && Trains.coalBurned > burned0 && dryAfter > 0 && fed && tender >= 5 && left == 0 && tr.blocksPerSec > 1,
+                  String(format: "Nov 12 trains: the pedal opened the regulator to %.0f%%; the tender ran dry and the train came to a stand in %.0f s; 5 coal used on the engine (tender %.0f, %d left in hand) and it runs again (%.1f b/s)",
+                         pedal * 50, dryAfter, tender, left, tr.blocksPerSec))
+        }
         g.dismount()
         Trains.trains.removeAll()
     }
