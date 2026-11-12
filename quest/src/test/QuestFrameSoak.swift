@@ -189,6 +189,50 @@ enum QuestFrameSoak {
         })
     }
 
+    // Nov 12 (Remington on the trailer's strike: "the crater took too long to form"): a Meridian frigate he holds,
+    // standing in the air over plains, its Tidebreaker charged and fired every 9 s at the ground 100-180 blocks ahead,
+    // the player 50 blocks to one side of where it lands. Each bowl's opening is printed: the frames it took and what
+    // they went on (MainGun.lastOpen), on the headset's world (a Polygons field, its fine samples made as needed).
+    static func strikeScene() -> Setup {
+        var ship: Ship?
+        var reported = 0
+        var hold: (V3, Quat)?
+        return Setup(name: "strike", what: "a frigate's Tidebreaker charged and fired at the ground 50 blocks from him every 9 s",
+                     seed: biomeSeed, at: V3(0, 70 + Float(YOFF), 0), prepare: { g in
+            let w = g.world
+            w.ships.encounters = false
+            goTo(g, biome: "plains")
+            let p = g.player.pos
+            w.ships.spawnCapital("capfrigate", home: IVec3(Int(floor(p.x)), 0, Int(floor(p.z)) + 140), yaw: 0, region: nil, sync: true)
+            guard let s = w.ships.capitals.first(where: { $0.role == "capfrigate" }), let st = w.ships.capState[s.id] else {
+                print("framesoak: no frigate could be spawned"); return
+            }
+            s.captured = true; st.crewDone = Set(0..<st.crew.count); st.crewless = true
+            s.vel = .zero; s.angVel = .zero
+            // (the steepest pitch that lands on ground within the loaded world)
+            var land = p
+            for k in 0..<10 {
+                w.ships.pointHull(s, pitch: -Capital.maxPitch + Float(k) * 0.03)
+                if let a = w.ships.mainGunAimPoint(s, st), simd_length(V2(a.x - p.x, a.z - p.z)) < 200 { land = a; break }
+            }
+            ship = s
+            hold = (s.pos, s.rot)
+            g.player.flying = true
+            g.player.pos = land + V3(50, 12, 0)
+            g.player.yaw = .pi / 2; g.player.pitch = -0.2         // (facing west, at the landing)
+            print(String(format: "framesoak: strike: the frigate at %.0f %.0f %.0f, its shot landing at %.0f %.0f %.0f", s.pos.x, s.pos.y, s.pos.z, land.x, land.y, land.z))
+        }, step: { g, f in
+            guard let s = ship, let st = g.world.ships.capState[s.id] else { return }
+            if let h = hold { s.pos = h.0; s.rot = h.1; s.prevRot = h.1 }; s.vel = .zero; s.angVel = .zero    // (held where it was laid)
+            g.player.vel = .zero
+            if f % 648 == 72 { st.mainGunCD = 0; _ = g.world.ships.playerMainGun(s, game: g) }
+            if MainGun.lastOpenFrames >= 0 && MainGun.impacts > reported {
+                reported = MainGun.impacts
+                print("framesoak: strike: bowl \(reported) opened over " + MainGun.lastOpen + " (\(MainGun.warmed) sections warmed in charges so far)")
+            }
+        })
+    }
+
     // The biggest battle: the Ash Vault citadel's north gate at Total War (AshVaultGapTests.battleScene).
     static func battleScene() -> Setup {
         var stand = V3(0, 0, 0)
@@ -487,7 +531,7 @@ enum QuestFrameSoak {
          trainScene(.cargo, name: "freight"), trainScene(.troop, name: "troops"),
          seaHuntScene(), worstScene(), collapseScene(),
          emberForest("gloamwood", biome: "warped_forest", at: V3(-520, 226 + 64, 700)),
-         emberForest("charwood", biome: "crimson_forest", at: V3(-650, 226 + 64, 780))]
+         emberForest("charwood", biome: "crimson_forest", at: V3(-650, 226 + 64, 780)), strikeScene()]
     }
 
     static var scenes: [Setup] { ordinary + [crawlerScene(parkedBy: false), crawlerScene(parkedBy: true), navalScene(), trainScene(), hellScene(), battleScene()] + more }
