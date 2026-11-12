@@ -780,8 +780,10 @@ enum Capital {
             } }
         }
         // Fire control (z 38...48): rangefinder and plotting consoles along both walls, the plot table down the middle.
+        // (Nov 12, "way too many chairs": a seat at every second console, not at each one: BS_OLDCRAWLERDECK=1 a seat at each)
         for sx in [-1, 1] { for z in stride(from: 38, through: 47, by: 2) { put(sx * 7, 22, z, z % 4 == 2 ? term : console); put(sx * 7, 23, z, cab)
-            put(sx * 7, 22, z + 1, cab); put(sx * 7, 23, z + 1, cab); put(sx * 6, 22, z + 1, g("oak_chair[\(sx < 0 ? "west" : "east")]", AIR)) } }
+            put(sx * 7, 22, z + 1, cab); put(sx * 7, 23, z + 1, cab)
+            if oldCrawlerDeck || z % 4 == 2 { put(sx * 6, 22, z + 1, g("oak_chair[\(sx < 0 ? "west" : "east")]", AIR)) } } }
         for z in 41...44 { put(0, 22, z, table); put(-1, 22, z, table); put(1, 22, z, table) }
         // Propellant aft of the last mount, in barrels, two high.
         for x in -7...7 where abs(x) < 3 || abs(x) > 5 { for z in 65...66 { put(x, 22, z, barrel); put(x, 23, z, barrel) } }
@@ -797,6 +799,7 @@ enum Capital {
     // generators along the sides, the engineer's panel, a gantry along each side at the upper deck's height. The
     // command deck gets its chart table, signal consoles and cabinets. Only air inside the hull is filled, the
     // centreline aisle, the ramp's way round the engines, the hatches, ladders and crew posts are left clear.
+    static let oldCrawlerDeck = ProcessInfo.processInfo.environment["BS_OLDCRAWLERDECK"] == "1"
     static func crawlerRooms(_ hb: HullBuilder, chassis: (Int, Int, Int) -> Bool) {
         func g(_ n: String, _ f: BlockID) -> BlockID { id(n, f) }
         let panel = id("warship_panel"), grating = id("steel_grating"), light = id("light_panel"), iron = id("iron_block")
@@ -852,20 +855,58 @@ enum Capital {
         for x in [-8, -7, 7, 8] { room(x, 16, 20, console); chair(x, 16, 19, "south") }
         room(-4, 16, 16, g("greywall_map_table", console)); room(-3, 16, 16, g("greywall_map_table", console))
         room(4, 16, 16, term); chair(4, 16, 17, "north")
-        // Bunks: heads to the bulkheads in pairs along both walls, a locker at each pair.
-        for sx in [-1, 1] { for z0 in stride(from: 23, through: 39, by: 4) {
-            for x in [sx * 9, sx * 7] { bed(x, z0 + 1, z0, sx < 0 ? "light_gray" : "white") }
-            room(sx * 10, 16, z0, barrel); room(sx * 10, 16, z0 + 1, cab)
-        } }
-        // The mess: a long table with chairs either side.
-        for z in 43...49 { room(-6, 16, z, post); room(-6, 17, z, plate); chair(-7, 16, z, "east"); chair(-5, 16, z, "west") }
-        for z in 43...49 { room(6, 16, z, post); room(6, 17, z, plate); chair(7, 16, z, "west"); chair(5, 16, z, "east") }
-        for sx in [-1, 1] { stack(sx * 10, 16, 44, barrel, 1); stack(sx * 10, 16, 46, g("bookshelf", cab), 2) }
-        // The workshop and sick bay.
-        room(8, 16, 52, g(GunsmithBench.key, iron)); room(8, 16, 54, g("anvil", iron)); stack(10, 16, 53, crate, 2)
-        for z in [51, 55] { stack(10, 16, z, cab, 2) }
-        for z0 in [52, 55] { bed(-9, z0 + 1, z0, "white") }
-        room(-10, 16, 51, g("brewing_stand", cab)); stack(-10, 16, 58, cab, 2)
+        // Nov 12 playtest (06:25:07-06:25:16, aboard an Ironback: "the layout inside is still fucked. There's way too many
+        // beds, way too many chairs... Make it realistic", "What would an actual high-tech iron crawler have inside?"):
+        // the upper deck was a warship's, twenty bunks and a mess of fourteen chairs. A land crawler's crew is a dozen
+        // standing watches; most of its room is machinery and electronics. Behind the comms room now (BS_OLDCRAWLERDECK=1:
+        // the old deck): the air plant (filters, ducting and tanks) and a bunk room of four berths with lockers; the
+        // electronics bay (cabinet rows either side, a technician's terminal); the galley (a counter, a table for two)
+        // and a one-bed sick bay; the workshop and the armoury (weapon racks and ammunition) aft. The aisle and every
+        // crew post stay clear.
+        if oldCrawlerDeck {
+            for sx in [-1, 1] { for z0 in stride(from: 23, through: 39, by: 4) {
+                for x in [sx * 9, sx * 7] { bed(x, z0 + 1, z0, sx < 0 ? "light_gray" : "white") }
+                room(sx * 10, 16, z0, barrel); room(sx * 10, 16, z0 + 1, cab)
+            } }
+            for z in 43...49 { room(-6, 16, z, post); room(-6, 17, z, plate); chair(-7, 16, z, "east"); chair(-5, 16, z, "west") }
+            for z in 43...49 { room(6, 16, z, post); room(6, 17, z, plate); chair(7, 16, z, "west"); chair(5, 16, z, "east") }
+            for sx in [-1, 1] { stack(sx * 10, 16, 44, barrel, 1); stack(sx * 10, 16, 46, g("bookshelf", cab), 2) }
+            room(8, 16, 52, g(GunsmithBench.key, iron)); room(8, 16, 54, g("anvil", iron)); stack(10, 16, 53, crate, 2)
+            for z in [51, 55] { stack(10, 16, z, cab, 2) }
+            for z0 in [52, 55] { bed(-9, z0 + 1, z0, "white") }
+            room(-10, 16, 51, g("brewing_stand", cab)); stack(-10, 16, 58, cab, 2)
+        } else {
+            let bars = g("iron_bars", iron)
+            // The air plant (starboard, z 22-31): tanks along the wall, filter vents beside them, ducts to the roof.
+            for z in 22...31 { stack(10, 16, z, z % 3 == 0 ? band : tank, 3) }
+            for z in stride(from: 23, through: 31, by: 2) { stack(9, 16, z, vent, 2) }
+            for z in [24, 28] { for y in 16...19 { room(8, y, z, pipeY) } }
+            for z in 22...31 { room(9, 19, z, pipeZ) }
+            room(7, 16, 31, term)
+            // The bunk room (port, z 22-31): four berths, heads to the wall, a locker between each pair.
+            for z0 in [23, 28] { bed(-9, z0 + 1, z0, "light_gray") }
+            for z in [22, 25, 26, 27, 30, 31] { stack(-10, 16, z, cab, 2) }
+            for z0 in [23, 28] { room(-10, 16, z0, barrel) }
+            // The electronics bay (z 33-41): cabinets two high in rows along both walls, a way in at 37, the
+            // technician's terminal and one seat at it.
+            for sx in [-1, 1] { for z in 33...41 where z != 37 { stack(sx * 10, 16, z, cab, 3); stack(sx * 8, 16, z, cab, 2) } }
+            room(-7, 16, 37, term); chair(-6, 16, 37, "west")
+            room(7, 16, 37, console)
+            for sx in [-1, 1] { for z in 33...41 { room(sx * 9, 19, z, pipeZ) } }
+            // The galley (port, z 43-49): a counter along the wall with the stores, a table for two.
+            for z in 43...49 { room(-10, 16, z, z % 3 == 0 ? barrel : cab) }
+            for z in [44, 48] { room(-10, 17, z, cab) }
+            room(-6, 16, 46, post); room(-6, 17, 46, plate); chair(-7, 16, 46, "east"); chair(-5, 16, 46, "west")
+            // The sick bay (starboard, z 43-49): one bed, the medicine cabinet, cabinets.
+            bed(9, 45, 44, "white")
+            room(10, 16, 47, g("brewing_stand", cab)); stack(10, 16, 48, cab, 2); stack(10, 16, 43, cab, 2)
+            // The workshop (starboard, z 51-58) as it was.
+            room(8, 16, 52, g(GunsmithBench.key, iron)); room(8, 16, 54, g("anvil", iron)); stack(10, 16, 53, crate, 2)
+            for z in [51, 55] { stack(10, 16, z, cab, 2) }
+            // The armoury (port, z 51-58): weapon racks over ammunition boxes along the wall (the post at -7, 54 clear).
+            for z in 51...57 { room(-10, 16, z, z % 2 == 0 ? crate : ash); room(-10, 17, z, bars) }
+            stack(-10, 16, 58, cab, 2); stack(-9, 16, 51, crate, 2)
+        }
         // The engine hall: exhaust stacks from the engine banks to the roof, fuel tanks along the walls, generators and
         // the engineer's panel by the bulkhead, a gantry along each wall at the upper deck's height.
         for sx in [-1, 1] { for z in [64, 68] { for y in 14...19 { room(sx * 4, y, z, pipeY) } } }
