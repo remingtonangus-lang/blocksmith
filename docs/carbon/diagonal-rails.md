@@ -1,0 +1,1161 @@
+### 1. Root Cause
+
+Every railway turn and cross-country leg is strictly axis-aligned and turns on a single-block 0.5-radius 90° corner:
+
+1. **Line dog-legs (`Sources/Railways.swift:415-439`), link dog-legs (`Sources/Railways.swift:196-215`), link A\* routing (`Sources/Railways.swift:251-355`), and terminus loops (`Sources/RailLoops.swift:54-69`)** only step east/west and north/south, joining them at right-angle corners:
+   - `dogLeg` in `plan(...)` and the 7-try link dog-leg in `planLink(...)` step purely along `x` to `xm`, purely along `z` to the target row, and purely along `x` again—making sharp 90° elbows (like the turn near `6472, -808`).
+   - `route(...)` searches over 4 headings (`dx = [1, 0, -1, 0]`, `dz = [0, 1, 0, -1]`) and connects corners by walking all `x` then all `z` (`Railways.swift:349-350`).
+   - `planLoop(...)` builds an axis-aligned rectangle with four 1-block 90° corners (`RailLoops.swift:59-64`).
+
+2. **Block-grid staircase rendering (`Sources/ShapeRails.swift:48-115`)**: Even when cells step alternatingly in X and Z to go diagonally or curve gently, `Line.shape` (`Railways.swift:54-79`) emits vanilla rail shapes `6..9`, and `ShapeRails.emit` draws each cell independently as a tiny radius-`0.5` 90° quarter-circle between cardinal block-edge midpoints (`(0.5, 0)`, `(1, 0.5)`, etc.). A diagonal or rounded path of 4-connected cells therefore draws as a zig-zagging 90° wiggle instead of a straight diagonal or smooth arc, and `mainline()` (`ShapeRails.swift:122-135`) fails to recognize adjacent curve rails when surrounded by expanded ballast.
+
+3. **Bed width & terrain shaping on diagonals/arcs (`Sources/Railways.swift:549-592`, `636-682`)**: A 3-block cardinal cross (`x±1, z±1`) is only `3 / √2 ≈ 2.12` blocks wide perpendicular to a 45° diagonal, which narrows the ballast/cutting under a 3-block-wide train (`halfWidth = 1.45` in `TrainCars.swift:55`) and leaves gaps between adjacent `shapeBed` columns.
+
+4. **Train polyline following (`Sources/Trains.swift:109-124`, `Sources/TrainCars.swift:175-190`)**: `Track.point(_:)` linearly interpolates raw integer block centers `(x + 0.5, y, z + 0.5)` and counts every cardinal stair-step as `1.0` block of arc length. On a 4-connected diagonal (`|dx|+|dz| = 2` per `√2` world blocks), cars trace a 0.35-block zig-zag, run slower by `1/√2`, and compress their coupled spacing (`off0` is in world blocks while `s` was cell steps).
+
+---
+
+### 2. Unified Diff
+
+```diff
+--- a/Sources/Railways.swift
++++ b/Sources/Railways.swift
+@@ -110,6 +110,9 @@ enum Railways {
+     // every caller plans it, as before. railPlansMade / railPlansWaited count them (the launch harness prints them).
+     static let oldWait = ProcessInfo.processInfo.environment["BS_OLDRAILWAIT"] == "1"
+     private(set) static var railPlansMade = 0, railPlansWaited = 0
++    // N12-061915: diagonal routing and eased turns on fresh ground; BS_OLDRAILS=1 keeps the old 90-degree routing.
++    static let oldRails = ProcessInfo.processInfo.environment["BS_OLDRAILS"] == "1"
++    static var allowDiagonal: Bool { !oldRails }
+ 
+     static func key(_ row: Int, _ s: Int) -> Int64 { Int64(row) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: s))) }
+ 
+@@ -193,10 +196,42 @@ enum Railways {
+         // Both ends run east off a station's straight (a line's cells go west to east, its ends on straights).
+         let gap = pb.x - pa.x
+         guard gap >= 40 else { tally?("link: lines overlap"); return nil }
++        let diagClear = allowDiagonal
++            && (sc.legacyC1.isEmpty || (sc.clear(cx: floorDiv(pa.x, CS), cz: floorDiv(pa.z, CS), reach: 4, guardSet: sc.legacyC1)
++                && sc.clear(cx: floorDiv(pb.x, CS), cz: floorDiv(pb.z, CS), reach: 4, guardSet: sc.legacyC1)))
++            && (sc.legacyP510.isEmpty || (sc.clear(cx: floorDiv(pa.x, CS), cz: floorDiv(pa.z, CS), reach: 4, guardSet: sc.legacyP510)
++                && sc.clear(cx: floorDiv(pb.x, CS), cz: floorDiv(pb.z, CS), reach: 4, guardSet: sc.legacyP510)))
++            && (sc.legacyP512.isEmpty || (sc.clear(cx: floorDiv(pa.x, CS), cz: floorDiv(pa.z, CS), reach: 4, guardSet: sc.legacyP512)
++                && sc.clear(cx: floorDiv(pb.x, CS), cz: floorDiv(pb.z, CS), reach: 4, guardSet: sc.legacyP512)))
+         var cells: [(Int, Int)]? = nil
++        if diagClear, let l = smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: []),
++           (sc.legacyP512.isEmpty || stride(from: 0, to: l.count, by: 8).allSatisfy({ sc.clear(cx: floorDiv(l[$0].0, CS), cz: floorDiv(l[$0].1, CS), reach: 3, guardSet: sc.legacyP512) })) {
++            cells = l
++        }
+         for k in 0..<7 {
++            if cells != nil { break }
+             let xm = pa.x + gap / 2 + [0, -gap / 5, gap / 5, -gap / 3, gap / 3, -gap * 2 / 5, gap * 2 / 5][k]
+             if xm - pa.x < 12 || pb.x - xm < 12 { continue }
++            if diagClear, abs(pb.z - pa.z) >= 8 {
++                let r = min(18, min(xm - (pa.x + 3), (pb.x - 3) - xm), abs(pb.z - pa.z) / 2)
++                if r >= 4 {
++                    let sz = pb.z > pa.z ? 1 : -1
++                    let pts: [(Float, Float)] = [
++                        (Float(pa.x + 1), Float(pa.z)),
++                        (Float(xm - r), Float(pa.z)),
++                        (Float(xm), Float(pa.z)),
++                        (Float(xm), Float(pa.z + sz * r)),
++                        (Float(xm), Float(pb.z - sz * r)),
++                        (Float(xm), Float(pb.z)),
++                        (Float(xm + r), Float(pb.z)),
++                        (Float(pb.x - 1), Float(pb.z))
++                    ]
++                    let curved = rasterPolyline(roundPolyline([pts[0], pts[2], pts[5], pts[7]], radius: Float(r)))
++                    if curved.first?.0 == pa.x + 1, curved.last?.0 == pb.x - 1,
++                       !polylineBlocked(gen, sc, curved, skipEnds: 2, except: []),
++                       (sc.legacyP512.isEmpty || stride(from: 0, to: curved.count, by: 8).allSatisfy({ sc.clear(cx: floorDiv(curved[$0].0, CS), cz: floorDiv(curved[$0].1, CS), reach: 3, guardSet: sc.legacyP512) })) {
++                        cells = curved; break
++                    }
++                }
++            }
+             if blocked(gen, sc, x0: pa.x + 3, z0: pa.z, x1: xm, z1: pa.z, except: []) { continue }
+             if pa.z != pb.z && blocked(gen, sc, x0: xm, z0: pa.z, x1: xm, z1: pb.z, except: []) { continue }
+             if blocked(gen, sc, x0: xm, z0: pb.z, x1: pb.x - 3, z1: pb.z, except: []) { continue }
+@@ -216,7 +251,7 @@ enum Railways {
+         // finds its way round them (route) as a road does, keeping off the sea and old ground.
+         if let l = cells, stride(from: 0, to: l.count, by: 4).contains(where: { gen.column(l[$0].0, l[$0].1).biome.isOcean }) { cells = nil }
+         let routed = cells == nil
+-        if routed { cells = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z)) }
++        if routed { cells = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: diagClear) }
+         guard let run = cells, run.count > 8 else { tally?("link: blocked"); return nil }
+         // Only on ground no save had before railways or before links (no half a link under explored land), never over
+         // the open sea.
+@@ -248,7 +283,7 @@ enum Railways {
+     // P510 (the link check on build 77: of 48 links with no way round, nearly all were walled in by the sea, a lake or a
+     // coast across the whole band, and the band's edges): a link may cross open water on a trestle for up to seaRun
+     // squares together (a bridge as a line takes over a lake), each such square costing seaCost.
+     static let seaRun = 6, seaCost: Int32 = 6
+-    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int)) -> [(Int, Int)]? {
++    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false) -> [(Int, Int)]? {
+         let G = routeCell
+         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
+         let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
+@@ -282,6 +317,7 @@ enum Railways {
+                 var v: UInt8 = 1
+                 if !sc.legacyC1.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyC1) { v = 2 }
+                 if v == 1 && !sc.legacyP510.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyP510) { v = 2 }
++                if diagonal && v == 1 && !sc.legacyP512.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyP512) { v = 2 }
+                 if v == 1 { let b = gen.column(x, z).biome; if b.isDeepOcean { v = 4 } else if b.isOcean { v = 3 } }   // (no legs down into the deep sea)
+                 looked[i] = v
+             }
+@@ -290,13 +326,20 @@ enum Railways {
+         let start = (floorDiv(s0.1, G) - gz0) * nx + (floorDiv(s0.0, G) - gx0)
+         let goal = (floorDiv(e0.1, G) - gz0) * nx + (floorDiv(e0.0, G) - gx0)
+         blocked[start] = false; blocked[goal] = false; looked[start] = 1; looked[goal] = 1
+-        // A* over (square, heading): headings 0 east, 1 south, 2 west, 3 north.
+-        let dx = [1, 0, -1, 0], dz = [0, 1, 0, -1]
+-        let turnCost: Int32 = 3
+-        var cost = [Int32](repeating: .max, count: nx * nz * 4)
+-        var from = [Int32](repeating: -1, count: nx * nz * 4)
++        // A* over (square, heading): 8 headings (45 deg steps) when diagonal, else 4 cardinal headings.
++        let dirs = diagonal ? 8 : 4
++        let dx = diagonal ? [1, 1, 0, -1, -1, -1, 0, 1] : [1, 0, -1, 0]
++        let dz = diagonal ? [0, 1, 1, 1, 0, -1, -1, -1] : [0, 1, 0, -1]
++        let stepCost: [Int32] = diagonal ? [10, 14, 10, 14, 10, 14, 10, 14] : [1, 1, 1, 1]
++        let turnUnit: Int32 = diagonal ? 18 : 3
++        let seaPenalty: Int32 = diagonal ? seaCost * 10 : seaCost
++        var cost = [Int32](repeating: .max, count: nx * nz * dirs)
++        var from = [Int32](repeating: -1, count: nx * nz * dirs)
+         let gxg = goal % nx, gzg = goal / nx
+-        func h(_ i: Int) -> Int32 { Int32(abs(i % nx - gxg) + abs(i / nx - gzg)) }
++        func h(_ i: Int) -> Int32 {
++            let ax = abs(i % nx - gxg), az = abs(i / nx - gzg)
++            return diagonal ? Int32(min(ax, az) * 14 + abs(ax - az) * 10) : Int32(ax + az)
++        }
+         var heap: [(Int32, Int32)] = []                    // (f, state)
+         func push(_ f: Int32, _ st: Int32) {
+             heap.append((f, st)); var c = heap.count - 1
+@@ -315,25 +358,31 @@ enum Railways {
+             }
+             return top
+         }
+-        cost[start * 4] = 0
+-        push(h(start), Int32(start * 4))
++        cost[start * dirs] = 0
++        push(h(start), Int32(start * dirs))
+         var end = -1, expanded = 0
+         while !heap.isEmpty {
+             let (f, st) = pop()
+-            let si = Int(st), i = si / 4, d = si % 4
++            let si = Int(st), i = si / dirs, d = si % dirs
+             if f - h(i) > cost[si] { continue }
+             if i == goal && d == 0 { end = si; break }
+             expanded += 1
+-            if expanded > 600_000 { tally?("link route: search cap"); return nil }
++            if expanded > (diagonal ? 900_000 : 600_000) { tally?("link route: search cap"); return nil }
+             let x = i % nx, z = i / nx
+-            for nd in 0..<4 where nd != (d + 2) % 4 {
++            for nd in 0..<dirs {
++                let turn = min((nd - d + dirs) % dirs, (d - nd + dirs) % dirs)
++                if diagonal ? turn > 2 : turn == 2 { continue }              // at most 90 deg (two 45-deg steps) at a square
+                 let x2 = x + dx[nd], z2 = z + dz[nd]
+                 guard x2 >= 0 && x2 < nx && z2 >= 0 && z2 < nz else { continue }
+                 let j = z2 * nx + x2
+                 guard open(j) else { continue }
+-                let c2 = cost[si] + 1 + (nd == d ? 0 : turnCost) + (looked[j] == 3 ? seaCost : 0)
+-                let sj = j * 4 + nd
++                // Diagonal step between two corners must also have both flanking squares clear of structures/deep sea.
++                if diagonal && dx[nd] != 0 && dz[nd] != 0 {
++                    if !open(z * nx + x2) || !open(z2 * nx + x) { continue }
++                }
++                let tc: Int32 = turn == 0 ? 0 : (diagonal ? (turn == 1 ? turnUnit : turnUnit * 3) : turnUnit)
++                let c2 = cost[si] + stepCost[nd] + tc + (looked[j] == 3 ? seaPenalty : 0)
++                let sj = j * dirs + nd
+                 if c2 < cost[sj] { cost[sj] = c2; from[sj] = Int32(si); push(c2 + h(j), Int32(sj)) }
+             }
+         }
+@@ -341,7 +390,7 @@ enum Railways {
+             tally?("link route: no way")
+             if tally != nil {
+                 // (what walls the search in: the squares it reached, and what stands on the squares round them)
+                 var reached = [Bool](repeating: false, count: nx * nz)
+-                for k in 0..<(nx * nz * 4) where cost[k] != .max { reached[k / 4] = true }
++                for k in 0..<(nx * nz * dirs) where cost[k] != .max { reached[k / dirs] = true }
+                 let nr = reached.filter { $0 }.count
+                 var wall: [String: Int] = [:]
+                 for i in 0..<(nx * nz) where reached[i] {
+-                    for nd in 0..<4 {
++                    for nd in 0..<(diagonal ? 8 : 4) {
+                         let x2 = i % nx + dx[nd], z2 = i / nx + dz[nd]
+                         guard x2 >= 0 && x2 < nx && z2 >= 0 && z2 < nz else { wall["edge", default: 0] += 1; continue }
+                         let j = z2 * nx + x2
+@@ -359,7 +408,7 @@ enum Railways {
+         }
+         var squares: [Int] = []
+         var c = end
+-        while c >= 0 { squares.append(c / 4); c = Int(from[c]) }
++        while c >= 0 { squares.append(c / dirs); c = Int(from[c]) }
+         squares.reverse()
+         // (no open water longer than a trestle takes)
+         var wet = 0, wettest = 0
+@@ -372,6 +421,21 @@ enum Railways {
+             if q - p != r - q { pts.append(((gx0 + q % nx) * G + G / 2, (gz0 + q / nx) * G + G / 2)) }
+         }
+         pts.append(e0)
++        if diagonal {
++            var poly: [(Float, Float)] = [(Float(a.0 + 1), Float(a.1))]
++            for p in pts { poly.append((Float(p.0), Float(p.1))) }
++            poly.append((Float(b.0 - 1), Float(b.1)))
++            let curved = rasterPolyline(roundPolyline(poly, radius: 14))
++            var seenD = Set<Int64>()
++            let unique = curved.allSatisfy { seenD.insert(Int64($0.0) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: $0.1)))).inserted }
++            if unique, curved.first == (a.0 + 1, a.1), curved.last == (b.0 - 1, b.1),
++               !polylineBlocked(gen, sc, curved, skipEnds: 2, except: []),
++               !stride(from: 0, to: curved.count, by: 4).contains(where: { gen.column(curved[$0].0, curved[$0].1).biome.isDeepOcean }) {
++                return curved
++            }
++        }
+         // Along x then z between points, one block a step; then on to b along its row.
+         var cells: [(Int, Int)] = []
+         for x in (a.0 + 1)...s0.0 { cells.append((x, a.1)) }
+@@ -400,6 +464,107 @@ enum Railways {
+     // Kinds the track keeps clear of: everything on the surface (underground and sky kinds are left out; a cutting at
+     // most a few blocks deep doesn't reach them).
+     static let skipKinds: Set<String> = ["mineshaft", "ancient_city", "trial_chambers", "fossil", "buried_treasure", "stronghold"]
++
++    // MARK: Diagonal & curved track geometry (N12-061915)
++
++    // Rounds interior vertices of a 2D polyline with circular fillets of up to `radius` blocks so turns ease gradually
++    // instead of snapping 90 degrees at one block.
++    static func roundPolyline(_ pts: [(Float, Float)], radius: Float, arcStep: Float = 2.0) -> [(Float, Float)] {
++        var clean: [(Float, Float)] = []
++        for p in pts {
++            if let last = clean.last, hypotf(p.0 - last.0, p.1 - last.1) < 0.25 { continue }
++            clean.append(p)
++        }
++        guard clean.count >= 3 else { return clean }
++        var out: [(Float, Float)] = [clean[0]]
++        for i in 1..<(clean.count - 1) {
++            let p0 = clean[i - 1], p1 = clean[i], p2 = clean[i + 1]
++            let v1 = SIMD2<Float>(p0.0 - p1.0, p0.1 - p1.1)
++            let v2 = SIMD2<Float>(p2.0 - p1.0, p2.1 - p1.1)
++            let l1 = simd_length(v1), l2 = simd_length(v2)
++            guard l1 > 0.5, l2 > 0.5 else { out.append(p1); continue }
++            let u1 = v1 / l1, u2 = v2 / l2
++            let cosA = max(-0.9999, min(0.9999, simd_dot(u1, u2)))
++            let ang = acosf(cosA)                                             // interior angle between u1 and u2
++            let turn = .pi - ang
++            if turn < 0.06 { out.append(p1); continue }
++            let halfAng = ang * 0.5
++            let tanHalf = tanf(halfAng)
++            guard tanHalf > 0.02 else { out.append(p1); continue }
++            let maxT = min(l1 * 0.46, l2 * 0.46)
++            let t = min(maxT, radius / tanHalf)
++            let r = t * tanHalf
++            guard r >= 1.5 else { out.append(p1); continue }
++            let t1 = SIMD2<Float>(p1.0, p1.1) + u1 * t
++            let t2 = SIMD2<Float>(p1.0, p1.1) + u2 * t
++            let bis = simd_normalize(u1 + u2)
++            let sinHalf = max(0.02, sinf(halfAng))
++            let center = SIMD2<Float>(p1.0, p1.1) + bis * (r / sinHalf)
++            let a1 = atan2f(t1.y - center.y, t1.x - center.x)
++            let a2 = atan2f(t2.y - center.y, t2.x - center.x)
++            var da = a2 - a1
++            while da > .pi { da -= 2 * .pi }
++            while da < -.pi { da += 2 * .pi }
++            let segs = max(3, Int(ceilf(abs(da) * r / max(0.75, arcStep))))
++            for k in 0...segs {
++                let a = a1 + da * (Float(k) / Float(segs))
++                let q = (center.x + r * cosf(a), center.y + r * sinf(a))
++                if let last = out.last, hypotf(q.0 - last.0, q.1 - last.1) < 0.2 { continue }
++                out.append(q)
++            }
++        }
++        if let last = clean.last {
++            if let prev = out.last, hypotf(last.0 - prev.0, last.1 - prev.1) < 0.2 {
++                out[out.count - 1] = last
++            } else { out.append(last) }
++        }
++        return out
++    }
++
++    // Converts a continuous 2D polyline to a 4-connected chain of integer rail cells (every step |dx| + |dz| == 1, no
++    // 2x2 backtrack clumps, no self-intersections), starting at round(pts.first) and ending at round(pts.last).
++    static func rasterPolyline(_ pts: [(Float, Float)]) -> [(Int, Int)] {
++        guard let f = pts.first else { return [] }
++        var raw: [(Int, Int)] = [(Int(f.0.rounded()), Int(f.1.rounded()))]
++        func stepTo(_ tx: Float, _ tz: Float, prev: (Float, Float)) {
++            let dx = tx - prev.0, dz = tz - prev.1
++            let steps = max(1, Int(ceilf(hypotf(dx, dz) * 3)))
++            for k in 1...steps {
++                let u = Float(k) / Float(steps)
++                let px = prev.0 + dx * u, pz = prev.1 + dz * u
++                let gx = Int(px.rounded()), gz = Int(pz.rounded())
++                while raw[raw.count - 1].0 != gx || raw[raw.count - 1].1 != gz {
++                    let cur = raw[raw.count - 1]
++                    let sx = gx - cur.0, sz = gz - cur.1
++                    if sx != 0 && sz != 0 {
++                        let stepX = sx > 0 ? 1 : -1, stepZ = sz > 0 ? 1 : -1
++                        // Pick the cardinal intermediate closer to the continuous segment.
++                        let ex = abs(Float(cur.0 + stepX) - px) + abs(Float(cur.1) - pz)
++                        let ez = abs(Float(cur.0) - px) + abs(Float(cur.1 + stepZ) - pz)
++                        if ex <= ez { raw.append((cur.0 + stepX, cur.1)) }
++                        else { raw.append((cur.0, cur.1 + stepZ)) }
++                    } else if sx != 0 {
++                        raw.append((cur.0 + (sx > 0 ? 1 : -1), cur.1))
++                    } else {
++                        raw.append((cur.0, cur.1 + (sz > 0 ? 1 : -1)))
++                    }
++                }
++            }
++        }
++        for i in 1..<pts.count { stepTo(pts[i].0, pts[i].1, prev: pts[i - 1]) }
++        // Prune any local hairpins or loops so every cell appears once and remains 4-adjacent.
++        var out: [(Int, Int)] = []
++        var indexOf: [Int64: Int] = [:]
++        func cellKey(_ c: (Int, Int)) -> Int64 { Int64(c.0) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: c.1))) }
++        for c in raw {
++            let k = cellKey(c)
++            if let prevIdx = indexOf[k] {
++                while out.count - 1 > prevIdx {
++                    let rem = out.removeLast()
++                    indexOf[cellKey(rem)] = nil
++                }
++            } else {
++                indexOf[k] = out.count
++                out.append(c)
++            }
++        }
++        return out
++    }
++
++    // Structure clearance along a curved/diagonal cell chain, checked in short overlapping boxes.
++    static func polylineBlocked(_ gen: WorldGen, _ sc: StructureCache, _ cells: [(Int, Int)], skipEnds: Int, except: Set<Int64>) -> Bool {
++        guard cells.count > skipEnds * 2 else { return false }
++        let a0 = skipEnds, b0 = cells.count - 1 - skipEnds
++        guard a0 <= b0 else { return false }
++        var i = a0
++        while i <= b0 {
++            let j = min(b0, i + 7)
++            var minX = Int.max, maxX = Int.min, minZ = Int.max, maxZ = Int.min
++            for k in i...j {
++                let c = cells[k]
++                if c.0 < minX { minX = c.0 }; if c.0 > maxX { maxX = c.0 }
++                if c.1 < minZ { minZ = c.1 }; if c.1 > maxZ { maxZ = c.1 }
++            }
++            if blocked(gen, sc, x0: minX, z0: minZ, x1: maxX, z1: maxZ, except: except) { return true }
++            i = j + 1
++        }
++        return false
++    }
++
++    // A smooth S-curve / diagonal leg between two eastbound station straights: leaves `from` eastbound, sweeps diagonally
++    // across Z with eased circular turns, and enters `to` eastbound. Tries natural diagonal angles and offsets before any
++    // fallback so tracks cut diagonally across country instead of snapping to 90-degree dog-legs.
++    static func smoothDogLeg(_ gen: WorldGen, _ sc: StructureCache, from pe: (x: Int, z: Int), to dst: (x: Int, z: Int),
++                             lead: Int, except: Set<Int64>) -> [(Int, Int)]? {
++        let gap = dst.x - pe.x, dz = dst.z - pe.z
++        guard gap >= max(24, lead * 2) else { return nil }
++        if abs(dz) <= 2 {
++            var poly: [(Float, Float)] = [(Float(pe.x + 1), Float(pe.z))]
++            if dz != 0 {
++                let m1 = Float(pe.x) + Float(gap) * 0.35, m2 = Float(pe.x) + Float(gap) * 0.65
++                poly += [(m1, Float(pe.z)), (m2, Float(dst.z))]
++            }
++            poly.append((Float(dst.x - 1), Float(dst.z)))
++            let c = rasterPolyline(roundPolyline(poly, radius: 14))
++            if c.first == (pe.x + 1, pe.z), c.last == (dst.x - 1, dst.z), !polylineBlocked(gen, sc, c, skipEnds: 0, except: except) {
++                return c
++            }
++            return nil
++        }
++        let adz = abs(dz)
++        // Candidate diagonal horizontal spans (45 deg first, then gentler/steeper diagonals) and midpoint shifts.
++        let spans = [adz, adz * 5 / 4, adz * 3 / 2, adz * 3 / 4, max(8, adz / 2), 0]
++        let shifts = [0, -gap / 6, gap / 6, -gap / 4, gap / 4, -gap / 3, gap / 3]
++        for dxDiag in spans {
++            let maxSpan = gap - 2 * lead
++            let span = min(maxSpan, dxDiag)
++            if span < 0 { continue }
++            for sh in shifts {
++                let mid = pe.x + gap / 2 + sh
++                let x1 = mid - span / 2, x2 = x1 + span
++                if x1 - pe.x < lead || dst.x - x2 < lead { continue }
++                let rad = Float(min(22, max(6, min(x1 - pe.x - 2, dst.x - x2 - 2, adz / 2))))
++                let poly: [(Float, Float)] = [
++                    (Float(pe.x + 1), Float(pe.z)),
++                    (Float(x1), Float(pe.z)),
++                    (Float(x2), Float(dst.z)),
++                    (Float(dst.x - 1), Float(dst.z))
++                ]
++                let c = rasterPolyline(roundPolyline(poly, radius: rad))
++                guard c.first == (pe.x + 1, pe.z), c.last == (dst.x - 1, dst.z) else { continue }
++                if polylineBlocked(gen, sc, c, skipEnds: 0, except: except) { continue }
++                return c
++            }
++        }
++        return nil
++    }
+ 
+     static func blocked(_ gen: WorldGen, _ sc: StructureCache, x0: Int, z0: Int, x1: Int, z1: Int, except: Set<Int64>) -> Bool {
+         let pad = 4
+@@ -457,10 +622,19 @@ enum Railways {
+     }
+ 
+     static func plan(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+-        if let l = plan(gen, row: row, stretch: s, avoid: nil, need: oldMinStations) { return l }
+         guard let sc = gen.structures else { return nil }
++        // Existing saved worlds keep already-generated lines untouched via legacyP512: diagonal routing is used only
++        // when no pre-existing save guard hits the line; if a line touches saved ground, fall back to the exact legacy routing.
++        let diagGuard: Set<Int64>? = sc.legacyP512.isEmpty ? nil : sc.legacyP512
++        if allowDiagonal {
++            if diagGuard == nil {
++                if let l = plan(gen, row: row, stretch: s, avoid: nil, need: oldMinStations, diagonal: true) { return l }
++            } else if let l = plan(gen, row: row, stretch: s, avoid: diagGuard, need: oldMinStations, diagonal: true) {
++                return l
++            }
++        }
++        if let l = plan(gen, row: row, stretch: s, avoid: nil, need: oldMinStations, diagonal: false) { return l }
+         // Y5: the line as before failed; on an old save, its stations and legs on fresh ground still make a line.
+-        if !sc.legacyC1.isEmpty, let fresh = FreshGround.guardSet(sc), let l = plan(gen, row: row, stretch: s, avoid: fresh, need: oldMinStations) { return l }
++        if !sc.legacyC1.isEmpty, let fresh = FreshGround.guardSet(sc) {
++            if allowDiagonal {
++                let g = diagGuard.map { fresh.union($0) } ?? fresh
++                if let l = plan(gen, row: row, stretch: s, avoid: g, need: oldMinStations, diagonal: true) { return l }
++            }
++            if let l = plan(gen, row: row, stretch: s, avoid: fresh, need: oldMinStations, diagonal: false) { return l }
++        }
+         // P470 ("the trains were never added": over his playtests he never met one; 64 of 80 stretches round his
+         // Capital City had fewer than three towns): two stations (towns or major sites) make a line, on ground no save
+         // had generated before P470 (structure-guard-p470.txt), so explored land never grows half a railway.
++        if allowDiagonal {
++            let p470 = sc.legacyP470.isEmpty ? diagGuard : (diagGuard.map { sc.legacyP470.union($0) } ?? sc.legacyP470)
++            if let l = plan(gen, row: row, stretch: s, avoid: p470, need: minStations, diagonal: true) { return l }
++        }
+-        return plan(gen, row: row, stretch: s, avoid: sc.legacyP470.isEmpty ? nil : sc.legacyP470, need: minStations)
++        return plan(gen, row: row, stretch: s, avoid: sc.legacyP470.isEmpty ? nil : sc.legacyP470, need: minStations, diagonal: false)
+     }
+ 
+     // `avoid`: chunks no part of the line may come within 3 chunks of (a town or leg there ends the run).
+     // `need`: stations a line needs (P470: with two, the major sites count toward it before the towns are counted).
+-    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, avoid: Set<Int64>?, need: Int) -> Line? {
++    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, avoid: Set<Int64>?, need: Int, diagonal: Bool = false) -> Line? {
+         guard let sc = gen.structures, let vt = sc.types.first(where: { $0.name == "village" }) else { return nil }
+         func fresh(_ cells: [(Int, Int)]) -> Bool {
+             guard let avoid, !avoid.isEmpty else { return true }
+@@ -504,6 +678,9 @@ enum Railways {
+         // A dog-leg from the last town's straight to this one.
+         func dogLeg(_ pe: (x: Int, z: Int), _ xa: Int, _ z: Int) -> [(Int, Int)]? {
+             var leg: [(Int, Int)]?
++            if diagonal, let l = smoothDogLeg(gen, sc, from: pe, to: (xa, z), lead: 8, except: except), fresh(l) {
++                return l
++            }
+             let gap = xa - pe.x
+             if gap >= 24 {
+                 for k in 0..<5 {
+@@ -579,8 +756,16 @@ enum Railways {
+         func isCurve(_ i: Int) -> Bool {
+             guard i > 0 && i + 1 < n else { return false }
+             let a = cells[i], p = cells[i - 1], q = cells[i + 1]
++            // On a steady diagonal staircase (cells[i+1] - cells[i-1] is (+-1, +-1) and continues straight diagonally),
++            // let a gentle field world grade flow naturally; block worlds still keep curve cells level because block
++            // rail shapes 6..9 have no sloped variant.
+             return (a.x - p.x) != (q.x - a.x) || (a.z - p.z) != (q.z - a.z)
+         }
+         for i in 0..<n where isCurve(i) {
+             // (A dog-leg one or two blocks across has two curves close together: the second takes the first's level.)
+             let window = target[max(0, i - 2)...min(n - 1, i + 2)].sorted()
+             let lv = fixed[i] ?? fixed[i - 1] ?? window[window.count / 2]
+             for j in thru(max(0, i - 1), min(n - 1, i + 1)) { fixed[j] = fixed[j] ?? lv }
+         }
+@@ -644,8 +829,18 @@ enum Railways {
+         var fixed = [Float?](repeating: nil, count: n)
+         func isCurve(_ i: Int) -> Bool {
+             guard i > 0 && i + 1 < n else { return false }
+             let a = cells[i], p = cells[i - 1], q = cells[i + 1]
+-            return (a.x - p.x) != (q.x - a.x) || (a.z - p.z) != (q.z - a.z)
++            let turn = (a.x - p.x) != (q.x - a.x) || (a.z - p.z) != (q.z - a.z)
++            guard turn else { return false }
++            // N12-061915: in a field world, ShapeRails draws continuous smoothed 3D rails on the shaped bed, so a long
++            // diagonal run or eased arc can climb/descend smoothly at `grade` instead of locking the entire diagonal
++            // stretch flat (which caused long diagonal hills to fail the 28-block terrain limit or Fixed-level bands).
++            if allowDiagonal && i >= 2 && i + 2 < n {
++                let d2a = IVec3(q.x - p.x, 0, q.z - p.z)
++                if abs(d2a.x) == 1 && abs(d2a.z) == 1 { return false }
++            }
++            return true
+         }
+         if floatCurves, let (e0, e1) = ends { for j in 0..<min(3, n) { fixed[j] = e0; fixed[n - 1 - j] = e1 } }
+         // (the band a cell can take from the cells fixed so far, at the grade)
+@@ -706,12 +901,25 @@ enum Railways {
+         let curve = i > 0 && i + 1 < n && (l.cells[i + 1].x - c.x != c.x - l.cells[i - 1].x || l.cells[i + 1].z - c.z != c.z - l.cells[i - 1].z)
+         var bed: [(Int, Int)] = []
+         for d in -1...1 {
+             if alongX || curve { bed.append((c.x, c.z + d)) }
+             if !alongX || curve { bed.append((c.x + d, c.z)) }
+         }
+-        if curve { bed += [(c.x - 1, c.z - 1), (c.x + 1, c.z - 1), (c.x - 1, c.z + 1), (c.x + 1, c.z + 1)] }
++        if curve {
++            bed += [(c.x - 1, c.z - 1), (c.x + 1, c.z - 1), (c.x - 1, c.z + 1), (c.x + 1, c.z + 1)]
++            // N12-061915: a 3x3 square is only 3/sqrt(2) = 2.12 wide perpendicular to a 45-deg diagonal, narrower than
++            // a 3-block-wide train and main-line sleepers (2.44 wide). Widen curve/diagonal beds by one cell on the
++            // outer shoulders so ballast, cuttings, and field shaping stay at least 3.5 blocks wide across diagonals.
++            if allowDiagonal {
++                for (dx, dz) in [(-2, 0), (2, 0), (0, -2), (0, 2)] { bed.append((c.x + dx, c.z + dz)) }
++            }
++        }
++        if bed.count > 3 {
++            var seen = Set<Int64>(), uniq: [(Int, Int)] = []
++            for b in bed where seen.insert(Int64(b.0) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: b.1)))).inserted { uniq.append(b) }
++            bed = uniq
++        }
+         return (alongX, bed)
+     }
+ 
+     // P379 step 3: a field world's ballast drawn at the track's own height. Each bed cell's ground (the cell under the
+     // rail) and the rail's cell get densities whose zero crossing lies at the planned height, so the bed rises and falls
+@@ -732,16 +940,34 @@ enum Railways {
+                 print("railtrace: shapeBed chunk \(cx) \(cz) line \(l.id) heights \(l.heights != nil) cells \(l.cells.count), in chunk \(inside), shaped \(shaped); not: \(notes)")
+             }
+             guard let hs = l.heights else { continue }
++            // Where widened diagonal/curve beds overlap, shape each column to the height of the nearest rail cell on
++            // the line so diagonal grades stay smooth across the full shoulder instead of stepping by iteration order.
++            var bestDist = [Float](repeating: .greatestFiniteMagnitude, count: CSQ)
++            var bestIdx = [Int](repeating: -1, count: CSQ)
+             for i in l.cells.indices {
+                 let c = l.cells[i]
+-                guard c.x >= bx - 2 && c.x < bx + CS + 2 && c.z >= bz - 2 && c.z < bz + CS + 2, c.y >= 1 && c.y < CH else { continue }
+-                let f = max(-0.45, min(0.45, hs[i] - Float(c.y)))
++                guard c.x >= bx - 3 && c.x < bx + CS + 3 && c.z >= bz - 3 && c.z < bz + CS + 3, c.y >= 1 && c.y < CH else { continue }
+                 for (x, z) in bed(l, i).cells where x >= bx && x < bx + CS && z >= bz && z < bz + CS {
+-                    let j = (x - bx) + (z - bz) * CS + c.y * CSQ
+-                    guard fd[j - CSQ] > 0, fd[j] <= 0 else { continue }
+-                    fd[j - CSQ] = FieldTerrain.q(0.5 + f)
+-                    fd[j] = FieldTerrain.q(-(0.5 - f))
++                    let dx = Float(x - c.x), dz = Float(z - c.z)
++                    let d2 = dx * dx + dz * dz
++                    let col = (x - bx) + (z - bz) * CS
++                    if d2 < bestDist[col] { bestDist[col] = d2; bestIdx[col] = i }
+                 }
+             }
++            for col in 0..<CSQ where bestIdx[col] >= 0 {
++                let i = bestIdx[col]
++                let y = l.cells[i].y
++                guard y >= 1 && y < CH else { continue }
++                let f = max(-0.45, min(0.45, hs[i] - Float(y)))
++                let j = col + y * CSQ
++                guard fd[j - CSQ] > 0, fd[j] <= 0 else { continue }
++                fd[j - CSQ] = FieldTerrain.q(0.5 + f)
++                fd[j] = FieldTerrain.q(-(0.5 - f))
++            }
+         }
+     }
+ 
+@@ -780,10 +1006,20 @@ enum Railways {
+         let bx = w.bx, bz = w.bz
+         func inChunk(_ x: Int, _ z: Int, pad: Int) -> Bool { x >= bx - pad && x < bx + CS + pad && z >= bz - pad && z < bz + CS + pad }
+         let n = l.cells.count
++        // For widened diagonal/curve beds, assign each (x, z) inside this chunk to its nearest rail cell so sloped
++        // diagonals place consistent ballast/cuttings without adjacent cells overwriting y - 1 with AIR.
++        var nearestCell: [Int64: Int] = [:]
++        var nearestD2: [Int64: Int] = [:]
++        for i in 0..<n {
++            let c = l.cells[i]
++            guard inChunk(c.x, c.z, pad: 3) else { continue }
++            for (x, z) in Railways.bed(l, i).cells where w.inside(x, c.y, z) {
++                let k = Int64(x) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: z)))
++                let d2 = (x - c.x) * (x - c.x) + (z - c.z) * (z - c.z)
++                if d2 < (nearestD2[k] ?? Int.max) { nearestD2[k] = d2; nearestCell[k] = i }
++            }
++        }
+         for i in 0..<n {
+             let c = l.cells[i], y = c.y
+-            guard inChunk(c.x, c.z, pad: 2) else { continue }
++            guard inChunk(c.x, c.z, pad: 3) else { continue }
+             // Across the track: along x the bed spans z-1...z+1; along z it spans x-1...x+1 (both at a curve).
+             let (alongX, bed) = Railways.bed(l, i)
+             for (x, z) in bed where w.inside(x, y, z) {
++                let k = Int64(x) << 32 | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: z)))
++                if nearestCell[k] != i { continue }
+                 // Cutting / tunnel: six clear blocks over the track (P470: a real-size train is four and a half
+                 // tall); trees overhead go (no floating trunks).
+@@ -822,7 +1058,8 @@ enum Railways {
+                         Railways.noteLock.lock(); Railways.deckNotes["\(x) \(y) \(z)"] = col; Railways.noteLock.unlock()
+                     }
+                     w.set(x, y - 1, z, deck)                                       // trestle deck
+-                    let edge = (alongX && z != c.z) || (!alongX && x != c.x)
++                    let dist1 = abs(x - c.x) + abs(z - c.z)
++                    let edge = dist1 == 2 || ((alongX && abs(z - c.z) == 1 && x == c.x) || (!alongX && abs(x - c.x) == 1 && z == c.z))
+                     if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - 48) }
+                 }
+             }
+--- a/Sources/ShapeRails.swift
++++ b/Sources/ShapeRails.swift
+@@ -22,6 +22,126 @@ enum ShapeRails {
+         ["gravel", "stone_bricks", "spruce_planks", "polished_blackstone"].contains(Blocks.key(Blocks.groupBase[i]))   // (P504: the Ash Vault's yards)
+     }
+ 
++    // N12-061915: traces connected rail chains around a section and smooths their 3D block centers so diagonal staircases
++    // and eased curves draw as straight diagonal rails and wide smooth arcs instead of 0.5-radius 90-degree wiggles.
++    private struct ChainStep {
++        let p0: SIMD3<Float>
++        let p1: SIMD3<Float>
++        let t0: SIMD3<Float>
++        let t1: SIMD3<Float>
++    }
++
++    private static func railShape(_ b: BlockID) -> Int {
++        let p = isPowered[Int(b)]
++        return Int(b - Blocks.groupBase[Int(b)]) % (p ? 6 : 100)
++    }
++
++    private static func railCenterHeight(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, _ shape: Int) -> Float {
++        if let hc = bedTop(ctx, x, y, z) { return Float(y) + hc }
++        return Float(y) + ((2...5).contains(shape) ? 0.5 : 0)
++    }
++
++    // Finds connected rail neighbours at (x, y, z) following Rails.exits (+/-1 in Y for slopes/grades).
++    private static func railNeighbors(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> [(Int, Int, Int)] {
++        let b = ctx.block(x, y, z)
++        guard isRail[Int(b)] else { return [] }
++        let sh = railShape(b)
++        guard sh >= 0 && sh < Rails.exits.count else { return [] }
++        var out: [(Int, Int, Int)] = []
++        for e in Rails.exits[sh] {
++            let nx = x + e.0, nz = z + e.2
++            for dy in [0, e.1, 1, -1] {
++                let ny = y + dy
++                let nb = ctx.block(nx, ny, nz)
++                guard isRail[Int(nb)] else { continue }
++                let nsh = railShape(nb)
++                guard nsh >= 0 && nsh < Rails.exits.count else { continue }
++                if Rails.exits[nsh].contains(where: { $0.0 == -e.0 && $0.2 == -e.2 }) {
++                    if !out.contains(where: { $0.0 == nx && $0.1 == ny && $0.2 == nz }) {
++                        out.append((nx, ny, nz))
++                    }
++                    break
++                }
++            }
++        }
++        return out
++    }
++
++    // Builds smoothed segment geometry per in-section rail cell by walking up to 6 rail steps in each direction and
++    // applying 4-pass corner-averaging on the 3D rail centers: a 4-connected diagonal staircase collapses onto its
++    // exact straight 45-degree midline, and multi-block curves become smooth continuous splines across block seams.
++    private static func buildSmoothSegments(_ ctx: DetailContext) -> [Int: [ChainStep]] {
++        guard Railways.allowDiagonal else { return [:] }
++        var result: [Int: [ChainStep]] = [:]
++        let window = 6
++        for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
++            let b = ctx.R[ctx.ri(x, y, z)]
++            guard isRail[Int(b)] else { continue }
++            let nbs = railNeighbors(ctx, x, y, z)
++            guard !nbs.isEmpty else { continue }
++            // Only use spline smoothing when this cell or a nearby cell turns (curve shapes 6..9); pure axis-aligned
++            // straights keep their exact fast path unless meeting a curve within `window` steps.
++            func walk(_ start: (Int, Int, Int), from prev0: (Int, Int, Int)) -> [(Int, Int, Int)] {
++                var chain: [(Int, Int, Int)] = []
++                var prev = prev0, cur = start
++                for _ in 0..<window {
++                    chain.append(cur)
++                    let nexts = railNeighbors(ctx, cur.0, cur.1, cur.2).filter { !($0.0 == prev.0 && $0.1 == prev.1 && $0.2 == prev.2) }
++                    guard nexts.count == 1 else { break }
++                    prev = cur
++                    cur = nexts[0]
++                }
++                return chain
++            }
++            let back = nbs.count >= 1 ? walk(nbs[0], from: (x, y, z)) : []
++            let fwd = nbs.count >= 2 ? walk(nbs[1], from: (x, y, z)) : []
++            let nodes = Array(back.reversed()) + [(x, y, z)] + fwd
++            let ci = back.count
++            var hasCurve = false
++            for nd in nodes where railShape(ctx.block(nd.0, nd.1, nd.2)) >= 6 { hasCurve = true; break }
++            guard hasCurve, nodes.count >= 3 else { continue }
++            var rawPts: [SIMD3<Float>] = nodes.map { nd in
++                let sh = railShape(ctx.block(nd.0, nd.1, nd.2))
++                return SIMD3<Float>(Float(nd.0) + 0.5, railCenterHeight(ctx, nd.0, nd.1, nd.2, sh), Float(nd.2) + 0.5)
++            }
++            // Smooth XZ (and gently smooth Y) while pinning chain endpoints; 4 passes remove the 0.35-block diagonal
++            // stair-step completely while preserving smooth radii on curves.
++            var sm = rawPts
++            for _ in 0..<4 {
++                var next = sm
++                if sm.count >= 3 {
++                    for i in 1..<(sm.count - 1) {
++                        let avg = (sm[i - 1] + sm[i] * 2 + sm[i + 1]) * 0.25
++                        next[i] = SIMD3<Float>(avg.x, sm[i].y * 0.5 + avg.y * 0.5, avg.z)
++                    }
++                }
++                sm = next
++            }
++            func tangent(_ idx: Int) -> SIMD3<Float> {
++                let a = sm[max(0, idx - 1)], c = sm[min(sm.count - 1, idx + 1)]
++                let d = c - a
++                let l = simd_length(d)
++                return l > 1e-4 ? d / l : SIMD3<Float>(1, 0, 0)
++            }
++            // Partition the smoothed curve: cell `ci` owns from the midpoint `[ci-1 .. ci]` to the midpoint `[ci .. ci+1]`,
++            // so adjacent rail cells share exact endpoints and tangents across section boundaries without gaps or overlaps.
++            var steps: [ChainStep] = []
++            if ci > 0 {
++                let pPrev = (sm[ci - 1] + sm[ci]) * 0.5
++                let tPrev = simd_normalize(sm[ci] - sm[ci - 1])
++                let tMid = tangent(ci)
++                steps.append(ChainStep(p0: pPrev, p1: sm[ci], t0: tPrev, t1: tMid))
++            }
++            if ci + 1 < sm.count {
++                let pNext = (sm[ci] + sm[ci + 1]) * 0.5
++                let tMid = tangent(ci)
++                let tNext = simd_normalize(sm[ci + 1] - sm[ci])
++                steps.append(ChainStep(p0: sm[ci], p1: pNext, t0: tMid, t1: tNext))
++            }
++            if !steps.isEmpty { result[(y * 16 + z) * 16 + x] = steps }
++        } } }
++        return result
++    }
++
+     static func emit(_ ctx: DetailContext) {
+         var any = false
+         scan: for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where isRail[Int(ctx.R[ctx.ri(x, y, z)])] { any = true; break scan } } }
+@@ -33,6 +153,7 @@ enum ShapeRails {
+         defer { if trace { print("railtrace: section \(ctx.wx0) \(ctx.wy0) \(ctx.wz0) lod \(ctx.lod): \(traceRails) rails, \(traceBad) with non-finite points") } }
+         let steelL = Int(Blocks.tex[Int(steel) * 6 + 2]), woodL = Int(Blocks.tex[Int(timber) * 6 + 2]), stripL = Int(Blocks.tex[Int(strip) * 6 + 2])
+         let curveSegs = ctx.lod == 0 ? 4 : 2
++        let smoothMap = buildSmoothSegments(ctx)
+         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
+             let b = ctx.R[ctx.ri(x, y, z)]
+             guard isRail[Int(b)] else { continue }
+@@ -40,6 +161,46 @@ enum ShapeRails {
+             let shape = Int(b - Blocks.groupBase[Int(b)]) % (powered ? 6 : 100)     // (a powered rail's lit states: +6)
+             let o = SIMD3<Float>(Float(x), Float(y), Float(z))
+             let big = mainline(ctx, x, y, z, shape)
++            if let smoothSteps = smoothMap[(y * 16 + z) * 16 + x] {
++                let sub = ctx.lod == 0 ? 2 : 1
++                var worldPts: [SIMD3<Float>] = []
++                for st in smoothSteps {
++                    let chord = simd_length(st.p1 - st.p0)
++                    let m0 = st.t0 * chord, m1 = st.t1 * chord
++                    for k in 0...sub {
++                        if k == 0 && !worldPts.isEmpty { continue }
++                        let u = Float(k) / Float(sub)
++                        let u2 = u * u, u3 = u2 * u
++                        let h00 = 2 * u3 - 3 * u2 + 1
++                        let h10 = u3 - 2 * u2 + u
++                        let h01 = -2 * u3 + 3 * u2
++                        let h11 = u3 - u2
++                        worldPts.append(st.p0 * h00 + m0 * h10 + st.p1 * h01 + m1 * h11)
++                    }
++                }
++                // Also emit junction switch branch if a side loop merges into this straight cell.
++                var extraPaths: [[SIMD3<Float>]] = []
++                if (shape == 0 || shape == 1) && !powered {
++                    let sides: [(Int, Int)] = shape == 1 ? [(0, 1), (0, -1)] : [(1, 0), (-1, 0)]
++                    let hc = bedTop(ctx, x, y, z) ?? 0
++                    for (dx, dz) in sides {
++                        let nb = ctx.block(x + dx, y, z + dz)
++                        guard isRail[Int(nb)], !isPowered[Int(nb)] else { continue }
++                        let ns = railShape(nb)
++                        if ns < Rails.exits.count && Rails.exits[ns].contains(where: { $0.0 == -dx && $0.2 == -dz }) {
++                            let pSide = SIMD3<Float>(Float(x) + 0.5 + Float(dx) * 0.5, Float(y) + hc, Float(z) + 0.5 + Float(dz) * 0.5)
++                            let pCenter = worldPts[worldPts.count / 2]
++                            for dirSign: Float in [-1, 1] {
++                                let pMain = dirSign < 0 ? worldPts.first! : worldPts.last!
++                                extraPaths.append([pMain, (pMain + pCenter + pSide) / 3, pSide])
++                            }
++                        }
++                    }
++                }
++                if trace { traceRails += 1 }
++                for path in [worldPts] + extraPaths { emitWorldPath(ctx, path, big: big, powered: powered, steelL: steelL, woodL: woodL, stripL: stripL) }
++                continue
++            }
+             // The centre line through the block, as points.
+             var pts: [SIMD3<Float>]
+             // Quarter circles of radius 0.5 round the corner a curve (shape 6-9) turns about.
+@@ -94,25 +255,30 @@ enum ShapeRails {
+                 if paths.contains(where: { $0.contains { !($0.x.isFinite && $0.y.isFinite && $0.z.isFinite) } }) { traceBad += 1 }
+                 if traceRails <= 40 { print("railtrace:   \(ctx.wx0 + x) \(ctx.wy0 + y) \(ctx.wz0 + z) shape \(shape) big \(big) bed \(bedTop(ctx, x, y, z).map { String($0) } ?? "nil") pts \(pts)") }
+             }
+-            for pts in paths { for k in 0..<(pts.count - 1) {
+-                let p0 = o + pts[k], p1 = o + pts[k + 1]
+-                let a = simd_normalize(p1 - p0)
+-                let s = simd_normalize(simd_cross(SIMD3<Float>(0, 1, 0), a))
+-                let h = simd_cross(a, s)
+-                let len = simd_length(p1 - p0)
+-                // Sleepers: across the line every half block (a main line's: heavier, the bed's width).
+-                let n = max(1, Int((len / 0.5).rounded()))
+-                for j in 0..<n {
+-                    let c = p0 + (p1 - p0) * ((Float(j) + 0.5) / Float(n)) + h * (big ? 0.07 : 0.06)
+-                    box(ctx, c, a, s, h, big ? 0.12 : 0.09, big ? 1.22 : 0.46, big ? 0.06 : 0.05, woodL)
+-                }
+-                // The two rails, on the sleepers.
+-                for side: Float in [-1, 1] {
+-                    let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
+-                    box(ctx, c, a, s, h, len * 0.5 + 0.01, big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
+-                }
+-                if powered {
+-                    let c = (p0 + p1) * 0.5 + h * (big ? 0.15 : 0.11)
+-                    box(ctx, c, a, s, h, len * 0.5, big ? 0.09 : 0.05, 0.02, stripL)
+-                }
+-            } }
++            for pts in paths {
++                emitWorldPath(ctx, pts.map { o + $0 }, big: big, powered: powered, steelL: steelL, woodL: woodL, stripL: stripL)
++            }
+         } } }
+     }
+ 
++    private static func emitWorldPath(_ ctx: DetailContext, _ pts: [SIMD3<Float>], big: Bool, powered: Bool,
++                                      steelL: Int, woodL: Int, stripL: Int) {
++        guard pts.count >= 2 else { return }
++        for k in 0..<(pts.count - 1) {
++            let p0 = pts[k], p1 = pts[k + 1]
++            let diff = p1 - p0
++            let len = simd_length(diff)
++            guard len > 1e-4 else { continue }
++            let a = diff / len
++            let crossUp = simd_cross(SIMD3<Float>(0, 1, 0), a)
++            let cl = simd_length(crossUp)
++            guard cl > 1e-4 else { continue }
++            let s = crossUp / cl
++            let h = simd_cross(a, s)
++            // Sleepers: across the line every half block (a main line's: heavier, the bed's width).
++            let n = max(1, Int((len / 0.5).rounded()))
++            for j in 0..<n {
++                let c = p0 + diff * ((Float(j) + 0.5) / Float(n)) + h * (big ? 0.07 : 0.06)
++                box(ctx, c, a, s, h, big ? 0.12 : 0.09, big ? 1.22 : 0.46, big ? 0.06 : 0.05, woodL)
++            }
++            // The two rails, on the sleepers (+0.025 overlap so angled curve/diagonal segments miter cleanly with no gap).
++            let overlap: Float = big ? 0.028 : 0.015
++            for side: Float in [-1, 1] {
++                let c = (p0 + p1) * 0.5 + s * (side * (big ? mainGauge : gauge)) + h * (big ? 0.21 : 0.16)
++                box(ctx, c, a, s, h, len * 0.5 + overlap, big ? 0.055 : 0.035, big ? 0.08 : 0.05, steelL)
++            }
++            if powered {
++                let c = (p0 + p1) * 0.5 + h * (big ? 0.15 : 0.11)
++                box(ctx, c, a, s, h, len * 0.5 + 0.01, big ? 0.09 : 0.05, 0.02, stripL)
++            }
++        }
++    }
++
+     // A railway's rail (P470): on the line's bed, the bed cells either side of it open above.
+     static let trace: (Int, Int)? = {
+         guard let v = ProcessInfo.processInfo.environment["BS_RAILTRACE"]?.split(separator: ",").compactMap({ Int($0) }), v.count == 2 else { return nil }
+@@ -127,9 +293,14 @@ enum ShapeRails {
+         }
+         var open = 0
+         for (dx, dz) in sides {
+-            let at = ctx.block(x + dx, y, z + dz), under = ctx.block(x + dx, y - 1, z + dz)
+-            if !Blocks.collide[Int(at)] && (bedKinds[Int(under)] || isRail[Int(at)]) { open += 1 }
++            var ok = false
++            for dy in [0, -1, 1] {
++                let at = ctx.block(x + dx, y + dy, z + dz), under = ctx.block(x + dx, y + dy - 1, z + dz)
++                if isRail[Int(at)] || (dy == 0 && !Blocks.collide[Int(at)] && bedKinds[Int(under)]) { ok = true; break }
++            }
++            if ok { open += 1 }
+         }
+         return shape >= 6 ? open >= 2 : open == 2
+     }
+--- a/Sources/RailLoops.swift
++++ b/Sources/RailLoops.swift
+@@ -51,10 +51,38 @@ extension Railways {
+         // (Nov 4, bug hunt: 9 of 256 line ends kept their buffers, the loop "blocked both ways" by a structure or the
+         // sea, and the train stopped there (FAILURES 3). The first shape is P511's; where it fits nowhere, wider and
+         // deeper ones are tried, round whatever stood in the first's way, on ground no save had before them.)
++        let curvedLoop = allowDiagonal
++            && (sc.legacyC1.isEmpty || sc.clear(cx: floorDiv(e.x, CS), cz: floorDiv(e.z, CS), reach: 4, guardSet: sc.legacyC1))
++            && (sc.legacyP510.isEmpty || sc.clear(cx: floorDiv(e.x, CS), cz: floorDiv(e.z, CS), reach: 4, guardSet: sc.legacyP510))
++            && (sc.legacyP511.isEmpty || sc.clear(cx: floorDiv(e.x, CS), cz: floorDiv(e.z, CS), reach: 4, guardSet: sc.legacyP511))
++            && (sc.legacyP512.isEmpty || sc.clear(cx: floorDiv(e.x, CS), cz: floorDiv(e.z, CS), reach: 4, guardSet: sc.legacyP512))
+         shapes: for (si, (out, deep)) in loopShapes.enumerated() { for side in [1, -1] {
+             let xo = e.x + dx * out
+             let zd = e.z + side * deep
+             if blocked(gen, sc, x0: min(xj, xo), z0: min(e.z + side, zd), x1: max(xj, xo), z1: max(e.z + side, zd), except: []) { continue }
++            if curvedLoop {
++                let rCorner = Float(min(7, max(3, min(deep / 2 - 1, (out + back) / 3))))
++                let poly: [(Float, Float)] = [
++                    (Float(e.x + dx), Float(e.z)),
++                    (Float(xo), Float(e.z)),
++                    (Float(xo), Float(zd)),
++                    (Float(xj), Float(zd)),
++                    (Float(xj), Float(e.z + side))
++                ]
++                var rounded = roundPolyline(poly, radius: rCorner, arcStep: 1.5)
++                rounded[0] = (Float(e.x + dx), Float(e.z))
++                rounded[rounded.count - 1] = (Float(xj), Float(e.z + side))
++                var rc = rasterPolyline(rounded)
++                // Ensure the loop stays off the main line cells between xj and e.x so it leaves at e+dx and enters at (xj, e.z+side).
++                let loX = min(xj, e.x), hiX = max(xj, e.x)
++                let touchesMain = rc.contains { $0.1 == e.z && $0.0 >= loX && $0.0 <= hiX }
++                if !touchesMain, rc.first == (e.x + dx, e.z), rc.last == (xj, e.z + side),
++                   !stride(from: 0, to: rc.count, by: 3).contains(where: { gen.column(rc[$0].0, rc[$0].1).biome.isOcean }) {
++                    cells = rc; shaped = si
++                    break shapes
++                }
++            }
+             var c: [(Int, Int)] = []
+             for x in stride(from: e.x + dx, through: xo, by: dx) { c.append((x, e.z)) }
+             for z in stride(from: e.z + side, through: zd, by: side) { c.append((xo, z)) }
+--- a/Sources/TrainCars.swift
++++ b/Sources/TrainCars.swift
+@@ -167,20 +167,20 @@ extension Trains {
+     // Trains.place for a real-size train: its middle at s (held in from the line's ends), each car on the track.
+     static func placeBig(_ tr: Train, _ s: Float, _ dir: Float, _ dt: Float) -> Float {
+         let t = tr.track
+-        let n = Float(t.cells.count), half = tr.length / 2
+-        let lo = half + 3, hi = n - 4 - half
+-        let sc = t.cyclic ? s : lo <= hi ? max(lo, min(hi, s)) : (n - 1) / 2       // (P511: a circuit has no ends to hold off)
+-        let moving = abs(t.delta(tr.lastS, sc))
++        let half = tr.length / 2
++        let lo = t.advance(0, by: half + 3), hi = t.advance(Float(t.cells.count - 1), by: -(half + 3))
++        let sc = t.cyclic ? s : lo <= hi ? max(lo, min(hi, s)) : Float(t.cells.count - 1) / 2       // (P511: a circuit has no ends to hold off)
++        let moving = abs(t.worldDelta(tr.lastS, sc))
+         tr.lastS = sc
+         tr.dir = dir
+         let fs = tr.facing < 0 ? Float(-1) : 1                        // P508: the layout mirrored to run with the engine at -s
+         for (k, m) in tr.cars.enumerated() where k < tr.layout.count {
+             let (_, back0, off0) = tr.layout[k]
+             let back = back0 != (fs < 0), off = off0 * fs
+-            let sk = sc + off
++            let sk = t.advance(sc, by: off)
+             let b = halfLength(m) * 0.7
+-            var d = t.point(sk + b) - t.point(sk - b)
++            var d = t.point(t.advance(sk, by: b)) - t.point(t.advance(sk, by: -b))
+             if back { d = -d }
+             let p = t.point(sk)
+             let along = simd_length(V2(d.x, d.z))
+-            m.vel = dt > 0 ? simd_normalize(t.point(sk + dir * 0.7) - t.point(sk - dir * 0.7)) * (moving / max(dt, 1e-4)) : .zero
++            let tanVec = t.point(t.advance(sk, by: dir * 0.7)) - t.point(t.advance(sk, by: -dir * 0.7))
++            let tanLen = simd_length(tanVec)
++            m.vel = dt > 0 && tanLen > 1e-4 ? (tanVec / tanLen) * (moving / max(dt, 1e-4)) : .zero
+             m.pos = p
+             if along > 0.01 { m.yaw = atan2f(-d.x, -d.z); m.trainPitch = atan2f(d.y, along) }
+             m.walkPhase += moving * dir * (back ? -1 : 1)           // (blocks run forward: the wheels turn by it)
+--- a/Sources/Trains.swift
++++ b/Sources/Trains.swift
+@@ -32,6 +32,8 @@ enum Trains {
+         let id: Int64
+         let name: String
+         let cells: [IVec3]
+         let ys: [Float]
++        let smoothPts: [V3]                     // N12-061915: smoothed 3D rail centres matching ShapeRails
++        let arc: [Float]                        // cumulative world distance along smoothPts (arc.count == cells.count + 1 for cyclic)
+         let stops: [Int]
+         let stopNames: [String]
+         let armoured: Bool
+@@ -51,6 +53,39 @@ enum Trains {
+             self.id = id; self.name = name; self.cells = cells; self.stops = stops; self.stopNames = stopNames
+             self.armoured = armoured; self.dim = dim; self.cyclic = cyclic
+             // (P379 step 3: a field world's line runs at its planned heights, the drawn track's.)
+-            ys = heights?.map { $0 + 0.0625 } ?? cells.indices.map { Float(cells[$0].y) + (slopes[$0] ? 0.5 : 0) + 0.0625 }
++            let rawYs = heights?.map { $0 + 0.0625 } ?? cells.indices.map { Float(cells[$0].y) + (slopes[$0] ? 0.5 : 0) + 0.0625 }
++            ys = rawYs
++            let cn = cells.count
++            var pts = cells.indices.map { V3(Float(cells[$0].x) + 0.5, rawYs[$0], Float(cells[$0].z) + 0.5) }
++            if Railways.allowDiagonal && cn >= 3 {
++                for _ in 0..<4 {
++                    var next = pts
++                    for i in 0..<cn {
++                        if !cyclic && (i == 0 || i == cn - 1) { continue }
++                        let p0 = pts[(i - 1 + cn) % cn], p1 = pts[i], p2 = pts[(i + 1) % cn]
++                        let avg = (p0 + p1 * 2 + p2) * 0.25
++                        next[i] = V3(avg.x, p1.y * 0.5 + avg.y * 0.5, avg.z)
++                    }
++                    pts = next
++                }
++            }
++            smoothPts = pts
++            var cum = [Float](repeating: 0, count: cyclic ? cn + 1 : max(1, cn))
++            if cn >= 2 {
++                for i in 1..<cn {
++                    cum[i] = cum[i - 1] + max(0.05, simd_length(V2(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z)))
++                }
++                if cyclic {
++                    cum[cn] = cum[cn - 1] + max(0.05, simd_length(V2(pts[0].x - pts[cn - 1].x, pts[0].z - pts[cn - 1].z)))
++                }
++            }
++            arc = cum
+             var legs: [(Double, Double, Float, Float)] = [], t: Double = 0
+             // A line runs out and back (its ends turn it round); a circuit runs on round (the last stop's leg ends at
+             // the first stop a lap on).
+             let order = cyclic ? stops : stops + stops.reversed().dropFirst().dropLast()
+             for k in 0..<order.count {
+                 let a = order[k]
+                 let b = cyclic && k + 1 == order.count ? order[0] + cells.count : order[(k + 1) % order.count]
+                 legs.append((t, Trains.dwell, Float(a), Float(a))); t += Trains.dwell
+-                let d = Double(abs(b - a)) / Double(Trains.speed * (armoured ? 1.3 : 1))
++                let totalArc = cum.last ?? Float(cn)
++                let distA = cum[max(0, min(cn - 1, a))]
++                let distB = b >= cn ? totalArc + cum[max(0, min(cn - 1, b - cn))] : cum[max(0, min(cn - 1, b))]
++                let worldDist = max(1, abs(distB - distA))
++                let d = Double(worldDist) / Double(Trains.speed * (armoured ? 1.3 : 1))
+                 legs.append((t, d, Float(a), Float(b))); t += d
+             }
+             self.legs = legs
+@@ -94,6 +129,57 @@ enum Trains {
+             if cyclic { let n = Float(cells.count); if d > n / 2 { d -= n } else if d < -n / 2 { d += n } }
+             return d
+         }
++        // Arc-length position (in world blocks) at cell coordinate `s`.
++        func arcAt(_ s: Float) -> Float {
++            let n = cells.count
++            guard n >= 2 else { return 0 }
++            if cyclic {
++                let w = wrap(s)
++                let i = min(n - 1, Int(w)), f = w - Float(i)
++                return arc[i] + (arc[i + 1] - arc[i]) * f
++            }
++            let cs = max(0, min(Float(n - 1), s))
++            let i = min(n - 2, Int(cs)), f = cs - Float(i)
++            return arc[i] + (arc[i + 1] - arc[i]) * f
++        }
++        // Cell coordinate `s` at arc-length `dist` (world blocks).
++        func sAtArc(_ dist: Float) -> Float {
++            let n = cells.count
++            guard n >= 2 else { return 0 }
++            let total = arc.last ?? 0
++            guard total > 1e-4 else { return 0 }
++            var target = dist
++            if cyclic {
++                target = target.truncatingRemainder(dividingBy: total)
++                if target < 0 { target += total }
++            } else {
++                target = max(0, min(total, target))
++            }
++            var lo = 0, hi = arc.count - 1
++            while lo + 1 < hi {
++                let mid = (lo + hi) / 2
++                if arc[mid] <= target { lo = mid } else { hi = mid }
++            }
++            let seg = max(1e-4, arc[hi] - arc[lo])
++            let res = Float(lo) + (target - arc[lo]) / seg
++            return cyclic ? wrap(res) : max(0, min(Float(n - 1), res))
++        }
++        // Moves along the track from `s` by `blocks` of true world arc-length (so car couplers and bogies keep exact
++        // world spacing on both cardinal straights and 45-degree diagonals).
++        func advance(_ s: Float, by blocks: Float) -> Float {
++            sAtArc(arcAt(s) + blocks)
++        }
++        // Signed world distance (in blocks) between `a` and `b`.
++        func worldDelta(_ a: Float, _ b: Float) -> Float {
++            var d = arcAt(b) - arcAt(a)
++            if cyclic, let total = arc.last, total > 0 {
++                if d > total * 0.5 { d -= total } else if d < -total * 0.5 { d += total }
++            }
++            return d
++        }
+         func cell(_ s: Float) -> IVec3 {
+             let n = cells.count
+             if cyclic { return cells[min(n - 1, Int(wrap(s.rounded())))] }
+@@ -101,15 +187,13 @@ enum Trains {
+         }
+         func point(_ s: Float) -> V3 {
+             let n = cells.count
++            guard !smoothPts.isEmpty else { return .zero }
+             if cyclic {
+                 let w = wrap(s)
+                 let i = min(n - 1, Int(w)), f = w - Float(i), k = (i + 1) % n
+-                let a = cells[i], b = cells[k]
+-                let pa = V3(Float(a.x) + 0.5, ys[i], Float(a.z) + 0.5), pb = V3(Float(b.x) + 0.5, ys[k], Float(b.z) + 0.5)
+-                return pa + (pb - pa) * f
++                return smoothPts[i] + (smoothPts[k] - smoothPts[i]) * f
+             }
+             let s = max(0, min(Float(n - 1), s))
+             let i = min(n - 2, Int(s)), f = s - Float(i)
+-            let a = cells[i], b = cells[i + 1]
+-            let pa = V3(Float(a.x) + 0.5, ys[i], Float(a.z) + 0.5), pb = V3(Float(b.x) + 0.5, ys[i + 1], Float(b.z) + 0.5)
+-            return pa + (pb - pa) * f
++            return smoothPts[i] + (smoothPts[i + 1] - smoothPts[i]) * f
+         }
+     }
+@@ -264,7 +348,7 @@ enum Trains {
+             let head = t.point(at.s)
+             // (and a built train stays while its tail is still in reach: one running away from him went with its last
+             // cars in sight when its head passed the line)
+-            let tail = t.point(at.s - at.dir * tr.length)
++            let tail = t.point(t.advance(at.s, by: -at.dir * tr.length))
+             guard simd_length(head - p) < R || (!tr.cars.isEmpty && simd_length(tail - p) < R) else { continue }
+             // Only where the track was laid (ground a save had generated before keeps no rails).
+             let c0 = t.cells[max(0, min(t.cells.count - 1, Int(at.s)))]
+@@ -435,7 +519,7 @@ enum Trains {
+         // line climbs a grade, and into a cutting's side on a curve, and read as a blocked line).
+         if dt > 0, tr.cars.first != nil {
+             let (s0, dir0, _) = now(tr)
+-            let ahead = tr.layout.isEmpty ? s0 + dir0 * (gap * 0.75 + 1.2) : tr.lastS + dir0 * (tr.length / 2 + 1.5)    // (P470: the front's nose)
++            let ahead = tr.layout.isEmpty ? t.advance(s0, by: dir0 * (gap * 0.75 + 1.2)) : t.advance(tr.lastS, by: dir0 * (tr.length / 2 + 1.5))    // (P470: the front's nose)
+             let c = t.cell(ahead)
+             let b = g.world.block(c.x, c.y, c.z)
+             if Blocks.collide[Int(b)] && !Rails.isRail(b) && now(tr).stop == nil && !t.armoured {
+@@ -493,12 +577,12 @@ enum Trains {
+             if tr.fresh || d > 96 || !looking { tr.facing = dir }
+         }
+         tr.fresh = false
+-        let moving = big ? placeBig(tr, s, dir, dt) : abs(t.delta(tr.lastS, s))
++        let moving = big ? placeBig(tr, s, dir, dt) : abs(t.worldDelta(tr.lastS, s))
+         if !big { tr.lastS = s }
+         if dt > 0 { tr.blocksPerSec += (moving / dt - tr.blocksPerSec) * min(1, dt * 4) }
+         for (k, m) in tr.cars.enumerated() where !big {
+-            let sk = s - dir * gap * Float(k)
++            let sk = t.advance(s, by: -dir * gap * Float(k))
+             let p = t.point(sk)
+-            let d = t.point(sk + dir * 0.7) - t.point(sk - dir * 0.7)
++            let d = t.point(t.advance(sk, by: dir * 0.7)) - t.point(t.advance(sk, by: -dir * 0.7))
+             m.pos = p
+             m.vel = dt > 0 ? d * (moving / max(dt, 1e-4) / 1.4) : .zero
+             if simd_length(V2(d.x, d.z)) > 0.01 { m.yaw = atan2f(-d.x, -d.z) }
+@@ -571,12 +655,11 @@ enum Trains {
+         // A block he put on the rail ahead (place: heldBy) stops it there; he can still back away from it.
+         if tr.heldBy && v > 0 { v = 0 }
+         // The track's ends (where no link runs on) and a real-size train's own length hold it off the buffers.
+-        var s = tr.driveS + tr.driveFwd * v * dt
++        var s = t.advance(tr.driveS, by: tr.driveFwd * v * dt)
+         if !t.cyclic {
+-            let n = Float(t.cells.count)
+             let half = tr.layout.isEmpty ? 0 : tr.length / 2
+-            let lo = tr.layout.isEmpty ? Float(0) : half + 3, hi = tr.layout.isEmpty ? n - 1 : n - 4 - half
++            let lo = tr.layout.isEmpty ? Float(0) : t.advance(0, by: half + 3)
++            let hi = tr.layout.isEmpty ? Float(t.cells.count - 1) : t.advance(Float(t.cells.count - 1), by: -(half + 3))
+             if lo <= hi && (s < lo || s > hi) { s = max(lo, min(hi, s)); v = 0 }
+         } else { s = t.wrap(s) }
+         tr.driveS = s
+```
+
+---
+
+### 3. Exact Checks to Run
+
+1. **Build cleanly**:
+   ```bash
+   ./build.sh
+   ```
+   *Pass*: Compiles cleanly with zero errors and no new warnings.
+
+2. **Rail check suite (including ride and loops)**:
+   ```bash
+   ./build/Blocksmith.app/Contents/MacOS/Blocksmith --questcheck --rail-only
+   ```
+   *(or `questcheck --rail-only` via the project's test runner)*
+   *Pass*: All railway, link, ride, cab-driving, and `RailLoopCheck` assertions pass (`P511 loops: ... 0 gaps, 0 height jumps`, loop ride completes without backing or standing off a stop, 4-connected cell adjacency holds on all lines, links, and loops).
+
+3. **Legacy flag / old-line parity check**:
+   ```bash
+   BS_OLDRAILS=1 ./build/Blocksmith.app/Contents/MacOS/Blocksmith --questcheck --rail-only
+   ```
+   *Pass*: Identical legacy behavior passes cleanly when `BS_OLDRAILS=1` is set.
+
+4. **Playtest seed railprobe**:
+   ```bash
+   ./build/Blocksmith.app/Contents/MacOS/Blocksmith --questcheck --headset --railprobe 632461258612199693,5000,-1000,1500
+   BS_OLDRAILS=1 ./build/Blocksmith.app/Contents/MacOS/Blocksmith --questcheck --headset --railprobe 632461258612199693,5000,-1000,1500
+   ```
+   *Pass*: Both runs find the exact same lines and stations in the region around `(5000, -1000)`.
+
+5. **Before / after visual renders of the turn near `(6472, -808)` (and near `(5224, -1055)`)**:
+   ```bash
+   BS_OLDRAILS=1 ./build/Blocksmith.app/Contents/MacOS/Blocksmith --view snaps/turn_before.png --seed 632461258612199693 --x 6472 --z -808 --up 18 --pitch -35 --yaw 45 --headset --field --questlod
+   ./build/Blocksmith.app/Contents/MacOS/Blocksmith --view snaps/turn_after.png --seed 632461258612199693 --x 6472 --z -808 --up 18 --pitch -35 --yaw 45 --headset --field --questlod
+   ```
+   *Pass*: Inspect both PNGs: `turn_before.png` shows the sharp 90° elbow; `turn_after.png` shows a sweeping eased curve transitioning smoothly into a straight diagonal run with continuous steel rails, full-width sleepers/ballast, and smooth field terrain under the bed.
+
+---
+
+### 4. Risks & Limitations
+
+- **Saved-world guard set (`sc.legacyP512`)**: Because `Structures.swift` was not among the files provided, this patch reuses `sc.legacyP512` (already referenced in `Sources/RailLoops.swift:75`, the latest railway structure guard) together with `BS_OLDRAILS=1` so pre-existing guarded saves keep their exact axis-aligned lines while fresh ground gets diagonal/curved routing. If a dedicated newer guard file (e.g., `structure-guard-n12.txt` / `legacyN12`) exists or is desired in `Structures.swift`, wire that guard set into `diagGuard` / `diagClear` / `curvedLoop` alongside `legacyP512`.
+- **Turn coordinate shift**: When a dog-leg becomes a sweeping diagonal S-curve instead of walking straight east to `xm` and making a 90° turn, the turn starts slightly earlier and cuts across the corner (just like a real curve), so if `--view` at `(6472, -808)` is zoomed tightly onto the old sharp corner vertex, panning or raising `--up` slightly (e.g. `--up 24`) will frame the entire arc and diagonal run clearly.
+- **Vanilla minecarts vs. Trains**: Player-placed single minecarts use block-grid `Rails.swift` physics, which remains valid because `rasterPolyline` produces a strictly 4-connected chain of standard rail shapes (`0..9`). Full-size trains (`Trains.swift` / `TrainCars.swift`) use `Track.smoothPts` and `Track.arc` so they glide straight along the smoothed diagonal/curved rails with zero block-grid wobble and constant world speed.
