@@ -1122,10 +1122,18 @@ if let out = arg("--view"), let ctx = vkctx {
     // --blastticks N game ticks (default 2) before the render: a fresh crater as the next frames draw it.
     if let bv = arg("--blast")?.split(separator: ",").compactMap({ Float($0) }), bv.count >= 3 {
         vg.paused = false
+        // --blastintick: as a shell's blast in the headset's tick: the bowl's shaping queued for the next frames
+        // (BlastShape.deferred, CraterJob.inTick; with --blastticks 0 the frame drawn is the one before any of it ran).
+        let inTick = CommandLine.arguments.contains("--blastintick")
+        let deferred0 = BlastShape.deferred, inTick0 = CraterJob.inTick
+        if inTick { BlastShape.deferred = true; CraterJob.inTick = true }
         Explosion.explode(at: V3(bv[0], bv[1], bv[2]), power: bv.count > 3 ? bv[3] : 4, game: vg)
+        CraterJob.inTick = inTick0
+        let queued = BlastShape.queue.count
         let n = Int(arg("--blastticks") ?? "") ?? 2
         for _ in 0..<n { vg.tick(1.0 / 72) }
-        print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after")
+        if inTick { BlastShape.deferred = deferred0 }
+        print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after; shapings queued \(queued), left \(BlastShape.queue.count)")
     }
     // --troops R (P471): every soldier within R blocks of the eye after the run (--tick): what it is, whose, its gun,
     // whether it has seen him, and which way it faces from him (0: toward him).
