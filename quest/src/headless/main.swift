@@ -943,10 +943,25 @@ if let out = arg("--view"), let ctx = vkctx {
         var fy = Int(vg.player.pos.y) + 6
         while fy > 1 && !Blocks.collide[Int(vw.block(Int(floor(fx)), fy, Int(floor(fz))))] { fy -= 1 }
         var d = 0
-        while d < n && fy - d > 4 {
-            Explosion.explode(at: V3(fx, Float(fy - d) + 0.6, fz), power: 4, game: vg, decay: true)
-            for _ in 0..<4 { vg.tick(1 / 20) }
-            d += 2
+        if CommandLine.arguments.contains("--arc") {
+            // (as he did it: arc lance bolts fired down a narrow cone from over the hole, the game ticking between)
+            var r: UInt32 = 12345
+            func rnd() -> Float { r = r &* 1664525 &+ 1013904223; return Float(r >> 8 & 0xFFFF) / 65535 - 0.5 }
+            let from = V3(fx, Float(fy) + 3, fz)
+            var shots = 0
+            while shots < n * 60 {
+                let dir = simd_normalize(V3(rnd() * 0.12, -1, rnd() * 0.12))
+                vg.arms.beam(vg, from: from, dir: dir, range: Float(n) + 4, damage: 40, fromPlayer: true, shooter: nil, by: "Player")
+                shots += 1
+                if shots % 4 == 0 { vg.tick(1 / 20) }
+            }
+            for _ in 0..<40 { vg.tick(1 / 20) }
+        } else {
+            while d < n && fy - d > 4 {
+                Explosion.explode(at: V3(fx, Float(fy - d) + 0.6, fz), power: 4, game: vg, decay: true)
+                for _ in 0..<4 { vg.tick(1 / 20) }
+                d += 2
+            }
         }
         vw.remeshArea(x0: Int(fx) - 12, z0: Int(fz) - 12, x1: Int(fx) + 12, z1: Int(fz) + 12, y0: max(0, fy - n - 12), y1: fy + 12)
         var left: [String: Int] = [:], total = 0
