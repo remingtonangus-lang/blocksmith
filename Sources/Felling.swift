@@ -261,7 +261,11 @@ extension Game {
                 if through && y == p.y && inSection(q.x, q.z) { return false }
                 let b = w.block(q.x, y, q.z)
                 if CapitalBase.isLog(b) { y -= 1; continue }
-                return Blocks.collide[Int(b)] && !CapitalBase.isLeaf(b)
+                if Blocks.collide[Int(b)] && !CapitalBase.isLeaf(b) { return true }
+                // (a trunk's own foot on a slope: the field's ground passes through the cell under it, or the one
+                // below, and the cell itself reads as air. His Ash Vault dark oak, Nov 13: one corner of four over
+                // such a cell, so one log out counted as half the section and the tree went over.)
+                return inSection(q.x, q.z) && (w.groundAt(q.x, y, q.z) || w.groundAt(q.x, y - 1, q.z))
             }
             return true
         }
