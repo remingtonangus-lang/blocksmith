@@ -1,0 +1,41 @@
+18:24:28 | Taiga | -2614.4 120.8 3485.2 | fps 33 | on foot | I think the active distance worked
+18:25:26 | Plains | -2667.4 98.7 3397.7 | fps 72 | on foot | Why didn't the naval gun shoot me?
+18:25:29 | Plains | -2661.9 89.6 3412.9 | fps 72 | on foot | Yeah, there we go. [laughs] Very good
+18:28:15 | Beach | -2901.9 79.3 2600.9 | fps 69 | on foot | This entire thing should collapse. Even though it's still technically connected, this wouldn't realistically be able to sustain that much weight
+18:29:27 | Meadow | 217.6 265.9 2327.3 | fps 72 | on foot, flying | I think Mounds should be able to reach like
+18:29:35 | Meadow | 537.2 253.4 2042.2 | fps 72 | on foot | So it's pretty good, but
+18:29:46 | Meadow | 801.2 262.1 1706.9 | fps 72 | on foot, flying | Would it be too much if we raised the skybox to a thousand, then made mounds go up to 500?
+18:34:10 | Savanna | 3965.6 76.4 190.5 | fps 71 | on foot | You see that?
+18:34:12 | Savanna | 3989.8 78.6 189.6 | fps 72 | on foot, flying | Hold up
+18:34:15 | Savanna | 3957.4 80.8 186.5 | fps 72 | on foot, flying | No. What the hell happened here?
+18:34:19 | Savanna | 3879.4 75.0 191.2 | fps 72 | on foot | That should never happen. What the fuck is this?
+18:34:25 | Savanna | 3875.6 75.0 191.9 | fps 72 | on foot | That-- no. You see this shit?
+18:34:29 | Savanna | 3876.9 74.9 192.2 | fps 72 | on foot | Train tracks sh-should not naturally go in a circle onto itself
+18:34:36 | Savanna | 3875.2 78.6 191.3 | fps 72 | on foot, flying | And stop
+18:34:38 | Plains | 3752.3 96.1 114.4 | fps 72 | on foot, flying | That is not how that works
+18:35:16 | Sparse Jungle | 2909.1 108.0 -436.8 | fps 72 | on foot | Oh, shit. Okay, that's a bad one. Um, I'm in sit down mode. I can't reload the gun
+18:35:31 | Sparse Jungle | 2909.6 108.0 -437.1 | fps 70 | on foot | Uh, really this is very difficult too
+18:35:40 | Sparse Jungle | 2909.4 108.0 -437.0 | fps 72 | on foot | [sighs] The setup for this
+18:36:52 | Forest | -1913.5 100.5 3304.2 | fps 72 | on foot | That shouldn't have happened. This turned into a big stump
+18:36:59 | Forest | -1903.4 97.9 3301.8 | fps 72 | on foot | That shouldn't have happened
+18:37:01 | Forest | -1902.4 97.8 3302.6 | fps 72 | on foot | That's impossible
+18:37:15 | Forest | -1877.7 95.2 3300.8 | fps 72 | on foot | That turned into two s-- two trees. Shouldn't have happened
+18:37:22 | Forest | -1877.6 95.7 3305.6 | fps 72 | on foot | Those worked out well
+18:37:28 | Forest | -1872.4 95.4 3302.9 | fps 72 | on foot | That turned into three trees
+18:37:48 | Birch Forest | -1805.6 94.6 3337.5 | fps 72 | on foot | What do we have here?
+18:37:51 | Birch Forest | -1808.2 94.8 3337.0 | fps 72 | on foot | Well, that doesn't look right
+18:38:00 | Birch Forest | -1793.5 95.3 3354.7 | fps 72 | on foot | Why are these chickens black?
+18:38:25 | Ocean | -1287.5 115.6 3341.4 | fps 72 | on foot, flying | This game's too addictive. I gotta stop
+18:38:46 | Stony Peaks | 605.9 205.2 3381.6 | fps 52 | on foot, flying | I'll go with lowest volume
+18:39:01 | Stony Peaks | 599.8 191.0 3381.5 | fps 72 | on foot, flying | Stuff should have been flowing on its own
+18:39:10 | Stony Peaks | 593.9 191.0 3390.9 | fps 72 | on foot, flying | Now it's flowing, but only 'cause
+18:39:13 | Stony Peaks | 578.7 204.2 3378.4 | fps 71 | on foot, flying | I don't know
+18:39:23 | Stony Peaks | 614.7 246.7 3392.0 | fps 57 | on foot, flying | Maybe make it so there's like a giant fire-breathing dragon or something that harasses you
+18:39:31 | Stony Peaks | 612.6 246.7 3369.1 | fps 64 | on foot, flying | Men øhm
+18:39:33 | Stony Peaks | 628.9 246.7 3359.0 | fps 64 | on foot, flying | Around the volcano and then maybe some, um
+18:39:37 | Stony Peaks | 640.4 246.7 3385.1 | fps 72 | on foot, flying | I don't know, maybe some rare ores inside of the volcano
+18:39:43 | Stony Peaks | 709.9 221.1 3437.8 | fps 72 | on foot | Um, yeah
+18:39:48 | Flower Forest | 870.6 144.1 3509.1 | fps 72 | on foot, flying | Fire-breathing dragon paying you ass to kill and then, or
+18:39:53 | Stony Peaks | 699.6 168.8 3427.1 | fps 71 | on foot, flying | That you can mine on the other side of the volcano, I guess
+18:39:58 | Stony Peaks | 607.6 209.5 3422.6 | fps 72 | on foot, flying | Ja. Make it so
+18:40:20 |  |  | fps  |  | You gonna be a what?

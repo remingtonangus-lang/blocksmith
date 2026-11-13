@@ -1,0 +1,145 @@
+06:12:10 | Forest | on foot S | Very good
+06:12:24 | Beach | on foot S | See a, uh, water generation error right here
+06:12:32 | Swamp | on foot  | We've got a lot of problems here. Look at this shit. All right here, this stump didn't form right. I see a hairline crack through this stump
+06:12:43 | Swamp | on foot S | Like once again, the solution to this is like 100 preset trees, 10 of each type. That was the solution we came up with, so we shouldn't be having issues like this
+06:12:56 | Swamp | on foot S | And what the fuck's this? Look at this thing. This is, this is bad. Fix that
+06:13:16 | Dark Forest | on foot S | The water is pretty good. Kind of. Well, right here we've got a little bit. Didn't fill in here. Fix that
+06:13:25 | Forest | on foot  | Okay, we got a lot of issues here. Oh, wow. All right, every stump has some sort of block problem where it's showing a face of a
+06:13:34 | Forest | on foot S | A stone log block
+06:13:36 | Forest | on foot  | Or a, uh, a, a logged block
+06:13:45 | Forest | on foot, flying S | Uh, view distance is eight, which is fine, but it needs to increase back to twenty-four when it's comfortable
+06:13:54 | Beach | on foot, flying  | Otherwise it's, yeah, it's going pretty smooth
+06:14:02 | Forest | on foot, flying  | Call that 20. It's actually generating very well, I'd say
+06:14:08 | Plains | on foot, flying  | Um, yeah, it's doing a pretty good job. Oh, yeah
+06:14:12 | Forest | on foot S | Oh, yes. I don't know what optimizations we did, but this, these are
+06:14:16 | Desert | on foot, flying  | Very impressive optimizations
+06:14:21 | Forest | on foot  | Not bad. Okay
+06:14:23 | Plains | on foot, flying S | Um, here we are
+06:14:30 | Plains | on foot  | Okay, so problem
+06:14:33 | Plains | on foot S | There's a triangle void piece here
+06:14:38 | Plains | on foot  | Another one right here. This is a really big one
+06:14:43 | Plains | on foot  | Break, yeah. Taking a block under it makes it go away, but still
+06:15:31 | Plains | on foot S | Oh my God
+06:15:34 | Plains | on foot  | Okay, so naval guns are already firing at me even though I didn't pull my weapon out
+06:15:58 | Plains | on foot S | Holy shit
+06:16:01 | Forest | on foot  | Wow, that was, that was something
+06:16:06 | Beach | on foot  | That was good
+06:16:09 | Beach | on foot S | Only thing the, uh, yeah, the guns were firing at me before I could do anything
+06:16:16 | Beach | on foot  | Randomizations everything, very good. Okay, we got train here
+06:16:20 | Beach | on foot S | Looks like some tracks went under gravel here
+06:16:27 | Birch Forest | on foot, flying  | So this is pretty good though
+06:16:29 | Old Growth Birch Forest | on foot, flying  | Need tracks. Okay, here we go. Got a train here
+06:16:36 | Birch Forest | on foot S | There's no one driving the train
+06:16:39 | Old Growth Birch Forest | riding Minecart  | Third person works though
+06:16:44 | Old Growth Birch Forest | riding Minecart  | The train should have greater speed variety. Like if I want, I should be able to speed the tr- speed the train up to like
+06:16:51 | Birch Forest | riding Minecart S | 100 or something
+06:16:54 | Ashen Grove | riding Minecart  | That'll make you use more coal or something, which is like another game mechanic
+06:17:00 | Birch Forest | riding Minecart  | So like you can drive the train, you can make it go a long ways, but you gotta add coal to it
+06:17:13 | Birch Forest | riding Minecart  | Uh, another thing, the train is
+06:17:17 | Birch Forest | riding Minecart S | I'm forced to stop the train at the village
+06:17:21 | Birch Forest | riding Minecart  | I can't make it go anymore
+06:17:31 | Taiga | on foot S | Also there's-- its wheels are squares. It doesn't make sense
+06:17:42 | Birch Forest | riding Minecart S | So yeah, me pressing on the pedal doesn't do anything
+06:17:47 | Birch Forest | riding Minecart  | Like a toy ride that kids get to use at the carnival that, like, they think they're driving, but they're actually not. That's what I feel like right now
+06:17:57 | Beach | riding Minecart S | Um, [lip smack] so the gravel
+06:18:03 | Beach | riding Minecart  | Isn't disrupting the train, which is good. Um
+06:18:08 | Taiga | riding Minecart S | Yeah, I was worried about that. Okay, this will be interesting
+06:18:12 | Taiga | riding Minecart  | Okay. Yeah. All right. Third-person camera does well in tunnels
+06:18:23 | Taiga | riding Minecart S | Okay, this is gonna be interesting
+06:18:35 | Taiga | riding Minecart S | It's having trouble, um, rendering fast enough for the train
+06:18:42 | Taiga | riding Minecart  | Oh, okay. It's a little better now
+06:18:45 | Taiga | riding Minecart S | Oh yeah? Okay, we're going up to 90 here. Very good
+06:18:56 | Taiga | riding Minecart S | For some reason, the game is having trouble rendering
+06:19:00 | Taiga | riding Minecart  | It's not able to keep up with the train, which it should be able to. So something about the train might not be optimized
+06:19:12 | Cold Ocean | riding Minecart S | But this is actually awesome
+06:19:15 | Taiga | riding Minecart  | Um, another thing, we need to make sure is that the tracks aren't so autistic. Like currently they're following block patterns, okay? It's like latitude and longitude. We want them to be able to go diagonal and like this kind of tracks back to the whole polygonal problem with the world. Like
+06:19:36 | Old Growth Pine Taiga | riding Minecart S | We don't want polygons. Diagonal is a value, okay? It's not just up and down, side to side. Things can also be diagonal. So we'll make the tracks just that way, make it so that they like
+06:19:51 | Taiga | riding Minecart S | Wha-- 'cause when they turn, do a 90-degree turn, that's not natural
+06:19:55 | Taiga | riding Minecart  | Yeah, it's really weird
+06:19:58 | Taiga | on foot, flying  | Anyway, otherwise trains are excellent. Very, very good. Very impressed
+06:20:11 | Plains | on foot, flying S | All right, let's see how it works when we use a gun
+06:20:18 | Plains | on foot  | Okay, I gotta get into the gun
+06:20:26 | Plains | on foot S | All right, here we go. Okay, one problem, the barrels are disconnected from the gun, and this back bar thing is also disconnected. That has to be fixed
+06:20:36 | Plains | on foot S | Oh yeah. [laughs]
+06:20:39 | Plains | on foot  | Very good
+06:20:51 | Plains | on foot S | Uh, we got a hovering, uh, part of the building here. That's bad
+06:21:17 | Plains | on foot S | Also that helipad's hovering
+06:21:27 | Plains | on foot S | This thing should also have limited ammunition
+06:21:50 | Plains | on foot S | Otherwise, very impressed. The game handled that well
+06:22:11 | Plains | on foot, flying  | 1:30.17
+06:22:56 | Dark Forest | on foot  | What is in here anyway?
+06:22:58 | Dark Forest | on foot  | Very nice windows in here
+06:23:05 | Dark Forest | on foot S | Okay. Nice
+06:23:17 | Dark Forest | on foot, flying S | All right
+06:23:28 | Dark Forest | on foot, flying S | 44.96
+06:24:06 | Frozen Ocean | on foot, flying  | What the heck? Okay, we're going this way
+06:24:19 | Jagged Peaks | on foot, flying  | Now, guess what?
+06:24:29 | Snowy Taiga | on foot S | Can't see shit, I tell you
+06:24:57 | Plains | on foot, flying S | There it is
+06:25:00 | Desert | on foot, flying  | Let's see how well this does
+06:25:07 | Desert | on foot  | Okay, the layout inside is still fucked. There's way too many beds, way too many chairs. The whole layout of this place needs to be redone. This is ridiculous. Make it realistic, like
+06:25:16 | Desert | on foot, flying S | What would an actual high-tech iron crawler have inside? Like, what would it look like?
+06:25:37 | Desert | piloting Ironback Crawler S | All right, so
+06:25:40 | Desert | piloting Ironback Crawler  | See how well it can render things here
+06:25:45 | Savanna | piloting Ironback Crawler  | I am running this thing at maximum speed
+06:25:49 | Plains | piloting Ironback Crawler S | It is. Let's try its best
+06:26:05 | Sparse Jungle | piloting Ironback Crawler S | Yeah, it's, uh, still having a lot of trouble, which, I mean, I understand, but
+06:26:12 | Sparse Jungle | piloting Ironback Crawler  | Yeah, it's, it's still really struggling to render
+06:26:16 | Sparse Jungle | piloting Ironback Crawler S | Everything? Well, everything's pretty smooth though, but still
+06:26:21 | Sparse Jungle | piloting Ironback Crawler  | Yeah, I can't... Just not really able to do this, uh, well
+06:26:45 | Savanna | piloting Ironback Crawler S | Um, another thing, the, um, the UI that says haul, rounds, fuel, all that, it overlaps with the toolbar
+06:26:55 | Jungle | piloting Ironback Crawler S | Like toolbar isn't even needed when you're driving a vehicle, right? Like unless it's something you can shoot out of, like maybe the, the motorcycle, you could probably use your gun while driving maybe
+06:27:08 | Jungle | piloting Ironback Crawler S | Otherwise, I don't see why the, the, uh, toolbar would be needed
+06:27:36 | Jungle | piloting Ironback Crawler S | Oh, this is gonna be good. It's a city I'm coming up to, I think
+06:27:42 | Bamboo Jungle | piloting Ironback Crawler  | Oh yeah, this is gonna be a lot of fun
+06:27:46 | Sparse Jungle | piloting Ironback Crawler  | Well, we'll see if it actually can fucking render the city. That'll be the real question
+06:27:52 | Sparse Jungle | piloting Ironback Crawler S | Let's just see what happens here. I'm curious. I'm gonna try to drive through these buildings
+06:28:02 | Plains | piloting Ironback Crawler S | Just, just fucking mow through the fucking city. [laughs]
+06:28:48 | Plains | piloting Ironback Crawler S | Make it on creative so that all the vehicles have infinite ammunition, I guess
+06:28:58 | Plains | piloting Ironback Crawler  | That means creative, right?
+06:29:09 | Plains | piloting Ironback Crawler S | All right, so I'm showing some shit of this building
+06:29:18 | Plains | piloting Ironback Crawler  | Oh yeah
+06:29:21 | Plains | piloting Ironback Crawler S | Very good. I'm pleased
+06:29:43 | Savanna | piloting Ironback Crawler S | Yeah, this is, uh, this is gonna be good. All right, I'm gonna go up to a gray wall base. Let's see what happens
+06:30:15 | Meadow | piloting Ironback Crawler S | Okay, hold on here
+06:30:49 | Meadow | on foot S | This map room, that's excellent. All the computers, very good. I approve of that
+06:31:14 | Meadow | on foot S | Hmm, this one's damaged
+06:31:16 | Meadow | on foot  | Okay, so
+06:31:27 | Meadow | piloting Ironback Crawler S | All right, so I'm in the crawler right now
+06:31:32 | Meadow | piloting Ironback Crawler  | I'm driving around at Graywall Base and nothing's firing at me just yet
+06:31:38 | Meadow | piloting Ironback Crawler S | The, the base is not hostile to me
+06:31:42 | Meadow | piloting Ironback Crawler  | I'm not sure why
+06:31:48 | Meadow | piloting Ironback Crawler  | Just give me a second
+06:31:55 | Meadow | piloting Ironback Crawler S | They're still not hostile. The base isn't hostile to me when I'm in a crawler
+06:32:01 | Meadow | piloting Ironback Crawler  | I, or at least the naval guns aren't
+06:32:05 | Meadow | piloting Ironback Crawler  | 'Cause they aren't firing at me
+06:32:08 | Meadow | piloting Ironback Crawler S | In that. Let me try something
+06:32:34 | Meadow | on foot  | So when I'm on foot, they fire. When I'm, um, I'm in the crawler, they don't fire
+06:33:16 | Meadow | piloting Ironback Crawler S | Nice. Okay
+06:33:26 | Meadow | piloting Ironback Crawler  | All right, let's see if the capital citadel fires. Maybe 'cause Graywolf base has got the same troops maybe
+06:33:42 | Taiga | piloting Ironback Crawler S | The naval guns are firing. Good. All right, well, I'm gonna fire back then
+06:33:49 | Taiga | piloting Ironback Crawler  | Turret is wrecked. Don't I have guns anymore? What the hell? I can't-- I'm not firing anything
+06:33:58 | Taiga | on foot  | Oh, shit
+06:34:36 | Taiga | on foot, flying S | So what caused it to get destroyed? That's my question
+06:34:40 | Taiga | on foot, flying  | Feel like the, uh, feel like it got broken too easily
+06:34:47 | Taiga | on foot, flying S | Like the engine room is intact, so I don't know what got destroyed
+06:34:53 | Taiga | on foot  | And why aren't the troops inside doing anything? They're getting attacked
+06:34:58 | Taiga | on foot, flying S | And there are different factions, I'm pretty sure
+06:35:03 | Taiga | on foot, flying  | Okay, I like this. You got like batteries for the guns inside
+06:35:08 | Taiga | on foot, flying S | Or like battery position things. Good
+06:35:28 | Taiga | on foot S | Guess his gun's broken? Weird. Okay
+06:35:35 | Taiga | on foot  | I'm gonna use this gun then
+06:35:40 | Taiga | on foot S | Where is the computer for that gun?
+06:35:44 | Taiga | on foot  | I don't see a computer for that gum
+06:35:51 | Taiga | on foot S | Let's go into this again
+06:35:59 | Taiga | on foot  | So when I shoot at the crawler, it gets fucking obliterated. When the capital shoots at it, nothing happens
+06:36:06 | Taiga | on foot S | Or very little happens? I can't really tell. But yeah, I just took a few shots at the crawler and absolutely decimated it. Turned it into a fucking pulp
+06:36:20 | Taiga | on foot, flying  | It wasn't even a fight. It really wasn't
+06:36:33 | Taiga | on foot S | Like, soldiers here should be manning the guns and shooting back
+06:36:38 | Taiga | on foot, flying  | So it should be happening
+06:36:47 | Taiga | on foot S | Let's focus on this gun here. Hmm
+06:36:53 | Taiga | on foot  | I'm not able to man this gun, but I should be able to
+06:36:56 | Taiga | on foot, flying  | What's causing the
+06:36:59 | Taiga | on foot, flying S | Okay, they're actually shooting at the drop ship. That's good
+06:37:04 | Taiga | on foot, flying  | There's still an operational gun here, but I can't use it for some reason
+06:37:12 | Taiga | on foot, flying S | Oh, that's cool. The wheel broke. Nice
