@@ -350,4 +350,71 @@ enum TreeProbeCheck {
               String(format: "fellhalf: his dark oak stands on three feet of four (%@), falls cut on two and goes over (%.0f degrees after 8 s, %@)",
                      firstStands ? "yes" : "no", over, there ? "there" : "GONE"))
     }
+
+    // Nov 13 (ledger 111-116): his Taiga spruce and his Ash Vault dark oak of that morning.
+    //  - Taiga 5665 68 -3887, cut at its foot: "floating log", "tree is still floating", out of his reach in survival.
+    //    The trunk lay on its own crown's leaves, its logs 2.4 blocks over the ground. Every log must come to rest
+    //    within a block of the ground.
+    //  - Ash Vault 3233 -35 -3051, one foot of four cut ("all the planks just turned into big ones"): the tree stands
+    //    (one corner of its foot is over a sloped ground cell and still holds), and a second cut fells it.
+    static func fellNov13(_ g0: Game, _ check: (Bool, String) -> Void) {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0 }
+        do {
+            let w = World(seed: 2117423538372845574, device: g0.world.device, save: nil)
+            w.makeFieldWorld()
+            w.renderDistance = 3; w.activeDistance = 3
+            let g = Game(world: w, save: nil, persistent: false)
+            g.paused = false; g.survival = false
+            g.player.pos = V3(5663.0, 132.3, -3887.9)
+            _ = w.loadSync(center: g.player.pos, radius: 3)
+            var foot = IVec3(5665, 132, -3887)
+            while foot.y > 100 && CapitalBase.isLog(w.builtBlock(foot.x, foot.y - 1, foot.z)) { foot.y -= 1 }
+            let cut = w.builtBlock(foot.x, foot.y, foot.z), n0 = Felling.felled
+            w.setBlock(foot.x, foot.y, foot.z, AIR)
+            g.fellCheck(foot, cut)
+            if Felling.felled > n0, let s = w.ships.list.last(where: { Felling.isFelled($0) }) {
+                var t: Float = 0
+                while t < 8 { w.ships.update(1.0 / 60, game: g); g.fellingTick(1.0 / 60); t += 1.0 / 60 }
+                var lo = Float.infinity, hi = -Float.infinity
+                let gr = s.grid
+                for i in 0..<gr.blocks.count where ShapeTrunks.isLog[Int(gr.blocks[i])] {
+                    let c = V3(Float(i % gr.sx), Float(i / (gr.sx * gr.sz)), Float((i / gr.sx) % gr.sz)) + 0.5
+                    let wp = s.toWorld(c)
+                    var gy = Int(floor(wp.y))
+                    while gy > 1 && !w.groundAt(Int(floor(wp.x)), gy, Int(floor(wp.z))) { gy -= 1 }
+                    let over = wp.y - Float(gy + 1)
+                    lo = min(lo, over); hi = max(hi, over)
+                }
+                let there = w.ships.list.contains { $0 === s }
+                let bodies = w.ships.list.filter { Felling.isFelled($0) }.count
+                check(there && bodies == 1 && hi < 1.0 && lo > -0.3,
+                      String(format: "fellnov13: his Taiga spruce lies with every log on the ground (log centres %.2f to %.2f over it after 8 s, %d bodies, %@)",
+                             lo, hi, bodies, there ? "there" : "GONE"))
+            } else { check(false, "fellnov13: his Taiga spruce cut at its foot falls (\(cut == AIR ? "no log there" : Blocks.key(cut)))") }
+        }
+        do {
+            let w = World(seed: 5663059916303033239, device: g0.world.device, save: nil, dim: .deep)
+            w.makeFieldWorld()
+            w.renderDistance = 3; w.activeDistance = 3
+            let g = Game(world: w, save: nil, persistent: false)
+            g.paused = false; g.survival = false
+            g.player.pos = V3(3230.4, 30.6, -3050.7)
+            _ = w.loadSync(center: g.player.pos, radius: 3)
+            let a = IVec3(3233, 29, -3051), b = IVec3(3233, 29, -3050)
+            let wide = [a, b, IVec3(3234, 29, -3051), IVec3(3234, 29, -3050)].allSatisfy { CapitalBase.isLog(w.builtBlock($0.x, $0.y, $0.z)) }
+            let n0 = Felling.felled
+            let cutA = w.builtBlock(a.x, a.y, a.z)
+            w.setBlock(a.x, a.y, a.z, AIR)
+            g.fellCheck(a, cutA)
+            let firstStands = Felling.felled == n0
+            let cutB = w.builtBlock(b.x, b.y, b.z)
+            w.setBlock(b.x, b.y, b.z, AIR)
+            g.fellCheck(b, cutB)
+            let secondFalls = Felling.felled > n0
+            check(wide && firstStands && secondFalls,
+                  "fellnov13: his Ash Vault dark oak on a slope stands with one foot of four cut (\(firstStands ? "yes" : "no")) and falls with two (\(secondFalls ? "yes" : "no")); four feet found: \(wide ? "yes" : "no")")
+        }
+    }
 }
