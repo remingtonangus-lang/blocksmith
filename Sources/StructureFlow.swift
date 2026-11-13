@@ -51,6 +51,12 @@ enum StructureFlow {
     // (a tower's top on its sky bridge) is held to a quarter of it: a concrete joint carries a hundred blocks of
     // concrete (a 24-block balcony with room to spare), not four hundred. BS_SHEAR=1: the whole bond.
     static let shear: Float = Float(ProcessInfo.processInfo.environment["BS_SHEAR"] ?? "") ?? 0.25
+    // A block standing alone, nothing built against any of its four sides, is a slender column: it buckles long before
+    // it crushes, and bears this share of its crushing strength (one neighbour: a wall's end, halfway). A wall, a pier
+    // two blocks thick or a block in a floor bears all of it. So a storey shot out to a few posts gives way where the
+    // same posts inside their walls did not. BS_SLENDER=1: no such rule.
+    static let slenderShare: Float = Float(ProcessInfo.processInfo.environment["BS_SLENDER"] ?? "") ?? 0.3
+    @inline(__always) static func slender(_ beside: Int) -> Float { beside >= 2 ? 1 : (beside == 1 ? (1 + slenderShare) / 2 : slenderShare) }
     // (weights and strengths as whole numbers: 1/16 of a weight unit)
     static let unit: Float = 16
 
@@ -96,16 +102,19 @@ enum StructureFlow {
                     for d in World.allDirs where d.y == 0 { if Structure.anchor(&k, q.x + d.x, q.y, q.z + d.z) { g = 2; break } }
                 }
                 piece.ground.append(g)
-                var atBound = false
+                var atBound = false, beside = 0
                 for d in dirs {
                     let c = q + d
-                    if index[c] != nil { continue }
+                    let side = d.y == 0 && abs(d.x) + abs(d.z) == 1
+                    if index[c] != nil { if side { beside += 1 }; continue }
                     guard k.loaded(c.x, c.z) else { atBound = true; piece.capped = true; continue }
                     guard Structure.part(&k, c.x, c.y, c.z) != nil else { continue }
+                    if side { beside += 1 }
                     if queue.count >= limit { atBound = true; piece.capped = true; continue }
                     index[c] = Int32(queue.count)
                     queue.append(c)
                 }
+                piece.crush[piece.crush.count - 1] *= StructureFlow.slender(beside)
                 piece.held.append(atBound)
             }
             return true
@@ -121,7 +130,9 @@ enum StructureFlow {
                 let i = Int(i32)
                 guard i < piece.cells.count else { continue }
                 let m = Structure.part(&k, q.x, q.y, q.z)
-                piece.weight[i] = m?.weight ?? 0; piece.bond[i] = m?.bond ?? 0; piece.crush[i] = m?.crushCap ?? 0
+                var beside = 0
+                for e in World.allDirs where e.y == 0 { if Structure.part(&k, q.x + e.x, q.y, q.z + e.z) != nil { beside += 1 } }
+                piece.weight[i] = m?.weight ?? 0; piece.bond[i] = m?.bond ?? 0; piece.crush[i] = (m?.crushCap ?? 0) * StructureFlow.slender(beside)
                 var g: UInt8 = 0
                 if m != nil {
                     if Structure.anchor(&k, q.x, q.y - 1, q.z) { g = 1 }
