@@ -1,0 +1,280 @@
+[
+ {
+  "name": "cover_town_noon",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ]
+  },
+  "time": 0.24,
+  "seconds": 1.0,
+  "warm": 8,
+  "peaceful": true,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     38,
+     12,
+     22
+    ],
+    "look": [
+     5,
+     4,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     62,
+     30,
+     48
+    ],
+    "look": [
+     0,
+     0,
+     -5
+    ],
+    "ground": true
+   }
+  ],
+  "fps": 30,
+  "rd": 18
+ },
+ {
+  "name": "cover_town_morning",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ]
+  },
+  "time": 0.15,
+  "seconds": 3.0,
+  "warm": 8,
+  "peaceful": true,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     38,
+     12,
+     22
+    ],
+    "look": [
+     5,
+     4,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     62,
+     30,
+     48
+    ],
+    "look": [
+     0,
+     0,
+     -5
+    ],
+    "ground": true
+   }
+  ],
+  "fps": 30,
+  "rd": 18
+ },
+ {
+  "name": "cover_capital",
+  "anchor": {
+   "near": "capital_city",
+   "from": [
+    0,
+    0
+   ]
+  },
+  "time": 0.2,
+  "seconds": 6.0,
+  "warm": 8,
+  "peaceful": true,
+  "rd": 12,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     52,
+     10,
+     52
+    ],
+    "look": [
+     0,
+     14,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     36,
+     12,
+     48
+    ],
+    "look": [
+     -6,
+     14,
+     -4
+    ],
+    "ground": true
+   }
+  ],
+  "fps": 30
+ },
+ {
+  "name": "cover_station_day",
+  "anchor": {
+   "near": "boreal_station",
+   "from": [
+    1500,
+    -1500
+   ],
+   "station": "boreal_station"
+  },
+  "time": 0.27,
+  "seconds": 3.0,
+  "warm": 6,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     6,
+     24
+    ],
+    "look": [
+     4,
+     -26,
+     -52
+    ]
+   },
+   {
+    "t": 6,
+    "pos": [
+     2,
+     -8,
+     -4
+    ],
+    "look": [
+     4,
+     -24,
+     -52
+    ]
+   }
+  ]
+ },
+ {
+  "name": "cover_frigate_over_town",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    0,
+    0,
+    35
+   ]
+  },
+  "time": 0.24,
+  "seconds": 2.0,
+  "warm": 2,
+  "events": [],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -70,
+     -36,
+     70
+    ],
+    "look": [
+     0,
+     -2,
+     0
+    ]
+   },
+   {
+    "t": 2,
+    "pos": [
+     -70,
+     -36,
+     70
+    ],
+    "look": [
+     0,
+     -2,
+     0
+    ]
+   }
+  ],
+  "rd": 12,
+  "fps": 30
+ },
+ {
+  "name": "cover_frigate_village",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    0,
+    0,
+    35
+   ]
+  },
+  "time": 0.24,
+  "seconds": 2.0,
+  "warm": 2,
+  "events": [],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -90,
+     -25,
+     110
+    ],
+    "look": [
+     0,
+     -22,
+     10
+    ]
+   },
+   {
+    "t": 2,
+    "pos": [
+     -90,
+     -25,
+     110
+    ],
+    "look": [
+     0,
+     -22,
+     10
+    ]
+   }
+  ],
+  "rd": 12,
+  "fps": 30
+ }
+]
