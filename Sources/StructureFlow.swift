@@ -50,12 +50,12 @@ enum StructureFlow {
     // check counts blocks of reach as well; a flow has no lever arm, so a whole structure's weight across one joint
     // (a tower's top on its sky bridge) is held to a quarter of it: a concrete joint carries a hundred blocks of
     // concrete (a 24-block balcony with room to spare), not four hundred. BS_SHEAR=1: the whole bond.
-    static let shear: Float = Float(ProcessInfo.processInfo.environment["BS_SHEAR"] ?? "") ?? 0.25
+    static var shear: Float = Float(ProcessInfo.processInfo.environment["BS_SHEAR"] ?? "") ?? 0.25
     // A block standing alone, nothing built against any of its four sides, is a slender column: it buckles long before
     // it crushes, and bears this share of its crushing strength (one neighbour: a wall's end, halfway). A wall, a pier
     // two blocks thick or a block in a floor bears all of it. So a storey shot out to a few posts gives way where the
     // same posts inside their walls did not. BS_SLENDER=1: no such rule.
-    static let slenderShare: Float = Float(ProcessInfo.processInfo.environment["BS_SLENDER"] ?? "") ?? 0.3
+    static var slenderShare: Float = Float(ProcessInfo.processInfo.environment["BS_SLENDER"] ?? "") ?? 0.3
     @inline(__always) static func slender(_ beside: Int) -> Float { beside >= 2 ? 1 : (beside == 1 ? (1 + slenderShare) / 2 : slenderShare) }
     // (weights and strengths as whole numbers: 1/16 of a weight unit)
     static let unit: Float = 16
@@ -78,7 +78,11 @@ enum StructureFlow {
         private var queue: [IVec3] = []
         private var head = 0
         let limit: Int
-        init(at p: IVec3, limit: Int = 400_000) { self.limit = limit; queue = [p]; index[p] = 0 }
+        init(at p: IVec3, limit: Int = 400_000) {
+            self.limit = limit; queue = [p]; index[p] = 0
+            // (room for a citadel at the start: growing the index mid-fill rehashes it, 10 ms and more in one slice)
+            index.reserveCapacity(min(limit, 160_000))
+        }
         func contains(_ q: IVec3) -> Bool { index[q] != nil }
         var count: Int { queue.count }
         // One slice, until `deadline` (CFAbsoluteTime); true when the piece is whole.

@@ -38,7 +38,7 @@ enum Structure {
     }
     static let crushK: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSHK"] ?? "") ?? 3
     // (BS_CRUSH=0.5: every material's crushing strength times that, to try in the checks)
-    static let crushScale: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSH"] ?? "") ?? 1
+    static var crushScale: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSH"] ?? "") ?? 1
     // (BS_MATS="planks=6/60/5,concrete=24/400/10": a material's numbers for this run, to try others in the checks)
     static func mat(_ name: String, _ weight: Float, _ bond: Float, _ reach: Int, crush: Float = 0) -> Mat {
         for e in (ProcessInfo.processInfo.environment["BS_MATS"] ?? "").split(separator: ",") {
@@ -821,7 +821,7 @@ extension World {
     @inline(__always) func queueLoadCheck(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
         guard Structure.enabled, frame == nil, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
         // (Nov 13, StructureCollapse: a piece being read whole starts over when one of its blocks changes)
-        if StructureCollapse.busy { if structChanged.count < 512 { structChanged.append(IVec3(x, y, z)) } else { structFlood = true } }
+        if StructureCollapse.tracking { if structChanged.count < 512 { structChanged.append(IVec3(x, y, z)) } else { structFlood = true } }
         guard !restoring else { return }
         // (one state of a block for another of the same material carries the same load: a door opening, a lamp lit)
         if let a = Structure.table[Int(old)], let b = Structure.table[Int(new)], a.weight == b.weight && a.bond == b.bond && a.reach == b.reach { return }

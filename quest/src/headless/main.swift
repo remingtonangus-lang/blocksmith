@@ -1233,11 +1233,26 @@ if let out = arg("--view"), let ctx = vkctx {
             vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero
         } }
         let settle = Double(arg("--settle") ?? "") ?? 6
-        for _ in 0..<Int(settle * 72) { vg.tick(1.0 / 72); vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero }
+        // (the game's tick while it settles and while a whole piece is weighed and comes down: the slowest, and how
+        // many ran past a 72 Hz frame's 13.9 ms; host times, for before/after)
+        var slowTick = 0.0, lateTicks = 0, settleTicks = 0, bodiesAtSlow = 0
+        func timedTick() {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            vg.tick(1.0 / 72)
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            settleTicks += 1
+            if ms > 13.9 { lateTicks += 1 }
+            if ms > slowTick { slowTick = ms; bodiesAtSlow = vw.ships.list.count }
+            vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero
+        }
+        for _ in 0..<Int(settle * 72) { timedTick() }
         // (a whole piece being weighed is given up to 30 s more)
         var extra = 0
-        while StructureCollapse.busy && extra < 30 * 72 { vg.tick(1.0 / 72); vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero; extra += 1 }
+        while StructureCollapse.busy && extra < 30 * 72 { timedTick(); extra += 1 }
+        if extra > 0 { for _ in 0..<(6 * 72) { timedTick() } }       // (and the fall after it)
         print("view: shells: \(Armory.detonations - d0) bursts, \(Structure.checks) load checks, \(Structure.fallen) blocks fell, \(Felling.toppled) pieces toppled, \(vg.falling.count) falling")
+        print(String(format: "view: settle: %d ticks, slowest %.1f ms (%d bodies then), %d past 13.9 ms; %d bodies now, %d asleep",
+                     settleTicks, slowTick, bodiesAtSlow, lateTicks, vw.ships.list.count, vw.ships.list.filter { $0.asleep }.count))
         print(String(format: "view: collapse: %d asked, %d weighed (last %d blocks: read %.1f ms, worst slice %.2f ms, weighed %.1f ms), %d collapses, %d blocks in %d bodies (slowest %.1f ms), %d restarts, %d changes patched in, %d frames past the settle%@",
                      StructureCollapse.asked, StructureCollapse.weighed, StructureCollapse.lastBlocks, StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs,
                      StructureCollapse.lastSolveMs, StructureCollapse.collapses, StructureCollapse.fellBlocks, StructureCollapse.bodies, StructureCollapse.worstBodyMs,
@@ -1280,6 +1295,24 @@ if let out = arg("--view"), let ctx = vkctx {
                 for i in r.falls { let c = piece.cells[i]; flo = IVec3(min(flo.x, c.x), min(flo.y, c.y), min(flo.z, c.z)); fhi = IVec3(max(fhi.x, c.x), max(fhi.y, c.y), max(fhi.z, c.z)) }
                 print(String(format: "flowprobe: FAILS: %.0f of its weight has no way down; %d blocks come down (x %d...%d y %d...%d z %d...%d), %d joints full at the break",
                              r.unrouted, r.falls.count, flo.x, fhi.x, flo.y, fhi.y, flo.z, fhi.z, r.cut))
+            }
+            // BS_FLOWSWEEP="shear/slender/crush;...": the same piece under other strengths (how many times its weight
+            // it carries under each, and what gives first).
+            for e in (ProcessInfo.processInfo.environment["BS_FLOWSWEEP"] ?? "").split(separator: ";") {
+                let v = e.split(separator: "/").compactMap { Float($0) }
+                guard v.count == 3 else { continue }
+                let was = (StructureFlow.shear, StructureFlow.slenderShare, Structure.crushScale)
+                StructureFlow.shear = v[0]; StructureFlow.slenderShare = v[1]; Structure.crushScale = v[2]
+                if let pc = StructureFlow.capture(vw, at: b) {
+                    let sf = StructureFlow.safety(pc)
+                    let r2 = StructureFlow.solve(pc, scale: sf + 0.13)
+                    var flo = b, fhi = b
+                    if let f0 = r2.falls.first { flo = pc.cells[f0]; fhi = flo }
+                    for i in r2.falls { let c = pc.cells[i]; flo = IVec3(min(flo.x, c.x), min(flo.y, c.y), min(flo.z, c.z)); fhi = IVec3(max(fhi.x, c.x), max(fhi.y, c.y), max(fhi.z, c.z)) }
+                    print(String(format: "flowprobe: shear %.2f slender %.2f crush %.2f: carries %.2f times its weight; first to give: %d blocks (x %d...%d y %d...%d z %d...%d)",
+                                 v[0], v[1], v[2], sf, r2.falls.count, flo.x, fhi.x, flo.y, fhi.y, flo.z, fhi.z))
+                }
+                (StructureFlow.shear, StructureFlow.slenderShare, Structure.crushScale) = was
             }
         } else { print("flowprobe: nothing built within \(R) of \(fp[0]) \(fp[1]) \(fp[2])") }
     }

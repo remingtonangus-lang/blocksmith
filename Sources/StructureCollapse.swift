@@ -20,7 +20,7 @@ enum StructureCollapse {
     static var limit = 250_000                        // blocks read (past it: held, as before)
     static let bodyBin = Int(ProcessInfo.processInfo.environment["BS_COLLAPSEBIN"] ?? "") ?? 12   // a falling body is at most a cube of this side
     static var wantSeconds = 0.0012, maxWait = 3      // (as Structure.tick: a body waits for a frame with room)
-    static var sliceFloor = 0.0002                    // (a frame with no room left still reads this much)
+    static var sliceFloor = 0.0004                    // (a frame with no room left still reads this much)
 
     // (harness and soak)
     static var asked = 0, weighed = 0, collapses = 0, fellBlocks = 0, bodies = 0, restarts = 0, patched = 0
@@ -37,26 +37,42 @@ enum StructureCollapse {
     private final class Job {
         var seed: IVec3
         var counted = false
+        var stale = false
         var again = false                             // (changed while the worker had it: weighed once more after)
         var capture: StructureFlow.Capture
         var captureT = 0.0
         var solving = false
         var outcome: Outcome?                         // (set by the worker under `lock`)
         var next = 0
-        init(_ p: IVec3) { seed = p; capture = StructureFlow.Capture(at: p, limit: StructureCollapse.limit) }
+        init(_ p: IVec3, _ c: StructureFlow.Capture? = nil) { seed = p; capture = c ?? StructureFlow.Capture(at: p, limit: StructureCollapse.limit) }
     }
+    // The piece last read, kept a while: a battle changes a structure many times, and each change after the first is
+    // read into what is kept (the blocks it touched, StructureFlow.Capture.refresh) instead of the whole piece again.
+    private static var kept: StructureFlow.Capture?
+    private static var keptAt = 0.0, keptUsed = 0.0
+    static var keepSeconds = 20.0, keepAtMost = 90.0
+    static var reused = 0
+    static var tracking: Bool { job != nil || !pending.isEmpty || kept != nil }
     private static var pending: [IVec3] = []
     private static var job: Job?
     private static let lock = NSLock()
     private static var quietSince = 0.0, waited = 0
     static var busy: Bool { job != nil || !pending.isEmpty }
 
-    static func reset() { pending.removeAll(); job = nil; waited = 0; againSeeds.removeAll() }
+    static func reset() { pending.removeAll(); job = nil; kept = nil; waited = 0; againSeeds.removeAll() }
+    // How many times its own weight a structure must carry to stand (BS_COLLAPSESAFETY).
+    static var safety: Float = Float(ProcessInfo.processInfo.environment["BS_COLLAPSESAFETY"] ?? "") ?? 1
 
     // A change whose check stopped at its bound: the piece at p is weighed whole once things are quiet.
     static func request(_ w: World, at p: IVec3) {
         guard enabled, w.frame == nil else { return }
-        if let j = job, j.outcome == nil, j.capture.contains(p) { return }       // (the piece being read: it starts over on the change anyway)
+        // (the changed cell itself is often air now: the built block beside it)
+        var p = p
+        if Structure.part(w, p.x, p.y, p.z) == nil {
+            guard let d = Structure.nbrs.first(where: { Structure.part(w, p.x + $0.x, p.y + $0.y, p.z + $0.z) != nil }) else { return }
+            p = p + d
+        }
+        if let j = job, !j.counted, j.capture.contains(p) { return }             // (the piece being read: the change is read into it)
         if pending.contains(where: { abs($0.x - p.x) + abs($0.y - p.y) + abs($0.z - p.z) < 24 }) { return }
         if pending.count >= 8 { pending.removeFirst() }
         pending.append(p)
@@ -66,7 +82,7 @@ enum StructureCollapse {
     // The worker's part: the flow, then what falls split into bodies (cubes of `bodyBin`, each joined group one body).
     static func work(_ piece: StructureFlow.Piece) -> Outcome {
         let o = Outcome()
-        o.result = StructureFlow.solve(piece)
+        o.result = StructureFlow.solve(piece, scale: safety)
         guard !o.result.falls.isEmpty else { return o }
         var bins: [IVec3: [IVec3]] = [:]
         var fsum = SIMD3<Double>(0, 0, 0)
@@ -96,28 +112,38 @@ enum StructureCollapse {
 
     static func tick(_ g: Game) {
         let w = g.world
-        guard enabled, job != nil || !pending.isEmpty else { return }
+        guard enabled, tracking else { return }
         let now = CFAbsoluteTimeGetCurrent()
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         // The structural changes since the last frame (World.queueLoadCheck notes them): one in or against the piece
         // being read or weighed makes what was read stale; one near a piece that waits keeps it waiting.
         let changes = w.structChanged, flood = w.structFlood
         w.structChanged.removeAll(keepingCapacity: true); w.structFlood = false
-        if let j = job, !j.counted {
+        if let j = job {
             if flood {
-                // (more changes than were noted: read again from the start)
-                restarts += 1
-                job = nil
-                if pending.count < 8 { pending.insert(j.seed, at: 0) }
-                quietSince = now
+                if j.counted { j.stale = true }       // (coming down already: finished, but not kept)
+                else {
+                    // (more changes than were noted: read again from the start)
+                    restarts += 1
+                    job = nil
+                    if pending.count < 8 { pending.insert(j.seed, at: 0) }
+                    quietSince = now
+                }
             } else if !changes.isEmpty {
                 let mine = changes.filter { c in j.capture.contains(c) || World.allDirs.contains(where: { j.capture.contains(c + $0) }) }
                 if !mine.isEmpty {
-                    patched += mine.count
-                    // (read already: read again here; with the worker: what it finds falling is checked block by
+                    // (read already: read again here. With the worker: what it finds falling is checked block by
                     // block as it is taken out, and the piece is weighed once more after)
-                    if j.solving { j.again = true } else { j.capture.refresh(w, mine) }
+                    if !j.counted { patched += mine.count; if j.solving { j.again = true } }
+                    j.capture.refresh(w, mine)
                 }
+            }
+        }
+        if kept != nil {
+            if flood || now - keptUsed > keepSeconds || now - keptAt > keepAtMost { kept = nil }
+            else if !changes.isEmpty {
+                let mine = changes.filter { c in kept!.contains(c) || World.allDirs.contains(where: { kept!.contains(c + $0) }) }
+                if !mine.isEmpty { kept!.refresh(w, mine); keptUsed = now }
             }
         }
         if let p = pending.first, flood || changes.contains(where: { abs($0.x - p.x) + abs($0.z - p.z) < 128 }) { quietSince = now }
@@ -127,7 +153,8 @@ enum StructureCollapse {
             while job == nil, let p = pending.first {
                 pending.removeFirst()
                 guard w.activeHere(p), Structure.part(w, p.x, p.y, p.z) != nil else { continue }
-                job = Job(p)
+                if let k = kept, k.contains(p) { job = Job(p, k); kept = nil; reused += 1 }
+                else { kept = nil; keptAt = now; job = Job(p) }
             }
         }
         guard let j = job else { return }
@@ -146,8 +173,7 @@ enum StructureCollapse {
             lastCaptureMs = j.captureT * 1000; lastBlocks = j.capture.count
             // (a docked vessel is the ships' business; a piece small enough for the check near the change was its)
             if j.capture.vessel { job = nil; return }
-            let piece = j.capture.piece
-            j.capture.piece = StructureFlow.Piece()                   // (the arrays go with the worker; the index stays, for the changes)
+            let piece = j.capture.piece                               // (the worker's own copy: a change read in meanwhile copies on write)
             j.solving = true
             if paced {
                 DispatchQueue.global(qos: .utility).async {
@@ -205,6 +231,7 @@ enum StructureCollapse {
     private static var againSeeds: [IVec3: Int] = [:]
     private static func finish(_ j: Job, _ w: World) {
         job = nil
+        if !j.stale { kept = j.capture; keptUsed = CFAbsoluteTimeGetCurrent() }
         // (changed under the worker: once more, at most twice for one place)
         if j.again, againSeeds[j.seed, default: 0] < 2, Structure.part(w, j.seed.x, j.seed.y, j.seed.z) != nil {
             againSeeds[j.seed, default: 0] += 1
