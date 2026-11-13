@@ -55,6 +55,7 @@ final class PauseMenu: Menu {
     // Q2c-console-44: why the host paused the game by itself (the headset: away, tracking lost, controllers put down);
     // the pause screen's subtitle until he resumes (Game.paused clears it).
     static var autoReason: String?
+    static let oldSubtitle = ProcessInfo.processInfo.environment["BS_OLDSUBTITLE"] == "1"   // (two-line subtitles at 14 and 23, buttons at 38)
     // Q2c-console-10: the one-time notes and the button prompts (Accessibility). P300: the tips and lessons are gone.
     // P328 (NO TEXT): the prompts and notes are gone over play too; what is left to reset is the goals.
     static func resetHints(_ g: Game) {
@@ -578,7 +579,9 @@ final class PauseMenu: Menu {
         var span = 0
         if n > 0 { for s0 in 0...(lines.count - n) { span = max(span, lines[s0 + n - 1].y - lines[s0].y + st.btnH) } }
         // Q2c-console-53: a subtitle too long for one line wraps onto two smaller ones (Renderer), with room for them.
-        let top = subtitle.isEmpty ? 22 : (Font.width(subtitle) > st.width - 16 ? 38 : 32)
+        // (Nov 13, Carbon's blind review 160000 #6: the mode switch's two lines sat right under the title, touching it, and
+        // ran together in the headset. They start where a one-line subtitle does, 17 down, and the buttons 44 down.)
+        let top = subtitle.isEmpty ? 22 : (Font.width(subtitle) > st.width - 16 ? (PauseMenu.oldSubtitle ? 38 : 44) : 32)
         width = st.width
         height = top + span + st.gapY + 22 + (lines.count > n ? 4 : 0)   // + help line
         // Buttons of the visible lines, each line's buttons sharing the inner width.
