@@ -1100,7 +1100,9 @@ if let out = arg("--view"), let ctx = vkctx {
     if let secs = Double(arg("--fell") ?? "") {
         if CommandLine.arguments.contains("--editlane") { World.editLane = true }       // (as on the headset)
         if let (x, foot, z) = nearestTrunk() {
-            let p = IVec3(x, foot, z), b = vw.block(x, foot, z)
+            // --fellat N: the Nth log from the foot is the one cut (1: the foot log).
+            let cutY = foot + max(0, (Int(arg("--fellat") ?? "") ?? 1) - 1)
+            let p = IVec3(x, cutY, z), b = vw.block(x, cutY, z)
             vg.paused = false
             // (warmed up first: the first ticks after load pay one-time costs, 11 s of "input+hud" in a debug build)
             var before = 0.0
@@ -1167,6 +1169,22 @@ if let out = arg("--view"), let ctx = vkctx {
             if !CommandLine.arguments.contains("--noremesh") {
                 vw.remeshArea(x0: x - 12, z0: z - 12, x1: x + 12, z1: z + 12, y0: foot - 8, y1: foot + 30)
             }
+            // (Nov 13: every felled body at the end: its logs' lowest and highest centres over the ground under them)
+            for s in vw.ships.list where Felling.isFelled(s) {
+                var lo = Float.infinity, hi = -Float.infinity, logsN = 0
+                let g = s.grid
+                for i in 0..<g.blocks.count where ShapeTrunks.isLog[Int(g.blocks[i])] {
+                    let c = V3(Float(i % g.sx), Float(i / (g.sx * g.sz)), Float((i / g.sx) % g.sz)) + 0.5
+                    let wp = s.toWorld(c)
+                    var gy = Int(floor(wp.y))
+                    while gy > 1 && !vw.groundAt(Int(floor(wp.x)), gy, Int(floor(wp.z))) { gy -= 1 }
+                    let over = wp.y - Float(gy + 1)
+                    lo = min(lo, over); hi = max(hi, over); logsN += 1
+                }
+                print(String(format: "view: fell: body %d: %d blocks, %d logs, log centres %.2f to %.2f over the ground, %@%@, speed %.2f",
+                             s.id, s.blockCount, logsN, lo, hi, s.lying ? "lying" : "awake", s.slips ? ", let through the trunks" : "", simd_length(s.vel)))
+            }
+            print("view: fell: \(vw.ships.list.filter { Felling.isFelled($0) }.count) felled bodies, \(vw.ships.list.filter { $0.name == Game.toppledName }.count) toppled, \(Felling.slipped) let through trunks")
             if let s = vw.ships.list.last(where: { Felling.isFelled($0) }) {
                 print(String(format: "view: fell: after %.1f s the body is at %.1f %.1f %.1f, tipped %.0f deg, %d blocks; worst tick %.1f ms",
                              secs, s.pos.x, s.pos.y, s.pos.z, acosf(max(-1, min(1, s.rot.act(V3(0, 1, 0)).y))) * 180 / .pi, s.blockCount, worst))
@@ -1177,6 +1195,12 @@ if let out = arg("--view"), let ctx = vkctx {
                     vg.player.yaw = yaw; vg.player.pitch = pitch
                     vg.player.pos = V3(Float(x) + 0.5, Float(foot) + 1, Float(z) + 0.5) - vd * fv[2] - (vg.player.eye - vg.player.pos)
                 }
+            } else if let fv = arg("--fellview")?.split(separator: ",").compactMap({ Float($0) }), fv.count == 3 {
+                // (no body: the view of the trunk all the same, a wide trunk with one log out)
+                yaw = -fv[0] * .pi / 180; pitch = fv[1] * .pi / 180
+                let vd = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
+                vg.player.yaw = yaw; vg.player.pitch = pitch
+                vg.player.pos = V3(Float(x) + 0.5, Float(foot) + 1, Float(z) + 0.5) - vd * fv[2] - (vg.player.eye - vg.player.pos)
             }
         } else { print("view: fell: no living trunk within 16 blocks") }
     }

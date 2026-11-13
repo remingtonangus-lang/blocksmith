@@ -867,6 +867,14 @@ extension ShipManager {
         // thinner trunk off the ground), and snow cover and other things the ground wears don't hold it up.
         let felled = Felling.isFelled(s)
         let upright = felled && s.rot.act(V3(0, 1, 0)).y > 0.6
+        // Nov 13 (playtest 12:33:27-12:35:04, Taiga: "I do see a floating log", "the tree is still floating", a bare
+        // trunk at 45 degrees he could not reach; ledger 114): a felled spruce came to rest on its own crown, the trunk
+        // level two blocks over the ground, or hung in the trunks beside it. A felled tree with wood in it rests on its
+        // wood: its leaves give way on the ground (and on other felled trees, shipContacts). One that has come to rest
+        // on a standing trunk more than a block over the ground is let through the standing trunks from then on, and
+        // comes down. BS_OLDLEAFREST=1: as before.
+        let wood = felled && Felling.woodRests && Felling.hasWood(s)
+        var hung = false
         let r = felled ? max(0.2, min(ShipTuning.hullRadius, Felling.girth[s.id] ?? Felling.girth[s.root.id] ?? ShipTuning.hullRadius)) : ShipTuning.hullRadius
         // Broadphase: nothing under the ship reaches its lowest point (heightmaps of its footprint).
         if s.terrainCheck <= 0 {
@@ -899,7 +907,7 @@ extension ShipManager {
             i += stride
             // P478: while a felled tree is still going over (under 53 degrees) its low boughs give way on the ground
             // instead of propping it up (his spruce stood at 27 degrees on its foot and its bottom ring of branches).
-            if leafy && upright { continue }
+            if leafy && (upright || wood) { continue }
             let x0 = Int(floor(w.x - r)), x1 = Int(floor(w.x + r))
             let y0 = Int(floor(w.y - r)), y1 = Int(floor(w.y + r))
             let z0 = Int(floor(w.z - r)), z1 = Int(floor(w.z + r))
@@ -925,6 +933,8 @@ extension ShipManager {
                 // Leaves give way to a falling tree, and its own crown sweeps past the trunks round it; its trunk is
                 // still stopped by theirs.
                 if !collide[Int(b)] || felled && (Blocks.replaceable[Int(b)] || CapitalBase.isLeaf(b) || leafy && CapitalBase.isLog(b)) { continue }
+                let standing = wood && CapitalBase.isLog(b)
+                if standing && s.slips { continue }
                 let mn = V3(Float(x), Float(y), Float(z))
                 var mx = mn + 1
                 if !Blocks.fullCollide[Int(b)] {
@@ -957,8 +967,26 @@ extension ShipManager {
                     pen = min(0.35, mx.y - (w.y - r))
                 }
                 if best == nil || pen > best!.1 { best = (n, pen) }
+                if standing && !hung {
+                    // (how far over the ground it touches the trunk: the field's distance, or the blocks under it)
+                    if fieldW { hung = rd.density(at: w) < -1.2 }
+                    else {
+                        var gy = y - 1
+                        while gy > y - 4 && gy > 0 {
+                            let g = rd.get(x, gy, z)
+                            if collide[Int(g)] && !CapitalBase.isLog(g) && !CapitalBase.isLeaf(g) { break }
+                            gy -= 1
+                        }
+                        hung = w.y - Float(gy + 1) > 1.2
+                    }
+                }
             } } }
             if let bc = best { out.append(Contact(p: w - bc.0 * r, n: bc.0, pen: bc.1, other: nil)) }
+        }
+        if wood && !s.slips {
+            let slow = simd_length_squared(s.vel) < 0.25 && simd_length_squared(s.angVel) < 0.09
+            s.hungT = hung && slow ? s.hungT + 1 / ShipManager.stepRate : 0
+            if s.hungT > 0.6 { s.slips = true; s.hungT = 0; s.stillT = 0; Felling.slipped += 1 }
         }
     }
 
@@ -967,14 +995,18 @@ extension ShipManager {
         let r = ShipTuning.hullRadius
         let g = b.grid
         let collide = Blocks.collide
+        // (Nov 13: two felled trees meet wood to wood; neither rests on the other's leaves)
+        let woods = Felling.woodRests && Felling.isFelled(a) && Felling.isFelled(b) && Felling.hasWood(a) && Felling.hasWood(b)
         for c in a.hull {
+            if woods && CapitalBase.isLeaf(a.grid.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))) { continue }
             let w = a.toWorld(c)
             if w.x < b.worldMin.x - 1 || w.x > b.worldMax.x + 1 || w.y < b.worldMin.y - 1 || w.y > b.worldMax.y + 1
                 || w.z < b.worldMin.z - 1 || w.z > b.worldMax.z + 1 { continue }
             let l = b.toLocal(w)
             var best: (V3, Float)?
             for y in Int(floor(l.y - r))...Int(floor(l.y + r)) { for z in Int(floor(l.z - r))...Int(floor(l.z + r)) { for x in Int(floor(l.x - r))...Int(floor(l.x + r)) {
-                if !collide[Int(g.get(x, y, z))] { continue }
+                let gb = g.get(x, y, z)
+                if !collide[Int(gb)] || woods && CapitalBase.isLeaf(gb) { continue }
                 let mn = V3(Float(x), Float(y), Float(z)), mx = mn + 1
                 let q = simd_clamp(l, mn, mx)
                 let d = l - q

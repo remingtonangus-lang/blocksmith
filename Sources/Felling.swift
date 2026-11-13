@@ -89,6 +89,85 @@ enum Felling {
     static var girth: [Int: Float] = [:]
     static func inherit(_ from: Ship, _ to: Ship) { if let r = girth[from.id] ?? girth[from.root.id] { girth[to.id] = r } }
 
+    // Nov 13 (playtest 12:33-12:35, Taiga and the Ash Vault; ledger 111-115). Switches, each =1 for the code before:
+    //   BS_OLDSTUMPGIRTH   a stump left by a felled tree drawn by its own height (a post 0.9 across when no root shows)
+    //   BS_OLDFELLSEED     the body is the logs above the cut only (limbs at the cut's height abort the fall)
+    //   BS_OLDLEAFREST     a felled tree rests on its crown's leaves, and hangs in the trunks beside it for good
+    static let stumpGirth = ProcessInfo.processInfo.environment["BS_OLDSTUMPGIRTH"] != "1"
+    static let newSeed = ProcessInfo.processInfo.environment["BS_OLDFELLSEED"] != "1"
+    static let woodRests = ProcessInfo.processInfo.environment["BS_OLDLEAFREST"] != "1"
+    static var slipped = 0                       // (counter: bodies let through the trunks they hung in)
+
+    // The stump a felled tree leaves keeps the girth it stood with: by column, the standing trunk's foot, height and
+    // foot radius (so the stump's taper is the tree's own), and for a four-log trunk the corner of its square. Read by
+    // the mesh workers (ShapeTrunks.emit), so under a lock; in memory only (a saved stump is told by the soil the
+    // generator leaves under a tree's foot, ShapeTrunks.emit).
+    struct Stump { var bot: Int, h: Int; var rb: Float; var wide: Bool; var ox: Int, oz: Int }
+    private static let stumpLock = NSLock()
+    private static var stumps: [Int64: Stump] = [:]
+    @inline(__always) private static func stumpKey(_ x: Int, _ z: Int) -> Int64 { Int64(x) << 32 ^ Int64(UInt32(truncatingIfNeeded: z)) }
+    static func noteStump(_ x: Int, _ z: Int, _ st: Stump) {
+        stumpLock.lock()
+        if stumps.count > 4096 { stumps.removeAll(keepingCapacity: true) }
+        stumps[stumpKey(x, z)] = st
+        stumpLock.unlock()
+    }
+    static func stump(_ x: Int, _ z: Int) -> Stump? {
+        stumpLock.lock(); defer { stumpLock.unlock() }
+        return stumps.isEmpty ? nil : stumps[stumpKey(x, z)]
+    }
+    // (a stump's foot log broken: the note goes, so a log set down there later is a log)
+    static func stumpBroken(_ p: IVec3) {
+        stumpLock.lock()
+        if let st = stumps[stumpKey(p.x, p.z)], st.bot == p.y { stumps[stumpKey(p.x, p.z)] = nil }
+        stumpLock.unlock()
+    }
+    // The stumps under the logs about to leave the world (`logs`, the cut at `cut`): every upright log left under one
+    // of them (straight under, or under the cut or a cell struck out earlier).
+    static func noteStumps(_ w: World, logs: Set<IVec3>, cut: IVec3?) {
+        guard stumpGirth else { return }
+        @inline(__always) func upright(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            let b = w.block(x, y, z)
+            return CapitalBase.isLog(b) && ShapeTrunks.axisOf[Int(b)] == 1
+        }
+        for c in logs {
+            var y = c.y - 1
+            if logs.contains(IVec3(c.x, y, c.z)) { continue }
+            if !upright(c.x, y, c.z) {
+                // (the cut, or one cell struck out before, with the stump under it)
+                guard IVec3(c.x, y, c.z) == cut || w.block(c.x, y, c.z) == AIR else { continue }
+                y -= 1
+                guard upright(c.x, y, c.z) else { continue }
+            }
+            var bot = y
+            while bot > 1 && upright(c.x, bot - 1, c.z) { bot -= 1 }
+            var top = c.y
+            while logs.contains(IVec3(c.x, top + 1, c.z)) { top += 1 }
+            let h = top - bot + 1
+            guard h >= 3 else { continue }
+            // (a four-log trunk: the square of logs at the body's lowest level here)
+            var wide = false, ox = 0, oz = 0
+            for (ax, az) in [(c.x, c.z), (c.x - 1, c.z), (c.x, c.z - 1), (c.x - 1, c.z - 1)] {
+                if logs.contains(IVec3(ax, c.y, az)) && logs.contains(IVec3(ax + 1, c.y, az)) && logs.contains(IVec3(ax, c.y, az + 1)) && logs.contains(IVec3(ax + 1, c.y, az + 1)) {
+                    wide = true; ox = ax; oz = az
+                    break
+                }
+            }
+            noteStump(c.x, c.z, Stump(bot: bot, h: h, rb: ShapeTrunks.treeRadius(h), wide: wide, ox: ox, oz: oz))
+        }
+    }
+
+    // Whether a felled body has a log in it (by ship; redone when its block count changes): one that has rests on its
+    // wood, its leaves giving way; a clump of leaves alone lies on the ground as it is.
+    private static var woodOf: [Int: (count: Int, wood: Bool)] = [:]
+    static func hasWood(_ s: Ship) -> Bool {
+        if let c = woodOf[s.id], c.count == s.blockCount { return c.wood }
+        if woodOf.count > 512 { woodOf.removeAll(keepingCapacity: true) }
+        let wood = s.grid.blocks.contains { ShapeTrunks.isLog[Int($0)] }
+        woodOf[s.id] = (s.blockCount, wood)
+        return wood
+    }
+
     // The world's lighting of a round shape (quest/shaders/chunk_detail.vert: sky curve and tint, warm block light, the
     // sun on its side), so a felled trunk drawn by the entity pass keeps the colour it had standing (Oct 24 20:49: "the
     // log turns into a different color": it was lit flat, a third brighter, its bark stretched round it once).
@@ -118,9 +197,99 @@ extension Game {
     // Game.breakBlock: a log was cut at p.
     func fellCheck(_ p: IVec3, _ cut: BlockID) {
         guard CapitalBase.isLog(cut), dim.dim == .overworld || dim.dim == .deep else { return }
+        Felling.stumpBroken(p)
         let start = IVec3(p.x, p.y + 1, p.z)
         guard CapitalBase.isLog(world.block(start.x, start.y, start.z)) else { return }
-        // The trunk and limbs above the cut (26-connected logs, never below the cut).
+        guard let logs = Felling.newSeed ? fellBody(p) : fellBodyOld(p) else { return }
+        Felling.roundTrunks = Felling.roundFor(world)
+        fellLoose(p, logs)
+    }
+
+    // Nov 13 (ledger 113; his Forest notes of Nov 12, "that turned into two trees... three trees", and the Taiga's of
+    // Nov 13): what comes loose with a cut at p. The old walk took the logs above the cut only and gave up when one of
+    // them stood on a log at the cut's height: a limb leaving the trunk at the cut's own level (a field oak's lowest
+    // boughs) kept the whole tree up, and the load check then dropped trunk and limbs as two or three bodies; a tree
+    // whose bough touched its neighbour's never fell, or took the neighbour's boughs along.
+    //  - A log is held when the logs straight under it stand on the ground (another tree's trunk, a cabin wall, a
+    //    stump): held logs are never part of the body. The trunk above the cut is not held, nor a bough.
+    //  - The body is every log joined to the cut trunk through logs that are not held, the cut's level and a little
+    //    below it included (a bough leaving at the cut, a drooping tip).
+    //  - Where the walk meets another standing trunk, a log goes with the cut tree only if the cut trunk is no further
+    //    from it than that one (as a leaf does: ownLeaf).
+    //  - A four-log trunk goes over when half its section is cut through (P504): a corner holds while the logs under
+    //    it reach the ground unbroken.
+    func fellBody(_ p: IVec3) -> Set<IVec3>? {
+        let w = world
+        let start = IVec3(p.x, p.y + 1, p.z)
+        @inline(__always) func isLog(_ c: IVec3) -> Bool { CapitalBase.isLog(w.block(c.x, c.y, c.z)) }
+        // The trunk's section: `start` alone, or the four columns of a four-log trunk (a square of logs with `start`'s
+        // column in it at one of the three levels above the cut: a corner struck out at one level is still a corner).
+        var cols = [(p.x, p.z)]
+        find: for dy in 0...2 {
+            for (ox, oz) in [(0, 0), (-1, 0), (0, -1), (-1, -1)] {
+                let q = [(p.x + ox, p.z + oz), (p.x + ox + 1, p.z + oz), (p.x + ox, p.z + oz + 1), (p.x + ox + 1, p.z + oz + 1)]
+                if q.allSatisfy({ isLog(IVec3($0.0, start.y + dy, $0.1)) }) { cols = q; break find }
+            }
+        }
+        let wide = cols.count == 4
+        let section = cols.map { IVec3($0.0, start.y, $0.1) }.filter { isLog($0) }
+        @inline(__always) func inSection(_ x: Int, _ z: Int) -> Bool { cols.contains { $0.0 == x && $0.1 == z } }
+        // (down through logs to what they stand on; `through`: a four-log trunk's own stump counts as cut)
+        func held(_ q: IVec3, through: Bool) -> Bool {
+            var y = q.y - 1
+            while y > 0 {
+                if q.x == p.x && y == p.y && q.z == p.z { return false }
+                if through && y == p.y && inSection(q.x, q.z) { return false }
+                let b = w.block(q.x, y, q.z)
+                if CapitalBase.isLog(b) { y -= 1; continue }
+                return Blocks.collide[Int(b)] && !CapitalBase.isLeaf(b)
+            }
+            return true
+        }
+        if wide {
+            var holding = 0
+            for c in section where held(c, through: false) { holding += 1 }
+            if holding * 2 > cols.count { return nil }
+        }
+        var others: [(Int, Int)] = []                 // (columns of other standing trunks the walk met)
+        var sumX = 0, sumZ = 0
+        for c in cols { sumX += c.0; sumZ += c.1 }
+        let ax: Float = Float(sumX) / Float(cols.count), az: Float = Float(sumZ) / Float(cols.count)
+        func walk(own: Bool) -> Set<IVec3>? {
+            var logs = Set(section)
+            var queue = section
+            while let c = queue.popLast() {
+                for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where !(dx == 0 && dy == 0 && dz == 0) {
+                    let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
+                    guard q != p, q.y >= p.y - 3, !logs.contains(q), isLog(q) else { continue }
+                    if held(q, through: wide) {
+                        if !own && !inSection(q.x, q.z) && !others.contains(where: { $0.0 == q.x && $0.1 == q.z }) { others.append((q.x, q.z)) }
+                        continue
+                    }
+                    if own {
+                        let ex: Float = Float(q.x) - ax, ez: Float = Float(q.z) - az
+                        let d0: Float = ex * ex + ez * ez
+                        var nearer = false
+                        for o in others {
+                            let ox = o.0 - q.x, oz = o.1 - q.z
+                            if Float(ox * ox + oz * oz) < d0 { nearer = true; break }
+                        }
+                        if nearer { continue }
+                    }
+                    logs.insert(q); queue.append(q)
+                    if logs.count > Felling.maxLogs { return nil }
+                } } }
+            }
+            return logs
+        }
+        guard var logs = walk(own: false) else { return nil }
+        if !others.isEmpty { guard let l = walk(own: true) else { return nil }; logs = l }
+        return logs
+    }
+
+    // (the walk before Nov 13: BS_OLDFELLSEED=1)
+    func fellBodyOld(_ p: IVec3) -> Set<IVec3>? {
+        let start = IVec3(p.x, p.y + 1, p.z)
         var logs: Set<IVec3> = [start]
         var queue = [start]
         while let c = queue.popLast() {
@@ -128,13 +297,9 @@ extension Game {
                 let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
                 guard q.y > p.y, !logs.contains(q), CapitalBase.isLog(world.block(q.x, q.y, q.z)) else { continue }
                 logs.insert(q); queue.append(q)
-                if logs.count > Felling.maxLogs { return }
+                if logs.count > Felling.maxLogs { return nil }
             } } }
         }
-        // (P441, Oct 24 20:50: "this log is floating... it should be able to sit on whatever's under it": a spruce's top of
-        // one or two logs in its crown stayed in the air; with its leaves any part of a tree comes down)
-        guard logs.count >= 1 else { return }
-        Felling.roundTrunks = Felling.roundFor(world)
         // Resting on anything else (a wall, the ground beside the cut, another tree's log): it stands.
         // P504 (Nov 1 07:25, his Ash Vault dark oak at 2914 -33 -3051: "This tree should have fallen"): a thick trunk (a
         // dark oak's 2x2) stood until every one of its feet was cut, on one log in four. Cut through half its section
@@ -149,9 +314,17 @@ extension Game {
             let below = IVec3(c.x, c.y - 1, c.z)
             if logs.contains(below) || below == p { continue }
             let b = world.block(below.x, below.y, below.z)
-            if Blocks.collide[Int(b)] && !CapitalBase.isLog(b) && !CapitalBase.isLeaf(b) { return }
-            if CapitalBase.isLog(b) && below.y <= p.y && !(cutThrough && below.y == p.y && c.y == p.y + 1 && Felling.sameTrunk(below, p)) { return }
+            if Blocks.collide[Int(b)] && !CapitalBase.isLog(b) && !CapitalBase.isLeaf(b) { return nil }
+            if CapitalBase.isLog(b) && below.y <= p.y && !(cutThrough && below.y == p.y && c.y == p.y + 1 && Felling.sameTrunk(below, p)) { return nil }
         }
+        return logs
+    }
+
+    // The logs come loose with their crown as one body.
+    // (P441, Oct 24 20:50: "this log is floating... it should be able to sit on whatever's under it": a spruce's top of
+    // one or two logs in its crown stayed in the air; with its leaves any part of a tree comes down)
+    func fellLoose(_ p: IVec3, _ logs: Set<IVec3>) {
+        let start = IVec3(p.x, p.y + 1, p.z)
         // The crown: leaves joined to the logs (6-connected through leaves, within 5 of a log), and only its own.
         // P478 (Oct 27 18:46, "trees disappear when they hit another root"): crowns in a wood grow through each other,
         // and the body took every leaf it could reach, half its neighbours' crowns with it; that weight pulled it over
@@ -175,6 +348,7 @@ extension Game {
                 leaves.insert(q); lq.append(q)
             }
         }
+        Felling.noteStumps(world, logs: logs, cut: p)
         // The body: its cells relative to the block above the cut, then out of the world.
         let bp = Blueprint()
         var lo = IVec3(Int.max, Int.max, Int.max)
