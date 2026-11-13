@@ -431,7 +431,6 @@ extension ShipManager {
     }
     // (a structural block changed at p: what lies against it is up)
     func rouseLying(at x: Int, _ y: Int, _ z: Int) {
-        guard lyingNow > 0 else { return }
         let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
         for s in list where s.lying && p.x > s.worldMin.x - 2 && p.x < s.worldMax.x + 2 && p.y > s.worldMin.y - 2 && p.y < s.worldMax.y + 2
             && p.z > s.worldMin.z - 2 && p.z < s.worldMax.z + 2 { s.lying = false; s.lyingT = 0; s.stillT = 1.0 }
@@ -454,6 +453,7 @@ extension ShipManager {
             }
             integrateForces(s, h, &reader)
         }
+        world.lyingBodies = lyingNow
         // Contacts: terrain and ship-ship (a sleeping ship can still be run into). Kinematic ships take none, and other
         // ships don't push against them (their AI holds them on course).
         for s in list where s.parent == nil && !s.kinematic && !s.emplacement {

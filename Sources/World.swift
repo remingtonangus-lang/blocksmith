@@ -65,6 +65,7 @@ final class World: LifeLinked {
     var loadQueue: [IVec3] = []            // P388: structural changes whose piece carries its load next (Structure.tick)
     var loadQueued = Set<IVec3>()          // (4-cubes already queued)
     var structLoud = 0
+    var lyingBodies = 0                             // (ShipManager.step: fallen pieces lying still)
     var structChanged: [IVec3] = [], structFlood = false   // Nov 13: structural changes while a whole piece is weighed (StructureCollapse)
     var restoring = false                  // P416: a base's crew putting its own plan back (sound as built: no load check)
     var collapsing = false
