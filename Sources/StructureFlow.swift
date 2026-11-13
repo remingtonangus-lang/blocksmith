@@ -13,8 +13,8 @@ import simd
 // ground through joints that can carry it?
 //   - every block has its weight (Structure.Mat.weight);
 //   - a joint carries so much and no more: pressed straight down, the weaker block's crushing strength (Mat.crushCap);
-//     hanging (the lower block from the upper) or sideways, the weaker bond (what Structure's own joints hold); along
-//     an edge, half of that;
+//     hanging (the lower block from the upper) or sideways, a share of the weaker bond (`side`); along an edge, half
+//     of that;
 //   - a block on the ground (or into it at a side) hands the ground what its material can bear.
 // That is a flow of weight through a network of joints (a maximum flow). When all of it reaches the ground the
 // structure stands. When some cannot, the joints that are full are exactly the ones that fail (the minimum cut), and
@@ -67,8 +67,11 @@ enum StructureFlow {
     @inline(__always) static func jointCap(_ d: IVec3, bi: Float, bj: Float, ci: Float, cj: Float) -> Float {
         let face = abs(d.x) + abs(d.y) + abs(d.z) == 1
         let k: Float = face ? 1 : edgeShare
-        if d.y < 0 { return min(ci, cj) * k }         // pressed down (straight, or down a slope)
-        return min(bi, bj) * k                        // hung from above, or sideways (Piece.bond: `side`)
+        if d.y < 0 && face { return min(ci, cj) }     // pressed straight down
+        // hung from above, sideways, or along an edge (Piece.bond: `side`). Down a slope too: were an edge to carry a
+        // share of the crushing strength, a pier would carry its own strength twice, once straight down and once
+        // again through its blocks' edges to the next ones down.
+        return min(bi, bj) * k
     }
 
     // Capture: the piece of built blocks at p (Structure.part), filled over faces and edges up to `limit` blocks. It
