@@ -27,7 +27,12 @@ enum StructureCollapse {
     // (harness: what it is doing)
     static var state: String {
         lock.lock(); defer { lock.unlock() }
-        let j = job.map { $0.outcome != nil ? "taking out \($0.next)/\($0.outcome!.parts.count) bodies, \($0.crumb)/\($0.outcome!.crumbs.count) loose" : ($0.solving ? "with the worker" : "reading, \($0.capture.count) so far") } ?? "no piece in hand"
+        var j = "no piece in hand"
+        if let jb = job {
+            if let o = jb.outcome { j = "taking out \(jb.next)/\(o.parts.count) bodies, \(jb.crumb)/\(o.crumbs.count) loose" }
+            else if jb.solving { j = "with the worker" }
+            else { j = "reading, \(jb.capture.count) so far" }
+        }
         return "\(j); \(pending.count) waiting (\(frameNo - pendingSince) frames, quiet for \(quietFrames)); \(held.count) checks held"
     }
     static var sliceFloor = 0.0004                    // (a frame with no room left still reads this much)
