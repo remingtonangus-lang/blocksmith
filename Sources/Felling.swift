@@ -26,6 +26,8 @@ enum Felling {
         var launch = (V3(0, 0, 0), V3(0, 0, 0))
         var held: Float = -1
         var pushed = false
+        var weight: Float = 0, sinceBlow: Float = 1   // (StructureImpact)
+        var patient = false                     // (Nov 13, a collapse's pieces: no push, the workers' redraw is waited for)
         var over = V3(0, 0, 0)                  // (the axis a felled tree goes over about, away from the woodsman)
         init(_ s: Ship) { ship = s }
     }
@@ -211,6 +213,15 @@ extension Game {
     // drawn with its own mesh the whole way (a tree keeps its leaf blobs and round trunk, a tower its walls), tipping
     // away from him. A tree takes its crown along and lies as a felled trunk once still; anything else lies where it lands.
     static let toppledName = "Toppled"
+    static let toppledWreck = "Toppled wreck"
+    static var ridersTaken = 0                                // (checks)
+    static let ridersOn = ProcessInfo.processInfo.environment["BS_OLDRIDERS"] != "1"
+    static let rides: [Bool] = (0..<Blocks.count).map { i in
+        let b = BlockID(i)
+        guard b != AIR, !Blocks.collide[i], !Blocks.isLiquid(b), !CapitalBase.isLeaf(b), Blocks.hardness[i] >= 0 else { return false }
+        let k = Blocks.key(b)
+        return !k.contains("fire") && !k.contains("portal")
+    }
     func topple(_ cells: [IVec3], away awayDir: V3? = nil) {
         guard let start = cells.min(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) else { return }
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -244,21 +255,49 @@ extension Game {
                 }
             }
         }
+        // Nov 13 (his note 13:05:46, a circuit board on a platform he brought down: "all the wire despawned when it
+        // fell"): what sits on a falling piece or hangs on its side without a body of its own (wire, a torch, a lever,
+        // a sign, a carpet's flowers) was left in the air and popped off. It rides the piece down. BS_OLDRIDERS=1: before.
+        var riders: [IVec3] = []
+        if logs.isEmpty && Game.ridersOn {
+            let body = Set(cells)
+            var seen = Set<IVec3>()
+            let rides = Game.rides
+            for c in cells {
+                let up = IVec3(c.x, c.y + 1, c.z)
+                let ub = world.block(up.x, up.y, up.z)
+                if !body.contains(up), rides[Int(ub)] || CapitalBase.isLeaf(ub), seen.insert(up).inserted { riders.append(up) }      // (a hedge on a roof garden too)
+                for d in World.allDirs where d.y == 0 {
+                    let q = c + d
+                    guard !body.contains(q), rides[Int(world.block(q.x, q.y, q.z))] else { continue }
+                    // (a torch or a ladder on a wall that stays, beside the piece, stays: nothing solid may touch it but the piece)
+                    guard !World.allDirs.contains(where: { e in
+                        let n = q + e
+                        return !body.contains(n) && Blocks.collide[Int(world.block(n.x, n.y, n.z))]
+                    }) else { continue }
+                    if seen.insert(q).inserted { riders.append(q) }
+                }
+            }
+        }
+        Game.ridersTaken += riders.count
         let bp = Blueprint()
         var lo = IVec3(Int.max, Int.max, Int.max)
-        for c in leaves.union(cells) {
+        for c in leaves.union(cells).union(riders) {
             bp.cells[ivSub(c, start)] = world.block(c.x, c.y, c.z)
             lo = IVec3(min(lo.x, c.x - start.x), min(lo.y, c.y - start.y), min(lo.z, c.z - start.z))
         }
         tCopy = CFAbsoluteTimeGetCurrent()
         // (taken out quietly: what it leaves behind was checked already)
+        let restoring0 = world.restoring                     // (a collapse's loose blocks: StructureCollapse set it)
         world.restoring = true
         let quiet0 = world.circuitQuiet                      // (ledger 45)
         if Explosion.circuitCalm && !world.circuitNear(cells + Array(leaves), margin: 3) { world.circuitQuiet = true }
+        for c in riders { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0
-        world.restoring = false
+        world.restoring = restoring0
+        GroundCollapse.builtGone(world, cells)      // (Nov 13: ground that lay on it)
         tTake = CFAbsoluteTimeGetCurrent()
         let tree = logs.count == cells.count
         let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0,
@@ -275,7 +314,10 @@ extension Game {
         s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? (awayDir != nil ? 0.7 : 0.35) : 0.15)
         s.vel = away * 0.2
         if tree { Felling.girth[s.id] = Felling.girthOf(Set(logs)) }
-        Felling.falls.append(hold(s, cells: leaves.union(cells)))
+        Felling.falls.append(hold(s, cells: leaves.union(cells).union(riders)))
+        // (every piece of a structure, not only a collapse's: one the check near a change cut loose off the citadel
+        // after it meshed its sections on the frame, 17 and 41 ms in two of four runs. A tree's sections are light.)
+        if StructureCollapse.patientPieces && !tree { Felling.falls.last?.patient = true }
         Felling.toppled += 1
         sfx(.hullCreak, tree ? 1.3 : 0.8, at: s.pos)
     }
@@ -301,6 +343,7 @@ extension Game {
 
     // Every frame (Game.advance): falling trees land and shed their leaves; a carried trunk follows the hands.
     func fellingTick(_ dt: Float) {
+        StructureImpact.thisFrame = 0
         guard dt > 0 else { return }
         Felling.roundTrunks = Felling.roundFor(world)
         let live = world.ships.list
@@ -320,7 +363,7 @@ extension Game {
                 // body waits up to 4 s for it (a section unloaded meanwhile counts as drawn).
                 f.held += dt
                 let drawn = f.wait.allSatisfy { $0.0.sections[$0.1].meshedVersion >= $0.2 || self.world.chunks[ChunkKey(x: $0.0.cx, z: $0.0.cz)] !== $0.0 }
-                if !drawn && !f.pushed && f.held > 0.1 && (Felling.oldPush || pushT < 0.002) {
+                if !drawn && !f.pushed && !f.patient && f.held > 0.1 && (Felling.oldPush || pushT < 0.002) {
                     f.pushed = true
                     let w = world
                     let t0 = CFAbsoluteTimeGetCurrent()
@@ -348,6 +391,12 @@ extension Game {
                 }
             }
             let dv = simd_length(s.vel - f.lastVel)
+            // Nov 13 (StructureImpact): a falling piece of a structure breaks the built blocks it lands on, and goes on down.
+            f.sinceBlow += dt
+            if !Felling.isFelled(s) && f.age > 0.2 && s.contacts > 0 && dv > 2.5 && f.sinceBlow >= StructureImpact.cooldown && StructureImpact.enabled {
+                if f.weight <= 0 { f.weight = StructureImpact.weight(s) }
+                if StructureImpact.strike(self, s, weight: f.weight, vIn: f.lastVel, dv: dv) { f.sinceBlow = 0; f.still = 0 }
+            }
             f.lastVel = s.vel
             if !f.landed && f.age > 0.4 && s.contacts > 0 && dv > 2.5 {
                 f.landed = true

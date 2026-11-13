@@ -9,18 +9,54 @@ import simd
 extension Player {
     static let clamberLow: Float = 1.05, clamberHigh: Float = 2.3, clamberTime: Float = 0.45
     static var clambers = 0                                   // (checks)
+    // Nov 13 (his notes Nov 1 15:44 in a crater, "double jump to grab", Nov 2 08:31 and Nov 13 "Did we ever get that
+    // double jump to climb over thing?"; backlog 15, "big one, missed twice"): the grab. The clamber above took jump
+    // HELD while pushing into the ledge and reached 2.3 blocks from where he stood: not what he does, and not out of a
+    // crater. A second press of jump in the air (the double jump) grabs a ledge in front of him: its top up to 2.2
+    // blocks over his feet as they are then (his hands over his head at the top of a jump: a wall three blocks high
+    // from the ground), up to 1.2 blocks ahead, toward the stick if it is pushed and the way he faces if not. No
+    // ledge there, and in creative the double tap toggles flying as before. BS_OLDCLAMBER=1: the held clamber only.
+    static let grabOn = ProcessInfo.processInfo.environment["BS_OLDCLAMBER"] != "1"
+    static let grabHigh: Float = 2.2, grabLow: Float = 0.4, grabTotal: Float = 3.75, grabAhead: Float = 1.2
+    static var grabs = 0                                      // (checks)
+
+    // The second press of jump in the air: true when a ledge was taken (Game: then no flight toggle).
+    func tryGrab(_ w: World) -> Bool {
+        // (not in a ship's frame, where the deck moves under the pull; not falling fast: a fall is not caught)
+        guard Player.grabOn, w.frame == nil, clamber == nil, !onGround, !flying, !inWater, !inLava, !prone, !gliding, levitate <= 0, !jetThrust,
+              vel.y > -14 else { return false }
+        let dir = simd_length(lastWish) > 0.3 ? lastWish : lastFacing
+        guard startClamber(dir, w, grab: true) else { return false }
+        Player.grabs += 1
+        return true
+    }
 
     // Starts a clamber toward `wish` (horizontal push) when a ledge is there to take; false when there is none.
-    func startClamber(_ wish: V3, _ w: World) -> Bool {
+    func startClamber(_ wish: V3, _ w: World, grab: Bool = false) -> Bool {
         let d2 = V2(wish.x, wish.z), l = simd_length(d2)
         guard l > 1e-3 else { return false }
         let dir = V3(d2.x / l, 0, d2.y / l)
-        guard collides(at: pos + dir * 0.3, w) else { return false }          // (something in his way)
-        let ahead = pos + dir * (halfW + 0.55)
+        // (something in his way: right against him, or for a grab within reach of his arms)
+        var gap: Float = 0
+        if !collides(at: pos + dir * 0.3, w) {
+            guard grab else { return false }
+            var found = false
+            var r: Float = 0.45
+            while r <= Player.grabAhead + 0.001 {
+                if collides(at: pos + dir * r, w) { gap = r - 0.3; found = true; break }
+                r += 0.15
+            }
+            // (already over its top, feet in the air just short of it: the ledge under his feet ahead)
+            if !found {
+                guard collides(at: pos + dir * 0.6 - V3(0, 0.6, 0), w), !collides(at: pos + dir * 0.6, w) else { return false }
+            }
+        }
+        let ahead = pos + dir * (gap + halfW + 0.55)
         // The ledge's top: the lowest height where his body stands clear just past the face, on something.
         var top: Float? = nil
-        var y = pos.y + 0.5
-        let reach = min(pos.y, clamberBase) + Player.clamberHigh      // (a jump first doesn't lift the reach)
+        var y = pos.y + (grab ? 0.0 : 0.5)
+        // (a jump first doesn't lift the held clamber's reach; a grab reaches from his feet in the air)
+        let reach = grab ? min(pos.y + Player.grabHigh, clamberBase + Player.grabTotal) : min(pos.y, clamberBase) + Player.clamberHigh
         while y <= reach + 0.001 {
             let probe = V3(ahead.x, y, ahead.z)
             if !collides(at: probe, w) {
@@ -29,12 +65,14 @@ extension Player {
             }
             y += 0.125
         }
-        guard let t = top, t - pos.y >= Player.clamberLow else { return false }
+        guard let t = top, t - pos.y >= (grab ? Player.grabLow : Player.clamberLow) else { return false }
         // Room to rise straight up the face, and to move over onto the top.
         let up = V3(pos.x, t + 0.02, pos.z)
         guard !collides(at: up, w), !collides(at: V3(pos.x, (pos.y + t) * 0.5, pos.z), w),
               !collides(at: (up + V3(ahead.x, t + 0.02, ahead.z)) * 0.5, w) else { return false }
         clamber = (0, pos, V3(ahead.x, t + 0.02, ahead.z))
+        // (a short pull is quick, a full reach takes the old time and a little more)
+        clamberDur = max(0.3, min(0.6, 0.2 + 0.11 * (t - pos.y) + 0.12 * gap))
         vel = .zero
         Player.clambers += 1
         return true
@@ -43,7 +81,7 @@ extension Player {
     // One step of a clamber under way (Player.update, in place of walking).
     func stepClamber(_ dt: Float, _ w: World) {
         guard var c = clamber else { return }
-        c.t = min(1, c.t + dt / Player.clamberTime)
+        c.t = min(1, c.t + dt / clamberDur)
         let rise = min(1, c.t / 0.6), across = max(0, (c.t - 0.6) / 0.4)
         let ey = 1 - (1 - rise) * (1 - rise)
         let p = V3(c.from.x + (c.to.x - c.from.x) * across, c.from.y + (c.to.y - c.from.y) * ey,
@@ -95,6 +133,28 @@ enum ClamberCheck {
         check(two.y >= Float(y) + 1.95 && two.x > Float(cx) + 3.2 && n2 >= 1,
               String(format: "clamber: into a wall two high with jump held he pulls himself up onto it (feet %.2f over the lane, %.1f past its face, %d clambers)",
                      two.y - Float(y), two.x - Float(cx) - 3, n2))
+        // (Nov 13, the grab: a jump, then jump pressed again in the air)
+        func grab(_ wall: Int, push: Bool) -> (V3, Int) {
+            lane()
+            for x in 3...11 { for z in -2...2 { for dy in 0..<wall { put(cx + x, y + dy, cz + z, STONE) } } }
+            p.flying = false; p.vel = .zero; p.clamber = nil; p.yaw = -Float.pi / 2; p.moveYaw = nil; p.moveLook = nil
+            p.pos = V3(Float(cx) + 2.0, Float(y), Float(cz) + 0.5)                  // (half a block short of the wall)
+            for _ in 0..<20 { p.update(dt: 1.0 / 72, input: MoveInput(), world: w) }
+            let n0 = Player.grabs
+            var inp = MoveInput(); inp.forward = push ? 1 : 0; inp.jump = true
+            for _ in 0..<5 { p.update(dt: 1.0 / 72, input: inp, world: w) }
+            inp.jump = false
+            for _ in 0..<10 { p.update(dt: 1.0 / 72, input: inp, world: w) }
+            inp.jump = true
+            for _ in 0..<3 { p.update(dt: 1.0 / 72, input: inp, world: w) }
+            inp.jump = false
+            for _ in 0..<72 { p.update(dt: 1.0 / 72, input: inp, world: w) }
+            return (p.pos, Player.grabs - n0)
+        }
+        let (g3, ng3) = grab(3, push: true), (g3s, ng3s) = grab(3, push: false), (g4, ng4) = grab(4, push: true)
+        check(g3.y >= Float(y) + 2.95 && g3.x > Float(cx) + 3.2 && ng3 == 1 && g3s.y >= Float(y) + 2.95 && ng3s == 1 && g4.y < Float(y) + 0.5 && ng4 == 0,
+              String(format: "clamber: a jump and a second press of jump in the air takes him onto a wall three high (feet %.2f, %d grabs; stick let go %.2f, %d), not one four high (%.2f, %d)",
+                     g3.y - Float(y), ng3, g3s.y - Float(y), ng3s, g4.y - Float(y), ng4))
         let (three, _) = run(3, roof: false)
         let (roofed, _) = run(2, roof: true)
         check(three.y < Float(y) + 0.5 && roofed.y < Float(y) + 0.5,

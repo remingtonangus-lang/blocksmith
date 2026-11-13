@@ -34,37 +34,46 @@ enum Structure {
         // (Nov 13, StructureFlow: what a block of it bears pressed straight down before it crushes, in weight units;
         // 0 = its bond times `crushK`)
         var crush: Float = 0
-        var crushCap: Float { crush > 0 ? crush : bond * Structure.crushK }
+        var crushCap: Float { (crush > 0 ? crush : bond * Structure.crushK) * Structure.crushScale }
     }
     static let crushK: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSHK"] ?? "") ?? 3
+    // (BS_CRUSH=0.5: every material's crushing strength times that, to try in the checks)
+    static var crushScale: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSH"] ?? "") ?? 1
     // (BS_MATS="planks=6/60/5,concrete=24/400/10": a material's numbers for this run, to try others in the checks)
-    static func mat(_ name: String, _ weight: Float, _ bond: Float, _ reach: Int) -> Mat {
+    static func mat(_ name: String, _ weight: Float, _ bond: Float, _ reach: Int, crush: Float = 0) -> Mat {
         for e in (ProcessInfo.processInfo.environment["BS_MATS"] ?? "").split(separator: ",") {
             let kv = e.split(separator: "="), v = kv.count == 2 ? kv[1].split(separator: "/") : []
             if kv.first.map(String.init) == name, v.count == 3, let a = Float(v[0]), let b = Float(v[1]), let c = Int(v[2]) { return Mat(weight: a, bond: b, reach: c) }
         }
-        return Mat(weight: weight, bond: bond, reach: reach)
+        return Mat(weight: weight, bond: bond, reach: reach, crush: crush)
     }
     // BS_LOAD=0: no load checks (before/after).
     static let enabled = ProcessInfo.processInfo.environment["BS_LOAD"] != "0"
 
+    // (Nov 13, StructureFlow) crush: what a block bears pressed straight down, in the same units. Every material bears
+    // far more pressed than hung (masonry sixty times its bond in the real thing; here enough for a wall of it 240
+    // high, a timber frame 100, packed earth 25), so a sound building never crushes its own footings; what brings a
+    // big one down is too little left under too much: a storey shot out to a few columns.
+    // (Concrete and steel are held to a wall of themselves some 300 high, well under the real thing: on the real
+    // numbers three concrete posts carried the whole top of a gutted citadel tower, his Nov 12 18:28 note.)
     // (1) Weight is tenths of a tonne per block (a block is a cubic metre: the material's density in g/cm3 x 10). Bond is
     // in the same units: what one face joint carries hanging or reaching out. Reach is in blocks.
-    static let wool = mat("wool", 1, 30, 2)         // felted fibre, 0.1 t/m3: light, so it carries thirty of itself; two blocks out and it sags off
-    static let glass = mat("glass", 25, 120, 1)      // 2.5 t/m3, brittle: carries a lintel's share in its frame, but reaches one block out from it
-    static let framed = mat("framed", 25, 2000, 1)  // a modern window: laminated panes in a steel frame tied into the walls, carrying the floor over it
-    static let soil = mat("soil", 16, 5, 1)         // dirt, clay, snow packed by hand: crumbles at an overhang
-    static let snow = mat("snow", 4, 20, 4)         // snow blocks: 0.4 t/m3, cut and packed hard: an igloo's dome closes over its room
-    static let planks = mat("planks", 6, 200, 8)      // sawn softwood 0.6 t/m3; boards nailed and lapped carry thirty of themselves
-    static let logs = mat("logs", 8, 800, 10)       // whole timber 0.8 t/m3 green: a jointed beam, seven times the boards (a frame's posts and beams)
-    static let stone = mat("stone", 25, 1500, 5)     // 2.5 t/m3 dressed masonry; mortar and bond (1.5 MPa over a square metre) hold
+    static let wool = mat("wool", 1, 30, 2, crush: 200)         // felted fibre, 0.1 t/m3: light, so it carries thirty of itself; two blocks out and it sags off
+    static let glass = mat("glass", 25, 120, 1, crush: 1500)      // 2.5 t/m3, brittle: carries a lintel's share in its frame, but reaches one block out from it
+    static let framed = mat("framed", 25, 2000, 1, crush: 3000)  // a modern window: laminated panes in a steel frame tied into the walls, carrying the floor over it
+    static let soil = mat("soil", 16, 5, 1, crush: 400)         // dirt, clay, snow packed by hand: crumbles at an overhang
+    static let snow = mat("snow", 4, 20, 4, crush: 150)         // snow blocks: 0.4 t/m3, cut and packed hard: an igloo's dome closes over its room
+    static let planks = mat("planks", 6, 200, 8, crush: 800)      // sawn softwood 0.6 t/m3; boards nailed and lapped carry thirty of themselves
+    static let logs = mat("logs", 8, 800, 10, crush: 3000)       // whole timber 0.8 t/m3 green: a jointed beam, seven times the boards (a frame's posts and beams)
+    static let stone = mat("stone", 25, 1500, 5, crush: 6000)     // 2.5 t/m3 dressed masonry; mortar and bond (1.5 MPa over a square metre) hold
                                                       // sixty of itself, and a course corbels or vaults five out
-    static let ice = mat("ice", 9, 30, 2)
-    static let mushroom = mat("mushroom", 2, 100, 8)    // a giant mushroom's cap: light, fibrous flesh spreading wide off its stem
-    static let concrete = mat("concrete", 24, 10000, 24) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
-    static let metal = mat("metal", 78, 12000, 8)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
-    static let titanium = mat("titanium", 45, 15000, 10) // 4.5 t/m3, stronger still for its weight
-    static let gold = mat("gold", 193, 300, 3)      // 19.3 t/m3 and soft: heavy and weak for a metal
+    static let ice = mat("ice", 9, 30, 2, crush: 300)
+    static let mushroom = mat("mushroom", 2, 100, 8, crush: 300)    // a giant mushroom's cap: light, fibrous flesh spreading wide off its stem
+    static let concrete = mat("concrete", 24, 10000, 24, crush: 7500) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
+    static let metal = mat("metal", 78, 12000, 8, crush: 20000)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
+    static let plate = mat("plate", 16, 12000, 8, crush: 20000)     // steel sheet on a frame: a deck, a catwalk, a rail
+    static let titanium = mat("titanium", 45, 15000, 10, crush: 20000) // 4.5 t/m3, stronger still for its weight
+    static let gold = mat("gold", 193, 300, 3, crush: 3000)      // 19.3 t/m3 and soft: heavy and weak for a metal
 
     // Per block state: its material, or nil when it is not part of a structure.
     // (a slab weighs half a block, stairs three quarters: a block's weight is its material's times how much of the cell
@@ -83,6 +92,10 @@ enum Structure {
         let k = Blocks.key(Blocks.groupBase[i])
         if k.hasSuffix("mushroom_block") { return mushroom }
         if k == "diamond_block" { return titanium }
+        // (Nov 13: plating, grating and railing are sheet on a frame, a fifth of the solid metal's weight with its
+        // strength: counted solid, the Boreal tower's helipad deck, 344 plates, was 2.5 times what its struts carry
+        // when the station was weighed whole in a field world. BS_MATS="plate=78/12000/8" for before.)
+        if k.contains("plating") || k.contains("grating") || k.contains("railing") { return plate }
         if k.hasPrefix("steel_") { return metal }
         if k.hasPrefix("capital_") || k.hasPrefix("bunker_") || k.contains("armored_glass") { if soundMat(b) == .glass { return framed } }
         if (k.hasPrefix("capital_") || k.hasPrefix("bunker_") || k.contains("concrete") || k.hasPrefix("light_panel")) && soundMat(b) != .glass { return concrete }   // (a light panel is cast into its slab)
@@ -156,6 +169,25 @@ enum Structure {
     static var tally: [String: Int]? = nil      // (harness: what queued the checks, old -> new)
     static let snowLoad = ProcessInfo.processInfo.environment["BS_SNOWLOAD"] == "1"     // (P508 before/after: snow queues checks)
 
+    // Nov 13 (the Boreal station weighed whole in a field world: its round tower and a mast, 394 blocks, "would come
+    // down": they stand on the snow blocks the generator left lying on the ground there, and a natural block that is
+    // not garden soil counted as a building block, snow with a tenth of soil's strength. In a block world the same
+    // snow is ground.) In a field world a natural block lying on the ground, the ground right under it or under one
+    // more natural block, is ground too: a drift, a boulder, a dune's top layer. Higher up it stays what it was.
+    // BS_OLDLYINGNATURAL=1: a building block wherever it lies, as before.
+    static let lyingNatural = ProcessInfo.processInfo.environment["BS_OLDLYINGNATURAL"] != "1"
+    @inline(__always) static func lies(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard lyingNatural else { return false }
+        if w.groundAt(x, y - 1, z) { return true }
+        let b = w.builtBlock(x, y - 1, z)
+        return b != AIR && SmoothTerrain.natural[Int(b)] && w.groundAt(x, y - 2, z)
+    }
+    @inline(__always) static func lies(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard lyingNatural else { return false }
+        if k.ground(x, y - 1, z) { return true }
+        let b = k.built(x, y - 1, z)
+        return b != AIR && SmoothTerrain.natural[Int(b)] && k.ground(x, y - 2, z)
+    }
     // Is the cell ground or something a structure stands on (not part of one)?
     @inline(__always) static func anchor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         if y <= 0 { return true }
@@ -165,19 +197,19 @@ enum Structure {
         if Blocks.isLiquid(b) { return true }                                                   // (a raft floats)
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }                // bedrock, barriers
         // a block world's terrain; in a field world, soil a structure laid on its floor (a garden: FieldTerrain.split)
-        return SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)])
+        return SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(w, x, y, z))
     }
     @inline(__always) static func part(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Mat? {
         let b = w.builtBlock(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
-        if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
+        if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(w, x, y, z)) { return nil }
         return m
     }
     // (the same two through a chunk cursor: the fills below, CellSet.swift)
     @inline(__always) static func part(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Mat? {
         let b = k.built(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
-        if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
+        if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(&k, x, y, z)) { return nil }
         return m
     }
     @inline(__always) static func anchor(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -187,7 +219,7 @@ enum Structure {
         if b == AIR { return false }
         if Blocks.isLiquid(b) { return true }
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }
-        return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)])
+        return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(&k, x, y, z))
     }
 
     // (the fill's index of each cell near the check, a box `gridR` round it, reused: a dictionary costs ten times as much)
@@ -539,7 +571,10 @@ enum Structure {
                 checks += 1
                 let cut = r.capped ? looseAll(w, near: s) : []
                 if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
-                else if !r.falls.isEmpty { drop(g, r.falls) }
+                // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame.
+                // What this check would drop waits for that, StructureCollapse.hold.)
+                else if !r.falls.isEmpty { if !(r.capped && StructureCollapse.hold(w, at: s)) { drop(g, r.falls) } }
+                if r.capped && cut.isEmpty { StructureCollapse.request(w, at: s) }
             }
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             worstMs = max(worstMs, ms); totalMs += ms
@@ -648,12 +683,14 @@ enum Structure {
         w.editBatch {                                  // (ledger 44: one remesh for all the crumbs)
             for c in cells {
                 let b = w.builtBlock(c.x, c.y, c.z)
-                guard member[Int(b)] else { continue }
+                // (Nov 13: a cube of garden soil or its hedge, handed over by a whole weigh, falls too)
+                guard member[Int(b)] || (w.fieldTerrain && b != AIR && ((SmoothTerrain.natural[Int(b)] && FieldTerrain.gardenSoil[Int(b)]) || CapitalBase.isLeaf(b))) else { continue }
                 w.setBlock(c.x, c.y, c.z, AIR)
                 g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
                 crumbN += 1
             }
         }
+        GroundCollapse.builtGone(w, cells)                 // (Nov 13: ground that lay on them)
         if let c = cells.first {
             let b = g.falling.last?.block ?? STONE
             g.sfx(.place(soundMat(b)), 1, at: V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5))
@@ -811,7 +848,11 @@ enum Structure {
 extension World {
     // P388 (2): a structural block placed or taken away: the piece round it is checked (Structure.tick), once per 4-cube.
     @inline(__always) func queueLoadCheck(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
-        guard Structure.enabled, frame == nil, !restoring, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
+        guard Structure.enabled, frame == nil, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
+        if lyingBodies > 0 { ships.rouseLying(at: x, y, z) }      // (Nov 13: a fallen piece lying against it)
+        // (Nov 13, StructureCollapse: a piece being read whole starts over when one of its blocks changes)
+        if StructureCollapse.tracking { if structChanged.count < 512 { structChanged.append(IVec3(x, y, z)) } else { structFlood = true } }
+        guard !restoring else { return }
         // (one state of a block for another of the same material carries the same load: a door opening, a lamp lit)
         if let a = Structure.table[Int(old)], let b = Structure.table[Int(new)], a.weight == b.weight && a.bond == b.bond && a.reach == b.reach { return }
         // P416 (Oct 23, the Greywall base: 20 checks a second with nobody building): grass dying back to dirt under
@@ -837,8 +878,14 @@ extension World {
             }
             if !touches { Structure.skippedGround += 1; return }
         }
+        structLoud &+= 1                                     // (a change a check is queued for: StructureCollapse's quiet)
         let key = IVec3(floorDiv(x, 4), floorDiv(y, 4), floorDiv(z, 4))
         if Structure.tally != nil { Structure.tally![Blocks.key(old) + " -> " + Blocks.key(new), default: 0] += 1 }
         if loadQueued.insert(key).inserted { loadQueue.append(IVec3(x, y, z)) }
+    }
+    // (a check held for the whole weigh, StructureCollapse.hold, run again)
+    func requeueLoadCheck(_ p: IVec3) {
+        guard Structure.enabled, frame == nil else { return }
+        if loadQueued.insert(IVec3(floorDiv(p.x, 4), floorDiv(p.y, 4), floorDiv(p.z, 4))).inserted { loadQueue.append(p) }
     }
 }

@@ -152,8 +152,9 @@ extension Structure {
         let only: Set<String>? = arg("--kinds").map { Set($0.split(separator: ",").map(String.init)) }
         let t0 = CFAbsoluteTimeGetCurrent()
         var byKind: [String: (n: Int, pieces: Int, blocks: Int, falls: Int, held: Int, at: [String])] = [:]
-        // (BS_FLOW=1, Nov 13: each piece of 30 blocks or more weighed whole as well (StructureFlow): the weakest of each kind)
-        let flowOn = ProcessInfo.processInfo.environment["BS_FLOW"] == "1"
+        // (Nov 13: each piece of 30 blocks or more is weighed whole as well (StructureFlow, what brings a big structure down in play): none may fail as generated; the weakest of each kind is printed. BS_FLOW=0: without)
+        let flowOn = ProcessInfo.processInfo.environment["BS_FLOW"] != "0"
+        var flowFails = 0
         var flowMin: [String: (sf: Float, at: String, pieces: Int, fails: Int, ms: Double, biggest: Int)] = [:]
         for seed in seeds {
             let world = World(seed: seed, device: device, save: nil, dim: .overworld)
@@ -195,7 +196,45 @@ extension Structure {
                             let sf = fr.falls.isEmpty ? StructureFlow.safety(piece) : 0
                             var fm = flowMin[name] ?? (Float.infinity, "", 0, 0, 0, 0)
                             fm.pieces += 1; fm.ms = max(fm.ms, fr.ms); fm.biggest = max(fm.biggest, fr.blocks)
-                            if !fr.falls.isEmpty { fm.fails += 1 }
+                            if !fr.falls.isEmpty { fm.fails += 1; flowFails += fr.falls.count }
+                            if !fr.falls.isEmpty {
+                                // (what would come down: where, and of what)
+                                var lo2 = IVec3(Int.max, Int.max, Int.max), hi2 = IVec3(Int.min, Int.min, Int.min)
+                                var kinds: [String: Int] = [:]
+                                for i in fr.falls {
+                                    let c = piece.cells[i]
+                                    lo2 = IVec3(min(lo2.x, c.x), min(lo2.y, c.y), min(lo2.z, c.z)); hi2 = IVec3(max(hi2.x, c.x), max(hi2.y, c.y), max(hi2.z, c.z))
+                                    kinds[Blocks.key(world.builtBlock(c.x, c.y, c.z)), default: 0] += 1
+                                }
+                                let top = kinds.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+                                print("  \(name) seed \(seed): \(fr.falls.count) of \(fr.blocks) blocks would come down, x \(lo2.x)..\(hi2.x) y \(lo2.y - YOFF)..\(hi2.y - YOFF) z \(lo2.z)..\(hi2.z), unrouted \(Int(fr.unrouted)) of \(Int(fr.weight)): \(top)")
+                                // (what it hangs on: each joint from a falling block to one that stays, by direction and the staying block; then its plan and its levels)
+                                let fell = Set(fr.falls.map { piece.cells[$0] })
+                                var joints: [String: Int] = [:], levels: [Int: Int] = [:]
+                                for c in fell {
+                                    levels[c.y - YOFF, default: 0] += 1
+                                    for d in Structure.nbrs {
+                                        let o = c + d
+                                        guard !fell.contains(o) else { continue }
+                                        let dir = d.y < 0 ? (d.x == 0 && d.z == 0 ? "on" : "on-edge") : (d.y > 0 ? (d.x == 0 && d.z == 0 ? "under" : "under-edge") : (abs(d.x) + abs(d.z) == 1 ? "beside" : "corner"))
+                                        if Structure.part(world, o.x, o.y, o.z) != nil { joints["\(dir) \(Blocks.key(world.builtBlock(o.x, o.y, o.z)))", default: 0] += 1 }
+                                        else if Structure.anchor(world, o.x, o.y, o.z) { joints["\(dir) GROUND", default: 0] += 1 }
+                                    }
+                                }
+                                print("    joints to what stays: " + joints.sorted { $0.value > $1.value }.prefix(14).map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+                                print("    levels: " + levels.sorted { $0.key < $1.key }.map { "\($0.key):\($0.value)" }.joined(separator: " "))
+                                if hi2.x - lo2.x < 100 && hi2.z - lo2.z < 60 {
+                                    for z in lo2.z...hi2.z {
+                                        var line = "    "
+                                        for x in lo2.x...hi2.x {
+                                            var n = 0
+                                            for y in lo2.y...hi2.y where fell.contains(IVec3(x, y, z)) { n += 1 }
+                                            line += n == 0 ? "." : (n < 10 ? String(n) : "#")
+                                        }
+                                        print(line)
+                                    }
+                                }
+                            }
                             if sf < fm.sf {
                                 fm.sf = sf
                                 let c = fr.falls.first.map { piece.cells[$0] } ?? q
@@ -226,6 +265,7 @@ extension Structure {
             }
         }
         print(String(format: "loadcheck: %d blocks would fall in %.1f s (%@ world)", total, CFAbsoluteTimeGetCurrent() - t0, FieldTerrain.unsaved ? "field" : "block"))
-        return total > 0 ? 2 : 0
+        if flowFails > 0 { print("loadcheck: weighed whole, \(flowFails) blocks of generated structures would come down (StructureFlow)") }
+        return total + flowFails > 0 ? 2 : 0
     }
 }

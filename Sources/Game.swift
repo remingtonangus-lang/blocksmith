@@ -469,6 +469,7 @@ final class Game: LifeLinked {
     var useRepeatItem = -1
     var padHotbarScroll = true          // bumpers scroll the hotbar (the Quest picks slots by pointing instead)
     private var lastSpaceTap: Double = -1
+    private var flyTapAt: Double = -1         // (the tick of a double-tapped jump: the fly toggle waits for the player's update)
     var clock: Double = 0            // (settable: the deep-war checks step it without a full tick)
     var toastText = ""
     static func toastLife(_ t: String) -> Double { min(9, 2.2 + Double(max(0, t.count - 30)) * 0.06) }   // P209: time to read it
@@ -1270,7 +1271,7 @@ final class Game: LifeLinked {
             let hasElytra = !chest.isEmpty && Items.key(chest.item) == "elytra"      // (never now: converted above)
             if hasElytra && !player.onGround && !player.flying && !player.inWater && !player.gliding {
                 player.gliding = true
-            } else if clock - lastSpaceTap < 0.3 && !input.rightDown && placeCooldown < -0.4 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }
+            } else if clock - lastSpaceTap < 0.3 && !input.rightDown && placeCooldown < -0.4 { if riding != nil { toggleFly() } else { flyTapAt = clock }; lastSpaceTap = -1 } else { lastSpaceTap = clock }      // (Nov 13: the toggle waits for the player's update: a ledge in reach is grabbed instead, Clamber.swift)
         }
         if player.gliding {
             // Glider Wings wear: 1 durability per second of flight; breaks at 1 left like the reference game.
@@ -1336,6 +1337,7 @@ final class Game: LifeLinked {
             player.autoJump = autoJump
             jetpackTick(fdt, mi)
             shipPlayerUpdate(fdt, mi)
+            if flyTapAt == clock { flyTapAt = -1; if player.clamber == nil { toggleFly() } }
             powderSnowTick(fdt)
             vibrationTick(fdt)
         }
@@ -3527,6 +3529,8 @@ final class Game: LifeLinked {
         TickProf.mark("structure load")
         StructureTip.tick(self)                                // P503: a piece shot out from under it tips
         TickProf.mark("structure tip")
+        StructureCollapse.tick(self)                           // Nov 13: a piece too big for those, weighed whole
+        TickProf.mark("structure collapse")
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0

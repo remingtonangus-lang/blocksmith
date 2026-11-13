@@ -513,6 +513,7 @@ extension ShipManager {
 
     // Removes a blast's destroyed cells from ship s (drops, counts, remesh; a free ship is pushed, rebuilt and split).
     func removeCells(_ s: Ship, _ destroyed: Set<IVec3>, chipped: [IVec3], center c: V3, power: Float, game: Game?, detach: Bool = true) {
+        if !s.kinematic && (s.lying || world.lyingBodies > 0) { stir(s) }      // (Nov 13: a lying piece blasted, or one under others)
         let g = s.grid
         let kinds = ShipParts.kinds
         for cell in destroyed {

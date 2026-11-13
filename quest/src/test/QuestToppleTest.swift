@@ -104,6 +104,74 @@ enum QuestToppleTest {
             print("toppletest: two stacks in the air cut apart by one block: \(low) of the lower, \(high) of the upper still stand")
             if low + high > 0 { print("FAIL toppletest: a piece cut loose with another hangs in the air (\(low), \(high))"); fails += 1 }
         }
+        // (c) Nov 13 (his note 13:05:46, "all the wire despawned when it fell"): a 5x5 brick platform in the air with
+        // copper wire laid over it, cut loose: the wire rides it down.
+        // (BS_OLDRIDERS=1: they are left in the air and pop off.)
+        do {
+            let sx = -4940, sz = 2300
+            var base = 0
+            for dz in -2...2 { for dx in -2...2 { base = max(base, top(sx + dx, sz + dz) + 1) } }
+            base += 30
+            let wire = Blocks.id("redstone_wire")
+            w.restoring = true
+            for dz in -2...2 { for dx in -2...2 { w.setBlock(sx + dx, base, sz + dz, brick); w.setBlock(sx + dx, base + 1, sz + dz, wire) } }
+            w.setBlock(sx, base - 1, sz, brick)
+            w.restoring = false
+            let r0 = Game.ridersTaken
+            w.setBlock(sx, base - 1, sz, AIR)
+            for _ in 0..<60 { g.tick(1.0 / 72) }
+            var left = 0, slab = 0
+            for dz in -2...2 { for dx in -2...2 {
+                if w.block(sx + dx, base + 1, sz + dz) != AIR { left += 1 }
+                if w.builtBlock(sx + dx, base, sz + dz) == brick { slab += 1 }
+            } }
+            let rode = Game.ridersTaken - r0
+            print("toppletest: a wired platform cut loose: \(slab) of 25 slab blocks still up, \(left) of its 25 wires left in the air, \(rode) rode it down")
+            if slab > 0 || left > 0 || rode < 25 { print("FAIL toppletest: wire on a falling platform is left behind (\(slab), \(left), \(rode))"); fails += 1 }
+        }
+        // Nov 13 (the physics revamp; his shelled citadel at Beach -2902 79 2601: "even though it's still technically
+        // connected, this wouldn't realistically be able to sustain that much weight"): two 8x8 brick towers 40 high over the slope,
+        // each with a storey taken out but for its middle: four columns left under one (too few for what stands on
+        // them: the top comes down), sixteen under the other (enough: it stands, weighed all the same).
+        // (BS_COLLAPSE=0: both stand, as before.)
+        do {
+            func tower(_ cx: Int, _ cz: Int, keep: Int) -> (Int, () -> Int) {
+                // (the storey shot out lies over the slope round the tower: above it nothing leans on the hill)
+                var base = 0
+                for dz in -7...6 { for dx in -7...6 { base = max(base, top(cx + dx, cz + dz) + 1) } }
+                w.restoring = true
+                for dz in -4...3 { for dx in -4...3 { for y in (top(cx + dx, cz + dz) + 1)...(base + 40) { w.setBlock(cx + dx, y, cz + dz, brick) } } }
+                w.restoring = false
+                let cut = base + 5
+                // (the storey shot out, as changes: their checks stop at the fill's bound and ask for the whole piece)
+                // (eight high: the corners the check near the change drops land on the storey's floor, and a storey two
+                // high was filled by them and stood on its own rubble)
+                for y in cut...(cut + 7) { for dz in -4...3 { for dx in -4...3 {
+                    let inside = dx >= -keep && dx < keep && dz >= -keep && dz < keep
+                    if !inside { w.setBlock(cx + dx, y, cz + dz, AIR) }
+                } } }
+                return (cut, { var n = 0; for y in (cut + 8)...(base + 40) { for dz in -4...3 { for dx in -4...3 where w.builtBlock(cx + dx, y, cz + dz) == brick { n += 1 } } }; return n })
+            }
+            let w0 = StructureCollapse.weighed, b0 = StructureCollapse.bodies
+            let (_, weakUp) = tower(-4962, 2245, keep: 1)
+            let weakAll = weakUp()
+            for t in 0..<720 { g.menu = nil; g.tick(1.0 / 72); if StructureCollapse.withWorker { usleep(2000) }; if t > 150 && !StructureCollapse.busy && w.loadQueue.isEmpty && StructureCollapse.weighed > w0 { break } }
+            let weakLeft = weakUp(), weakBodies = StructureCollapse.bodies - b0
+            let w1 = StructureCollapse.weighed
+            let (_, soundUp) = tower(-4962, 2275, keep: 2)
+            let soundAll = soundUp()
+            for t in 0..<720 { g.menu = nil; g.tick(1.0 / 72); if StructureCollapse.withWorker { usleep(2000) }; if t > 150 && !StructureCollapse.busy && w.loadQueue.isEmpty && StructureCollapse.weighed > w1 { break } }
+            let soundLeft = soundUp()
+            print(String(format: "toppletest: a storey shot out under an 8x8 tower: on four columns %d of %d blocks above still stand (%d bodies fell); on sixteen %d of %d (asked %d times, weighed whole %d times, %d blocks, read %.1f ms in slices of %.2f ms at most, weighed %.1f ms)",
+                         weakLeft, weakAll, weakBodies, soundLeft, soundAll, StructureCollapse.asked, StructureCollapse.weighed - w0, StructureCollapse.lastBlocks,
+                         StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs, StructureCollapse.lastSolveMs))
+            if StructureCollapse.enabled {
+                if weakLeft > 0 { print("FAIL toppletest: a tower's top stands on four columns that cannot carry it (\(weakLeft) blocks)"); fails += 1 }
+                // (the check near the change takes the corners past the bricks' reach off both towers)
+                if soundAll - soundLeft > 64 { print("FAIL toppletest: a tower on sixteen columns that carry it lost \(soundAll - soundLeft) blocks"); fails += 1 }
+                if StructureCollapse.weighed - w1 < 1 { print("FAIL toppletest: the tower on sixteen columns was never weighed whole"); fails += 1 }
+            }
+        }
         // The birch, 10 blocks west, on a one-block plinth of planks.
         let log = Blocks.id("birch_log"), leaf = Blocks.id("birch_leaves"), plank = Blocks.id("birch_planks")
         let bx = -4932, bz = 2260, by = top(bx, bz) + 1

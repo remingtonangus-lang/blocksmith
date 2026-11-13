@@ -62,6 +62,29 @@ enum GroundCollapse {
     private static var waited = 0
     static var worstMs = 0.0, worstWhat = ""         // (perf scenes: the slowest check and what it walked)
 
+    // Nov 13 (his answer to #716: "everything collapses... procedural shit has to obey physics too"; seen in his
+    // shelled citadel: the roof garden, 110 blocks up, hung in the air as a ring of soil after the tower under it came
+    // down, the tower's roof lying on it). A garden a structure laid is ground of the field, and ground was checked
+    // only round a carve. Built blocks taken out from under ground (a piece of a structure toppled, loose blocks
+    // dropped) now queue the check there, and ground lying on a built block counts as held, so a garden stays on a
+    // roof that stands and comes down with one that falls.
+    static let onBuilt = ProcessInfo.processInfo.environment["BS_OLDROOFGROUND"] != "1"
+    static var queuedUnder = 0
+    static func builtGone(_ w: World, _ cells: [IVec3]) {
+        guard onBuilt, w.fieldTerrain else { return }
+        var spots = Set<IVec3>()
+        for c in cells {
+            let up = IVec3(c.x, c.y + 1, c.z)
+            guard StructureFlow.soil(w, up) else { continue }
+            if spots.insert(IVec3(floorDiv(up.x, 6), floorDiv(up.y, 6), floorDiv(up.z, 6))).inserted {
+                if w.isGround(up) { w.collapseQueue.append((up, 3)) }
+                queuedUnder += 1
+                StructureCollapse.request(w, at: up, ground: true)     // (and weighed with what stands on it)
+                if spots.count >= 24 { break }
+            }
+        }
+    }
+
     static func tick(_ g: Game) {
         let w = g.world
         guard w.fieldTerrain, !w.collapseQueue.isEmpty else { return }
@@ -107,6 +130,9 @@ enum GroundCollapse {
                 // (a piece past 1,500 cells, or one reaching past the box, may still be loose: P380 (4))
                 if cells.count > maxCells || abs(c.x - p.x) >= reach || abs(c.y - p.y) >= reach || abs(c.z - p.z) >= reach { big = true; break }
                 if c.y <= 1 || !w.isLoaded(c.x, c.z) { held = true; break }
+                // (Nov 13: ground lying on a built block is held by it: a roof garden on its roof. Before, a carve
+                // beside one dropped the garden off a sound roof. BS_OLDROOFGROUND=1.)
+                if GroundCollapse.onBuilt && Structure.part(w, c.x, c.y - 1, c.z) != nil { held = true; break }
                 for e in World.allDirs {
                     let n = c + e
                     if share && heldSet.contains(n) { held = true; break fill }      // (ledger 41: joined to held ground)
@@ -144,6 +170,7 @@ enum GroundCollapse {
     // A loose piece leaves the field and falls apart into its rock.
     static func drop(_ g: Game, _ cells: [IVec3]) {
         let w = g.world
+        if w.lyingBodies > 0 { for i in stride(from: 0, to: cells.count, by: 3) { w.ships.rouseLying(at: cells[i].x, cells[i].y, cells[i].z) } }   // (Nov 13: fallen pieces lying on it)
         var lo = SIMD3<Int>(repeating: Int.max), hi = SIMD3<Int>(repeating: Int.min)
         var mats: [BlockID: Int] = [:]
         for c in cells {

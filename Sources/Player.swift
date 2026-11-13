@@ -20,6 +20,7 @@ final class Player {
     var hyperFlight = false         // P478: creative flight with the right stick held in, ten times fast flight (Quest)
     var onGround = false
     var clamber: (t: Float, from: V3, to: V3)? = nil     // P511: pulling himself up over a ledge (Clamber.swift)
+    var clamberDur: Float = 0.45, jumpWas = false, lastWish = V3(0, 0, 0), lastFacing = V3(0, 0, -1)   // (Clamber.swift: the grab)
     var clamberBase: Float = 0      // feet y where he last stood: a mid-air clamber reaches no higher than one from there
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn eye (ViewStep.swift)
     var steadyY: Float?                             // Steady Saddle: the eased height of the saddle (ViewStep.swift)
@@ -374,7 +375,7 @@ final class Player {
         jumped = false
         if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
-        if onGround || flying || inFluid { clamberBase = pos.y }
+        if onGround || flying || inFluid || jetThrust || levitate > 0 { clamberBase = pos.y }
         if clamber != nil { stepClamber(dt, w); return }       // P511
 
         sneaking = (input.sneak || forcedCrouch || ducking) && !flying && !prone
@@ -394,6 +395,10 @@ final class Player {
         let len = simd_length(wish)
         if len > 1 || (vrSprint && len > 1e-3) { wish /= len }
         // P511: jump pushing into a ledge too high to jump onto: he pulls himself up over it (Clamber.swift).
+        lastWish = wish; lastFacing = fh
+        let jumpPress = input.jump && !jumpWas
+        jumpWas = input.jump
+        if jumpPress && !sneaking && tryGrab(w) { stepClamber(dt, w); return }        // (Nov 13: the second press in the air)
         if input.jump && !flying && !inFluid && !sneaking && !prone && levitate <= 0 && !jetThrust && len > 0.3
             && (onGround || vel.y < 7), startClamber(wish, w) { stepClamber(dt, w); return }
 

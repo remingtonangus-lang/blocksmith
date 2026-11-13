@@ -410,25 +410,100 @@ extension ShipManager {
         return nil
     }
 
+    static let fallenGunsFall = ProcessInfo.processInfo.environment["BS_OLDFALLENGUN"] != "1"
+    // Nov 13 (the physics revamp: a citadel's top comes down as some fifty bodies, and each one lying in the rubble
+    // went on costing its ground contacts and a look at every other body, every step, for good). A fallen piece
+    // (toppled structure, felled tree) that has lain still on something for 1.5 s lies: no forces, no ground contacts,
+    // no contacts with others lying. It is up again when something moves it (a body landing on it, a blast, a hand),
+    // when a block changes beside it (World.queueLoadCheck), with the bodies touching one that got up, and for a
+    // moment every few seconds. BS_LYING=0: simulated for good, as before.
+    static let lieDown = ProcessInfo.processInfo.environment["BS_LYING"] != "0"
+    static var lieProbe: Float = 3
+    // (its own blocks changed, a neighbour gone, a hull it lay on under way: up, with what lies against it)
+    func stir(_ s: Ship) {
+        s.stillT = 0
+        if s.lying { rouse(s, probe: false) } else { stirBeside(s) }
+    }
+    func stirBeside(_ s: Ship) {
+        guard world.lyingBodies > 0 else { return }
+        for o in list where o.lying && o !== s {
+            if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
+                || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
+            o.lying = false; o.lyingT = 0; o.stillT = 1.0
+        }
+    }
+    func rouse(_ s: Ship, probe: Bool) {
+        guard s.lying else { return }
+        s.lying = false; s.lyingT = 0
+        s.stillT = probe ? 1.3 : 0
+        guard !probe else { return }
+        for o in list where o.lying && o !== s {
+            if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
+                || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
+            o.lying = false; o.lyingT = 0; o.stillT = 1.0
+        }
+    }
+    // (a structural block changed at p: what lies against it is up)
+    func rouseLying(at x: Int, _ y: Int, _ z: Int) {
+        let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+        for s in list where s.lying && p.x > s.worldMin.x - 2 && p.x < s.worldMax.x + 2 && p.y > s.worldMin.y - 2 && p.y < s.worldMax.y + 2
+            && p.z > s.worldMin.z - 2 && p.z < s.worldMax.z + 2 { s.lying = false; s.lyingT = 0; s.stillT = 1.0 }
+    }
     // One fixed physics substep for every ship.
     func step(_ h: Float) {
         var reader = ShipBlockReader(world)
+        lyingNow = 0
         for s in list where s.parent == nil {
             // Frozen while asleep (far from the player, or the ground under it isn't loaded).
-            if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; continue }    // (P507: a built gun stands)
-            if s.kinematic { continue }                // velocity and turn rate come from its AI
+            if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; if s.lying { lyingNow += 1 }; continue }    // (P507: a built gun stands)
+            if s.kinematic { s.lying = false; s.stillT = 0; continue }                // velocity and turn rate come from its AI
+            if s.lying {
+                // (pushed, struck or picked on: up again. And every `lieProbe` seconds for a moment, in case what it
+                // lay on is gone: it comes to rest again within a fifth of a second if not.)
+                s.lyingT += h
+                let moved = simd_length_squared(s.vel) > 0.04 || simd_length_squared(s.angVel) > 0.04
+                if moved { rouse(s, probe: false) }
+                else {
+                    // (a look, not a wake: its contacts are found once, below, and it is up only if it has none.
+                    // Simulated for a moment instead, each look shook the bodies it lay on awake: 15 of 40 lay.)
+                    if s.lyingT > ShipManager.lieProbe + Float(s.id % 16) * 0.1 { s.lyingT = 0; s.lookDue = true }
+                    lyingNow += 1; continue
+                }
+            }
             integrateForces(s, h, &reader)
         }
+        world.lyingBodies = lyingNow
         // Contacts: terrain and ship-ship (a sleeping ship can still be run into). Kinematic ships take none, and other
         // ships don't push against them (their AI holds them on course).
         for s in list where s.parent == nil && !s.kinematic && !s.emplacement {
             contactScratch.removeAll(keepingCapacity: true)
-            if !s.asleep { terrainContacts(s, &reader, &contactScratch) }
-            for o in list where o !== s && o.id < s.id && o.parent == nil && !o.kinematic && !(s.asleep && o.asleep) {
+            if s.lying && s.lookDue && !s.asleep {
+                s.lookDue = false
+                terrainContacts(s, &reader, &contactScratch)
+                if contactScratch.isEmpty {
+                    for o in list where o !== s && o.parent == nil && !o.kinematic {
+                        if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
+                            || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
+                        shipContacts(s, o, &contactScratch)
+                        shipContacts(o, s, &contactScratch, flip: true)
+                        if !contactScratch.isEmpty { break }
+                    }
+                }
+                if contactScratch.isEmpty { rouse(s, probe: false) }
+                contactScratch.removeAll(keepingCapacity: true)
+            }
+            if !s.asleep && !s.lying { terrainContacts(s, &reader, &contactScratch) }
+            for o in list where o !== s && o.id < s.id && o.parent == nil && !o.kinematic && !((s.asleep || s.lying) && (o.asleep || o.lying)) {
                 if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
                     || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
+                let had = contactScratch.count
                 shipContacts(s, o, &contactScratch)
                 shipContacts(o, s, &contactScratch, flip: true)
+                // (a log on a truck's bed, a piece on a deck: it does not lie on a hull that can drive off)
+                if contactScratch.count > had {
+                    if !o.fallenPiece { s.onHull = 2 }
+                    if !s.fallenPiece { o.onHull = 2 }
+                }
             }
             s.contacts = contactScratch.count
             if s.id == ShipManager.probeId { ShipManager.probeContacts = contactScratch.map { String(format: "(%.2f %.2f %.2f n %.1f %.1f %.1f d %.2f%@)", $0.p.x - s.pos.x, $0.p.y - s.pos.y, $0.p.z - s.pos.z, $0.n.x, $0.n.y, $0.n.z, $0.pen, $0.other == nil ? "" : " ship") } }
@@ -436,6 +511,20 @@ extension ShipManager {
         }
         for s in list where s.parent == nil {
             if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; continue }   // (P507: a built gun stands)
+            if s.lying {
+                // (a touch too light to move it is taken up; a real push gets it up next step)
+                if simd_length_squared(s.vel) > 0.04 || simd_length_squared(s.angVel) > 0.04 { rouse(s, probe: false) }
+                else { s.vel = .zero; s.angVel = .zero; continue }
+            } else if ShipManager.lieDown && !s.kinematic && s.fallenPiece {
+                if s.onHull > 0 { s.onHull -= 1 }
+                let quiet = s.contacts > 0 && s.onHull == 0 && simd_length_squared(s.vel) < 0.16 && simd_length_squared(s.angVel) < 0.0625
+                s.stillT = quiet ? s.stillT + h : 0
+                if s.stillT > 1.5 && !Felling.falls.contains(where: { $0.ship === s }) && Felling.carried !== s {
+                    s.lying = true; s.lyingT = 0; s.vel = .zero; s.angVel = .zero
+                    world.lyingBodies += 1
+                    continue
+                }
+            }
             // NaN quarantine (a degenerate contact or AI steer): a non-finite velocity is dropped, and a non-finite pose
             // goes back to the last good one. NaN reached Int(floor()) in the hull's world bounds and failed the ship save.
             let vOK: Bool = s.vel.x.isFinite && s.vel.y.isFinite && s.vel.z.isFinite
