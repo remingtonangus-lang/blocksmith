@@ -213,6 +213,7 @@ extension Game {
     // drawn with its own mesh the whole way (a tree keeps its leaf blobs and round trunk, a tower its walls), tipping
     // away from him. A tree takes its crown along and lies as a felled trunk once still; anything else lies where it lands.
     static let toppledName = "Toppled"
+    static var ridersTaken = 0                                // (checks)
     static let ridersOn = ProcessInfo.processInfo.environment["BS_OLDRIDERS"] != "1"
     static let rides: [Bool] = (0..<Blocks.count).map { i in
         let b = BlockID(i)
@@ -263,7 +264,8 @@ extension Game {
             let rides = Game.rides
             for c in cells {
                 let up = IVec3(c.x, c.y + 1, c.z)
-                if !body.contains(up), rides[Int(world.block(up.x, up.y, up.z))], seen.insert(up).inserted { riders.append(up) }
+                let ub = world.block(up.x, up.y, up.z)
+                if !body.contains(up), rides[Int(ub)] || CapitalBase.isLeaf(ub), seen.insert(up).inserted { riders.append(up) }      // (a hedge on a roof garden too)
                 for d in World.allDirs where d.y == 0 {
                     let q = c + d
                     guard !body.contains(q), rides[Int(world.block(q.x, q.y, q.z))] else { continue }
@@ -273,6 +275,7 @@ extension Game {
                 }
             }
         }
+        Game.ridersTaken += riders.count
         let bp = Blueprint()
         var lo = IVec3(Int.max, Int.max, Int.max)
         for c in leaves.union(cells).union(riders) {

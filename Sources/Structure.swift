@@ -683,7 +683,8 @@ enum Structure {
         w.editBatch {                                  // (ledger 44: one remesh for all the crumbs)
             for c in cells {
                 let b = w.builtBlock(c.x, c.y, c.z)
-                guard member[Int(b)] else { continue }
+                // (Nov 13: a cube of garden soil or its hedge, handed over by a whole weigh, falls too)
+                guard member[Int(b)] || (w.fieldTerrain && b != AIR && ((SmoothTerrain.natural[Int(b)] && FieldTerrain.gardenSoil[Int(b)]) || CapitalBase.isLeaf(b))) else { continue }
                 w.setBlock(c.x, c.y, c.z, AIR)
                 g.falling.append(FallingBlock(V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5), b))
                 crumbN += 1

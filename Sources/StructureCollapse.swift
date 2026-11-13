@@ -286,7 +286,7 @@ enum StructureCollapse {
             }
             let t0 = CFAbsoluteTimeGetCurrent()
             repeat {
-                let cells = o.parts[j.next].filter { Structure.part(w, $0.x, $0.y, $0.z) != nil }
+                let cells = o.parts[j.next].filter { Structure.part(w, $0.x, $0.y, $0.z) != nil || (w.fieldTerrain && !w.isGround($0) && StructureFlow.soil(w, $0)) }     // (garden soil cubes go with it)
                 // (thin ground weighed with the piece, StructureFlow.thin: it leaves the field as ground does)
                 if w.fieldTerrain {
                     let soil = o.parts[j.next].filter { w.isGround($0) }
@@ -324,10 +324,15 @@ enum StructureCollapse {
                 let soil = o.crumbs[j.crumb..<end].filter { w.isGround($0) }
                 if !soil.isEmpty { GroundCollapse.drop(g, Array(soil)); groundFell += soil.count }
             }
-            for c in o.crumbs[j.crumb..<end] where Structure.part(w, c.x, c.y, c.z) != nil {
+            // (a cube of garden soil weighed loose falls as a block, with the hedge on it: the ring of soil round the
+            // citadel tower's roof was found loose, 13 blocks, and left in the air, no part of a structure)
+            for c in o.crumbs[j.crumb..<end] {
+                let cube = w.fieldTerrain && !w.isGround(c) && StructureFlow.soil(w, c)
+                guard cube || Structure.part(w, c.x, c.y, c.z) != nil else { continue }
                 if let t = dropped[c], frameNo - t < dropMemory { leftLying += 1; continue }
                 dropped[c] = frameNo
                 cells.append(c)
+                if cube, CapitalBase.isLeaf(w.block(c.x, c.y + 1, c.z)) { cells.append(IVec3(c.x, c.y + 1, c.z)) }
             }
             if dropped.count > 4096 { dropped = dropped.filter { frameNo - $0.value < dropMemory } }
             j.crumb = end
