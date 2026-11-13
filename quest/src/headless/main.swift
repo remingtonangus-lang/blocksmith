@@ -2556,7 +2556,13 @@ if let out = arg("--hudshot") {
         game.menuHover = pm.slots.first { sl in if case .button(let i) = sl.kind { return pm.row(forSlot: i)?.1 == h }; return false }
         print("hudshot: hovering \(h): \(game.menuHover == nil ? "no such row" : "help \"" + pm.helpText + "\"")")
     }
-    let headsetPanel = ["drive", "aboard"].contains(arg("--menu") ?? "")
+    // (--headsetpanel: as the headset draws it: its 1024 x 640 panel, couch scale and its own option hooks. Nov 13.)
+    let headsetPanel = ["drive", "aboard"].contains(arg("--menu") ?? "") || CommandLine.arguments.contains("--headsetpanel")
+    if CommandLine.arguments.contains("--headsetpanel") {
+        QuestOptions.install(QuestOptions.Hooks(recenter: {}))
+        HudLayout.couch = true; HudLayout.userScale = 0
+        (game.menu as? PauseMenu)?.build()
+    }
     let W = headsetPanel ? 1024 : 1280, H = headsetPanel ? 640 : 720
     let verts = Renderer(game: game).buildHUD(Float(W), Float(H))
     var img = [Float](repeating: 0.25, count: W * H * 3)

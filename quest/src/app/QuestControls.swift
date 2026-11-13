@@ -945,9 +945,9 @@ final class QuestControls {
         // blocks a second (a 35 ms hitch was enough; a fall or a fast deck the same), and the move read as a jump: the view
         // went black and faded back. Only what the body's own speed and the deck under it don't account for counts now.
         // BS_OLDRELOCATE: any move over 3 blocks, as before.
-        let moved = simd_length(game.player.pos - lastFeet)
+        let jumped = simd_length(game.player.pos - lastFeet)
         let carried = QuestControls.oldRelocate ? 0 : (simd_length(game.player.vel) + simd_length(carryVel)) * dt * 1.25
-        if moved - carried > 3 { relocateFade = 1; relocateCount += 1 }
+        if jumped - carried > 3 { relocateFade = 1; relocateCount += 1 }
         relocateFade = max(0, relocateFade - dt * 4)
         let ships = game.world.ships
         let ship = ships.pilot ?? ships.aboard
