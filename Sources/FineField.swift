@@ -376,6 +376,11 @@ extension Mesher {
             if sy < NSEC - 1 && !fineSection(n9, sy: sy + 1) { coarse |= 32 }
         }
         sc.dbgCoarse = (coarse, coarseN, 0)
+        // (the 27 sections round this one: drawn from cells? Its own: no. `jointOn` in the pin below)
+        var cells27 = [Bool](repeating: false, count: 27)
+        for i in 0..<27 where i != 13 && coarseN & (1 << UInt32(i)) != 0 { cells27[i] = true }
+        for (bit, i) in [(1, 12), (2, 14), (4, 10), (8, 16), (16, 4), (32, 22)] where coarse & bit != 0 { cells27[i] = true }
+        let jointOn = !Mesher.oldFineJoint && coarseN != 0
         // The cells' own vertices (the ones the neighbour draws there: the same in every section that meshes them).
         let timing = Mesher.fineTiming
         var tA = timing ? CFAbsoluteTimeGetCurrent() : 0
@@ -490,12 +495,32 @@ extension Mesher {
             func vi(_ c: SIMD3<Int>) -> Int { (c.x + KOc) + (c.z + KOc) * Kc + (c.y + KOc) * KKc }
             let key = min(vi(cp), vi(cq)) * (Kc * KKc) + max(vi(cp), vi(cq))
             guard stitchDone.insert(key).inserted else { return }
-            // The shortest way from one to the other over the border's vertices (cells side by side, then corner to corner).
-            for diag in [false, true] {
+            // The way from one to the other over the border's vertices. First along the neighbour's own edge: two cells
+            // side by side are joined there only where the neighbour draws a quad on both, which is where its solid
+            // flags change across the face they share (the verifier's note, Nov 12: any cell with a vertex was walked,
+            // so of the two cells between a diagonal pair the wrong one could be taken: the slit stayed and a stray
+            // triangle was drawn; his corner at 0 0 in the forest). Then, as before, any cells side by side, then corner
+            // to corner.
+            let fa = cp[a]
+            let Sc = sc.smS, SOc = KOc + 1, Nc = 20 + 2 * KOc, NNc = Nc * Nc
+            func solidC(_ m: Int, _ mv: Int, _ o: Int, _ ov: Int, _ av: Int) -> Bool {
+                var t = SIMD3<Int>(0, 0, 0)
+                t[m] = mv; t[o] = ov; t[a] = av
+                return Sc[(t.x + SOc) + (t.z + SOc) * Nc + (t.y + SOc) * NNc] != 0
+            }
+            func linked(_ c: SIMD3<Int>, _ n: SIMD3<Int>) -> Bool {
+                let m = c[u] != n[u] ? u : w, o = m == u ? w : u
+                let mv = min(c[m], n[m]) + 1, ov = c[o]
+                if fa == 0 { return solidC(m, mv, o, ov, 0) != solidC(m, mv, o, ov + 1, 0) }
+                return solidC(m, mv, o, ov, fa) != solidC(m, mv, o, ov, fa + 1) || solidC(m, mv, o, ov + 1, fa) != solidC(m, mv, o, ov + 1, fa + 1)
+                    || solidC(m, mv, o, ov, fa + 1) != solidC(m, mv, o, ov + 1, fa + 1)
+            }
+            let apart = abs(cp[u] - cq[u]) + abs(cp[w] - cq[w])
+            for mode in 0..<3 {
+                let diag = mode == 2, cap = mode == 0 ? apart + 6 : 14
                 var from: [Int: Int] = [vi(cp): -1]
-                var cellOf: [Int: SIMD3<Int>] = [vi(cp): cp]
                 var front = [cp], found = false, depth = 0
-                while !front.isEmpty && !found && depth < 14 {
+                while !front.isEmpty && !found && depth < cap {
                     depth += 1
                     var next: [SIMD3<Int>] = []
                     for c in front {
@@ -505,7 +530,8 @@ extension Mesher {
                             guard n[u] >= 0, n[w] >= 0, n[u] <= 16, n[w] <= 16 else { continue }
                             let i = vi(n)
                             guard VLc[i] >= 0, from[i] == nil else { continue }
-                            from[i] = vi(c); cellOf[i] = n
+                            if mode == 0 && !linked(c, n) { continue }
+                            from[i] = vi(c)
                             if n == cq { found = true }
                             next.append(n)
                         } }
@@ -521,6 +547,8 @@ extension Mesher {
                     i = from[i]!
                 }
                 for k in 1..<path.count { stitches.append((p, path[k - 1], path[k], at)) }
+                if mode > 0 { sc.dbgStitch.1 += 1 } else { sc.dbgStitch.0 += 1 }
+                if Mesher.fineTrace { sc.dbgTrace.append("stitch mode \(mode) cells \(cp) \(cq) path \(path.count - 1)") }
                 return
             }
             sc.dbgCoarse.2 += 1_000_000_000
@@ -589,6 +617,31 @@ extension Mesher {
             let pin: ((Int, Int, Int, SIMD3<Float>) -> SIMD3<Float>?)? = coarse == 0 && coarseN == 0 ? nil : { hx, hy, hz, p in
                 let gx = hx + vx * 16, gy = hy + vy * 16, gz = hz + vz * 16          // half-block dual cell, 0...32
                 var fx = -1, fy = -1, fz = -1                                        // the cells' cell a side fixes
+                if jointOn {
+                    // Nov 12 (the last forest gaps: a section whose neighbour beside is drawn from cells at one height and
+                    // from half blocks at the next): a cell on a section line is shared by the half-block sections round
+                    // it, and each worked out which axes a cells-drawn neighbour fixes from where it stood: the one
+                    // beside the neighbour fixed one axis, the one diagonal to it two, and they put the shared cell on
+                    // different vertices. The rule is now the same from every side: of the sections the cell touches
+                    // (each mix of its outer sides), an axis is fixed where two of them that differ only on that axis
+                    // are drawn differently, one from cells and one from half blocks. BS_OLDFINEJOINT=1: before.
+                    let zone = SIMD3<Int>(gx <= 1 ? -1 : (gx >= 31 ? 1 : 0), gy <= 1 ? -1 : (gy >= 31 ? 1 : 0), gz <= 1 ? -1 : (gz >= 31 ? 1 : 0))
+                    var f = SIMD3<Int>(-1, -1, -1)
+                    for a in 0..<3 where zone[a] != 0 {
+                        let b = (a + 1) % 3, c = (a + 2) % 3
+                        var fix = false
+                        for mb in 0...1 where mb == 0 || zone[b] != 0 { for mc in 0...1 where mc == 0 || zone[c] != 0 {
+                            var o = SIMD3<Int>(0, 0, 0)
+                            o[b] = mb * zone[b]; o[c] = mc * zone[c]
+                            let i0 = (o.x + 1) + (o.z + 1) * 3 + (o.y + 1) * 9
+                            o[a] = zone[a]
+                            let i1 = (o.x + 1) + (o.z + 1) * 3 + (o.y + 1) * 9
+                            if cells27[i0] != cells27[i1] { fix = true }
+                        } }
+                        if fix { f[a] = zone[a] < 0 ? 0 : 16 }
+                    }
+                    fx = f.x; fy = f.y; fz = f.z
+                } else {
                 if coarse & 1 != 0 && gx <= 1 { fx = 0 }
                 if coarse & 2 != 0 && gx >= 31 { fx = 16 }
                 if coarse & 4 != 0 && gz <= 1 { fz = 0 }
@@ -618,6 +671,7 @@ extension Mesher {
                             if az != 0 { fz = az < 0 ? 0 : 16 }
                         }
                     }
+                }
                 }
                 let trace = Mesher.fineTrace && (gx <= 2 || gx >= 30) && (gz <= 2 || gz >= 30)
                 guard fx >= 0 || fy >= 0 || fz >= 0 else {
@@ -716,7 +770,16 @@ extension Mesher {
                     }
                 }
                 if trace { sc.dbgTrace.append(String(format: "pin g %d,%d,%d fixed %d,%d,%d at %.2f,%.2f,%.2f cell %d,%d,%d true %.3f,%.3f,%.3f drawn %.3f,%.3f,%.3f", gx, gy, gz, fx, fy, fz, pw.x, pw.y, pw.z, bestC.x, bestC.y, bestC.z, best.x, best.y, best.z, q16.x / 16, q16.y / 16, q16.z / 16)) }
-                if stitchOn { pinCell[SIMD3<Int32>(Int32(q16.x), Int32(q16.y), Int32(q16.z))] = (bestC, SIMD3<Int>(fx, fy, fz)) }
+                if stitchOn {
+                    // (A vertex where two borders meet is taken by half-block cells fixed on one border, on the other
+                    // and on both; the last to come overwrote the rest, and an edge to a vertex on one border only
+                    // found no border in common: no fan, a hairline at 0 0 in the forest. Now every border any of
+                    // them was fixed on. BS_OLDFINEJOINT=1: the last one's.)
+                    let pk = SIMD3<Int32>(Int32(q16.x), Int32(q16.y), Int32(q16.z))
+                    var fxd = SIMD3<Int>(fx, fy, fz)
+                    if !Mesher.oldFineJoint, let (c0, f0) = pinCell[pk], c0 == bestC { fxd = SIMD3<Int>(max(fxd.x, f0.x), max(fxd.y, f0.y), max(fxd.z, f0.z)) }
+                    pinCell[pk] = (bestC, fxd)
+                }
                 return q16 / 16 * 2 - off
             }
             quad.removeAll(keepingCapacity: true)

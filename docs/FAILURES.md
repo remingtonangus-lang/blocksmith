@@ -114,3 +114,7 @@ this list and ask whether the work repeats one of these.
   in-between vertices out; the half-block ground is now stitched along them. Forest: 20 views with a hole
   (11,341 px) to 13 (698 px); plains clean. STILL NOT DONE: 13 forest views keep a small hole. A new check reads the
   mesh itself (`--watertight`), so what is left is counted without a camera. Not closed.
+- **Nov 13 (ledger 99):** three more causes (the fan took the wrong in-between cell; sections sharing a cell on a
+  section line fixed it differently; a vertex on two borders lost one). Forest and plains: 0 of 56 views looking
+  down with a hole. Seven more biomes on two seeds: 193 of 196 clean. STILL NOT DONE: a one-block hole on a steep
+  desert bank at a section line (3 views, one seed). Not closed until those are clean too.

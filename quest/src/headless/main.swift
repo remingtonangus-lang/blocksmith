@@ -935,6 +935,48 @@ if let out = arg("--view"), let ctx = vkctx {
         vw.remeshArea(x0: Int(fx) - 12, z0: Int(fz) - 12, x1: Int(fx) + 12, z1: Int(fz) + 12, y0: fy - 12, y1: fy + 12)
         print("fieldblast: at \(Int(fx)) \(fy) \(Int(fz))")
     }
+    // --bore N (Nov 12, Carbon's review of his "chasm into void": black cubes hung in the shaft he shot down to the Deep):
+    // power-4 blasts one under the other from the ground 8 blocks ahead, N blocks down, then what is left standing in
+    // the shaft's middle: blocks that are not air in cells the field has open.
+    if let n = Int(arg("--bore") ?? "") {
+        let fx = vg.player.pos.x - sinf(yaw) * 8, fz = vg.player.pos.z - cosf(yaw) * 8
+        var fy = Int(vg.player.pos.y) + 6
+        while fy > 1 && !Blocks.collide[Int(vw.block(Int(floor(fx)), fy, Int(floor(fz))))] { fy -= 1 }
+        var d = 0
+        // (plants over the spot stop a bolt: cleared first)
+        for y in (fy + 1)...(fy + 3) { for z in (Int(floor(fz)) - 2)...(Int(floor(fz)) + 2) { for x in (Int(floor(fx)) - 2)...(Int(floor(fx)) + 2) {
+            let b = vw.block(x, y, z)
+            if b != AIR && !Blocks.collide[Int(b)] { vw.setBlock(x, y, z, AIR) }
+        } } }
+        if CommandLine.arguments.contains("--arc") {
+            // (as he did it: arc lance bolts fired down a narrow cone from over the hole, the game ticking between)
+            var r: UInt32 = 12345
+            func rnd() -> Float { r = r &* 1664525 &+ 1013904223; return Float(r >> 8 & 0xFFFF) / 65535 - 0.5 }
+            let from = V3(fx, Float(fy) + 3, fz)
+            var shots = 0
+            while shots < n * 60 {
+                let dir = simd_normalize(V3(rnd() * 0.12, -1, rnd() * 0.12))
+                vg.arms.beam(vg, from: from, dir: dir, range: Float(n) + 4, damage: 40, fromPlayer: true, shooter: nil, by: "Player")
+                shots += 1
+                if shots % 4 == 0 { vg.tick(1 / 20) }
+            }
+            for _ in 0..<40 { vg.tick(1 / 20) }
+        } else {
+            while d < n && fy - d > 4 {
+                Explosion.explode(at: V3(fx, Float(fy - d) + 0.6, fz), power: 4, game: vg, decay: true)
+                for _ in 0..<4 { vg.tick(1 / 20) }
+                d += 2
+            }
+        }
+        vw.remeshArea(x0: Int(fx) - 12, z0: Int(fz) - 12, x1: Int(fx) + 12, z1: Int(fz) + 12, y0: max(0, fy - n - 12), y1: fy + 12)
+        var left: [String: Int] = [:], total = 0
+        for y in max(1, fy - n)...fy { for z in (Int(fz) - 2)...(Int(fz) + 2) { for x in (Int(fx) - 2)...(Int(fx) + 2) {
+            let b = vw.block(x, y, z)
+            guard b != AIR, vw.fieldDensity(x, y, z) <= 0 || !vw.groundAt(x, y, z) else { continue }
+            left[Blocks.key(b), default: 0] += 1; total += 1
+        } } }
+        print("bore: \(n) down from \(Int(fx)) \(fy) \(Int(fz)); left in the shaft's middle \(total): \(left.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+    }
     if CommandLine.arguments.contains("--groundline") {
         var out: [String] = []
         for k in 1...12 {
@@ -1847,6 +1889,10 @@ if let out = arg("--view"), let ctx = vkctx {
             func ord(_ a: P, _ b: P) -> E { (a.x, a.y, a.z) < (b.x, b.y, b.z) ? E(a: a, b: b) : E(a: b, b: a) }
             var count: [E: Int32] = [:]
             var seenQ = Set<[P]>()
+            let wtPoint: V3? = ProcessInfo.processInfo.environment["BS_WTPOINT"].flatMap { t in
+                let f = t.split(separator: ",").compactMap { Float($0) }
+                return f.count == 3 ? V3(f[0], f[1], f[2]) : nil
+            }
             var quads = 0
             for c in vw.chunks.values { for (sy, s) in c.sections.enumerated() {
                 guard let b = s.opaqueBuf, s.opaqueQuads > 0 else { continue }
@@ -1861,8 +1907,13 @@ if let out = arg("--view"), let ctx = vkctx {
                         v.append(P(x: Int32(c.cx * 256) + Int32(w0 & 511), y: Int32(sy * 256) + Int32((w0 >> 9) & 511), z: Int32(c.cz * 256) + Int32((w0 >> 18) & 511)))
                     }
                     guard ground else { continue }
-                    let key = v.sorted { ($0.x, $0.y, $0.z) < ($1.x, $1.y, $1.z) }
-                    guard seenQ.insert(key).inserted else { continue }       // (a closing triangle is drawn from both sides)
+                    // (BS_WTPOINT="x,y,z": every ground quad with a corner within a quarter block of that point, and its section)
+                    if let wp = wtPoint, v.contains(where: { abs(Float($0.x) / 16 - wp.x) < 0.25 && abs(Float($0.y) / 16 - wp.y) < 0.25 && abs(Float($0.z) / 16 - wp.z) < 0.25 }) {
+                        print("watertight: quad in chunk \(c.cx) \(c.cz) section \(sy) code \((p[q * 4] >> 32) & 31): " + v.map { String(format: "%.2f %.2f %.2f", Float($0.x) / 16, Float($0.y) / 16, Float($0.z) / 16) }.joined(separator: " | "))
+                    }
+                    // (a closing triangle is drawn from both sides, a quad with a doubled corner each way: its distinct points)
+                    let key = Array(Set(v)).sorted { ($0.x, $0.y, $0.z) < ($1.x, $1.y, $1.z) }
+                    guard key.count >= 3, seenQ.insert(key).inserted else { continue }
                     quads += 1
                     for k in 0..<4 where v[k] != v[(k + 1) & 3] { count[ord(v[k], v[(k + 1) & 3]), default: 0] += 1 }
                 }
@@ -1924,7 +1975,9 @@ if let out = arg("--view"), let ctx = vkctx {
                 }
             }
             func f(_ p: P) -> String { String(format: "%.2f %.2f %.2f", Float(p.x) / 16, Float(p.y) / 16, Float(p.z) / 16) }
-            print("watertight: \(quads) ground quads, \(open.count) open edges in \(groups.count) groups within \(wr) blocks of the eye")
+            // (a hole has a rim of three edges or more; one or two open edges alone are a fold, not a hole)
+            let rims = groups.filter { $0.count >= 3 }
+            print("watertight: \(quads) ground quads, \(open.count) open edges in \(groups.count) groups within \(wr) blocks of the eye; holes (3 edges or more) \(rims.count), their edges \(rims.reduce(0) { $0 + $1.count })")
             let far = arg("--watertight-all") != nil ? 400 : 24
             for g in groups.sorted(by: { $0.count > $1.count }).prefix(far) {
                 var lo = g[0].a, hi = g[0].a
