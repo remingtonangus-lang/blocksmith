@@ -2821,6 +2821,11 @@ if CommandLine.arguments.contains("--planeparts") {             // P459: aircraf
     PlanePartsCheck.run(game, check)
     print(failures == 0 ? "planeparts: all checks passed" : "planeparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--planeexit") {             // Nov 13: off a Salvaged Fighter's helm (and the Nov 13 checks)
+    PlaneExitCheck.run(game, check)
+    Nov13Checks.run(game, check)
+    print(failures == 0 ? "planeexit: all checks passed" : "planeexit: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--gunwreck") {               // P459: a gun mount destroyed comes apart
     GunWreckCheck.run(game, check)
     print(failures == 0 ? "gunwreck: all checks passed" : "gunwreck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

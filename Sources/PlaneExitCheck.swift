@@ -32,11 +32,15 @@ enum PlaneExitCheck {
         g.leaveHelm()
         let p = g.player.pos
         let out = ships.boundsDistance(fp, p) > 0.2 || p.y >= fp.worldMax.y - 0.1
-        let ground = w.solidAt(Int(floor(p.x)), Int(floor(p.y - 0.05)), Int(floor(p.z)))
+        // (on the ground: a solid cell under the feet, or one a block down where a field world's drawn ground stands up to a
+        // block over its cell's foot: dismountSpot's own rule; not bailed out)
+        let gx = Int(floor(p.x)), gz = Int(floor(p.z))
+        let ground = (w.solidAt(gx, Int(floor(p.y - 0.05)), gz) || w.solidAt(gx, Int(floor(p.y - 1.05)), gz)) && !g.effects.has(.slowFalling)
         let retake = g.commandeerable() === fp
         check(atHelm && ships.aboard == nil && out && ground && !retake,
-              String(format: "plane exit: off a landed Salvaged Fighter's helm he stands on the ground beside it (%.1f %.1f %.1f, aboard %@, clear of the hull %@, on ground %@), the next use doesn't retake it (%@)",
-                     p.x, p.y, p.z, ships.aboard == nil ? "no" : "yes", out ? "yes" : "no", ground ? "yes" : "no", retake ? "it does" : "no"))
+              String(format: "plane exit: off a landed Salvaged Fighter's helm he stands on the ground beside it (%.1f %.1f %.1f, aboard %@, clear of the hull %@, on ground %@, bailed out %@), the next use doesn't retake it (%@)",
+                     p.x, p.y, p.z, ships.aboard == nil ? "no" : "yes", out ? "yes" : "no", ground ? "yes" : "no",
+                     g.effects.has(.slowFalling) ? "yes" : "no", retake ? "it does" : "no"))
         // A moment later its helm can be taken again from beside it.
         g.helmLeftT = 0.01
         g.shipPlayerUpdate(1 / 30, MoveInput())
