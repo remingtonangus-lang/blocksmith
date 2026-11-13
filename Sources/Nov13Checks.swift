@@ -7,6 +7,17 @@ enum Nov13Checks {
         scopeEyepiece(check)
         helmHold(g, check)
         LetterCheck.run(check)
+        commandant(g, check)
+    }
+
+    // 12:45:04-12:45:10, a Capital side tower's top floor: its commandant, tough, carrying two Sunder Charges.
+    static func commandant(_ g: Game, _ check: (Bool, String) -> Void) {
+        guard let m = Mob.structureMob("soldier_officer:commandant^180", at: g.player.pos + V3(0, 0, 6)) else {
+            check(false, "commandant: the structure key makes a mob"); return
+        }
+        let sunder = m.spec.drops.first { $0.0 == "sunder_charge" }?.1 ?? 0
+        check(m.commandant && m.health >= 90 && sunder == 2 && m.customName == Mob.commandantName && m.persistent,
+              "commandant: a Capital tower's commandant (\(m.customName ?? "-"), \(m.health) health, \(sunder) Sunder Charges carried)")
     }
 
     // 12:38-12:40, the Mahlwerk with a scope fitted ("Not sure where the scope is in this thing, but it ain't really

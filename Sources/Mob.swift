@@ -426,6 +426,7 @@ final class Mob {
     // Depth toughness (task 22): monsters spawned deep underground take damage / power and deal damage x power.
     var power: Float = 1
     var warden = false              // a Brimstone Keep's Warden (DeepGates.swift)
+    var commandant = false          // Nov 13: a Capital tower's commandant (CapitalBase gun rooms; Mob.makeCommandant)
     var wardenRaged = false
     var faction = 0 {               // soldiers crewing a capital ship: its faction (CapitalShips.swift); 0 Steelhold
         didSet { if faction != oldValue { crewSetup() } }   // a navy's crew go by its own ranks (Soldiers.swift)

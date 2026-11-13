@@ -408,7 +408,7 @@ final class Armory {
             // P358 (a) (Oct 16 21:42, "the Nazis are still too tough"): a soldier dies like a man, whatever his plate,
             // rank or toughness roll: one round to the head or a heavy rifle round (9 or more) to the body, two rifle or
             // pistol rounds (4 or more), a short burst of four lighter rounds. The marshal and the chancellor are bosses.
-            if m.kind != .ashMarshal && m.kind != .ashChancellor {
+            if m.kind != .ashMarshal && m.kind != .ashChancellor && !m.commandant {      // (Nov 13: and a tower's commandant)
                 let full = Float(max(m.spec.health, m.health))
                 // P504 (Nov 1 07:59:47, 08:00:09: "Someone really hard to kill... the Hannibal troops need to be twice as
                 // tough"): a Hannibal trooper takes twice the rounds: two to the head, four rifle rounds to the body.
