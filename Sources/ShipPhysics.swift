@@ -896,7 +896,7 @@ extension ShipManager {
         let stride = s.hull.count > 6000 ? 2 : 1
         let phase = stride > 1 ? Int(s.pos.x * 7 + s.pos.z * 3) & 1 : 0
         var i = phase
-        let hull = s.hull
+        let hull = wood ? Felling.woodHull(s) : s.hull
         let stepUp = !s.wheels.isEmpty && s.grounded
         // PG2: hulls and wheels meet natural ground at its drawn surface (World.groundTop), like bodies do.
         let fieldW = rd.w.fieldTerrain
@@ -998,8 +998,7 @@ extension ShipManager {
         let collide = Blocks.collide
         // (Nov 13: two felled trees meet wood to wood; neither rests on the other's leaves)
         let woods = Felling.woodRests && Felling.isFelled(a) && Felling.isFelled(b) && Felling.hasWood(a) && Felling.hasWood(b)
-        for c in a.hull {
-            if woods && CapitalBase.isLeaf(a.grid.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))) { continue }
+        for c in woods ? Felling.woodHull(a) : a.hull {
             let w = a.toWorld(c)
             if w.x < b.worldMin.x - 1 || w.x > b.worldMax.x + 1 || w.y < b.worldMin.y - 1 || w.y > b.worldMax.y + 1
                 || w.z < b.worldMin.z - 1 || w.z > b.worldMax.z + 1 { continue }

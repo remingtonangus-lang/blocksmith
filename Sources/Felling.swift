@@ -168,6 +168,25 @@ enum Felling {
         return wood
     }
 
+    // What such a body meets the ground with: every log in it (a trunk inside its crown is no exposed cell of the hull,
+    // Ship.hull, so with the leaves giving way nothing held it: it sank into the ground), and whatever else is not leaf.
+    private static var woodHulls: [Int: (count: Int, cells: [V3])] = [:]
+    static func woodHull(_ s: Ship) -> [V3] {
+        if let c = woodHulls[s.id], c.count == s.blockCount { return c.cells }
+        if woodHulls.count > 512 { woodHulls.removeAll(keepingCapacity: true) }
+        let g = s.grid
+        var cells: [V3] = []
+        for i in 0..<g.blocks.count where ShapeTrunks.isLog[Int(g.blocks[i])] {
+            cells.append(V3(Float(i % g.sx) + 0.5, Float(i / (g.sx * g.sz)) + 0.5, Float((i / g.sx) % g.sz) + 0.5))
+        }
+        for c in s.hull {
+            let b = g.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))
+            if !ShapeTrunks.isLog[Int(b)] && !CapitalBase.isLeaf(b) { cells.append(c) }
+        }
+        woodHulls[s.id] = (s.blockCount, cells)
+        return cells
+    }
+
     // The world's lighting of a round shape (quest/shaders/chunk_detail.vert: sky curve and tint, warm block light, the
     // sun on its side), so a felled trunk drawn by the entity pass keeps the colour it had standing (Oct 24 20:49: "the
     // log turns into a different color": it was lit flat, a third brighter, its bark stretched round it once).
