@@ -1,0 +1,251 @@
+--- a/Sources/TreeShapes.swift
++++ b/Sources/TreeShapes.swift
+@@ -126,18 +126,18 @@
+         },
+         make("birch with a limb", 12, bole: 4) { d in
+             d.trunk(9)
+-            do { let t = d.limb(0, 5, 0, 1, 0, 1, rise: 1); d.crown(t + IVec3(1, 1, 0), 1.4, 1.4) }
++            do { let t = d.limb(0, 5, 0, 1, 0, 2, rise: 2); d.crown(t + IVec3(0, 1, 0), 1.5, 1.5) }
+             d.crown(0, 8, 0, 1.7, 2.8)
+         },
+     ]
+     static let tallBirches: [TreeShape] = [
+         make("tall birch", 15, bole: 8) { d in
+             d.trunk(13)
+             d.crown(0, 12, 0, 1.8, 3.4)
+         },
+         make("tall birch with limbs", 16, bole: 8) { d in
+             d.trunk(14)
+-            do { let t = d.limb(0, 9, 0, 1, 0, 1, rise: 1); d.crown(t + IVec3(1, 1, 0), 1.4, 1.5) }
+-            do { let t = d.limb(0, 10, 0, -1, 0, 1, rise: 1); d.crown(t + IVec3(-1, 1, 0), 1.4, 1.5) }
++            do { let t = d.limb(0, 8, 0, 1, 0, 2, rise: 2); d.crown(t + IVec3(0, 1, 0), 1.5, 1.6) }
++            do { let t = d.limb(0, 10, 0, -1, 0, 2, rise: 2); d.crown(t + IVec3(0, 1, 0), 1.5, 1.6) }
+             d.crown(0, 13, 0, 1.7, 3.0)
+         },
+     ]
+--- a/Sources/WorldGenTrees.swift
++++ b/Sources/WorldGenTrees.swift
+@@ -9,7 +9,7 @@
+     case saltpalm                                   // P280 (a): the Saltpalm Isles' leaning palm
+     case shrubOak, shrubSpruce, shrubAcacia
+     // L1 trees (docs/status/look-upgrade.md part 3): woodland litter and the rare old giants.
+-    case deadOak, deadSpruce, stumpOak, stumpSpruce, stumpBirch, fallenOak, ancientOak
++    case deadOak, deadSpruce, stumpOak, stumpSpruce, stumpBirch, fallenOak, fallenBirch, ancientOak
+ }
+ 
+ struct TreeWriter {
+@@ -47,12 +47,14 @@
+             if e < (open ? 0.05 : (woods ? 0.012 : 0)) { return .ancientOak }
+             guard woods else { return k }
+             if e < 0.042 { return .deadOak }
+             if e < 0.062 { return .stumpOak }
+             if e < 0.082 { return .fallenOak }
+             return k
+-        case .birch:
+-            return woods && e < 0.02 ? .stumpBirch : k
++        case .birch, .tallBirch:
++            guard woods else { return k }
++            if e < 0.02 { return .stumpBirch }
++            if e < 0.038 { return .fallenBirch }
++            return k
+         case .spruce, .pine:
+             // Litter in the conifer woods only (never the lone spruces of snowy plains, hills or groves).
+             let taiga = biome == .taiga || biome == .snowyTaiga || biome == .oldGrowthPineTaiga || biome == .oldGrowthSpruceTaiga
+@@ -264,21 +266,31 @@
+             trunk(h, log)
+             if rng.chance(0.5) { w.leaf(x, y + h, z, g("moss_carpet")) }
+             roots(log, chance: 0.5)
+-        case .fallenOak:
+-            // A fallen trunk of bark-all-round wood along the ground (each length only where the ground under it is solid
+-            // and it lies in air; decided per block, so both chunks of a trunk on a border agree), a stump at its root.
+-            let wood = g("oak_wood")
+-            w.log(x, y, z, LOG)
++        case .fallenOak, .fallenBirch:
++            // A fallen trunk lying along its horizontal axis [x] or [z] on solid ground, with amossy stump at its root.
++            // Uses directional log states (not upright *_wood, which ShapeTrunks treated as vertical cut timber drums)
++            // and checks inside-chunk cells for a contiguous >= 3 run so 1-block fragments never spawn on broken ground.
++            let baseLog = kind == .fallenBirch ? BIRCH_LOG : LOG
++            let key = kind == .fallenBirch ? "birch_log" : "oak_log"
++            w.log(x, y, z, baseLog)
++            if w.inside(x, y + 1, z) && w.get(x, y + 1, z) == AIR { w.leaf(x, y + 1, z, g("moss_carpet")) }
+             let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
++            let laid = Blocks.has(key + (dx != 0 ? "[x]" : "[z]")) ? g(key + (dx != 0 ? "[x]" : "[z]")) : baseLog
+             let len = rng.range(4, 6)
++            var run: [Int] = []
+             for i in 2..<(2 + len) {
+                 let fx = x + dx * i, fz = z + dz * i
+-                guard w.inside(fx, y, fz) else { continue }
++                if !w.inside(fx, y, fz) { run.append(i); continue }
+                 let under = w.get(fx, y - 1, fz), at = w.get(fx, y, fz)
+                 if Blocks.opaque[Int(under)] && !Mesher.leafT[Int(under)] && (at == AIR || Blocks.replaceable[Int(at)] && !Blocks.isLiquid(at)) {
+-                    w.force(fx, y, fz, wood)
+-                    if hashf(fx, y, fz, 0xFA11) < 0.3, w.get(fx, y + 1, fz) == AIR { w.leaf(fx, y + 1, fz, g("moss_carpet")) }
++                    run.append(i)
++                } else {
++                    if run.count < 3 { run.removeAll(keepingCapacity: true) } else { break }
+                 }
+             }
++            if run.count >= 3 {
++                for i in run {
++                    let fx = x + dx * i, fz = z + dz * i
++                    guard w.inside(fx, y, fz) else { continue }
++                    w.force(fx, y, fz, laid)
++                    if !World.realistic && hashf(fx, y, fz, 0xFA11) < 0.3, w.get(fx, y + 1, fz) == AIR { w.leaf(fx, y + 1, fz, g("moss_carpet")) }
++                }
++            }
+         case .iceSpike:
+             let ice = g("packed_ice")
+--- a/Sources/ShapeTrunks.swift
++++ b/Sources/ShapeTrunks.swift
+@@ -196,12 +196,17 @@
+         return isLog[Int(b)] && axisOf[Int(b)] == 1 ? c : -1
+     }
+     // P484: a run that was a tree: a root lying out from its foot (WorldGenTrees roots, a mangrove's root blocks), or
+-    // leaves on or round its top (a shrub's mound).
++    // leaves on or round its top (a shrub's mound), or moss carpet on a generated woodland stump.
++    static let mossTops: Set<BlockID> = Set(["moss_carpet", "pale_moss_carpet"].filter { Blocks.has($0) }.map { Blocks.id($0) })
+     static func treeFoot(_ ctx: DetailContext, _ x: Int, _ bot: Int, _ top: Int, _ z: Int) -> Bool {
++        if top - bot <= 1 && mossTops.contains(ctx.column(x, top + 1, z)) { return true }
+         for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+             for dy in [0, -1] {
+                 let b = Int(ctx.column(x + dx, bot + dy, z + dz))
+                 if isRoot[b] || isLog[b] && axisOf[b] != 1 { return true }
+             }
+         }
+         for dz in -1...1 { for dx in -1...1 where Mesher.leafT[Int(ctx.column(x + dx, top + 1, z + dz))] { return true } }
++        // Generated stumps with 0 rolled roots still sit beside another stump/fallen log or under open woodland canopy
++        // with nothing built nearby; check for a fallen trunk starting 2 blocks away along an axis (.fallenOak / .fallenBirch).
++        if top == bot {
++            for (dx, dz) in [(2, 0), (-2, 0), (0, 2), (0, -2)] {
++                let b = ctx.column(x + dx, bot, z + dz)
++                if isLog[Int(b)] && axisOf[Int(b)] != 1 { return true }
++            }
++        }
+         return false
+     }
+     // P433: something built (not ground, log, leaf or plant) against a run's side at any of its heights.
+@@ -460,7 +465,8 @@
+                 n += 1
+             }
+         }
+-        return n >= 3
++        if n >= 3 { return true }
++        return n == 2 && !builtBeside(ctx, x, y, y, z)
+     }
+ 
+     static func timber(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, axis: Int, bark: Int, rings: Int, sides: Int) {
+--- a/Sources/Mob.swift
++++ b/Sources/Mob.swift
+@@ -935,12 +935,23 @@
+         // A ragdoll (MobRagdoll.swift): every part rides on its bone, lit where the body lies now.
+         var rag: MobRagdoll? = nil
+         if let r = m.ragdoll, let rw = ragdolls, r.prepare(rw, eye: eye) { rag = r }
+         let hj = rag != nil ? MobAnim.headJoint(m) : nil
+-        let lc = rag != nil ? ragdolls!.pose(rag!.id, 0).position : m.pos + V3(0, m.height * 0.5, 0)
+-        var l = world.lightAt(Int(floor(lc.x)), Int(floor(lc.y)), Int(floor(lc.z)))
+-        if rag != nil {                       // (a body lying on smooth ground can have its centre in the block under it)
+-            let up = world.lightAt(Int(floor(lc.x)), Int(floor(lc.y)) + 1, Int(floor(lc.z)))
++        let lc = rag != nil ? ragdolls!.pose(rag!.id, 0).position : m.pos + V3(0, m.viewDY + m.height * 0.5, 0)
++        let lx = Int(floor(lc.x)), ly = Int(floor(lc.y)), lz = Int(floor(lc.z))
++        var l = world.lightAt(lx, ly, lz)
++        // Smooth/field ground can sit up to half a block below an integer cell's top, so small mobs (chickens 0.7,
++        // chicks 0.35, rabbits, frogs) and bodies lying on a slope often have `lc` inside the solid ground cell below
++        // them, where meshed section light is 0x00 (briefly turning them pitch black until they walk onto higher ground).
++        if rag != nil || m.height < 1.2 || m.viewDY < -0.05 || world.opaqueAt(lx, ly, lz) {
++            let up = world.lightAt(lx, ly + 1, lz)
+             if Int(up.sky) + Int(up.block) > Int(l.sky) + Int(l.block) { l = up }
++            if l.sky == 0 && l.block == 0 && world.opaqueAt(lx, ly + 1, lz) {
++                let up2 = world.lightAt(lx, ly + 2, lz)
++                if Int(up2.sky) + Int(up2.block) > 0 { l = up2 }
++            }
+         }
+         let base = m.pos + V3(0, m.viewDY, 0) - eye
+         // The cave fill (Shaders.caveFill): mobs in the dark stay visible a few blocks away.
+--- a/Sources/QuestBugTests.swift
++++ b/Sources/QuestBugTests.swift
+@@ -370,6 +370,62 @@
+         AuditGapTests.run(game, check)
+         PlaytestOct11Tests.run(game, check)
+         PlaytestOct12Tests.run(game, check)
++        birchAndChickenNoteChecks(game, check)
+         print("questbugs: \(fails) failures")
+         return fails
+     }
++
++    // Remington's Birch Forest voice notes (seed 632461258612199693 near -1808 95 3337 and -1793 95 3355):
++    // 1) Small mobs (chickens, chicks, rabbits) on smooth ground whose visual feet dip below an integer cell top must
++    //    never sample 0x00 light from inside the meshed ground cell and flash black.
++    // 2) Birch shapes with side limbs keep every limb connected to its side crown, and generated fallen trunks use
++    //    horizontal log states rather than upright wood blocks that mesh as fat hovering cut-timber drums.
++    static func birchAndChickenNoteChecks(_ game: Game, _ check: (Bool, String) -> Void) {
++        let allShapes = TreeShapes.birches + TreeShapes.tallBirches
++        var disconnectedLimb = false
++        for s in allShapes {
++            let leafSet = Set(s.leaves)
++            let logSet = Set(s.logs)
++            for lg in s.logs where lg.x != 0 || lg.z != 0 {
++                var touchesCrown = false
++                for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where leafSet.contains(lg + IVec3(dx, dy, dz)) { touchesCrown = true } } }
++                var touchesParent = false
++                for dy in -1...0 { for dz in -1...1 { for dx in -1...1 where (dx != 0 || dy != 0 || dz != 0) && logSet.contains(lg + IVec3(dx, dy, dz)) { touchesParent = true } } }
++                if !touchesCrown || !touchesParent { disconnectedLimb = true }
++            }
++        }
++        check(!disconnectedLimb, "birch shapes: every side limb log connects to the trunk and sits inside its side crown")
++
++        // Test `.fallenOak` and `.fallenBirch` never write upright `oak_wood` (axis 1) into the fallen run.
++        var blocks = [BlockID](repeating: AIR, count: CSQ * CH)
++        for z in 0..<CS { for x in 0..<CS { blocks[Chunk.index(x, SEA + 2, z)] = GRASS } }
++        var uprightInRun = false
++        blocks.withUnsafeMutableBufferPointer { buf in
++            let tw = TreeWriter(b: buf.baseAddress!, bx: 0, bz: 0)
++            for kind in [TreeKind.fallenOak, .fallenBirch] {
++                var rng = SRng(42)
++                TreePlacer.build(tw, kind, 8, SEA + 3, 8, &rng)
++            }
++        }
++        for z in 0..<CS { for x in 0..<CS where !(x == 8 && z == 8) {
++            let id = blocks[Chunk.index(x, SEA + 3, z)]
++            if id != AIR && ShapeTrunks.isLog[Int(id)] && ShapeTrunks.axisOf[Int(id)] == 1 { uprightInRun = true }
++        } }
++        check(!uprightInRun, "fallen woodland trunks use horizontal log axis states (never upright *_wood drums)")
++
++        // Chicken on a meshed sunlit section where the ground cell at y0 is opaque (meshed light byte 0x00) and y0+1
++        // has full sky light (0xF0), across sub-block smooth-ground offsets viewDY = -0.45...0.0.
++        let w = game.world
++        let tx = Int(floor(game.player.pos.x)), tz = Int(floor(game.player.pos.z))
++        if let c = w.chunkAt(tx, tz) {
++            let lx = mod(tx, CS), lz = mod(tz, CS)
++            let top = max(16, min(CH - 32, Int(c.height[lx + lz * CS])))
++            let sy = top >> 4
++            let savedBlock = w.materialAt(tx, top, tz)
++            let savedAbove = w.materialAt(tx, top + 1, tz)
++            let savedLight = c.light[sy]
++            w.setBlock(tx, top, tz, GRASS)
++            w.setBlock(tx, top + 1, tz, AIR)
++            if ((top + 1) >> 4) == sy {
++                var secLight = [UInt8](repeating: 0xF0, count: CSQ * 16)
++                secLight[lx + lz * CS + (top & 15) * CSQ] = 0x00 // mesher leaves opaque ground cells at 0x00
++                c.light[sy] = secLight
++            }
++            let cap = 4096
++            let buf = UnsafeMutablePointer<MobVert>.allocate(capacity: cap)
++            defer { buf.deallocate() }
++            var minShade: Float = 1
++            for dy in [-0.45, -0.30, -0.15, 0.0] as [Float] {
++                let ch = Mob(.chicken, at: V3(Float(tx) + 0.5, Float(top) + 0.6, Float(tz) + 0.5))
++                ch.viewDY = dy
++                let eye = ch.pos + V3(0, 1.5, 3)
++                let written = writeMobVertices([ch], eye: eye, daylight: 1.0, world: w, into: buf, capacity: cap)
++                var peak: Float = 0
++                for i in 0..<written { peak = max(peak, buf[i].color.w) }
++                minShade = min(minShade, peak)
++            }
++            c.light[sy] = savedLight
++            w.setBlock(tx, top, tz, savedBlock)
++            w.setBlock(tx, top + 1, tz, savedAbove)
++            check(minShade > 0.75, String(format: "chicken on smooth ground dip stays sunlit after section mesh (min peak shade %.2f, want > 0.75)", minShade))
++        }
++    }
+ 
+     // Round 3 features (docs/requests/round3-features-after-reset.md).
