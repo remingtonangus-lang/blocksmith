@@ -56,7 +56,7 @@ enum StructureCollapse {
     // Frames left of a collapse and its aftermath: what the check near a change topples meanwhile (the stubs a
     // collapse leaves hanging) waits for the workers' redraw too (Game.topple).
     static var comingDown = 0
-    static var tracking: Bool { job != nil || !pending.isEmpty || kept != nil }
+    static var tracking: Bool { job != nil || !pending.isEmpty || kept != nil || !held.isEmpty }
     private static var pending: [IVec3] = []
     private static var job: Job?
     private static let lock = NSLock()
@@ -64,7 +64,45 @@ enum StructureCollapse {
     static var withWorker: Bool { lock.lock(); defer { lock.unlock() }; return job.map { $0.solving && $0.outcome == nil } ?? false }
     static var busy: Bool { job != nil || !pending.isEmpty }
 
-    static func reset() { pending.removeAll(); job = nil; kept = nil; waited = 0; againSeeds.removeAll() }
+    static func reset() { pending.removeAll(); job = nil; kept = nil; waited = 0; againSeeds.removeAll(); held.removeAll(); passed.removeAll(); clearedUntil = 0 }
+
+    // The whole weigh goes first. The check near a change (Structure.tick) that stopped at its bound and found blocks
+    // past their reach used to drop them at once, and each drop asked for the next check: a brick tower left on a
+    // pier too small for it rained its corners down storey by storey, filled the shot-out storey with them and then
+    // stood on its own rubble, where the whole top should have come down in one piece (the tower test). Such a check
+    // is held here until the piece has been weighed (or `holdFrames` at most, so a long barrage still sheds its
+    // loose blocks), then run again: what the weigh left standing loses its loose blocks as before.
+    // BS_COLLAPSEHOLD=0: dropped at once, as before.
+    static let holding = ProcessInfo.processInfo.environment["BS_COLLAPSEHOLD"] != "0"
+    static var holdFrames = 216, clearFrames = 360
+    private static var held: [(p: IVec3, at: Int)] = []
+    private static var passed: [IVec3: Int] = [:]     // (4-cubes whose check goes ahead, until a frame)
+    private static var clearedUntil = 0               // (the piece kept was weighed: its checks go ahead until then)
+    private static var frameNo = 0
+    static var heldChecks = 0
+    @inline(__always) private static func cube(_ p: IVec3) -> IVec3 { IVec3(floorDiv(p.x, 4), floorDiv(p.y, 4), floorDiv(p.z, 4)) }
+    static func hold(_ w: World, at s: IVec3) -> Bool {
+        guard enabled, holding, w.frame == nil, held.count < 64 else { return false }
+        if let t = passed[cube(s)], t > frameNo { return false }
+        if frameNo < clearedUntil, let k = kept, k.contains(s) || Structure.nbrs.contains(where: { k.contains(s + $0) }) { return false }
+        let before = asked
+        request(w, at: s)
+        // (nothing asked and nothing in hand: nobody would let the check go)
+        guard asked > before || busy else { return false }
+        held.append((s, frameNo)); heldChecks += 1
+        return true
+    }
+    private static func release(_ w: World, olderThan age: Int = 0) {
+        guard !held.isEmpty else { return }
+        var rest: [(p: IVec3, at: Int)] = []
+        for h in held {
+            if frameNo - h.at < age { rest.append(h); continue }
+            passed[cube(h.p)] = frameNo + clearFrames
+            w.requeueLoadCheck(h.p)
+        }
+        held = rest
+        if passed.count > 256 { passed = passed.filter { $0.value > frameNo } }
+    }
     // How many times its own weight a structure must carry to stand (BS_COLLAPSESAFETY).
     static var safety: Float = Float(ProcessInfo.processInfo.environment["BS_COLLAPSESAFETY"] ?? "") ?? 1
 
@@ -118,7 +156,9 @@ enum StructureCollapse {
     static func tick(_ g: Game) {
         let w = g.world
         if comingDown > 0 { comingDown -= 1 }
+        frameNo += 1
         guard enabled, tracking else { return }
+        if !held.isEmpty { if busy { release(w, olderThan: holdFrames) } else { release(w) } }
         let now = CFAbsoluteTimeGetCurrent()
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         // The structural changes since the last frame (World.queueLoadCheck notes them): one in or against the piece
@@ -244,6 +284,8 @@ enum StructureCollapse {
     private static func finish(_ j: Job, _ w: World) {
         job = nil
         if !j.stale { kept = j.capture; keptUsed = CFAbsoluteTimeGetCurrent() }
+        clearedUntil = frameNo + clearFrames
+        release(w)
         // (changed under the worker: once more, at most twice for one place)
         if j.again, againSeeds[j.seed, default: 0] < 2, Structure.part(w, j.seed.x, j.seed.y, j.seed.z) != nil {
             againSeeds[j.seed, default: 0] += 1

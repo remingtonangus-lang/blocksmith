@@ -547,8 +547,9 @@ enum Structure {
                 checks += 1
                 let cut = r.capped ? looseAll(w, near: s) : []
                 if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
-                else if !r.falls.isEmpty { drop(g, r.falls) }
-                // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame)
+                // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame.
+                // What this check would drop waits for that, StructureCollapse.hold.)
+                else if !r.falls.isEmpty { if !(r.capped && StructureCollapse.hold(w, at: s)) { drop(g, r.falls) } }
                 if r.capped && cut.isEmpty { StructureCollapse.request(w, at: s) }
             }
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
@@ -853,5 +854,10 @@ extension World {
         let key = IVec3(floorDiv(x, 4), floorDiv(y, 4), floorDiv(z, 4))
         if Structure.tally != nil { Structure.tally![Blocks.key(old) + " -> " + Blocks.key(new), default: 0] += 1 }
         if loadQueued.insert(key).inserted { loadQueue.append(IVec3(x, y, z)) }
+    }
+    // (a check held for the whole weigh, StructureCollapse.hold, run again)
+    func requeueLoadCheck(_ p: IVec3) {
+        guard Structure.enabled, frame == nil else { return }
+        if loadQueued.insert(IVec3(floorDiv(p.x, 4), floorDiv(p.y, 4), floorDiv(p.z, 4))).inserted { loadQueue.append(p) }
     }
 }
