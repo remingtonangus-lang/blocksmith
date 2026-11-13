@@ -16,6 +16,7 @@ import Foundation
 //   target:          power (16)
 // dir6: 0 down, 1 up, 2 north(-Z), 3 south(+Z), 4 west(-X), 5 east(+X). facing (4): 0 north, 1 south, 2 west, 3 east.
 extension BlockRegistry {
+    static let oldSignalTorch = ProcessInfo.processInfo.environment["BS_OLDSIGNALTORCH"] == "1"
     static let dir6 = [IVec3(0, -1, 0), IVec3(0, 1, 0), IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)]
     static let buttonWoods = ["oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "crimson", "warped", "pale_oak"]
 
@@ -83,15 +84,39 @@ extension BlockRegistry {
             add(d)
         }
         // Torches.
+        // Nov 13 playtest (13:05:27, the Sparkstone Workshop: "Look at this fucking torch... Gotta be fixed"): the signal
+        // torch was the 2 px stick of its art cut off below the head (only the head's last rows showed), a wall torch
+        // stood 2 px off its wall touching nothing, and the repeater's and comparator's torches were bare sticks. Now a
+        // stick with a 4 px copper bulb on top (the lamp's glass, lit or dark), a wall torch leans out from its wall
+        // as a torch does, and the diodes' torches wear the same bulb (BS_OLDSIGNALTORCH=1: as before).
+        let oldTorch = BlockRegistry.oldSignalTorch
         for k in 0..<10 {
             let lit = k == 0 || (k >= 2 && k < 6)
             var d = state(k == 0 ? "redstone_torch" : "redstone_torch[\(k)]", "redstone_torch", "Copper Signal Torch", k == 0)
             d.tex = [lit ? "redstone_torch" : "redstone_torch_off"]; d.render = .model; d.layer = .cutout; d.opaque = false
             d.collide = false; d.emit = lit ? 7 : 0; d.hardness = 0; d.sound = .wood; d.skyStop = false
-            if k < 2 { d.boxes = [Box(7, 0, 7, 9, 10, 9)] }
-            else {
-                let f = (k - 2) % 4
-                d.boxes = [[Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][f]]
+            if oldTorch {
+                if k < 2 { d.boxes = [Box(7, 0, 7, 9, 10, 9)] }
+                else {
+                    let f = (k - 2) % 4
+                    d.boxes = [[Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][f]]
+                }
+            } else {
+                let bulb = Array(repeating: Tex.id(lit ? "redstone_lamp_on" : "redstone_lamp"), count: 6)
+                if k < 2 {
+                    var head = Box(6, 9, 6, 10, 13, 10); head.tex = bulb
+                    d.boxes = [Box(7, 0, 7, 9, 9, 9), head]
+                } else {
+                    // The foot against the wall (the side opposite the facing), the stick leaning 4 px out, the bulb on
+                    // its tip.
+                    let f = (k - 2) % 4
+                    var stick = [Box(7, 3, 14, 9, 11, 16), Box(7, 3, 0, 9, 11, 2), Box(14, 3, 7, 16, 11, 9), Box(0, 3, 7, 2, 11, 9)][f]
+                    let out: (Int8, Int8) = [(0, -4), (0, 4), (-4, 0), (4, 0)][f]
+                    stick.leanX = out.0; stick.leanZ = out.1
+                    var head = [Box(6, 11, 9, 10, 15, 13), Box(6, 11, 3, 10, 15, 7), Box(9, 11, 6, 13, 15, 10), Box(3, 11, 6, 7, 15, 10)][f]
+                    head.tex = bulb
+                    d.boxes = [stick, head]
+                }
             }
             add(d)
         }
@@ -170,6 +195,18 @@ extension BlockRegistry {
                 t2.tex = Array(repeating: Tex.id("bedrock"), count: 6)
             } else { t2 = Box(backC - 1, 2, backZ - 1, backC + 1, 7, backZ + 1); t2.tex = torchTex }
             d.boxes = [slab, t1, t2]; d.emit = 0; d.hidden = k != 0
+            if !oldTorch {
+                // (the sticks to 5 px, a 4 px bulb over each: see the signal torch above)
+                let bulb = Array(repeating: Tex.id(powered ? "redstone_lamp_on" : "redstone_lamp"), count: 6)
+                t1.y1 = 5
+                var h1 = Box(frontC - 2, 5, frontZ - 2, frontC + 2, 8, frontZ + 2); h1.tex = bulb
+                d.boxes = [slab, t1, h1]
+                if locked { d.boxes.append(t2) } else {
+                    t2.y1 = 5
+                    var h2 = Box(backC - 2, 5, backZ - 2, backC + 2, 8, backZ + 2); h2.tex = bulb
+                    d.boxes += [t2, h2]
+                }
+            }
             add(d)
         } } } }
         for powered in [false, true] { for sub in [false, true] { for f in 0..<4 {
@@ -184,6 +221,15 @@ extension BlockRegistry {
             var b1 = Box(8 - along.0 * 4 + side.0 * 4 - 1, 2, 8 - along.1 * 4 + side.1 * 4 - 1, 8 - along.0 * 4 + side.0 * 4 + 1, 7, 8 - along.1 * 4 + side.1 * 4 + 1); b1.tex = torch
             var b2 = Box(8 - along.0 * 4 - side.0 * 4 - 1, 2, 8 - along.1 * 4 - side.1 * 4 - 1, 8 - along.0 * 4 - side.0 * 4 + 1, 7, 8 - along.1 * 4 - side.1 * 4 + 1); b2.tex = torch
             d.boxes = [Box(0, 0, 0, 16, 2, 16), front, b1, b2]
+            if !BlockRegistry.oldSignalTorch {
+                // (the back torches a 5 px stick and a 4 px bulb; the front one a low bulb, taller in subtract mode)
+                let bulb = Array(repeating: Tex.id(powered ? "redstone_lamp_on" : "redstone_lamp"), count: 6)
+                var fb = Box(8 + along.0 * 5 - 2, 2, 8 + along.1 * 5 - 2, 8 + along.0 * 5 + 2, sub ? 6 : 4, 8 + along.1 * 5 + 2); fb.tex = bulb
+                b1.y1 = 5; b2.y1 = 5
+                var h1 = Box(Int(b1.x0) - 1, 5, Int(b1.z0) - 1, Int(b1.x1) + 1, 8, Int(b1.z1) + 1); h1.tex = bulb
+                var h2 = Box(Int(b2.x0) - 1, 5, Int(b2.z0) - 1, Int(b2.x1) + 1, 8, Int(b2.z1) + 1); h2.tex = bulb
+                d.boxes = [Box(0, 0, 0, 16, 2, 16), fb, b1, h1, b2, h2]
+            }
             add(d)
         } } }
         // Observer.
