@@ -1646,7 +1646,10 @@ if let out = arg("--view"), let ctx = vkctx {
             guard let kind = MobKind.named(k) else { continue }
             let off = (Float(i) - Float(keys.count - 1) / 2) * 1.6
             let at = vg.player.pos + ahead * d + right * off
-            let m = Mob(kind, at: V3(at.x, Float(vw.topY(Int(floor(at.x)), Int(floor(at.z))) + 1), at.z))
+            // (--mobsink D: stood D blocks down into the top cell, as on smooth ground that dips under its cell's top: the
+            // Nov 13 black chickens)
+            let sink = Float(arg("--mobsink") ?? "") ?? 0
+            let m = Mob(kind, at: V3(at.x, Float(vw.topY(Int(floor(at.x)), Int(floor(at.z))) + 1) - sink, at.z))
             m.yaw = yaw + .pi + (Float(arg("--mobyaw") ?? "") ?? 0) * .pi / 180     // --mobyaw DEG: turned (a profile at 90)
             if let c = Float(arg("--mobclock") ?? "") { m.callTimer = c }               // --mobclock S: the call clock (P295 idles)
             m.aggro = CommandLine.arguments.contains("--aggro")
