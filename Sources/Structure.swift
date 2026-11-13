@@ -851,6 +851,7 @@ extension World {
             }
             if !touches { Structure.skippedGround += 1; return }
         }
+        structLoud &+= 1                                     // (a change a check is queued for: StructureCollapse's quiet)
         let key = IVec3(floorDiv(x, 4), floorDiv(y, 4), floorDiv(z, 4))
         if Structure.tally != nil { Structure.tally![Blocks.key(old) + " -> " + Blocks.key(new), default: 0] += 1 }
         if loadQueued.insert(key).inserted { loadQueue.append(IVec3(x, y, z)) }

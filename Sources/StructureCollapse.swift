@@ -24,6 +24,7 @@ enum StructureCollapse {
     static var crumbsAFrame = 32
     static var patienceFrames = 216                   // (3 s: the longest a piece waits for quiet)
     private static var pendingSince = 0
+    private static var lastLoud = 0
     // (harness: what it is doing)
     static var state: String {
         lock.lock(); defer { lock.unlock() }
@@ -216,7 +217,11 @@ enum StructureCollapse {
             }
         }
         quietFrames += 1
-        if let p = pending.first, flood || changes.contains(where: { abs($0.x - p.x) + abs($0.z - p.z) < 128 }) { quietFrames = 0 }
+        // (quiet = no change a load check was queued for. Every structural block's change is noted for the piece in
+        // hand, grass dying back, snow settling and leaves falling among them: counted here too, a piece under trees
+        // or in the snow waited for a quiet that never came, 30 s and more in the citadel run)
+        if !pending.isEmpty, flood || w.structLoud != lastLoud { quietFrames = 0 }
+        lastLoud = w.structLoud
         if job == nil {
             // (seeded runs do not wait on the clock: the queue of checks empty is their quiet)
             // (a fight that never lets up for a third of a second, pieces still landing: weighed all the same after
