@@ -22,6 +22,14 @@ enum StructureCollapse {
     static var wantSeconds = 0.0012, maxWait = 3      // (as Structure.tick: a body waits for a frame with room)
     static let patientPieces = ProcessInfo.processInfo.environment["BS_COLLAPSEPUSH"] != "1"
     static var crumbsAFrame = 32
+    static var patienceFrames = 216                   // (3 s: the longest a piece waits for quiet)
+    private static var pendingSince = 0
+    // (harness: what it is doing)
+    static var state: String {
+        lock.lock(); defer { lock.unlock() }
+        let j = job.map { $0.outcome != nil ? "taking out \($0.next)/\($0.outcome!.parts.count) bodies, \($0.crumb)/\($0.outcome!.crumbs.count) loose" : ($0.solving ? "with the worker" : "reading, \($0.capture.count) so far") } ?? "no piece in hand"
+        return "\(j); \(pending.count) waiting (\(frameNo - pendingSince) frames, quiet for \(quietFrames)); \(held.count) checks held"
+    }
     static var sliceFloor = 0.0004                    // (a frame with no room left still reads this much)
 
     // (harness and soak)
@@ -123,6 +131,7 @@ enum StructureCollapse {
         if let j = job, !j.counted, j.capture.contains(p) { return }             // (the piece being read: the change is read into it)
         if pending.contains(where: { abs($0.x - p.x) + abs($0.y - p.y) + abs($0.z - p.z) < 24 }) { return }
         if pending.count >= 8 { pending.removeFirst() }
+        if pending.isEmpty { pendingSince = frameNo }
         pending.append(p)
         asked += 1
     }
@@ -205,13 +214,16 @@ enum StructureCollapse {
         if let p = pending.first, flood || changes.contains(where: { abs($0.x - p.x) + abs($0.z - p.z) < 128 }) { quietFrames = 0 }
         if job == nil {
             // (seeded runs do not wait on the clock: the queue of checks empty is their quiet)
-            guard paced ? quietFrames >= settleFrames : w.loadQueue.isEmpty else { return }
+            // (a fight that never lets up for a third of a second, pieces still landing: weighed all the same after
+            // `patienceFrames`; what changes meanwhile is read in, and the piece weighed once more)
+            guard paced ? (quietFrames >= settleFrames || frameNo - pendingSince >= patienceFrames) : w.loadQueue.isEmpty else { return }
             while job == nil, let p = pending.first {
                 pending.removeFirst()
                 guard w.activeHere(p), Structure.part(w, p.x, p.y, p.z) != nil else { continue }
                 if let k = kept, k.contains(p) { job = Job(p, k); kept = nil; reused += 1 }
                 else { kept = nil; keptAt = now; job = Job(p) }
             }
+            pendingSince = frameNo
         }
         guard let j = job else { return }
         lock.lock(); let outcome = j.outcome; lock.unlock()
