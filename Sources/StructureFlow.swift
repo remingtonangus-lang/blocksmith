@@ -80,7 +80,8 @@ enum StructureFlow {
             if soil(&k, x, y - i, z) { continue }
             let b = k.built(x, y - i, z)
             if b == AIR || Blocks.isLiquid(b) { return 1 }
-            return Structure.part(&k, x, y - i, z) != nil ? 2 : 0
+            if Structure.part(&k, x, y - i, z) != nil { return 2 }
+            return Structure.anchor(&k, x, y - i, z) ? 0 : 1          // (a torch, a vine, a leaf under it holds nothing)
         }
         return 0
     }
@@ -101,9 +102,9 @@ enum StructureFlow {
     // comes down when nothing roots it: a garden in the air.)
     // Hanging soil holds sideways like rock (with soil's own bond, BS_THINROCK=0, a Capital stood at 1.00 times its
     // weight as generated: too near), and hangs from rooted ground right over it (a corridor's ceiling under a hill:
-    // `over`). BS_THINHELD=1: at the 12-cell bound it is held by what lies past.
+    // `over`). At the 12-cell bound it is held by what lies past (BS_THINHELD=0: cut loose there).
     static let thinRock = ProcessInfo.processInfo.environment["BS_THINROCK"] != "0"
-    static let thinHeld = ProcessInfo.processInfo.environment["BS_THINHELD"] == "1"
+    static let thinHeld = ProcessInfo.processInfo.environment["BS_THINHELD"] != "0"
     @inline(__always) static func over(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         thinGround && soil(&k, x, y, z) && ground(&k, x, y + 1, z)
     }

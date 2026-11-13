@@ -213,11 +213,12 @@ extension Game {
     // drawn with its own mesh the whole way (a tree keeps its leaf blobs and round trunk, a tower its walls), tipping
     // away from him. A tree takes its crown along and lies as a felled trunk once still; anything else lies where it lands.
     static let toppledName = "Toppled"
+    static let toppledWreck = "Toppled wreck"
     static var ridersTaken = 0                                // (checks)
     static let ridersOn = ProcessInfo.processInfo.environment["BS_OLDRIDERS"] != "1"
     static let rides: [Bool] = (0..<Blocks.count).map { i in
         let b = BlockID(i)
-        guard b != AIR, !Blocks.collide[i], !Blocks.isLiquid(b), !CapitalBase.isLeaf(b) else { return false }
+        guard b != AIR, !Blocks.collide[i], !Blocks.isLiquid(b), !CapitalBase.isLeaf(b), Blocks.hardness[i] >= 0 else { return false }
         let k = Blocks.key(b)
         return !k.contains("fire") && !k.contains("portal")
     }
@@ -269,8 +270,11 @@ extension Game {
                 for d in World.allDirs where d.y == 0 {
                     let q = c + d
                     guard !body.contains(q), rides[Int(world.block(q.x, q.y, q.z))] else { continue }
-                    let under = IVec3(q.x, q.y - 1, q.z)
-                    guard body.contains(under) || !Blocks.collide[Int(world.block(under.x, under.y, under.z))] else { continue }   // (it stands on something that stays)
+                    // (a torch or a ladder on a wall that stays, beside the piece, stays: nothing solid may touch it but the piece)
+                    guard !World.allDirs.contains(where: { e in
+                        let n = q + e
+                        return !body.contains(n) && Blocks.collide[Int(world.block(n.x, n.y, n.z))]
+                    }) else { continue }
                     if seen.insert(q).inserted { riders.append(q) }
                 }
             }

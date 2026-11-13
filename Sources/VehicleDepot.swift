@@ -27,7 +27,7 @@ enum VehicleDepot {
     // boats, aircraft, airships and helicopters he built, and the Capital and Ash craft he has taken (the dropship keeps
     // its own tank, CapitalState.dropFuel). Dry, an aircraft comes down under what thrust the fumes give.
     static func usesFuel(_ s: Ship) -> Bool {
-        guard s.parent == nil, s.role != "dropship", !Felling.isFelled(s), s.name != Game.toppledName else { return false }
+        guard s.parent == nil, s.role != "dropship", !Felling.isFelled(s), !s.fallenPiece else { return false }
         guard s.role == nil ? !s.kinematic : s.captured else { return false }
         return !s.wheels.isEmpty || !s.props.isEmpty || !s.rotors.isEmpty || s.engines > 0
     }

@@ -375,7 +375,7 @@ final class Player {
         jumped = false
         if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
-        if onGround || flying || inFluid { clamberBase = pos.y }
+        if onGround || flying || inFluid || jetThrust || levitate > 0 { clamberBase = pos.y }
         if clamber != nil { stepClamber(dt, w); return }       // P511
 
         sneaking = (input.sneak || forcedCrouch || ducking) && !flying && !prone

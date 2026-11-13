@@ -294,7 +294,7 @@ final class Ship: LifeLinked {
     var telegraphPause: Float = 0    // piloting: throttle resting at stop after passing through it
     var asleep = false               // far from the player or over unloaded ground: no physics this frame
     var onHull = 0                   // (steps since it touched a hull that is not a fallen piece)
-    var fallenPiece: Bool { name.hasPrefix(Game.toppledName) || name == Felling.name }      // ("Toppled wreck": one shot up since)
+    var fallenPiece: Bool { name == Game.toppledName || name == Felling.name || name == Game.toppledWreck }      // ("Toppled wreck": one shot up since, ShipCombat)
     var lookDue = false
     var lying = false, stillT: Float = 0, lyingT: Float = 0   // Nov 13: a fallen piece come to rest (ShipManager.step)
     var gunPitch: Float = 0          // barrel elevation shown on this ship's cannons (radians)

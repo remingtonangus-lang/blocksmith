@@ -22,7 +22,9 @@ extension Player {
 
     // The second press of jump in the air: true when a ledge was taken (Game: then no flight toggle).
     func tryGrab(_ w: World) -> Bool {
-        guard Player.grabOn, clamber == nil, !onGround, !flying, !inWater, !inLava, !prone, !gliding, levitate <= 0, !jetThrust else { return false }
+        // (not in a ship's frame, where the deck moves under the pull; not falling fast: a fall is not caught)
+        guard Player.grabOn, w.frame == nil, clamber == nil, !onGround, !flying, !inWater, !inLava, !prone, !gliding, levitate <= 0, !jetThrust,
+              vel.y > -14 else { return false }
         let dir = simd_length(lastWish) > 0.3 ? lastWish : lastFacing
         guard startClamber(dir, w, grab: true) else { return false }
         Player.grabs += 1
