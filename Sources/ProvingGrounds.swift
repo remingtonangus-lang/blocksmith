@@ -19,6 +19,7 @@ enum ProvingGrounds {
     static let seed: UInt64 = 0x5052_4F56_494E          // a fixed seed: the deck stands over the same land every time
     static let deckY = 300                              // internal y of the deck's walking level (well over any land)
     static let markerBlock = "calcite"                  // laid last at the start corner: the grounds are built
+    static let oldOrder = ProcessInfo.processInfo.environment["BS_OLDPROVINGORDER"] == "1"
 
     static let familyNames: [VehicleZoo.Family: String] = [.car: "Car", .truck: "Truck", .odd: "Odd Build", .tank: "Tank",
         .boat: "Boat", .gunboat: "Gunboat", .airship: "Airship", .plane: "Plane", .heli: "Helicopter", .hybrid: "Hybrid"]
@@ -187,7 +188,14 @@ enum ProvingGrounds {
         let d = deck
         let stone = STONE, walk = key("andesite"), water = WATER
         // The deck, a 32-block tile a step (each loaded first: the far tiles are past what streams in round him).
-        for tz in stride(from: d.z0, through: d.z1, by: 32) { for tx in stride(from: d.x0, through: d.x1, by: 32) {
+        // Nov 13 playtest (13:04:20-13:05:05, flying over it a minute after it began: "I'm in the proofing ground and
+        // there's nothing... Nothing to be proofed"): the tiles went down row by row from the far north-west corner, so
+        // for the first minutes all he saw was a strip of stone a long way off. Now nearest the start first: the deck
+        // spreads out from under him (BS_OLDPROVINGORDER=1: row by row).
+        var tilesAt: [(Int, Int)] = []
+        for tz in stride(from: d.z0, through: d.z1, by: 32) { for tx in stride(from: d.x0, through: d.x1, by: 32) { tilesAt.append((tx, tz)) } }
+        if !oldOrder { tilesAt.sort { ($0.0 + 16) * ($0.0 + 16) + ($0.1 + 16) * ($0.1 + 16) < ($1.0 + 16) * ($1.0 + 16) + ($1.1 + 16) * ($1.1 + 16) } }
+        for (tx, tz) in tilesAt {
             let at = V3(Float(o.x + tx + 16), Float(o.y), Float(o.z + tz + 16))
             b.add(at, 1) { g in
                 let w = g.world
@@ -197,7 +205,7 @@ enum ProvingGrounds {
                     for y in o.y..<(o.y + 12) where w.rawBlock(o.x + x, y, o.z + z) != AIR { _ = w.setBlockAsync(o.x + x, y, o.z + z, AIR) }
                 } }
             }
-        } }
+        }
         // Over a rectangle (relative x0...x1, z0...z1), a 32-block tile a step, each tile's chunks made first.
         func tiles(_ x0: Int, _ x1: Int, _ z0: Int, _ z1: Int, _ body: @escaping (World, Int, Int) -> Void) {
             for tz in stride(from: z0, through: z1, by: 32) { for tx in stride(from: x0, through: x1, by: 32) {
@@ -316,10 +324,15 @@ extension Game {
     // yet and stand him at the start; then a few steps every tick until it's done.
     func provingTick() {
         if let b = provingBuild {
+            let q0 = b.next * 4 / max(1, b.steps.count)
             b.run(self, budget: 0.006, stream: true)
             if b.done {
                 provingBuild = nil
-                onToast?("Proving Grounds")
+                onToast?("Proving Grounds: ready")
+            } else if !ProvingGrounds.oldOrder, b.next * 4 / max(1, b.steps.count) > q0 {
+                // (Nov 13: how far along it is, a quarter at a time: a build of several minutes on the headset read as
+                // an empty deck)
+                onToast?("Proving Grounds: building, \(b.next * 100 / max(1, b.steps.count))%")
             }
             return
         }
@@ -331,7 +344,10 @@ extension Game {
         let o = ProvingGrounds.origin(spawn: findSpawn())
         _ = world.loadSync(center: V3(Float(o.x), Float(o.y), Float(o.z)), radius: 1)
         let first = ProvingGrounds.built(world, o) == false
-        if first { provingBuild = ProvingGrounds.plan(o) }
+        if first {
+            provingBuild = ProvingGrounds.plan(o)
+            if !ProvingGrounds.oldOrder { onToast?("Proving Grounds: building, the deck first") }
+        }
         if first || player.pos.y < Float(o.y) - 30 {
             player.pos = ProvingGrounds.start(o)
             player.vel = .zero

@@ -1,0 +1,57 @@
+import Foundation
+import simd
+
+// Checks for the Nov 13 playtest's fixes that need no world of their own (questcheck suite).
+enum Nov13Checks {
+    static func run(_ g: Game, _ check: (Bool, String) -> Void) {
+        scopeEyepiece(check)
+        helmHold(g, check)
+        LetterCheck.run(check)
+    }
+
+    // 12:38-12:40, the Mahlwerk with a scope fitted ("Not sure where the scope is in this thing, but it ain't really
+    // working"): the VR scope judged his eye at the gun's own sight line (0.44 m behind the grip, a rifle's cheek); the
+    // fitted scope is drawn over the barrels. Upgrades.scopeEyepiece is the drawn scope's rear, and on the Mahlwerk it
+    // sits far from where the eye was looked for.
+    static func scopeEyepiece(_ check: (Bool, String) -> Void) {
+        let gi = Guns.rotary
+        let ench = Enchant.pack([(.stability, 1)])
+        let parts = Guns.upgradeParts(gi, ench, magOut: false)
+        guard let tube = parts.first, let e = Upgrades.scopeEyepiece(Guns.models[gi], ench) else {
+            check(false, "scope eyepiece: the Mahlwerk with a scope fitted has a drawn scope and an eyepiece (\(parts.count) parts)"); return
+        }
+        let onTube = abs(e.z - tube.mx.z) < 0.01 && e.x > tube.mn.x && e.x < tube.mx.x && e.y > tube.mn.y && e.y < tube.mx.y
+        // The old eye point in the model's pixels (QuestControls.heldGunShift at the held scale 1: 0.04 m a pixel).
+        let k: Float = 0.0125 * 3.2
+        let oldEye = V3(0, 0.085, 0.44) / k
+        let apart = simd_length(e - oldEye) * k
+        let none = Upgrades.scopeEyepiece(Guns.models[gi], 0) == nil
+        check(onTube && apart > 0.3 && none,
+              String(format: "scope eyepiece: the Mahlwerk's fitted scope's eyepiece is the drawn scope's rear (%@), %.2f m from the rifle-cheek point the VR scope looked for; no scope, no eyepiece (%@)",
+                     onTube ? "yes" : "no", apart, none ? "yes" : "no"))
+    }
+
+    // 12:56:29-12:57:11, an Ironback Crawler ("Why is the helm locked?... They're not holding it right now, though"):
+    // the driver holds the helm while at it; off at the far end of the hull fighting, the helm is free; a post not yet
+    // manned still holds it.
+    static func helmHold(_ g: Game, _ check: (Bool, String) -> Void) {
+        let ships = g.world.ships
+        let s = ships.spawn(AshWrecks.salvagedFighter(), at: g.player.pos + V3(0, 40, 30), yaw: 0, name: "helm hold", role: "test")
+        defer { ships.remove(s, turrets: false) }
+        guard let h = s.helm else { check(false, "helm hold: the test hull has a helm"); return }
+        let st = CapitalState()
+        st.crew = [V3(Float(h.x) + 0.5, Float(h.y), Float(h.z) + 1.5)]
+        st.crewRoles = [.driver]
+        let unmanned = ships.helmHeld(s, st)
+        st.crewDone = [0]
+        let m = Mob(.soldierTrooper, at: s.toWorld(st.crew[0]))
+        st.crewMobs[0] = m
+        let atHelm = ships.helmHeld(s, st)
+        m.pos = s.toWorld(V3(Float(h.x) + 0.5, Float(h.y), Float(h.z) + 9))
+        let away = ships.helmHeld(s, st)
+        m.pos = s.toWorld(st.crew[0]); m.health = 0
+        let dead = ships.helmHeld(s, st)
+        check(unmanned && atHelm && !away && !dead,
+              "helm hold: a crawler's helm is held by its driver's post not yet manned (\(unmanned)), by the driver at it (\(atHelm)); not by a driver 8 blocks off (\(!away ? "free" : "held")) or a dead one (\(!dead ? "free" : "held"))")
+    }
+}

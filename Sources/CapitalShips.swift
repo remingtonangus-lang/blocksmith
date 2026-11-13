@@ -1934,9 +1934,27 @@ extension ShipManager {
     // Holds a frigate upright (only yaw is steered; drift from rounding is taken out).
     // Capital fliers the player can take command of from the helm (Quest round 4: the frigate's helm was locked and a
     // dropship had none). Crawlers stay locked.
+    // Nov 13 playtest (12:56:29-12:57:11, aboard an Ironback Crawler: "Why is the helm locked? Shouldn't be locked. I've
+    // killed everybody in here... They're not holding it right now, though"): a crawler's helm was locked while its
+    // driver lived anywhere, off fighting at the far end of the hull too. The driver holds it while at it: his post not
+    // yet manned (the crew appear as he comes near), or the driver within 4 blocks of the helm (BS_OLDHELMHOLD=1: as
+    // before, while the driver lives anywhere).
+    static let oldHelmHold = ProcessInfo.processInfo.environment["BS_OLDHELMHOLD"] == "1"
+    func helmHeld(_ s: Ship, _ st: CapitalState) -> Bool {
+        guard st.driverAlive else { return false }
+        if ShipManager.oldHelmHold || st.crewless { return true }
+        guard let h = s.helm else { return false }
+        let at = s.toWorld(V3(Float(h.x) + 0.5, Float(h.y), Float(h.z) + 0.5))
+        for (i, r) in st.crewRoles.enumerated() where r == .driver {
+            guard st.crewDone.contains(i) else { return true }
+            if let m = st.crewMobs[i], m.health > 0, simd_length(m.pos - at) < 4 { return true }
+        }
+        return false
+    }
+
     func canCommandeer(_ s: Ship) -> Bool {
         // T9: a crawler whose driver is dead can be taken too, wrecked or not (its wheels are rebuilt with ingots).
-        if s.kinematic && s.parent == nil && s.helm != nil && s.role == "crawler" { return capState[s.id].map { !$0.driverAlive } ?? false }
+        if s.kinematic && s.parent == nil && s.helm != nil && s.role == "crawler" { return capState[s.id].map { !helmHeld(s, $0) } ?? false }
         // P334 (a): a crewed dropship is taken once its pilot is dead (it has come down by then).
         if s.role == "dropship" && !s.captured, let st = capState[s.id], !st.crew.isEmpty, st.driverAlive { return false }
         // P483 (Oct 28 17:37, his frigate crashed: "Things should still work, and I should definitely still be able to

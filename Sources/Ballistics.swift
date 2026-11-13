@@ -45,6 +45,7 @@ struct Beam {
 }
 
 final class Armory {
+    static let oldIncendiary = ProcessInfo.processInfo.environment["BS_OLDINCENDIARY"] == "1"
     var slugs: [Slug] = []
     var breaches: [CraterJob] = []      // manned naval shells' wall breaches being carved (NavalGuns.swift, P103)
     var beams: [Beam] = []
@@ -349,6 +350,14 @@ final class Armory {
             w.addBite(b, at: at, axis: SmoothTerrain.natural[Int(id)] ? -dir : nv, radius: 0.08 * big, depth: 0.06 * big, seed: seed, sync: false)
             g.debris.chips(id, cell: b, at: at, normal: nv, blow: dir, radius: 0.1 * big, seed: seed)
             if SmoothTerrain.natural[Int(id)] { w.carve(at: at + dir * 0.1, radius: 0.3 * big, mode: .dent) }   // PG1: a lasting dent
+        }
+        // Nov 13 playtest (13:07:53, incendiary rounds into a plank wall: "if I shoot this wood here, the wood should catch
+        // on fire"): an incendiary round sets what burns alight on the face it strikes, one round in three (a burst
+        // lights it), as a fire set by a flint would (it spreads and burns out). BS_OLDINCENDIARY=1: as before.
+        if s.incendiary && !Armory.oldIncendiary && Blocks.flammable[Int(id)] && Rand.float(in: 0..<1) < 0.34 {
+            let f = IVec3(b.x + n.x, b.y + n.y, b.z + n.z)
+            let fb = w.block(f.x, f.y, f.z)
+            if Blocks.replaceable[Int(fb)] && !Blocks.isLiquid(fb) && fb != FIRE { w.lightFire(f) }
         }
         g.particles.dust(id, at: at + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.05, count: 3, spread: 0.05)
         g.particles.add(Particle(pos: at, vel: V3(Float(n.x), Float(n.y) + 1, Float(n.z)) * 2, life: 0.12, maxLife: 0.12, layer: Int(Tex.id("smoke")),

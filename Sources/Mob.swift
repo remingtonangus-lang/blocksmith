@@ -777,6 +777,16 @@ final class Mob {
             fireTick += dt
             if fireTick >= 1 { fireTick = 0; health -= 1; hurt = 0.3 }
             if effects?.has(.fireResistance) ?? false { fire = 0 }
+            // Nov 13 playtest (13:07:53, a soldier hit with incendiary rounds: "he should be engulfed in flames"): a
+            // burning body was only tinted orange. Flames lick up over it (about 24 a second, within 40 blocks of him),
+            // with a wisp of smoke (BS_OLDMOBFIRE=1: the tint only).
+            if fire > 0 && !Mob.oldMobFire && health > 0 && simd_length_squared(g.player.pos - pos) < 1600 && Rand.float(in: 0..<1) < dt * 24 {
+                let at = pos + V3(Rand.float(in: -halfW...halfW), Rand.float(in: 0...height * 0.95), Rand.float(in: -halfW...halfW))
+                g.particles.add(Particle(pos: at, vel: V3(Rand.float(in: -0.15...0.15), Rand.float(in: 0.6...1.4), Rand.float(in: -0.15...0.15)),
+                                         life: Rand.float(in: 0.25...0.5), maxLife: 0.5, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                                         size: Rand.float(in: 0.1...0.22), gravity: -0.6, color: V3(1.6, 0.75, 0.22), collide: false, glow: true))
+                if Rand.float(in: 0..<1) < 0.2 { g.particles.smoke(at: at + V3(0, 0.3, 0)) }
+            }
         }
         if bleed > 0 { Serrated.tick(self, dt, g) }                // D32
         effectTick(dt, g)
@@ -1690,6 +1700,7 @@ final class Mob {
     static var glanced = 0                    // P483: melee blows that glanced off a gun (checks)
     // P321: a gun round on a soldier, its armour and toughness already worked out (Armory.impactMob): taken as dealt.
     static var roundHit = false
+    static let oldMobFire = ProcessInfo.processInfo.environment["BS_OLDMOBFIRE"] == "1"
     static let litCampfires: Set<BlockID> = Set(["campfire", "soul_campfire"].filter { Blocks.has($0) }.map { Blocks.id($0) })
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if posse == Prisoners.posse { return }                              // P347: the camp's prisoners can't be hurt

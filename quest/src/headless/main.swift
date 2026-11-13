@@ -3397,6 +3397,8 @@ ClamberCheck.run(game, check)                          // P511: up and over a le
 TorchWaterCheck.run(game, check)                       // ledger 55: torches give way to water and lava, none go in
 CrawlerInteriorCheck.run(check)                         // P511: the crawler's insides dense, a motor at every wheel
 MobLightCheck.run(game, check)                          // Nov 13: small mobs on smooth ground never drawn black
+PlaneExitCheck.run(game, check)                         // Nov 13: off a Salvaged Fighter's helm, out of the plane
+Nov13Checks.run(game, check)                            // Nov 13: the scope's eyepiece, the crawler's helm, the letters
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest

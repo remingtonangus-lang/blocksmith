@@ -322,6 +322,8 @@ final class Game: LifeLinked {
     var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
     var attackQueued: Float = 0
     @WeakLink var commandeerHint: Ship? = nil     // the vessel whose helm last creaked at him (ShipPlay.commandeerHintTick)
+    @WeakLink var helmLeft: Ship? = nil           // Nov 13: the hull whose helm he just left (no use press retakes it for a moment)
+    var helmLeftT: Float = 0
     var horseBond: Float = 0           // the bonded horse's id (Mob.bond): the last tamed horse ridden (Riding.swift)
     var horseGrave: HorseGrave?        // P259: where and when the bonded horse died (Riding.swift)
     var journal: [JournalEntry] = []    // messages and documents received (Journal.swift)
@@ -1430,7 +1432,7 @@ final class Game: LifeLinked {
         // Within reach of a helm the player can take (ShipPlay.commandeerable): use takes it, unless aimed at a door,
         // chest or other usable block, or a ship's container.
         if useNow && !(input.shift || p.b), let s = commandeerable(), !(target.map { isInteractive($0.hit) } ?? false),
-           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false), !useMeantForHull(s) {
+           !(world.ships.target.map { $0.ship.blockEntities[$0.cell] != nil } ?? false), !useMeantForHull(s), !gunUseNotForHelm(s) {
             takeCommand(s); return
         }
         // Skinning a body you're aiming at (Hunting.swift): before guns, which take the use button to aim.
