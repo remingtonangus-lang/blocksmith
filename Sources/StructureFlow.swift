@@ -28,7 +28,7 @@ enum StructureFlow {
     struct Piece {
         var cells: [IVec3] = []
         var weight: [Float] = []        // (tenths of a tonne, as Structure.Mat)
-        var bond: [Float] = []
+        var bond: [Float] = []          // (what a joint of it carries hung or sideways: `side`)
         var crush: [Float] = []
         var ground: [UInt8] = []        // 0: on nothing; 1: stands on ground; 2: into ground at a side only
         var capped = false              // (the fill stopped at its bound: the far blocks are taken as held)
@@ -51,11 +51,14 @@ enum StructureFlow {
     // (a tower's top on its sky bridge) is held to a quarter of it: a concrete joint carries a hundred blocks of
     // concrete (a 24-block balcony with room to spare), not four hundred. BS_SHEAR=1: the whole bond.
     static var shear: Float = Float(ProcessInfo.processInfo.environment["BS_SHEAR"] ?? "") ?? 0.25
+    // (and never less than the check near a change allows: a material that corbels `reach` blocks out carries that
+    // many of its own blocks on a joint, with a quarter to spare)
+    @inline(__always) static func side(_ m: Structure.Mat) -> Float { max(m.bond * shear, m.weight * Float(m.reach) * 1.25) }
     // A block standing alone, nothing built against any of its four sides, is a slender column: it buckles long before
     // it crushes, and bears this share of its crushing strength (one neighbour: a wall's end, halfway). A wall, a pier
     // two blocks thick or a block in a floor bears all of it. So a storey shot out to a few posts gives way where the
     // same posts inside their walls did not. BS_SLENDER=1: no such rule.
-    static var slenderShare: Float = Float(ProcessInfo.processInfo.environment["BS_SLENDER"] ?? "") ?? 0.3
+    static var slenderShare: Float = Float(ProcessInfo.processInfo.environment["BS_SLENDER"] ?? "") ?? 0.5
     @inline(__always) static func slender(_ beside: Int) -> Float { beside >= 2 ? 1 : (beside == 1 ? (1 + slenderShare) / 2 : slenderShare) }
     // (weights and strengths as whole numbers: 1/16 of a weight unit)
     static let unit: Float = 16
@@ -65,7 +68,7 @@ enum StructureFlow {
         let face = abs(d.x) + abs(d.y) + abs(d.z) == 1
         let k: Float = face ? 1 : edgeShare
         if d.y < 0 { return min(ci, cj) * k }         // pressed down (straight, or down a slope)
-        return min(bi, bj) * k * shear                // hung from above, or sideways
+        return min(bi, bj) * k                        // hung from above, or sideways (Piece.bond: `side`)
     }
 
     // Capture: the piece of built blocks at p (Structure.part), filled over faces and edges up to `limit` blocks. It
@@ -97,7 +100,7 @@ enum StructureFlow {
                 // (every queued cell stays a cell of the piece: a block gone since it was queued weighs nothing and joins nothing)
                 let m = Structure.part(&k, q.x, q.y, q.z)
                 piece.cells.append(q)
-                piece.weight.append(m?.weight ?? 0); piece.bond.append(m?.bond ?? 0); piece.crush.append(m?.crushCap ?? 0)
+                piece.weight.append(m?.weight ?? 0); piece.bond.append(m.map(StructureFlow.side) ?? 0); piece.crush.append(m?.crushCap ?? 0)
                 guard m != nil else { piece.ground.append(0); piece.held.append(false); continue }
                 if helm[Int(k.built(q.x, q.y, q.z))] { vessel = true }
                 var g: UInt8 = 0
@@ -136,7 +139,7 @@ enum StructureFlow {
                 let m = Structure.part(&k, q.x, q.y, q.z)
                 var beside = 0
                 for e in World.allDirs where e.y == 0 { if Structure.part(&k, q.x + e.x, q.y, q.z + e.z) != nil { beside += 1 } }
-                piece.weight[i] = m?.weight ?? 0; piece.bond[i] = m?.bond ?? 0; piece.crush[i] = (m?.crushCap ?? 0) * StructureFlow.slender(beside)
+                piece.weight[i] = m?.weight ?? 0; piece.bond[i] = m.map(StructureFlow.side) ?? 0; piece.crush[i] = (m?.crushCap ?? 0) * StructureFlow.slender(beside)
                 var g: UInt8 = 0
                 if m != nil {
                     if Structure.anchor(&k, q.x, q.y - 1, q.z) { g = 1 }
@@ -187,7 +190,7 @@ enum StructureFlow {
                 cap[i * D + d] = j < 0 ? 0 : q16(jointCap(dirs[d], bi: piece.bond[i], bj: piece.bond[Int(j)], ci: piece.crush[i], cj: piece.crush[Int(j)]))
             }
             let g = piece.ground[i]
-            toT[i] = piece.held[i] ? big : (g == 1 ? q16(piece.crush[i]) : (g == 2 ? q16(piece.bond[i] * shear) : 0))
+            toT[i] = piece.held[i] ? big : (g == 1 ? q16(piece.crush[i]) : (g == 2 ? q16(piece.bond[i]) : 0))
             let wgt = Int64((piece.weight[i] * scale * unit).rounded())
             excess[i] = wgt
             total += wgt

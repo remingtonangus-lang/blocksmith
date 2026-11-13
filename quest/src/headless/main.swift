@@ -1248,7 +1248,7 @@ if let out = arg("--view"), let ctx = vkctx {
         for _ in 0..<Int(settle * 72) { timedTick() }
         // (a whole piece being weighed is given up to 30 s more)
         var extra = 0
-        while StructureCollapse.busy && extra < 30 * 72 { timedTick(); extra += 1 }
+        while StructureCollapse.busy && extra < 30 * 72 { timedTick(); extra += 1; if StructureCollapse.withWorker { usleep(2000) } }
         if extra > 0 { for _ in 0..<(6 * 72) { timedTick() } }       // (and the fall after it)
         print("view: shells: \(Armory.detonations - d0) bursts, \(Structure.checks) load checks, \(Structure.fallen) blocks fell, \(Felling.toppled) pieces toppled, \(vg.falling.count) falling")
         print(String(format: "view: settle: %d ticks, slowest %.1f ms (%d bodies then), %d past 13.9 ms; %d bodies now, %d asleep",

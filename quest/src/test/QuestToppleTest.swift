@@ -127,15 +127,15 @@ enum QuestToppleTest {
             let w0 = StructureCollapse.weighed, b0 = StructureCollapse.bodies
             let (_, weakUp) = tower(-4962, 2245, keep: 1)
             let weakAll = weakUp()
-            for _ in 0..<288 { g.menu = nil; g.tick(1.0 / 72); if !StructureCollapse.busy && w.loadQueue.isEmpty && StructureCollapse.weighed > w0 { break } }
+            for _ in 0..<720 { g.menu = nil; g.tick(1.0 / 72); if StructureCollapse.withWorker { usleep(2000) }; if !StructureCollapse.busy && w.loadQueue.isEmpty && StructureCollapse.weighed > w0 { break } }
             let weakLeft = weakUp(), weakBodies = StructureCollapse.bodies - b0
             let w1 = StructureCollapse.weighed
             let (_, soundUp) = tower(-4962, 2275, keep: 2)
             let soundAll = soundUp()
-            for _ in 0..<288 { g.menu = nil; g.tick(1.0 / 72); if !StructureCollapse.busy && w.loadQueue.isEmpty && StructureCollapse.weighed > w1 { break } }
+            for _ in 0..<720 { g.menu = nil; g.tick(1.0 / 72); if StructureCollapse.withWorker { usleep(2000) }; if !StructureCollapse.busy && w.loadQueue.isEmpty && StructureCollapse.weighed > w1 { break } }
             let soundLeft = soundUp()
-            print(String(format: "toppletest: a storey shot out under an 8x8 tower: on four columns %d of %d blocks above still stand (%d bodies fell); on sixteen %d of %d (weighed whole %d times, %d blocks, read %.1f ms in slices of %.2f ms at most, weighed %.1f ms)",
-                         weakLeft, weakAll, weakBodies, soundLeft, soundAll, StructureCollapse.weighed - w0, StructureCollapse.lastBlocks,
+            print(String(format: "toppletest: a storey shot out under an 8x8 tower: on four columns %d of %d blocks above still stand (%d bodies fell); on sixteen %d of %d (asked %d times, weighed whole %d times, %d blocks, read %.1f ms in slices of %.2f ms at most, weighed %.1f ms)",
+                         weakLeft, weakAll, weakBodies, soundLeft, soundAll, StructureCollapse.asked, StructureCollapse.weighed - w0, StructureCollapse.lastBlocks,
                          StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs, StructureCollapse.lastSolveMs))
             if StructureCollapse.enabled {
                 if weakLeft > 0 { print("FAIL toppletest: a tower's top stands on four columns that cannot carry it (\(weakLeft) blocks)"); fails += 1 }

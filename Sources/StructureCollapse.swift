@@ -5,7 +5,7 @@ import simd
 // near a change (Structure.analyse stops at 1,536 blocks and takes the rest as held) is weighed whole here, and what
 // cannot carry its weight comes down.
 //   - asked for by Structure.tick, when its check of a change stopped at its bound and found nothing cut loose;
-//   - waits until the structure has been left alone for `settle` seconds (a salvo is weighed once, after it);
+//   - waits until the structure has been left alone for `settleFrames` frames (a salvo is weighed once, after it);
 //   - read from the world a slice a frame under the tick's carving allowance (StructureFlow.Capture), started over
 //     when a structural block changes meanwhile;
 //   - weighed on a worker thread (StructureFlow.solve: arrays only), which also splits what falls into bodies;
@@ -16,7 +16,7 @@ import simd
 // BS_COLLAPSE=0: off (before/after). Seeded runs and harnesses do every step on the frame it is asked.
 enum StructureCollapse {
     static let enabled = ProcessInfo.processInfo.environment["BS_COLLAPSE"] != "0"
-    static var settle = 0.35                          // seconds without a structural change before a piece is read
+    static var settleFrames = 25                      // frames without a structural change before a piece is read (a third of a second)
     static var limit = 250_000                        // blocks read (past it: held, as before)
     static let bodyBin = Int(ProcessInfo.processInfo.environment["BS_COLLAPSEBIN"] ?? "") ?? 12   // a falling body is at most a cube of this side
     static var wantSeconds = 0.0012, maxWait = 3      // (as Structure.tick: a body waits for a frame with room)
@@ -56,7 +56,8 @@ enum StructureCollapse {
     private static var pending: [IVec3] = []
     private static var job: Job?
     private static let lock = NSLock()
-    private static var quietSince = 0.0, waited = 0
+    private static var quietFrames = 0, waited = 0
+    static var withWorker: Bool { lock.lock(); defer { lock.unlock() }; return job.map { $0.solving && $0.outcome == nil } ?? false }
     static var busy: Bool { job != nil || !pending.isEmpty }
 
     static func reset() { pending.removeAll(); job = nil; kept = nil; waited = 0; againSeeds.removeAll() }
@@ -127,7 +128,7 @@ enum StructureCollapse {
                     restarts += 1
                     job = nil
                     if pending.count < 8 { pending.insert(j.seed, at: 0) }
-                    quietSince = now
+                    quietFrames = 0
                 }
             } else if !changes.isEmpty {
                 let mine = changes.filter { c in j.capture.contains(c) || World.allDirs.contains(where: { j.capture.contains(c + $0) }) }
@@ -146,10 +147,11 @@ enum StructureCollapse {
                 if !mine.isEmpty { kept!.refresh(w, mine); keptUsed = now }
             }
         }
-        if let p = pending.first, flood || changes.contains(where: { abs($0.x - p.x) + abs($0.z - p.z) < 128 }) { quietSince = now }
+        quietFrames += 1
+        if let p = pending.first, flood || changes.contains(where: { abs($0.x - p.x) + abs($0.z - p.z) < 128 }) { quietFrames = 0 }
         if job == nil {
             // (seeded runs do not wait on the clock: the queue of checks empty is their quiet)
-            guard paced ? now - quietSince >= settle : w.loadQueue.isEmpty else { return }
+            guard paced ? quietFrames >= settleFrames : w.loadQueue.isEmpty else { return }
             while job == nil, let p = pending.first {
                 pending.removeFirst()
                 guard w.activeHere(p), Structure.part(w, p.x, p.y, p.z) != nil else { continue }

@@ -54,11 +54,13 @@ enum Structure {
     // far more pressed than hung (masonry sixty times its bond in the real thing; here enough for a wall of it 240
     // high, a timber frame 100, packed earth 25), so a sound building never crushes its own footings; what brings a
     // big one down is too little left under too much: a storey shot out to a few columns.
+    // (Concrete and steel are held to a wall of themselves some 300 high, well under the real thing: on the real
+    // numbers three concrete posts carried the whole top of a gutted citadel tower, his Nov 12 18:28 note.)
     // (1) Weight is tenths of a tonne per block (a block is a cubic metre: the material's density in g/cm3 x 10). Bond is
     // in the same units: what one face joint carries hanging or reaching out. Reach is in blocks.
     static let wool = mat("wool", 1, 30, 2, crush: 200)         // felted fibre, 0.1 t/m3: light, so it carries thirty of itself; two blocks out and it sags off
     static let glass = mat("glass", 25, 120, 1, crush: 1500)      // 2.5 t/m3, brittle: carries a lintel's share in its frame, but reaches one block out from it
-    static let framed = mat("framed", 25, 2000, 1, crush: 6000)  // a modern window: laminated panes in a steel frame tied into the walls, carrying the floor over it
+    static let framed = mat("framed", 25, 2000, 1, crush: 3000)  // a modern window: laminated panes in a steel frame tied into the walls, carrying the floor over it
     static let soil = mat("soil", 16, 5, 1, crush: 400)         // dirt, clay, snow packed by hand: crumbles at an overhang
     static let snow = mat("snow", 4, 20, 4, crush: 150)         // snow blocks: 0.4 t/m3, cut and packed hard: an igloo's dome closes over its room
     static let planks = mat("planks", 6, 200, 8, crush: 800)      // sawn softwood 0.6 t/m3; boards nailed and lapped carry thirty of themselves
@@ -67,9 +69,9 @@ enum Structure {
                                                       // sixty of itself, and a course corbels or vaults five out
     static let ice = mat("ice", 9, 30, 2, crush: 300)
     static let mushroom = mat("mushroom", 2, 100, 8, crush: 300)    // a giant mushroom's cap: light, fibrous flesh spreading wide off its stem
-    static let concrete = mat("concrete", 24, 10000, 24, crush: 30000) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
-    static let metal = mat("metal", 78, 12000, 8, crush: 40000)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
-    static let titanium = mat("titanium", 45, 15000, 10, crush: 50000) // 4.5 t/m3, stronger still for its weight
+    static let concrete = mat("concrete", 24, 10000, 24, crush: 7500) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
+    static let metal = mat("metal", 78, 12000, 8, crush: 20000)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
+    static let titanium = mat("titanium", 45, 15000, 10, crush: 20000) // 4.5 t/m3, stronger still for its weight
     static let gold = mat("gold", 193, 300, 3, crush: 3000)      // 19.3 t/m3 and soft: heavy and weak for a metal
 
     // Per block state: its material, or nil when it is not part of a structure.
