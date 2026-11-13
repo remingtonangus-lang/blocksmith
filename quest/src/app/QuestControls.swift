@@ -229,6 +229,8 @@ final class QuestControls {
     private var turnFlash: Float = 0
     private var lastFeet = V3.zero
     private var relocateFade: Float = 0                // Q2c-console-62: 1 right after a sudden jump, fading to 0
+    private(set) var relocateCount = 0                 // (harness: jumps that faded the view)
+    static let oldRelocate = ProcessInfo.processInfo.environment["BS_OLDRELOCATE"] == "1"
 
     // Aim (world space, this frame)
     private(set) var aimOrigin = V3.zero
@@ -938,7 +940,14 @@ final class QuestControls {
         // Q2c-console-62: a jump of more than 3 blocks inside the game tick (pearl, portal, respawn, bed, command, helm)
         // fades in from dark over a quarter second; a second jump during the fade restarts it rather than flickering.
         // (The teleport locomotion moves the feet before lastFeet is taken, so it keeps its own blink.)
-        if simd_length(game.player.pos - lastFeet) > 3 { relocateFade = 1 }
+        // Nov 13 (Carbon's blind reviews 154000 #8 and 160000 #5, "the entire view abruptly dims dark for one frame" flying
+        // in clear sky): a frame that came late (dt up to 0.1 s) carried the feet more than 3 blocks at fast flight's 87
+        // blocks a second (a 35 ms hitch was enough; a fall or a fast deck the same), and the move read as a jump: the view
+        // went black and faded back. Only what the body's own speed and the deck under it don't account for counts now.
+        // BS_OLDRELOCATE: any move over 3 blocks, as before.
+        let moved = simd_length(game.player.pos - lastFeet)
+        let carried = QuestControls.oldRelocate ? 0 : (simd_length(game.player.vel) + simd_length(carryVel)) * dt * 1.25
+        if moved - carried > 3 { relocateFade = 1; relocateCount += 1 }
         relocateFade = max(0, relocateFade - dt * 4)
         let ships = game.world.ships
         let ship = ships.pilot ?? ships.aboard

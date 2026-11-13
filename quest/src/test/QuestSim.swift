@@ -95,6 +95,25 @@ enum QuestSim {
         frames(72)
         PadManager.shared.touch = nil
 
+        // 0. Nov 13 (Carbon's blind reviews, a one-frame dark flash flying in clear sky): a late frame (0.1 s) at fast
+        // flight's 87 blocks a second carries the feet 8.7 blocks and must not black the view; a 40-block jump with no
+        // speed (a pearl, a command) still fades in from dark.
+        do {
+            let keep = game.player.pos, n0 = controls.relocateCount
+            idleHands()
+            rig.update(xr: sim, game: game); controls.update(dt: 0.1)
+            game.player.vel = V3(87, 0, 0); game.player.pos += game.player.vel * 0.1
+            controls.afterTick(dt: 0.1)
+            let hitch = controls.relocateCount - n0
+            rig.update(xr: sim, game: game); controls.update(dt: dt)
+            game.player.vel = .zero; game.player.pos += V3(40, 0, 0)
+            controls.afterTick(dt: dt)
+            let jump = controls.relocateCount - n0 - hitch
+            game.player.pos = keep; game.player.vel = .zero
+            frames(36)
+            check(hitch == 0 && jump == 1, "VR relocate fade: a late frame at fast flight speed fades \(hitch) times (0), a 40-block jump \(jump) (1)")
+        }
+
         // 1. Walk: left stick forward for 2 s with the left controller pointing -Z: the player goes -Z.
         let p0 = game.player.pos
         frames(144) { _ in idleHands(); sim.hands[0].stick = V2(0, 1) }
