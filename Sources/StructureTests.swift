@@ -197,6 +197,18 @@ extension Structure {
                             var fm = flowMin[name] ?? (Float.infinity, "", 0, 0, 0, 0)
                             fm.pieces += 1; fm.ms = max(fm.ms, fr.ms); fm.biggest = max(fm.biggest, fr.blocks)
                             if !fr.falls.isEmpty { fm.fails += 1; flowFails += fr.falls.count }
+                            if !fr.falls.isEmpty {
+                                // (what would come down: where, and of what)
+                                var lo2 = IVec3(Int.max, Int.max, Int.max), hi2 = IVec3(Int.min, Int.min, Int.min)
+                                var kinds: [String: Int] = [:]
+                                for i in fr.falls {
+                                    let c = piece.cells[i]
+                                    lo2 = IVec3(min(lo2.x, c.x), min(lo2.y, c.y), min(lo2.z, c.z)); hi2 = IVec3(max(hi2.x, c.x), max(hi2.y, c.y), max(hi2.z, c.z))
+                                    kinds[Blocks.key(world.builtBlock(c.x, c.y, c.z)), default: 0] += 1
+                                }
+                                let top = kinds.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+                                print("  \(name) seed \(seed): \(fr.falls.count) of \(fr.blocks) blocks would come down, x \(lo2.x)..\(hi2.x) y \(lo2.y - YOFF)..\(hi2.y - YOFF) z \(lo2.z)..\(hi2.z), unrouted \(Int(fr.unrouted)) of \(Int(fr.weight)): \(top)")
+                            }
                             if sf < fm.sf {
                                 fm.sf = sf
                                 let c = fr.falls.first.map { piece.cells[$0] } ?? q

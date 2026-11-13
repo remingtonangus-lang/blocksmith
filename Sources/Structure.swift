@@ -164,6 +164,36 @@ enum Structure {
     static var tally: [String: Int]? = nil      // (harness: what queued the checks, old -> new)
     static let snowLoad = ProcessInfo.processInfo.environment["BS_SNOWLOAD"] == "1"     // (P508 before/after: snow queues checks)
 
+    // Nov 13 (his answer to #716: "everything collapses... procedural shit has to obey physics too"; seen in his shelled
+    // citadel: the roof garden's ring of soil, 110 blocks up, hung in the air after the tower under it came down, the
+    // tower's roof lying on it). A garden's soil in a field world counted as ground wherever it lay, a roof garden's
+    // too: it never fell and held up what stood on it. It is ground only where it lies on the ground: soil all the way
+    // down to it, straight under the cell, at most `soilDeep` blocks. Up on a building it is soil, a part of the
+    // structure with its weight and its (small) strength. BS_OLDROOFSOIL=1: ground everywhere, as before.
+    static let roofSoil = ProcessInfo.processInfo.environment["BS_OLDROOFSOIL"] != "1"
+    static let soilDeep = 8
+    static func soilOnGround(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard roofSoil else { return true }
+        var yy = y - 1
+        while yy > 0 && y - yy <= soilDeep {
+            if w.groundAt(x, yy, z) { return true }
+            let b = w.builtBlock(x, yy, z)
+            if b == AIR || !(SmoothTerrain.natural[Int(b)] && FieldTerrain.gardenSoil[Int(b)]) { return false }
+            yy -= 1
+        }
+        return true
+    }
+    static func soilOnGround(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard roofSoil else { return true }
+        var yy = y - 1
+        while yy > 0 && y - yy <= soilDeep {
+            if k.ground(x, yy, z) { return true }
+            let b = k.built(x, yy, z)
+            if b == AIR || !(SmoothTerrain.natural[Int(b)] && FieldTerrain.gardenSoil[Int(b)]) { return false }
+            yy -= 1
+        }
+        return true
+    }
     // Is the cell ground or something a structure stands on (not part of one)?
     @inline(__always) static func anchor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         if y <= 0 { return true }
@@ -173,19 +203,19 @@ enum Structure {
         if Blocks.isLiquid(b) { return true }                                                   // (a raft floats)
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }                // bedrock, barriers
         // a block world's terrain; in a field world, soil a structure laid on its floor (a garden: FieldTerrain.split)
-        return SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)])
+        return SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || (FieldTerrain.gardenSoil[Int(b)] && soilOnGround(w, x, y, z)))
     }
     @inline(__always) static func part(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Mat? {
         let b = w.builtBlock(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
-        if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
+        if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || (FieldTerrain.gardenSoil[Int(b)] && soilOnGround(w, x, y, z))) { return nil }
         return m
     }
     // (the same two through a chunk cursor: the fills below, CellSet.swift)
     @inline(__always) static func part(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Mat? {
         let b = k.built(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
-        if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
+        if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || (FieldTerrain.gardenSoil[Int(b)] && soilOnGround(&k, x, y, z))) { return nil }
         return m
     }
     @inline(__always) static func anchor(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -195,7 +225,7 @@ enum Structure {
         if b == AIR { return false }
         if Blocks.isLiquid(b) { return true }
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }
-        return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)])
+        return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || (FieldTerrain.gardenSoil[Int(b)] && soilOnGround(&k, x, y, z)))
     }
 
     // (the fill's index of each cell near the check, a box `gridR` round it, reused: a dictionary costs ten times as much)
