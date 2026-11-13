@@ -292,6 +292,7 @@ final class Ship: LifeLinked {
     var asleep = false               // far from the player or over unloaded ground: no physics this frame
     var onHull = 0                   // (steps since it touched a hull that is not a fallen piece)
     var fallenPiece: Bool { name == Game.toppledName || name == Felling.name }
+    var lookDue = false
     var lying = false, stillT: Float = 0, lyingT: Float = 0   // Nov 13: a fallen piece come to rest (ShipManager.step)
     var gunPitch: Float = 0          // barrel elevation shown on this ship's cannons (radians)
     var skyLight: Float = 1          // world sky light around the ship, 0...1 (ships darken in caves and under cover)

@@ -1277,6 +1277,7 @@ if let out = arg("--view"), let ctx = vkctx {
                      StructureCollapse.asked, StructureCollapse.weighed, StructureCollapse.lastBlocks, StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs,
                      StructureCollapse.lastSolveMs, StructureCollapse.collapses, StructureCollapse.fellBlocks, StructureCollapse.bodies, StructureCollapse.worstBodyMs,
                      StructureCollapse.restarts, StructureCollapse.patched, extra, StructureCollapse.busy ? " (still busy)" : ""))
+        print("view: collapse: \(StructureCollapse.leftLying) loose blocks left where they fell back")
         if StructureCollapse.busy { print("view: collapse still busy: \(StructureCollapse.state)") }
         // (--floatat X,Y,Z: scan round that point instead of the bursts' middle: shells through a shot-out frame burst far off)
         if let fa = arg("--floatat")?.split(separator: ",").compactMap({ Int($0) }), fa.count == 3 {

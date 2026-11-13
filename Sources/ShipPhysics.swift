@@ -461,8 +461,13 @@ extension ShipManager {
                 // lay on is gone: it comes to rest again within a fifth of a second if not.)
                 s.lyingT += h
                 let moved = simd_length_squared(s.vel) > 0.04 || simd_length_squared(s.angVel) > 0.04
-                if moved || s.lyingT > ShipManager.lieProbe + Float(s.id % 16) * 0.1 { rouse(s, probe: !moved) }
-                else { lyingNow += 1; continue }
+                if moved { rouse(s, probe: false) }
+                else {
+                    // (a look, not a wake: its contacts are found once, below, and it is up only if it has none.
+                    // Simulated for a moment instead, each look shook the bodies it lay on awake: 15 of 40 lay.)
+                    if s.lyingT > ShipManager.lieProbe + Float(s.id % 16) * 0.1 { s.lyingT = 0; s.lookDue = true }
+                    lyingNow += 1; continue
+                }
             }
             integrateForces(s, h, &reader)
         }
@@ -471,6 +476,21 @@ extension ShipManager {
         // ships don't push against them (their AI holds them on course).
         for s in list where s.parent == nil && !s.kinematic && !s.emplacement {
             contactScratch.removeAll(keepingCapacity: true)
+            if s.lying && s.lookDue && !s.asleep {
+                s.lookDue = false
+                terrainContacts(s, &reader, &contactScratch)
+                if contactScratch.isEmpty {
+                    for o in list where o !== s && o.parent == nil && !o.kinematic {
+                        if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
+                            || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
+                        shipContacts(s, o, &contactScratch)
+                        shipContacts(o, s, &contactScratch, flip: true)
+                        if !contactScratch.isEmpty { break }
+                    }
+                }
+                if contactScratch.isEmpty { rouse(s, probe: false) }
+                contactScratch.removeAll(keepingCapacity: true)
+            }
             if !s.asleep && !s.lying { terrainContacts(s, &reader, &contactScratch) }
             for o in list where o !== s && o.id < s.id && o.parent == nil && !o.kinematic && !((s.asleep || s.lying) && (o.asleep || o.lying)) {
                 if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1

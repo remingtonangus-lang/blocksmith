@@ -79,7 +79,7 @@ enum StructureCollapse {
     static var withWorker: Bool { lock.lock(); defer { lock.unlock() }; return job.map { $0.solving && $0.outcome == nil } ?? false }
     static var busy: Bool { job != nil || !pending.isEmpty }
 
-    static func reset() { pending.removeAll(); job = nil; kept = nil; waited = 0; againSeeds.removeAll(); held.removeAll(); passed.removeAll(); clearedUntil = 0 }
+    static func reset() { pending.removeAll(); job = nil; kept = nil; waited = 0; againSeeds.removeAll(); held.removeAll(); passed.removeAll(); clearedUntil = 0; dropped.removeAll() }
 
     // The whole weigh goes first. The check near a change (Structure.tick) that stopped at its bound and found blocks
     // past their reach used to drop them at once, and each drop asked for the next check: a brick tower left on a
@@ -310,7 +310,16 @@ enum StructureCollapse {
             }
             let t0 = CFAbsoluteTimeGetCurrent()
             let end = paced ? min(o.crumbs.count, j.crumb + crumbsAFrame) : o.crumbs.count
-            let cells = o.crumbs[j.crumb..<end].filter { Structure.part(w, $0.x, $0.y, $0.z) != nil }
+            // (a loose block that fell and came to rest in the same cell, on something that is no part of a
+            // structure: left there. Dropped again it was weighed, 120 ms on the worker, and dropped again, without end:
+            // eight times in a row at one cell of the citadel run.)
+            var cells: [IVec3] = []
+            for c in o.crumbs[j.crumb..<end] where Structure.part(w, c.x, c.y, c.z) != nil {
+                if let t = dropped[c], frameNo - t < dropMemory { leftLying += 1; continue }
+                dropped[c] = frameNo
+                cells.append(c)
+            }
+            if dropped.count > 4096 { dropped = dropped.filter { frameNo - $0.value < dropMemory } }
             j.crumb = end
             let was = w.restoring
             w.restoring = true                                        // (what they leave was weighed already)
@@ -324,6 +333,8 @@ enum StructureCollapse {
         finish(j, w)
     }
     private static var scratch: [IVec3] = []
+    private static var dropped: [IVec3: Int] = [:]
+    static var dropMemory = 72 * 30, leftLying = 0
     private static var againSeeds: [IVec3: Int] = [:]
     private static func finish(_ j: Job, _ w: World) {
         job = nil
