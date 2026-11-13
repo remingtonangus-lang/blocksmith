@@ -1244,6 +1244,38 @@ if let out = arg("--view"), let ctx = vkctx {
             print(FloatScan.scan(vw, around: IVec3(Int(c.x), Int(c.y), Int(c.z)), r: Int(arg("--floatscan") ?? "") ?? 40))
         }
     }
+    // --flowprobe X,Y,Z[,R] (Nov 13, the physics revamp: StructureFlow): the built piece nearest that point (within R,
+    // default 6), weighed whole: its size and weight, how many times its own weight it carries, and what of it comes
+    // down as it stands.
+    if let fp = arg("--flowprobe")?.split(separator: ",").compactMap({ Int($0) }), fp.count >= 3 {
+        let R = fp.count > 3 ? fp[3] : 6
+        var best: IVec3? = nil, bestD = Int.max
+        for dy in -R...R { for dz in -R...R { for dx in -R...R {
+            let d = dx * dx + dy * dy + dz * dz
+            if d < bestD, Structure.part(vw, fp[0] + dx, fp[1] + dy, fp[2] + dz) != nil { bestD = d; best = IVec3(fp[0] + dx, fp[1] + dy, fp[2] + dz) }
+        } } }
+        if let b = best {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let piece = StructureFlow.capture(vw, at: b)!
+            let tc = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            let r = StructureFlow.solve(piece)
+            let grounded = piece.ground.reduce(0) { $0 + ($1 != 0 ? 1 : 0) }
+            var lo = piece.cells[0], hi = piece.cells[0]
+            for c in piece.cells { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
+            print(String(format: "flowprobe: piece at %d %d %d: %d blocks%@, x %d...%d y %d...%d z %d...%d, %d on the ground, weight %.0f; captured in %.1f ms, weighed in %.1f ms (%d rounds)",
+                         b.x, b.y, b.z, r.blocks, piece.capped ? " (capped)" : "", lo.x, hi.x, lo.y, hi.y, lo.z, hi.z, grounded, r.weight, tc, r.ms, r.phases))
+            if r.falls.isEmpty {
+                let t1 = CFAbsoluteTimeGetCurrent()
+                let sf = StructureFlow.safety(piece)
+                print(String(format: "flowprobe: stands; carries %.2f times its own weight (%.0f ms)", sf, (CFAbsoluteTimeGetCurrent() - t1) * 1000))
+            } else {
+                var flo = piece.cells[r.falls[0]], fhi = flo
+                for i in r.falls { let c = piece.cells[i]; flo = IVec3(min(flo.x, c.x), min(flo.y, c.y), min(flo.z, c.z)); fhi = IVec3(max(fhi.x, c.x), max(fhi.y, c.y), max(fhi.z, c.z)) }
+                print(String(format: "flowprobe: FAILS: %.0f of its weight has no way down; %d blocks come down (x %d...%d y %d...%d z %d...%d), %d joints full at the break",
+                             r.unrouted, r.falls.count, flo.x, fhi.x, flo.y, fhi.y, flo.z, fhi.z, r.cut))
+            }
+        } else { print("flowprobe: nothing built within \(R) of \(fp[0]) \(fp[1]) \(fp[2])") }
+    }
     // --troops R (P471): every soldier within R blocks of the eye after the run (--tick): what it is, whose, its gun,
     // whether it has seen him, and which way it faces from him (0: toward him).
     if let rr = Float(arg("--troops") ?? "") {

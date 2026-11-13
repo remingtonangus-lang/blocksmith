@@ -887,11 +887,12 @@ extension Mesher {
                         // beside it; on a bough or a spire one block thick the two sides' shells crossed (0.45 in from
                         // each side of less than a block), turned inside out and were culled, so the holes showed sky.
                         // Now: the leaf's own texture and tint under snow; where the leaves are less than a block deep
-                        // behind the corner it goes 0.12 in; and the Mesher marks it as the crown's core, which the
+                        // behind the corner it goes 0.12 in, elsewhere 0.3; and the Mesher marks it as the crown's core, which the
                         // Quest's cut-out shader draws whole (no holes) and darker. BS_OLDLEAFCORE=1: before.
                         var deep: Float = 0.45, lay = layer, tnt = tint
                         if !Mesher.oldLeafCore {
                             lay = leafLayer; tnt = leafTint
+                            deep = 0.3          // (the rim past the core, where the needles' holes still show sky: 0.3 wide)
                             let q = pts[cc] - vn * 0.75
                             let bx = Int(q.x.rounded(.down)), by = Int(q.y.rounded(.down)), bz = Int(q.z.rounded(.down))
                             if S[(bx + SO) + (bz + SO) * N + (by + SO) * NN] == 0 { deep = 0.12 }
