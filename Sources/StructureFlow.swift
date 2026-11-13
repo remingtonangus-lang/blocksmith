@@ -95,10 +95,12 @@ enum StructureFlow {
     // (hanging ground is followed this many cells from the last built block; past it, it holds: cave roofs run on
     // under a city for a quarter of a million cells)
     static let thinSteps: UInt8 = 12
-    // (pressed, confined ground bears like rock whatever it is; hung or sideways it is its own material)
+    // (hanging ground holds together like rock while any of it joins rooted ground, a cave's roof, a corridor's
+    // ceiling, a lip: with its own material's bond a stronghold lost 776 blocks at generation and a station 945. It
+    // comes down when nothing roots it: a garden in the air.)
     static let thinMat: [Structure.Mat] = (0..<Blocks.count).map { i in
         let m = Structure.table[i] ?? Structure.soil
-        return Structure.Mat(weight: m.weight, bond: m.bond, reach: m.reach, crush: 6000)
+        return Structure.Mat(weight: m.weight, bond: 1e6, reach: m.reach, crush: 1e6)
     }
     @inline(__always) static func mat(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Structure.Mat? {
         if let m = Structure.part(&k, x, y, z) { return m }
@@ -109,7 +111,14 @@ enum StructureFlow {
         guard Structure.anchor(&k, x, y, z) else { return false }
         guard thinGround, k.w.fieldTerrain, k.w.frame == nil, y > 3, soil(&k, x, y, z) else { return true }
         let u = under(&k, x, y, z)
-        return u == 0 || (u == 2 && !carried)
+        if u == 0 { return true }
+        if u == 1 { return false }
+        if !carried { return true }
+        // (carried soil beside rooted soil is the ground's own: earth over a buried ruin)
+        for d in World.allDirs where d.y == 0 {
+            if soil(&k, x + d.x, y, z + d.z) && under(&k, x + d.x, y, z + d.z) == 0 { return true }
+        }
+        return false
     }
     @inline(__always) static func side(_ m: Structure.Mat) -> Float { max(m.bond * shear, m.weight * Float(m.reach) * 1.25) }
     // A block standing alone, nothing built against any of its four sides, is a slender column: it buckles long before
