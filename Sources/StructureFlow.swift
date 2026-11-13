@@ -99,9 +99,19 @@ enum StructureFlow {
     // (hanging ground holds together like rock while any of it joins rooted ground, a cave's roof, a corridor's
     // ceiling, a lip: with its own material's bond a stronghold lost 776 blocks at generation and a station 945. It
     // comes down when nothing roots it: a garden in the air.)
+    // Hanging soil is as strong as soil sideways (an arc of garden hung in the air on its neighbours where a roof had
+    // been), and hangs from rooted ground right over it (a corridor's ceiling under a hill: `over`). BS_THINROCK=1:
+    // sideways it holds like rock. BS_THINHELD=1: at the 12-cell bound it is held by what lies past.
+    static let thinRock = ProcessInfo.processInfo.environment["BS_THINROCK"] == "1"
+    static let thinHeld = ProcessInfo.processInfo.environment["BS_THINHELD"] == "1"
+    @inline(__always) static func over(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        thinGround && soil(&k, x, y, z) && ground(&k, x, y + 1, z)
+    }
     static let thinMat: [Structure.Mat] = (0..<Blocks.count).map { i in
         let m = Structure.table[i] ?? Structure.soil
-        return Structure.Mat(weight: m.weight * 0.25, bond: 1e6, reach: m.reach, crush: 1e6)     // (light: a garden must not bring its own roof down at generation)
+        // (light: a garden must not bring its own roof down at generation)
+        return thinRock ? Structure.Mat(weight: m.weight * 0.25, bond: 1e6, reach: m.reach, crush: 1e6)
+                        : Structure.Mat(weight: m.weight * 0.25, bond: m.bond, reach: m.reach, crush: 6000)
     }
     @inline(__always) static func mat(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Structure.Mat? {
         if let m = Structure.part(&k, x, y, z) { return m }
@@ -184,7 +194,7 @@ enum StructureFlow {
                 guard m != nil else { piece.ground.append(0); piece.held.append(false); continue }
                 if helm[Int(k.built(q.x, q.y, q.z))] { vessel = true }
                 var g: UInt8 = 0
-                if StructureFlow.ground(&k, q.x, q.y - 1, q.z) { g = 1 }
+                if StructureFlow.ground(&k, q.x, q.y - 1, q.z) || StructureFlow.over(&k, q.x, q.y, q.z) { g = 1 }
                 else {
                     for d in World.allDirs where d.y == 0 { if StructureFlow.ground(&k, q.x + d.x, q.y, q.z + d.z) { g = 2; break } }
                 }
@@ -200,7 +210,7 @@ enum StructureFlow {
                     if queue.count >= limit { atBound = true; piece.capped = true; continue }
                     var cs: UInt8 = 0
                     if StructureFlow.thinGround && StructureFlow.soil(&k, c.x, c.y, c.z) {
-                        if st >= StructureFlow.thinSteps { atBound = true; continue }
+                        if st >= StructureFlow.thinSteps { if StructureFlow.thinHeld { atBound = true }; continue }
                         cs = st + 1
                         StructureFlow.soilRead += 1
                     }
@@ -230,7 +240,7 @@ enum StructureFlow {
                 piece.weight[i] = m?.weight ?? 0; piece.bond[i] = m.map(StructureFlow.side) ?? 0; piece.crush[i] = (m?.crushCap ?? 0) * StructureFlow.slender(beside)
                 var g: UInt8 = 0
                 if m != nil {
-                    if StructureFlow.ground(&k, q.x, q.y - 1, q.z) { g = 1 }
+                    if StructureFlow.ground(&k, q.x, q.y - 1, q.z) || StructureFlow.over(&k, q.x, q.y, q.z) { g = 1 }
                     else { for e in World.allDirs where e.y == 0 { if StructureFlow.ground(&k, q.x + e.x, q.y, q.z + e.z) { g = 2; break } } }
                 }
                 piece.ground[i] = g

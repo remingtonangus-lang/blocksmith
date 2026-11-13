@@ -1270,7 +1270,7 @@ final class Game: LifeLinked {
             let hasElytra = !chest.isEmpty && Items.key(chest.item) == "elytra"      // (never now: converted above)
             if hasElytra && !player.onGround && !player.flying && !player.inWater && !player.gliding {
                 player.gliding = true
-            } else if clock - lastSpaceTap < 0.3 && !input.rightDown && placeCooldown < -0.4 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }
+            } else if clock - lastSpaceTap < 0.3 && !input.rightDown && placeCooldown < -0.4 { if !player.tryGrab(world) { toggleFly() }; lastSpaceTap = -1 } else { lastSpaceTap = clock }      // (Nov 13: a ledge in reach is grabbed, Clamber.swift)
         }
         if player.gliding {
             // Glider Wings wear: 1 durability per second of flight; breaks at 1 left like the reference game.
