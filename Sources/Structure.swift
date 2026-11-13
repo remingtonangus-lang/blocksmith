@@ -169,6 +169,25 @@ enum Structure {
     static var tally: [String: Int]? = nil      // (harness: what queued the checks, old -> new)
     static let snowLoad = ProcessInfo.processInfo.environment["BS_SNOWLOAD"] == "1"     // (P508 before/after: snow queues checks)
 
+    // Nov 13 (the Boreal station weighed whole in a field world: its round tower and a mast, 394 blocks, "would come
+    // down": they stand on the snow blocks the generator left lying on the ground there, and a natural block that is
+    // not garden soil counted as a building block, snow with a tenth of soil's strength. In a block world the same
+    // snow is ground.) In a field world a natural block lying on the ground, the ground right under it or under one
+    // more natural block, is ground too: a drift, a boulder, a dune's top layer. Higher up it stays what it was.
+    // BS_OLDLYINGNATURAL=1: a building block wherever it lies, as before.
+    static let lyingNatural = ProcessInfo.processInfo.environment["BS_OLDLYINGNATURAL"] != "1"
+    @inline(__always) static func lies(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard lyingNatural else { return false }
+        if w.groundAt(x, y - 1, z) { return true }
+        let b = w.builtBlock(x, y - 1, z)
+        return b != AIR && SmoothTerrain.natural[Int(b)] && w.groundAt(x, y - 2, z)
+    }
+    @inline(__always) static func lies(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard lyingNatural else { return false }
+        if k.ground(x, y - 1, z) { return true }
+        let b = k.built(x, y - 1, z)
+        return b != AIR && SmoothTerrain.natural[Int(b)] && k.ground(x, y - 2, z)
+    }
     // Is the cell ground or something a structure stands on (not part of one)?
     @inline(__always) static func anchor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         if y <= 0 { return true }
@@ -178,19 +197,19 @@ enum Structure {
         if Blocks.isLiquid(b) { return true }                                                   // (a raft floats)
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }                // bedrock, barriers
         // a block world's terrain; in a field world, soil a structure laid on its floor (a garden: FieldTerrain.split)
-        return SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)])
+        return SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(w, x, y, z))
     }
     @inline(__always) static func part(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Mat? {
         let b = w.builtBlock(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
-        if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
+        if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(w, x, y, z)) { return nil }
         return m
     }
     // (the same two through a chunk cursor: the fills below, CellSet.swift)
     @inline(__always) static func part(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Mat? {
         let b = k.built(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
-        if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)]) { return nil }
+        if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(&k, x, y, z)) { return nil }
         return m
     }
     @inline(__always) static func anchor(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -200,7 +219,7 @@ enum Structure {
         if b == AIR { return false }
         if Blocks.isLiquid(b) { return true }
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }
-        return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)])
+        return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(&k, x, y, z))
     }
 
     // (the fill's index of each cell near the check, a box `gridR` round it, reused: a dictionary costs ten times as much)

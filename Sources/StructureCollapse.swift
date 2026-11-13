@@ -286,6 +286,11 @@ enum StructureCollapse {
             let t0 = CFAbsoluteTimeGetCurrent()
             repeat {
                 let cells = o.parts[j.next].filter { Structure.part(w, $0.x, $0.y, $0.z) != nil }
+                // (thin ground weighed with the piece, StructureFlow.thin: it leaves the field as ground does)
+                if w.fieldTerrain {
+                    let soil = o.parts[j.next].filter { w.isGround($0) }
+                    if !soil.isEmpty { GroundCollapse.drop(g, soil); groundFell += soil.count }
+                }
                 j.next += 1
                 if cells.count >= 2 {
                     g.topple(cells, away: simd_length(o.away) > 0.5 ? o.away : nil)
@@ -314,6 +319,10 @@ enum StructureCollapse {
             // structure: left there. Dropped again it was weighed, 120 ms on the worker, and dropped again, without end:
             // eight times in a row at one cell of the citadel run.)
             var cells: [IVec3] = []
+            if w.fieldTerrain {
+                let soil = o.crumbs[j.crumb..<end].filter { w.isGround($0) }
+                if !soil.isEmpty { GroundCollapse.drop(g, Array(soil)); groundFell += soil.count }
+            }
             for c in o.crumbs[j.crumb..<end] where Structure.part(w, c.x, c.y, c.z) != nil {
                 if let t = dropped[c], frameNo - t < dropMemory { leftLying += 1; continue }
                 dropped[c] = frameNo
@@ -335,6 +344,7 @@ enum StructureCollapse {
     private static var scratch: [IVec3] = []
     private static var dropped: [IVec3: Int] = [:]
     static var dropMemory = 72 * 30, leftLying = 0
+    static var groundFell = 0
     private static var againSeeds: [IVec3: Int] = [:]
     private static func finish(_ j: Job, _ w: World) {
         job = nil
