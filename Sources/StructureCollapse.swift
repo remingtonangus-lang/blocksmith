@@ -196,7 +196,7 @@ enum StructureCollapse {
                     // (more changes than were noted: read again from the start)
                     restarts += 1
                     job = nil
-                    if pending.count < 8 { pending.insert(j.seed, at: 0) }
+                    if pending.count < 8 { if pending.isEmpty { pendingSince = frameNo }; pending.insert(j.seed, at: 0) }
                     quietFrames = 0
                 }
             } else if !changes.isEmpty {
@@ -334,7 +334,7 @@ enum StructureCollapse {
         if j.again, againSeeds[j.seed, default: 0] < 2, Structure.part(w, j.seed.x, j.seed.y, j.seed.z) != nil {
             againSeeds[j.seed, default: 0] += 1
             if againSeeds.count > 64 { againSeeds.removeAll() }
-            if pending.count < 8 { pending.append(j.seed) }
+            if pending.count < 8 { if pending.isEmpty { pendingSince = frameNo }; pending.append(j.seed) }
         }
     }
 }

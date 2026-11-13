@@ -153,6 +153,7 @@ enum StructureFlow {
                 guard let i32 = index[q] else { continue }
                 let i = Int(i32)
                 guard i < piece.cells.count else { continue }
+                guard k.loaded(q.x, q.z) else { continue }           // (held by what lies past the loaded edge: stays so)
                 let m = Structure.part(&k, q.x, q.y, q.z)
                 var beside = 0
                 for e in World.allDirs where e.y == 0 { if Structure.part(&k, q.x + e.x, q.y, q.z + e.z) != nil { beside += 1 } }

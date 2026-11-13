@@ -290,6 +290,8 @@ final class Ship: LifeLinked {
     var boost = false                // P461: sprint held at the helm (a dropship's overdrive)
     var telegraphPause: Float = 0    // piloting: throttle resting at stop after passing through it
     var asleep = false               // far from the player or over unloaded ground: no physics this frame
+    var onHull = 0                   // (steps since it touched a hull that is not a fallen piece)
+    var fallenPiece: Bool { name == Game.toppledName || name == Felling.name }
     var lying = false, stillT: Float = 0, lyingT: Float = 0   // Nov 13: a fallen piece come to rest (ShipManager.step)
     var gunPitch: Float = 0          // barrel elevation shown on this ship's cannons (radians)
     var skyLight: Float = 1          // world sky light around the ship, 0...1 (ships darken in caves and under cover)
@@ -856,6 +858,7 @@ final class ShipManager: LifeLinked {
     static var probeId = -1, probeContacts: [String] = [], probeWheels: [String] = []      // (harness: one ship's contacts and wheels)
     static var onRemove: ((Ship) -> Void)?                  // (host checks: who takes a ship away)
     func remove(_ s: Ship, turrets: Bool = true) {
+        if world.lyingBodies > 0 { stirBeside(s) }             // (Nov 13: what lay on it)
         ShipManager.onRemove?(s)
         for t in list where t !== s && t.root === s {
             if turrets { remove(t) } else if t.parent === s { t.parent = nil; t.parentId = nil }
@@ -1178,6 +1181,7 @@ final class ShipManager: LifeLinked {
     // Sets a block on a ship (growing its grid when needed) and refreshes physics and mesh.
     func setBlock(_ s: Ship, _ c: IVec3, _ b: BlockID) {
         var cell = c
+        if !s.kinematic && (s.lying || world.lyingBodies > 0) { stir(s) }      // (Nov 13: a lying piece mined or chopped, or one under others)
         // Capital hulls: counts kept up to date in place (no grid growth, rebuild or split on a 5-million-cell grid).
         if s.kinematic {
             guard s.grid.inside(c.x, c.y, c.z) else { return }

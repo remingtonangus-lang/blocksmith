@@ -1267,7 +1267,9 @@ if let out = arg("--view"), let ctx = vkctx {
         do {
             let before = tickSum, n0 = settleTicks
             var worst = 0.0
-            for _ in 0..<216 { let b = tickSum; timedTick(); worst = max(worst, tickSum - b) }
+            var lyingAt: [Int] = []
+            for i in 0..<864 { let b = tickSum; timedTick(); worst = max(worst, tickSum - b); if i % 144 == 143 { lyingAt.append(vw.ships.list.filter { $0.lying }.count) } }
+            print("view: lying every 2 s: \(lyingAt)")
             print(String(format: "view: after the fall: %d ticks, mean %.2f ms, slowest %.2f ms, %d bodies, %d lying", settleTicks - n0, (tickSum - before) / Double(max(1, settleTicks - n0)), worst, vw.ships.list.count, vw.ships.list.filter { $0.lying }.count))
         }
         print(String(format: "view: impacts: %d blows broke %d blocks (slowest %.2f ms)", StructureImpact.strikes, StructureImpact.broken, StructureImpact.worstMs))

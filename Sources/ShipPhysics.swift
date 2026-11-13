@@ -418,6 +418,19 @@ extension ShipManager {
     // moment every few seconds. BS_LYING=0: simulated for good, as before.
     static let lieDown = ProcessInfo.processInfo.environment["BS_LYING"] != "0"
     static var lieProbe: Float = 3
+    // (its own blocks changed, a neighbour gone, a hull it lay on under way: up, with what lies against it)
+    func stir(_ s: Ship) {
+        s.stillT = 0
+        if s.lying { rouse(s, probe: false) } else { stirBeside(s) }
+    }
+    func stirBeside(_ s: Ship) {
+        guard world.lyingBodies > 0 else { return }
+        for o in list where o.lying && o !== s {
+            if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
+                || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
+            o.lying = false; o.lyingT = 0; o.stillT = 1.0
+        }
+    }
     func rouse(_ s: Ship, probe: Bool) {
         guard s.lying else { return }
         s.lying = false; s.lyingT = 0
@@ -441,8 +454,8 @@ extension ShipManager {
         lyingNow = 0
         for s in list where s.parent == nil {
             // Frozen while asleep (far from the player, or the ground under it isn't loaded).
-            if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; continue }    // (P507: a built gun stands)
-            if s.kinematic { s.lying = false; continue }                // velocity and turn rate come from its AI
+            if s.asleep || s.emplacement { s.vel = .zero; s.angVel = .zero; if s.lying { lyingNow += 1 }; continue }    // (P507: a built gun stands)
+            if s.kinematic { s.lying = false; s.stillT = 0; continue }                // velocity and turn rate come from its AI
             if s.lying {
                 // (pushed, struck or picked on: up again. And every `lieProbe` seconds for a moment, in case what it
                 // lay on is gone: it comes to rest again within a fifth of a second if not.)
@@ -462,8 +475,14 @@ extension ShipManager {
             for o in list where o !== s && o.id < s.id && o.parent == nil && !o.kinematic && !((s.asleep || s.lying) && (o.asleep || o.lying)) {
                 if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
                     || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
+                let had = contactScratch.count
                 shipContacts(s, o, &contactScratch)
                 shipContacts(o, s, &contactScratch, flip: true)
+                // (a log on a truck's bed, a piece on a deck: it does not lie on a hull that can drive off)
+                if contactScratch.count > had {
+                    if !o.fallenPiece { s.onHull = 2 }
+                    if !s.fallenPiece { o.onHull = 2 }
+                }
             }
             s.contacts = contactScratch.count
             if s.id == ShipManager.probeId { ShipManager.probeContacts = contactScratch.map { String(format: "(%.2f %.2f %.2f n %.1f %.1f %.1f d %.2f%@)", $0.p.x - s.pos.x, $0.p.y - s.pos.y, $0.p.z - s.pos.z, $0.n.x, $0.n.y, $0.n.z, $0.pen, $0.other == nil ? "" : " ship") } }
@@ -475,11 +494,13 @@ extension ShipManager {
                 // (a touch too light to move it is taken up; a real push gets it up next step)
                 if simd_length_squared(s.vel) > 0.04 || simd_length_squared(s.angVel) > 0.04 { rouse(s, probe: false) }
                 else { s.vel = .zero; s.angVel = .zero; continue }
-            } else if ShipManager.lieDown && !s.kinematic && (s.name == Game.toppledName || s.name == Felling.name) {
-                let quiet = s.contacts > 0 && simd_length_squared(s.vel) < 0.16 && simd_length_squared(s.angVel) < 0.0625
+            } else if ShipManager.lieDown && !s.kinematic && s.fallenPiece {
+                if s.onHull > 0 { s.onHull -= 1 }
+                let quiet = s.contacts > 0 && s.onHull == 0 && simd_length_squared(s.vel) < 0.16 && simd_length_squared(s.angVel) < 0.0625
                 s.stillT = quiet ? s.stillT + h : 0
                 if s.stillT > 1.5 && !Felling.falls.contains(where: { $0.ship === s }) && Felling.carried !== s {
                     s.lying = true; s.lyingT = 0; s.vel = .zero; s.angVel = .zero
+                    world.lyingBodies += 1
                     continue
                 }
             }

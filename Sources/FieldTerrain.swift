@@ -912,6 +912,7 @@ extension World {
             if !damage.isEmpty { damage.removeValue(forKey: p) }
             queueSupportChecks(p.x, p.y, p.z, STONE, AIR)
             scheduleFluid(around: p)
+            if lyingBodies > 0 { ships.rouseLying(at: p.x, p.y, p.z) }      // (Nov 13: a fallen piece lying on the ground dug away)
         }
         return flipped.count
     }
