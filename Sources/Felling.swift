@@ -680,8 +680,10 @@ extension Game {
                 let u = ax == 1 ? V3(1, 0, 0) : V3(0, 1, 0), v = simd_cross(d, u)
                 let mid = V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5
                 let wc = s.toWorld(mid)
-                let l = world.lightAt(Int(floor(wc.x)), Int(floor(wc.y)), Int(floor(wc.z)))
-                let sky = Int(l.sky), blk = Int(l.block)
+                // (a log lying half in the ground has its centre in a dark cell: the cell over it lights it too)
+                let lx = Int(floor(wc.x)), ly = Int(floor(wc.y)), lz = Int(floor(wc.z))
+                let l = world.lightAt(lx, ly, lz), lu = world.lightAt(lx, ly + 1, lz)
+                let sky = Int(max(l.sky, lu.sky)), blk = Int(max(l.block, lu.block))
                 let bark = Int(texT[Int(b) * 6 + (ax == 0 ? 2 : 0)]), ring = Int(texT[Int(b) * 6 + ax * 2])
                 let wrap = max(1, (2 * .pi * r).rounded())    // bark repeats round it as on a standing trunk
                 let a0 = mid - d * 0.5, a1 = mid + d * 0.5
