@@ -310,22 +310,16 @@ extension Game {
             guard let t = Spine.dispatchTarget(self) else { onToast?("The dispatch names no Greywall base within reach"); return true }
             MapCache.shared.discover(self, kind: Greywall.kind, x: t.x, z: t.z, name: t.name)
             onToast?("Greywall Dispatch: the \(t.name), \(radarBearing(t)). Marked on your map.")
-            spineDocument("Greywall Dispatch", [
-                "GREYWALL COMMAND - DISPATCH\n\nTo the \(t.name), grid \(t.x), \(t.z).\n\nHold the walls. Report any rider from the towns. Keep the alarm panels manned.",
-                "Who takes this base takes its map table: the radar net shows our other bases.\n\nThe Fortresses keep the fleet's orders in their war rooms.\n\n- Greywall Command"])
+            spineDocument("Greywall Dispatch", Letters.greywallDispatch(name: t.name, x: t.x, z: t.z, seed: world.seed))     // (Nov 13: Letters)
         case "naval_orders":
             achieve("spine_fleet")
             if let w = nearestWarship() {
                 MapCache.shared.discover(self, kind: w.kind, x: w.x, z: w.z)
                 onToast?("Naval Orders: the \(w.name) keeps station \(radarBearing(w)). Marked on your map.")
-                spineDocument("Naval Orders", [
-                    "MERIDIAN FLEET - SAILING ORDERS\n\nThe \(w.name) to keep station at grid \(w.x), \(w.z), and to hold the coast against the towns.",
-                    "Her strongroom carries an Ember Charge for the Capital. It is not to be lost.\n\nBoarders are to be met at the rails.\n\n- Flag Officer, Meridian Fleet"])
+                spineDocument("Naval Orders", Letters.navalOrders(ship: w.name, x: w.x, z: w.z, seed: world.seed))
             } else {
                 onToast?("Naval Orders: the fleet is at sea, beyond this coast")
-                spineDocument("Naval Orders", [
-                    "MERIDIAN FLEET - SAILING ORDERS\n\nAll ships to put to sea and keep the far patrols.",
-                    "Each flagship's strongroom carries an Ember Charge for the Capital. It is not to be lost.\n\n- Flag Officer, Meridian Fleet"])
+                spineDocument("Naval Orders", Letters.navalOrders(ship: nil, x: Int(player.pos.x), z: Int(player.pos.z), seed: world.seed))
             }
         default:
             guard let t = Spine.capitalTarget(self) else { onToast?("The ledger names no citadel within reach"); return true }
@@ -334,9 +328,7 @@ extension Game {
                 MapCache.shared.discover(self, kind: "capital_city", x: (c.min.x + c.max.x) / 2, z: (c.min.z + c.max.z) / 2)
             }
             onToast?("The ledger names a Capital citadel, \(radarBearing(t)). Marked on your map.")
-            spineDocument("Chancellor's Ledger", [
-                "LEDGER OF THE ASH CHANCELLOR\n\nShells, fuel and Ember Charges, received from the Capital's citadel at grid \(t.x), \(t.z).",
-                "Paid in full. The Capital asks only that the war below never ends.\n\nIt has. The citadels are next."])
+            spineDocument("Chancellor's Ledger", Letters.ledger(x: t.x, z: t.z, seed: world.seed))
         }
         return true
     }

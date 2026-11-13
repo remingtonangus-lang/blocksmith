@@ -59,6 +59,7 @@ extension TextureGen {
 }
 
 enum CapitalBase {
+    static let oldCommandant = ProcessInfo.processInfo.environment["BS_OLDCOMMANDANT"] == "1"
     static let A = 56                      // half-size of the whole site
     // Leaf and log states (tree clean-up round the site), built once.
     static let leafTable: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_leaves") }
@@ -404,6 +405,10 @@ enum CapitalBase {
                 put(sx * 36, P1 + 32, 3, C)
                 put(sx * 36, P1 + 32, 2, g("oak_chair[south]", AIR))
                 w.mob("soldier_trooper:operator^180", V3(Float(X(sx * 36)) + 0.5, Float(P1 + 32), Float(Z(2)) + 0.5))
+                // Nov 13: the tower's commandant keeps its top floor (Mob.makeCommandant: tough, two Sunder Charges).
+                if !CapitalBase.oldCommandant {
+                    w.mob("soldier_officer:commandant^180", V3(Float(X(sx * 36 + 2)) + 0.5, Float(P1 + 32), Float(Z(-2)) + 0.5))
+                }
                 // P503 (16:20:47, at the top of this tower: "there should be an elevator"), rebuilt (FAILURES.md 2): a
                 // lift with a car, from the plaza to every floor up to the gun room (Elevators.swift). Its car, two by
                 // two, stands south of the tower's middle (x -3...-2, z 2...3), doors north toward the room, clear of the

@@ -625,6 +625,30 @@ if let out = arg("--view"), let ctx = vkctx {
             vw.setBlock(Int(floor(e.x)) + o[0], Int(floor(e.y)) + o[1], Int(floor(e.z)) + o[2], Blocks.id(String(kv[0])))
         }
     }
+    // --workshop (Nov 13 circuit looks): the Sparkstone Workshop deck built round the eye, the eye on its walkway's
+    // west end and the benches to the south (+z), its clocks run 70 ticks.
+    if CommandLine.arguments.contains("--workshop") {
+        let e = vg.player.pos
+        let o = IVec3(Int(floor(e.x)) + 1, Int(floor(e.y)), Int(floor(e.z)) + 2)
+        _ = CircuitWorkshop.build(vw, at: o)
+        for _ in 0..<70 { vw.redstone.tick() }
+        // (the builder writes cells raw: the sections round it mesh again)
+        vw.remeshArea(x0: o.x - 2, z0: o.z - 5, x1: o.x + CircuitWorkshop.deckLength + 1, z1: o.z + CircuitWorkshop.deckDepth + 1, y0: o.y - 2, y1: o.y + 8)
+        print("view: Sparkstone Workshop at \(o.x) \(o.y) \(o.z)")
+    }
+    // --provinggrounds DX,DY,DZ (Nov 13): the Proving Grounds built with its origin at the eye's column (its deck at
+    // internal y 300), the eye then at its start plus the offset.
+    if let off = arg("--provinggrounds")?.split(separator: ",").compactMap({ Float($0) }), off.count == 3 {
+        let e = vg.player.pos
+        let o = IVec3(Int(floor(e.x)), ProvingGrounds.deckY, Int(floor(e.z)))
+        let b = ProvingGrounds.plan(o)
+        vg.player.pos = ProvingGrounds.start(o)
+        while !b.done { b.run(vg, budget: 1) }
+        vg.player.pos = ProvingGrounds.start(o) + V3(off[0], off[1], off[2])
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        vw.remeshArea(x0: o.x - 48, z0: o.z - 48, x1: o.x + 340, z1: o.z + 200, y0: o.y - 24, y1: o.y + 40)
+        print("view: Proving Grounds at \(o.x) \(o.y) \(o.z)")
+    }
     // --sidecarskin [DEG]: an Ashguard Sidecar (P461) on the ground 6 blocks ahead, turned DEG from facing the eye (90:
     // side-on, its left showing); BS_FIGHTERBLOCKS=1 draws its blocks instead of the motorcycle model.
     if CommandLine.arguments.contains("--sidecarskin") {
@@ -2903,6 +2927,11 @@ if CommandLine.arguments.contains("--planeparts") {             // P459: aircraf
     PlanePartsCheck.run(game, check)
     print(failures == 0 ? "planeparts: all checks passed" : "planeparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--planeexit") {             // Nov 13: off a Salvaged Fighter's helm (and the Nov 13 checks)
+    PlaneExitCheck.run(game, check)
+    Nov13Checks.run(game, check)
+    print(failures == 0 ? "planeexit: all checks passed" : "planeexit: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--gunwreck") {               // P459: a gun mount destroyed comes apart
     GunWreckCheck.run(game, check)
     print(failures == 0 ? "gunwreck: all checks passed" : "gunwreck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -3479,6 +3508,8 @@ ClamberCheck.run(game, check)                          // P511: up and over a le
 TorchWaterCheck.run(game, check)                       // ledger 55: torches give way to water and lava, none go in
 CrawlerInteriorCheck.run(check)                         // P511: the crawler's insides dense, a motor at every wheel
 MobLightCheck.run(game, check)                          // Nov 13: small mobs on smooth ground never drawn black
+PlaneExitCheck.run(game, check)                         // Nov 13: off a Salvaged Fighter's helm, out of the plane
+Nov13Checks.run(game, check)                            // Nov 13: the scope's eyepiece, the crawler's helm, the letters
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest

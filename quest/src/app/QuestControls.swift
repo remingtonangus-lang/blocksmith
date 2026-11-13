@@ -120,6 +120,7 @@ final class QuestControls {
     private var velR = V3(0, 0, 0)
     private var velRHand = V3(0, 0, 0), prevRTrack: V3? = nil
     static let oldThrow = ProcessInfo.processInfo.environment["BS_OLDTHROW"] == "1"   // (the world-space speed, as before)
+    static let oldScopeEye = ProcessInfo.processInfo.environment["BS_OLDSCOPEEYE"] == "1"
     static let oldScopeHUD = ProcessInfo.processInfo.environment["BS_OLDSCOPEHUD"] == "1"   // (hotbar, hint and controller card drawn over the scope)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
     // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
@@ -922,6 +923,11 @@ final class QuestControls {
             var eyepiece = aim.origin
             if let gi = game.heldGun, gi < CapitalArms.models.count, let hd = lastAimHand {
                 eyepiece = rig.toWorld(hd.aimPos) + (braceRot ?? rig.toWorldRot(hd.aimRot)).act(QuestControls.heldGunShift(gi))
+                // Nov 13 (the Mahlwerk's fitted scope): or at the drawn scope's own eyepiece (Upgrades.scopeEyepiece),
+                // whichever is at his eye.
+                if !QuestControls.oldScopeEye, Items.key(game.held.item) != VRScope.gun,
+                   let e = Upgrades.scopeEyepiece(CapitalArms.models[gi].parts, game.held.ench), let fitted = drawnPoint(e),
+                   simd_length(fitted - rig.headWorld) < simd_length(eyepiece - rig.headWorld) { eyepiece = fitted }
             }
             up = VRScope.raisedBraced(held: game.held, braced: braceRot != nil, head: rig.headWorld, headForward: fwd,
                                       rearHand: aim.origin, eyepiece: eyepiece, barrel: aim.dir)

@@ -228,6 +228,24 @@ enum Upgrades {
         }
     }
 
+    // Nov 13 playtest (12:38-12:40, the Mahlwerk with a scope fitted: "The scope is not really easy to use", "Not sure
+    // where the scope is in this thing, but it ain't really working"): the VR scope engaged at the gun's own sight line
+    // (QuestControls.heldGunShift: a rifle's cheek, 0.44 m behind the grip), but a fitted scope sits where gunParts puts
+    // it, over the barrels on a long gun (on the Mahlwerk 0.3 m ahead of the grip and a hand over it), so his eye at
+    // the drawn scope never zoomed. The rear of the fitted scope (its eyepiece), in the model's pixel space.
+    static func scopeEyepiece(_ parts: [Part], _ ench: UInt64) -> V3? {
+        guard !parts.isEmpty else { return nil }
+        let lv = Enchant.list(ench).first { $0.0 == .stability }?.1 ?? 0
+        guard lv > 0 else { return nil }
+        var lo = parts[0].mn, hi = parts[0].mx
+        for p in parts { lo = simd_min(lo, p.mn); hi = simd_max(hi, p.mx) }
+        let len = hi.z - lo.z, midX = (lo.x + hi.x) / 2
+        let sl: Float = len * (0.22 + 0.06 * Float(lv))
+        let z0: Float = lo.z + len * 0.3
+        let k: Float = len < 12 && hi.x - lo.x < 1.8 ? 0.55 : 1, lift: Float = k < 1 ? 0.4 : 1
+        return V3(midX, hi.y + lift + 1.1 * k, z0 + sl)
+    }
+
     // Extra gun parts for its upgrades, in the gun model's pixel space (its parts' bounds).
     static func gunParts(_ parts: [Part], mag: Set<Int>, _ ench: UInt64) -> [Part] {
         guard ench != 0, !parts.isEmpty else { return [] }
