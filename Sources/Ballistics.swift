@@ -499,8 +499,16 @@ final class Armory {
     // Hitscan energy beam (arc lance): damages and ignites the first thing it meets.
     func beam(_ g: Game, from o: V3, dir: V3, range: Float, damage: Float, fromPlayer: Bool, shooter: Mob?, by: String, incendiary: Bool = false) {
         var end = range
-        let struck = Armory.blockHit(g.world, o, dir, range)
+        var struck = Armory.blockHit(g.world, o, dir, range)
         if let b = struck { end = b.0 }
+        // Nov 13 (ledger 118, "shooting at me through walls" inside the frigate): a bolt stops on a ship's hull as a
+        // round does (P434 a); his own, fired aboard the hull he steers, clears her plates for the first 3 blocks.
+        if !Game.oldShipSight, !g.world.ships.list.isEmpty {
+            let own = fromPlayer && shooter == nil ? (g.world.ships.pilot?.root.id ?? -1) : -1
+            var hull = g.world.ships.segmentHit(o, dir, end, except: own)
+            if own >= 0, hull == nil, end > 3, let h = g.world.ships.segmentHit(o + dir * 3, dir, end - 3, except: -1) { hull = (h.0 + 3, h.1) }
+            if let h = hull, h.0 < end { end = h.0; struck = nil; g.sfx(.bulletImpact(.metal), 0.5, at: o + dir * end) }
+        }
         var mob: Mob?
         var player = false
         if let h = Armory.mobHit(g, o, dir, end, shooter: shooter.map { ObjectIdentifier($0) }, friendly: !fromPlayer, spareStock: !fromPlayer || shooter != nil,

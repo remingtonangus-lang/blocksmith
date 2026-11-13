@@ -404,4 +404,15 @@ extension Game {
         return s.root.id
     }
     static let oldCarrier = ProcessInfo.processInfo.environment["BS_OLDCARRIER"] == "1"
+    // Nov 13 (playtest 12:47:55-12:49:10, inside the Meridian Frigate he had taken: "There's people who are shooting at
+    // me even though they don't have a line of sight", "People are shooting at me through walls... That's definitely a
+    // glitch"; ledger 118): the rule above made the hull he was in no cover from anyone, her own marines on the next
+    // deck included: they saw him through every bulkhead, and their arc bolts (Armory.beam) never stopped on a hull.
+    // To a foe aboard the same vessel her hull is a hull. BS_OLDSHIPSIGHT=1: seen through, and bolts through hulls.
+    func playerCarrier(for m: Mob) -> Int {
+        let c = playerCarrier
+        if c >= 0 && !Game.oldShipSight, let d = m.deck, d.root.id == c { return -1 }
+        return c
+    }
+    static let oldShipSight = ProcessInfo.processInfo.environment["BS_OLDSHIPSIGHT"] == "1"
 }

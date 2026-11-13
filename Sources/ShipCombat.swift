@@ -275,6 +275,18 @@ extension ShipManager {
                         if !sh.gentle && !m.kind.shellProof {
                             if g.world.ships.pilot?.root.id == sh.owner { m.killedByPlayer = true; m.playerHurtAt = g.clock }
                             m.hit(from: p - simd_normalize(sh.vel + V3(0, 1e-4, 0)) * 2, damage: m.health + 1000, knockback: 1.2)
+                        } else if !sh.gentle && sh.kind != 3 && ShipManager.gunsDie && (m.kind == .deckGun || m.kind.ashVehicle && m.kind != .ashBehemoth),
+                                  g.world.ships.pilot?.root.id == sh.owner || list.first(where: { $0.id == sh.owner })?.factionValue != m.factionValue {
+                            // Nov 13 (playtest 12:51:36 over a Boreal Station, from the frigate he had taken: "I feel like I
+                            // absolutely obliterated this gun. I don't know how it didn't die"; ledger 119): a ship's round
+                            // that struck a gun or a vehicle was only its burst beside it (through the plate, a few points,
+                            // and nothing while the last one still counted). The round's own weight lands on what it
+                            // strikes, past the plate. BS_OLDGUNSDIE=1: the burst only.
+                            if g.world.ships.pilot?.root.id == sh.owner { m.killedByPlayer = true; m.playerHurtAt = g.clock }
+                            Mob.plateHit = true
+                            m.invulnerable = 0
+                            m.hit(from: p - simd_normalize(sh.vel + V3(0, 1e-4, 0)) * 2, damage: Int((sh.power * 14).rounded()), knockback: 0)
+                            Mob.plateHit = false
                         }
                         hit = p; break
                     }
