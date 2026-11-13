@@ -290,6 +290,7 @@ final class Ship: LifeLinked {
     var boost = false                // P461: sprint held at the helm (a dropship's overdrive)
     var telegraphPause: Float = 0    // piloting: throttle resting at stop after passing through it
     var asleep = false               // far from the player or over unloaded ground: no physics this frame
+    var lying = false, stillT: Float = 0, lyingT: Float = 0   // Nov 13: a fallen piece come to rest (ShipManager.step)
     var gunPitch: Float = 0          // barrel elevation shown on this ship's cannons (radians)
     var skyLight: Float = 1          // world sky light around the ship, 0...1 (ships darken in caves and under cover)
     var propSpin: Float = 0          // propeller blade angle (drawn turning), and its rate in rad/s
@@ -789,6 +790,7 @@ final class ShipManager: LifeLinked {
     let meshQueue = DispatchQueue(label: "blocksmith.shipmesh", qos: .userInitiated)
     var stepMs: Double = 0           // physics time last frame (harness / debug)
     var accum: Float = 0                  // unstepped time (ShipPhysics)
+    var lyingNow = 0                      // fallen pieces lying still this step (ShipPhysics)
     // Physics substep rate and how early a step may run (seconds). The Quest steps at the display rate with a little
     // slack, so a ship (and the player carried on its deck) moves exactly once per displayed frame.
     static var stepRate: Float = 60

@@ -823,6 +823,7 @@ extension World {
     // P388 (2): a structural block placed or taken away: the piece round it is checked (Structure.tick), once per 4-cube.
     @inline(__always) func queueLoadCheck(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
         guard Structure.enabled, frame == nil, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
+        if ships.lyingNow > 0 { ships.rouseLying(at: x, y, z) }      // (Nov 13: a fallen piece lying against it)
         // (Nov 13, StructureCollapse: a piece being read whole starts over when one of its blocks changes)
         if StructureCollapse.tracking { if structChanged.count < 512 { structChanged.append(IVec3(x, y, z)) } else { structFlood = true } }
         guard !restoring else { return }

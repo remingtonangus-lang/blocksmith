@@ -279,7 +279,9 @@ extension Game {
         s.vel = away * 0.2
         if tree { Felling.girth[s.id] = Felling.girthOf(Set(logs)) }
         Felling.falls.append(hold(s, cells: leaves.union(cells)))
-        if StructureCollapse.comingDown > 0 && StructureCollapse.patientPieces && !tree { Felling.falls.last?.patient = true }
+        // (every piece of a structure, not only a collapse's: one the check near a change cut loose off the citadel
+        // after it meshed its sections on the frame, 17 and 41 ms in two of four runs. A tree's sections are light.)
+        if StructureCollapse.patientPieces && !tree { Felling.falls.last?.patient = true }
         Felling.toppled += 1
         sfx(.hullCreak, tree ? 1.3 : 0.8, at: s.pos)
     }
