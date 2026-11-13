@@ -41,6 +41,7 @@ CUT = [
     ("finale", 4.0, None, [], {"xf": 0}),
 ]
 TITLE = 4.0       # the closing title card
+CARD = ("EARLY ACCESS ON META QUEST",)   # the end card's lines under the name
 FINALE = "finale"     # the shot whose last frame is the end card's backdrop
 SWITCH = "station_air"  # the battle theme starts on this shot
 
@@ -88,8 +89,11 @@ def cut(d, out, captions):
     parts.append(f"[{n}:v]format=yuv420p,drawtext=fontfile={FONT}:text='S U N D E R F A L L':fontsize=128:fontcolor=white"
                  f":borderw=2:bordercolor=black@0.4:x=(w-text_w)/2:y=(h-text_h)/2-50:alpha='min(1,t/0.8)',"
                  f"drawbox=x=(iw-760)/2:y=ih/2+48:w=760:h=3:color=white@0.7:t=fill:enable='gte(t,0.6)',"
-                 f"drawtext=fontfile={FONT2}:text='EARLY ACCESS ON META QUEST':fontsize=40:fontcolor=white@0.9"
-                 f":x=(w-text_w)/2:y=(h/2)+80:alpha='max(0,min(1,(t-0.8)/0.6))'[v{n}]")
+                 f"drawtext=fontfile={FONT2}:text='{esc(CARD[0])}':fontsize=40:fontcolor=white@0.9"
+                 f":x=(w-text_w)/2:y=(h/2)+80:alpha='max(0,min(1,(t-0.8)/0.6))'"
+                 + (f",drawtext=fontfile={FONT}:text='{esc(CARD[1])}':fontsize=46:fontcolor=0xFFD27A"
+                    f":borderw=2:bordercolor=black@0.5:x=(w-text_w)/2:y=(h/2)+160:alpha='max(0,min(1,(t-1.4)/0.6))'" if len(CARD) > 1 else "")
+                 + f"[v{n}]")
     # The chain: a fade where a section changes, a hard cut inside one.
     chain, last, off = [], "[v0]", 0.0
     starts = [0.0]
@@ -139,6 +143,7 @@ if __name__ == "__main__":
             exec(open(sys.argv[sys.argv.index("--cutlist") + 1]).read(), ns)
             CUT = ns["CUT"]; TITLE = ns.get("TITLE", TITLE)
             FINALE = ns.get("FINALE", CUT[-1][0]); SWITCH = ns.get("SWITCH", SWITCH)
+            CARD = ns.get("CARD", CARD)
         cut(sys.argv[2], sys.argv[3], "--captions" in sys.argv)
     else:
         print(__doc__)
