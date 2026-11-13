@@ -185,6 +185,7 @@ extension Game {
         // (ledger 45: no circuit marks a block when no circuit part is near the tree)
         let quiet0 = world.circuitQuiet
         if Explosion.circuitCalm && !world.circuitNear(Array(logs) + Array(leaves), margin: 3) { world.circuitQuiet = true }
+        for c in riders { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in logs { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0
@@ -213,6 +214,13 @@ extension Game {
     // drawn with its own mesh the whole way (a tree keeps its leaf blobs and round trunk, a tower its walls), tipping
     // away from him. A tree takes its crown along and lies as a felled trunk once still; anything else lies where it lands.
     static let toppledName = "Toppled"
+    static let ridersOn = ProcessInfo.processInfo.environment["BS_OLDRIDERS"] != "1"
+    static let rides: [Bool] = (0..<Blocks.count).map { i in
+        let b = BlockID(i)
+        guard b != AIR, !Blocks.collide[i], !Blocks.isLiquid(b), !CapitalBase.isLeaf(b) else { return false }
+        let k = Blocks.key(b)
+        return !k.contains("fire") && !k.contains("portal")
+    }
     func topple(_ cells: [IVec3], away awayDir: V3? = nil) {
         guard let start = cells.min(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) else { return }
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -246,9 +254,29 @@ extension Game {
                 }
             }
         }
+        // Nov 13 (his note 13:05:46, a circuit board on a platform he brought down: "all the wire despawned when it
+        // fell"): what sits on a falling piece or hangs on its side without a body of its own (wire, a torch, a lever,
+        // a sign, a carpet's flowers) was left in the air and popped off. It rides the piece down. BS_OLDRIDERS=1: before.
+        var riders: [IVec3] = []
+        if logs.isEmpty && Game.ridersOn {
+            let body = Set(cells)
+            var seen = Set<IVec3>()
+            let rides = Game.rides
+            for c in cells {
+                let up = IVec3(c.x, c.y + 1, c.z)
+                if !body.contains(up), rides[Int(world.block(up.x, up.y, up.z))], seen.insert(up).inserted { riders.append(up) }
+                for d in World.allDirs where d.y == 0 {
+                    let q = c + d
+                    guard !body.contains(q), rides[Int(world.block(q.x, q.y, q.z))] else { continue }
+                    let under = IVec3(q.x, q.y - 1, q.z)
+                    guard body.contains(under) || !Blocks.collide[Int(world.block(under.x, under.y, under.z))] else { continue }   // (it stands on something that stays)
+                    if seen.insert(q).inserted { riders.append(q) }
+                }
+            }
+        }
         let bp = Blueprint()
         var lo = IVec3(Int.max, Int.max, Int.max)
-        for c in leaves.union(cells) {
+        for c in leaves.union(cells).union(riders) {
             bp.cells[ivSub(c, start)] = world.block(c.x, c.y, c.z)
             lo = IVec3(min(lo.x, c.x - start.x), min(lo.y, c.y - start.y), min(lo.z, c.z - start.z))
         }
@@ -258,6 +286,7 @@ extension Game {
         world.restoring = true
         let quiet0 = world.circuitQuiet                      // (ledger 45)
         if Explosion.circuitCalm && !world.circuitNear(cells + Array(leaves), margin: 3) { world.circuitQuiet = true }
+        for c in riders { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0
@@ -279,7 +308,7 @@ extension Game {
         s.angVel = simd_cross(V3(0, 1, 0), away) * (tree ? (awayDir != nil ? 0.7 : 0.35) : 0.15)
         s.vel = away * 0.2
         if tree { Felling.girth[s.id] = Felling.girthOf(Set(logs)) }
-        Felling.falls.append(hold(s, cells: leaves.union(cells)))
+        Felling.falls.append(hold(s, cells: leaves.union(cells).union(riders)))
         // (every piece of a structure, not only a collapse's: one the check near a change cut loose off the citadel
         // after it meshed its sections on the frame, 17 and 41 ms in two of four runs. A tree's sections are light.)
         if StructureCollapse.patientPieces && !tree { Felling.falls.last?.patient = true }

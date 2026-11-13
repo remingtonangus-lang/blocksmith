@@ -88,8 +88,9 @@ enum StructureFlow {
         guard thinGround, k.w.fieldTerrain, k.w.frame == nil, y > 3, soil(&k, x, y, z) else { return false }
         return under(&k, x, y, z) == 1
     }
-    // (carried soil holds nothing up: the parapet beside a roof garden took the garden for ground, and a gutted
-    // tower's top storeys hung from it. It is not weighed either. BS_CARRIED=0: it is ground, as before.)
+    // (carried soil is a part too: it passes what stands on it down to the block it lies on, and anchors nothing, so
+    // the parapet beside a roof garden no longer takes the garden for ground and a gutted tower's top storeys do not
+    // hang from it; relics lying on the earth over a buried ruin's floor still stand. BS_CARRIED=0: it is ground.)
     static let carried = ProcessInfo.processInfo.environment["BS_CARRIED"] != "0"
     static var soilRead = 0
     // (hanging ground is followed this many cells from the last built block; past it, it holds: cave roofs run on
@@ -100,25 +101,20 @@ enum StructureFlow {
     // comes down when nothing roots it: a garden in the air.)
     static let thinMat: [Structure.Mat] = (0..<Blocks.count).map { i in
         let m = Structure.table[i] ?? Structure.soil
-        return Structure.Mat(weight: m.weight, bond: 1e6, reach: m.reach, crush: 1e6)
+        return Structure.Mat(weight: m.weight * 0.25, bond: 1e6, reach: m.reach, crush: 1e6)     // (light: a garden must not bring its own roof down at generation)
     }
     @inline(__always) static func mat(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Structure.Mat? {
         if let m = Structure.part(&k, x, y, z) { return m }
-        guard thin(&k, x, y, z) else { return nil }
+        guard thinGround, k.w.fieldTerrain, k.w.frame == nil, y > 3, soil(&k, x, y, z) else { return nil }
+        let u = under(&k, x, y, z)
+        guard u == 1 || (u == 2 && carried) else { return nil }
         return thinMat[Int(k.built(x, y, z))]
     }
     @inline(__always) static func ground(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard Structure.anchor(&k, x, y, z) else { return false }
         guard thinGround, k.w.fieldTerrain, k.w.frame == nil, y > 3, soil(&k, x, y, z) else { return true }
         let u = under(&k, x, y, z)
-        if u == 0 { return true }
-        if u == 1 { return false }
-        if !carried { return true }
-        // (carried soil beside rooted soil is the ground's own: earth over a buried ruin)
-        for d in World.allDirs where d.y == 0 {
-            if soil(&k, x + d.x, y, z + d.z) && under(&k, x + d.x, y, z + d.z) == 0 { return true }
-        }
-        return false
+        return u == 0 || (u == 2 && !carried)
     }
     @inline(__always) static func side(_ m: Structure.Mat) -> Float { max(m.bond * shear, m.weight * Float(m.reach) * 1.25) }
     // A block standing alone, nothing built against any of its four sides, is a slender column: it buckles long before

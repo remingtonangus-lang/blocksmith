@@ -410,6 +410,7 @@ extension ShipManager {
         return nil
     }
 
+    static let fallenGunsFall = ProcessInfo.processInfo.environment["BS_OLDFALLENGUN"] != "1"
     // Nov 13 (the physics revamp: a citadel's top comes down as some fifty bodies, and each one lying in the rubble
     // went on costing its ground contacts and a look at every other body, every step, for good). A fallen piece
     // (toppled structure, felled tree) that has lain still on something for 1.5 s lies: no forces, no ground contacts,

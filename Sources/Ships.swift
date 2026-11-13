@@ -217,6 +217,9 @@ final class Ship: LifeLinked {
     // wheels, balloons, wings or rotors), so it stands where he built it and only its turrets turn (a row of barrels
     // over a one-block ring tipped the hull over).
     var emplacement: Bool {
+        // (Nov 13, his shelled citadel: the tower's roof came down as pieces, the ones with the roof guns' computers in
+        // them stood in the air as "built guns" and held the rest of the roof up. BS_OLDFALLENGUN=1: before.)
+        if fallenPiece && ShipManager.fallenGunsFall { return false }
         guard parent == nil, !kinematic, let h = helm, ShipParts.console[Int(grid.get(h.x, h.y, h.z))] else { return false }
         return props.isEmpty && engines == 0 && wheels.isEmpty && balloons == 0 && wings.isEmpty && rotors.isEmpty
     }
@@ -291,7 +294,7 @@ final class Ship: LifeLinked {
     var telegraphPause: Float = 0    // piloting: throttle resting at stop after passing through it
     var asleep = false               // far from the player or over unloaded ground: no physics this frame
     var onHull = 0                   // (steps since it touched a hull that is not a fallen piece)
-    var fallenPiece: Bool { name == Game.toppledName || name == Felling.name }
+    var fallenPiece: Bool { name.hasPrefix(Game.toppledName) || name == Felling.name }      // ("Toppled wreck": one shot up since)
     var lookDue = false
     var lying = false, stillT: Float = 0, lyingT: Float = 0   // Nov 13: a fallen piece come to rest (ShipManager.step)
     var gunPitch: Float = 0          // barrel elevation shown on this ship's cannons (radians)
