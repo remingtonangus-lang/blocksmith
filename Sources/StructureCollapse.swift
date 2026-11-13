@@ -131,7 +131,7 @@ enum StructureCollapse {
         // (the changed cell itself is often air now: the built block beside it. `ground`: hanging ground, weighed
         // from its own cell)
         var p = p
-        if !(ground && w.fieldTerrain && w.isGround(p)) && Structure.part(w, p.x, p.y, p.z) == nil {
+        if !(ground && StructureFlow.soil(w, p)) && Structure.part(w, p.x, p.y, p.z) == nil {
             guard let d = Structure.nbrs.first(where: { Structure.part(w, p.x + $0.x, p.y + $0.y, p.z + $0.z) != nil }) else { return }
             p = p + d
         }
@@ -230,7 +230,7 @@ enum StructureCollapse {
             guard paced ? (quietFrames >= settleFrames || frameNo - pendingSince >= patienceFrames) : w.loadQueue.isEmpty else { return }
             while job == nil, let p = pending.first {
                 pending.removeFirst()
-                guard w.activeHere(p), Structure.part(w, p.x, p.y, p.z) != nil || (w.fieldTerrain && w.isGround(p)) else { continue }
+                guard w.activeHere(p), Structure.part(w, p.x, p.y, p.z) != nil || StructureFlow.soil(w, p) else { continue }
                 if let k = kept, k.contains(p) { job = Job(p, k); kept = nil; reused += 1 }
                 else { kept = nil; keptAt = now; job = Job(p) }
             }
@@ -270,8 +270,8 @@ enum StructureCollapse {
             weighed += 1
             lastSolveMs = o.result.ms
             if log {
-                print(String(format: "collapse: weighed %d blocks at %d %d %d (read %.1f ms, worst slice %.2f ms; weighed %.1f ms off the frame): %@",
-                             o.result.blocks, j.seed.x, j.seed.y, j.seed.z, lastCaptureMs, worstSliceMs, o.result.ms,
+                print(String(format: "collapse: weighed %d blocks (soil read so far %d) at %d %d %d (read %.1f ms, worst slice %.2f ms; weighed %.1f ms off the frame): %@",
+                             o.result.blocks, StructureFlow.soilRead, j.seed.x, j.seed.y, j.seed.z, lastCaptureMs, worstSliceMs, o.result.ms,
                              o.result.falls.isEmpty ? "stands" : "\(o.result.falls.count) blocks come down in \(o.parts.count) bodies, \(o.crumbs.count) loose blocks"))
             }
             if o.result.falls.isEmpty { finish(j, w); return }

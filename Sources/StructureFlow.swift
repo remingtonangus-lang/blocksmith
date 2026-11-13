@@ -65,14 +65,36 @@ enum StructureFlow {
     // (hanging: within three cells straight down the ground ends on air or water. Ground lying on a built block, a
     // garden on its roof or a city's floor on its cellars, holds as before: weighed as a part it made a citadel one
     // piece of 250,000 cells with its streets, a second to weigh.)
-    @inline(__always) static func thin(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
-        guard thinGround, k.w.fieldTerrain, k.w.frame == nil, y > 3, k.ground(x, y, z) else { return false }
-        for i in 1...3 {
-            if k.ground(x, y - i, z) { continue }
-            return Structure.part(&k, x, y - i, z) == nil
-        }
-        return false
+    // (soil: the field's ground, or a cube of garden soil a structure laid, which counted as ground wherever it was:
+    // the citadel tower's roof lay on its garden's soil cubes, 110 blocks up, after the tower was gone)
+    @inline(__always) static func soil(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        if k.ground(x, y, z) { return true }
+        let b = Int(k.built(x, y, z))
+        return b != Int(AIR) && SmoothTerrain.natural[b] && FieldTerrain.gardenSoil[b]
     }
+    static func soil(_ w: World, _ p: IVec3) -> Bool { var k = ChunkCursor(w); return w.fieldTerrain && soil(&k, p.x, p.y, p.z) }
+    // What soil stands on, three cells down at most: 0 rooted (more soil), 1 hanging (air or water), 2 carried (a
+    // built block: a garden on a roof, a street on a cellar).
+    @inline(__always) static func under(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Int {
+        for i in 1...3 {
+            if soil(&k, x, y - i, z) { continue }
+            let b = k.built(x, y - i, z)
+            if b == AIR || Blocks.isLiquid(b) { return 1 }
+            return Structure.part(&k, x, y - i, z) != nil ? 2 : 0
+        }
+        return 0
+    }
+    @inline(__always) static func thin(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard thinGround, k.w.fieldTerrain, k.w.frame == nil, y > 3, soil(&k, x, y, z) else { return false }
+        return under(&k, x, y, z) == 1
+    }
+    // (carried soil holds nothing up: the parapet beside a roof garden took the garden for ground, and a gutted
+    // tower's top storeys hung from it. It is not weighed either. BS_CARRIED=0: it is ground, as before.)
+    static let carried = ProcessInfo.processInfo.environment["BS_CARRIED"] != "0"
+    static var soilRead = 0
+    // (hanging ground is followed this many cells from the last built block; past it, it holds: cave roofs run on
+    // under a city for a quarter of a million cells)
+    static let thinSteps: UInt8 = 12
     // (pressed, confined ground bears like rock whatever it is; hung or sideways it is its own material)
     static let thinMat: [Structure.Mat] = (0..<Blocks.count).map { i in
         let m = Structure.table[i] ?? Structure.soil
@@ -81,10 +103,13 @@ enum StructureFlow {
     @inline(__always) static func mat(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Structure.Mat? {
         if let m = Structure.part(&k, x, y, z) { return m }
         guard thin(&k, x, y, z) else { return nil }
-        return thinMat[Int(k.w.block(x, y, z))]
+        return thinMat[Int(k.built(x, y, z))]
     }
     @inline(__always) static func ground(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
-        Structure.anchor(&k, x, y, z) && !thin(&k, x, y, z)
+        guard Structure.anchor(&k, x, y, z) else { return false }
+        guard thinGround, k.w.fieldTerrain, k.w.frame == nil, y > 3, soil(&k, x, y, z) else { return true }
+        let u = under(&k, x, y, z)
+        return u == 0 || (u == 2 && !carried)
     }
     @inline(__always) static func side(_ m: Structure.Mat) -> Float { max(m.bond * shear, m.weight * Float(m.reach) * 1.25) }
     // A block standing alone, nothing built against any of its four sides, is a slender column: it buckles long before
@@ -117,15 +142,16 @@ enum StructureFlow {
         var vessel = false
         private var index: [IVec3: Int32] = [:]
         private var queue: [IVec3] = []
+        private var steps: [UInt8] = []          // (per queued cell: hanging-ground cells since the last built block)
         private var head = 0
         let limit: Int
         init(at p: IVec3, limit: Int = 400_000) {
-            self.limit = limit; queue = [p]; index[p] = 0
+            self.limit = limit; queue = [p]; index[p] = 0; steps = [0]
             // (room for a citadel at the start: growing the index mid-fill rehashes it, 10 ms and more in one slice)
             // (to the limit in play, 250,000: about 12 MB while a piece is read or kept)
             index.reserveCapacity(min(limit, 262_144))
             let room = min(limit, 262_144)
-            queue.reserveCapacity(room); piece.cells.reserveCapacity(room); piece.weight.reserveCapacity(room); piece.bond.reserveCapacity(room)
+            queue.reserveCapacity(room); steps.reserveCapacity(room); piece.cells.reserveCapacity(room); piece.weight.reserveCapacity(room); piece.bond.reserveCapacity(room)
             piece.crush.reserveCapacity(room); piece.ground.reserveCapacity(room); piece.held.reserveCapacity(room)
         }
         func contains(_ q: IVec3) -> Bool { index[q] != nil }
@@ -138,7 +164,7 @@ enum StructureFlow {
             while head < queue.count {
                 n += 1
                 if n & 31 == 0 && CFAbsoluteTimeGetCurrent() > deadline { return false }
-                let q = queue[head]; head += 1
+                let q = queue[head]; let st = steps[head]; head += 1
                 // (every queued cell stays a cell of the piece: a block gone since it was queued weighs nothing and joins nothing)
                 // (its chunk let go since it was queued, the player walking off while the piece is read: held by what
                 // lies there, as a cell past the loaded edge is; read as a hole it brought down what rested on it)
@@ -167,8 +193,14 @@ enum StructureFlow {
                     guard StructureFlow.mat(&k, c.x, c.y, c.z) != nil else { continue }
                     if side { beside += 1 }
                     if queue.count >= limit { atBound = true; piece.capped = true; continue }
+                    var cs: UInt8 = 0
+                    if StructureFlow.thinGround && StructureFlow.soil(&k, c.x, c.y, c.z) {
+                        if st >= StructureFlow.thinSteps { atBound = true; continue }
+                        cs = st + 1
+                        StructureFlow.soilRead += 1
+                    }
                     index[c] = Int32(queue.count)
-                    queue.append(c)
+                    queue.append(c); steps.append(cs)
                 }
                 piece.crush[piece.crush.count - 1] *= StructureFlow.slender(beside)
                 piece.held.append(atBound)

@@ -75,9 +75,10 @@ enum GroundCollapse {
         var spots = Set<IVec3>()
         for c in cells {
             let up = IVec3(c.x, c.y + 1, c.z)
-            guard w.isGround(up) else { continue }
+            guard StructureFlow.soil(w, up) else { continue }
             if spots.insert(IVec3(floorDiv(up.x, 6), floorDiv(up.y, 6), floorDiv(up.z, 6))).inserted {
-                w.collapseQueue.append((up, 3)); queuedUnder += 1
+                if w.isGround(up) { w.collapseQueue.append((up, 3)) }
+                queuedUnder += 1
                 StructureCollapse.request(w, at: up, ground: true)     // (and weighed with what stands on it)
                 if spots.count >= 24 { break }
             }
