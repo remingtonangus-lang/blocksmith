@@ -1,59 +1,59 @@
 #!/usr/bin/env python3
-"""Store covers: each aspect's native render (questcheck --cine docs/store/cover-v2.json --still, drawn at 2x) scaled to
-Meta's exact size, a soft dark band at the foot and the title "SUNDERFALL" in the trailer end card's serif, centred in the
-lower safe area (nothing in the corners). Usage: covers.py RENDER_DIR OUT_DIR"""
+"""Store covers (v3): each aspect's native render (questcheck --cine docs/store/cover-v3.json --still, drawn at 2x) scaled
+to Meta's exact size, a soft dark radial pool behind the title zone, and the SUNDERFALL logo (tools/logo.py) inside the
+safe zone: the inner 70% of every cover; on the Hero inside the central 1440x630 box (x 780..2220, y 135..765).
+Usage: covers.py RENDER_DIR OUT_DIR"""
 import os, sys
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from logo import logo
 
-FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SIZES = {"landscape": ("cover_landscape_2560x1440.png", 2560, 1440, 0.115, 0.80),
-         "square": ("cover_square_1440x1440.png", 1440, 1440, 0.095, 0.82),
-         "portrait": ("cover_portrait_1008x1440.png", 1008, 1440, 0.072, 0.83),
-         "hero": ("hero_cover_3000x900.png", 3000, 900, 0.17, 0.80),
-         "mini": ("mini_landscape_1080x360.png", 1080, 360, 0.17, 0.80)}
-TITLE = "SUNDERFALL"
+# name, W, H, logo cap height (fraction of H), logo centre y (fraction of H), max logo width (px), safe box (x0,y0,x1,y1)
+SIZES = {"landscape": ("cover_landscape_2560x1440.png", 2560, 1440, 0.105, 0.70),
+         "square": ("cover_square_1440x1440.png", 1440, 1440, 0.085, 0.70),
+         "portrait": ("cover_portrait_1008x1440.png", 1008, 1440, 0.052, 0.72),
+         "hero": ("hero_cover_3000x900.png", 3000, 900, 0.135, 0.66),
+         "mini": ("mini_landscape_1080x360.png", 1080, 360, 0.30, 0.60)}
 
 
-def title(img, frac, ycen):
-    W, H = img.size
-    size = int(H * frac)
-    font = ImageFont.truetype(FONT, size)
-    track = int(size * 0.18)                       # letter spacing, as the end card's spaced title
-    widths = [font.getbbox(c)[2] - font.getbbox(c)[0] for c in TITLE]
-    tw = sum(widths) + track * (len(TITLE) - 1)
-    if tw > W * 0.72:                              # inside the central safe area
-        return title(img, frac * W * 0.72 / tw, ycen)
-    x0, y0 = (W - tw) // 2, int(H * ycen - size / 2)
-    # A soft dark band behind the lower third, then a shadow, then the ivory letters.
-    band = Image.new("L", (W, H), 0)
-    bd = ImageDraw.Draw(band)
-    top = int(H * ycen - size * 1.6)
-    for y in range(top, H):
-        bd.line([(0, y), (W, y)], fill=int(150 * min(1, (y - top) / (size * 1.2))))
-    img = Image.composite(Image.new("RGB", (W, H), (12, 14, 18)), img, band.point(lambda v: v * 0.75))
-    sh = Image.new("L", (W, H), 0)
-    sd = ImageDraw.Draw(sh)
-    x = x0
-    for c, w in zip(TITLE, widths):
-        sd.text((x - font.getbbox(c)[0], y0 - font.getbbox(TITLE)[1]), c, font=font, fill=255)
-        x += w + track
-    sh = sh.filter(ImageFilter.GaussianBlur(max(2, size // 14)))
-    img = Image.composite(Image.new("RGB", (W, H), (0, 0, 0)), img, sh.point(lambda v: int(v * 0.8)))
-    d = ImageDraw.Draw(img)
-    x = x0
-    for c, w in zip(TITLE, widths):
-        d.text((x - font.getbbox(c)[0], y0 - font.getbbox(TITLE)[1]), c, font=font, fill=(255, 253, 247))
-        x += w + track
-    return img
+def safe_box(k, W, H):
+    if k == "hero":
+        return (780, 135, 2220, 765)
+    return (int(W * 0.15), int(H * 0.15), int(W * 0.85), int(H * 0.85))
+
+
+def compose(k, src):
+    name, W, H, capf, yc = SIZES[k]
+    img = Image.open(src).convert("RGB").resize((W, H), Image.LANCZOS)
+    x0, y0, x1, y1 = safe_box(k, W, H)
+    lg = logo(int(H * capf))
+    maxw = int((x1 - x0) * 0.94)
+    if lg.width > maxw:
+        lg = lg.resize((maxw, int(lg.height * maxw / lg.width)), Image.LANCZOS)
+    cx, cy = (x0 + x1) // 2, int(H * yc)
+    lx, ly = cx - lg.width // 2, cy - lg.height // 2
+    ly = max(y0, min(ly, y1 - lg.height))
+    # A soft dark pool behind the title (about 35% at its heart), so it reads over cloud, sand or forest.
+    pool = Image.new("L", (W, H), 0)
+    pd = ImageDraw.Draw(pool)
+    rx, ry = lg.width * 0.62, lg.height * 1.05
+    pd.ellipse([cx - rx, ly + lg.height / 2 - ry, cx + rx, ly + lg.height / 2 + ry], fill=95)
+    pool = pool.filter(ImageFilter.GaussianBlur(lg.height * 0.55))
+    img = Image.composite(Image.new("RGB", (W, H), (10, 8, 6)), img, pool)
+    img.paste(lg, (lx, ly), lg)
+    # Check: the logo's opaque pixels sit inside the safe box.
+    bb = lg.split()[3].point(lambda v: 255 if v > 40 else 0).getbbox()
+    box = (lx + bb[0], ly + bb[1], lx + bb[2], ly + bb[3])
+    ok = box[0] >= x0 and box[1] >= y0 and box[2] <= x1 and box[3] <= y1
+    print(f"{name}: logo {box} in safe {x0, y0, x1, y1}: {'OK' if ok else 'OUTSIDE'}")
+    return name, img
 
 
 def main(src, out):
     os.makedirs(out, exist_ok=True)
-    for k, (name, W, H, frac, ycen) in SIZES.items():
-        img = Image.open(os.path.join(src, f"cov_{k}.png")).convert("RGB").resize((W, H), Image.LANCZOS)
-        img = title(img, frac, ycen)
+    for k in SIZES:
+        name, img = compose(k, os.path.join(src, f"cov_{k}.png"))
         img.save(os.path.join(out, name), optimize=True)
-        print(name, img.size, img.mode)
 
 
 if __name__ == "__main__":
