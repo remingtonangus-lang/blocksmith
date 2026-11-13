@@ -625,6 +625,27 @@ if let out = arg("--view"), let ctx = vkctx {
             vw.setBlock(Int(floor(e.x)) + o[0], Int(floor(e.y)) + o[1], Int(floor(e.z)) + o[2], Blocks.id(String(kv[0])))
         }
     }
+    // --workshop (Nov 13 circuit looks): the Sparkstone Workshop deck built round the eye, the eye on its walkway's
+    // west end and the benches to the south (+z), its clocks run 70 ticks.
+    if CommandLine.arguments.contains("--workshop") {
+        let e = vg.player.pos
+        let o = IVec3(Int(floor(e.x)) + 1, Int(floor(e.y)), Int(floor(e.z)) + 2)
+        _ = CircuitWorkshop.build(vw, at: o)
+        for _ in 0..<70 { vw.redstone.tick() }
+        print("view: Sparkstone Workshop at \(o.x) \(o.y) \(o.z)")
+    }
+    // --provinggrounds DX,DY,DZ (Nov 13): the Proving Grounds built with its origin at the eye's column (its deck at
+    // internal y 300), the eye then at its start plus the offset.
+    if let off = arg("--provinggrounds")?.split(separator: ",").compactMap({ Float($0) }), off.count == 3 {
+        let e = vg.player.pos
+        let o = IVec3(Int(floor(e.x)), ProvingGrounds.deckY, Int(floor(e.z)))
+        let b = ProvingGrounds.plan(o)
+        vg.player.pos = ProvingGrounds.start(o)
+        while !b.done { b.run(vg, budget: 1) }
+        vg.player.pos = ProvingGrounds.start(o) + V3(off[0], off[1], off[2])
+        _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        print("view: Proving Grounds at \(o.x) \(o.y) \(o.z)")
+    }
     // --sidecarskin [DEG]: an Ashguard Sidecar (P461) on the ground 6 blocks ahead, turned DEG from facing the eye (90:
     // side-on, its left showing); BS_FIGHTERBLOCKS=1 draws its blocks instead of the motorcycle model.
     if CommandLine.arguments.contains("--sidecarskin") {
