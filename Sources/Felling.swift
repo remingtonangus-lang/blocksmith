@@ -105,6 +105,26 @@ enum Felling {
     struct Stump { var bot: Int, h: Int; var rb: Float; var wide: Bool; var ox: Int, oz: Int }
     private static let stumpLock = NSLock()
     private static var stumps: [Int64: Stump] = [:]
+    // (the notes are one world's: another world or dimension starts with none. Game.fellCheck and the mesh workers'
+    // reads name no world, so the last world a log was cut in owns them.)
+    private static var notesOf: ObjectIdentifier?
+    // The log cells he cut (this world, in memory): a four-log trunk's corner over such a cell does not stand.
+    private static var cutCells: Set<IVec3> = []
+    static func own(_ w: World) {
+        stumpLock.lock()
+        if notesOf != ObjectIdentifier(w) { notesOf = ObjectIdentifier(w); stumps.removeAll(); cutCells.removeAll() }
+        stumpLock.unlock()
+    }
+    static func noteCut(_ p: IVec3) {
+        stumpLock.lock()
+        if cutCells.count > 4096 { cutCells.removeAll(keepingCapacity: true) }
+        cutCells.insert(p)
+        stumpLock.unlock()
+    }
+    static func wasCut(_ p: IVec3) -> Bool {
+        stumpLock.lock(); defer { stumpLock.unlock() }
+        return !cutCells.isEmpty && cutCells.contains(p)
+    }
     @inline(__always) private static func stumpKey(_ x: Int, _ z: Int) -> Int64 { Int64(x) << 32 ^ Int64(UInt32(truncatingIfNeeded: z)) }
     static func noteStump(_ x: Int, _ z: Int, _ st: Stump) {
         stumpLock.lock()
@@ -130,6 +150,7 @@ enum Felling {
             let b = w.block(x, y, z)
             return CapitalBase.isLog(b) && ShapeTrunks.axisOf[Int(b)] == 1
         }
+        var noted: [(Int, Int, Stump)] = []
         for c in logs {
             var y = c.y - 1
             if logs.contains(IVec3(c.x, y, c.z)) { continue }
@@ -153,26 +174,35 @@ enum Felling {
                     break
                 }
             }
-            noteStump(c.x, c.z, Stump(bot: bot, h: h, rb: ShapeTrunks.treeRadius(h), wide: wide, ox: ox, oz: oz))
+            noted.append((c.x, c.z, Stump(bot: bot, h: h, rb: ShapeTrunks.treeRadius(h), wide: wide, ox: ox, oz: oz)))
         }
+        // (a four-log trunk cut corner by corner at different heights: every corner of its square is a wide stump's,
+        // or the corner drawn first could be a thin one and the other three not drawn at its level)
+        for n in noted where n.2.wide {
+            for k in noted.indices where !noted[k].2.wide && (noted[k].0 == n.2.ox || noted[k].0 == n.2.ox + 1) && (noted[k].1 == n.2.oz || noted[k].1 == n.2.oz + 1) {
+                noted[k].2.wide = true; noted[k].2.ox = n.2.ox; noted[k].2.oz = n.2.oz; noted[k].2.rb = max(noted[k].2.rb, n.2.rb)
+            }
+        }
+        for n in noted { noteStump(n.0, n.1, n.2) }
     }
 
     // Whether a felled body has a log in it (by ship; redone when its block count changes): one that has rests on its
     // wood, its leaves giving way; a clump of leaves alone lies on the ground as it is.
-    private static var woodOf: [Int: (count: Int, wood: Bool)] = [:]
+    // (ship ids start again in every world: the entry also holds whose it is)
+    private static var woodOf: [Int: (who: ObjectIdentifier, count: Int, wood: Bool)] = [:]
     static func hasWood(_ s: Ship) -> Bool {
-        if let c = woodOf[s.id], c.count == s.blockCount { return c.wood }
+        if let c = woodOf[s.id], c.count == s.blockCount, c.who == ObjectIdentifier(s) { return c.wood }
         if woodOf.count > 512 { woodOf.removeAll(keepingCapacity: true) }
         let wood = s.grid.blocks.contains { ShapeTrunks.isLog[Int($0)] }
-        woodOf[s.id] = (s.blockCount, wood)
+        woodOf[s.id] = (ObjectIdentifier(s), s.blockCount, wood)
         return wood
     }
 
     // What such a body meets the ground with: every log in it (a trunk inside its crown is no exposed cell of the hull,
     // Ship.hull, so with the leaves giving way nothing held it: it sank into the ground), and whatever else is not leaf.
-    private static var woodHulls: [Int: (count: Int, cells: [V3])] = [:]
+    private static var woodHulls: [Int: (who: ObjectIdentifier, count: Int, cells: [V3])] = [:]
     static func woodHull(_ s: Ship) -> [V3] {
-        if let c = woodHulls[s.id], c.count == s.blockCount { return c.cells }
+        if let c = woodHulls[s.id], c.count == s.blockCount, c.who == ObjectIdentifier(s) { return c.cells }
         if woodHulls.count > 512 { woodHulls.removeAll(keepingCapacity: true) }
         let g = s.grid
         var cells: [V3] = []
@@ -183,7 +213,7 @@ enum Felling {
             let b = g.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))
             if !ShapeTrunks.isLog[Int(b)] && !CapitalBase.isLeaf(b) { cells.append(c) }
         }
-        woodHulls[s.id] = (s.blockCount, cells)
+        woodHulls[s.id] = (ObjectIdentifier(s), s.blockCount, cells)
         return cells
     }
 
@@ -216,7 +246,9 @@ extension Game {
     // Game.breakBlock: a log was cut at p.
     func fellCheck(_ p: IVec3, _ cut: BlockID) {
         guard CapitalBase.isLog(cut), dim.dim == .overworld || dim.dim == .deep else { return }
+        Felling.own(world)
         Felling.stumpBroken(p)
+        Felling.noteCut(p)
         let start = IVec3(p.x, p.y + 1, p.z)
         guard CapitalBase.isLog(world.block(start.x, start.y, start.z)) else { return }
         guard let logs = Felling.newSeed ? fellBody(p) : fellBodyOld(p) else { return }
@@ -271,11 +303,21 @@ extension Game {
                 let b = w.block(q.x, y, q.z)
                 if CapitalBase.isLog(b) { y -= 1; continue }
                 if Blocks.collide[Int(b)] && !CapitalBase.isLeaf(b) { return true }
-                // (a trunk's own foot on a slope: the field's ground passes through the cell under it, or the one
-                // below, and the cell itself reads as air. His Ash Vault dark oak, Nov 13: one corner of four over
-                // such a cell, so one log out counted as half the section and the tree went over. Only a corner
-                // that reaches as low as the lowest corner standing on something: a cut corner ends a log higher.)
-                return inSection(q.x, q.z) && y + 1 == footLevel && (w.groundAt(q.x, y, q.z) || w.groundAt(q.x, y - 1, q.z) || w.groundAt(q.x, y - 2, q.z))
+                // A foot on a slope: the field's ground passes through the cell under it, or the one below, and the
+                // cell itself reads as air (his Ash Vault dark oak, Nov 13: one corner of four over such a cell, so
+                // one log out counted as half the section and the tree went over). Never over a cell he cut a log
+                // from.
+                if Felling.wasCut(IVec3(q.x, y, q.z)) { return false }
+                let near = w.groundAt(q.x, y, q.z) || w.groundAt(q.x, y - 1, q.z)
+                if inSection(q.x, q.z) {
+                    //  - the cut trunk's own stump, under the cut: it stays
+                    if q.y < p.y { return near || w.groundAt(q.x, y - 2, q.z) }
+                    //  - a corner of its section: only one that reaches the foot level of the corners that stand
+                    return y + 1 == footLevel && (near || w.groundAt(q.x, y - 2, q.z))
+                }
+                //  - another tree's trunk (three logs or more straight up from its foot; a bough's tip is not held)
+                guard near else { return false }
+                return isLog(IVec3(q.x, y + 2, q.z)) && isLog(IVec3(q.x, y + 3, q.z))
             }
             return true
         }

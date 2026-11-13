@@ -934,7 +934,13 @@ extension ShipManager {
                 // Leaves give way to a falling tree, and its own crown sweeps past the trunks round it; its trunk is
                 // still stopped by theirs.
                 if !collide[Int(b)] || felled && (Blocks.replaceable[Int(b)] || CapitalBase.isLeaf(b) || leafy && CapitalBase.isLog(b)) { continue }
-                let standing = wood && CapitalBase.isLog(b)
+                // (a standing trunk: an upright log in a run of three or more. A log wall or floor, a stump of one or
+                // two logs and a lying log hold a felled trunk like any block, and it never slips through them.)
+                var standing = false
+                if wood && CapitalBase.isLog(b) && ShapeTrunks.axisOf[Int(b)] == 1 {
+                    let up1 = CapitalBase.isLog(rd.get(x, y + 1, z)), dn1 = CapitalBase.isLog(rd.get(x, y - 1, z))
+                    standing = up1 && dn1 || up1 && CapitalBase.isLog(rd.get(x, y + 2, z)) || dn1 && CapitalBase.isLog(rd.get(x, y - 2, z))
+                }
                 if standing && s.slips { continue }
                 let mn = V3(Float(x), Float(y), Float(z))
                 var mx = mn + 1

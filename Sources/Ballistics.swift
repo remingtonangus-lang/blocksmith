@@ -506,7 +506,7 @@ final class Armory {
         if !Game.oldShipSight, !g.world.ships.list.isEmpty {
             let own = fromPlayer && shooter == nil ? (g.world.ships.pilot?.root.id ?? -1) : -1
             var hull = g.world.ships.segmentHit(o, dir, end, except: own)
-            if own >= 0, hull == nil, end > 3, let h = g.world.ships.segmentHit(o + dir * 3, dir, end - 3, except: -1) { hull = (h.0 + 3, h.1) }
+            if own >= 0, end > 3, let h = g.world.ships.segmentHit(o + dir * 3, dir, end - 3, except: -1), h.0 + 3 < (hull?.0 ?? .infinity) { hull = (h.0 + 3, h.1) }
             if let h = hull, h.0 < end { end = h.0; struck = nil; g.sfx(.bulletImpact(.metal), 0.5, at: o + dir * end) }
         }
         var mob: Mob?

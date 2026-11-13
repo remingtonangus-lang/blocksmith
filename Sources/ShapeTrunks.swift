@@ -179,7 +179,7 @@ enum ShapeTrunks {
                             s.col[i] = kind
                             let t = (Float(yy - bot) + 0.5) / Float(H)
                             if let st = noted {
-                                s.rad[i] = st.rb * (1 - 0.45 * (Float(yy - bot) + 0.5) / Float(st.h))
+                                s.rad[i] = st.rb * max(0.4, 1 - 0.45 * (Float(yy - bot) + 0.5) / Float(st.h))
                             } else {
                                 s.rad[i] = kind == 1 ? rb * (1 - 0.45 * t) : (kind == 3 ? 0.3 : rb)
                             }
@@ -428,42 +428,54 @@ enum ShapeTrunks {
         // the living column going on over or under it) is still a corner: the level is drawn as the one trunk, by its
         // first corner left, waisted where the log is gone.
         func cutAt(_ a: Int, _ b: Int) -> Bool {
-            guard ShapeTrunks.wideCut, a >= -M && b >= -M && a < 16 + M && b < 16 + M, !isTrunk[Int(ctx.block(a, y, b))] else { return false }
-            for dy in [1, -1, 2, -2] where y + dy >= -M && y + dy < 16 + M && s.col[wi(a, y + dy, b)] == 1 { return true }
+            // (an open cell, not ground or a plank beside a foot that stands a level higher on a slope)
+            guard ShapeTrunks.wideCut, a >= -M && b >= -M && a < 16 + M && b < 16 + M else { return false }
+            let cb = Int(ctx.block(a, y, b))
+            guard !isTrunk[cb], !Blocks.collide[cb] else { return false }
+            if y + 1 < 16 + M && s.col[wi(a, y + 1, b)] == 1 { return true }
+            if y - 1 >= -M && s.col[wi(a, y - 1, b)] == 1 { return true }
+            if y + 2 < 16 + M && s.col[wi(a, y + 2, b)] == 1 { return true }
+            if y - 2 >= -M && s.col[wi(a, y - 2, b)] == 1 { return true }
             return false
         }
-        var quad: [(Int, Int)] = []
+        // (the square's low corner, quadX quadZ; no arrays here: this runs for every trunk cell a worker meshes)
+        var hasQuad = false, quadX = 0, quadZ = 0
         if living {
-            for (ox, oz) in [(0, 0), (-1, 0), (0, -1), (-1, -1)] {
-                let ax = x + ox, az = z + oz
-                let q = [(ax, az), (ax + 1, az), (ax, az + 1), (ax + 1, az + 1)]
-                var have = 0, cuts = 0
-                for (a, b) in q { if colAt(a, b) { have += 1 } else if cutAt(a, b) { cuts += 1 } }
+            for k in 0..<4 {
+                let ax = x - (k & 1), az = z - (k >> 1)
+                var have = 0, cuts = 0, firstJ = -1
+                for j in 0..<4 {
+                    let a = ax + (j & 1), b = az + (j >> 1)
+                    if colAt(a, b) { have += 1; if firstJ < 0 { firstJ = j } } else if cutAt(a, b) { cuts += 1 }
+                }
                 if have == 4 || have == 3 && cuts == 1 {
-                    if let f = q.first(where: { colAt($0.0, $0.1) }), f.0 != x || f.1 != z { return }     // another corner draws it
+                    if ax + (firstJ & 1) != x || az + (firstJ >> 1) != z { return }     // another corner draws it
                     cx = Float(ax) + 1; cz = Float(az) + 1; scale = have == 4 ? 2.15 : 1.55
-                    quad = q
+                    hasQuad = true; quadX = ax; quadZ = az
                     break
                 }
             }
         } else if stump && Felling.stumpGirth, let st = Felling.stump(ctx.wx0 + x, ctx.wz0 + z), st.wide, st.bot <= ctx.wy0 + y {
             // (a four-log trunk's stump: one fat stump round the square's centre, drawn by its first corner left)
             let ax = st.ox - ctx.wx0, az = st.oz - ctx.wz0
-            let q = [(ax, az), (ax + 1, az), (ax, az + 1), (ax + 1, az + 1)]
             func stumpAt(_ a: Int, _ b: Int) -> Bool { a >= -M && b >= -M && a < 16 + M && b < 16 + M && s.col[wi(a, y, b)] == 4 }
-            if let f = q.first(where: { stumpAt($0.0, $0.1) }) {
-                if f.0 != x || f.1 != z { return }
+            var firstJ = -1
+            for j in 0..<4 where stumpAt(ax + (j & 1), az + (j >> 1)) { firstJ = j; break }
+            if firstJ >= 0 {
+                if ax + (firstJ & 1) != x || az + (firstJ >> 1) != z { return }
                 cx = Float(ax) + 1; cz = Float(az) + 1; scale = 2.15
-                quad = q
+                hasQuad = true; quadX = ax; quadZ = az
             }
         }
         let r = s.rad[i] * scale
         // (a wide trunk goes on below or above where any of its corners does, at that level's girth)
         func colNear(_ yy: Int) -> (Bool, Float) {
             guard yy >= -M && yy < 16 + M else { return (true, r) }
-            if quad.isEmpty { let c = s.col[wi(x, yy, z)]; return (c != 0, c != 0 ? s.rad[wi(x, yy, z)] * scale : r) }
+            if !hasQuad { let c = s.col[wi(x, yy, z)]; return (c != 0, c != 0 ? s.rad[wi(x, yy, z)] * scale : r) }
             var n = 0, rad: Float = 0
-            for (a, b) in quad where a >= -M && b >= -M && a < 16 + M && b < 16 + M && s.col[wi(a, yy, b)] != 0 && s.col[wi(a, yy, b)] != 3 {
+            for j in 0..<4 {
+                let a = quadX + (j & 1), b = quadZ + (j >> 1)
+                guard a >= -M && b >= -M && a < 16 + M && b < 16 + M, s.col[wi(a, yy, b)] != 0 && s.col[wi(a, yy, b)] != 3 else { continue }
                 n += 1; rad = max(rad, s.rad[wi(a, yy, b)])
             }
             return (n > 0, n > 0 ? rad * (n == 4 || !living ? 2.15 : 1.55) : r)

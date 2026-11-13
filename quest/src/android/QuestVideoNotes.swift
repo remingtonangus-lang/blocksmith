@@ -21,8 +21,11 @@ enum QuestVideo {
     // encoder's picture is NEON in C straight into its input buffer (voicevideo.c; the Swift loop and a copy are
     // gone), still on the utility queue, and the bit rate goes by the picture's size (0.2 bits a pixel a picture,
     // 4 to 24 Mb/s). Three pictures in flight, not four (each is 12 MB at this size). An encoder that will not open
-    // at a size halves it (full, half, quarter). BS_VIDEOSCALE=4: the quarter picture, as before.
-    static var scale: Int = max(1, min(4, ProcessInfo.processInfo.environment["BS_VIDEOSCALE"].flatMap { Int($0) } ?? 1))
+    // at a size (the whole eye is taller than some encoders' 2160 rows) steps down: full, three quarters, half, a
+    // quarter. A size that failed is remembered, so the pictures still in flight at it are dropped and step down no
+    // further. BS_VIDEOSCALE=2 or 4: half or the quarter picture (as before) from the start.
+    static var quarters: Int = 4 / max(1, min(4, ProcessInfo.processInfo.environment["BS_VIDEOSCALE"].flatMap { Int($0) } ?? 1))
+    private static var failW = 0, failH = 0
     static func bitrate(_ w: Int, _ h: Int) -> Int32 { Int32(max(4_000_000, min(24_000_000, Double(w * h) * fps * 0.2))) }
     static let window: Int32 = 10              // seconds buffered before a note
     static let tail = 2.0                      // seconds after a note
@@ -85,14 +88,14 @@ enum QuestVideo {
         guard t0 - lastAt >= 1 / fps - 0.004 else { return }
         let fourByte: [VkFormat] = [VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM]
         guard fourByte.contains(format) else { unsupported = true; print("voicevideo: eye format \(format.rawValue) not supported"); return }
-        // The eye over `scale` (1: all of it), rows a multiple of 128 bytes wide and the height of 32 (no encoder padding).
-        lock.lock(); let k = scale; lock.unlock()
-        let w = max(256, width / k / 128 * 128), h = max(128, height / k / 32 * 32)
+        // `quarters` of the eye each way (4: all of it), rows a multiple of 128 bytes wide and the height of 32 (no encoder padding).
+        lock.lock(); let k = quarters; lock.unlock()
+        let w = max(256, width * k / 4 / 128 * 128), h = max(128, height * k / 4 / 32 * 32)
         if entries.first.map({ $0.st.srcW != width || $0.st.srcH != height || $0.st.format != format || $0.st.w != w || $0.st.h != h }) ?? true {
             lock.lock(); let idle = !entries.contains { $0.busy || $0.slot != nil }; lock.unlock()
             guard idle else { return }
             do {
-                entries = try (0..<(k == 1 ? 3 : 4)).map { _ in Entry(try QuestScreenshot.Staging(ctx: ctx, srcW: width, srcH: height, format: format, w: w, h: h, forceCopy: false)) }
+                entries = try (0..<(k >= 3 ? 3 : 4)).map { _ in Entry(try QuestScreenshot.Staging(ctx: ctx, srcW: width, srcH: height, format: format, w: w, h: h, forceCopy: false)) }
             } catch { unsupported = true; print("voicevideo: staging: \(error)"); return }
             if !entries[0].st.blit { unsupported = true; entries = []; print("voicevideo: no GPU blit from the eye image: video off"); return }
         }
@@ -130,6 +133,7 @@ enum QuestVideo {
     private static func encode(_ st: QuestScreenshot.Staging, pts: Int64) {
         guard let mapped = st.buffer.mapped else { return }
         let w = st.w, h = st.h
+        if w == failW && h == failH { return }               // (a picture still in flight at the size that failed)
         if enc == nil || encW != w || encH != h {
             if let e = enc { bs_venc_close(e) }
             enc = bs_venc_open(Int32(w), Int32(h), Int32(fps), bitrate(w, h), 1, window)
@@ -137,7 +141,8 @@ enum QuestVideo {
             if enc == nil {
                 // (no encoder at this size: the next captures are half of it, down to the quarter picture)
                 lock.lock()
-                if scale < 4 { scale *= 2; print("voicevideo: no encoder at \(w)x\(h): 1/\(scale) of the eye from here") } else { unsupported = true }
+                failW = w; failH = h
+                if quarters > 1 { quarters -= 1; print("voicevideo: no encoder at \(w)x\(h): \(quarters)/4 of the eye from here") } else { unsupported = true }
                 lock.unlock()
                 encW = 0; encH = 0
                 return
