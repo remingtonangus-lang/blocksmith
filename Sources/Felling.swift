@@ -253,6 +253,15 @@ extension Game {
         let wide = cols.count == 4
         let section = cols.map { IVec3($0.0, start.y, $0.1) }.filter { isLog($0) }
         @inline(__always) func inSection(_ x: Int, _ z: Int) -> Bool { cols.contains { $0.0 == x && $0.1 == z } }
+        // (the lowest level at which a corner of the section stands on something solid)
+        var footLevel = Int.max
+        for c in section {
+            var y = c.y
+            while y > 1, isLog(IVec3(c.x, y - 1, c.z)), !(c.x == p.x && y - 1 == p.y && c.z == p.z) { y -= 1 }
+            if c.x == p.x && c.z == p.z { continue }
+            let b = w.block(c.x, y - 1, c.z)
+            if Blocks.collide[Int(b)] && !CapitalBase.isLeaf(b) { footLevel = min(footLevel, y) }
+        }
         // (down through logs to what they stand on; `through`: a four-log trunk's own stump counts as cut)
         func held(_ q: IVec3, through: Bool) -> Bool {
             var y = q.y - 1
@@ -264,8 +273,9 @@ extension Game {
                 if Blocks.collide[Int(b)] && !CapitalBase.isLeaf(b) { return true }
                 // (a trunk's own foot on a slope: the field's ground passes through the cell under it, or the one
                 // below, and the cell itself reads as air. His Ash Vault dark oak, Nov 13: one corner of four over
-                // such a cell, so one log out counted as half the section and the tree went over.)
-                return inSection(q.x, q.z) && (w.groundAt(q.x, y, q.z) || w.groundAt(q.x, y - 1, q.z))
+                // such a cell, so one log out counted as half the section and the tree went over. Only a corner
+                // that reaches as low as the lowest corner standing on something: a cut corner ends a log higher.)
+                return inSection(q.x, q.z) && y + 1 == footLevel && (w.groundAt(q.x, y, q.z) || w.groundAt(q.x, y - 1, q.z) || w.groundAt(q.x, y - 2, q.z))
             }
             return true
         }
