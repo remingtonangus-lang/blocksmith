@@ -262,6 +262,7 @@ extension Game {
         for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0
         world.restoring = restoring0
+        GroundCollapse.builtGone(world, cells)      // (Nov 13: ground that lay on it)
         tTake = CFAbsoluteTimeGetCurrent()
         let tree = logs.count == cells.count
         let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0,
