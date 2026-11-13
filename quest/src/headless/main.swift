@@ -1889,6 +1889,7 @@ if let out = arg("--view"), let ctx = vkctx {
             func ord(_ a: P, _ b: P) -> E { (a.x, a.y, a.z) < (b.x, b.y, b.z) ? E(a: a, b: b) : E(a: b, b: a) }
             var count: [E: Int32] = [:]
             var seenQ = Set<[P]>()
+            let wtRad = Float(ProcessInfo.processInfo.environment["BS_WTRADIUS"] ?? "") ?? 0.26
             let wtPoint: V3? = ProcessInfo.processInfo.environment["BS_WTPOINT"].flatMap { t in
                 let f = t.split(separator: ",").compactMap { Float($0) }
                 return f.count == 3 ? V3(f[0], f[1], f[2]) : nil
@@ -1908,7 +1909,7 @@ if let out = arg("--view"), let ctx = vkctx {
                     }
                     guard ground else { continue }
                     // (BS_WTPOINT="x,y,z": every ground quad with a corner within a quarter block of that point, and its section)
-                    if let wp = wtPoint, v.contains(where: { abs(Float($0.x) / 16 - wp.x) < 0.25 && abs(Float($0.y) / 16 - wp.y) < 0.25 && abs(Float($0.z) / 16 - wp.z) < 0.25 }) {
+                    if let wp = wtPoint, v.contains(where: { abs(Float($0.x) / 16 - wp.x) < wtRad && abs(Float($0.y) / 16 - wp.y) < wtRad && abs(Float($0.z) / 16 - wp.z) < wtRad }) {
                         print("watertight: quad in chunk \(c.cx) \(c.cz) section \(sy) code \((p[q * 4] >> 32) & 31): " + v.map { String(format: "%.2f %.2f %.2f", Float($0.x) / 16, Float($0.y) / 16, Float($0.z) / 16) }.joined(separator: " | "))
                     }
                     // (a closing triangle is drawn from both sides, a quad with a doubled corner each way: its distinct points)

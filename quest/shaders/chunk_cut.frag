@@ -14,8 +14,10 @@ void main() {
     vec2 uv = oUV;
     if (oAnim > 0.5 && oAnim < 1.5) { uv += vec2(0.0, fract(u.params.z * 0.04)); }
     // Grass tops: turned per block (texSharpTurned); the cell is the world block under this fragment.
-    vec4 c = oAnim > 1.5 ? texSharpTurned(uv, oLayer, floor(oRel.xz + u.eye.xz - fract(uv) + 0.5)) : texSharp(uv, oLayer);
-    if (c.a < 0.5) { discard; }
+    bool core = oAnim > 2.5;           // a leaf crown's core: no holes, darker (the clear texels are mid grey under the tint)
+    vec4 c = oAnim > 1.5 && !core ? texSharpTurned(uv, oLayer, floor(oRel.xz + u.eye.xz - fract(uv) + 0.5)) : texSharp(uv, oLayer);
+    if (c.a < 0.5 && !core) { discard; }
+    if (core) { c.rgb *= 0.62; }
     if (oAnim > 0.5 && oAnim < 1.5) { c.rgb = lavaGlow(c.rgb, oRel); }
     vec3 t = (oOverlay > 0.5 && c.a > 0.95) ? vec3(1.0) : oTint;
     outColor = worldColor(vec4(applyFogDir(waterAmbient(c.rgb * t * oShade, c.rgb * t), oRel, oDist), 1.0));
