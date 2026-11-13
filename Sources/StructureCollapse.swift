@@ -20,6 +20,7 @@ enum StructureCollapse {
     static var limit = 250_000                        // blocks read (past it: held, as before)
     static let bodyBin = Int(ProcessInfo.processInfo.environment["BS_COLLAPSEBIN"] ?? "") ?? 12   // a falling body is at most a cube of this side
     static var wantSeconds = 0.0012, maxWait = 3      // (as Structure.tick: a body waits for a frame with room)
+    static let patientPieces = ProcessInfo.processInfo.environment["BS_COLLAPSEPUSH"] != "1"
     static var sliceFloor = 0.0004                    // (a frame with no room left still reads this much)
 
     // (harness and soak)
@@ -213,6 +214,10 @@ enum StructureCollapse {
                 j.next += 1
                 if cells.count >= 2 {
                     g.topple(cells, away: simd_length(o.away) > 0.5 ? o.away : nil)
+                    // (a tree felled waits a tenth of a second for the world to be redrawn without it, then has its
+                    // sections meshed on the frame: for the dozens of pieces of a collapse, each leaving a citadel's
+                    // sections to redraw, that is the frame gone. They wait for the workers instead, up to 4 s.)
+                    if patientPieces { Felling.falls.last?.patient = true }
                     bodies += 1
                 }
             } while !paced && j.next < o.parts.count

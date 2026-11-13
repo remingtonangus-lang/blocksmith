@@ -26,6 +26,7 @@ enum Felling {
         var launch = (V3(0, 0, 0), V3(0, 0, 0))
         var held: Float = -1
         var pushed = false
+        var patient = false                     // (Nov 13, a collapse's pieces: no push, the workers' redraw is waited for)
         var over = V3(0, 0, 0)                  // (the axis a felled tree goes over about, away from the woodsman)
         init(_ s: Ship) { ship = s }
     }
@@ -320,7 +321,7 @@ extension Game {
                 // body waits up to 4 s for it (a section unloaded meanwhile counts as drawn).
                 f.held += dt
                 let drawn = f.wait.allSatisfy { $0.0.sections[$0.1].meshedVersion >= $0.2 || self.world.chunks[ChunkKey(x: $0.0.cx, z: $0.0.cz)] !== $0.0 }
-                if !drawn && !f.pushed && f.held > 0.1 && (Felling.oldPush || pushT < 0.002) {
+                if !drawn && !f.pushed && !f.patient && f.held > 0.1 && (Felling.oldPush || pushT < 0.002) {
                     f.pushed = true
                     let w = world
                     let t0 = CFAbsoluteTimeGetCurrent()
