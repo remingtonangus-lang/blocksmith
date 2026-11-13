@@ -71,6 +71,16 @@ struct Livery {
                 l.cloth = V3(0.045, 0.045, 0.05); l.legs = V3(0.05, 0.05, 0.055); l.trim = V3(0.8, 0.08, 0.05)
                 l.metal = V3(0.8, 0.82, 0.86); l.skin = Livery.skins[4]; l.hair = Livery.hairs[3]
             }
+            // Nov 13 (store trailer review): black with red trim, peaked caps and armbands read as one real regime's
+            // uniform. The Ashguard wear their own colour now: ash grey, charcoal plate, ember-orange trim and amber
+            // lenses (BS_OLDASHLOOK=1: the black livery).
+            if !SoldierRig.oldAshLook {
+                l.cloth = V3(0.4, 0.39, 0.37); l.legs = V3(0.27, 0.27, 0.27); l.plate = V3(0.24, 0.24, 0.25)
+                l.trim = V3(0.8, 0.36, 0.1); l.accent = V3(0.86, 0.45, 0.12); l.metal = V3(0.34, 0.34, 0.36)
+                l.glow = V3(2.4, 1.1, 0.25); l.glove = V3(0.13, 0.12, 0.11); l.boots = V3(0.1, 0.09, 0.08)
+                if m.kind == .ashMarshal { l.cloth = V3(0.34, 0.33, 0.32); l.metal = V3(0.72, 0.6, 0.36) }
+                if m.kind == .ashChancellor { l.cloth = V3(0.2, 0.2, 0.21); l.legs = V3(0.17, 0.17, 0.18); l.metal = V3(0.72, 0.6, 0.36) }
+            }
         } else if m.faction == Faction.meridian.rawValue {
             // The Meridian Navy: olive fatigues, gunmetal plate, amber visors (original livery, no insignia).
             l.cloth = V3(0.29, 0.31, 0.2); l.legs = V3(0.25, 0.27, 0.18); l.plate = V3(0.34, 0.36, 0.38)
@@ -164,6 +174,8 @@ struct SoldierRigOut {
 }
 
 enum SoldierRig {
+    static let oldAshLook = ProcessInfo.processInfo.environment["BS_OLDASHLOOK"] == "1"
+
     static let hipX: Float = 2.0, thighLen: Float = 6.0, shinLen: Float = 6.0
     static let shoulderX: Float = 5.7, shoulderY: Float = 22.3
     static let upperArm: Float = 6.5, foreArm: Float = 7.0        // shoulder -> elbow -> fist centre (fist at mid thigh)

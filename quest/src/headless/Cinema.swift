@@ -28,6 +28,8 @@ enum Cinema {
         let size: [Int]?
         let block: String?
         let ground: Bool?
+        let cells: [[Float]]?       // lay / reap: block cells relative to `at`, one every `dur` seconds
+        let head: Float?            // shoot: the aim's height up the target mob (0 feet, 1 top; default 0.86, a head shot)
     }
     struct Anchor: Decodable {
         let near: String?
@@ -61,6 +63,9 @@ enum Cinema {
         let follow: Bool?           // false: the camera keeps its own keyframes while the frigate flies past (default true)
         let hold: String?           // first person: the VR hands drawn, holding this item (an item key; "" or "hands": empty hands)
         let playerMount: String?    // "horse": the camera rides a saddled horse that gallops along the camera's heading
+        let heldScale: Float?       // the game's Held Item Size option for this shot (default 0.8, its smallest)
+        let hands: [[Float]]?       // the right and left hands' rest offsets from the eye (metres, view space: x right, y up, -z ahead)
+        let handTilt: Float?        // degrees the held item tips down from the view (default 10)
         let anchor: Anchor?
         let cam: [Key]
         let events: [Ev]?
@@ -242,7 +247,16 @@ enum Cinema {
         // Warm-up: the game runs at the first camera spot.
         let warm = Int((s.warm ?? 3) * 72)
         for i in 0..<warm { hold(start); g.tick(dt); calm(); if i % 144 == 143 { _ = w.loadSync(center: start, radius: w.renderDistance) } }
+        if s.hold != nil { QuestSettings.heldScale = s.heldScale ?? 0.8 }
         let rig = try Rig(game: g, ctx: ctx, width: W, height: H, fovDeg: s.fov ?? 70, hold: s.hold)
+        if let hs = s.hands, hs.count > 0, hs[0].count == 3 { rig.rest[1] = V3(hs[0][0], hs[0][1], hs[0][2]) }
+        if let hs = s.hands, hs.count > 1, hs[1].count == 3 { rig.rest[0] = V3(hs[1][0], hs[1][1], hs[1][2]) }
+        if let tl = s.handTilt { rig.tilt = tl * .pi / 180 }
+        // Hand work (lay, reap, shoot): when the right hand reaches out (a block placed, a crop cut) and where it aims.
+        var reach: [(t: Double, at: V3)] = []          // the moment a hand action lands and its world spot
+        var aims: [(t0: Double, t1: Double, at: () -> V3)] = []
+        var shots: [(t: Double, at: () -> V3)] = []
+        var lays: [(t: Double, c: IVec3, id: BlockID, cut: Bool)] = []
         // Riding: the player on a saddled horse at the first camera spot, galloping along the camera's heading; the
         // camera is the rider's eye from then on (the keys only give the look direction).
         var mount: Mob?
@@ -271,9 +285,11 @@ enum Cinema {
         var cruiseRot: Quat?
         // Townsfolk and animals that wander up to the lens are walked off out of shot (scripted mobs stay put).
         func clearCamera(_ eye: V3) {
-            for m in g.mobs.mobs where !m.persistent {
+            // (Scripted soldiers too, a step closer: v2's camera walked into and through troopers, Nov 13 review.)
+            for m in g.mobs.mobs where !m.kind.ashVehicle && m.kind != .deckGun && m.mount == nil && m.health > 0 {
                 let d = V3(m.pos.x - eye.x, 0, m.pos.z - eye.z), l = simd_length(d)
-                if l < 3.5 && abs(m.pos.y - eye.y) < 4 { m.pos += (l > 0.01 ? d / l : V3(1, 0, 0)) * (3.6 - l) }
+                let r: Float = m.persistent ? 2.6 : 3.5
+                if l < r && abs(m.pos.y - eye.y) < 4 { m.pos += (l > 0.01 ? d / l : V3(1, 0, 0)) * (r + 0.1 - l) }
             }
         }
         for f in 0..<frames {
@@ -331,6 +347,10 @@ enum Cinema {
                         fr.vel = .zero; fr.angVel = .zero
                         if let pk = e.pitch { w.ships.pointHull(fr, pitch: pk * .pi / 180) }
                         print("cine: \(s.name): main gun \(w.ships.playerMainGun(fr, game: g) ? "charging" : "not ready")")
+                        if let st2 = w.ships.gunState(fr), let ap = w.ships.mainGunAimPoint(fr, st2) {
+                            let r = ap - origin
+                            print(String(format: "cine: %@: main gun aim point %.0f %.0f %.0f (from the anchor %.0f %.0f %.0f)", s.name, ap.x, ap.y, ap.z, r.x, r.y, r.z))
+                        }
                     }
                 case "impact":                              // a Tidebreaker slug striking the spot (the frigate's own blast)
                     if let fr = frigate { w.ships.mainGunImpact(at: p, owner: fr.id, game: g, along: simd_normalize(p - fr.pos)) }
@@ -377,6 +397,37 @@ enum Cinema {
                         let qy = (e.ground ?? true) ? ground(qx, qz) : p.y
                         w.setBlock(Int(floor(qx)), Int(floor(qy)), Int(floor(qz)), id)
                     }
+                case "lay", "reap":                          // the player's hand places (or cuts) each cell in turn
+                    let cut = e.do == "reap"
+                    let id: BlockID = cut ? AIR : (Blocks.has(e.block ?? "oak_planks") ? Blocks.id(e.block ?? "oak_planks") : Blocks.id("oak_planks"))
+                    let base = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+                    for (i, c) in (e.cells ?? [[0, 0, 0]]).enumerated() where c.count == 3 {
+                        let cell = IVec3(base.x + Int(c[0]), base.y + Int(c[1]), base.z + Int(c[2]))
+                        let tt = t + Double(i) * (e.dur ?? 0.3) + 0.18
+                        lays.append((tt, cell, id, cut))
+                        reach.append((tt, V3(Float(cell.x) + 0.5, Float(cell.y) + 0.5, Float(cell.z) + 0.5)))
+                    }
+                case "shoot", "aim":                         // the held gun aimed (and fired `n` rounds) at a mob near the spot, or the spot
+                    let n = e.do == "aim" ? 0 : (e.n ?? 1), gap = e.dur ?? 0.45
+                    let r = e.spread ?? 4, hk = e.head ?? 0.86
+                    var target: Mob?
+                    if e.mob != nil || e.spread != nil {
+                        target = g.mobs.mobs.filter { $0.health > 0 && $0 !== mount && !$0.kind.ashVehicle && $0.kind != .horse
+                            && (e.mob == nil || MobKind.named(e.mob!) == $0.kind || ($0.kind.ashVehicle && e.mob == "vehicle"))
+                            && simd_length(V3($0.pos.x - p.x, 0, $0.pos.z - p.z)) < r }
+                            .min { simd_length($0.pos - p) < simd_length($1.pos - p) }
+                        if target == nil, e.mob == "vehicle" { target = g.mobs.mobs.filter { $0.kind.ashVehicle && simd_length($0.pos - p) < r }.first }
+                    }
+                    let fixed = p + V3(0, e.at.map { _ in 0 } ?? 0, 0)
+                    let tm = target
+                    let at: () -> V3 = {
+                        guard let m = tm else { return fixed }
+                        let c = m.pos + V3(0, m.height * (m.kind.ashVehicle ? 0.5 : hk), 0)
+                        return c + V3(m.vel.x, 0, m.vel.z) * min(0.3, simd_length(c - g.player.eye) / 150)
+                    }
+                    aims.append((t, t + 0.35 + Double(max(0, n - 1)) * gap + 0.5, at))
+                    for i in 0..<n { shots.append((t + 0.35 + Double(i) * gap, at)) }
+                    if let m = tm { print("cine: \(s.name): \(e.do) at \(m.kind) \(Int(m.pos.x)) \(Int(m.pos.z))") } else { print("cine: \(s.name): \(e.do) at the spot (no mob found)") }
                 case "survival":
                     g.survival = (e.power ?? 1) > 0
                 case "rain":
@@ -384,6 +435,32 @@ enum Cinema {
                 default:
                     print("cine: unknown event \(e.do)")
                 }
+            }
+            // The hand's work due by now: blocks laid or cut, rounds fired.
+            while let l = lays.first, l.t <= t {
+                lays.removeFirst()
+                let old = w.block(l.c.x, l.c.y, l.c.z)
+                if l.cut { if old != AIR { g.particles.blockBreak(old, at: l.c) } }
+                w.setBlock(l.c.x, l.c.y, l.c.z, l.id)
+            }
+            if !shots.isEmpty { shots.sort { $0.t < $1.t } }
+            while let sh = shots.first, sh.t <= t {
+                shots.removeFirst()
+                if let gi = g.heldGun {
+                    var h = g.inventory.held; h.tag = Guns.all[gi].mag; g.inventory.held = h
+                    g.arms.cooldown = 0; g.arms.spin = 1
+                    let muzzle = rig.muzzle(), aim = sh.at()
+                    g.vrAim = (muzzle, simd_normalize(aim - muzzle))
+                    g.fireHeldGun(gi)
+                    g.vrAim = nil
+                }
+            }
+            rig.aimAt = aims.last { $0.t0 <= t && t <= $0.t1 }.map { $0.at() }
+            // A reach: out over 0.18 s to the cell, back over 0.25 s.
+            rig.reach = nil
+            for r in reach {
+                let u = (t - (r.t - 0.18))
+                if u >= 0 && u < 0.43 { rig.reach = (r.at, Float(u < 0.18 ? u / 0.18 : 1 - (u - 0.18) / 0.25)) }
             }
             // Cabins going up: the share of their blocks due by now, bottom first.
             for i in builds.indices {
@@ -514,6 +591,19 @@ enum Cinema {
         var n = 0
         // First person (Shot.hold): the headset's own hand drawing (QuestControls) on scripted controller poses.
         let host: SimHost?, controls: QuestControls?
+        var rest = [V3(-0.24, -0.38, -0.36), V3(0.2, -0.32, -0.46)]    // the left and right hands' rest offsets from the eye
+        var tilt: Float = 0.18                                          // the held item tipped down from the view (radians)
+        var aimAt: V3?                                                  // the right hand pointing its item at this spot
+        var reach: (at: V3, k: Float)?                                  // the right hand reaching out toward a spot (k 0...1)
+        private var lastHead = simd_quatf(angle: 0, axis: V3(0, 1, 0)), lastEye = V3.zero
+        private var aimRot: simd_quatf?
+        // Where the right hand's rounds leave from (the last drawn pose's grip, a little ahead along its aim).
+        func muzzle() -> V3 {
+            let off = rest[1]
+            let p = lastEye + lastHead.act(off)
+            let d = aimAt.map { simd_normalize($0 - p) } ?? lastHead.act(V3(0, 0, -1))
+            return p + d * 0.3
+        }
         init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, hold: String? = nil) throws {
             self.game = game; self.width = width; self.height = height
             scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
@@ -545,20 +635,41 @@ enum Cinema {
             let head = simd_quatf(angle: yaw, axis: V3(0, 1, 0)) * simd_quatf(angle: pitch, axis: V3(1, 0, 0))
             let vp = proj * XRMath.inversePose(head, .zero)
             game.player.yaw = yaw; game.player.pitch = pitch
+            lastHead = head; lastEye = eye
             if let sim = host?.sim {
                 // The head at the tracking origin looking along the camera; the hands at rest below it, the aiming
                 // (right) hand forward, held items pointing a little down. Recentred once so tracking maps onto the eye.
                 let headY: Float = 1.62
                 sim.headPos = V3(0, headY, 0); sim.headRot = head
-                let down = simd_quatf(angle: -0.18, axis: V3(1, 0, 0))
+                let down = simd_quatf(angle: -tilt, axis: V3(1, 0, 0))
                 let t = Float(n) / 30
                 let bob = V3(0, 0.008 * sinf(t * 2 * .pi * 1.2), 0)
+                // The aiming hand turned (eased) to point at the aim spot: its forward (-Z) along the line from the grip.
+                var want: simd_quatf? = nil
+                if let a = aimAt {
+                    let gp = eye + head.act(rest[1])
+                    let d = simd_normalize(a - gp)
+                    let yawA = atan2f(-d.x, -d.z), pitA = asinf(max(-1, min(1, d.y)))
+                    want = simd_quatf(angle: yawA, axis: V3(0, 1, 0)) * simd_quatf(angle: pitA, axis: V3(1, 0, 0))
+                }
+                if let w = want { aimRot = aimRot.map { simd_slerp($0, w, 0.35) } ?? simd_slerp(head * down, w, 0.35) }
+                else if let r = aimRot { let back = simd_slerp(r, head * down, 0.3); aimRot = simd_length(back.vector - (head * down).vector) < 0.01 ? nil : back }
                 for hi in 0..<2 {
                     var hd = XRHand()
                     hd.aimValid = true; hd.gripValid = true
-                    let off = hi == 1 ? V3(0.2, -0.27, -0.4) : V3(-0.24, -0.34, -0.33)
-                    hd.gripPos = sim.headPos + head.act(off + bob); hd.aimPos = hd.gripPos
-                    hd.gripRot = head * down; hd.aimRot = hd.gripRot
+                    var off = rest[hi] + bob
+                    var rot = head * down
+                    if hi == 1 {
+                        if let r = aimRot { rot = r; off.y += 0.05; off.z -= 0.04 }      // raised to aim
+                        if let (at, k) = reach {                                    // reaching out to the spot and back
+                            let local = head.inverse.act(at - eye)
+                            let toward = simd_normalize(local - off)
+                            off += toward * (0.3 * k)
+                        }
+                    }
+                    hd.gripPos = sim.headPos + head.act(off); hd.aimPos = hd.gripPos
+                    hd.gripRot = rot
+                    hd.aimRot = hd.gripRot
                     sim.hands[hi] = hd
                 }
                 host!.handed.refresh(dt: 1.0 / 30, walk: false)      // the hands as QuestControls reads them
