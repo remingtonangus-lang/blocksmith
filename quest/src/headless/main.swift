@@ -1272,6 +1272,26 @@ if let out = arg("--view"), let ctx = vkctx {
             print("view: lying every 2 s: \(lyingAt)")
             print(String(format: "view: after the fall: %d ticks, mean %.2f ms, slowest %.2f ms, %d bodies, %d lying", settleTicks - n0, (tickSum - before) / Double(max(1, settleTicks - n0)), worst, vw.ships.list.count, vw.ships.list.filter { $0.lying }.count))
         }
+        // (BS_COLLAPSELOG: bodies left high over the eye, and what is under each)
+        if StructureCollapse.log {
+            for sh in vw.ships.list where sh.pos.y > eye.y + 20 {
+                let bx = Int(floor(sh.pos.x)), by = Int(floor(sh.pos.y)), bz = Int(floor(sh.pos.z))
+                var field = 0, garden = 0, part = 0, other = 0
+                var kinds: [String: Int] = [:]
+                for x in (bx - 9)...(bx + 9) { for z in (bz - 9)...(bz + 9) { for y in (by - 12)...(by + 2) {
+                    let q = IVec3(x, y, z)
+                    if vw.isGround(q) { field += 1; kinds["ground:" + Blocks.key(vw.block(x, y, z)), default: 0] += 1; continue }
+                    let b = vw.block(x, y, z)
+                    if b == AIR { continue }
+                    kinds[Blocks.key(b), default: 0] += 1
+                    if StructureFlow.soil(vw, q) { garden += 1 } else if Structure.part(vw, x, y, z) != nil { part += 1 } else { other += 1 }
+                } } }
+                let top = kinds.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+                print(String(format: "view: high body %@ at %.1f %.1f %.1f, speed %.2f, spin %.2f, %d contacts, lying %d hidden %d kinematic %d asleep %d sleeping %d; under it: %d ground, %d garden soil, %d built, %d other (%@)",
+                             sh.name, sh.pos.x, sh.pos.y, sh.pos.z, simd_length(sh.vel), simd_length(sh.angVel), sh.contacts,
+                             sh.lying ? 1 : 0, sh.hidden ? 1 : 0, sh.kinematic ? 1 : 0, sh.asleep ? 1 : 0, sh.sleeping, field, garden, part, other, top))
+            }
+        }
         print(String(format: "view: impacts: %d blows broke %d blocks (slowest %.2f ms)", StructureImpact.strikes, StructureImpact.broken, StructureImpact.worstMs))
         print(String(format: "view: collapse: %d asked, %d weighed (last %d blocks: read %.1f ms, worst slice %.2f ms, weighed %.1f ms), %d collapses, %d blocks in %d bodies (slowest %.1f ms), %d restarts, %d changes patched in, %d frames past the settle%@",
                      StructureCollapse.asked, StructureCollapse.weighed, StructureCollapse.lastBlocks, StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs,
