@@ -943,6 +943,11 @@ if let out = arg("--view"), let ctx = vkctx {
         var fy = Int(vg.player.pos.y) + 6
         while fy > 1 && !Blocks.collide[Int(vw.block(Int(floor(fx)), fy, Int(floor(fz))))] { fy -= 1 }
         var d = 0
+        // (plants over the spot stop a bolt: cleared first)
+        for y in (fy + 1)...(fy + 3) { for z in (Int(floor(fz)) - 2)...(Int(floor(fz)) + 2) { for x in (Int(floor(fx)) - 2)...(Int(floor(fx)) + 2) {
+            let b = vw.block(x, y, z)
+            if b != AIR && !Blocks.collide[Int(b)] { vw.setBlock(x, y, z, AIR) }
+        } } }
         if CommandLine.arguments.contains("--arc") {
             // (as he did it: arc lance bolts fired down a narrow cone from over the hole, the game ticking between)
             var r: UInt32 = 12345
@@ -1884,6 +1889,10 @@ if let out = arg("--view"), let ctx = vkctx {
             func ord(_ a: P, _ b: P) -> E { (a.x, a.y, a.z) < (b.x, b.y, b.z) ? E(a: a, b: b) : E(a: b, b: a) }
             var count: [E: Int32] = [:]
             var seenQ = Set<[P]>()
+            let wtPoint: V3? = ProcessInfo.processInfo.environment["BS_WTPOINT"].flatMap { t in
+                let f = t.split(separator: ",").compactMap { Float($0) }
+                return f.count == 3 ? V3(f[0], f[1], f[2]) : nil
+            }
             var quads = 0
             for c in vw.chunks.values { for (sy, s) in c.sections.enumerated() {
                 guard let b = s.opaqueBuf, s.opaqueQuads > 0 else { continue }
@@ -1898,6 +1907,10 @@ if let out = arg("--view"), let ctx = vkctx {
                         v.append(P(x: Int32(c.cx * 256) + Int32(w0 & 511), y: Int32(sy * 256) + Int32((w0 >> 9) & 511), z: Int32(c.cz * 256) + Int32((w0 >> 18) & 511)))
                     }
                     guard ground else { continue }
+                    // (BS_WTPOINT="x,y,z": every ground quad with a corner within a quarter block of that point, and its section)
+                    if let wp = wtPoint, v.contains(where: { abs(Float($0.x) / 16 - wp.x) < 0.25 && abs(Float($0.y) / 16 - wp.y) < 0.25 && abs(Float($0.z) / 16 - wp.z) < 0.25 }) {
+                        print("watertight: quad in chunk \(c.cx) \(c.cz) section \(sy) code \((p[q * 4] >> 32) & 31): " + v.map { String(format: "%.2f %.2f %.2f", Float($0.x) / 16, Float($0.y) / 16, Float($0.z) / 16) }.joined(separator: " | "))
+                    }
                     // (a closing triangle is drawn from both sides, a quad with a doubled corner each way: its distinct points)
                     let key = Array(Set(v)).sorted { ($0.x, $0.y, $0.z) < ($1.x, $1.y, $1.z) }
                     guard key.count >= 3, seenQ.insert(key).inserted else { continue }

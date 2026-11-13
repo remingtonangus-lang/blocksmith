@@ -62,7 +62,9 @@ rot() {   # a layout turned N quarter turns about the corner: chunk (dx, dz) -> 
   done
   echo "$out"
 }
-RD=4
+# (view 5, not 4: from a hilltop the top rows of a down view reached the loaded land's edge at view 4 and counted the
+# floor past it as a hole, 67 pixels in seven forest views with or without half-block chunks.)
+RD=5
 [ "${VOIDSWEEP_CORNERS:-}" = only ] && : > "$OUT/summary.txt"
 for seed in "${CSEEDS[@]}"; do for b in "${CBIOMES[@]}"; do li=0; for l in "${LAYOUTS[@]}"; do for n in 0 1 2 3; do
   fc=$(rot "$l" $n)
