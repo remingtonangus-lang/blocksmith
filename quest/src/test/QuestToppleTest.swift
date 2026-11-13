@@ -111,8 +111,9 @@ enum QuestToppleTest {
         // (BS_COLLAPSE=0: both stand, as before.)
         do {
             func tower(_ cx: Int, _ cz: Int, keep: Int) -> (Int, () -> Int) {
+                // (the storey shot out lies over the slope round the tower: above it nothing leans on the hill)
                 var base = 0
-                for dz in -4...3 { for dx in -4...3 { base = max(base, top(cx + dx, cz + dz) + 1) } }
+                for dz in -7...6 { for dx in -7...6 { base = max(base, top(cx + dx, cz + dz) + 1) } }
                 w.restoring = true
                 for dz in -4...3 { for dx in -4...3 { for y in (top(cx + dx, cz + dz) + 1)...(base + 40) { w.setBlock(cx + dx, y, cz + dz, brick) } } }
                 w.restoring = false

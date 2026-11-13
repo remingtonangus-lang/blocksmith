@@ -64,13 +64,15 @@ enum StructureFlow {
     static let unit: Float = 16
 
     // What the joint from block i to its neighbour j in direction d (i hands weight to j) carries.
-    @inline(__always) static func jointCap(_ d: IVec3, bi: Float, bj: Float, ci: Float, cj: Float) -> Float {
+    @inline(__always) static func jointCap(_ d: IVec3, bi: Float, bj: Float, ci: Float, cj: Float, rests: Bool) -> Float {
         let face = abs(d.x) + abs(d.y) + abs(d.z) == 1
         let k: Float = face ? 1 : edgeShare
         if d.y < 0 && face { return min(ci, cj) }     // pressed straight down
-        // hung from above, sideways, or along an edge (Piece.bond: `side`). Down a slope too: were an edge to carry a
-        // share of the crushing strength, a pier would carry its own strength twice, once straight down and once
-        // again through its blocks' edges to the next ones down.
+        // Down a slope: a block with nothing under it rests on its lower edges (a pitched roof, a stair), and each
+        // bears a share of the crushing strength. A block that stands on another hands its weight straight down:
+        // were its edges to bear as well, a pier would carry its own strength twice.
+        if d.y < 0 && rests { return max(min(ci, cj), min(bi, bj)) * k }
+        // hung from above, sideways, or along an edge (Piece.bond: `side`)
         return min(bi, bj) * k
     }
 
@@ -187,10 +189,12 @@ enum StructureFlow {
         var total: Int64 = 0
         for i in 0..<n {
             let c = piece.cells[i]
+            // (a block read as gone is still a cell: it carries nothing, and what was on it rests on its edges now)
+            let under = index[IVec3(c.x, c.y - 1, c.z)].map { piece.weight[Int($0)] > 0 || piece.crush[Int($0)] > 0 } ?? false
             for d in 0..<D {
                 let j = index[c + dirs[d]] ?? -1
                 nb[i * D + d] = j
-                cap[i * D + d] = j < 0 ? 0 : q16(jointCap(dirs[d], bi: piece.bond[i], bj: piece.bond[Int(j)], ci: piece.crush[i], cj: piece.crush[Int(j)]))
+                cap[i * D + d] = j < 0 ? 0 : q16(jointCap(dirs[d], bi: piece.bond[i], bj: piece.bond[Int(j)], ci: piece.crush[i], cj: piece.crush[Int(j)], rests: !under))
             }
             let g = piece.ground[i]
             toT[i] = piece.held[i] ? big : (g == 1 ? q16(piece.crush[i]) : (g == 2 ? q16(piece.bond[i]) : 0))
