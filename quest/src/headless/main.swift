@@ -1236,13 +1236,19 @@ if let out = arg("--view"), let ctx = vkctx {
         // (the game's tick while it settles and while a whole piece is weighed and comes down: the slowest, and how
         // many ran past a 72 Hz frame's 13.9 ms; host times, for before/after)
         var slowTick = 0.0, lateTicks = 0, settleTicks = 0, bodiesAtSlow = 0
+        var slowWhat = ""
         func timedTick() {
             let t0 = CFAbsoluteTimeGetCurrent()
             vg.tick(1.0 / 72)
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             settleTicks += 1
             if ms > 13.9 { lateTicks += 1 }
-            if ms > slowTick { slowTick = ms; bodiesAtSlow = vw.ships.list.count }
+            if ms > slowTick {
+                slowTick = ms; bodiesAtSlow = vw.ships.list.count
+                // (what the slowest tick spent its time on: the game's own marks, largest first)
+                let top = (0..<TickProf.count).sorted { TickProf.times[$0] > TickProf.times[$1] }.prefix(4)
+                slowWhat = top.map { String(format: "%@ %.1f", "\(TickProf.names[$0])", TickProf.times[$0] * 1000) }.joined(separator: ", ")
+            }
             vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero
         }
         for _ in 0..<Int(settle * 72) { timedTick() }
@@ -1251,6 +1257,7 @@ if let out = arg("--view"), let ctx = vkctx {
         while StructureCollapse.busy && extra < 30 * 72 { timedTick(); extra += 1; if StructureCollapse.withWorker { usleep(2000) } }
         if extra > 0 { for _ in 0..<(6 * 72) { timedTick() } }       // (and the fall after it)
         print("view: shells: \(Armory.detonations - d0) bursts, \(Structure.checks) load checks, \(Structure.fallen) blocks fell, \(Felling.toppled) pieces toppled, \(vg.falling.count) falling")
+        print("view: slowest tick: \(slowWhat); felling \(String(format: "%.1f", Felling.worstMs)) ms (\(Felling.worstSplit)); drop \(String(format: "%.1f", Structure.dropWorstMs)) ms (\(Structure.dropWorst))")
         print(String(format: "view: settle: %d ticks, slowest %.1f ms (%d bodies then), %d past 13.9 ms; %d bodies now, %d asleep",
                      settleTicks, slowTick, bodiesAtSlow, lateTicks, vw.ships.list.count, vw.ships.list.filter { $0.asleep }.count))
         print(String(format: "view: collapse: %d asked, %d weighed (last %d blocks: read %.1f ms, worst slice %.2f ms, weighed %.1f ms), %d collapses, %d blocks in %d bodies (slowest %.1f ms), %d restarts, %d changes patched in, %d frames past the settle%@",

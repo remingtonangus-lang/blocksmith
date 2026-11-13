@@ -152,8 +152,9 @@ extension Structure {
         let only: Set<String>? = arg("--kinds").map { Set($0.split(separator: ",").map(String.init)) }
         let t0 = CFAbsoluteTimeGetCurrent()
         var byKind: [String: (n: Int, pieces: Int, blocks: Int, falls: Int, held: Int, at: [String])] = [:]
-        // (BS_FLOW=1, Nov 13: each piece of 30 blocks or more weighed whole as well (StructureFlow): the weakest of each kind)
-        let flowOn = ProcessInfo.processInfo.environment["BS_FLOW"] == "1"
+        // (Nov 13: each piece of 30 blocks or more is weighed whole as well (StructureFlow, what brings a big structure down in play): none may fail as generated; the weakest of each kind is printed. BS_FLOW=0: without)
+        let flowOn = ProcessInfo.processInfo.environment["BS_FLOW"] != "0"
+        var flowFails = 0
         var flowMin: [String: (sf: Float, at: String, pieces: Int, fails: Int, ms: Double, biggest: Int)] = [:]
         for seed in seeds {
             let world = World(seed: seed, device: device, save: nil, dim: .overworld)
@@ -195,7 +196,7 @@ extension Structure {
                             let sf = fr.falls.isEmpty ? StructureFlow.safety(piece) : 0
                             var fm = flowMin[name] ?? (Float.infinity, "", 0, 0, 0, 0)
                             fm.pieces += 1; fm.ms = max(fm.ms, fr.ms); fm.biggest = max(fm.biggest, fr.blocks)
-                            if !fr.falls.isEmpty { fm.fails += 1 }
+                            if !fr.falls.isEmpty { fm.fails += 1; flowFails += fr.falls.count }
                             if sf < fm.sf {
                                 fm.sf = sf
                                 let c = fr.falls.first.map { piece.cells[$0] } ?? q
@@ -226,6 +227,7 @@ extension Structure {
             }
         }
         print(String(format: "loadcheck: %d blocks would fall in %.1f s (%@ world)", total, CFAbsoluteTimeGetCurrent() - t0, FieldTerrain.unsaved ? "field" : "block"))
-        return total > 0 ? 2 : 0
+        if flowFails > 0 { print("loadcheck: weighed whole, \(flowFails) blocks of generated structures would come down (StructureFlow)") }
+        return total + flowFails > 0 ? 2 : 0
     }
 }
