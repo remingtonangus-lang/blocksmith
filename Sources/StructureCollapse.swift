@@ -125,12 +125,13 @@ enum StructureCollapse {
     // (another world, a dimension entered or a save loaded: nothing read from the last one is carried over)
     private static weak var owner: World?
     @inline(__always) private static func own(_ w: World) { if owner !== w { reset(); owner = w } }
-    static func request(_ w: World, at p: IVec3) {
+    static func request(_ w: World, at p: IVec3, ground: Bool = false) {
         guard enabled, w.frame == nil else { return }
         own(w)
-        // (the changed cell itself is often air now: the built block beside it)
+        // (the changed cell itself is often air now: the built block beside it. `ground`: hanging ground, weighed
+        // from its own cell)
         var p = p
-        if Structure.part(w, p.x, p.y, p.z) == nil {
+        if !(ground && w.fieldTerrain && w.isGround(p)) && Structure.part(w, p.x, p.y, p.z) == nil {
             guard let d = Structure.nbrs.first(where: { Structure.part(w, p.x + $0.x, p.y + $0.y, p.z + $0.z) != nil }) else { return }
             p = p + d
         }
@@ -229,7 +230,7 @@ enum StructureCollapse {
             guard paced ? (quietFrames >= settleFrames || frameNo - pendingSince >= patienceFrames) : w.loadQueue.isEmpty else { return }
             while job == nil, let p = pending.first {
                 pending.removeFirst()
-                guard w.activeHere(p), Structure.part(w, p.x, p.y, p.z) != nil else { continue }
+                guard w.activeHere(p), Structure.part(w, p.x, p.y, p.z) != nil || (w.fieldTerrain && w.isGround(p)) else { continue }
                 if let k = kept, k.contains(p) { job = Job(p, k); kept = nil; reused += 1 }
                 else { kept = nil; keptAt = now; job = Job(p) }
             }

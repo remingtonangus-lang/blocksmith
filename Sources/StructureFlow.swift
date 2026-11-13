@@ -56,20 +56,32 @@ enum StructureFlow {
     // Nov 13 (his answer to #716: "everything collapses... procedural shit has to obey physics too"; seen in his
     // shelled citadel: the tower's roof block stood in the air on its roof garden, a slab of the field's ground 110
     // blocks up, after the tower under the garden came down). Ground counted as ground wherever it was. Weighed whole,
-    // ground is ground only where it is rooted: three cells of ground straight under it (or the world's floor). Thin
-    // ground, a garden laid on a roof, a lip, an arch, is a part of the piece with its own material's weight and
+    // ground is ground only where it does not hang. Hanging
+    // ground, a garden whose roof is gone, a lip, an arch, is a part of the piece with its own material's weight and
     // strength: what stands on it is carried through it to what is under, and with nothing under it comes down
     // (StructureCollapse drops it as ground, GroundCollapse.drop). The check near a change keeps its own rule.
     // BS_OLDTHINGROUND=1: all ground holds, as before.
     static let thinGround = ProcessInfo.processInfo.environment["BS_OLDTHINGROUND"] != "1"
+    // (hanging: within three cells straight down the ground ends on air or water. Ground lying on a built block, a
+    // garden on its roof or a city's floor on its cellars, holds as before: weighed as a part it made a citadel one
+    // piece of 250,000 cells with its streets, a second to weigh.)
     @inline(__always) static func thin(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard thinGround, k.w.fieldTerrain, k.w.frame == nil, y > 3, k.ground(x, y, z) else { return false }
-        return !(k.ground(x, y - 1, z) && k.ground(x, y - 2, z) && k.ground(x, y - 3, z))
+        for i in 1...3 {
+            if k.ground(x, y - i, z) { continue }
+            return Structure.part(&k, x, y - i, z) == nil
+        }
+        return false
+    }
+    // (pressed, confined ground bears like rock whatever it is; hung or sideways it is its own material)
+    static let thinMat: [Structure.Mat] = (0..<Blocks.count).map { i in
+        let m = Structure.table[i] ?? Structure.soil
+        return Structure.Mat(weight: m.weight, bond: m.bond, reach: m.reach, crush: 6000)
     }
     @inline(__always) static func mat(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Structure.Mat? {
         if let m = Structure.part(&k, x, y, z) { return m }
         guard thin(&k, x, y, z) else { return nil }
-        return Structure.table[Int(k.w.block(x, y, z))] ?? Structure.soil
+        return thinMat[Int(k.w.block(x, y, z))]
     }
     @inline(__always) static func ground(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         Structure.anchor(&k, x, y, z) && !thin(&k, x, y, z)
