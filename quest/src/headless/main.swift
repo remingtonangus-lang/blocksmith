@@ -632,6 +632,8 @@ if let out = arg("--view"), let ctx = vkctx {
         let o = IVec3(Int(floor(e.x)) + 1, Int(floor(e.y)), Int(floor(e.z)) + 2)
         _ = CircuitWorkshop.build(vw, at: o)
         for _ in 0..<70 { vw.redstone.tick() }
+        // (the builder writes cells raw: the sections round it mesh again)
+        vw.remeshArea(x0: o.x - 2, z0: o.z - 5, x1: o.x + CircuitWorkshop.deckLength + 1, z1: o.z + CircuitWorkshop.deckDepth + 1, y0: o.y - 2, y1: o.y + 8)
         print("view: Sparkstone Workshop at \(o.x) \(o.y) \(o.z)")
     }
     // --provinggrounds DX,DY,DZ (Nov 13): the Proving Grounds built with its origin at the eye's column (its deck at
@@ -644,6 +646,7 @@ if let out = arg("--view"), let ctx = vkctx {
         while !b.done { b.run(vg, budget: 1) }
         vg.player.pos = ProvingGrounds.start(o) + V3(off[0], off[1], off[2])
         _ = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
+        vw.remeshArea(x0: o.x - 48, z0: o.z - 48, x1: o.x + 340, z1: o.z + 200, y0: o.y - 24, y1: o.y + 40)
         print("view: Proving Grounds at \(o.x) \(o.y) \(o.z)")
     }
     // --sidecarskin [DEG]: an Ashguard Sidecar (P461) on the ground 6 blocks ahead, turned DEG from facing the eye (90:
