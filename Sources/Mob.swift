@@ -284,6 +284,21 @@ enum MobKind: Int, CaseIterable {
 }
 
 final class Mob {
+    static let oldMobLight = ProcessInfo.processInfo.environment["BS_OLDMOBLIGHT"] == "1"     // (lightFor: ragdolls only lit from the cell over a solid one)
+    // The light a mob is drawn in (writeMobVertices), read at its middle `lc`. A body lying on smooth ground can have its
+    // centre in the block under it; so can a small mob standing on it (Nov 13, Carbon's black chickens at -1793 95 3355,
+    // "why are these chickens black?"): its middle a third of a block up and the drawn ground a few tenths over the
+    // cell's floor, the ground cell's own light is none, and it drew black until it stepped off. A middle in a solid
+    // cell takes the brighter of it and the cell over it. BS_OLDMOBLIGHT=1: ragdolls only.
+    static func lightFor(_ world: World, at lc: V3, ragdoll: Bool) -> (sky: Int, block: Int) {
+        let lx = Int(floor(lc.x)), ly = Int(floor(lc.y)), lz = Int(floor(lc.z))
+        var l = world.lightAt(lx, ly, lz)
+        if ragdoll || (!oldMobLight && Blocks.opaque[Int(world.block(lx, ly, lz))]) {
+            let up = world.lightAt(lx, ly + 1, lz)
+            if up.sky + up.block > l.sky + l.block { l = up }
+        }
+        return l
+    }
     // (SoldierRig.build: the drawn rig kept a frame or two past 14 blocks; written only by the mob pass)
     var rigDrawn: SoldierRigOut?
     var rigDrawnLod = 0, rigDrawnAt = 0
@@ -2407,11 +2422,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         if let r = m.ragdoll, let rw = ragdolls, r.prepare(rw, eye: eye) { rag = r }
         let hj = rag != nil ? MobAnim.headJoint(m) : nil
         let lc = rag != nil ? ragdolls!.pose(rag!.id, 0).position : m.pos + V3(0, m.height * 0.5, 0)
-        var l = world.lightAt(Int(floor(lc.x)), Int(floor(lc.y)), Int(floor(lc.z)))
-        if rag != nil {                       // (a body lying on smooth ground can have its centre in the block under it)
-            let up = world.lightAt(Int(floor(lc.x)), Int(floor(lc.y)) + 1, Int(floor(lc.z)))
-            if Int(up.sky) + Int(up.block) > Int(l.sky) + Int(l.block) { l = up }
-        }
+        let l = Mob.lightFor(world, at: lc, ragdoll: rag != nil)
         let base = m.pos + V3(0, m.viewDY, 0) - eye
         // The cave fill (Shaders.caveFill): mobs in the dark stay visible a few blocks away.
         let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(base))

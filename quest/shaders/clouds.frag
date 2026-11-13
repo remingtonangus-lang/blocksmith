@@ -58,6 +58,11 @@ void main() {
     cc += flashC * (0.25 + 0.75 * thick);
     cc = mix(cc, u.horizon.rgb, smoothstep(0.0, 0.85, far));       // reaches the horizon colour before it fades out
     float ac = dens * (1.0 - smoothstep(0.35, 0.8, far)) * smoothstep(0.015, 0.1, d.y) * (0.9 + 0.1 * thick);
+    // Nov 13 (Carbon's blind review 160000 #5, "abrupt full-screen dark/bright flashes when flying through cloud altitude
+    // bands"): with the eye close under the deck every upward ray met it within a few blocks of the eye's own column,
+    // so the whole sky above was one cloud cell: it flipped between solid cloud and open sky as he flew under a cloud's
+    // edge, and the deck vanished at once when he climbed through it. The deck thins out over the last 90 blocks below it.
+    ac *= smoothstep(8.0, 98.0, hu);
 
     // Cirrus: streaks stretched along the wind, moving at 0.6 of the cumulus drift; thinned under an overcast deck.
     float t2 = (CIRRUS_Y - u.eye.y) / d.y;

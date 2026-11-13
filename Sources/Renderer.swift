@@ -2373,7 +2373,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                         // Q2c-console-53: two smaller lines (it ran off both edges of the panel), cut only past that.
                         let hs = textWidth(pm.subtitle, s * 0.85) <= room * 2 - 20 * s ? s * 0.85 : s * 0.72
                         for (k, line) in wrapLines(pm.subtitle, maxW: room, hs, maxLines: 2).enumerated() {
-                            text(line, o.x + (pw - textWidth(line, hs)) / 2, o.y + (14 + Float(k) * 9) * s, hs, subC, shadow: false)
+                            let ly: Float = PauseMenu.oldSubtitle ? 14 + Float(k) * 9 : 17 + Float(k) * 10
+                            text(line, o.x + (pw - textWidth(line, hs)) / 2, o.y + ly * s, hs, subC, shadow: false)
                         }
                     }
                 }

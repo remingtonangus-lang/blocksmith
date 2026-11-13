@@ -540,6 +540,10 @@ enum QuestFrameSoak {
 
     static func run(ctx: VkContext) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
+        // (BS_STALLTRACE=FILE, BS_STALLTRACE_AFTER=MS: the stacks of the ticks that ran past MS, as the VR fuzz keeps
+        // them; quest/tools/stalltrace.py names them. Nov 12: the strike soak's 3-5 ms bowl steps.)
+        StallTrace.install()
+        defer { StallTrace.write() }
         QuestApp.headsetWorld()                                                       // (as on the headset)
         // (as the game runs, not the host checks' fixtures: bases planned on workers, the headset's world rules)
         StructureCache.plansOffThread = true
@@ -727,8 +731,10 @@ enum QuestFrameSoak {
             if f == warm { GroundSettle.borderSeconds = 0; GroundSettle.borderSeedsRun = 0; PopIn.arm(g) }
             let a = CFAbsoluteTimeGetCurrent()
             let ta = threadMs()
+            StallTrace.begin(f)
             g.tick(dt)
             let tk = (CFAbsoluteTimeGetCurrent() - a) * 1000
+            StallTrace.end(slow: f >= warm && tk * 1e6 > Double(StallTrace.afterNs), ms: tk, what: TickProf.summary())
             let tickWhy = TickProf.summary()
             if mobProf && f >= warm && MobManager.prof.worst > worstMob.0 {
                 worstMob = (MobManager.prof.worst, MobManager.prof.worstKind + ": " + MobManager.worstStages
