@@ -18,6 +18,9 @@ enum StructureImpact {
     static var cooldown: Float = 0.12                 // seconds between one body's blows
     // (harness and soak)
     static var strikes = 0, broken = 0, worstMs = 0.0
+    // (dozens of pieces of one collapse land together: at most `perFrame` blows a frame, the others keep their speed's
+    // worth for the next contact)
+    static var thisFrame = 0, perFrame = 2
 
     // The body's weight (Structure's units: tenths of a tonne a block).
     static func weight(_ s: Ship) -> Float {
@@ -29,7 +32,8 @@ enum StructureImpact {
     // A blow: the body moved at `vIn` before the contact and lost `dv` of it. True when blocks broke.
     static func strike(_ g: Game, _ s: Ship, weight: Float, vIn: V3, dv: Float) -> Bool {
         let speed = simd_length(vIn)
-        guard enabled, speed >= minSpeed, dv > 2.5, weight > 0 else { return false }
+        guard enabled, speed >= minSpeed, dv > 2.5, weight > 0, thisFrame < perFrame else { return false }
+        thisFrame += 1
         let t0 = CFAbsoluteTimeGetCurrent()
         defer { worstMs = max(worstMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
         let w = g.world
@@ -43,7 +47,7 @@ enum StructureImpact {
             let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
             guard seen.insert(c).inserted, let m = Structure.part(w, c.x, c.y, c.z) else { continue }
             let b = w.builtBlock(c.x, c.y, c.z)
-            if Blocks.hardness[Int(b)] < 0 || Structure.helm[Int(b)] { continue }      // (unbreakable; a docked vessel)
+            if Blocks.hardness[Int(b)] < 0 || Structure.helm[Int(b)] { continue }      // (unbreakable; a vessel's helm)
             hit.append((c, m.bond * toughness))
         }
         guard !hit.isEmpty else { return false }

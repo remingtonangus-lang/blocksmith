@@ -89,8 +89,9 @@ enum StructureFlow {
         init(at p: IVec3, limit: Int = 400_000) {
             self.limit = limit; queue = [p]; index[p] = 0
             // (room for a citadel at the start: growing the index mid-fill rehashes it, 10 ms and more in one slice)
-            index.reserveCapacity(min(limit, 160_000))
-            let room = min(limit, 131_072)
+            // (to the limit in play, 250,000: about 12 MB while a piece is read or kept)
+            index.reserveCapacity(min(limit, 262_144))
+            let room = min(limit, 262_144)
             queue.reserveCapacity(room); piece.cells.reserveCapacity(room); piece.weight.reserveCapacity(room); piece.bond.reserveCapacity(room)
             piece.crush.reserveCapacity(room); piece.ground.reserveCapacity(room); piece.held.reserveCapacity(room)
         }
@@ -106,6 +107,13 @@ enum StructureFlow {
                 if n & 31 == 0 && CFAbsoluteTimeGetCurrent() > deadline { return false }
                 let q = queue[head]; head += 1
                 // (every queued cell stays a cell of the piece: a block gone since it was queued weighs nothing and joins nothing)
+                // (its chunk let go since it was queued, the player walking off while the piece is read: held by what
+                // lies there, as a cell past the loaded edge is; read as a hole it brought down what rested on it)
+                if !k.loaded(q.x, q.z) {
+                    piece.cells.append(q); piece.weight.append(0); piece.bond.append(1e9); piece.crush.append(1e9)
+                    piece.ground.append(0); piece.held.append(true); piece.capped = true
+                    continue
+                }
                 let m = Structure.part(&k, q.x, q.y, q.z)
                 piece.cells.append(q)
                 piece.weight.append(m?.weight ?? 0); piece.bond.append(m.map(StructureFlow.side) ?? 0); piece.crush.append(m?.crushCap ?? 0)
@@ -139,7 +147,8 @@ enum StructureFlow {
         // the piece is the next weighing's). Cells still queued are read when the fill reaches them.
         mutating func refresh(_ w: World, _ changed: [IVec3]) {
             var k = ChunkCursor(w)
-            for c in changed { for d in [IVec3(0, 0, 0)] + World.allDirs {
+            let round = [IVec3(0, 0, 0)] + World.allDirs
+            for c in changed { for d in round {
                 let q = c + d
                 guard let i32 = index[q] else { continue }
                 let i = Int(i32)

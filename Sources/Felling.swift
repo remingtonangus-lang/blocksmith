@@ -254,13 +254,14 @@ extension Game {
         }
         tCopy = CFAbsoluteTimeGetCurrent()
         // (taken out quietly: what it leaves behind was checked already)
+        let restoring0 = world.restoring                     // (a collapse's loose blocks: StructureCollapse set it)
         world.restoring = true
         let quiet0 = world.circuitQuiet                      // (ledger 45)
         if Explosion.circuitCalm && !world.circuitNear(cells + Array(leaves), margin: 3) { world.circuitQuiet = true }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0
-        world.restoring = false
+        world.restoring = restoring0
         tTake = CFAbsoluteTimeGetCurrent()
         let tree = logs.count == cells.count
         let s = world.ships.spawn(bp, at: V3(Float(start.x), Float(start.y), Float(start.z)), yaw: 0,
@@ -304,6 +305,7 @@ extension Game {
 
     // Every frame (Game.advance): falling trees land and shed their leaves; a carried trunk follows the hands.
     func fellingTick(_ dt: Float) {
+        StructureImpact.thisFrame = 0
         guard dt > 0 else { return }
         Felling.roundTrunks = Felling.roundFor(world)
         let live = world.ships.list

@@ -21,6 +21,7 @@ enum StructureCollapse {
     static let bodyBin = Int(ProcessInfo.processInfo.environment["BS_COLLAPSEBIN"] ?? "") ?? 12   // a falling body is at most a cube of this side
     static var wantSeconds = 0.0012, maxWait = 3      // (as Structure.tick: a body waits for a frame with room)
     static let patientPieces = ProcessInfo.processInfo.environment["BS_COLLAPSEPUSH"] != "1"
+    static var crumbsAFrame = 32
     static var sliceFloor = 0.0004                    // (a frame with no room left still reads this much)
 
     // (harness and soak)
@@ -44,7 +45,7 @@ enum StructureCollapse {
         var captureT = 0.0
         var solving = false
         var outcome: Outcome?                         // (set by the worker under `lock`)
-        var next = 0
+        var next = 0, crumb = 0
         init(_ p: IVec3, _ c: StructureFlow.Capture? = nil) { seed = p; capture = c ?? StructureFlow.Capture(at: p, limit: StructureCollapse.limit) }
     }
     // The piece last read, kept a while: a battle changes a structure many times, and each change after the first is
@@ -107,8 +108,12 @@ enum StructureCollapse {
     static var safety: Float = Float(ProcessInfo.processInfo.environment["BS_COLLAPSESAFETY"] ?? "") ?? 1
 
     // A change whose check stopped at its bound: the piece at p is weighed whole once things are quiet.
+    // (another world, a dimension entered or a save loaded: nothing read from the last one is carried over)
+    private static weak var owner: World?
+    @inline(__always) private static func own(_ w: World) { if owner !== w { reset(); owner = w } }
     static func request(_ w: World, at p: IVec3) {
         guard enabled, w.frame == nil else { return }
+        own(w)
         // (the changed cell itself is often air now: the built block beside it)
         var p = p
         if Structure.part(w, p.x, p.y, p.z) == nil {
@@ -157,14 +162,18 @@ enum StructureCollapse {
         let w = g.world
         if comingDown > 0 { comingDown -= 1 }
         frameNo += 1
+        own(w)
         guard enabled, tracking else { return }
         if !held.isEmpty { if busy { release(w, olderThan: holdFrames) } else { release(w) } }
         let now = CFAbsoluteTimeGetCurrent()
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         // The structural changes since the last frame (World.queueLoadCheck notes them): one in or against the piece
         // being read or weighed makes what was read stale; one near a piece that waits keeps it waiting.
-        let changes = w.structChanged, flood = w.structFlood
-        w.structChanged.removeAll(keepingCapacity: true); w.structFlood = false
+        // (the two arrays trade places: no buffer made each frame a piece is kept)
+        scratch.removeAll(keepingCapacity: true)
+        swap(&scratch, &w.structChanged)
+        let changes = scratch, flood = w.structFlood
+        w.structFlood = false
         if let j = job {
             if flood {
                 if j.counted { j.stale = true }       // (coming down already: finished, but not kept)
@@ -271,15 +280,28 @@ enum StructureCollapse {
             worstBodyMs = max(worstBodyMs, dt * 1000)
             if j.next < o.parts.count { return }
         }
-        if !o.crumbs.isEmpty {
-            let cells = o.crumbs.filter { Structure.part(w, $0.x, $0.y, $0.z) != nil }
+        // The loose blocks, `crumbsAFrame` a frame (a citadel's collapse leaves hundreds along the pieces' borders).
+        while j.crumb < o.crumbs.count {
+            if paced {
+                if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
+                waited = 0
+            }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let end = paced ? min(o.crumbs.count, j.crumb + crumbsAFrame) : o.crumbs.count
+            let cells = o.crumbs[j.crumb..<end].filter { Structure.part(w, $0.x, $0.y, $0.z) != nil }
+            j.crumb = end
             let was = w.restoring
             w.restoring = true                                        // (what they leave was weighed already)
-            Structure.drop(g, cells)
+            if !cells.isEmpty { Structure.drop(g, cells) }
             w.restoring = was
+            let dt = CFAbsoluteTimeGetCurrent() - t0
+            if paced { CraterJob.spend(dt) }
+            worstBodyMs = max(worstBodyMs, dt * 1000)
+            if j.crumb < o.crumbs.count { return }
         }
         finish(j, w)
     }
+    private static var scratch: [IVec3] = []
     private static var againSeeds: [IVec3: Int] = [:]
     private static func finish(_ j: Job, _ w: World) {
         job = nil
