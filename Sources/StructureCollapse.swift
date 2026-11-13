@@ -53,6 +53,9 @@ enum StructureCollapse {
     private static var keptAt = 0.0, keptUsed = 0.0
     static var keepSeconds = 20.0, keepAtMost = 90.0
     static var reused = 0
+    // Frames left of a collapse and its aftermath: what the check near a change topples meanwhile (the stubs a
+    // collapse leaves hanging) waits for the workers' redraw too (Game.topple).
+    static var comingDown = 0
     static var tracking: Bool { job != nil || !pending.isEmpty || kept != nil }
     private static var pending: [IVec3] = []
     private static var job: Job?
@@ -114,6 +117,7 @@ enum StructureCollapse {
 
     static func tick(_ g: Game) {
         let w = g.world
+        if comingDown > 0 { comingDown -= 1 }
         guard enabled, tracking else { return }
         let now = CFAbsoluteTimeGetCurrent()
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
@@ -218,6 +222,7 @@ enum StructureCollapse {
                     // sections meshed on the frame: for the dozens of pieces of a collapse, each leaving a citadel's
                     // sections to redraw, that is the frame gone. They wait for the workers instead, up to 4 s.)
                     if patientPieces { Felling.falls.last?.patient = true }
+                    comingDown = 5 * 72
                     bodies += 1
                 }
             } while !paced && j.next < o.parts.count

@@ -90,6 +90,9 @@ enum StructureFlow {
             self.limit = limit; queue = [p]; index[p] = 0
             // (room for a citadel at the start: growing the index mid-fill rehashes it, 10 ms and more in one slice)
             index.reserveCapacity(min(limit, 160_000))
+            let room = min(limit, 131_072)
+            queue.reserveCapacity(room); piece.cells.reserveCapacity(room); piece.weight.reserveCapacity(room); piece.bond.reserveCapacity(room)
+            piece.crush.reserveCapacity(room); piece.ground.reserveCapacity(room); piece.held.reserveCapacity(room)
         }
         func contains(_ q: IVec3) -> Bool { index[q] != nil }
         var count: Int { queue.count }

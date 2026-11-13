@@ -105,7 +105,7 @@ enum QuestToppleTest {
             if low + high > 0 { print("FAIL toppletest: a piece cut loose with another hangs in the air (\(low), \(high))"); fails += 1 }
         }
         // Nov 13 (the physics revamp; his shelled citadel at Beach -2902 79 2601: "even though it's still technically
-        // connected, this wouldn't realistically be able to sustain that much weight"): two 8x8 brick towers 40 high,
+        // connected, this wouldn't realistically be able to sustain that much weight"): two 8x8 brick towers 40 high over the slope,
         // each with a storey taken out but for its middle: four columns left under one (too few for what stands on
         // them: the top comes down), sixteen under the other (enough: it stands, weighed all the same).
         // (BS_COLLAPSE=0: both stand, as before.)
@@ -119,11 +119,13 @@ enum QuestToppleTest {
                 w.restoring = false
                 let cut = base + 5
                 // (the storey shot out, as changes: their checks stop at the fill's bound and ask for the whole piece)
-                for y in cut...(cut + 1) { for dz in -4...3 { for dx in -4...3 {
+                // (eight high: the corners the check near the change drops land on the storey's floor, and a storey two
+                // high was filled by them and stood on its own rubble)
+                for y in cut...(cut + 7) { for dz in -4...3 { for dx in -4...3 {
                     let inside = dx >= -keep && dx < keep && dz >= -keep && dz < keep
                     if !inside { w.setBlock(cx + dx, y, cz + dz, AIR) }
                 } } }
-                return (cut, { var n = 0; for y in (cut + 2)...(base + 40) { for dz in -4...3 { for dx in -4...3 where w.builtBlock(cx + dx, y, cz + dz) == brick { n += 1 } } }; return n })
+                return (cut, { var n = 0; for y in (cut + 8)...(base + 40) { for dz in -4...3 { for dx in -4...3 where w.builtBlock(cx + dx, y, cz + dz) == brick { n += 1 } } }; return n })
             }
             let w0 = StructureCollapse.weighed, b0 = StructureCollapse.bodies
             let (_, weakUp) = tower(-4962, 2245, keep: 1)

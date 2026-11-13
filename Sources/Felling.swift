@@ -277,6 +277,7 @@ extension Game {
         s.vel = away * 0.2
         if tree { Felling.girth[s.id] = Felling.girthOf(Set(logs)) }
         Felling.falls.append(hold(s, cells: leaves.union(cells)))
+        if StructureCollapse.comingDown > 0 && StructureCollapse.patientPieces && !tree { Felling.falls.last?.patient = true }
         Felling.toppled += 1
         sfx(.hullCreak, tree ? 1.3 : 0.8, at: s.pos)
     }
