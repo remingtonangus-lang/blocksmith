@@ -26,6 +26,7 @@ enum Felling {
         var launch = (V3(0, 0, 0), V3(0, 0, 0))
         var held: Float = -1
         var pushed = false
+        var weight: Float = 0, sinceBlow: Float = 1   // (StructureImpact)
         var patient = false                     // (Nov 13, a collapse's pieces: no push, the workers' redraw is waited for)
         var over = V3(0, 0, 0)                  // (the axis a felled tree goes over about, away from the woodsman)
         init(_ s: Ship) { ship = s }
@@ -350,6 +351,12 @@ extension Game {
                 }
             }
             let dv = simd_length(s.vel - f.lastVel)
+            // Nov 13 (StructureImpact): a falling piece of a structure breaks the built blocks it lands on, and goes on down.
+            f.sinceBlow += dt
+            if !Felling.isFelled(s) && f.age > 0.2 && s.contacts > 0 && dv > 2.5 && f.sinceBlow >= StructureImpact.cooldown && StructureImpact.enabled {
+                if f.weight <= 0 { f.weight = StructureImpact.weight(s) }
+                if StructureImpact.strike(self, s, weight: f.weight, vIn: f.lastVel, dv: dv) { f.sinceBlow = 0; f.still = 0 }
+            }
             f.lastVel = s.vel
             if !f.landed && f.age > 0.4 && s.contacts > 0 && dv > 2.5 {
                 f.landed = true

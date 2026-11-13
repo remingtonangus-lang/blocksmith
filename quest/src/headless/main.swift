@@ -1260,6 +1260,7 @@ if let out = arg("--view"), let ctx = vkctx {
         print("view: slowest tick: \(slowWhat); felling \(String(format: "%.1f", Felling.worstMs)) ms (\(Felling.worstSplit)); drop \(String(format: "%.1f", Structure.dropWorstMs)) ms (\(Structure.dropWorst))")
         print(String(format: "view: settle: %d ticks, slowest %.1f ms (%d bodies then), %d past 13.9 ms; %d bodies now, %d asleep",
                      settleTicks, slowTick, bodiesAtSlow, lateTicks, vw.ships.list.count, vw.ships.list.filter { $0.asleep }.count))
+        print(String(format: "view: impacts: %d blows broke %d blocks (slowest %.2f ms)", StructureImpact.strikes, StructureImpact.broken, StructureImpact.worstMs))
         print(String(format: "view: collapse: %d asked, %d weighed (last %d blocks: read %.1f ms, worst slice %.2f ms, weighed %.1f ms), %d collapses, %d blocks in %d bodies (slowest %.1f ms), %d restarts, %d changes patched in, %d frames past the settle%@",
                      StructureCollapse.asked, StructureCollapse.weighed, StructureCollapse.lastBlocks, StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs,
                      StructureCollapse.lastSolveMs, StructureCollapse.collapses, StructureCollapse.fellBlocks, StructureCollapse.bodies, StructureCollapse.worstBodyMs,
