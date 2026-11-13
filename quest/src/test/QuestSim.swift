@@ -818,6 +818,24 @@ enum QuestSim {
         }
         QuestSettings.leftHanded = false
         frames(4) { _ in idleHands() }
+
+        // (g) Nov 13 (Carbon's blind review 160000 #17, "the floating HUD hotbar clips right across the zoomed scope view"):
+        // with the sniper scope up, the hotbar panel, the aim hint and the controller card are not drawn; they come back
+        // as it comes down.
+        game.inventory.held = ItemStack(Items.id("gun_sniper"), 1)
+        frames(4) { _ in idleHands() }
+        let shownBefore = controls.scopeHUDShown
+        controls.scopeForce = 1
+        frames(4) { _ in idleHands() }
+        let shownUp = controls.scopeHUDShown
+        snap?("_scope.png")
+        controls.scopeForce = nil
+        frames(20) { _ in idleHands() }
+        let shownAfter = controls.scopeHUDShown
+        check(shownBefore == 1 && shownUp == 0 && shownAfter == 1 && controls.scopeT == 0,
+              String(format: "VR scope: the hotbar panel hidden with the scope up (shown %.2f before, %.2f up, %.2f after)",
+                     shownBefore, shownUp, shownAfter))
+        game.inventory.held = .empty
     }
 
     static func shipRide(game: Game, host: SimHost, frames: (Int, (Int) -> Void) -> Void, check: (Bool, String) -> Void,

@@ -120,6 +120,7 @@ final class QuestControls {
     private var velR = V3(0, 0, 0)
     private var velRHand = V3(0, 0, 0), prevRTrack: V3? = nil
     static let oldThrow = ProcessInfo.processInfo.environment["BS_OLDTHROW"] == "1"   // (the world-space speed, as before)
+    static let oldScopeHUD = ProcessInfo.processInfo.environment["BS_OLDSCOPEHUD"] == "1"   // (hotbar, hint and controller card drawn over the scope)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
     // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
     private var hudSolid: Float = 0
@@ -898,8 +899,19 @@ final class QuestControls {
     // G21: the Farsight raised to the eye (VRScope): eased 0...1, the views zoom with it.
     private(set) var scopeT: Float = 0
     private var scopeUp = false
+    var scopeForce: Float?                     // (harness: the scope held at this much, whatever the hands do)
+    // How much of the hotbar panel, aim hint and controller card shows: 1 normally, 0 with the scope up (drawOverlay).
+    var scopeHUDShown: Float {
+        if mode == .menu || game.menu != nil || QuestControls.oldScopeHUD { return 1 }
+        return max(0, min(1, 1 - (scopeT - 0.2) / 0.3))
+    }
     private func scopeTick(_ dt: Float) {
         let rig = app.rig
+        if let f = scopeForce {
+            scopeT = f
+            rig.zoom = VRScope.zoom(scopeT, full: VRScope.scopeZoom(game.held) ?? VRScope.zoom)
+            return
+        }
         var up = false
         if game.menu == nil && !game.paused, let aim = game.vrAim {
             let fwd = rig.toWorldRot(rig.headRot).act(V3(0, 0, -1))
@@ -2037,14 +2049,17 @@ final class QuestControls {
             if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
             giveVerts(v)
         }
-        if let panel, (!game.hideHUD || game.menu != nil) {
+        // Nov 13 (Carbon's blind review 160000 #17): the hotbar panel, the aim hint and the controller card are drawn on top
+        // of everything, so with the sniper scope up they sat across the lens and its black mask. They fade out as the
+        // scope comes up (gone by scopeT 0.5); a menu still shows its panel. BS_OLDSCOPEHUD keeps them drawn.
+        let scopeHUD = scopeHUDShown
+        if let panel, (!game.hideHUD || game.menu != nil), scopeHUD > 0.01 {
             let (rx, uy, n) = panelAxes()
             let c = panelCenter - eye
             let m = float4x4(columns: (V4(rx * panelSize.x, 0), V4(uy * panelSize.y, 0), V4(n, 0), V4(c, 1)))
-            let inMenu = mode == .menu
-            panel.draw(s, model: m, alpha: inMenu ? 1 : hudAlpha, onTop: true)
+            panel.draw(s, model: m, alpha: mode == .menu ? 1 : hudAlpha * scopeHUD, onTop: true)
         }
-        if let hp = hintPanel, let h = hint, let hit = aimHit, game.menu == nil {
+        if let hp = hintPanel, let h = hint, let hit = aimHit, game.menu == nil, scopeHUD > 0.99 {
             // Beside the dot, a little above, facing the head; about 3 degrees tall wherever it is.
             let head = app.rig.headWorld
             let dist = max(0.3, simd_length(hit - head))
@@ -2059,7 +2074,7 @@ final class QuestControls {
             hp.draw(s, model: m, alpha: 1, onTop: true)
         }
         // Q2c-console-70: the card above the controller he is looking at, facing him, about 20 cm wide.
-        if let cp = ctrlPanel, ctrlAlpha > 0.02, ctrlShowHand >= 0, ctrlRecorded == ctrlShowHand + (QuestSettings.leftHanded ? 10 : 0),
+        if let cp = ctrlPanel, ctrlAlpha * scopeHUD > 0.02, ctrlShowHand >= 0, ctrlRecorded == ctrlShowHand + (QuestSettings.leftHanded ? 10 : 0),
            ctrlShowHand < app.input.hands.count, app.input.hands[ctrlShowHand].gripValid {
             let head = app.rig.headWorld
             let p = app.rig.toWorld(app.input.hands[ctrlShowHand].gripPos)
@@ -2069,7 +2084,7 @@ final class QuestControls {
             let wid: Float = 0.2, hgt = wid * Float(cp.height) / Float(cp.width)
             let c = p + up * (0.07 + hgt * 0.5) + toHead * 0.03 - eye
             let m = float4x4(columns: (V4(right * wid, 0), V4(up * hgt, 0), V4(toHead, 0), V4(c, 1)))
-            cp.draw(s, model: m, alpha: ctrlAlpha, onTop: true)
+            cp.draw(s, model: m, alpha: ctrlAlpha * scopeHUD, onTop: true)
         }
         drawDeckReference(s, eye: eye)
         drawBladeTrail(s, eye: eye)

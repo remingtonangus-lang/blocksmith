@@ -2524,6 +2524,7 @@ if let out = arg("--hudshot") {
                                          pages: doc ? ["Page one of a document found in a tower room. It goes on for a while so the pane wraps it."] : nil))
     }
     Journal.rev += 1
+    if CommandLine.arguments.contains("--reporter") { Reporter.url = "https://reports.invalid/"; Reporter.transport = { _, _, _ in } }   // (the headset's row)
     switch arg("--menu") ?? "pause" {
     case "journal": game.openJournal()
     case "inventory": game.openMenu(InventoryMenu(game: game))
@@ -2540,6 +2541,17 @@ if let out = arg("--hudshot") {
             if arg("--menu") == "drive" { game.startPiloting(car) } else { game.world.ships.aboard = car }
         } else { print("hudshot: the test car did not assemble") }
     default: game.openMenu(PauseMenu(game: game))
+    }
+    // (--away: the headset's long away subtitle; --act ID: that row pressed first, e.g. "mode" for the mode switch's
+    // confirm page. Nov 13, Carbon's blind review 160000 #6 and #18)
+    if CommandLine.arguments.contains("--away") { PauseMenu.autoReason = "Paused while you were away (157 min) - your world is saved"; (game.menu as? PauseMenu)?.build() }
+    if let a = arg("--act"), let pm = game.menu as? PauseMenu { pm.act(a, back: false); pm.build() }
+    // (--hover ID: that row hovered, its help line shown, as the pointer on it shows it. Nov 13, Carbon's blind review:
+    // the pause menu's "Save and Quit" over the text at the panel's foot)
+    if let h = arg("--hover"), let pm = game.menu as? PauseMenu {
+        pm.build()
+        game.menuHover = pm.slots.first { sl in if case .button(let i) = sl.kind { return pm.row(forSlot: i)?.1 == h }; return false }
+        print("hudshot: hovering \(h): \(game.menuHover == nil ? "no such row" : "help \"" + pm.helpText + "\"")")
     }
     let headsetPanel = ["drive", "aboard"].contains(arg("--menu") ?? "")
     let W = headsetPanel ? 1024 : 1280, H = headsetPanel ? 640 : 720
@@ -3375,6 +3387,7 @@ BrushCheck.run(game, check)                            // P511: through bushes a
 ClamberCheck.run(game, check)                          // P511: up and over a ledge too high to jump onto
 TorchWaterCheck.run(game, check)                       // ledger 55: torches give way to water and lava, none go in
 CrawlerInteriorCheck.run(check)                         // P511: the crawler's insides dense, a motor at every wheel
+MobLightCheck.run(game, check)                          // Nov 13: small mobs on smooth ground never drawn black
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest
