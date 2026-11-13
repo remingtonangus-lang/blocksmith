@@ -388,6 +388,8 @@ extension Mesher {
         if coarse != 0 || coarseN != 0 {
             smoothQuads(R, sc, dmg: [:], stored: dens, sy: sy, leafHoles: leafHoles, detailHoles: detailHoles) { _, _, _, _, _, _, _, _, _ in }
         }
+        // (nothing natural in the section's own range: smoothQuads left an older section's vertices; nothing to pin to)
+        if !sc.smFresh && !Mesher.oldFineAdj { coarse = 0; coarseN = 0 }
         let KOc = SmoothTerrain.maxRelax, Kc = 17 + 2 * KOc, KKc = Kc * Kc
         let VPc = sc.smV, VLc = sc.smL
         // (smoothQuads reads its section's 0...16 and a ring of maxRelax + 3 round it)
@@ -491,10 +493,8 @@ extension Mesher {
             for k in 0..<3 where fp[k] >= 0 && fp[k] == fq[k] && cp[k] == cq[k] { a = k; break }
             guard a >= 0 else { return }
             let u = (a + 1) % 3, w = (a + 2) % 3
-            if abs(cp[u] - cq[u]) + abs(cp[w] - cq[w]) <= 1 { return }
             func vi(_ c: SIMD3<Int>) -> Int { (c.x + KOc) + (c.z + KOc) * Kc + (c.y + KOc) * KKc }
             let key = min(vi(cp), vi(cq)) * (Kc * KKc) + max(vi(cp), vi(cq))
-            guard stitchDone.insert(key).inserted else { return }
             // The way from one to the other over the border's vertices. First along the neighbour's own edge: two cells
             // side by side are joined there only where the neighbour draws a quad on both, which is where its solid
             // flags change across the face they share (the verifier's note, Nov 12: any cell with a vertex was walked,
@@ -503,21 +503,49 @@ extension Mesher {
             // to corner.
             let fa = cp[a]
             let Sc = sc.smS, SOc = KOc + 1, Nc = 20 + 2 * KOc, NNc = Nc * Nc
-            func solidC(_ m: Int, _ mv: Int, _ o: Int, _ ov: Int, _ av: Int) -> Bool {
-                var t = SIMD3<Int>(0, 0, 0)
-                t[m] = mv; t[o] = ov; t[a] = av
-                return Sc[(t.x + SOc) + (t.z + SOc) * Nc + (t.y + SOc) * NNc] != 0
+            // (the solid flags across the face two cells side by side share, on the border fixed on axis `b` at `fb`: the
+            // grid edges on that face the neighbour past the border owns)
+            func linkedOn(_ c: SIMD3<Int>, _ n: SIMD3<Int>, _ m: Int, _ b: Int, _ fb: Int) -> Bool {
+                let o = 3 - m - b
+                let mv = min(c[m], n[m]) + 1, ov = c[o]
+                func sol(_ ovv: Int, _ bv: Int) -> Bool {
+                    var t = SIMD3<Int>(0, 0, 0)
+                    t[m] = mv; t[o] = ovv; t[b] = bv
+                    return Sc[(t.x + SOc) + (t.z + SOc) * Nc + (t.y + SOc) * NNc] != 0
+                }
+                if fb == 0 { return sol(ov, 0) != sol(ov + 1, 0) }
+                return sol(ov, fb) != sol(ov, fb + 1) || sol(ov + 1, fb) != sol(ov + 1, fb + 1) || sol(ov, fb + 1) != sol(ov + 1, fb + 1)
             }
+            // Nov 13 (the hole on a steep desert bank, seed 632461258612199693, right on the chunk corner 48 48; the
+            // verifier's note on the rim): two cells in the corner column, where this border meets another one drawn
+            // from cells, are joined by that other neighbour's edges as well. Only this border's were read, so the
+            // walk stopped one cell short of the corner and the quad there stayed open. BS_OLDFINEADJ=1: this border's.
+            let sideBit: [[Int]] = [[1, 2], [16, 32], [4, 8]]           // (`coarse` bits by axis: low side, high side)
             func linked(_ c: SIMD3<Int>, _ n: SIMD3<Int>) -> Bool {
                 let m = c[u] != n[u] ? u : w, o = m == u ? w : u
-                let mv = min(c[m], n[m]) + 1, ov = c[o]
-                if fa == 0 { return solidC(m, mv, o, ov, 0) != solidC(m, mv, o, ov + 1, 0) }
-                return solidC(m, mv, o, ov, fa) != solidC(m, mv, o, ov, fa + 1) || solidC(m, mv, o, ov + 1, fa) != solidC(m, mv, o, ov + 1, fa + 1)
-                    || solidC(m, mv, o, ov, fa + 1) != solidC(m, mv, o, ov + 1, fa + 1)
+                if linkedOn(c, n, m, a, fa) { return true }
+                if Mesher.oldFineAdj { return false }
+                if c[o] == 0 && coarse & sideBit[o][0] != 0 { return linkedOn(c, n, m, o, 0) }
+                if c[o] == 16 && coarse & sideBit[o][1] != 0 { return linkedOn(c, n, m, o, 16) }
+                return false
             }
             let apart = abs(cp[u] - cq[u]) + abs(cp[w] - cq[w])
-            for mode in 0..<3 {
-                let diag = mode == 2, cap = mode == 0 ? apart + 6 : 14
+            // Nov 13 (a one-block hole in the wall of a low cave mouth, desert, seed 632461258612199693 at 53 128 49):
+            // two cells side by side are not always joined in the neighbour's ground. Where a cave one block high
+            // crosses the border the floor's vertex and the roof's sit in cells one above the other, with air between;
+            // the half-block ground (its samples past the border are the cells' own, blended, and close such a thin
+            // cave early) drew the cave's end wall straight from one to the other, and the neighbour's floor and roof
+            // ran on to where its cave pinches shut: an open window between. Side by side counts as joined only where
+            // the neighbour draws an edge between the two; otherwise the neighbour's edge is walked like any other
+            // (first way only: the other two would take the pair as joined). BS_OLDFINEADJ=1: side by side is joined.
+            var only0 = false
+            if apart <= 1 {
+                if Mesher.oldFineAdj || linked(cp, cq) { return }
+                only0 = true
+            }
+            guard stitchDone.insert(key).inserted else { return }
+            for mode in 0..<(only0 ? 1 : 3) {
+                let diag = mode == 2, cap = only0 ? 4 : (mode == 0 ? apart + 6 : 14)
                 var from: [Int: Int] = [vi(cp): -1]
                 var front = [cp], found = false, depth = 0
                 while !front.isEmpty && !found && depth < cap {
@@ -530,7 +558,7 @@ extension Mesher {
                             guard n[u] >= 0, n[w] >= 0, n[u] <= 16, n[w] <= 16 else { continue }
                             let i = vi(n)
                             guard VLc[i] >= 0, from[i] == nil else { continue }
-                            if mode == 0 && !linked(c, n) { continue }
+                            if mode == 0 && (Mesher.oldFineJoint || !linked(c, n)) { continue }
                             from[i] = vi(c)
                             if n == cq { found = true }
                             next.append(n)
@@ -551,7 +579,7 @@ extension Mesher {
                 if Mesher.fineTrace { sc.dbgTrace.append("stitch mode \(mode) cells \(cp) \(cq) path \(path.count - 1)") }
                 return
             }
-            sc.dbgCoarse.2 += 1_000_000_000
+            if !only0 { sc.dbgCoarse.2 += 1_000_000_000 }
         }
         let dbg = !Mesher.fineDebug.isEmpty
         sc.fineFins.removeAll(keepingCapacity: true)
@@ -633,6 +661,8 @@ extension Mesher {
                         for mb in 0...1 where mb == 0 || zone[b] != 0 { for mc in 0...1 where mc == 0 || zone[c] != 0 {
                             var o = SIMD3<Int>(0, 0, 0)
                             o[b] = mb * zone[b]; o[c] = mc * zone[c]
+                            // (a pair with a section past the world's floor or top is no border: nothing is drawn there)
+                            if !Mesher.oldFineAdj && (sy + o.y < 0 || sy + o.y >= NSEC || (a == 1 && (sy + zone[1] < 0 || sy + zone[1] >= NSEC))) { continue }
                             let i0 = (o.x + 1) + (o.z + 1) * 3 + (o.y + 1) * 9
                             o[a] = zone[a]
                             let i1 = (o.x + 1) + (o.z + 1) * 3 + (o.y + 1) * 9
@@ -673,7 +703,11 @@ extension Mesher {
                     }
                 }
                 }
-                let trace = Mesher.fineTrace && (gx <= 2 || gx >= 30) && (gz <= 2 || gz >= 30)
+                var trace = Mesher.fineTrace && (gx <= 2 || gx >= 30) && (gz <= 2 || gz >= 30)
+                if Mesher.fineTrace && Mesher.fineTraceBox.count == 6 {
+                    let tb = Mesher.fineTraceBox, tp = (p + off) * 0.5
+                    trace = tp.x >= tb[0] && tp.x <= tb[1] && tp.y >= tb[2] && tp.y <= tb[3] && tp.z >= tb[4] && tp.z <= tb[5]
+                }
                 guard fx >= 0 || fy >= 0 || fz >= 0 else {
                     if trace { sc.dbgTrace.append(String(format: "free g %d,%d,%d at %.2f,%.2f,%.2f", gx, gy, gz, (p.x + off.x) * 0.5, (p.y + off.y) * 0.5, (p.z + off.z) * 0.5)) }
                     return nil

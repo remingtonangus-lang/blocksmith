@@ -118,3 +118,10 @@ this list and ask whether the work repeats one of these.
   section line fixed it differently; a vertex on two borders lost one). Forest and plains: 0 of 56 views looking
   down with a hole. Seven more biomes on two seeds: 193 of 196 clean. STILL NOT DONE: a one-block hole on a steep
   desert bank at a section line (3 views, one seed). Not closed until those are clean too.
+- **Nov 13 (ledger 100, 101):** the last three views of the wide sweep that showed a hole were one more member: a
+  one-block hole on a steep desert bank at a chunk corner (the stitch read one border's edges where two borders meet).
+  It was first hunted for hours 8 blocks away, at a dark cave mouth beside it, until the hole's own pixels were asked
+  which cells lay behind them (`--pick`): find where a hole is before reasoning about why. With it fixed, both
+  sweeps are clean on the host: corners in forest and plains 112 of 112 views, seven more biomes on two seeds 196 of
+  196. The entry stays open until he plays a build with these and sees none: the host renders one eye's frustum, and
+  the pattern has come back four times.

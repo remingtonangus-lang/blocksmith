@@ -123,6 +123,17 @@ enum Mesher {
     // BS_FINEDEBUG="cx,cz[;cx,cz...]": each half-block section meshed in those chunks prints what it took its neighbours for.
     static let fineDebug: [SIMD2<Int>] = (ProcessInfo.processInfo.environment["BS_FINEDEBUG"] ?? "").split(separator: ";").compactMap {
         let v = $0.split(separator: ",").compactMap { Int($0) }; return v.count == 2 ? SIMD2(v[0], v[1]) : nil }
+    // (BS_FINETRACEBOX="x0,x1,y0,y1,z0,z1", section-local blocks: every pin whose half-block vertex lies in the box)
+    static let fineTraceBox: [Float] = (ProcessInfo.processInfo.environment["BS_FINETRACEBOX"] ?? "").split(separator: ",").compactMap { Float($0) }
+    static let oldFineAdj = oldFineStitch || oldFineJoint || ProcessInfo.processInfo.environment["BS_OLDFINEADJ"] == "1"     // (Nov 13: side by side on a border counted as joined)
+    // Nov 13 (pine leaf white holes): a leaf crown's inner shell is its core (SmoothTerrain.smoothQuads). The Mac's
+    // shaders don't know u 27, so there it stays a second cut-out shell.
+    static let oldLeafCore = ProcessInfo.processInfo.environment["BS_OLDLEAFCORE"] == "1"
+    #if os(macOS)
+    static let leafCoreU = 31
+    #else
+    static let leafCoreU = oldLeafCore ? 31 : 27
+    #endif
     static let fineTrace = ProcessInfo.processInfo.environment["BS_FINETRACE"] == "1"     // (with BS_FINEDEBUG: every border pin near a section's upright edges)
     static let oldTrunkFeet = ProcessInfo.processInfo.environment["BS_OLDTRUNKFEET"] == "1"
     static var uvOverflow = -1           // (u * 1000 + v of the last such vertex; -1 none)
@@ -2250,10 +2261,12 @@ enum Mesher {
                 var bq = 0
                 smoothQuads(R, sc, dmg: dmg, sy: sy, leaves: true, shells: farBlob ? 1 : 2, world: wo) { x16, y16, z16, f, tint, layer, ao, l, ncode in
                     curCut = !farBlob
-                    if farShell { cutOut = (bq >> 2) & 1 == 1 ? inner : blobCut }
+                    let innerQ = !farBlob && (bq >> 2) & 1 == 1
+                    if farShell { cutOut = innerQ ? inner : blobCut }
                     bq += 1
                     blobV += 1
-                    vert(false, x16, y16, z16, f, tint, 31, ncode % 31, layer, ao, l, ncode >= 31)
+                    // (Nov 13: u 27 = the crown's core, a smooth vertex like u 31 that the cut-out shader draws whole)
+                    vert(false, x16, y16, z16, f, tint, innerQ ? Mesher.leafCoreU : 31, ncode % 31, layer, ao, l, ncode >= 31)
                 }
                 for i in 0..<inner.count { blobCut.append(inner.ptr[i]) }
                 cutOut = cut
@@ -2685,6 +2698,7 @@ final class MeshScratch {
     // Smooth terrain (SmoothTerrain.swift): solid flags, density, dual vertices (xyz, light | ao << 8, normal, pinned,
     // relaxation scratch), each with SmoothTerrain.maxRelax blocks of ring past a section's own.
     static let smN0 = 20 + 2 * SmoothTerrain.maxRelax, smM0 = 18 + 2 * SmoothTerrain.maxRelax, smK0 = 17 + 2 * SmoothTerrain.maxRelax
+    var smFresh = false          // (the last smoothQuads call filled smS/smV/smL)
     let smS = UnsafeMutablePointer<UInt8>.allocate(capacity: MeshScratch.smN0 * MeshScratch.smN0 * MeshScratch.smN0)
     let smD = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smM0 * MeshScratch.smM0 * MeshScratch.smM0)
     let smV = UnsafeMutablePointer<Float>.allocate(capacity: MeshScratch.smK0 * MeshScratch.smK0 * MeshScratch.smK0 * 3)

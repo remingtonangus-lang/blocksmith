@@ -29,7 +29,14 @@ import simd
 // own floor (a roof garden, a planter: FieldTerrain.split keeps them as blocks); a block on water floats (a raft); a piece with a ship's helm is a
 // docked vessel and left to the ships.
 enum Structure {
-    struct Mat { let weight: Float; let bond: Float; let reach: Int; var fixture = false }
+    struct Mat {
+        let weight: Float; let bond: Float; let reach: Int; var fixture = false
+        // (Nov 13, StructureFlow: what a block of it bears pressed straight down before it crushes, in weight units;
+        // 0 = its bond times `crushK`)
+        var crush: Float = 0
+        var crushCap: Float { crush > 0 ? crush : bond * Structure.crushK }
+    }
+    static let crushK: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSHK"] ?? "") ?? 3
     // (BS_MATS="planks=6/60/5,concrete=24/400/10": a material's numbers for this run, to try others in the checks)
     static func mat(_ name: String, _ weight: Float, _ bond: Float, _ reach: Int) -> Mat {
         for e in (ProcessInfo.processInfo.environment["BS_MATS"] ?? "").split(separator: ",") {
@@ -68,7 +75,7 @@ enum Structure {
         let v = Blocks.boxes[i].reduce(Float(0)) { $0 + Float(max(0, Int($1.x1) - Int($1.x0)) * max(0, Int($1.y1) - Int($1.y0)) * max(0, Int($1.z1) - Int($1.z0))) } / 4096
         // (under half a cell: a fitting, as a lantern, a carpet, a rail, a pane or a fence: its reach counts from the
         // sound blocks it's fixed to)
-        return Mat(weight: m.weight * min(1, max(0.1, v)), bond: m.bond, reach: m.reach, fixture: v < 0.5)
+        return Mat(weight: m.weight * min(1, max(0.1, v)), bond: m.bond, reach: m.reach, fixture: v < 0.5, crush: m.crush)
     }
     static func material(_ i: Int) -> Mat? {
         let b = BlockID(i)
