@@ -375,7 +375,10 @@ extension Game {
             // took its helm and moved him to it. A big hull's helm is taken at the helm, as the frigate's is (P476).)
             let aboard = s.kinematic && !s.isFlyingCapital && (s.blockCount <= 2000 || Game.oldCrawlerUse)
                 && (ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.5)
-            if (d < zone || aboard) && d < bd { best = s; bd = d }
+            // (a landed plane's exit sets him on the ground past its wings, more than 8 blocks from the cockpit: from
+            // beside its hull it is his to take again)
+            let besidePlane = s.role == "capplane" && !Game.oldPlaneExit && ships.boundsDistance(s, p) < 2.5
+            if (d < zone || aboard || besidePlane) && d < bd { best = s; bd = d }
         }
         return best
     }
