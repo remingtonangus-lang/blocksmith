@@ -186,7 +186,9 @@ enum ProvingGrounds {
     static func plan(_ o: IVec3) -> Build {
         let b = Build(o)
         let d = deck
-        let stone = STONE, walk = key("andesite"), water = WATER
+        // (Nov 13: worked blocks, drawn as crisp cubes: natural stone and andesite are drawn as rolling rock in the
+        // realistic world, so the deck rippled like a hillside. BS_OLDPROVINGORDER=1: as before.)
+        let stone = oldOrder ? STONE : key("smooth_stone"), walk = oldOrder ? key("andesite") : key("polished_andesite", "andesite"), water = WATER
         // The deck, a 32-block tile a step (each loaded first: the far tiles are past what streams in round him).
         // Nov 13 playtest (13:04:20-13:05:05, flying over it a minute after it began: "I'm in the proofing ground and
         // there's nothing... Nothing to be proofed"): the tiles went down row by row from the far north-west corner, so
