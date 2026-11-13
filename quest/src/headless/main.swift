@@ -1234,7 +1234,14 @@ if let out = arg("--view"), let ctx = vkctx {
         } }
         let settle = Double(arg("--settle") ?? "") ?? 6
         for _ in 0..<Int(settle * 72) { vg.tick(1.0 / 72); vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero }
+        // (a whole piece being weighed is given up to 30 s more)
+        var extra = 0
+        while StructureCollapse.busy && extra < 30 * 72 { vg.tick(1.0 / 72); vg.player.pos = eye - V3(0, vg.player.eyeHeight, 0); vg.player.vel = .zero; extra += 1 }
         print("view: shells: \(Armory.detonations - d0) bursts, \(Structure.checks) load checks, \(Structure.fallen) blocks fell, \(Felling.toppled) pieces toppled, \(vg.falling.count) falling")
+        print(String(format: "view: collapse: %d asked, %d weighed (last %d blocks: read %.1f ms, worst slice %.2f ms, weighed %.1f ms), %d collapses, %d blocks in %d bodies (slowest %.1f ms), %d restarts, %d changes patched in, %d frames past the settle%@",
+                     StructureCollapse.asked, StructureCollapse.weighed, StructureCollapse.lastBlocks, StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs,
+                     StructureCollapse.lastSolveMs, StructureCollapse.collapses, StructureCollapse.fellBlocks, StructureCollapse.bodies, StructureCollapse.worstBodyMs,
+                     StructureCollapse.restarts, StructureCollapse.patched, extra, StructureCollapse.busy ? " (still busy)" : ""))
         // (--floatat X,Y,Z: scan round that point instead of the bursts' middle: shells through a shot-out frame burst far off)
         if let fa = arg("--floatat")?.split(separator: ",").compactMap({ Int($0) }), fa.count == 3 {
             print(FloatScan.scan(vw, around: IVec3(fa[0], fa[1], fa[2]), r: Int(arg("--floatscan") ?? "") ?? 40))

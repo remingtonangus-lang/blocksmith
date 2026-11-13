@@ -46,6 +46,11 @@ enum StructureFlow {
 
     static let dirs: [IVec3] = Structure.nbrs                    // 6 faces, then 12 edges
     static let edgeShare: Float = 0.5
+    // What a joint carries hung or sideways, as a share of the bond Structure's check near a change goes by. That
+    // check counts blocks of reach as well; a flow has no lever arm, so a whole structure's weight across one joint
+    // (a tower's top on its sky bridge) is held to a quarter of it: a concrete joint carries a hundred blocks of
+    // concrete (a 24-block balcony with room to spare), not four hundred. BS_SHEAR=1: the whole bond.
+    static let shear: Float = Float(ProcessInfo.processInfo.environment["BS_SHEAR"] ?? "") ?? 0.25
     // (weights and strengths as whole numbers: 1/16 of a weight unit)
     static let unit: Float = 16
 
@@ -54,41 +59,84 @@ enum StructureFlow {
         let face = abs(d.x) + abs(d.y) + abs(d.z) == 1
         let k: Float = face ? 1 : edgeShare
         if d.y < 0 { return min(ci, cj) * k }         // pressed down (straight, or down a slope)
-        return min(bi, bj) * k                        // hung from above, or sideways
+        return min(bi, bj) * k * shear                // hung from above, or sideways
     }
 
-    // Capture: the piece of built blocks at p (Structure.part), filled over faces and edges up to `limit` blocks.
+    // Capture: the piece of built blocks at p (Structure.part), filled over faces and edges up to `limit` blocks. It
+    // reads the world, so it runs on the main thread, a slice at a time (`step`); a block past the limit, or beside a
+    // chunk that is not loaded, is held by what lies past it. A piece with a helm is a docked vessel (`vessel`).
+    struct Capture {
+        var piece = Piece()
+        var vessel = false
+        private var index: [IVec3: Int32] = [:]
+        private var queue: [IVec3] = []
+        private var head = 0
+        let limit: Int
+        init(at p: IVec3, limit: Int = 400_000) { self.limit = limit; queue = [p]; index[p] = 0 }
+        func contains(_ q: IVec3) -> Bool { index[q] != nil }
+        var count: Int { queue.count }
+        // One slice, until `deadline` (CFAbsoluteTime); true when the piece is whole.
+        mutating func step(_ w: World, until deadline: Double = .infinity) -> Bool {
+            var k = ChunkCursor(w)
+            let helm = Structure.helm
+            var n = 0
+            while head < queue.count {
+                n += 1
+                if n & 31 == 0 && CFAbsoluteTimeGetCurrent() > deadline { return false }
+                let q = queue[head]; head += 1
+                // (every queued cell stays a cell of the piece: a block gone since it was queued weighs nothing and joins nothing)
+                let m = Structure.part(&k, q.x, q.y, q.z)
+                piece.cells.append(q)
+                piece.weight.append(m?.weight ?? 0); piece.bond.append(m?.bond ?? 0); piece.crush.append(m?.crushCap ?? 0)
+                guard m != nil else { piece.ground.append(0); piece.held.append(false); continue }
+                if helm[Int(k.built(q.x, q.y, q.z))] { vessel = true }
+                var g: UInt8 = 0
+                if Structure.anchor(&k, q.x, q.y - 1, q.z) { g = 1 }
+                else {
+                    for d in World.allDirs where d.y == 0 { if Structure.anchor(&k, q.x + d.x, q.y, q.z + d.z) { g = 2; break } }
+                }
+                piece.ground.append(g)
+                var atBound = false
+                for d in dirs {
+                    let c = q + d
+                    if index[c] != nil { continue }
+                    guard k.loaded(c.x, c.z) else { atBound = true; piece.capped = true; continue }
+                    guard Structure.part(&k, c.x, c.y, c.z) != nil else { continue }
+                    if queue.count >= limit { atBound = true; piece.capped = true; continue }
+                    index[c] = Int32(queue.count)
+                    queue.append(c)
+                }
+                piece.held.append(atBound)
+            }
+            return true
+        }
+        // Blocks changed since they were read (a shell landing while a slice waits): each one read, with the six
+        // beside it, is read again where it stands (a block gone weighs nothing and joins nothing; one put in beside
+        // the piece is the next weighing's). Cells still queued are read when the fill reaches them.
+        mutating func refresh(_ w: World, _ changed: [IVec3]) {
+            var k = ChunkCursor(w)
+            for c in changed { for d in [IVec3(0, 0, 0)] + World.allDirs {
+                let q = c + d
+                guard let i32 = index[q] else { continue }
+                let i = Int(i32)
+                guard i < piece.cells.count else { continue }
+                let m = Structure.part(&k, q.x, q.y, q.z)
+                piece.weight[i] = m?.weight ?? 0; piece.bond[i] = m?.bond ?? 0; piece.crush[i] = m?.crushCap ?? 0
+                var g: UInt8 = 0
+                if m != nil {
+                    if Structure.anchor(&k, q.x, q.y - 1, q.z) { g = 1 }
+                    else { for e in World.allDirs where e.y == 0 { if Structure.anchor(&k, q.x + e.x, q.y, q.z + e.z) { g = 2; break } } }
+                }
+                piece.ground[i] = g
+            } }
+        }
+    }
     static func capture(_ w: World, at p: IVec3, limit: Int = 400_000) -> Piece? {
         var k = ChunkCursor(w)
         guard Structure.part(&k, p.x, p.y, p.z) != nil else { return nil }
-        var piece = Piece()
-        var index: [IVec3: Int32] = [:]
-        var queue: [IVec3] = [p]
-        index[p] = 0
-        var head = 0
-        while head < queue.count {
-            let q = queue[head]; head += 1
-            guard let m = Structure.part(&k, q.x, q.y, q.z) else { continue }
-            piece.cells.append(q)
-            piece.weight.append(m.weight); piece.bond.append(m.bond); piece.crush.append(m.crushCap)
-            var g: UInt8 = 0
-            if Structure.anchor(&k, q.x, q.y - 1, q.z) { g = 1 }
-            else {
-                for d in World.allDirs where d.y == 0 { if Structure.anchor(&k, q.x + d.x, q.y, q.z + d.z) { g = 2; break } }
-            }
-            piece.ground.append(g)
-            var atBound = false
-            for d in dirs {
-                let n = q + d
-                if index[n] != nil { continue }
-                guard Structure.part(&k, n.x, n.y, n.z) != nil else { continue }
-                if queue.count >= limit { atBound = true; piece.capped = true; continue }
-                index[n] = Int32(queue.count)
-                queue.append(n)
-            }
-            piece.held.append(atBound)
-        }
-        return piece
+        var c = Capture(at: p, limit: limit)
+        _ = c.step(w)
+        return c.piece
     }
 
     // The flow. `scale` multiplies every weight (the harness: how many times its own weight a piece carries).
@@ -124,7 +172,7 @@ enum StructureFlow {
                 cap[i * D + d] = j < 0 ? 0 : q16(jointCap(dirs[d], bi: piece.bond[i], bj: piece.bond[Int(j)], ci: piece.crush[i], cj: piece.crush[Int(j)]))
             }
             let g = piece.ground[i]
-            toT[i] = piece.held[i] ? big : (g == 1 ? q16(piece.crush[i]) : (g == 2 ? q16(piece.bond[i]) : 0))
+            toT[i] = piece.held[i] ? big : (g == 1 ? q16(piece.crush[i]) : (g == 2 ? q16(piece.bond[i] * shear) : 0))
             let wgt = Int64((piece.weight[i] * scale * unit).rounded())
             excess[i] = wgt
             total += wgt

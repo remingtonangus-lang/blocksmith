@@ -3527,6 +3527,8 @@ final class Game: LifeLinked {
         TickProf.mark("structure load")
         StructureTip.tick(self)                                // P503: a piece shot out from under it tips
         TickProf.mark("structure tip")
+        StructureCollapse.tick(self)                           // Nov 13: a piece too big for those, weighed whole
+        TickProf.mark("structure collapse")
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0

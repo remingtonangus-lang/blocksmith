@@ -34,37 +34,43 @@ enum Structure {
         // (Nov 13, StructureFlow: what a block of it bears pressed straight down before it crushes, in weight units;
         // 0 = its bond times `crushK`)
         var crush: Float = 0
-        var crushCap: Float { crush > 0 ? crush : bond * Structure.crushK }
+        var crushCap: Float { (crush > 0 ? crush : bond * Structure.crushK) * Structure.crushScale }
     }
     static let crushK: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSHK"] ?? "") ?? 3
+    // (BS_CRUSH=0.5: every material's crushing strength times that, to try in the checks)
+    static let crushScale: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSH"] ?? "") ?? 1
     // (BS_MATS="planks=6/60/5,concrete=24/400/10": a material's numbers for this run, to try others in the checks)
-    static func mat(_ name: String, _ weight: Float, _ bond: Float, _ reach: Int) -> Mat {
+    static func mat(_ name: String, _ weight: Float, _ bond: Float, _ reach: Int, crush: Float = 0) -> Mat {
         for e in (ProcessInfo.processInfo.environment["BS_MATS"] ?? "").split(separator: ",") {
             let kv = e.split(separator: "="), v = kv.count == 2 ? kv[1].split(separator: "/") : []
             if kv.first.map(String.init) == name, v.count == 3, let a = Float(v[0]), let b = Float(v[1]), let c = Int(v[2]) { return Mat(weight: a, bond: b, reach: c) }
         }
-        return Mat(weight: weight, bond: bond, reach: reach)
+        return Mat(weight: weight, bond: bond, reach: reach, crush: crush)
     }
     // BS_LOAD=0: no load checks (before/after).
     static let enabled = ProcessInfo.processInfo.environment["BS_LOAD"] != "0"
 
+    // (Nov 13, StructureFlow) crush: what a block bears pressed straight down, in the same units. Every material bears
+    // far more pressed than hung (masonry sixty times its bond in the real thing; here enough for a wall of it 240
+    // high, a timber frame 100, packed earth 25), so a sound building never crushes its own footings; what brings a
+    // big one down is too little left under too much: a storey shot out to a few columns.
     // (1) Weight is tenths of a tonne per block (a block is a cubic metre: the material's density in g/cm3 x 10). Bond is
     // in the same units: what one face joint carries hanging or reaching out. Reach is in blocks.
-    static let wool = mat("wool", 1, 30, 2)         // felted fibre, 0.1 t/m3: light, so it carries thirty of itself; two blocks out and it sags off
-    static let glass = mat("glass", 25, 120, 1)      // 2.5 t/m3, brittle: carries a lintel's share in its frame, but reaches one block out from it
-    static let framed = mat("framed", 25, 2000, 1)  // a modern window: laminated panes in a steel frame tied into the walls, carrying the floor over it
-    static let soil = mat("soil", 16, 5, 1)         // dirt, clay, snow packed by hand: crumbles at an overhang
-    static let snow = mat("snow", 4, 20, 4)         // snow blocks: 0.4 t/m3, cut and packed hard: an igloo's dome closes over its room
-    static let planks = mat("planks", 6, 200, 8)      // sawn softwood 0.6 t/m3; boards nailed and lapped carry thirty of themselves
-    static let logs = mat("logs", 8, 800, 10)       // whole timber 0.8 t/m3 green: a jointed beam, seven times the boards (a frame's posts and beams)
-    static let stone = mat("stone", 25, 1500, 5)     // 2.5 t/m3 dressed masonry; mortar and bond (1.5 MPa over a square metre) hold
+    static let wool = mat("wool", 1, 30, 2, crush: 200)         // felted fibre, 0.1 t/m3: light, so it carries thirty of itself; two blocks out and it sags off
+    static let glass = mat("glass", 25, 120, 1, crush: 1500)      // 2.5 t/m3, brittle: carries a lintel's share in its frame, but reaches one block out from it
+    static let framed = mat("framed", 25, 2000, 1, crush: 6000)  // a modern window: laminated panes in a steel frame tied into the walls, carrying the floor over it
+    static let soil = mat("soil", 16, 5, 1, crush: 400)         // dirt, clay, snow packed by hand: crumbles at an overhang
+    static let snow = mat("snow", 4, 20, 4, crush: 150)         // snow blocks: 0.4 t/m3, cut and packed hard: an igloo's dome closes over its room
+    static let planks = mat("planks", 6, 200, 8, crush: 800)      // sawn softwood 0.6 t/m3; boards nailed and lapped carry thirty of themselves
+    static let logs = mat("logs", 8, 800, 10, crush: 3000)       // whole timber 0.8 t/m3 green: a jointed beam, seven times the boards (a frame's posts and beams)
+    static let stone = mat("stone", 25, 1500, 5, crush: 6000)     // 2.5 t/m3 dressed masonry; mortar and bond (1.5 MPa over a square metre) hold
                                                       // sixty of itself, and a course corbels or vaults five out
-    static let ice = mat("ice", 9, 30, 2)
-    static let mushroom = mat("mushroom", 2, 100, 8)    // a giant mushroom's cap: light, fibrous flesh spreading wide off its stem
-    static let concrete = mat("concrete", 24, 10000, 24) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
-    static let metal = mat("metal", 78, 12000, 8)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
-    static let titanium = mat("titanium", 45, 15000, 10) // 4.5 t/m3, stronger still for its weight
-    static let gold = mat("gold", 193, 300, 3)      // 19.3 t/m3 and soft: heavy and weak for a metal
+    static let ice = mat("ice", 9, 30, 2, crush: 300)
+    static let mushroom = mat("mushroom", 2, 100, 8, crush: 300)    // a giant mushroom's cap: light, fibrous flesh spreading wide off its stem
+    static let concrete = mat("concrete", 24, 10000, 24, crush: 30000) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
+    static let metal = mat("metal", 78, 12000, 8, crush: 40000)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
+    static let titanium = mat("titanium", 45, 15000, 10, crush: 50000) // 4.5 t/m3, stronger still for its weight
+    static let gold = mat("gold", 193, 300, 3, crush: 3000)      // 19.3 t/m3 and soft: heavy and weak for a metal
 
     // Per block state: its material, or nil when it is not part of a structure.
     // (a slab weighs half a block, stairs three quarters: a block's weight is its material's times how much of the cell
@@ -540,6 +546,8 @@ enum Structure {
                 let cut = r.capped ? looseAll(w, near: s) : []
                 if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
                 else if !r.falls.isEmpty { drop(g, r.falls) }
+                // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame)
+                if r.capped && cut.isEmpty { StructureCollapse.request(w, at: s) }
             }
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             worstMs = max(worstMs, ms); totalMs += ms
@@ -811,7 +819,10 @@ enum Structure {
 extension World {
     // P388 (2): a structural block placed or taken away: the piece round it is checked (Structure.tick), once per 4-cube.
     @inline(__always) func queueLoadCheck(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
-        guard Structure.enabled, frame == nil, !restoring, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
+        guard Structure.enabled, frame == nil, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
+        // (Nov 13, StructureCollapse: a piece being read whole starts over when one of its blocks changes)
+        if StructureCollapse.busy { if structChanged.count < 512 { structChanged.append(IVec3(x, y, z)) } else { structFlood = true } }
+        guard !restoring else { return }
         // (one state of a block for another of the same material carries the same load: a door opening, a lamp lit)
         if let a = Structure.table[Int(old)], let b = Structure.table[Int(new)], a.weight == b.weight && a.bond == b.bond && a.reach == b.reach { return }
         // P416 (Oct 23, the Greywall base: 20 checks a second with nobody building): grass dying back to dirt under

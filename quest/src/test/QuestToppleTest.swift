@@ -104,6 +104,45 @@ enum QuestToppleTest {
             print("toppletest: two stacks in the air cut apart by one block: \(low) of the lower, \(high) of the upper still stand")
             if low + high > 0 { print("FAIL toppletest: a piece cut loose with another hangs in the air (\(low), \(high))"); fails += 1 }
         }
+        // Nov 13 (the physics revamp; his shelled citadel at Beach -2902 79 2601: "even though it's still technically
+        // connected, this wouldn't realistically be able to sustain that much weight"): two 8x8 brick towers 40 high,
+        // each with a storey taken out but for its middle: four columns left under one (too few for what stands on
+        // them: the top comes down), sixteen under the other (enough: it stands, weighed all the same).
+        // (BS_COLLAPSE=0: both stand, as before.)
+        do {
+            func tower(_ cx: Int, _ cz: Int, keep: Int) -> (Int, () -> Int) {
+                var base = 0
+                for dz in -4...3 { for dx in -4...3 { base = max(base, top(cx + dx, cz + dz) + 1) } }
+                w.restoring = true
+                for dz in -4...3 { for dx in -4...3 { for y in (top(cx + dx, cz + dz) + 1)...(base + 40) { w.setBlock(cx + dx, y, cz + dz, brick) } } }
+                w.restoring = false
+                let cut = base + 5
+                // (the storey shot out, as changes: their checks stop at the fill's bound and ask for the whole piece)
+                for y in cut...(cut + 1) { for dz in -4...3 { for dx in -4...3 {
+                    let inside = dx >= -keep && dx < keep && dz >= -keep && dz < keep
+                    if !inside { w.setBlock(cx + dx, y, cz + dz, AIR) }
+                } } }
+                return (cut, { var n = 0; for y in (cut + 2)...(base + 40) { for dz in -4...3 { for dx in -4...3 where w.builtBlock(cx + dx, y, cz + dz) == brick { n += 1 } } }; return n })
+            }
+            let w0 = StructureCollapse.weighed, b0 = StructureCollapse.bodies
+            let (_, weakUp) = tower(-4962, 2245, keep: 1)
+            let weakAll = weakUp()
+            for _ in 0..<288 { g.menu = nil; g.tick(1.0 / 72); if !StructureCollapse.busy && w.loadQueue.isEmpty && StructureCollapse.weighed > w0 { break } }
+            let weakLeft = weakUp(), weakBodies = StructureCollapse.bodies - b0
+            let w1 = StructureCollapse.weighed
+            let (_, soundUp) = tower(-4962, 2275, keep: 2)
+            let soundAll = soundUp()
+            for _ in 0..<288 { g.menu = nil; g.tick(1.0 / 72); if !StructureCollapse.busy && w.loadQueue.isEmpty && StructureCollapse.weighed > w1 { break } }
+            let soundLeft = soundUp()
+            print(String(format: "toppletest: a storey shot out under an 8x8 tower: on four columns %d of %d blocks above still stand (%d bodies fell); on sixteen %d of %d (weighed whole %d times, %d blocks, read %.1f ms in slices of %.2f ms at most, weighed %.1f ms)",
+                         weakLeft, weakAll, weakBodies, soundLeft, soundAll, StructureCollapse.weighed - w0, StructureCollapse.lastBlocks,
+                         StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs, StructureCollapse.lastSolveMs))
+            if StructureCollapse.enabled {
+                if weakLeft > 0 { print("FAIL toppletest: a tower's top stands on four columns that cannot carry it (\(weakLeft) blocks)"); fails += 1 }
+                if soundLeft < soundAll { print("FAIL toppletest: a tower on sixteen columns that carry it lost \(soundAll - soundLeft) blocks"); fails += 1 }
+                if StructureCollapse.weighed - w1 < 1 { print("FAIL toppletest: the tower on sixteen columns was never weighed whole"); fails += 1 }
+            }
+        }
         // The birch, 10 blocks west, on a one-block plinth of planks.
         let log = Blocks.id("birch_log"), leaf = Blocks.id("birch_leaves"), plank = Blocks.id("birch_planks")
         let bx = -4932, bz = 2260, by = top(bx, bz) + 1
