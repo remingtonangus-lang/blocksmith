@@ -1262,10 +1262,10 @@ if let out = arg("--view"), let ctx = vkctx {
                      settleTicks, slowTick, bodiesAtSlow, lateTicks, vw.ships.list.count, vw.ships.list.filter { $0.asleep }.count))
         print(String(format: "view: impacts: %d blows broke %d blocks (slowest %.2f ms)", StructureImpact.strikes, StructureImpact.broken, StructureImpact.worstMs))
         print(String(format: "view: collapse: %d asked, %d weighed (last %d blocks: read %.1f ms, worst slice %.2f ms, weighed %.1f ms), %d collapses, %d blocks in %d bodies (slowest %.1f ms), %d restarts, %d changes patched in, %d frames past the settle%@",
-        if StructureCollapse.busy { print("view: collapse still busy: \(StructureCollapse.state)") }
                      StructureCollapse.asked, StructureCollapse.weighed, StructureCollapse.lastBlocks, StructureCollapse.lastCaptureMs, StructureCollapse.worstSliceMs,
                      StructureCollapse.lastSolveMs, StructureCollapse.collapses, StructureCollapse.fellBlocks, StructureCollapse.bodies, StructureCollapse.worstBodyMs,
                      StructureCollapse.restarts, StructureCollapse.patched, extra, StructureCollapse.busy ? " (still busy)" : ""))
+        if StructureCollapse.busy { print("view: collapse still busy: \(StructureCollapse.state)") }
         // (--floatat X,Y,Z: scan round that point instead of the bursts' middle: shells through a shot-out frame burst far off)
         if let fa = arg("--floatat")?.split(separator: ",").compactMap({ Int($0) }), fa.count == 3 {
             print(FloatScan.scan(vw, around: IVec3(fa[0], fa[1], fa[2]), r: Int(arg("--floatscan") ?? "") ?? 40))
