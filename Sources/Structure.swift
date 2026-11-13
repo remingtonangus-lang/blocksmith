@@ -71,6 +71,7 @@ enum Structure {
     static let mushroom = mat("mushroom", 2, 100, 8, crush: 300)    // a giant mushroom's cap: light, fibrous flesh spreading wide off its stem
     static let concrete = mat("concrete", 24, 10000, 24, crush: 7500) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
     static let metal = mat("metal", 78, 12000, 8, crush: 20000)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
+    static let plate = mat("plate", 16, 12000, 8, crush: 20000)     // steel sheet on a frame: a deck, a catwalk, a rail
     static let titanium = mat("titanium", 45, 15000, 10, crush: 20000) // 4.5 t/m3, stronger still for its weight
     static let gold = mat("gold", 193, 300, 3, crush: 3000)      // 19.3 t/m3 and soft: heavy and weak for a metal
 
@@ -91,6 +92,10 @@ enum Structure {
         let k = Blocks.key(Blocks.groupBase[i])
         if k.hasSuffix("mushroom_block") { return mushroom }
         if k == "diamond_block" { return titanium }
+        // (Nov 13: plating, grating and railing are sheet on a frame, a fifth of the solid metal's weight with its
+        // strength: counted solid, the Boreal tower's helipad deck, 344 plates, was 2.5 times what its struts carry
+        // when the station was weighed whole in a field world. BS_MATS="plate=78/12000/8" for before.)
+        if k.contains("plating") || k.contains("grating") || k.contains("railing") { return plate }
         if k.hasPrefix("steel_") { return metal }
         if k.hasPrefix("capital_") || k.hasPrefix("bunker_") || k.contains("armored_glass") { if soundMat(b) == .glass { return framed } }
         if (k.hasPrefix("capital_") || k.hasPrefix("bunker_") || k.contains("concrete") || k.hasPrefix("light_panel")) && soundMat(b) != .glass { return concrete }   // (a light panel is cast into its slab)

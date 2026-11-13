@@ -208,6 +208,32 @@ extension Structure {
                                 }
                                 let top = kinds.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
                                 print("  \(name) seed \(seed): \(fr.falls.count) of \(fr.blocks) blocks would come down, x \(lo2.x)..\(hi2.x) y \(lo2.y - YOFF)..\(hi2.y - YOFF) z \(lo2.z)..\(hi2.z), unrouted \(Int(fr.unrouted)) of \(Int(fr.weight)): \(top)")
+                                // (what it hangs on: each joint from a falling block to one that stays, by direction and the staying block; then its plan and its levels)
+                                let fell = Set(fr.falls.map { piece.cells[$0] })
+                                var joints: [String: Int] = [:], levels: [Int: Int] = [:]
+                                for c in fell {
+                                    levels[c.y - YOFF, default: 0] += 1
+                                    for d in Structure.nbrs {
+                                        let o = c + d
+                                        guard !fell.contains(o) else { continue }
+                                        let dir = d.y < 0 ? (d.x == 0 && d.z == 0 ? "on" : "on-edge") : (d.y > 0 ? (d.x == 0 && d.z == 0 ? "under" : "under-edge") : (abs(d.x) + abs(d.z) == 1 ? "beside" : "corner"))
+                                        if Structure.part(world, o.x, o.y, o.z) != nil { joints["\(dir) \(Blocks.key(world.builtBlock(o.x, o.y, o.z)))", default: 0] += 1 }
+                                        else if Structure.anchor(world, o.x, o.y, o.z) { joints["\(dir) GROUND", default: 0] += 1 }
+                                    }
+                                }
+                                print("    joints to what stays: " + joints.sorted { $0.value > $1.value }.prefix(14).map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+                                print("    levels: " + levels.sorted { $0.key < $1.key }.map { "\($0.key):\($0.value)" }.joined(separator: " "))
+                                if hi2.x - lo2.x < 100 && hi2.z - lo2.z < 60 {
+                                    for z in lo2.z...hi2.z {
+                                        var line = "    "
+                                        for x in lo2.x...hi2.x {
+                                            var n = 0
+                                            for y in lo2.y...hi2.y where fell.contains(IVec3(x, y, z)) { n += 1 }
+                                            line += n == 0 ? "." : (n < 10 ? String(n) : "#")
+                                        }
+                                        print(line)
+                                    }
+                                }
                             }
                             if sf < fm.sf {
                                 fm.sf = sf
