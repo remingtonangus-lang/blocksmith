@@ -1462,6 +1462,7 @@ final class World: LifeLinked {
     static var vehicleEdits = false
     static var frameNow: Double = 0                 // (P511: this frame's clock, World.update)
     static var ramEdits = false                     // (P511: what its bow rams that stands up in the way: at once)
+    static let ramGap: Double = Double(ProcessInfo.processInfo.environment["BS_RAMGAP"] ?? "") ?? 1.0
     // P511 (build 82 at his spot: still 232 edit jobs in 16 s at one and two chunks off, 22.7 s of meshing): the edits
     // settling after a pass (light, loose ground, the field's carve) reached chunks the footprint stamp missed and made
     // them edits again. Every chunk within two of a wearing vehicle's footprint is a wear zone for two wear gaps after its
