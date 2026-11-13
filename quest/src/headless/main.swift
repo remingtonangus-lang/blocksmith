@@ -2545,6 +2545,13 @@ if let out = arg("--hudshot") {
         } else { print("hudshot: the test car did not assemble") }
     default: game.openMenu(PauseMenu(game: game))
     }
+    // (--headsetpanel: as the headset draws it: its 1024 x 640 panel, couch scale and its own option hooks. Nov 13.)
+    let headsetPanel = ["drive", "aboard"].contains(arg("--menu") ?? "") || CommandLine.arguments.contains("--headsetpanel")
+    if CommandLine.arguments.contains("--headsetpanel") {
+        QuestOptions.install(QuestOptions.Hooks(recenter: {}))
+        HudLayout.couch = true; HudLayout.userScale = 0
+        (game.menu as? PauseMenu)?.build()          // (before --act and --hover: the hovered slot survives)
+    }
     // (--away: the headset's long away subtitle; --act ID: that row pressed first, e.g. "mode" for the mode switch's
     // confirm page. Nov 13, Carbon's blind review 160000 #6 and #18)
     if CommandLine.arguments.contains("--away") { PauseMenu.autoReason = "Paused while you were away (157 min) - your world is saved"; (game.menu as? PauseMenu)?.build() }
@@ -2555,13 +2562,6 @@ if let out = arg("--hudshot") {
         pm.build()
         game.menuHover = pm.slots.first { sl in if case .button(let i) = sl.kind { return pm.row(forSlot: i)?.1 == h }; return false }
         print("hudshot: hovering \(h): \(game.menuHover == nil ? "no such row" : "help \"" + pm.helpText + "\"")")
-    }
-    // (--headsetpanel: as the headset draws it: its 1024 x 640 panel, couch scale and its own option hooks. Nov 13.)
-    let headsetPanel = ["drive", "aboard"].contains(arg("--menu") ?? "") || CommandLine.arguments.contains("--headsetpanel")
-    if CommandLine.arguments.contains("--headsetpanel") {
-        QuestOptions.install(QuestOptions.Hooks(recenter: {}))
-        HudLayout.couch = true; HudLayout.userScale = 0
-        (game.menu as? PauseMenu)?.build()
     }
     let W = headsetPanel ? 1024 : 1280, H = headsetPanel ? 640 : 720
     let verts = Renderer(game: game).buildHUD(Float(W), Float(H))
