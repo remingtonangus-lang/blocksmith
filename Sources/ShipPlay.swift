@@ -471,7 +471,8 @@ extension Game {
         // the stick. Landed, he climbs down onto the ground beside it; in the air he bails out over the canopy (away from
         // the hull's frame, carried on with the plane's speed and a kick up, clear of the tail).
         if s.name == AshWrecks.fighterName && s.parent == nil {
-            if let at = dismountSpot(s), at.y > s.worldMin.y - 3 {
+            // (a plane is 15 wide and 16 long: dismountSpot's spots, 4 blocks out at most, are all under its hull)
+            if let at = dismountSpot(s, out: Array(stride(from: Float(2), through: 14, by: 1))), at.y > s.worldMin.y - 3 {
                 player.pos = at
                 player.vel = .zero
                 player.airPeak = at.y
@@ -494,13 +495,13 @@ extension Game {
     // Standing room on the ground beside a small vehicle: off its left side first (a sidecar's car is on the right),
     // then behind it, then off the car's side; a block and a half to four out from its middle, with the ground found
     // within two blocks of the hull's feet.
-    func dismountSpot(_ s: Ship) -> V3? {
+    func dismountSpot(_ s: Ship, out: [Float] = [1.6, 2.2, 3, 4]) -> V3? {
         let w = world
         let mid = V3((s.worldMin.x + s.worldMax.x) / 2, s.worldMin.y, (s.worldMin.z + s.worldMax.z) / 2)
         let right = s.dirToWorld(V3(1, 0, 0)), back = s.dirToWorld(V3(0, 0, 1))
         let r = simd_normalize(V3(right.x, 0, right.z)), bk = simd_normalize(V3(back.x, 0, back.z))
         let half = player.halfW - 0.02
-        for k: Float in [1.6, 2.2, 3, 4] {
+        for k in out {
             for d in [-r, bk, -bk, r, simd_normalize(bk - r), simd_normalize(-bk - r)] {
                 let p = mid + d * (k + (abs(simd_dot(d, r)) > 0.5 ? 0 : 1.2))
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
