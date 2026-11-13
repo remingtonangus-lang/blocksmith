@@ -381,6 +381,8 @@ extension Mesher {
         // Anything natural in the owned 17^3 block range?
         var any = false
         scan: for y in 0...16 { for z in 0...16 { for x in 0...16 where nat[Int(R[ri(x, y, z)])] { any = true; break scan } } }
+        // (sc.smFresh: this call filled sc.smS/smV/smL; an early return leaves an older section's there, Mesher.fineGround)
+        sc.smFresh = any
         if !any { return }
 
         // The ring past the owned dual cells 0...16 that the relaxation reads (one block a pass, at most `maxRelax`).
@@ -807,6 +809,7 @@ extension Mesher {
                 // P451 (Oct 25 08:46, Quest World: "got some snow hovering in a way it shouldn't be"): the snow lying on a
                 // canopy was drawn as its flat slab over the round leaf blob, plates of snow sticking out in the air round
                 // every snowy crown. The slab isn't drawn on a blob now (Mesher); the blob's top under it is snow instead.
+                let leafLayer = layer, leafTint = tint
                 if leaves && f == 2 && Int(R[ri(s[0], s[1] + 1, s[2])]) == snowLayer {
                     layer = Int(texT[snowLayer * 6 + 2]); tint = 0
                 }
@@ -878,8 +881,24 @@ extension Mesher {
                         let vi = corner[cc]
                         var vn = SIMD3<Float>(VN[vi * 3], VN[vi * 3 + 1], VN[vi * 3 + 2])
                         vn = simd_length_squared(vn) > 1e-6 ? simd_normalize(vn) : nrm / max(len, 1e-6)
-                        let pt = simd_clamp((pts[cc] - vn * 0.45) * 16, SIMD3<Float>(repeating: 0), SIMD3<Float>(repeating: 511))
-                        emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tint, layer, max(0, (v >> 8) - 2), v & 255,
+                        // Nov 13 (his Nov 12 note "white holes in the pine leaves"; Carbon's proposal, docs/carbon/
+                        // pine-leaf-holes.md, taken by intent): the inner shell was a second cut-out copy 0.45 in. Under a
+                        // snow cap it was a sheet of snow inside the bough, white through every hole of the needles
+                        // beside it; on a bough or a spire one block thick the two sides' shells crossed (0.45 in from
+                        // each side of less than a block), turned inside out and were culled, so the holes showed sky.
+                        // Now: the leaf's own texture and tint under snow; where the leaves are less than a block deep
+                        // behind the corner it goes 0.12 in, elsewhere 0.3; and the Mesher marks it as the crown's core, which the
+                        // Quest's cut-out shader draws whole (no holes) and darker. BS_OLDLEAFCORE=1: before.
+                        var deep: Float = 0.45, lay = layer, tnt = tint
+                        if !Mesher.oldLeafCore {
+                            lay = leafLayer; tnt = leafTint
+                            deep = 0.3          // (the rim past the core, where the needles' holes still show sky: 0.3 wide)
+                            let q = pts[cc] - vn * 0.75
+                            let bx = Int(q.x.rounded(.down)), by = Int(q.y.rounded(.down)), bz = Int(q.z.rounded(.down))
+                            if S[(bx + SO) + (bz + SO) * N + (by + SO) * NN] == 0 { deep = 0.12 }
+                        }
+                        let pt = simd_clamp((pts[cc] - vn * deep) * 16, SIMD3<Float>(repeating: 0), SIMD3<Float>(repeating: 511))
+                        emit(Int(pt.x.rounded()), Int(pt.y.rounded()), Int(pt.z.rounded()), f, tnt, lay, max(0, (v >> 8) - 2), v & 255,
                              SmoothTerrain.normalCode(vn, face: f))
                     }
                 }

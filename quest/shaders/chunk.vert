@@ -49,6 +49,9 @@ void main() {
     uint face = (w0 >> 27) & 7u;
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
+    // Nov 13: u 27 is a leaf crown's core (the inner shell): a smooth vertex like u 31, drawn whole and darker (oAnim 3).
+    bool core = uu == 27u;
+    if (core) uu = 31u;
     vec2 uv = vec2(float(uu), float(vv)) / 16.0;
     // Nov 6 (Mesher.crossRuns): a run of stacked crosses drawn as one tall cross: u 28 / 29 lay the texture by position
     // along its plane (28: rising with x, 29: falling) and down its height, repeating per block as the corners did.
@@ -112,7 +115,7 @@ void main() {
         oTint = unpackUnorm4x8(tints[tintBase + cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
     }
     oOverlay = (smoothV || face == 6u) ? 0.0 : float((w1 >> 30) & 1u);
-    oAnim = face == 7u ? 1.0 : (face == 2u && tintMode == 1u ? 2.0 : 0.0);     // 1 lava, 2 a grass top (turned per block)
+    oAnim = core ? 3.0 : face == 7u ? 1.0 : (face == 2u && tintMode == 1u ? 2.0 : 0.0);     // 1 lava, 2 a grass top (turned per block)
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     vec3 skyTint = mix(vec3(0.6, 0.7, 1.0), vec3(1.0), smoothstep(0.30, 0.62, u.params.y));
     float blk0 = blkL / (4.0 - 3.0 * blkL);

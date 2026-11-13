@@ -21,6 +21,7 @@ void main() {
     uint face = (w0 >> 27) & 7u;
     uint tintMode = w0 >> 30;
     uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
+    if (uu == 27u) uu = 31u;           // (a leaf crown's core, chunk.vert: on a ship a second cut-out shell as before)
     vec2 uv = vec2(float(uu), float(vv)) / 16.0;
     // Nov 6 (Mesher.crossRuns): a run of stacked crosses drawn as one tall cross: u 28 / 29 lay the texture by position
     // along its plane (28: rising with x, 29: falling) and down its height, repeating per block as the corners did.

@@ -152,6 +152,9 @@ extension Structure {
         let only: Set<String>? = arg("--kinds").map { Set($0.split(separator: ",").map(String.init)) }
         let t0 = CFAbsoluteTimeGetCurrent()
         var byKind: [String: (n: Int, pieces: Int, blocks: Int, falls: Int, held: Int, at: [String])] = [:]
+        // (BS_FLOW=1, Nov 13: each piece of 30 blocks or more weighed whole as well (StructureFlow): the weakest of each kind)
+        let flowOn = ProcessInfo.processInfo.environment["BS_FLOW"] == "1"
+        var flowMin: [String: (sf: Float, at: String, pieces: Int, fails: Int, ms: Double, biggest: Int)] = [:]
         for seed in seeds {
             let world = World(seed: seed, device: device, save: nil, dim: .overworld)
             guard let cache = world.gen.structures else { continue }
@@ -187,6 +190,19 @@ extension Structure {
                         if r.cells == 0 { st.held += 1; seen.insert(q); seen.formUnion(r.all); continue }
                         seen.formUnion(r.all)
                         st.pieces += 1; st.blocks += r.cells; st.falls += r.falls.count
+                        if flowOn && r.cells >= 30, let piece = StructureFlow.capture(world, at: q) {
+                            let fr = StructureFlow.solve(piece)
+                            let sf = fr.falls.isEmpty ? StructureFlow.safety(piece) : 0
+                            var fm = flowMin[name] ?? (Float.infinity, "", 0, 0, 0, 0)
+                            fm.pieces += 1; fm.ms = max(fm.ms, fr.ms); fm.biggest = max(fm.biggest, fr.blocks)
+                            if !fr.falls.isEmpty { fm.fails += 1 }
+                            if sf < fm.sf {
+                                fm.sf = sf
+                                let c = fr.falls.first.map { piece.cells[$0] } ?? q
+                                fm.at = "seed \(seed) at \(c.x) \(c.y - YOFF) \(c.z), \(fr.blocks) blocks" + (fr.falls.isEmpty ? "" : ", \(fr.falls.count) come down")
+                            }
+                            flowMin[name] = fm
+                        }
                         if !r.falls.isEmpty, ProcessInfo.processInfo.environment["BS_LOAD_DEBUG"] != nil { debugPiece(world, r) }
                         if let f = r.falls.first, st.at.count < 6 {
                             st.at.append("seed \(seed) \(Blocks.key(world.builtBlock(f.x, f.y, f.z))) at \(f.x) \(f.y - YOFF) \(f.z): \(r.falls.count) of \(r.cells) (reach \(r.reachBreaks), joints \(r.jointBreaks))")
@@ -205,6 +221,9 @@ extension Structure {
             total += st.falls
             print("loadcheck \(k): \(st.n) built, \(st.pieces) pieces, \(st.blocks) blocks, \(st.falls) would fall" + (st.held > 0 ? ", \(st.held) too big to check" : ""))
             for a in st.at { print("  \(a)") }
+            if let fm = flowMin[k] {
+                print(String(format: "  weighed whole: %d pieces (largest %d blocks, slowest %.1f ms), %d fail; the weakest carries %.2f times its weight: %@", fm.pieces, fm.biggest, fm.ms, fm.fails, fm.sf, fm.at))
+            }
         }
         print(String(format: "loadcheck: %d blocks would fall in %.1f s (%@ world)", total, CFAbsoluteTimeGetCurrent() - t0, FieldTerrain.unsaved ? "field" : "block"))
         return total > 0 ? 2 : 0
