@@ -1950,6 +1950,11 @@ final class Game: LifeLinked {
             }
         }
         var at = placeCell(t, for: blockItem)
+        // (ledger 131: a block sunk into the ground's row takes the cell: its ground goes first)
+        let rowCell = groundRowCell(t, for: blockItem)
+        if let r = rowCell, r.cell == at, r.sunk {
+            world.fieldSphere(V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5), radius: 0.56, carve: true, material: nil, remesh: true)
+        }
         let existing = world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
@@ -2092,7 +2097,7 @@ final class Game: LifeLinked {
                     // P387: the ground rises to a placed block's floor. (Ledger 130: only under a block set down on
                     // the ground itself, not one built out from another block over it.)
                     let onBuilt = Blocks.collide[Int(world.builtBlock(t.hit.x, t.hit.y, t.hit.z))]
-                    if World.oldMeet || (!onBuilt && t.normal.y == 1) { world.meetGround(at.x, at.y, at.z, id) }
+                    if World.oldMeet || (!onBuilt && (t.normal.y == 1 || rowCell?.cell == at)) { world.meetGround(at.x, at.y, at.z, id) }
                 }
             }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
@@ -2233,8 +2238,46 @@ final class Game: LifeLinked {
 
     // P507: the last cell along the aim before the target's hit point that a block can go in (not the target's own).
     // The cell a block placed at this aim goes into (also what CraterPlaceCheck leaves out when it is his own: check fix 29).
+    // Ledger 131 (Nov 14, building a house: "even if there's a little bit of ground, it makes it so it places a block
+    // over"; his rules, question 739: a block placed on the ground beside a block already built joins that block's row,
+    // sinking into the ground a little if it must, and "if I place a block in a hole, it fills the hole instead of being
+    // placed over the hole because there is still a little material in it"). A full block aimed at ground that faces up
+    // goes into the row whose floor is nearest the drawn surface at the aim (the cell the surface cuts when the ground
+    // fills less than half of it there, else the one over it); when just one of those two rows has a built block beside
+    // the cell, that row. `sunk`: the cell holds ground, which the placing clears (Game.place). BS_OLDPLACEROW=1: before.
+    static let oldPlaceRow = ProcessInfo.processInfo.environment["BS_OLDPLACEROW"] == "1"
+    func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
+        guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
+              let g = targetGround, g.cell == t.hit, g.normal.y >= 0.5 else { return nil }
+        let x = Int(floor(g.at.x)), z = Int(floor(g.at.z)), r0 = Int(floor(g.at.y))
+        guard r0 >= 1, r0 + 1 < CH else { return nil }
+        func free(_ y: Int) -> Bool {
+            let bb = world.builtBlock(x, y, z)
+            return bb == AIR || (Blocks.replaceable[Int(bb)] && !Blocks.isLiquid(bb))
+        }
+        func beside(_ y: Int) -> Bool {
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.fullCollide[Int(world.builtBlock(x + dx, y, z + dz))] { return true }
+            return false
+        }
+        let low = free(r0), high = free(r0 + 1)
+        guard low || high else { return nil }
+        var row = g.at.y - Float(r0) < 0.5 ? r0 : r0 + 1
+        if low && high {
+            let a = beside(r0), c = beside(r0 + 1)
+            if a != c { row = a ? r0 : r0 + 1 }
+        } else { row = low ? r0 : r0 + 1 }
+        let cell = IVec3(x, row, z)
+        let sunk = world.groundAt(x, row, z)
+        // (never a cell he or a creature stands in: the ground would be cleared and the block refused)
+        if sunk && (player.intersectsBlock(cell) || mobs.mobs.contains { $0.health > 0 && $0.intersects(cell) }) {
+            return high ? (IVec3(x, r0 + 1, z), world.groundAt(x, r0 + 1, z)) : nil
+        }
+        return (cell, sunk)
+    }
+
     func placeCell(_ t: (hit: IVec3, normal: IVec3), for blockItem: BlockID) -> IVec3 {
         let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
+        if let r = groundRowCell(t, for: blockItem) { return r.cell }
         var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
         // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
         // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
