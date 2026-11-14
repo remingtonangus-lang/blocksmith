@@ -43,17 +43,16 @@ CUT = [
     _shot("v3_hook", 3.5, "A frontier world, built for VR", 0.3),
     _shot("v3_ride", 3.4, "Ride out on your own horse", 0.6),
     _shot("v3_build", 3.6, "Build your home, block by block", 0.6),
-    _shot("v3_farm", 2.8, "Work the land", 0.5),
+    _shot("v3_farm", 2.2, "Work the land", 1.4),     # (from 1.4 s: a dark shape crossed the lens before it, cause not found)
     _shot("v3_train", 3.2, "Steam trains cross the frontier", 3.8, [(0.3, "trainWhistle.wav", 0.7), (0.9, "steamChuff.wav", 0.6)]),
     _shot("v3_cave", 2.8, "Explore the caves below", 1.0),
     # ACT II: trouble comes (ash_vault_battle.m4a drops here)
     _shot("v3_outlaws", 4.6, "Defend your town from outlaws", 1.2),
-    _shot("v3_frigate", 3.0, "Take command of a sky frigate", 0.6),
-    _shot("v3_strike2", 3.4, "and bring its main gun to bear", 1.3),     # the gun charging, bow on, then the blast
+    _shot("v3_strike2", 4.1, "Command a sky frigate's main gun", 1.2),     # from the deck behind the gun: it charges, fires, the blast
     _shot("v3_base", 2.6, "Infiltrate an enemy base", 1.0),
     # ACT III: deeper
-    _shot("v3_vault", 3.4, "Then go deeper, to the war below", 0.8),
-    _shot("v3_finale", 3.6, None, 0.8),
+    _shot("v3_vault", 3.4, "Bring down war machines", 0.8),
+    _shot("v3_finale", 3.4, None, 1.4),
 ]
 TITLE = 4.5
 SWITCH = "v3_outlaws"
