@@ -631,11 +631,13 @@ if let out = arg("--view"), let ctx = vkctx {
     // west end and the benches to the south (+z), its clocks run 70 ticks.
     if CommandLine.arguments.contains("--workshop") {
         let e = vg.player.pos
-        let o = IVec3(Int(floor(e.x)) + 1, Int(floor(e.y)), Int(floor(e.z)) + 2)
+        // (--workshopup N: the deck N above the eye, to look at its pillars from beside them)
+        let up = CommandLine.arguments.firstIndex(of: "--workshopup").flatMap { Int(CommandLine.arguments[$0 + 1]) } ?? 0
+        let o = IVec3(Int(floor(e.x)) + 1, Int(floor(e.y)) + up, Int(floor(e.z)) + 2)
         _ = CircuitWorkshop.build(vw, at: o)
         for _ in 0..<70 { vw.redstone.tick() }
         // (the builder writes cells raw: the sections round it mesh again)
-        vw.remeshArea(x0: o.x - 2, z0: o.z - 5, x1: o.x + CircuitWorkshop.deckLength + 1, z1: o.z + CircuitWorkshop.deckDepth + 1, y0: o.y - 2, y1: o.y + 8)
+        vw.remeshArea(x0: o.x - 2, z0: o.z - 5, x1: o.x + CircuitWorkshop.deckLength + 1, z1: o.z + CircuitWorkshop.deckDepth + 1, y0: max(1, o.y - 70), y1: o.y + 8)
         print("view: Sparkstone Workshop at \(o.x) \(o.y) \(o.z)")
     }
     // --provinggrounds DX,DY,DZ (Nov 13): the Proving Grounds built with its origin at the eye's column (its deck at
