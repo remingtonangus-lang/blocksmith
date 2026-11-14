@@ -242,6 +242,12 @@ enum Cinema {
             g.health = 20
         }
         func calm() {
+            // Nov 14 (v3d/v3e reviews: "a dark blade sweeps through the camera", "a sheared tarp of leaves"): a tree by
+            // the farm plot was felled at load and came down across the view. No felled bodies in the footage.
+            // (v3f still showed it with only Felling.falls cleared: a tree the warm-up had already let go of. Every
+            // felled or toppled body goes.)
+            for sh in w.ships.list where sh.name == Felling.name || sh.name == Game.toppledName { print("cine: \(s.name): cleared a felled body (\(sh.blockCount) blocks)"); w.ships.remove(sh) }
+            Felling.falls.removeAll()
             guard s.peaceful == true else { return }
             let night: Set<MobKind> = [.zombie, .skeleton, .creeper, .spider, .enderman, .witch, .slime, .phantom, .drowned, .husk, .stray,
                                        .caveSpider, .zombieVillager, .silverfish, .endermite, .bogged, .parched]
@@ -466,6 +472,11 @@ enum Cinema {
                 }
             }
             rig.aimAt = aims.last { $0.t0 <= t && t <= $0.t1 }.map { $0.at() }
+            // Nov 14 (blind review: "blocks appear 5 m away with no hand reach, like mouse placement"): while the hand
+            // lays or cuts, it points at the cell it works on next, so its laser lands on the block as it appears.
+            if rig.aimAt == nil, let next = reach.first(where: { $0.t >= t - 0.1 }), next.t - t < 0.6, reach.contains(where: { $0.t <= t + 0.6 }) {
+                rig.aimAt = next.at
+            }
             // A reach: out over 0.18 s to the cell, back over 0.25 s.
             rig.reach = nil
             for r in reach {
@@ -631,11 +642,13 @@ enum Cinema {
         private var lastHead = simd_quatf(angle: 0, axis: V3(0, 1, 0)), lastEye = V3.zero
         private var aimRot: simd_quatf?
         // Where the right hand's rounds leave from (the last drawn pose's grip, a little ahead along its aim).
+        // The aiming hand where it was last drawn (raised to aim, reaching): the game puts the flash and the round
+        // 0.3 m on from it along the aim, as from a controller. (It was the rest pose plus 0.3 m, then 0.3 m more in
+        // the game: the flash hung in mid-air near the middle of the frame, "far from the barrel", Nov 14 review.)
+        var aimHandWorld: V3?
         func muzzle() -> V3 {
-            let off = rest[1]
-            let p = lastEye + lastHead.act(off)
-            let d = aimAt.map { simd_normalize($0 - p) } ?? lastHead.act(V3(0, 0, -1))
-            return p + d * 0.3
+            if let h = aimHandWorld { return h }
+            return lastEye + lastHead.act(rest[1])
         }
         init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, hold: String? = nil) throws {
             self.game = game; self.width = width; self.height = height
@@ -681,6 +694,8 @@ enum Cinema {
                 let down = simd_quatf(angle: -tilt, axis: V3(1, 0, 0))
                 let t = Float(n) / 30
                 let bob = V3(0, 0.008 * sinf(t * 2 * .pi * 1.2), 0)
+                // the off hand never quite still ("a frozen fist at the frame edge"): its own slow sway
+                let sway = V3(0.012 * sinf(t * 2 * .pi * 0.45 + 1.3), 0.014 * sinf(t * 2 * .pi * 0.7 + 0.4), 0.01 * sinf(t * 2 * .pi * 0.33))
                 // The aiming hand turned (eased) to point at the aim spot: its forward (-Z) along the line from the grip.
                 var want: simd_quatf? = nil
                 if let a = aimAt {
@@ -694,7 +709,7 @@ enum Cinema {
                 for hi in 0..<2 {
                     var hd = XRHand()
                     hd.aimValid = true; hd.gripValid = true
-                    var off = rest[hi] + bob
+                    var off = rest[hi] + bob + (hi == 0 ? sway : .zero)
                     var rot = head * down
                     if hi == 1 {
                         if let r = aimRot { rot = r; off.y += 0.05; off.z -= 0.04 }      // raised to aim
@@ -702,9 +717,11 @@ enum Cinema {
                             let local = head.inverse.act(at - eye)
                             let toward = simd_normalize(local - off)
                             off += toward * (0.3 * k)
+                            off.z = min(off.z, -0.36)                              // never back past the face
                         }
                     }
                     hd.gripPos = sim.headPos + head.act(off); hd.aimPos = hd.gripPos
+                    if hi == 1 { aimHandWorld = eye + head.act(off) }
                     hd.gripRot = rot
                     hd.aimRot = hd.gripRot
                     sim.hands[hi] = hd
