@@ -633,8 +633,10 @@ enum Cinema {
                 wr.extraOpaque = { s, eye in c.drawOpaque(s, eye: eye) }
                 game.inventory.selected = 0
                 if !item.isEmpty && item != "hands" && Items.has(item) { game.inventory.held = ItemStack(Items.id(item), 1) }
-                else { game.inventory.held = .empty }               // empty hands (the creative inventory's first slot showed a grass block)
-                else if !item.isEmpty && item != "hands" { print("cine: no item \(item)") }
+                else {
+                    if !item.isEmpty && item != "hands" { print("cine: no item \(item)") }
+                    game.inventory.held = .empty                    // empty hands (the creative inventory's first slot showed a grass block)
+                }
             } else { host = nil; controls = nil }
             img = try VkImg(ctx, width: width, height: height, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
                             usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_SRC_BIT.rawValue)
