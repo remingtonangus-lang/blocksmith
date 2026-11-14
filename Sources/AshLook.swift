@@ -152,7 +152,7 @@ enum AshLook {
     // Nov 14 (the trailer's blind review: flared steel helmets, peaked caps, armbands and collar tabs on grey "read as a
     // WWII German army"): the Ashguard's own headgear. A rounded dome with no flared skirt, a dark visor band across the
     // eyes with two ember slits, ear plates; heavies keep the gas-mask hood under it, officers wear a brass crest on it,
-    // sharpshooters one long lens. No armband, no collar tabs (BS_OLDASHLOOK=1: the old dress).
+    // sharpshooters one long lens. No armband, no collar tabs. (Only with BS_NEWASHLOOK=1 since Nov 14: SoldierRig.oldAshLook.)
     static func visorHelmet(_ lv: Livery, rank r: Int, full: Bool, mid: Bool, hb: Box) {
         let shell = r == 4 ? lv.metal * 0.75 : lv.plate
         if r == 3 {
