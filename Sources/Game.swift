@@ -3525,6 +3525,7 @@ final class Game: LifeLinked {
         TickProf.mark("ships.shockwaves: bowls")
         BlastShape.tick(self)                                  // ledger 42: craters shaped over the frames after a blast
         TickProf.mark("crater shaping")
+        if TreeGhosts.on { world.treeGhosts.tick(world) }      // ledger 123: ghosts that shape no wood any more go
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load

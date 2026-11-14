@@ -100,7 +100,18 @@ final class Section {
             // (build 81: still 162 edit jobs in 12 s: those late edits came after the worn chunk had meshed and was no
             // longer marked; a chunk worn in the last two wear gaps takes any such edit as wear)
             if World.vehicleEdits { o.vehicleWorn = true; o.wornAt = World.frameNow }
-            if World.ramEdits { o.urgent = true; if World.meshLog { World.noteUrgent("ram") } }
+            // Nov 13 (his crawler at 25 blocks a second through jungle and mangrove: "I need to find a way to make it
+            // so it can render things even though I'm in this damn thing"): every trunk the bow met sent its chunk
+            // and the chunks beside it ahead of the queue again, 300,000 times in 22 s, and both workers meshed the
+            // chunks under the bow over and over: 116 of the view's 1,885 chunks were drawn after 22 s, 933 with no
+            // wear at all. A chunk now goes ahead for a ram once in `ramGap` seconds; what else the bow breaks in
+            // it meanwhile is wear. BS_RAMGAP=0: every ram, as before.
+            if World.ramEdits {
+                if World.ramGap <= 0 || World.frameNow - o.rammedAt >= World.ramGap {
+                    o.urgent = true; o.rammedAt = World.frameNow
+                    if World.meshLog { World.noteUrgent("ram") }
+                } else { o.vehicleWorn = true; o.wornAt = World.frameNow; if World.meshLog { World.noteUrgent("ram held") } }
+            }
             else if !World.backgroundEdits {
                 if (World.oldWear ? World.vehicleWear != "0" : World.wearOn) && (World.frameNow - o.wornAt < World.wearGap * 2 || World.inWearZone(o.cx, o.cz)) { o.vehicleWorn = true }
                 else { o.urgent = true; if World.meshLog { World.noteUrgent(World.vehicleEdits ? "edit in wear" : "edit") } }
@@ -494,6 +505,7 @@ final class Chunk {
     var held = false               // P474: on World.held, its settling change waiting out World.settleGap
     var urgent = false             // P446: changed by an edit (not water settling or a random tick): meshes ahead of the queue
     var wornAt: Double = -1e9      // P511: when a vehicle last wore it (World.frameNow)
+    var rammedAt: Double = -1e9    // Nov 13: when a ram last sent it ahead of the queue (World.ramGap)
     var vehicleWorn = false        // P511: changed by a vehicle's wheels and hull passing (World.vehicleEdits): meshes again at most every settleGap
     var lod = 0 {                  // 0 full detail, 1 far (flat light, merged faces, no small decorations), 2 mid ("fast" leaves)
         didSet { if cullWatched { CullNotes.note(cx, cz) } }

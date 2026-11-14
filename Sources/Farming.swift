@@ -339,6 +339,10 @@ extension Game {
             world.setBlock(p0.x, p0.y, p0.z, sap)
             return
         }
+        // (ledger 123: the new trunk is measured fresh: ghosts of a tree cut here before, in its columns, go)
+        var cols: Set<SIMD2<Int>> = []
+        for (q, b) in changes where ShapeTrunks.isLog[Int(b)] { cols.insert(SIMD2(q.x, q.z)) }
+        world.treeGhosts.clear(columns: cols)
         for (q, b) in changes { world.setBlockAsync(q.x, q.y, q.z, b) }
         world.setBlock(p.x, p.y, p.z, world.materialAt(p.x, p.y, p.z))
     }

@@ -460,7 +460,18 @@ extension ShipManager {
                     w.struck.insert(ObjectIdentifier(m))
                     w.hit.append(m)
                     let f = 1 - d / MainGun.shockRadius
-                    m.hit(from: c, damage: Int((6 + 54 * f * f).rounded()), knockback: 0)
+                    // Nov 13 (ledger 119): a gun or a vehicle in the bowl itself is destroyed with the ground it stood
+                    // on (it took 60 at most through its plate, and a 42 cm turret has 400); the last war's Behemoth
+                    // and the bosses take the wave as before.
+                    if ShipManager.gunsDie && d <= MainGun.craterRadius * 0.85 && abs(m.pos.y - c.y) < Float(MainGun.craterDepth) * 0.5
+                        && (m.kind == .deckGun || m.kind.ashVehicle && m.kind != .ashBehemoth) {
+                        if w.byPlayer { m.killedByPlayer = true; m.playerHurtAt = g.clock }
+                        Mob.plateHit = true
+                        m.invulnerable = 0
+                        m.hit(from: c, damage: m.health + 1000, knockback: 0)
+                        Mob.plateHit = false
+                    }
+                    else { m.hit(from: c, damage: Int((6 + 54 * f * f).rounded()), knockback: 0) }
                     let out = d > 0.1 ? V3(dx / d, 0, dz / d) : V3(1, 0, 0)
                     m.vel += out * (6 + 14 * f) + V3(0, 3 + 6 * f, 0)
                 }

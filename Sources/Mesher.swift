@@ -434,7 +434,7 @@ enum Mesher {
     // smoothOK false keeps the section cubic in smooth-terrain worlds (ships: built hulls must not melt into lumps).
     // `bites` (realistic world): where blows struck blocks round this section (World.biteList), carved as craters.
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
-                             bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [], objects: [WorldObjects.Draw] = [],
+                             bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [], objects: [WorldObjects.Draw] = [], ghosts: TreeGhosts.Map? = nil,
                              smoothOK: Bool = true, blobLeaves: Bool = false, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0,
                              adaptive adaptiveOK: Bool = true, fineBeyond: [UInt32] = []) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
@@ -2240,6 +2240,7 @@ enum Mesher {
                 for d in objects { for (k, c) in d.cells.enumerated() where d.mine[k] { s.insert(c) } }
                 if !s.isEmpty { ctx.skipCells = s }
             }
+            ctx.ghosts = ghosts                   // (ledger 123: read by the trunks alone, ShapeTrunks.emit)
             var d0 = det.count + detCut.count
             func tally(_ k: Int) { let d = det.count + detCut.count; kv[k] &+= Int32((d - d0) / DetailMesh.wordsPerVertex); d0 = d }
             kv[MeshKind.struck] &+= Int32(d0 / DetailMesh.wordsPerVertex)
@@ -2536,8 +2537,9 @@ enum Mesher {
                 for k in 0..<trunkFrom { df.append(det.ptr[k]) }
                 for k in trunkTo..<det.count { df.append(det.ptr[k]) }
                 sc.detFarCut.count = 0
-                let far = DetailContext(out: df, cutOut: sc.detFarCut, R: tc.R, sky: tc.sky, blk: tc.blk, wx0: tc.wx0, wy0: tc.wy0, wz0: tc.wz0,
+                var far = DetailContext(out: df, cutOut: sc.detFarCut, R: tc.R, sky: tc.sky, blk: tc.blk, wx0: tc.wx0, wy0: tc.wy0, wz0: tc.wz0,
                                         lod: 3, sc: tc.sc, srcs: tc.srcs, sy: tc.sy, field: tc.field, skipCells: tc.skipCells)
+                far.ghosts = tc.ghosts
                 ShapeTrunks.emit(far)
             } else {
                 for k in 0..<det.count { df.append(det.ptr[k]) }

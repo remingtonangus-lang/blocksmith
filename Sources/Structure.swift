@@ -79,8 +79,21 @@ enum Structure {
     // Per block state: its material, or nil when it is not part of a structure.
     // (a slab weighs half a block, stairs three quarters: a block's weight is its material's times how much of the cell
     // it fills)
+    // Nov 14 (the Proving Grounds' circuit builds fell apart, 6 of 100: a lamp on a signal torch, a row of cobble on
+    // wire; ledger 125): a circuit part has no collision, so it was no part of a structure, and what stood on one
+    // stood on air. A signal torch, wire, a repeater and a comparator carry what is set on them down to what they
+    // stand on (a strut: next to no weight, a mason's bond, bears as stone bears). BS_OLDCIRCUITLOAD=1: as before.
+    static let circuitStrut: [Bool] = (0..<Blocks.count).map { i in
+        guard ProcessInfo.processInfo.environment["BS_OLDCIRCUITLOAD"] != "1" else { return false }
+        let k = Blocks.key(Blocks.groupBase[i])
+        return k == "redstone_wire" || k == "redstone_torch" || k == "redstone_wall_torch" || k == "repeater" || k == "comparator"
+    }
+    // (a slight thing: it bears a few blocks set straight on it, a lamp, a short stack, and holds next to nothing
+    // out sideways or hanging, so a torch is no post for a tower and a wall torch no bracket)
+    static let strut = mat("strut", 1, 40, 1, crush: 200)
     static let table: [Mat?] = (0..<Blocks.count).map { i in
         guard let m = material(i) else { return nil }
+        if circuitStrut[i] { return m }
         if Blocks.fullCollide[i] { return m }
         let v = Blocks.boxes[i].reduce(Float(0)) { $0 + Float(max(0, Int($1.x1) - Int($1.x0)) * max(0, Int($1.y1) - Int($1.y0)) * max(0, Int($1.z1) - Int($1.z0))) } / 4096
         // (under half a cell: a fitting, as a lantern, a carpet, a rail, a pane or a fence: its reach counts from the
@@ -90,6 +103,7 @@ enum Structure {
     static let oldGunMetal = ProcessInfo.processInfo.environment["BS_OLDGUNMETAL"] == "1"
     static func material(_ i: Int) -> Mat? {
         let b = BlockID(i)
+        if circuitStrut[i] { return strut }
         guard b != AIR, Blocks.collide[i], !Blocks.isLiquid(b), !CapitalBase.isLeaf(b), Blocks.hardness[i] >= 0 else { return nil }
         let k = Blocks.key(Blocks.groupBase[i])
         if k.hasSuffix("mushroom_block") { return mushroom }
@@ -874,6 +888,8 @@ extension World {
     // P388 (2): a structural block placed or taken away: the piece round it is checked (Structure.tick), once per 4-cube.
     @inline(__always) func queueLoadCheck(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
         guard Structure.enabled, frame == nil, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
+        // (ledger 125: wire, a torch or a repeater changing its state, every tick of a clock: nothing structural)
+        if Structure.circuitStrut[Int(old)] && Structure.circuitStrut[Int(new)] { return }
         if lyingBodies > 0 { ships.rouseLying(at: x, y, z) }      // (Nov 13: a fallen piece lying against it)
         // (Nov 13, StructureCollapse: a piece being read whole starts over when one of its blocks changes)
         if StructureCollapse.tracking { if structChanged.count < 512 { structChanged.append(IVec3(x, y, z)) } else { structFlood = true } }

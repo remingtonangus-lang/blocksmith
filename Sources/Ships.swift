@@ -297,6 +297,7 @@ final class Ship: LifeLinked {
     var fallenPiece: Bool { name == Game.toppledName || name == Felling.name || name == Game.toppledWreck }      // ("Toppled wreck": one shot up since, ShipCombat)
     var lookDue = false
     var lying = false, stillT: Float = 0, lyingT: Float = 0   // Nov 13: a fallen piece come to rest (ShipManager.step)
+    var hungT: Float = 0, slips = false                       // Nov 13: a felled tree hung in standing trunks is let through them (ShipManager.terrainContacts)
     var gunPitch: Float = 0          // barrel elevation shown on this ship's cannons (radians)
     var skyLight: Float = 1          // world sky light around the ship, 0...1 (ships darken in caves and under cover)
     var propSpin: Float = 0          // propeller blade angle (drawn turning), and its rate in rad/s

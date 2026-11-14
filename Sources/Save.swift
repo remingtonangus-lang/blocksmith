@@ -186,6 +186,16 @@ final class SaveManager {
         SaveIO.write(p.map { [$0.x, $0.y, $0.z] }, to: dir.appendingPathComponent("portals.json"), background: SaveIO.queued(background))
     }
 
+    // Ledger 123: the ghosts of logs taken out of standing wood (TreeGhosts).
+    func loadTreeGhosts() -> [TreeGhostSave] {
+        guard let d = try? Data(contentsOf: dir.appendingPathComponent("tree-ghosts.json")),
+              let a = try? JSONDecoder().decode([TreeGhostSave].self, from: d) else { return [] }
+        return a
+    }
+    func saveTreeGhosts(_ g: [TreeGhostSave], background: Bool = false) {
+        SaveIO.write(g, to: dir.appendingPathComponent("tree-ghosts.json"), background: SaveIO.queued(background))
+    }
+
     func chunkURL(_ k: ChunkKey) -> URL { chunkDir.appendingPathComponent("c.\(k.x).\(k.z).lz") }
 
     // Chunk file: lzfse( u32 paletteCount, palette names (u16 length + utf8), u16 palette index per block ).

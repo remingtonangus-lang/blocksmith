@@ -39,6 +39,7 @@ final class World: LifeLinked {
     }()          // structure mobs waiting for the game to spawn them
     lazy var redstone = Circuit(world: self)
     var portals = Set<IVec3>()
+    let treeGhosts = TreeGhosts()          // ledger 123: logs taken out of standing wood, so what is left keeps its shape
     lazy var ships = ShipManager(world: self)       // free-moving block structures (Ships.swift)
     var frame: Ship?                                // while set, block and collision queries are in this ship's space
     var renderDistance: Int = 8 {
@@ -217,6 +218,7 @@ final class World: LifeLinked {
         rebuildOffsets()
         blockEntities = save?.loadBlockEntities() ?? [:]
         portals = Set(save?.loadPortals() ?? [])
+        if TreeGhosts.on, let rows = save?.loadTreeGhosts(), !rows.isEmpty { treeGhosts.load(rows) }
         if dim == .overworld, let save, let sc = (gen as? WorldGen)?.structures {
             sc.legacy = save.structureGuard()
             sc.legacyStations = save.structureGuard(file: "structure-guard-stations.txt")
@@ -629,6 +631,7 @@ final class World: LifeLinked {
         let old = c.blocks.materialCell(Chunk.index(lx, y, lz))
         let id = World.storedState(id0, replacing: old)
         if World.editTally != nil { World.editTally![UInt64(old) << 16 | UInt64(id), default: 0] += 1 }
+        if TreeGhosts.on && old != id { treeGhosts.blockChanging(self, x, y, z, old, id) }      // (ledger 123, before the write)
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) && !World.keepsGround(wasGround, id) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
@@ -736,6 +739,7 @@ final class World: LifeLinked {
             World.editTally![1 << 32 | UInt64(old) << 16 | UInt64(id), default: 0] += 1
             World.editCells[IVec3(x, y, z), default: 0] += 1
         }
+        if TreeGhosts.on && old != id { treeGhosts.blockChanging(self, x, y, z, old, id) }      // (ledger 123, before the write)
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) && !World.keepsGround(wasGround, id) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         c.blocks[Chunk.index(lx, y, lz)] = id
@@ -1276,12 +1280,12 @@ final class World: LifeLinked {
             guard let nb = neighbourhood(c) else { continue }           // (its regular job meshes it once the ring is in)
             let k = ChunkKey(x: c.cx, z: c.cz)
             let todo = sys.map { ($0, c.sections[$0].version) }
-            let lod = c.lod, dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c), site = smoothSite(c)
+            let lod = c.lod, dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c), gl = treeGhosts.near(c.cx, c.cz), site = smoothSite(c)
             let near = nearSides(c, lod: lod), beyond = fineBeyond(c, nb.0)
             let (n9, h9) = nb
             builds.append { live in
                 (k, todo.filter { live(k, $0.0) }.map { (sy, v) in
-                    (sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site,
+                    (sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, ghosts: gl, site: site,
                                                 chunk: (k.x, k.z), nearSides: near, adaptive: adapt, fineBeyond: beyond)) })
             }
             c.meshInFlight = true
@@ -1324,7 +1328,7 @@ final class World: LifeLinked {
         }
         guard let nb = neighbourhood(c) else { return }
         World.syncMeshes &+= 1
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), pieces: pieceList(c), objects: objectReg.draws(c), site: smoothSite(c), chunk: (c.cx, c.cz),
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c), bites: biteList(c), pieces: pieceList(c), objects: objectReg.draws(c), ghosts: treeGhosts.near(c.cx, c.cz), site: smoothSite(c), chunk: (c.cx, c.cz),
                                   nearSides: nearSides(c, lod: c.lod), adaptive: !fieldTerrain, fineBeyond: fineBeyond(c, nb.0)), to: c, sy: sy, version: c.sections[sy].version)
         // P381 step 5: on the frame the edit draws the section's ground in full (no wait, exact), and a mesh worker then
         // redraws just the touched sections with the adaptive ground (AdaptiveGround.swift).
@@ -1467,6 +1471,7 @@ final class World: LifeLinked {
     static var vehicleEdits = false
     static var frameNow: Double = 0                 // (P511: this frame's clock, World.update)
     static var ramEdits = false                     // (P511: what its bow rams that stands up in the way: at once)
+    static let ramGap: Double = Double(ProcessInfo.processInfo.environment["BS_RAMGAP"] ?? "") ?? 1.0
     // P511 (build 82 at his spot: still 232 edit jobs in 16 s at one and two chunks off, 22.7 s of meshing): the edits
     // settling after a pass (light, loose ground, the field's carve) reached chunks the footprint stamp missed and made
     // them edits again. Every chunk within two of a wearing vehicle's footprint is a wear zone for two wear gaps after its
@@ -1621,10 +1626,10 @@ final class World: LifeLinked {
         for dz in -radius...radius { for dx in -radius...radius {
             let k = ChunkKey(x: c0.x + dx, z: c0.z + dz)
             guard let c = chunks[k], !c.hollow, c.meshedOnce, !c.meshInFlight, let nb = neighbourhood(c) else { continue }
-            let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c), site = smoothSite(c)
+            let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c), gl = treeGhosts.near(c.cx, c.cz), site = smoothSite(c)
             let near = nearSides(c, lod: c.lod), beyond = fineBeyond(c, nb.0)
             for (sy, s) in c.sections.enumerated() where s.meshedVersion == s.version && !s.deferred {
-                let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)
+                let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: dl, bites: bl, pieces: pl, objects: ol, ghosts: gl, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)
                 checked += 1
                 let o = World.sameBytes(s.opaqueBuf, m.opaque, m.farGround), t = World.sameBytes(s.transBuf, m.trans), d = World.sameBytes(s.detailBuf, m.detail, m.detailFar)
                 if o && t && d { continue }
@@ -2089,7 +2094,7 @@ final class World: LifeLinked {
         let todo = deferringBuried(c, dirtySections(c))
         if todo.isEmpty { return }
         let lod = c.lod
-        let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c)
+        let dl = damageList(c), bl = biteList(c), pl = pieceList(c), ol = objectReg.draws(c), gl = treeGhosts.near(c.cx, c.cz)
         let site = smoothSite(c)
         let near = nearSides(c, lod: lod), beyond = fineBeyond(c, n9)
         func enqueue(_ list: [(Int, Int)], front: Bool) {
@@ -2104,7 +2109,7 @@ final class World: LifeLinked {
                 let t0 = CFAbsoluteTimeGetCurrent()
                 var out: [(Int, Int, SectionMesh)] = []
                 for (sy, v) in list {
-                    var m = Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)
+                    var m = Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl, bites: bl, pieces: pl, objects: ol, ghosts: gl, site: site, chunk: (k.x, k.z), nearSides: near, fineBeyond: beyond)
                     self.upload(&m)
                     out.append((sy, v, m))
                 }
@@ -2462,6 +2467,7 @@ final class World: LifeLinked {
         } }
         let dls = toMesh.map { damageList($0.0) }, bls = toMesh.map { biteList($0.0) }, pls = toMesh.map { pieceList($0.0) }
         let ols = toMesh.map { objectReg.draws($0.0) }
+        let gls = toMesh.map { treeGhosts.near($0.0.cx, $0.0.cz) }
         let sites = toMesh.map { smoothSite($0.0) }
         let nears = toMesh.map { nearSides($0.0, lod: $0.0.lod) }          // (every chunk's level is set by now)
         let beyonds = toMesh.map { fineBeyond($0.0, $0.3) }
@@ -2469,7 +2475,7 @@ final class World: LifeLinked {
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], pieces: pls[i], objects: ols[i], site: sites[i],
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i], bites: bls[i], pieces: pls[i], objects: ols[i], ghosts: gls[i], site: sites[i],
                                                             chunk: (t.0.cx, t.0.cz), nearSides: nears[i], fineBeyond: beyonds[i]))
         }
         for (i, t) in toMesh.enumerated() {
@@ -2590,6 +2596,7 @@ final class World: LifeLinked {
         save?.saveBlockEntities(blockEntities, background: background); lap("block entities")
         redstone.save(background: background); lap("circuits")             // W1: pending circuit ticks and edges (circuit.json)
         save?.savePortals(Array(portals), background: background); lap("portals")
+        if treeGhosts.dirty { treeGhosts.dirty = false; save?.saveTreeGhosts(treeGhosts.encodedNamed(), background: background) }
         ships.save(background: background); lap("ships")
         saveMeshCache(); lap("mesh cache")               // P400 step 2 (ChunkShells)
     }

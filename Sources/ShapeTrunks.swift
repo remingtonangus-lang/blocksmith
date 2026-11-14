@@ -23,6 +23,10 @@ import simd
 // root flares, stumps and fallen trunks reach down to the drawn ground; a log in a crown that no limb walk reaches is a
 // thin bough, not a thick cut log.
 enum ShapeTrunks {
+    struct Probe: Equatable { var kind: UInt8, rad: Float, dist: Int16 }
+    static var probing = false
+    static var probeOut: [IVec3: Probe] = [:]
+    static let probeLock = NSLock()
     static let axisOf: [UInt8] = (0..<Blocks.count).map { i in
         let k = Blocks.key(BlockID(i))
         return k.hasSuffix("[x]") ? 0 : (k.hasSuffix("[z]") ? 2 : 1)
@@ -46,6 +50,13 @@ enum ShapeTrunks {
     static let footSeam = ProcessInfo.processInfo.environment["BS_OLDFOOTSEAM"] != "1"
     static let farSides = ProcessInfo.processInfo.environment["BS_FARSIDES"].flatMap { Int($0) } ?? 6     // (a trunk's sides there)
     static let W = 16 + 2 * M
+    // Nov 13 (ledger 111, 112, 115), each =1 for the code before: BS_OLDHANGTRUNK (a trunk whose foot log is gone, in
+    // the moment before it falls, drawn as cut timber), BS_OLDWIDECUT (a four-log trunk with one log struck out drawn as
+    // three trunks at that level). BS_OLDSTUMPGIRTH: Felling.stumpGirth.
+    static let hangTrunk = ProcessInfo.processInfo.environment["BS_OLDHANGTRUNK"] != "1"
+    static let wideCut = ProcessInfo.processInfo.environment["BS_OLDWIDECUT"] != "1"
+    // (the soil the generator leaves under a tree's foot, WorldGenTrees: grass turned to dirt)
+    static let footSoil: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "dirt" }
 
     final class Scratch {
         let n = ShapeTrunks.W * ShapeTrunks.W * ShapeTrunks.W
@@ -54,12 +65,13 @@ enum ShapeTrunks {
         let dist: UnsafeMutablePointer<Int16>     // graph steps from a living column (-1 unreached)
         let col: UnsafeMutablePointer<UInt8>      // 1 living column cell, 2 timber column cell
         let kids: UnsafeMutablePointer<UInt8>     // children count
+        let gh: UnsafeMutablePointer<UInt8>       // 1: a ghost's cell (TreeGhosts: grown as a log, not drawn)
         let queue = GrowBuf<Int32>(4096)
         init() {
             rad = .allocate(capacity: n); par = .allocate(capacity: n); dist = .allocate(capacity: n)
-            col = .allocate(capacity: n); kids = .allocate(capacity: n)
+            col = .allocate(capacity: n); kids = .allocate(capacity: n); gh = .allocate(capacity: n)
         }
-        deinit { rad.deallocate(); par.deallocate(); dist.deallocate(); col.deallocate(); kids.deallocate() }
+        deinit { rad.deallocate(); par.deallocate(); dist.deallocate(); col.deallocate(); kids.deallocate(); gh.deallocate() }
         static var current: Scratch {
             let d = Thread.current.threadDictionary
             if let s = d["blocksmith.trunkScratch"] as? Scratch { return s }
@@ -81,13 +93,27 @@ enum ShapeTrunks {
         guard any(ctx) else { return }
         let s = Scratch.current
         let n = s.n
+        // Ledger 123: the trunks are grown from `g`, where a log taken out of standing wood still reads as a log
+        // (TreeGhosts), so what is left keeps its shape; only the logs that are there are drawn (ctx).
+        var g = ctx
+        g.ghostsOn = ctx.ghosts != nil
+        s.gh.initialize(repeating: 0, count: n)
+        if let gs = ctx.ghosts {
+            var some = false
+            for (c, _) in gs {
+                let x = c.x - ctx.wx0, y = c.y - ctx.wy0, z = c.z - ctx.wz0
+                guard x >= -M && y >= -M && z >= -M && x < 16 + M && y < 16 + M && z < 16 + M else { continue }
+                if !isTrunk[Int(ctx.blockReal(x, y, z))] { s.gh[wi(x, y, z)] = 1; some = true }
+            }
+            if !some { g.ghostsOn = false }
+        }
         s.rad.initialize(repeating: 0, count: n); s.par.initialize(repeating: -1, count: n)
         s.dist.initialize(repeating: -1, count: n); s.col.initialize(repeating: 0, count: n); s.kids.initialize(repeating: 0, count: n)
         let leafT = Mesher.leafT, opaqueT = Blocks.opaque, collideT = Blocks.collide
-        @inline(__always) func log(_ x: Int, _ y: Int, _ z: Int) -> Bool { isTrunk[Int(ctx.block(x, y, z))] }
-        @inline(__always) func logC(_ x: Int, _ y: Int, _ z: Int) -> Bool { isLog[Int(ctx.block(x, y, z))] }
+        @inline(__always) func log(_ x: Int, _ y: Int, _ z: Int) -> Bool { isTrunk[Int(g.block(x, y, z))] }
+        @inline(__always) func logC(_ x: Int, _ y: Int, _ z: Int) -> Bool { isLog[Int(g.block(x, y, z))] }
         // P433: root cells are limb cells of the tree (col 3): the walk below grows them out of the trunk's foot.
-        for y in -M..<(16 + M) { for z in -M..<(16 + M) { for x in -M..<(16 + M) where isRoot[Int(ctx.block(x, y, z))] { s.col[wi(x, y, z)] = 3 } } }
+        for y in -M..<(16 + M) { for z in -M..<(16 + M) { for x in -M..<(16 + M) where isRoot[Int(g.block(x, y, z))] { s.col[wi(x, y, z)] = 3 } } }
 
         // 1. Columns: vertical runs of logs standing on the ground, each measured over its whole height (full-height
         // reads, so every section that sees a run gives it the same foot, top, radius and taper).
@@ -96,9 +122,9 @@ enum ShapeTrunks {
             while y < 16 + M {
                 guard logC(x, y, z), y == -M || !logC(x, y - 1, z) else { y += 1; continue }
                 var bot = y
-                while bot > y - 64 && isLog[Int(ctx.column(x, bot - 1, z))] { bot -= 1 }
+                while bot > y - 64 && isLog[Int(g.column(x, bot - 1, z))] { bot -= 1 }
                 var top = y
-                while top < y + 64 && isLog[Int(ctx.column(x, top + 1, z))] { top += 1 }
+                while top < y + 64 && isLog[Int(g.column(x, top + 1, z))] { top += 1 }
                 // P433 (Remington, Oct 24: "this giant log, which isn't the same log I hit, it morphed into something
                 // else... the log just got wider"; "clearly algorithmically generated when they break"): a log struck
                 // out of a trunk left two runs, and each was measured and classed on its own: the stump below lost
@@ -107,49 +133,67 @@ enum ShapeTrunks {
                 // (the same foot, top, height, taper and crown as before the blow); only the missing cells aren't drawn,
                 // and the trunk shows a cut end at each side of the gap (ShapeTrunks.column).
                 while bot > y - 60 {
-                    let c = cutBelow(ctx, x, bot, z)
+                    let c = cutBelow(g, x, bot, z)
                     if c < 0 { break }
                     bot = c
-                    while bot > y - 64 && isLog[Int(ctx.column(x, bot - 1, z))] { bot -= 1 }
+                    while bot > y - 64 && isLog[Int(g.column(x, bot - 1, z))] { bot -= 1 }
                 }
                 while top < y + 60 {
-                    let c = cutAbove(ctx, x, top, z)
+                    let c = cutAbove(g, x, top, z)
                     if c < 0 { break }
                     top = c
-                    while top < y + 64 && isLog[Int(ctx.column(x, top + 1, z))] { top += 1 }
+                    while top < y + 64 && isLog[Int(g.column(x, top + 1, z))] { top += 1 }
                 }
                 let H = top - bot + 1
-                let under = Int(ctx.column(x, bot - 1, z))
+                let under = Int(g.column(x, bot - 1, z))
                 // P433: a trunk lifted on its roots (a mangrove) stands on them.
-                let onRoots = rootFoot(ctx, x, bot, z)
+                let onRoots = rootFoot(g, x, bot, z)
                 let grounded = onRoots || !isTrunk[under] && !leafT[under] && (opaqueT[under] || collideT[under])
-                let vertical = axisOf[Int(ctx.column(x, bot, z))] == 1
+                let vertical = axisOf[Int(g.column(x, bot, z))] == 1
                 // PG4 ("birch trees get real birch shapes, not random procedural sticks"): an upright run of 3+ that
                 // springs from the side of another trunk (a birch's twin stem, the upper half of a kinked birch) is a
                 // trunk of its own too, joined at its foot (column), not a chain of ever thinner limbs.
-                let joined = !grounded && vertical && H >= 3 && !leafT[under] && sideLog(ctx, x, bot, z) != nil
+                let joined = !grounded && vertical && H >= 3 && !leafT[under] && sideLog(g, x, bot, z) != nil
+                // Nov 13 (playtest 12:33:51, "Log turns into something else for about a quarter of a second"): the
+                // foot log cut, the trunk hangs for the frames until it comes loose as a body (Felling: the edit's
+                // mesh is of this moment), and it was drawn as cut timber 0.9 across, thin boughs in its crown. A
+                // crowned trunk over nothing is the tree it was, its foot a cut end.
+                let hanging = hangTrunk && !grounded && !joined && vertical && H >= 3 && !isTrunk[under] && !leafT[under]
                 var kind: UInt8 = 0
-                if grounded || joined {
+                var noted: Felling.Stump? = nil
+                if grounded || joined || hanging {
                     // A living tree has leaves round the top of its column (or where its lean carries the crown).
                     var crown = false
                     // P398 (a): an acacia's 2-log foot leans on diagonally (its crown sits on the lean): a living
                     // trunk too, so the leaning logs become its limbs instead of a stack of cut stumps.
-                    if H >= 3 && vertical || H == 2 && vertical && leansOn(ctx, x, top, z) {
-                        scan: for dy in -2...6 { for dz in -4...4 { for dx in -4...4 where leafT[Int(ctx.column(x + dx, top + dy, z + dz))] { crown = true; break scan } } }
+                    if H >= 3 && vertical || H == 2 && vertical && leansOn(g, x, top, z) {
+                        scan: for dy in -2...6 { for dz in -4...4 { for dx in -4...4 where leafT[Int(g.column(x + dx, top + dy, z + dz))] { crown = true; break scan } } }
+                        // (its crown fell with the tree: a ghost of the trunk remembers it had one)
+                        if !crown && g.ghostsOn {
+                            for yy in bot...top { if let v = g.ghostAt(x, yy, z), v & TreeGhosts.crownBit != 0 { crown = true; break } }
+                        }
                     }
+                    // Nov 13 (playtest 12:33-12:34; Nov 12's "This turned into a big stump... That's impossible"): the
+                    // stump under a felled tree was classed by what was left to see: no root or leaf by it, it was a
+                    // post 0.9 across, and with one, a trunk as thick as a tree its own height + 4. It keeps the
+                    // girth and taper the tree stood with (Felling.noteStumps; after a reload, the generator's soil
+                    // under its foot tells a tree's stump from a log he set down).
+                    if !crown && grounded && vertical && Felling.stumpGirth, let st = Felling.stump(g.wx0 + x, g.wz0 + z), st.bot == g.wy0 + bot { noted = st }
+                    let soilFoot = Felling.stumpGirth && grounded && vertical && footSoil[under] && !builtBeside(g, x, bot, top, z)
                     if crown { kind = 1 }
-                    else if joined { kind = 0 }
-                    else if H <= 2 && rootBeside(ctx, x, bot, z) && !fallenRun(ctx, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
-                    else if !vertical || H == 1 && lyingBeside(ctx, x, bot, z) { kind = 0 }   // a log lying on the ground
+                    else if joined || hanging { kind = 0 }
+                    else if noted != nil { kind = 4 }
+                    else if H <= 2 && rootBeside(g, x, bot, z) && !fallenRun(g, x, bot, z) { kind = 3 }     // a root beside a trunk's foot (upright or lying)
+                    else if !vertical || H == 1 && lyingBeside(g, x, bot, z) { kind = 0 }   // a log lying on the ground
                     else if vertical && onRoots { kind = 4 }                           // P433: a mangrove's stump on its roots
                     // P297: a tree's stump on the ground. P484 (Oct 28 18:17, "if I place an oak log, it shouldn't turn
                     // into a tree stump"): only where the tree shows, a root lying out from its foot or the leaf mound of
                     // a shrub over it; a log he set down on the grass is a log (built timber).
-                    else if H <= 2 && SmoothTerrain.natural[under] && treeFoot(ctx, x, bot, top, z) { kind = 4 }
+                    else if H <= 2 && SmoothTerrain.natural[under] && (soilFoot || treeFoot(g, x, bot, top, z)) { kind = 4 }
                     // P433: a taller crownless trunk on natural ground with nothing built against it is a felled
                     // tree's stump too (its top fell away as one body), as thick as the tree it was; a post of a
                     // building (a log with a wall or floor beside it) keeps its full timber.
-                    else if vertical && SmoothTerrain.natural[under] && !builtBeside(ctx, x, bot, top, z) && treeFoot(ctx, x, bot, top, z) { kind = 4 }
+                    else if vertical && SmoothTerrain.natural[under] && !builtBeside(g, x, bot, top, z) && (soilFoot || treeFoot(g, x, bot, top, z)) { kind = 4 }
                     else { kind = 2 }                                               // a post (built timber)
                     if kind != 0 {
                         let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(max(5, H + 4)) : 0.45)
@@ -157,7 +201,11 @@ enum ShapeTrunks {
                             let i = wi(x, yy, z)
                             s.col[i] = kind
                             let t = (Float(yy - bot) + 0.5) / Float(H)
-                            s.rad[i] = kind == 1 ? rb * (1 - 0.45 * t) : (kind == 3 ? 0.3 : rb)
+                            if let st = noted {
+                                s.rad[i] = st.rb * max(0.4, 1 - 0.45 * (Float(yy - bot) + 0.5) / Float(st.h))
+                            } else {
+                                s.rad[i] = kind == 1 ? rb * (1 - 0.45 * t) : (kind == 3 ? 0.3 : rb)
+                            }
                             if kind == 1 { s.dist[i] = 0 }
                         }
                     }
@@ -180,7 +228,7 @@ enum ShapeTrunks {
                 let nx = x + dx, ny = y + dy, nz = z + dz
                 guard nx >= -M && ny >= -M && nz >= -M && nx < 16 + M && ny < 16 + M && nz < 16 + M else { continue }
                 let j = wi(nx, ny, nz)
-                guard s.dist[j] < 0 && (s.col[j] == 0 || s.col[j] == 3) && log(nx, ny, nz) && !fallenRun(ctx, nx, ny, nz) else { continue }
+                guard s.dist[j] < 0 && (s.col[j] == 0 || s.col[j] == 3) && log(nx, ny, nz) && !fallenRun(g, nx, ny, nz) else { continue }
                 // Breadth-first with face steps before edge and corner steps: a cell takes the nearest joint as its parent.
                 s.dist[j] = d + 1
                 s.par[j] = Int32(i)
@@ -195,13 +243,22 @@ enum ShapeTrunks {
                     lean = y - py == 1 && (x != px || z != pz)
                 }
                 // (P433: a root block's run keeps more of its width each step: prop roots are near the trunk's thickness)
-                let rootCell = isRoot[Int(ctx.block(nx, ny, nz))]
+                let rootCell = isRoot[Int(g.block(nx, ny, nz))]
                 s.rad[j] = rootCell ? max(0.1, min(0.24, pr * (d == 0 ? 0.72 : 0.84)))
                     : max(0.07, s.col[j] == 3 ? pr * 0.7 : (lean ? pr * 0.92 : (d == 0 ? min(0.3, pr * 0.62) : pr * 0.8)))
                 q.append(Int32(j))
             }
         }
 
+        // (checks: how each owned log was grown, by world cell: kind, girth, steps from its trunk)
+        if ShapeTrunks.probing && ctx.lod == 0 {
+            ShapeTrunks.probeLock.lock()
+            for y in 0..<16 { for z in 0..<16 { for x in 0..<16 where isTrunk[Int(ctx.R[ctx.ri(x, y, z)])] {
+                let i = wi(x, y, z)
+                ShapeTrunks.probeOut[IVec3(ctx.wx0 + x, ctx.wy0 + y, ctx.wz0 + z)] = Probe(kind: s.col[i], rad: s.rad[i], dist: s.dist[i])
+            } } }
+            ShapeTrunks.probeLock.unlock()
+        }
         // 3. Geometry for the owned logs.
         // Mid sections (lod 2) use fewer sides and leave out the joint knobs and tips; far ones (lod 1) fewer still. The
         // far copy (lod 3, drawn past SceneRenderer.trunkFarFrom) has the mid sides and straight runs of a trunk merged.
@@ -212,7 +269,7 @@ enum ShapeTrunks {
             guard isTrunk[Int(b)] else { continue }
             let i = wi(x, y, z)
             // (P433: a root block wears its tree's bark, not its own see-through root texture)
-            let base = Int(Blocks.groupBase[Int(isRoot[Int(b)] ? treeOf(ctx, s, i) : b)])
+            let base = Int(Blocks.groupBase[Int(isRoot[Int(b)] ? treeOf(g, s, i) : b)])
             let bark = Int(Blocks.tex[base * 6]), rings = Int(Blocks.tex[base * 6 + 2])
             if isRoot[Int(b)] && !(s.dist[i] > 0 && s.par[i] >= 0) {
                 rootStub(ctx, x, y, z, bark: bark, sides: limbSides)                 // (a root left when its tree is gone)
@@ -397,21 +454,70 @@ enum ShapeTrunks {
         // (Remington, Oct 20: "why's that stump fucked up": two fat cut-off stubs at a dark oak's foot.)
         var cx = Float(x) + 0.5, cz = Float(z) + 0.5, scale: Float = 1
         func colAt(_ a: Int, _ b: Int) -> Bool { a >= -M && b >= -M && a < 16 + M && b < 16 + M && s.col[wi(a, y, b)] == 1 }
+        // Nov 13 (playtest 12:32:58, the Ash Vault: "I just hit the stump and this happened... all the planks just
+        // turned into big ones"): one log struck out of a four-log trunk, the three left at that level were no square,
+        // and each was drawn as a trunk of its own, root flare and all. A corner's cell that is a cut (no log there,
+        // the living column going on over or under it) is still a corner: the level is drawn as the one trunk, by its
+        // first corner left, waisted where the log is gone.
+        func cutAt(_ a: Int, _ b: Int) -> Bool {
+            // (an open cell, not ground or a plank beside a foot that stands a level higher on a slope)
+            guard ShapeTrunks.wideCut, a >= -M && b >= -M && a < 16 + M && b < 16 + M else { return false }
+            let cb = Int(ctx.block(a, y, b))
+            guard !isTrunk[cb], !Blocks.collide[cb] else { return false }
+            if y + 1 < 16 + M && s.col[wi(a, y + 1, b)] == 1 { return true }
+            if y - 1 >= -M && s.col[wi(a, y - 1, b)] == 1 { return true }
+            if y + 2 < 16 + M && s.col[wi(a, y + 2, b)] == 1 { return true }
+            if y - 2 >= -M && s.col[wi(a, y - 2, b)] == 1 { return true }
+            return false
+        }
+        // (the square's low corner, quadX quadZ; no arrays here: this runs for every trunk cell a worker meshes)
+        var hasQuad = false, quadX = 0, quadZ = 0
         if living {
-            for (ox, oz) in [(0, 0), (-1, 0), (0, -1), (-1, -1)] {
-                let ax = x + ox, az = z + oz
-                if colAt(ax, az) && colAt(ax + 1, az) && colAt(ax, az + 1) && colAt(ax + 1, az + 1) {
-                    if ox != 0 || oz != 0 { return }              // another corner draws it
-                    cx = Float(x) + 1; cz = Float(z) + 1; scale = 2.15
+            for k in 0..<4 {
+                let ax = x - (k & 1), az = z - (k >> 1)
+                var have = 0, cuts = 0, firstJ = -1, real = 0
+                for j in 0..<4 {
+                    let a = ax + (j & 1), b = az + (j >> 1)
+                    if colAt(a, b) { have += 1; if s.gh[wi(a, y, b)] == 0 { real += 1; if firstJ < 0 { firstJ = j } } } else if cutAt(a, b) { cuts += 1 }
+                }
+                // (ledger 123: a corner that is a ghost is a log gone: the level is waisted as a cut one is; with two
+                // or more gone each log left is drawn on its own)
+                if have == 4 && real >= 3 || have == 3 && cuts == 1 {
+                    if ax + (firstJ & 1) != x || az + (firstJ >> 1) != z { return }     // another corner draws it
+                    cx = Float(ax) + 1; cz = Float(az) + 1; scale = have == 4 && real == 4 ? 2.15 : 1.55
+                    hasQuad = true; quadX = ax; quadZ = az
                     break
                 }
             }
+        } else if stump && Felling.stumpGirth, let st = Felling.stump(ctx.wx0 + x, ctx.wz0 + z), st.wide, st.bot <= ctx.wy0 + y {
+            // (a four-log trunk's stump: one fat stump round the square's centre, drawn by its first corner left)
+            let ax = st.ox - ctx.wx0, az = st.oz - ctx.wz0
+            func stumpAt(_ a: Int, _ b: Int) -> Bool { a >= -M && b >= -M && a < 16 + M && b < 16 + M && s.col[wi(a, y, b)] == 4 }
+            var firstJ = -1
+            for j in 0..<4 where stumpAt(ax + (j & 1), az + (j >> 1)) { firstJ = j; break }
+            if firstJ >= 0 {
+                if ax + (firstJ & 1) != x || az + (firstJ >> 1) != z { return }
+                cx = Float(ax) + 1; cz = Float(az) + 1; scale = 2.15
+                hasQuad = true; quadX = ax; quadZ = az
+            }
         }
         let r = s.rad[i] * scale
-        let below = y - 1 >= -M ? s.col[wi(x, y - 1, z)] != 0 : true
-        let above = y + 1 < 16 + M ? s.col[wi(x, y + 1, z)] != 0 : true
-        let rBelow = below && y - 1 >= -M ? s.rad[wi(x, y - 1, z)] * scale : r
-        let rAbove = above && y + 1 < 16 + M ? s.rad[wi(x, y + 1, z)] * scale : r
+        // (a wide trunk goes on below or above where any of its corners does, at that level's girth)
+        func colNear(_ yy: Int) -> (Bool, Float) {
+            guard yy >= -M && yy < 16 + M else { return (true, r) }
+            // (a ghost's cell, ledger 123: the trunk's girth goes on through it, the trunk itself ends there in a cut)
+            if !hasQuad { let c = s.col[wi(x, yy, z)]; return (c != 0 && s.gh[wi(x, yy, z)] == 0, c != 0 ? s.rad[wi(x, yy, z)] * scale : r) }
+            var n = 0, rad: Float = 0, real = 0
+            for j in 0..<4 {
+                let a = quadX + (j & 1), b = quadZ + (j >> 1)
+                guard a >= -M && b >= -M && a < 16 + M && b < 16 + M, s.col[wi(a, yy, b)] != 0 && s.col[wi(a, yy, b)] != 3 else { continue }
+                n += 1; rad = max(rad, s.rad[wi(a, yy, b)])
+                if s.gh[wi(a, yy, b)] == 0 { real += 1 }
+            }
+            return (real > 0, n > 0 ? rad * (n == 4 && real == 4 || !living ? 2.15 : 1.55) : r)
+        }
+        let (below, rBelow) = colNear(y - 1)
+        let (above, rAbove) = colNear(y + 1)
         let r0 = (r + rBelow) * 0.5, r1 = (r + rAbove) * 0.5
         let y0 = Float(y), y1 = Float(y + 1)
         // Nov 6 (frame rate, the jungle): in the far copy (lod 3) a straight run of trunk with trunk over and under every
@@ -422,6 +528,7 @@ enum ShapeTrunks {
             let kind = s.col[i]
             func plain(_ yy: Int) -> Bool {
                 yy - 1 >= -M && yy + 1 < 16 + M && s.col[wi(x, yy, z)] == kind && s.col[wi(x, yy - 1, z)] != 0 && s.col[wi(x, yy + 1, z)] != 0
+                    && s.gh[wi(x, yy, z)] == 0 && s.gh[wi(x, yy - 1, z)] == 0 && s.gh[wi(x, yy + 1, z)] == 0
             }
             var base = y
             while base - 1 >= 0 && plain(base - 1) { base -= 1 }
@@ -470,7 +577,12 @@ enum ShapeTrunks {
         }
         // P433: a living trunk's top at a cut (the struck cell's air over it, the trunk going on past it) is a flat
         // cut end showing the rings, not the rounded tip under a crown.
-        let cutTop = !above && living && !isTrunk[Int(ctx.column(x, y + 1, z))] && cutAbove(ctx, x, y, z) >= 0
+        var cutTop = !above && living && !isTrunk[Int(ctx.column(x, y + 1, z))] && cutAbove(ctx, x, y, z) >= 0
+        // (ledger 123: the log over it taken, its ghost there: a cut end too)
+        if !above && living && y + 1 < 16 + M {
+            if !hasQuad { if s.gh[wi(x, y + 1, z)] != 0 { cutTop = true } }
+            else { for j in 0..<4 where s.gh[wi(quadX + (j & 1), y + 1, quadZ + (j >> 1))] != 0 { cutTop = true } }
+        }
         if above {
             prof.append((topH, topR))
         } else if living && !cutTop {
@@ -704,16 +816,29 @@ enum ShapeTrunks {
     // log generation like that"): a log lying on the ground in a run of 3 or more along its axis is a fallen trunk. Lying
     // against a tree's foot it was taken for one of the tree's roots or limbs and drawn thin at the block's middle
     // height, over the drawn ground; now it is never reached from a tree and lies bedded in the ground (timber).
+    // Nov 13 (ledger 116; his Forest notes of Nov 12, "This is hovering... that's not right"): the generator's fallen oak
+    // is bark-all-round wood in the upright state (WorldGenTrees.fallenOak), so it was never a fallen run: it lay a
+    // block thick on top of the drawn ground. Such wood with no log over or under it runs the way its neighbours do
+    // (timberAxis). BS_OLDFALLENWOOD=1: by its state only.
+    static let fallenWood = ProcessInfo.processInfo.environment["BS_OLDFALLENWOOD"] != "1"
+    static let barkWood: [Bool] = (0..<Blocks.count).map { isTrunk[$0] && Blocks.key(BlockID($0)).hasSuffix("_wood") }
+    @inline(__always) static func lieAxis(_ ctx: DetailContext, _ b: BlockID, _ x: Int, _ y: Int, _ z: Int) -> Int {
+        let a = Int(axisOf[Int(b)])
+        if a != 1 || !fallenWood || !barkWood[Int(b)] { return a }
+        return timberAxis(ctx, b, x, y, z)
+    }
     static func fallenRun(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         let b = ctx.block(x, y, z)
-        let a = Int(axisOf[Int(b)])
-        guard isTrunk[Int(b)], a != 1, SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))] else { return false }
+        guard isTrunk[Int(b)], SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))] else { return false }
+        let a = lieAxis(ctx, b, x, y, z)
+        guard a != 1 else { return false }
         let sx = a == 0 ? 1 : 0, sz = a == 2 ? 1 : 0
         var n = 1
         for sgn in [1, -1] {
             for k in 1...2 {
-                let c = ctx.block(x + sx * k * sgn, y, z + sz * k * sgn)
-                guard isTrunk[Int(c)] && Int(axisOf[Int(c)]) == a else { break }
+                let cx = x + sx * k * sgn, cz = z + sz * k * sgn
+                let c = ctx.block(cx, y, cz)
+                guard isTrunk[Int(c)] && lieAxis(ctx, c, cx, y, cz) == a else { break }
                 n += 1
             }
         }
