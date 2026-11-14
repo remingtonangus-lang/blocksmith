@@ -36,9 +36,10 @@ final class GroundWeighState {
     var pendingFell = 0, pendingSpared = 0
     var seeds = Set<IVec3>()                 // (where the older ground checks look afterwards: a fallen cell per eight cells of it)
     var seedLots = Set<IVec3>()
+    var objectLooks: [IVec3] = []            // (fallen cells round which what stood on the ground is still to fall)
     var own = false                          // (its own drops: noted by itself, with the rest)
     init() { _ = GroundWeigh.mats }          // (built at load, not in the first weighing's frame)
-    var busy: Bool { !carved.isEmpty || job != nil || !pending.isEmpty }
+    var busy: Bool { !carved.isEmpty || job != nil || !pending.isEmpty || !objectLooks.isEmpty }
 }
 
 enum GroundWeigh {
@@ -47,6 +48,7 @@ enum GroundWeigh {
     // (to tell the parts' costs apart in a soak: BS_GWSEEDS=0 no look by the older checks after a fall, BS_GWNOTEOLD=0
     // their drops not noted, BS_GWPROPS=0 props not noted, BS_GWQUEUE=dispatch the weighing on a utility queue)
     static let seedsOn = ProcessInfo.processInfo.environment["BS_GWSEEDS"] != "0"
+    static let oldSeeds = ProcessInfo.processInfo.environment["BS_GWSEEDS"] == "old"
     static let noteOld = ProcessInfo.processInfo.environment["BS_GWNOTEOLD"] != "0"
     static let propsOn = ProcessInfo.processInfo.environment["BS_GWPROPS"] != "0"
     static let onPool = ProcessInfo.processInfo.environment["BS_GWQUEUE"] != "dispatch"
@@ -55,6 +57,7 @@ enum GroundWeigh {
     static let maxCarved = 60_000
     static var quietTicks = 20, longestWait = 144
     static var sliceSeconds = 0.0006, sliceFloor = 0.0002
+    static var objectSeconds = 0.0004
     static let lot = 4                       // what comes down goes in lots of this many cells a side
     // (harness)
     static var weighed = 0, fell = 0, spared = 0, drops = 0
@@ -120,6 +123,13 @@ enum GroundWeigh {
     private static func step(_ g: Game, _ w: World, _ st: GroundWeighState) {
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         if !st.pending.isEmpty { dropStep(g, paced); return }
+        if let c = st.objectLooks.last, !paced || CraterJob.allowance() >= objectSeconds {
+            st.objectLooks.removeLast()
+            let t0 = CFAbsoluteTimeGetCurrent()
+            GroundSettle.objects(g, c, 3)
+            if paced { CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0) }
+            return
+        }
         if st.job == nil {
             guard !st.carved.isEmpty else { return }
             guard st.ticks - st.lastCarve >= quietTicks || st.ticks - st.firstCarve >= longestWait else { return }
@@ -206,11 +216,14 @@ enum GroundWeigh {
         if paced { CraterJob.spend(dt) }
         worstDropMs = max(worstDropMs, dt * 1000)
         guard st.pending.isEmpty else { return }
-        // (what hung beyond it and what lay on it: the older ground checks' next, a look per eight cells of it, as
-        // small as a dug block's: a look six cells round a spot inside the land took 35 ms in the worst-case soak)
-        if seedsOn { for k in st.seeds.sorted(by: { $0.y != $1.y ? $0.y < $1.y : ($0.z != $1.z ? $0.z < $1.z : $0.x < $1.x) }) {
-            w.collapseQueue.append((k, 3))
-        } }
+        // What stood on it (blocks, plants, trees) falls: a look a tick, below. What hung from it is this weighing's
+        // own next round. (Not the older loose-ground check: looked at from a fallen cell, its thin-overhang rule,
+        // blind to the material, took 1,096 cells of standing ground for one cell fallen in the worst-case soak, and
+        // the debris of it doubled that scene's particle time. BS_GWSEEDS=old: that look, as the first cut had it.)
+        if seedsOn {
+            let order = st.seeds.sorted(by: { $0.y != $1.y ? $0.y < $1.y : ($0.z != $1.z ? $0.z < $1.z : $0.x < $1.x) })
+            if oldSeeds { for k in order { w.collapseQueue.append((k, 3)) } } else { st.objectLooks.append(contentsOf: order) }
+        }
         st.seeds.removeAll(); st.seedLots.removeAll()
         if st.pendingFell == 0 {
             // (nothing of it was ground any more: done with, or the same answer would come for ever)
@@ -258,7 +271,7 @@ enum GroundWeigh {
         while j.z <= j.hi.z {
             while j.x <= j.hi.x {
                 n += 1
-                if n & 7 == 0 && CFAbsoluteTimeGetCurrent() > deadline { return false }
+                if n & 1 == 0 && CFAbsoluteTimeGetCurrent() > deadline { return false }
                 let x = j.x, z = j.z
                 j.x += 1
                 let side = x == j.lo.x || x == j.hi.x || z == j.lo.z || z == j.hi.z
