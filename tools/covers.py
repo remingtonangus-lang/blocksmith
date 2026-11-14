@@ -10,8 +10,8 @@ from logo import logo
 
 # name, W, H, logo cap height (fraction of H), logo centre y (fraction of H), max logo width (px), safe box (x0,y0,x1,y1)
 SIZES = {"landscape": ("cover_landscape_2560x1440.png", 2560, 1440, 0.105, 0.70),
-         "square": ("cover_square_1440x1440.png", 1440, 1440, 0.085, 0.70),
-         "portrait": ("cover_portrait_1008x1440.png", 1008, 1440, 0.052, 0.72),
+         "square": ("cover_square_1440x1440.png", 1440, 1440, 0.094, 0.75),
+         "portrait": ("cover_portrait_1008x1440.png", 1008, 1440, 0.058, 0.75),
          "hero": ("hero_cover_3000x900.png", 3000, 900, 0.135, 0.66),
          "mini": ("mini_landscape_1080x360.png", 1080, 360, 0.30, 0.60)}
 
