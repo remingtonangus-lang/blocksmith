@@ -99,6 +99,9 @@ enum CircuitWorkshop {
             let back = [b.P(3, 2, 5), b.P(4, 2, 5), b.P(4, 2, 4), b.P(4, 2, 3), b.P(4, 2, 2), b.P(4, 2, 1), b.P(4, 2, 0),
                         b.P(3, 1, 0)]                                // the last steps down, pointing west into the lock hopper
             for p in back { b.put(p + IVec3(0, -1, 0), CircuitWorkshop.post); b.wire(p) }
+            // (Nov 14: the posts of the run back stood a block over the deck on nothing, and the load checks dropped the
+            // far corner's: each has a post of its own under it, down to the deck. BS_OLDDECKHOLD=1: as before.)
+            if !HeldDeck.old { for p in back where p.y - b.o.y == 2 { b.put(p + IVec3(0, -2, 0), CircuitWorkshop.post) } }
         },
         Bench(key: "comparator_subtract", title: ["Subtraction", "12 at the back,", "5 at the side:", "7 comes out"], width: 17) { b in
             b.put(b.P(1), "redstone_block")
