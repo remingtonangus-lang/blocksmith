@@ -150,7 +150,11 @@ extension Game {
         var seen: Set<IVec3> = [p], queue = [p], head = 0
         var ring = false, gun = false
         while head < queue.count {
-            if queue.count > 4096 { return false }                 // (a building, not a gun)
+            // (Nov 14: a gun on a built floor, the Proving Grounds' worked-stone deck or his own, ran on into the floor
+            // and was refused as a building: the ring and the gun are next to the computer, found long before. Past
+            // the bound the search stops and the vehicle's own floor rule (Ships.assemble) takes what stands on it.
+            // BS_OLDGUNFLOOD=1: refused, as before.)
+            if queue.count > 4096 { if Game.oldGunFlood { return false }; break }   // (a building, not a gun)
             let c = queue[head]; head += 1
             for d in dirs {
                 let n = c + d
@@ -228,3 +232,5 @@ extension Game {
         return out
     }
 }
+
+extension Game { static let oldGunFlood = ProcessInfo.processInfo.environment["BS_OLDGUNFLOOD"] == "1" }

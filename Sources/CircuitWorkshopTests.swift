@@ -31,7 +31,7 @@ enum CircuitWorkshopTests {
                 return n
             }
             let before = census()
-            let (frames, fell) = DeckHold.settle(g)
+            let (frames, fell) = DeckHold.settle(g, around: (V3(Float(o.x + CircuitWorkshop.deckLength / 2), Float(o.y), Float(o.z + 4)), Float(CircuitWorkshop.deckLength / 2 + 16)))
             let after = census()
             var short = 0
             if !HeldDeck.old {
@@ -219,16 +219,26 @@ extension CircuitWorkshop {
 // Nov 14: runs the load checks a build queued (Structure.tick, StructureTip, StructureCollapse's whole weigh) until
 // none is left, as the game's ticks would. Returns the frames it took and the blocks brought down.
 enum DeckHold {
-    static func settle(_ g: Game, frames most: Int = 400_000) -> (Int, Int) {
+    // `around`: a centre and half-width the checks run in as though he stood there (a hot zone, FarTicks), the checks
+    // parked past the active distance brought back.
+    static func settle(_ g: Game, around: (V3, Float)? = nil, frames most: Int = 400_000) -> (Int, Int) {
         let w = g.world
-        let fell0 = StructureCollapse.fellBlocks + Structure.fellTotal
+        let fell0 = Structure.fellTotal
+        Structure.fellTally = [:]
+        defer {
+            if let t = Structure.fellTally, !t.isEmpty { print("  fell: " + t.sorted { $0.value > $1.value }.prefix(12).map { "\($0.key) \($0.value)" }.joined(separator: ", ")) }
+            Structure.fellTally = nil
+        }
+        if let (c, r) = around { w.heat(at: c, radius: r, seconds: 3600); w.unparkActive() }
+        defer { if let (c, _) = around { w.hotZones.removeAll { $0.center == c } } }
         var n = 0, quiet = 0
         while n < most {
             Structure.tick(g); StructureTip.tick(g); StructureCollapse.tick(g)
             n += 1
+            if n % 500 == 0 && around != nil { w.unparkActive() }
             if w.loadQueue.isEmpty && !StructureCollapse.busy { quiet += 1; if quiet > 400 { break } } else { quiet = 0 }
             if StructureCollapse.withWorker { usleep(500) }
         }
-        return (n, StructureCollapse.fellBlocks + Structure.fellTotal - fell0)
+        return (n, Structure.fellTotal - fell0)
     }
 }

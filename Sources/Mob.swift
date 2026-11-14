@@ -1460,6 +1460,7 @@ final class Mob {
                 restPos = pos; restVer = c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version; restStamp = w.fieldStamp
             } else { restPos.x = .nan }
         }
+        if chute && onGround { chute = false }             // (his parachute folds as he lands)
         // P311 (a): stopped by the player's body, not a wall: no hop up at him.
         if bumped && speed != 0 && !(pressedPlayer && !onLadder && !inWater) {
             if onLadder { vel.y = 2.35 }

@@ -39,7 +39,9 @@ enum ProvingGroundsCheck {
         // Nov 14 ("no vehicles were on the platform"): the load checks the build queued, run to the end as the game's
         // ticks run them, bring nothing down (the deck is held, World.heldDeck); and the first vehicle stands within the
         // first steps (nearest first), not after the whole deck.
-        let (frames, fell) = DeckHold.settle(g)
+        let d = ProvingGrounds.deck
+        let mid = V3(Float(o.x + (d.x0 + d.x1) / 2), Float(o.y), Float(o.z + (d.z0 + d.z1) / 2))
+        let (frames, fell) = DeckHold.settle(g, around: (mid, Float(max(d.x1 - d.x0, d.z1 - d.z0)) / 2 + 32))
         check(fell == 0, "proving: the deck and all on it stand through the build's load checks (\(frames) frames, \(fell) blocks fell)")
         if !ProvingGrounds.oldSteps {
             let probe = ProvingGrounds.plan(o)

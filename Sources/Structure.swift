@@ -657,9 +657,16 @@ enum Structure {
     static var dropWorstMs = 0.0, dropWorst = ""         // (the soak: the slowest drop and its parts)
     static var crumbMs = 0.0, crumbN = 0                  // (the soak: the crumbs' clearing, all of it)
     static var fellTotal = 0                              // (harness: blocks dropped or toppled by the load checks, DeckHold)
+    static var fellTally: [String: Int]?                  // (harness: ... by block and where the first was)
+    static func tallyFell(_ w: World, _ cells: [IVec3]) {
+        fellTotal += cells.count
+        guard fellTally != nil else { return }
+        for c in cells { fellTally![Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y, c.z))]), default: 0] += 1 }
+        if let c = cells.first { fellTally!["first at \(c.x) \(c.y) \(c.z)", default: 0] += 1 }
+    }
     static func drop(_ g: Game, _ all: [IVec3]) {
         let w = g.world
-        fellTotal += all.count
+        tallyFell(w, all)
         let t0 = CFAbsoluteTimeGetCurrent()
         var tSplit = t0, tWhole = t0, wholes = 0, nCrumbs = 0
         defer {
