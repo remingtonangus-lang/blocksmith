@@ -272,10 +272,12 @@ final class BuilderBot: AgentBot {
         phase = 0; ticks = 0; spots = []; path = []
         return true
     }
+    static let trace = ProcessInfo.processInfo.environment["BS_BUILDTRACE"] != nil
     private var lastDrop = ""
     // The spot didn't work: the next nearest, by a new route.
     private func drop(_ s: AgentState, _ why: String) {
         lastDrop = why
+        if BuilderBot.trace { print("  trace t\(s.tick) job \(i) drop spot \(ci) of \(spots.count): \(why)") }
         if ci < spots.count { spots.remove(at: ci) }
         if spots.isEmpty { later(s, why); return }
         phase = 4; moveTicks = 0
@@ -364,16 +366,28 @@ final class BuilderBot: AgentBot {
                 if wp < path.count - 1 && simd_length(path[wp] - p.pos) < 0.45 { wp += 1 }
                 let go = path[min(wp, path.count - 1)] - p.pos
                 let f = V3(-sinf(p.yaw), 0, -cosf(p.yaw)), r = V3(cosf(p.yaw), 0, -sinf(p.yaw))
-                func key(_ dist: Float, _ v: Float, _ top: Float) -> Float {
-                    let want = max(-top, min(top, dist * 4))
-                    if abs(dist) < 0.08 && abs(v) < 0.4 { return 0 }
-                    return v < want - 0.4 ? 1 : (v > want + 0.4 ? -1 : 0)
+                // (each axis: of pressing toward, letting go and pressing against, the one whose speed next tick
+                // comes nearest a speed that dies away as it closes; flight eases the speed toward the keys' at 10/s)
+                let k: Float = 1 - expf(-10.0 / 60)
+                func key(_ dist: Float, _ v: Float, _ top: Float, _ speed: Float) -> Float {
+                    let want = max(-top, min(top, dist * 3))
+                    var best: Float = 0, err = Float.greatestFiniteMagnitude
+                    for a in [0, 1, -1] as [Float] {
+                        let e = abs(v + (a * speed - v) * k - want)
+                        if e < err - 0.01 { err = e; best = a }
+                    }
+                    return best
                 }
-                act.forward = key(simd_dot(go, f), simd_dot(p.vel, f), 6)
-                act.strafe = key(simd_dot(go, r), simd_dot(p.vel, r), 6)
-                let ud = key(go.y, p.vel.y, 5)
+                act.forward = key(simd_dot(go, f), simd_dot(p.vel, f), 6, 9)
+                act.strafe = key(simd_dot(go, r), simd_dot(p.vel, r), 6, 9)
+                let ud = key(go.y, p.vel.y, 5, 8)
                 if ud > 0 { act.jump = true } else if ud < 0 { act.sneak = true }
                 if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 { phase = 2; aimTicks = 0 }
+                if BuilderBot.trace && s.tick % 30 == 0 {
+                    print(String(format: "  trace t%d job %d ph1 pos %.2f %.2f %.2f wp %d/%d -> %.2f %.2f %.2f vel %.1f %.1f %.1f fly %d keys %.0f %.0f %d%d",
+                                 s.tick, i, p.pos.x, p.pos.y, p.pos.z, wp, path.count, path[min(wp, path.count - 1)].x, path[min(wp, path.count - 1)].y,
+                                 path[min(wp, path.count - 1)].z, p.vel.x, p.vel.y, p.vel.z, p.flying ? 1 : 0, act.forward, act.strafe, act.jump ? 1 : 0, act.sneak ? 1 : 0))
+                }
                 return act
             }
             // Aiming: once the view is on the point and the game's aim is on the face and the cell, press.
