@@ -133,6 +133,7 @@ extension Game {
     // 0.93 and 0.82 of a block (the boards are 1 and 0.875 wide).
     static let signBoardPx: (standing: Float, hanging: Float) = (84, 94)
     // The shrink a line of `wpx` font pixels gets so it fits its board.
+    static let oldSignText = ProcessInfo.processInfo.environment["BS_OLDSIGNTEXT"] == "1"
     static func signLineFit(_ wpx: Float, hanging: Bool) -> Float {
         min(1, (hanging ? signBoardPx.hanging : signBoardPx.standing) / max(1, wpx))
     }
@@ -220,7 +221,11 @@ extension Game {
                     faces.append((low + nOff, side * -1, Float(1.0 / 115)))
                     faces.append((low - nOff, side, Float(1.0 / 115)))
                 } else {
-                    let ctr: V3 = st < 4 ? c + V3(0, 0.22 + world.groundSeat(p.x, p.y, p.z), 0) + nOff : c - n * 0.37     // (P382: a post on field ground rests on it)
+                    // Nov 13 playtest (13:05:27, the Sparkstone Workshop's bench signs): four lines ran 0.08 below the
+                    // board's middle, so a wall sign's fourth line hung off its bottom edge. They are centred on the
+                    // board now (BS_OLDSIGNTEXT=1: as before).
+                    let lift: Float = Game.oldSignText ? 0 : 0.078
+                    let ctr: V3 = st < 4 ? c + V3(0, 0.22 + lift * 0.6 + world.groundSeat(p.x, p.y, p.z), 0) + nOff : c - n * 0.37 + V3(0, lift, 0)     // (P382: a post on field ground rests on it)
                     faces.append((ctr, side * -1, Float(1.0 / 90)))
                 }
                 let textColor = Game.signTextColor(be, light: light)

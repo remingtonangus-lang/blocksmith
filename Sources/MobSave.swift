@@ -116,6 +116,7 @@ extension Mob {
         if troop > 0 { d["tc"] = Float(troop); d["ts0"] = troopSeg.x; d["ts1"] = troopSeg.y; d["ts2"] = troopSeg.z }
         if let l = leash { d["lsx"] = l.x; d["lsz"] = l.y; d["lsh"] = l.z }
         if warden { d["warden"] = 1 }
+        if commandant { d["cmdt"] = 1 }
         if let b = brain, let g = b.gunPost, let f = b.orderFace {      // P194: a deck gun's gunner keeps his post
             d["gpx"] = g.x; d["gpy"] = g.y; d["gpz"] = g.z; d["gfx"] = f.x; d["gfy"] = f.y; d["gfz"] = f.z
         }
@@ -171,6 +172,7 @@ extension Mob {
         else if let f = d["fac"], Faction(rawValue: Int(f)) != nil { faction = Int(f); if boreal { borealSetup() } }
         greyRearm()                                     // P104: Greywall's own arms (GreywallArms.swift)
         if (d["warden"] ?? 0) > 0 { makeKeepWarden(loading: true) }
+        if (d["cmdt"] ?? 0) > 0 { makeCommandant(loading: true) }
         if let x = d["gpx"], let y = d["gpy"], let z = d["gpz"], let fx = d["gfx"], let fy = d["gfy"], let fz = d["gfz"] {
             takeGunPost(V3(x, y, z), face: V3(fx, fy, fz))
             if (d["gop"] ?? 0) > 0 { seatAsOperator() }

@@ -48,9 +48,14 @@ enum CircuitWorkshop {
     // The sorted item, the filler (never in the stream) and the rest of the stream on the sorter bench.
     static let sortItem = "iron_ingot", fillerItem = "stick", otherItem = "cobblestone"
 
+    // Nov 13 playtest (13:05:27-13:06:38, the workshop: "Looks like shit though... Pistons look like shit"): the benches'
+    // posts and supports were natural stone, which the realistic world draws as round rock, so a lever or a torch stood
+    // on a lumpy boulder. They are smooth stone, a worked block drawn as a cube (BS_OLDWORKSHOPSTONE=1: stone).
+    static let post = ProcessInfo.processInfo.environment["BS_OLDWORKSHOPSTONE"] == "1" || !Blocks.has("smooth_stone") ? "stone" : "smooth_stone"
+
     static let benches: [Bench] = [
         Bench(key: "torch_clock", title: ["Torch Clock", "torch + 4-tick", "repeater loop", "20-tick period"], width: 8) { b in
-            b.put(b.P(1), "stone")
+            b.put(b.P(1), CircuitWorkshop.post)
             b.put(b.P(2), "redstone_torch", 5)                      // on the stone's east face
             b.put(b.P(2, 1), "redstone_lamp")                        // lit with the torch (it powers the block above)
             for p in [b.P(3), b.P(3, 0, 1), b.P(3, 0, 2), b.P(2, 0, 2), b.P(1, 0, 2)] { b.wire(p) }
@@ -65,7 +70,7 @@ enum CircuitWorkshop {
         Bench(key: "piston_door", title: ["Piston Door", "lever opens it", "(an inverting", "torch holds it)"], width: 10) { b in
             // A pillar in front of the wall with the lever on top; a torch on the pillar's face powers the upper piston
             // and, through the block space above it, the lower one (quasi-connectivity). The lever turns the torch off.
-            b.put(b.P(3, 0, -2), "stone"); b.put(b.P(3, 1, -2), "stone")
+            b.put(b.P(3, 0, -2), CircuitWorkshop.post); b.put(b.P(3, 1, -2), CircuitWorkshop.post)
             b.put(b.P(3, 2, -2), "lever", 0)
             b.put(b.P(3, 1, -1), "redstone_torch", 2 + 1)            // on the pillar's south face, facing south
             b.put(b.P(3), "sticky_piston", 5); b.put(b.P(3, 1), "sticky_piston", 5)
@@ -86,14 +91,14 @@ enum CircuitWorkshop {
             b.entity(b.P(2, 0), "chest", .chest)
             // Comparator (south, reading the filter) -> two dust (s, s - 1) -> into a block -> a torch on its far face,
             // whose output dust runs back to point into the lock hopper.
-            for z in 1...4 { b.put(b.P(2, 1, z), "stone") }
+            for z in 1...4 { b.put(b.P(2, 1, z), CircuitWorkshop.post) }
             b.put(b.P(2, 2, 1), "comparator", 1)
             b.wire(b.P(2, 2, 2)); b.wire(b.P(2, 2, 3))
-            b.put(b.P(2, 2, 4), "stone")
+            b.put(b.P(2, 2, 4), CircuitWorkshop.post)
             b.put(b.P(2, 2, 5), "redstone_torch", 2 + 1)            // on the block's south face, facing south
             let back = [b.P(3, 2, 5), b.P(4, 2, 5), b.P(4, 2, 4), b.P(4, 2, 3), b.P(4, 2, 2), b.P(4, 2, 1), b.P(4, 2, 0),
                         b.P(3, 1, 0)]                                // the last steps down, pointing west into the lock hopper
-            for p in back { b.put(p + IVec3(0, -1, 0), "stone"); b.wire(p) }
+            for p in back { b.put(p + IVec3(0, -1, 0), CircuitWorkshop.post); b.wire(p) }
         },
         Bench(key: "comparator_subtract", title: ["Subtraction", "12 at the back,", "5 at the side:", "7 comes out"], width: 17) { b in
             b.put(b.P(1), "redstone_block")

@@ -27,6 +27,7 @@ extension Game {
             if pilotTick(s, mi, dt) { ships.riderShip = nil; return }
         }
         if GunStationPlay.cur != nil, gunStationTick(mi, dt) { ships.riderShip = nil; return }     // (Nov 12: in a gun's chair)
+        if helmLeftT > 0 { helmLeftT -= dt; if helmLeftT <= 0 { helmLeft = nil } }
         commandeerHintTick()
         let p = player
         var cand = ships.frameShip(for: p.pos, height: p.height, current: ships.aboard)
@@ -136,6 +137,7 @@ extension Game {
     // craft at the helm: back by thirdPersonDistance; a boat 6 back), pulled in short of blocks between. Nil on foot.
     var chaseOffset: V3? {
         var fwd: V3, back: Float
+        if GunStationPlay.cur != nil { return gunStationChase() }       // (Nov 13: out behind the gun he works)
         if let s = world.ships.pilot {
             if let o = hullChase(s.root) { return o }
             fwd = s.dirToWorld(V3(0, 0, -1)); back = thirdPersonDistance
@@ -349,6 +351,9 @@ extension Game {
             // about on foot instead): a sidecar's helm is taken from beside it too, which puts him in the chase view.
             let sidecar = AshCommandeer.smallHull(s)                       // (P449: and his Army Truck)
             if s.kinematic ? !ships.canCommandeer(s) : !(s.isVessel || s.role == "kestrel" || s.role == "capplane" || sidecar) { continue }
+            // Nov 13 playtest (12:32:39, "Can't get out of the plane once I eject from it or exit from it"): the use press
+            // that fired his gun the moment he was out (8 blocks from a plane's helm takes it) put him back at the helm.
+            if s === helmLeft && !Game.oldPlaneExit { continue }
             guard let stand = helmStand(s) else { continue }
             let d = simd_length(s.toWorld(stand) - p)
             // P461 (Oct 25 16:42, taking his landed dropship from the ground beside it: "shouldn't have been able to mount it
@@ -370,7 +375,10 @@ extension Game {
             // took its helm and moved him to it. A big hull's helm is taken at the helm, as the frigate's is (P476).)
             let aboard = s.kinematic && !s.isFlyingCapital && (s.blockCount <= 2000 || Game.oldCrawlerUse)
                 && (ships.aboard?.root === s || ships.boundsDistance(s, p) < 0.5)
-            if (d < zone || aboard) && d < bd { best = s; bd = d }
+            // (a landed plane's exit sets him on the ground past its wings, more than 8 blocks from the cockpit: from
+            // beside its hull it is his to take again)
+            let besidePlane = s.role == "capplane" && !Game.oldPlaneExit && ships.boundsDistance(s, p) < 2.5
+            if (d < zone || aboard || besidePlane) && d < bd { best = s; bd = d }
         }
         return best
     }
@@ -380,6 +388,14 @@ extension Game {
     func useMeantForHull(_ s: Ship) -> Bool {
         guard !Game.oldCrawlerUse, let t = world.ships.target, t.ship.root === s else { return false }
         if t.ship === s && t.cell == s.helm { return false }
+        guard let stand = helmStand(s) else { return true }
+        return simd_length(s.toWorld(stand) - player.pos) > 2
+    }
+    // Nov 13 (12:32:39): with a gun in hand the use press is its trigger; 8 blocks from a parked plane's helm every shot
+    // took the plane. With a gun out the helm is taken at the helm (2 blocks) or aimed at the hull.
+    func gunUseNotForHelm(_ s: Ship) -> Bool {
+        guard heldGun != nil, !Game.oldPlaneExit else { return false }
+        if let t = world.ships.target, t.ship.root === s { return false }
         guard let stand = helmStand(s) else { return true }
         return simd_length(s.toWorld(stand) - player.pos) > 2
     }
@@ -451,18 +467,44 @@ extension Game {
             ships.aboard = nil
             ships.riderShip = nil
         }
+        guard !Game.oldPlaneExit else { return }
+        helmLeft = s; helmLeftT = 1.5
+        // Nov 13 playtest (12:32:39, Salvaged Fighter: "Can't get out of the plane once I eject from it or exit from it"):
+        // its seat is a one-block cockpit sealed under the canopy, so leaving the helm left him shut in it, standing at
+        // the stick. Landed, he climbs down onto the ground beside it; in the air he bails out over the canopy (away from
+        // the hull's frame, carried on with the plane's speed and a kick up, clear of the tail).
+        if s.name == AshWrecks.fighterName && s.parent == nil {
+            // (a plane is 15 wide and 16 long: dismountSpot's spots, 4 blocks out at most, are all under its hull)
+            if let at = dismountSpot(s, out: Array(stride(from: Float(2), through: 14, by: 1))), at.y > s.worldMin.y - 3 {
+                player.pos = at
+                player.vel = .zero
+                player.airPeak = at.y
+            } else {
+                let up = s.dirToWorld(V3(0, 1, 0))
+                let side = s.dirToWorld(V3(1, 0, 0))
+                let lift: V3 = up.y > 0.3 ? up : V3(0, 1, 0)
+                let seat = helmStand(s).map { s.toWorld($0) } ?? player.pos           // (in the cockpit, at the stick)
+                player.pos = seat + lift * 3.4 + (up.y > 0.3 ? .zero : side * 3)
+                player.vel = s.velocity(at: player.pos) + V3(0, 7, 0)
+                player.airPeak = player.pos.y
+                applyEffect(.slowFalling, amp: 0, seconds: 40)               // (a canopy: the drop down, not a fall)
+            }
+            ships.aboard = nil
+            ships.riderShip = nil
+        }
     }
+    static let oldPlaneExit = ProcessInfo.processInfo.environment["BS_OLDPLANEEXIT"] == "1"
 
     // Standing room on the ground beside a small vehicle: off its left side first (a sidecar's car is on the right),
     // then behind it, then off the car's side; a block and a half to four out from its middle, with the ground found
     // within two blocks of the hull's feet.
-    func dismountSpot(_ s: Ship) -> V3? {
+    func dismountSpot(_ s: Ship, out: [Float] = [1.6, 2.2, 3, 4]) -> V3? {
         let w = world
         let mid = V3((s.worldMin.x + s.worldMax.x) / 2, s.worldMin.y, (s.worldMin.z + s.worldMax.z) / 2)
         let right = s.dirToWorld(V3(1, 0, 0)), back = s.dirToWorld(V3(0, 0, 1))
         let r = simd_normalize(V3(right.x, 0, right.z)), bk = simd_normalize(V3(back.x, 0, back.z))
         let half = player.halfW - 0.02
-        for k: Float in [1.6, 2.2, 3, 4] {
+        for k in out {
             for d in [-r, bk, -bk, r, simd_normalize(bk - r), simd_normalize(-bk - r)] {
                 let p = mid + d * (k + (abs(simd_dot(d, r)) > 0.5 ? 0 : 1.2))
                 let x = Int(floor(p.x)), z = Int(floor(p.z))

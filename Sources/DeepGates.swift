@@ -140,6 +140,24 @@ extension TextureGen {
 
 extension Mob {
     // The keep's mini-boss. `loading`: a saved Warden keeps the health it was saved with.
+    // Nov 13 playtest (12:45:04-12:45:10, at the top of a Capital citadel's side tower, in its gun room: "A hard guy to
+    // kill... should be a hard guy to kill here. Also, shouldn't there be a sunder charge to get into hell here?"): the
+    // tower's commandant keeps its top floor, an officer in heavy plate who takes many rounds (not the one or two that
+    // drop a trooper: Armory's infantry rule leaves him out) and carries two Sunder Charges, the way through the Sealrock
+    // to the Deep. Placed on ground no save had before (CapitalBase gun rooms).
+    static let commandantName = "Tower Commandant"
+    func makeCommandant(loading: Bool = false) {
+        commandant = true
+        customName = Mob.commandantName
+        scale = 1.15
+        persistent = true
+        spec.health = 90
+        spec.drops = [("sunder_charge", 2, 2), ("gold_ingot", 2, 5), ("capital_rounds", 20, 40)].filter { Items.has($0.0) }
+        spec.xp = 60
+        if !loading { health = spec.health; setTroop(.hannibal) }
+        power = max(power, 1.5)
+    }
+
     func makeKeepWarden(loading: Bool = false) {
         warden = true
         customName = "Keep Castellan"

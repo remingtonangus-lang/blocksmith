@@ -10,6 +10,7 @@ import simd
 // BS_OLDGUNSTATION=1: the console does nothing, as before.
 enum GunStationPlay {
     static let old = ProcessInfo.processInfo.environment["BS_OLDGUNSTATION"] == "1"
+    static let oldView = ProcessInfo.processInfo.environment["BS_OLDGUNVIEW"] == "1"
     struct Seat {
         @WeakLink var hull: Ship?
         @WeakLink var turret: Ship?
@@ -87,7 +88,49 @@ extension Game {
         while rel < -.pi { rel += 2 * .pi }
         t.aimAt = nil
         t.aimYaw = rel
+        // Under the chase view (gunStationChase) the gun is laid from its own muzzle on what the laser falls on, at the
+        // elevation that drops its shell there (as the helm's guns are: TankSight).
+        if !GunStationPlay.oldView, let p = TankSight.chasePoint {
+            let muzzle = t.toWorld(t.pivot)
+            let d = p - muzzle
+            let horiz = simd_length(V2(d.x, d.z))
+            let l = v.dirToLocal(d)
+            if l.x * l.x + l.z * l.z > 0.01 { t.aimYaw = atan2f(-l.x, -l.z) }
+            let (sv, sg) = t.shellFlight
+            if horiz >= 4 { t.gunPitch = max(t.pitchMin, min(t.pitchMax, ShipManager.elevation(horiz, d.y, speed: sv, gravity: sg))) }
+        }
         return true
+    }
+
+    // Nov 13 playtest (12:57:45, in a crawler gun's chair: "It's not third person. I can't see where I'm shooting"):
+    // the chair is inside the hull, so the headset's chase view (QuestSettings.chaseView, as at a helm) now sits out
+    // behind and over the gun he works, looking along its barrel: the first of a few spots with nothing of the hull or
+    // the world between it and the gun's top (a sponson's gun on the chassis side turned inboard has the hull behind
+    // it). Nil when none is clear (he stays at the chair). BS_OLDGUNVIEW=1: the chair's own view, as before.
+    func gunStationChase() -> V3? {
+        guard !GunStationPlay.oldView, let c = GunStationPlay.cur, let v = c.hull, let t = c.turret else { return nil }
+        var f = t.dirToWorld(V3(0, 0, -1)); f.y = 0
+        f = simd_length(f) > 1e-3 ? simd_normalize(f) : V3(0, 0, -1)
+        let side = V3(-f.z, 0, f.x)
+        let mid = (t.worldMin + t.worldMax) * 0.5
+        let top = V3(mid.x, t.worldMax.y + 0.5, mid.z)
+        let size = max(t.worldMax.x - t.worldMin.x, t.worldMax.z - t.worldMin.z)
+        let back = size * 0.5 + 6
+        func blocked(_ q: V3) -> Bool {
+            if world.opaqueAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return true }
+            let l = v.toLocal(q)
+            let b = v.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
+            return b != AIR && Blocks.opaque[Int(b)]
+        }
+        for off in [-f * back + V3(0, 4, 0), -f * back * 0.6 + V3(0, 3.5, 0), -f * 3 + side * 3 + V3(0, 3, 0),
+                    -f * 3 - side * 3 + V3(0, 3, 0), V3(0, 4.5, 0), -f * 1.5 + V3(0, 2.5, 0)] {
+            let cam = top + off
+            let len = simd_length(cam - top), dir = (cam - top) / max(len, 1e-3)
+            var u: Float = 0.6, clear = true
+            while u <= len + 0.6 { if blocked(top + dir * u) { clear = false; break }; u += 0.4 }
+            if clear { return cam - player.eye }
+        }
+        return nil
     }
 
     // The trigger in the chair: the gun fires as it reloads while held, from the hull's magazine.
