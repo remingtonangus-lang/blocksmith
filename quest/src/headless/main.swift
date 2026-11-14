@@ -1314,6 +1314,18 @@ if let out = arg("--view"), let ctx = vkctx {
                 if ms > worst { worst = ms; why = TickProf.summary() }
             }
         }
+        // --digroom "X0,Y0,Z0,X1,Y1,Z1": a miner's room, dug cell by cell (the field's carve), before the blasts.
+        if let r = arg("--digroom")?.split(separator: ",").compactMap({ Int($0) }), r.count == 6 {
+            var dug = 0
+            for y in stride(from: max(r[1], r[4]), through: min(r[1], r[4]), by: -1) {
+                for z in min(r[2], r[5])...max(r[2], r[5]) { for x in min(r[0], r[3])...max(r[0], r[3]) where vg.world.groundAt(x, y, z) {
+                    _ = vg.world.fieldSphere(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5), radius: 0.6, carve: true, material: nil)
+                    dug += 1
+                } }
+                play(0.1)
+            }
+            print("view: dug a room of \(dug) ground cells")
+        }
         for b in list.split(separator: ";") {
             let v = b.split(separator: ",").compactMap { Float($0) }
             guard v.count >= 3 else { continue }
@@ -2594,6 +2606,11 @@ if CommandLine.arguments.contains("--settletest") {
 if CommandLine.arguments.contains("--groundweigh") {
     GroundWeighTests.run(game, check: check)
     print(failures == 0 ? "groundweigh: all checks passed" : "groundweigh: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --weaklinktest: ledger 128, links read while their objects are let go (Sources/WeakLinkTests.swift).
+if CommandLine.arguments.contains("--weaklinktest") {
+    WeakLinkTests.run(cycles: 2_000_000, check: check)
+    print(failures == 0 ? "weaklink: all checks passed" : "weaklink: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --treesheet DIR (with --render X): P406's designed trees: the shape checks, then one contact sheet per species.
 if let dir = arg("--treesheet"), let ctx = vkctx {
@@ -4444,6 +4461,7 @@ if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deepte
 
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
+WeakLinkTests.run(check: check)       // (ledger 128: a link read while its object is let go)
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 
 // Greywall Command bases (Sources/GreywallTests.swift, backlog A1): the faction, rarity, and a real base of every tier walked.
