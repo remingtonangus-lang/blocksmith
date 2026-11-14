@@ -2089,7 +2089,10 @@ final class Game: LifeLinked {
                     let n = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
                     world.fieldSphere(hitPoint(t) + n * 0.45, radius: 0.62, carve: false, material: FieldMat.index[Int(id)], keepSolid: true, remesh: true)
                 } else if world.fieldTerrain {
-                    world.meetGround(at.x, at.y, at.z, id)              // P387: the ground rises to a placed block's floor
+                    // P387: the ground rises to a placed block's floor. (Ledger 130: only under a block set down on
+                    // the ground itself, not one built out from another block over it.)
+                    let onBuilt = Blocks.collide[Int(world.builtBlock(t.hit.x, t.hit.y, t.hit.z))]
+                    if World.oldMeet || (!onBuilt && t.normal.y == 1) { world.meetGround(at.x, at.y, at.z, id) }
                 }
             }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
