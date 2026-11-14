@@ -479,8 +479,38 @@ enum TreeProbeCheck {
             let cutAt = IVec3(foot.x, foot.y + 2, foot.z)
             let cut = w.builtBlock(cutAt.x, cutAt.y, cutAt.z), n0 = Felling.felled
             w.setBlock(cutAt.x, cutAt.y, cutAt.z, AIR)
+            // Ledger 134: the body's shape, drawn from the logs above the cut alone, is grown as the tree stood.
+            Felling.roundTrunks = Felling.roundFor(w)
+            let body = cells.filter { $0.y > cutAt.y && ShapeTrunks.isTrunk[Int(w.builtBlock($0.x, $0.y, $0.z))] }
+            var shapeSame = 0, shapeQuads = 0, shapeCells = 0, shapeStray = 0, shapeFirst = ""
+            if let snap = Felling.shapeSnap(w, logs: Set(body), cut: cutAt) {
+                ShapeTrunks.probeLock.lock(); ShapeTrunks.probeOut = [:]; ShapeTrunks.probeLock.unlock()
+                ShapeTrunks.probing = true
+                let shape = Felling.shapeBuild(snap, origin: IVec3(0, 0, 0), owner: ObjectIdentifier(w))
+                ShapeTrunks.probing = false
+                shapeQuads = shape?.quads.count ?? 0; shapeCells = shape?.cells.count ?? 0
+                // (no quad of another tree's wood, nor of the stump: each lies by one of the body's logs)
+                for q in shape?.quads ?? [] {
+                    let mid = (q.p0 + q.p1 + q.p2 + q.p3) * 0.25
+                    let near = body.contains { simd_length(V3(Float($0.x) + 0.5, Float($0.y) + 0.5, Float($0.z) + 0.5) - mid) < 0.9 }
+                    if !near { shapeStray += 1 }
+                }
+                for c in body {
+                    guard let a = before[c], let b = ShapeTrunks.probeOut[c] else { continue }
+                    if a.kind == b.kind && abs(a.rad - b.rad) < 1e-4 && a.dist == b.dist { shapeSame += 1 }
+                    else if shapeFirst.isEmpty { shapeFirst = "\(c.x) \(c.y - 64) \(c.z): kind \(a.kind) girth \(a.rad) steps \(a.dist) became kind \(b.kind) girth \(b.rad) steps \(b.dist)" }
+                }
+            }
+            let made0 = Felling.shapesMade, failed0 = Felling.shapesFailed
             g.fellCheck(cutAt, cut)
             let fell = Felling.felled > n0
+            // (the body's own shape comes from the edit lane)
+            var waited = 0
+            while Felling.shapesMade == made0 && waited < 400 { usleep(10_000); Felling.shapeCollect(w); waited += 1 }
+            let bodyShape = w.ships.list.last(where: { Felling.isFelled($0) }).flatMap { Felling.shapes[$0.id] }
+            check(Felling.oldFellShape ? true : (!body.isEmpty && shapeSame == body.count && shapeQuads >= body.count * 4 && shapeCells == body.count && shapeStray == 0 && (bodyShape?.quads.count ?? 0) == shapeQuads),
+                  "fellshape: his Taiga spruce felled two logs up: the falling body is drawn with the shape it stood with: \(shapeSame) of its \(body.count) logs grown as before the cut"
+                  + (shapeFirst.isEmpty ? "" : " (\(shapeFirst))") + ", \(shapeQuads) quads over \(shapeCells) logs, \(shapeStray) of them not by one of its logs; the body's own shape \(bodyShape?.quads.count ?? 0) quads after \(waited * 10) ms (\(Felling.shapesMade - made0) made, \(Felling.shapesFailed - failed0) not made, \(Felling.shapePending.count) still being made, \(w.ships.list.filter { Felling.isFelled($0) }.count) felled bodies)")
             let r = same(w, before, cells)
             let ghosts = w.treeGhosts.count
             // Saved and read back.

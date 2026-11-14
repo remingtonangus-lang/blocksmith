@@ -458,6 +458,40 @@ if let out = arg("--view"), let ctx = vkctx {
         } }
         func t(_ f: () -> Void) -> Double { let t0 = CFAbsoluteTimeGetCurrent(); f(); return (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         for _ in 0..<36 { vg.tick(1.0 / 72) }
+        // Nov 14 (his run, 12:23-12:31 and 12:43: "definitely the frame rate drops breaking blocks", Creative, break held,
+        // sinking a shaft): --creative digs as Creative does (the block gone at once and the hole shaped on the frame,
+        // every 0.3 s), --shaft takes the N cells straight down from the ground's top under him.
+        let creativeDig = CommandLine.arguments.contains("--creative")
+        if CommandLine.arguments.contains("--shaft"), let c0 = cells.first {
+            cells = (0..<n).map { IVec3(c0.x, c0.y - $0, c0.z) }.filter { $0.y > 1 }
+        }
+        if creativeDig {
+            vg.survival = false
+            var breaks: [Double] = [], ticksAfter: [Double] = [], worstWhat = "", worstTick = 0.0
+            for p in cells {
+                let b = vw.block(p.x, p.y, p.z)
+                guard b != AIR else { continue }
+                let hp = V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5)
+                let m1 = World.syncMeshes
+                let brk = t {
+                    vg.breakAndShape(p, b, at: hp - V3(0, 0.25, 0), drop: false)
+                }
+                breaks.append(brk)
+                var worst = 0.0
+                for _ in 0..<22 {
+                    let ms = t { vg.tick(1.0 / 72) }
+                    if ms > worst { worst = ms }
+                    if ms > worstTick { worstTick = ms; worstWhat = TickProf.summary() }
+                }
+                ticksAfter.append(worst)
+                print(String(format: "view: digtime (creative): %@ at %d %d %d: break and shape %.1f ms (%d sections meshed on the frame); worst of the next 22 ticks %.1f ms", Blocks.key(b), p.x, p.y - YOFF, p.z, brk, World.syncMeshes - m1, worst))
+            }
+            let bs = breaks.sorted(), ts = ticksAfter.sorted()
+            if !bs.isEmpty {
+                print(String(format: "view: digtime (creative): %d breaks: break and shape mean %.1f ms, median %.1f, worst %.1f; worst tick between breaks mean %.1f, worst %.1f (%@)", bs.count, bs.reduce(0, +) / Double(bs.count), bs[bs.count / 2], bs.last!, ts.reduce(0, +) / Double(ts.count), ts.last!, worstWhat))
+            }
+            cells = []
+        }
         for p in cells {
             let b = vw.block(p.x, p.y, p.z)
             let hp = V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5)
@@ -472,8 +506,7 @@ if let out = arg("--view"), let ctx = vkctx {
             }
             let m1 = World.syncMeshes
             let brk = t {
-                vg.breakBlock(p, b, drop: true, toPack: true)
-                if SmoothTerrain.natural[Int(b)] { _ = vw.carve(at: hp - V3(0, 0.25, 0), radius: Game.digRadius(b), mode: .shape) }
+                vg.breakAndShape(p, b, at: hp - V3(0, 0.25, 0), drop: true, toPack: true)       // (as the game does it)
             }
             let brkMeshed = World.syncMeshes - m1
             var worst = 0.0, worstWhat = ""
@@ -1271,6 +1304,7 @@ if let out = arg("--view"), let ctx = vkctx {
                              s.id, s.blockCount, logsN, lo, hi, s.lying ? "lying" : "awake", s.slips ? ", let through the trunks" : "", simd_length(s.vel)))
             }
             print("view: fell: \(vw.ships.list.filter { Felling.isFelled($0) }.count) felled bodies, \(vw.ships.list.filter { $0.name == Game.toppledName }.count) toppled, \(Felling.slipped) let through trunks")
+            print(String(format: "view: fell: standing shapes kept for %d bodies (%d quads, %d not made, slowest %.1f ms on the edit lane)", Felling.shapesMade, Felling.shapeQuads, Felling.shapesFailed, Felling.shapeWorstMs))
             if let s = vw.ships.list.last(where: { Felling.isFelled($0) }) {
                 print(String(format: "view: fell: after %.1f s the body is at %.1f %.1f %.1f, tipped %.0f deg, %d blocks; worst tick %.1f ms",
                              secs, s.pos.x, s.pos.y, s.pos.z, acosf(max(-1, min(1, s.rot.act(V3(0, 1, 0)).y))) * 180 / .pi, s.blockCount, worst))
@@ -2624,6 +2658,11 @@ if CommandLine.arguments.contains("--settletest") {
 if CommandLine.arguments.contains("--groundweigh") {
     GroundWeighTests.run(game, check: check)
     print(failures == 0 ? "groundweigh: all checks passed" : "groundweigh: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --placerow: ledgers 130 and 131, where a placed block goes on the ground (Sources/PlaceRowTests.swift).
+if CommandLine.arguments.contains("--placerow") {
+    PlaceRowTests.run(game, check: check)
+    print(failures == 0 ? "placerow: all checks passed" : "placerow: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --weaklinktest: ledger 128, links read while their objects are let go (Sources/WeakLinkTests.swift).
 if CommandLine.arguments.contains("--weaklinktest") {
@@ -4484,6 +4523,7 @@ if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deepte
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
 WeakLinkTests.run(check: check)       // (ledger 128: a link read while its object is let go)
+PlaceRowTests.run(game, check: check) // (ledgers 130, 131: where a placed block goes on the ground)
 check(!LifeLink.sideTable(game.world) && !LifeLink.sideTable(game) && !LifeLink.sideTable(game.world.ships),
       "weaklink: the world, the game and the ships have no side table after the run (no `weak` reference was made to them)")
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }

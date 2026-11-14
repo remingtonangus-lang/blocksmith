@@ -568,6 +568,9 @@ final class Chunk {
     var deferredBuried = 0                      // sections left unmeshed under it (World.deferSection)
     var groundLow: Int {
         if let g = groundLowCache { return g }
+        // (ledger 129: a shell has no blocks to read; asked then, the answer -1 was kept for good, and the chunk and the
+        // eight round it never left a buried section unmeshed again)
+        if hollow && !World.oldBuriedLow { return -1 }
         var low = CH
         let top = min(CH, blocks.storedCount / CSQ) - 1
         for c in 0..<CSQ {
@@ -579,6 +582,9 @@ final class Chunk {
         return low
     }
     func lowerGround(to y: Int) { if y < groundLow { groundLowCache = max(0, y) } }
+    // Its lowest ground top where it is known: worked out before it became a shell, or from its blocks; nil for a
+    // shell never asked (World.buriedLow).
+    var groundLowKnown: Int? { groundLowCache ?? (hollow ? nil : groundLow) }
 
     func recomputeHeight(_ x: Int, _ z: Int) {
         let skyT = Blocks.sky

@@ -79,6 +79,8 @@ struct DetailContext {
     var field: [BlockStore]? = nil
     // P389: cells a struck object draws (world coordinates): air to the round-shape generators.
     var skipCells: Set<IVec3>? = nil
+    // Ledger 134 (FellShape): the skipped cells are not drawn either (a felled tree's shape holds its own wood only).
+    var skipDraw = false
     // Ledger 123 (TreeGhosts): logs taken out of standing wood, by world cell. With `ghostsOn` (the copy of the context
     // ShapeTrunks grows its trunks from) a cell with no wood in it reads as the log that stood there.
     var ghosts: TreeGhosts.Map? = nil

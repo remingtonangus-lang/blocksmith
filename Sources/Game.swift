@@ -1648,13 +1648,17 @@ final class Game: LifeLinked {
         if !weaponGuard && strikeObject(breakNow: breakNow, breakHeld: breakHeld, dt: fdt) { return }
         if let t = target, breakHeld, !weaponGuard {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            if b == AIR, let g = targetGround, g.cell == t.hit, !Game.oldSliver, !world.groundAt(t.hit.x, t.hit.y, t.hit.z) {
+                if breakNow || breakCooldown <= 0 { clearSliver(at: g.at); swing = 1; breakCooldown = 0.3 }
+                mining = nil
+                return
+            }
             if !survival {
                 if !held.isEmpty && held.def.tool == .sword { return }     // (P483: a sword in creative breaks nothing)
                 if breakNow || breakCooldown <= 0 {
                     let dug = hitPoint(t)
-                    breakBlock(t.hit, b, drop: false)
                     // P377 step 3: in creative too the hole follows the tool (survival's PG1 ball where the blow landed).
-                    if SmoothTerrain.natural[Int(b)] { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape, remesh: true) }
+                    breakAndShape(t.hit, b, at: dug + player.look * 0.25, drop: false)
                     if t.hit == digDownCell { centreOverHole(t.hit) }
                     breakCooldown = 0.3
                 }
@@ -1718,10 +1722,9 @@ final class Game: LifeLinked {
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         // P364 (g): a block he mines through no longer bursts into pieces that scatter and lie over what
                         // was under it (blasts still shatter blocks); what it gives goes straight into his pack.
-                        let natural = SmoothTerrain.natural[Int(b)], dug = hitPoint(t)
-                        breakBlock(t.hit, b, drop: true, toPack: true)
+                        let dug = hitPoint(t)
                         // PG1: the hole follows the tool: the field round it is shaped by a ball where the blow landed.
-                        if natural { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape, remesh: true) }
+                        breakAndShape(t.hit, b, at: dug + player.look * 0.25, drop: true, toPack: true)
                         if t.hit == digDownCell { centreOverHole(t.hit) }
                         if b == SEALROCK {
                             achieve("break_seal")
@@ -1952,7 +1955,13 @@ final class Game: LifeLinked {
             }
         }
         var at = placeCell(t, for: blockItem)
-        let existing = world.block(at.x, at.y, at.z)
+        // (ledger 131: a block sunk into the ground's row takes the cell: its ground goes first)
+        let rowCell = groundRowCell(t, for: blockItem)
+        // (cleared with the block's own write, below: on the edit lane together, and not at all when the block is refused)
+        let sunkCell: IVec3? = rowCell.flatMap { r in
+            r.cell == at && r.sunk && Blocks.hardness[Int(world.block(at.x, at.y, at.z))] >= 0 ? r.cell : nil
+        }
+        let existing = sunkCell != nil ? AIR : world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
             else if useNow { placeRefused("Something is in the way") }                        // (P507: never a silent click)
@@ -2084,6 +2093,9 @@ final class Game: LifeLinked {
         if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.health > 0 && $0.intersects(at) }) {
             // (P440: the write and the ground's swell mesh each section once, together)
             world.editBatch {
+                if sunkCell == at {
+                    world.fieldSphere(V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5), radius: 0.56, carve: true, material: nil, remesh: true)
+                }
                 world.setBlock(at.x, at.y, at.z, id)
                 // P377 step 3: ground placed in a field world swells toward where it was aimed, not only round the cell's
                 // middle (the cell lump World.fieldShape lays; only the surface moves, no other cell fills).
@@ -2091,7 +2103,10 @@ final class Game: LifeLinked {
                     let n = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
                     world.fieldSphere(hitPoint(t) + n * 0.45, radius: 0.62, carve: false, material: FieldMat.index[Int(id)], keepSolid: true, remesh: true)
                 } else if world.fieldTerrain {
-                    world.meetGround(at.x, at.y, at.z, id)              // P387: the ground rises to a placed block's floor
+                    // P387: the ground rises to a placed block's floor. (Ledger 130: only under a block set down on
+                    // the ground itself, not one built out from another block over it.)
+                    let onBuilt = Blocks.collide[Int(world.builtBlock(t.hit.x, t.hit.y, t.hit.z))]
+                    if World.oldMeet || (!onBuilt && (t.normal.y == 1 || rowCell?.cell == at)) { world.meetGround(at.x, at.y, at.z, id) }
                 }
             }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
@@ -2232,8 +2247,49 @@ final class Game: LifeLinked {
 
     // P507: the last cell along the aim before the target's hit point that a block can go in (not the target's own).
     // The cell a block placed at this aim goes into (also what CraterPlaceCheck leaves out when it is his own: check fix 29).
+    // Ledger 131 (Nov 14, building a house: "even if there's a little bit of ground, it makes it so it places a block
+    // over"; his rules, question 739: a block placed on the ground beside a block already built joins that block's row,
+    // sinking into the ground a little if it must, and "if I place a block in a hole, it fills the hole instead of being
+    // placed over the hole because there is still a little material in it"). A full block aimed at ground that faces up
+    // goes into the row whose floor is nearest the drawn surface at the aim (the cell the surface cuts when the ground
+    // fills less than half of it there, else the one over it); when just one of those two rows has a built block beside
+    // the cell, that row. `sunk`: the cell holds ground, which the placing clears (Game.place). BS_OLDPLACEROW=1: before.
+    static let oldPlaceRow = ProcessInfo.processInfo.environment["BS_OLDPLACEROW"] == "1"
+    func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
+        guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
+              let g = targetGround, g.cell == t.hit, g.normal.y >= 0.5 else { return nil }
+        let x = Int(floor(g.at.x)), z = Int(floor(g.at.z)), r0 = Int(floor(g.at.y))
+        guard r0 >= 1, r0 + 1 < CH else { return nil }
+        func free(_ y: Int) -> Bool {
+            let bb = world.builtBlock(x, y, z)
+            return bb == AIR || (Blocks.replaceable[Int(bb)] && !Blocks.isLiquid(bb))
+        }
+        func beside(_ y: Int) -> Bool {
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.fullCollide[Int(world.builtBlock(x + dx, y, z + dz))] { return true }
+            return false
+        }
+        let low = free(r0), high = free(r0 + 1)
+        guard low || high else { return nil }
+        var row = g.at.y - Float(r0) < 0.5 ? r0 : r0 + 1
+        if low && high {
+            let a = beside(r0), c = beside(r0 + 1)
+            if a != c { row = a ? r0 : r0 + 1 }
+        } else { row = low ? r0 : r0 + 1 }
+        let cell = IVec3(x, row, z)
+        let sunk = world.groundAt(x, row, z)
+        // (never a cell he or a creature stands in: the ground would be cleared and the block refused)
+        func taken(_ c: IVec3) -> Bool { player.intersectsBlock(c) || mobs.mobs.contains { $0.health > 0 && $0.intersects(c) } }
+        if sunk && taken(cell) {
+            let up = IVec3(x, r0 + 1, z)
+            guard row == r0, high, !(world.groundAt(up.x, up.y, up.z) && taken(up)) else { return nil }
+            return (up, world.groundAt(up.x, up.y, up.z))
+        }
+        return (cell, sunk)
+    }
+
     func placeCell(_ t: (hit: IVec3, normal: IVec3), for blockItem: BlockID) -> IVec3 {
         let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
+        if let r = groundRowCell(t, for: blockItem) { return r.cell }
         var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
         // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
         // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
@@ -2511,6 +2567,34 @@ final class Game: LifeLinked {
 
     // quiet (P389: a struck object's cell going): no sound or break particles (the object throws its own pieces), and
     // the sections round it are left to the mesh workers (a synchronous remesh is 6-230 ms on the frame thread).
+    // Ledger 132 (Nov 14, Creative with break held, sinking shafts in earth: "definitely the frame rate drops breaking
+    // blocks, which is one of the most common things you do", "Lots of lag" mining sand, fps 69 -> 56): a block he broke
+    // meshed its sections on the frame twice over, once for the block going and once for the ball that shapes the hole
+    // (2-4 sections, 54-67 ms a break in earth on the cloud host, several frames on the headset), where a placed block
+    // has gone to the edit lane since P440/P446. The break and its shaping are one edit now: on the headset its sections
+    // mesh together on the edit lane and go in a frame or two later (the old meshes stay up until then); elsewhere they
+    // mesh once on the frame, not once a step. BS_OLDDIGMESH=1: as before.
+    static let oldDigMesh = ProcessInfo.processInfo.environment["BS_OLDDIGMESH"] == "1"
+    func breakAndShape(_ p: IVec3, _ b: BlockID, at ball: V3, drop: Bool, toPack: Bool = false) {
+        let natural = SmoothTerrain.natural[Int(b)]
+        func go() {
+            breakBlock(p, b, drop: drop, toPack: toPack)
+            if natural { world.carve(at: ball, radius: Game.digRadius(b), mode: .shape, remesh: true) }
+        }
+        if Game.oldDigMesh { go() } else { world.editBatch(go) }
+    }
+
+    // Ledger 133 (Nov 14, building a house: "little remnant of stone here I can't get rid of"): a lump of ground whose
+    // surface hangs into a cell that holds no ground of its own (the swell of a placed natural block left round a broken
+    // one, on a wall's top) could be aimed at and never broken: the aim names the cell, the cell is air, and breaking
+    // air did nothing. A blow on such a sliver now takes the ball of ground round the point (no cell goes, nothing
+    // drops). BS_OLDSLIVER=1: as before.
+    static let oldSliver = ProcessInfo.processInfo.environment["BS_OLDSLIVER"] == "1"
+    func clearSliver(at p: V3) {
+        world.editBatch { world.carve(at: p + player.look * 0.2, radius: 0.72, mode: .shape, remesh: true) }
+        particles.dust(DIRT, at: p, count: 3, spread: 0.3)
+    }
+
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool, toPack: Bool = false, quiet: Bool = false) {
         boarlingsGuard(p, block: b)
         if Blocks.key(b) == DeepGates.liftKey { noteDeepLift(p, placed: false) }
