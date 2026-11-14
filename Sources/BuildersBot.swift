@@ -101,10 +101,11 @@ final class BuilderBot: AgentBot {
 
     // Blocks a click would work instead of build on (a door opens, a chest opens), or a slab of the kind in hand (the
     // click would make it a double slab): never a face to place against.
-    private static func clickable(_ b: BlockID, holding want: BlockID) -> Bool {
+    private static func clickable(_ b: BlockID, holding want: BlockID, vertical: Bool) -> Bool {
         let sh = Blocks.shape[Int(b)]
         if sh == "door" || sh == "trapdoor" || sh == "gate" { return true }
-        if sh == "slab" && Blocks.groupBase[Int(b)] == Blocks.groupBase[Int(want)] { return true }
+        // (a slab's top or underside with its own kind in hand makes it double; its side is a face like any other)
+        if sh == "slab" && vertical && Blocks.groupBase[Int(b)] == Blocks.groupBase[Int(want)] { return true }
         let k = Blocks.key(Blocks.groupBase[Int(b)])
         return k.contains("chest") || k.contains("furnace") || k.contains("crafting") || k.contains("barrel")
     }
@@ -144,16 +145,28 @@ final class BuilderBot: AgentBot {
                 let s = c + d
                 let sb = w.block(s.x, s.y, s.z)
                 guard solid(w, s) || (sb != AIR && !Blocks.replaceable[Int(sb)]) else { continue }
-                if BuilderBot.clickable(sb, holding: j.want) { continue }
+                if BuilderBot.clickable(sb, holding: j.want, vertical: d.y != 0) { continue }
                 let n = IVec3(-d.x, -d.y, -d.z)
                 if shape == "door" && n.y != 1 { continue }
                 if shape == "lantern" && n.y == 0 { continue }
-                var a = cc + fv(d) * 0.5
-                a = a - fv(d) * 0.02                      // (just on the support's face, on the cell's side)
+                // The face as the support is shaped (a top slab's underside is half a block up, a bottom slab's top
+                // half a block down): its selection box's side toward the cell, just off it on the cell's side.
+                var bmn = V3(0, 0, 0), bmx = V3(1, 1, 1)
+                if !(w.fieldTerrain && w.groundAt(s.x, s.y, s.z)), let first = w.selectionBoxes(sb).first {
+                    bmn = first.0; bmx = first.1
+                    for bx in w.selectionBoxes(sb) { bmn = simd_min(bmn, bx.0); bmx = simd_max(bmx, bx.1) }
+                }
+                var a = fv(s) + (bmn + bmx) * 0.5
+                if d.x != 0 { a.x = Float(s.x) + (d.x > 0 ? bmn.x : bmx.x) } else if d.y != 0 { a.y = Float(s.y) + (d.y > 0 ? bmn.y : bmx.y) }
+                else { a.z = Float(s.z) + (d.z > 0 ? bmn.z : bmx.z) }
+                a = a - fv(d) * 0.02                      // (just off the support's face, on the cell's side)
                 if let up = wantsUpper {
                     if n.y == 1 && up { continue }
                     if n.y == -1 && !up { continue }
-                    if n.y == 0 { a.y = Float(c.y) + (up ? 0.8 : 0.2) }
+                    if n.y == 0 {
+                        a.y = Float(c.y) + (up ? 0.8 : 0.2)
+                        if a.y < Float(s.y) + bmn.y + 0.03 || a.y > Float(s.y) + bmx.y - 0.03 { continue }   // (the face doesn't reach that half)
+                    }
                 }
                 faces.append((s, n, a))
             }

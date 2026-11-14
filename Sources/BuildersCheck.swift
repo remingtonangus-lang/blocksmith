@@ -65,6 +65,7 @@ enum BuildersCheck {
             let agent = Agent(game: g, world: w)
             let bot = BuilderBot(plan, world: w)
             let fell0 = Structure.fellTotal
+            Structure.fellTally = [:]; Structure.fellOrigin = plan.origin
             let tb = CFAbsoluteTimeGetCurrent()
             var ticks = 0
             // Ground that comes up in the build's own cells while it goes up (the reshaping), as it happens.
@@ -102,7 +103,9 @@ enum BuildersCheck {
             // The world runs on for 20 s with the agent standing by.
             for _ in 0..<1200 { agent.step(bot) }
             var wrong: [String] = []
-            for j in plan.jobs where !BuildersGrounds.holds(w, j) {
+            // (the end state: a cell dug and then built on is checked as built)
+            let builtCells = Set(plan.jobs.filter { $0.want != AIR }.map { $0.cell })
+            for j in plan.jobs where !(j.want == AIR && builtCells.contains(j.cell)) && !BuildersGrounds.holds(w, j) {
                 let b = w.block(j.cell.x, j.cell.y, j.cell.z)
                 wrong.append("\(j.want == AIR ? "dug" : Blocks.key(j.want)) at \(j.cell.x) \(j.cell.y - YOFF) \(j.cell.z) is \(Blocks.key(b))")
             }
@@ -117,6 +120,8 @@ enum BuildersCheck {
             if risen > 0 { print("builds:   ground came up in \(risen) of the build's cells while it went up") }
             for m in bot.missed.prefix(BuilderBot.trace ? 2000 : 8) { print("   missed: \(m)") }
             for m in wrong.prefix(8) { print("   wrong: \(m)") }
+            if let t = Structure.fellTally, !t.isEmpty { print("   fell: " + t.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) x\($0.value)" }.joined(separator: ", ")) }
+            Structure.fellTally = nil
             fflush(stdout)
             check(bot.done && bot.missed.isEmpty, "builds: the agent builds the \(bp.key) on \(bp.ground) through the controls (\(bot.placed) placed, \(bot.dug) dug, \(bot.missed.count) missed)")
             check(wrong.isEmpty && fell == 0, "builds: the \(bp.key) stands whole 20 s later (\(wrong.count) cells wrong, \(fell) fell)")
