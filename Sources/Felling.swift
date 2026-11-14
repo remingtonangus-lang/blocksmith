@@ -529,7 +529,8 @@ extension Game {
                 }
             }
         }
-        Game.ridersTaken += riders.count
+        // (ledger 125: wire and torches are parts of the piece now and come down in it: counted as riding too)
+        Game.ridersTaken += riders.count + (logs.isEmpty ? cells.filter { Game.rides[Int(world.block($0.x, $0.y, $0.z))] }.count : 0)
         let bp = Blueprint()
         var lo = IVec3(Int.max, Int.max, Int.max)
         for c in leaves.union(cells).union(riders) {

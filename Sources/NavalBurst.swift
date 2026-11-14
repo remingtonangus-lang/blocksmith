@@ -69,9 +69,24 @@ enum NavalBurst {
             let speed = Rand.float(in: 3...9) * size
             let v: V3 = d * speed + back * 2.5
             let col = V3(1, 0.26 + 0.64 * hot, 0.06 + 0.5 * hot * hot)
-            ps.add(Particle(pos: c + d * (out * 2.2 * size), vel: v, life: Rand.float(in: 0.35...1.1), maxLife: 1.1, layer: puff,
+            ps.add(Particle(pos: c + d * (out * 2.2 * size), vel: v, life: Rand.float(in: 0.45...1.3), maxLife: 1.3, layer: puff,
                             uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.1...2.6) * size * (0.7 + 0.5 * out), gravity: -2.5,
                             color: col, collide: false, glow: true))
+        }
+        // Its skin in the first instant: yellow-white all over (the red shows as it cools), so the burst is a flash of
+        // fire first and not a dark ball (the first render had the soot over it from the start).
+        for _ in 0..<Int(12 * share) {
+            let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: -0.1...1), Rand.float(in: -1...1)))
+            ps.add(Particle(pos: c + d * (2.6 * size), vel: d * (7 * size) + back * 2, life: Rand.float(in: 0.16...0.34), maxLife: 0.34, layer: puff,
+                            uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.6...2.6) * size, gravity: -1,
+                            color: V3(1, 0.9, 0.55), collide: false, glow: true))
+        }
+        // And what is left of it rolling up after: slow, deep red going dark, the head of the smoke column.
+        for _ in 0..<Int(12 * share) {
+            let o = V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)) * (1.6 * size)
+            ps.add(Particle(pos: c + o, vel: V3(o.x * 0.8, Rand.float(in: 3...5.5), o.z * 0.8), life: Rand.float(in: 1.1...2.0), maxLife: 2.0, layer: puff,
+                            uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.8...3.0) * size, gravity: 0.6,
+                            color: V3(0.95, Rand.float(in: 0.22...0.4), 0.05), collide: false, glow: true))
         }
         g.addFlash(at: c + V3(0, 1, 0), color: V3(9, 8.5, 7.5), radius: 30 + power * 6, life: 0.12)
         g.addFlash(at: c + V3(0, 1.5, 0), color: V3(6, 3.4, 1.4), radius: 18 + power * 5, life: 0.9)
@@ -129,22 +144,26 @@ enum NavalBurst {
                 }
             }
         }
-        // Soot at the fireball's skirt, then the column that stands over the hole.
+        // Soot round the fireball's foot (low and outside it: over the fire it hid the fire), then the column that
+        // stands over the hole. The column starts under the ground and climbs out through the fire as it dies, so the
+        // burst is fire, then smoke, and the smoke stays (a burst in the air has no ground: its smoke starts small in
+        // the heart of the fire).
         for _ in 0..<Int(10 * share) {
             let a = Rand.float(in: 0..<(2 * .pi))
-            let o = V3(cosf(a), Rand.float(in: 0...0.4), sinf(a)) * (2.4 * size)
+            let o = V3(cosf(a), Rand.float(in: -0.1...0.15), sinf(a)) * (3.4 * size)
             let gy = Rand.float(in: 0.2...0.3)
-            ps.add(Particle(pos: c + o, vel: o * 0.9 + V3(0, Rand.float(in: 1...3), 0), life: Rand.float(in: 1.2...2.2), maxLife: 2.2, layer: puff,
-                            uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.2...2.2) * size, gravity: -0.8, color: V3(gy * 1.1, gy, gy * 0.9), collide: false))
+            ps.add(Particle(pos: c + o, vel: o * 0.8 + V3(0, Rand.float(in: 0.6...1.8), 0), life: Rand.float(in: 1.4...2.6), maxLife: 2.6, layer: puff,
+                            uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.0...1.8) * size, gravity: -0.6, color: V3(gy * 1.1, gy, gy * 0.9), collide: false))
         }
-        let column = Int(22 * share)
+        let column = Int(28 * share)
         for i in 0..<column {
             let up = Float(i) / Float(max(1, column))
-            let o = V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1)) * (1.1 * size)
-            let gy = Rand.float(in: 0.15...0.27)
-            ps.add(Particle(pos: c + o + V3(0, 1.5 + up * 4, 0), vel: V3(o.x * 0.2, Rand.float(in: 1.5...4.5), o.z * 0.2),
-                            life: Rand.float(in: 3.5...6), maxLife: 6, layer: puff, uv0: V2(0, 0), uvSize: 1,
-                            size: Rand.float(in: 1.2...2.6) * size, gravity: 0.25, color: V3(gy, gy, gy), collide: false))
+            let o = V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1)) * (1.4 * size)
+            let gy = Rand.float(in: 0.1...0.2)
+            let from: V3 = grounded && !wet ? V3(c.x, groundY - 1.5 - up * 5, c.z) : c + V3(0, up * 1.5, 0)
+            ps.add(Particle(pos: from + o, vel: V3(o.x * 0.25, Rand.float(in: 2.2...3.4), o.z * 0.25),
+                            life: Rand.float(in: 4.5...7), maxLife: 7, layer: puff, uv0: V2(0, 0), uvSize: 1,
+                            size: (grounded && !wet ? Rand.float(in: 2.2...4.0) : Rand.float(in: 1.4...2.8)) * size, gravity: 0.3, color: V3(gy, gy, gy), collide: false))
         }
         // Near enough, the ground shakes under him.
         let dist = simd_length(c - g.player.pos)

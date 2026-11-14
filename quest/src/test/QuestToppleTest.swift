@@ -182,11 +182,18 @@ enum QuestToppleTest {
             w.setBlock(cx, y0, cz, stone); w.setBlock(cx, y0 + 1, cz, torch); w.setBlock(cx, y0 + 2, cz, lamp)
             let y1 = top(cx + 4, cz) + 1
             w.setBlock(cx + 4, y1, cz, stone); w.setBlock(cx + 4, y1 + 1, cz, wire); w.setBlock(cx + 4, y1 + 2, cz, cobble)
+            // (for the record, no rule: a torch is no post; twelve bricks stacked on one)
+            let y2 = top(cx + 8, cz) + 1
+            w.setBlock(cx + 8, y2, cz, stone); w.setBlock(cx + 8, y2 + 1, cz, torch)
+            for h in 2...13 { w.setBlock(cx + 8, y2 + h, cz, brick) }
             for _ in 0..<300 { g.menu = nil; g.tick(1.0 / 72); if StructureCollapse.withWorker { usleep(1000) } }
             let lampUp = Blocks.groupBase[Int(w.builtBlock(cx, y0 + 2, cz))] == Blocks.groupBase[Int(lamp)]
             let torchUp = Blocks.groupBase[Int(w.builtBlock(cx, y0 + 1, cz))] == Blocks.groupBase[Int(torch)]
             let cobbleUp = w.builtBlock(cx + 4, y1 + 2, cz) == cobble
             let wireUp = Blocks.groupBase[Int(w.builtBlock(cx + 4, y1 + 1, cz))] == Blocks.groupBase[Int(wire)]
+            var stackUp = 0
+            for h in 2...13 where w.builtBlock(cx + 8, y2 + h, cz) == brick { stackUp += 1 }
+            print("toppletest: twelve bricks stacked on a signal torch: \(stackUp) still up")
             print("toppletest: a lamp on a signal torch stands (\(lampUp), torch \(torchUp)); a cobble on wire stands (\(cobbleUp), wire \(wireUp))")
             if Structure.circuitStrut[Int(torch)] && !(lampUp && torchUp && cobbleUp && wireUp) {
                 print("FAIL toppletest: what stands on a circuit part falls (lamp \(lampUp), torch \(torchUp), cobble \(cobbleUp), wire \(wireUp))"); fails += 1

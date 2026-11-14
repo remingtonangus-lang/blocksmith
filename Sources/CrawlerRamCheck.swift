@@ -16,6 +16,15 @@ enum CrawlerRamCheck {
             check(false, "crawlerram: a crawler was built"); return
         }
         defer { ships.remove(s) }
+        // (a vehicle drives where the player is: he flies over it, creative, its crew left out, as the ride check does)
+        st.crewDone = Set(0..<st.crew.count); st.crewless = true
+        let p = g.player
+        let was = (p.pos, p.flying, g.survival, ships.encounters)
+        defer { p.pos = was.0; p.flying = was.1; g.survival = was.2; ships.encounters = was.3; p.lastUpdatePos = p.pos }
+        g.survival = false; p.flying = true; ships.encounters = false
+        func over() { p.pos = s.pos + V3(0, 45, 0); p.vel = .zero; p.lastUpdatePos = p.pos }
+        over()
+        _ = w.loadSync(center: s.pos, radius: 6)
         // A hut of stone bricks across its bow, 10 blocks ahead: 9 wide, 6 high, 7 deep, walls one block thick, a roof.
         let fwd3 = s.dirToWorld(V3(0, 0, -1))
         let fwd = simd_normalize(V3(fwd3.x, 0, fwd3.z))
@@ -43,7 +52,8 @@ enum CrawlerRamCheck {
         st.testTurn = 0; st.testSpeed = 12
         var slowest = Float.infinity, t: Float = 0
         while t < 7 {
-            ships.update(1.0 / 60, game: g)
+            over()
+            g.tick(1.0 / 60)
             if t > 1 { slowest = min(slowest, simd_length(V2(s.vel.x, s.vel.z))) }
             t += 1.0 / 60
         }
