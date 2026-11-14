@@ -249,46 +249,54 @@ enum BuildersGrounds {
         return Blocks.isLiquid(w.block(x, y + 1, z))
     }
 
-    static func maybe(_ w: World, _ x0: Int, _ z0: Int, kinds: [String]) -> Bool {
-        var hs: [Int] = [], wet = 0, beach = 0, wood = 0, rock = 0
+    // A first look from the generator's own columns (no chunk made): the kinds of ground a spot could be, by its
+    // biome and the lie of the land.
+    static func maybe(_ w: World, _ x0: Int, _ z0: Int, kinds: [String]) -> [String] {
+        var hs: [Int] = [], wet = 0, beach = 0, wood = 0, rock = 0, grass = 0
         for z in stride(from: 0, through: 10, by: 2) { for x in stride(from: 0, through: 10, by: 2) {
             let c = w.gen.column(x0 + x, z0 + z)
             hs.append(c.height)
             if c.height < SEA { wet += 1 }
             switch c.biome {
             case .beach, .snowyBeach: beach += 1
-            case .stonyShore, .windsweptHills, .windsweptGravellyHills, .stonyPeaks, .jaggedPeaks, .grove, .snowySlopes: rock += 1
+            case .stonyShore, .windsweptHills, .windsweptGravellyHills, .stonyPeaks, .jaggedPeaks, .frozenPeaks, .grove, .snowySlopes,
+                 .badlands, .erodedBadlands: rock += 1
             case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest, .taiga, .oldGrowthPineTaiga,
-                 .oldGrowthSpruceTaiga, .snowyTaiga, .windsweptForest, .jungle, .sparseJungle, .paleGarden, .cherryGrove: wood += 1
+                 .oldGrowthSpruceTaiga, .snowyTaiga, .windsweptForest, .jungle, .sparseJungle, .paleGarden, .cherryGrove, .woodedBadlands: wood += 1
+            case .plains, .sunflowerPlains, .meadow, .savanna, .savannaPlateau: grass += 1
             default: break
             }
         } }
         let lo = hs.min() ?? 0, hi = hs.max() ?? 0, n = hs.count
+        var out: [String] = []
         for k in kinds {
             switch k {
-            case "slope": if wet == 0 && hi - lo >= 3 && hi - lo <= 10 { return true }
-            case "beach": if (beach > 0 || wet > 0) && wet <= n / 2 && hi - lo <= 5 { return true }
-            case "shore": if wet >= n / 5 && wet <= n * 3 / 5 && hi - lo <= 8 { return true }
-            case "forest": if wet == 0 && wood > n / 2 && hi - lo <= 5 { return true }
-            case "rocky": if wet == 0 && hi - lo <= 7 && (rock > 0 || lo > SEA + 30) { return true }
+            case "slope": if wet == 0 && hi - lo >= 4 && hi - lo <= 9 && grass + wood > n / 2 { out.append(k) }
+            case "beach": if beach > n / 3 && wet >= 2 && wet <= n / 2 { out.append(k) }
+            case "shore": if beach == 0 && wet >= n / 4 && wet <= n / 2 && hi - lo <= 7 { out.append(k) }
+            case "forest": if wet == 0 && wood > n * 2 / 3 && hi - lo <= 3 { out.append(k) }
+            case "rocky": if wet == 0 && rock > n / 2 && hi - lo <= 5 { out.append(k) }
             case "hilltop":
-                if wet == 0 && hi - lo <= 4 && lo > SEA + 10 {
+                if wet == 0 && hi - lo <= 3 && lo > SEA + 12 {
                     var top = true
-                    for (ox, oz) in [(-14, 5), (24, 5), (5, -14), (5, 24)] where top { if w.gen.column(x0 + ox, z0 + oz).height > lo - 3 { top = false } }
-                    if top { return true }
+                    for (ox, oz) in [(-14, 5), (24, 5), (5, -14), (5, 24), (-10, -10), (20, 20), (-10, 20), (20, -10)] where top {
+                        if w.gen.column(x0 + ox, z0 + oz).height > lo - 3 { top = false }
+                    }
+                    if top { out.append(k) }
                 }
-            default: return true
+            default: break
             }
         }
-        return false
+        return out
     }
 
-    // Each kind of ground, the nearest spot to `centre` that fits it (a grid 12 apart, 600 out), each 40 or more from
-    // the others. Loads what it reads.
+    // Each kind of ground, the nearest spot to `centre` that fits it (a grid 12 apart, 1,200 out), each 40 or more from
+    // the others: screened from the generator's columns, then loaded and read from the ground itself (the water, the
+    // lie of the land, the trees).
     static func findSites(_ w: World, centre: V3, kinds: [String]) -> [String: IVec3] {
         var found: [String: IVec3] = [:]
         var cand: [(Int, Int)] = []
-        let step = 12, reach = 600
+        let step = 12, reach = 1200
         for r in stride(from: 0, through: reach, by: step) {
             if r == 0 { cand.append((0, 0)); continue }
             for i in stride(from: -r, to: r, by: step) {
@@ -296,45 +304,38 @@ enum BuildersGrounds {
             }
         }
         let cx = Int(centre.x), cz = Int(centre.z)
+        var loads = 0
         for (dx, dz) in cand {
             if kinds.allSatisfy({ found[$0] != nil }) { break }
             let x0 = cx + dx, z0 = cz + dz
             if found.values.contains(where: { abs($0.x - x0) < 40 && abs($0.z - z0) < 40 }) { continue }
-            // A first look from the generator's own columns (no chunk made): only a spot that could be one of the kinds
-            // still wanted is loaded and read cell by cell.
-            if !maybe(w, x0, z0, kinds: kinds.filter { found[$0] == nil }) { continue }
-            _ = w.loadSync(center: V3(Float(x0), 100, Float(z0)), radius: 1)
-            var hs: [Int] = [], sand = 0, wet = 0, rock = 0, snow = 0, grass = 0
+            let could = maybe(w, x0, z0, kinds: kinds.filter { found[$0] == nil })
+            if could.isEmpty { continue }
+            _ = w.loadSync(center: V3(Float(x0 + 5), 100, Float(z0 + 5)), radius: 1)
+            loads += 1
+            var hs: [Int] = [], wet = 0
             for z in stride(from: 0, through: 10, by: 2) { for x in stride(from: 0, through: 10, by: 2) {
                 hs.append(groundY(w, x0 + x, z0 + z))
-                let s = surface(w, x0 + x, z0 + z)
                 if water(w, x0 + x, z0 + z) { wet += 1 }
-                if s.contains("sand") { sand += 1 } else if s == "stone" || s == "andesite" || s == "granite" || s == "diorite" || s == "tuff" { rock += 1 }
-                else if s.contains("snow") { snow += 1 } else if s.contains("grass") || s == "dirt" { grass += 1 }
             } }
             let lo = hs.min() ?? 0, hi = hs.max() ?? 0, n = hs.count
             var trunks = 0
-            for z in stride(from: -6, through: 16, by: 1) { for x in stride(from: -6, through: 16, by: 1) {
-                let t = w.topY(x0 + x, z0 + z)
-                let b = Blocks.key(Blocks.groupBase[Int(w.block(x0 + x, groundY(w, x0 + x, z0 + z) + 1, z0 + z))])
-                if b.hasSuffix("_log") && t > groundY(w, x0 + x, z0 + z) + 4 { trunks += 1 }
-            } }
-            func take(_ k: String) { if found[k] == nil && kinds.contains(k) { found[k] = IVec3(x0, 0, z0) } }
-            if wet == 0 && grass > n / 2 && hi - lo >= 4 && hi - lo <= 8 { take("slope") }
-            if sand > n / 2 && wet >= 2 && wet <= n / 3 && lo >= SEA - 2 { take("beach") }
-            if wet >= n / 4 && wet <= n / 2 && hi - lo <= 6 { take("shore") }
-            if wet == 0 && trunks >= 5 && hi - lo <= 3 { take("forest") }
-            if wet == 0 && rock > n / 2 && hi - lo <= 5 { take("rocky") }
-            if wet == 0 && hi - lo <= 3 && lo > SEA + 12 {
-                // a hilltop: higher than the ground 14 out all round
-                var top = true
-                for (ox, oz) in [(-14, 5), (24, 5), (5, -14), (5, 24), (-10, -10), (20, 20), (-10, 20), (20, -10)] where top {
-                    _ = w.loadSync(center: V3(Float(x0 + ox), 100, Float(z0 + oz)), radius: 0)
-                    if groundY(w, x0 + ox, z0 + oz) > lo - 3 { top = false }
-                }
-                if top { take("hilltop") }
+            if could.contains("forest") {
+                for z in -6...16 { for x in -6...16 {
+                    let g = groundY(w, x0 + x, z0 + z)
+                    let b = Blocks.key(Blocks.groupBase[Int(w.block(x0 + x, g + 1, z0 + z))])
+                    if b.hasSuffix("_log") && w.topY(x0 + x, z0 + z) > g + 4 { trunks += 1 }
+                } }
             }
+            func take(_ k: String) { if found[k] == nil && could.contains(k) { found[k] = IVec3(x0, 0, z0) } }
+            if wet == 0 && hi - lo >= 3 && hi - lo <= 9 { take("slope") }
+            if wet >= 2 && wet <= n / 2 && hi - lo <= 6 { take("beach") }
+            if wet >= n / 5 && wet <= n * 3 / 5 && hi - lo <= 7 { take("shore") }
+            if wet == 0 && trunks >= 4 && hi - lo <= 4 { take("forest") }
+            if wet == 0 && hi - lo <= 6 { take("rocky") }
+            if wet == 0 && hi - lo <= 4 { take("hilltop") }
         }
+        if ProcessInfo.processInfo.environment["BS_BUILDSURVEY"] != nil { print("builds: \(loads) spots loaded to read") }
         return found
     }
 
