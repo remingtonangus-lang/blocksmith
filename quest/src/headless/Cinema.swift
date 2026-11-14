@@ -449,7 +449,8 @@ enum Cinema {
             while let l = lays.first, l.t <= t {
                 lays.removeFirst()
                 let old = w.block(l.c.x, l.c.y, l.c.z)
-                if l.cut { if old != AIR { g.particles.blockBreak(old, at: l.c) } }
+                // (No break bits for a cut crop: v3a's review read the lingering gold bits as drops hanging over the field.)
+                if l.cut && old != AIR && !Blocks.key(Blocks.groupBase[Int(old)]).contains("wheat") { g.particles.blockBreak(old, at: l.c) }
                 w.setBlock(l.c.x, l.c.y, l.c.z, l.id)
             }
             if !shots.isEmpty { shots.sort { $0.t < $1.t } }
@@ -505,7 +506,9 @@ enum Cinema {
                 if f % 30 == 0 { _ = w.loadSync(center: eye, radius: min(w.renderDistance, 6)) }
                 if still && f != frames / 2 { continue }
                 let dn = simd_normalize(look - eye)
-                try rig.shoot(still ? dir + ".png" : String(format: "%@/f%05d.png", dir, f), eye: eye, yaw: atan2f(-dn.x, -dn.z), pitch: asinf(max(-1, min(1, dn.y))))
+                let rideYaw = g.player.yaw
+                try rig.shoot(still ? dir + ".png" : String(format: "%@/f%05d.png", dir, f), eye: eye, yaw: atan2f(-dn.x, -dn.z), pitch: asinf(max(-1, min(1, dn.y))),
+                              body: s.chase != nil ? rideYaw : nil)
                 continue
             }
             let follows = s.cruise != nil && (s.follow ?? true)
@@ -664,10 +667,11 @@ enum Cinema {
             proj = XRMath.projection(tanLeft: -th, tanRight: th, tanUp: tv, tanDown: -tv, near: 0.05, far: far)
             readback = try VkBuf(ctx, size: width * height * 4 * 2, usage: VK_BUFFER_USAGE_TRANSFER_DST_BIT.rawValue, host: true)
         }
-        func shoot(_ path: String, eye: V3, yaw: Float, pitch: Float) throws {
+        func shoot(_ path: String, eye: V3, yaw: Float, pitch: Float, body: Float? = nil) throws {
             let head = simd_quatf(angle: yaw, axis: V3(0, 1, 0)) * simd_quatf(angle: pitch, axis: V3(1, 0, 0))
             let vp = proj * XRMath.inversePose(head, .zero)
             game.player.yaw = yaw; game.player.pitch = pitch
+            if let b = body { game.player.yaw = b; game.player.pitch = 0 }      // the behind view: the rider faces the horse's way
             lastHead = head; lastEye = eye
             if let sim = host?.sim {
                 // The head at the tracking origin looking along the camera; the hands at rest below it, the aiming

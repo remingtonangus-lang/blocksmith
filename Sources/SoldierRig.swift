@@ -75,7 +75,7 @@ struct Livery {
             // uniform. The Ashguard wear their own colour now: ash grey, charcoal plate, ember-orange trim and amber
             // lenses (BS_OLDASHLOOK=1: the black livery).
             if !SoldierRig.oldAshLook {
-                l.cloth = V3(0.4, 0.39, 0.37); l.legs = V3(0.27, 0.27, 0.27); l.plate = V3(0.24, 0.24, 0.25)
+                l.cloth = V3(0.3, 0.31, 0.34); l.legs = V3(0.22, 0.22, 0.24); l.plate = V3(0.2, 0.2, 0.22)
                 l.trim = V3(0.8, 0.36, 0.1); l.accent = V3(0.86, 0.45, 0.12); l.metal = V3(0.34, 0.34, 0.36)
                 l.glow = V3(2.4, 1.1, 0.25); l.glove = V3(0.13, 0.12, 0.11); l.boots = V3(0.1, 0.09, 0.08)
                 if m.kind == .ashMarshal { l.cloth = V3(0.34, 0.33, 0.32); l.metal = V3(0.72, 0.6, 0.36) }

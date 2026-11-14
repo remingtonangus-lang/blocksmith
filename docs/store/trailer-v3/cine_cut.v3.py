@@ -42,18 +42,17 @@ CUT = [
     # ACT I: your frontier (main_title.m4a)
     _shot("v3_hook", 3.5, "A frontier world, built for VR", 0.3),
     _shot("v3_ride", 3.4, "Ride out on your own horse", 0.6),
-    _shot("v3_build", 3.4, "Build your home, block by block", 0.6),
+    _shot("v3_build", 3.6, "Build your home, block by block", 0.6),
     _shot("v3_farm", 2.8, "Work the land", 0.5),
-    _shot("v3_train", 3.2, "Ride the rails", 3.8, [(0.3, "trainWhistle.wav", 0.7), (0.9, "steamChuff.wav", 0.6)]),
+    _shot("v3_train", 3.2, "Steam trains cross the frontier", 3.8, [(0.3, "trainWhistle.wav", 0.7), (0.9, "steamChuff.wav", 0.6)]),
     _shot("v3_cave", 2.8, "Explore the caves below", 1.0),
     # ACT II: trouble comes (ash_vault_battle.m4a drops here)
     _shot("v3_outlaws", 4.6, "Defend your town from outlaws", 1.2),
     _shot("v3_frigate", 3.0, "Take command of a sky frigate", 0.6),
-    _shot("v3_strike", 1.9, "and bring its main gun to bear", 1.0),      # the hull dips, the gun charges, fires
-    _shot("v3_strike2", 3.0, None, 2.85),                                    # where the slug lands (from below)
+    _shot("v3_strike2", 3.4, "and bring its main gun to bear", 1.3),     # the gun charging, bow on, then the blast
     _shot("v3_base", 2.6, "Infiltrate an enemy base", 0.8),
     # ACT III: deeper
-    _shot("v3_vault", 4.0, "Then go deeper, into the last war", 0.8),
+    _shot("v3_vault", 3.4, "Then go deeper, to the war below", 0.8),
     _shot("v3_finale", 3.6, None, 0.8),
 ]
 TITLE = 4.5
