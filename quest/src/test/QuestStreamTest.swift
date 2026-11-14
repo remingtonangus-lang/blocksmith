@@ -27,6 +27,15 @@ enum QuestStreamTest {
         let speed = Float(arg("--speed") ?? "") ?? 0
         let shots = Set((arg("--shots") ?? "").split(separator: ",").compactMap { Int($0) })
         let out = arg("--out") ?? "."
+        // Nov 14 (beach tear, ledger 129): --route "x,z;x,z;..." walks him from --at through the points at --speed, his
+        // feet on the ground's top (so land first drawn as a far shell is walked into, as on the headset); --slow K
+        // stretches the clock K times (the cloud host makes land many times slower than the headset does).
+        let route: [V2] = (arg("--route") ?? "").split(separator: ";").compactMap { s -> V2? in
+            let v = s.split(separator: ",").compactMap { Float($0) }
+            return v.count == 2 ? V2(v[0], v[1]) : nil
+        }
+        var leg = 0
+        let slow = Double(arg("--slow") ?? "") ?? 1
         // P484 (--shaft D): at 3 s a shaft is dug from the ground's top under him down D blocks and he stands in it, as
         // when he mines straight down in survival; each line then says whether the world counts him under the ground and
         // how many chunks within 8 still keep their buried sections undrawn (holes in the caves he can see).
@@ -88,6 +97,20 @@ enum QuestStreamTest {
             g.input.keys.removeAll(keepingCapacity: true)
             if crawler == nil { p.flying = true }
             p.yaw = yaw; p.pitch = pitch
+            if !route.isEmpty {
+                if leg < route.count {
+                    let to = route[leg], d = V2(to.x - p.pos.x, to.y - p.pos.z)
+                    let len = simd_length(d), step = speed * Float(dt)
+                    if len <= step { p.pos.x = to.x; p.pos.z = to.y; leg += 1 }
+                    else { p.pos.x += d.x / len * step; p.pos.z += d.y / len * step }
+                }
+                let x = Int(floor(p.pos.x)), z = Int(floor(p.pos.z))
+                if let c = w.chunkAt(x, z), !c.hollow {
+                    var top = CH - 2
+                    while top > 1 && !w.groundAt(x, top, z) { top -= 1 }
+                    if top > 1 { p.pos.y = Float(top) + 1.2 }
+                }
+            } else
             if speed > 0 && crawler == nil { p.pos += V3(-sinf(yaw), 0, -cosf(yaw)) * (speed * Float(dt)) }
             if let d = shaft, f == 3 * 72 {
                 let x = Int(floor(p.pos.x)), z = Int(floor(p.pos.z))
@@ -200,7 +223,7 @@ enum QuestStreamTest {
                     shift += CFAbsoluteTimeGetCurrent() - ts                      // (the shot's time is left out of the clock)
                 }
             }
-            let due = t0 + shift + Double(f + 1) * dt
+            let due = t0 + shift + Double(f + 1) * dt * slow
             let now = CFAbsoluteTimeGetCurrent()
             if due > now { usleep(useconds_t((due - now) * 1_000_000)) }
         }
