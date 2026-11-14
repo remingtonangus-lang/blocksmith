@@ -444,6 +444,41 @@ if let out = arg("--view"), let ctx = vkctx {
         } }
         func t(_ f: () -> Void) -> Double { let t0 = CFAbsoluteTimeGetCurrent(); f(); return (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         for _ in 0..<36 { vg.tick(1.0 / 72) }
+        // Nov 14 (his run, 12:23-12:31 and 12:43: "definitely the frame rate drops breaking blocks", Creative, break held,
+        // sinking a shaft): --creative digs as Creative does (the block gone at once and the hole shaped on the frame,
+        // every 0.3 s), --shaft takes the N cells straight down from the ground's top under him.
+        let creativeDig = CommandLine.arguments.contains("--creative")
+        if CommandLine.arguments.contains("--shaft"), let c0 = cells.first {
+            cells = (0..<n).map { IVec3(c0.x, c0.y - $0, c0.z) }.filter { $0.y > 1 }
+        }
+        if creativeDig {
+            vg.survival = false
+            var breaks: [Double] = [], ticksAfter: [Double] = [], worstWhat = "", worstTick = 0.0
+            for p in cells {
+                let b = vw.block(p.x, p.y, p.z)
+                guard b != AIR else { continue }
+                let hp = V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5)
+                let m1 = World.syncMeshes
+                let brk = t {
+                    vg.breakBlock(p, b, drop: false)
+                    if SmoothTerrain.natural[Int(b)] { _ = vw.carve(at: hp - V3(0, 0.25, 0), radius: Game.digRadius(b), mode: .shape, remesh: true) }
+                }
+                breaks.append(brk)
+                var worst = 0.0
+                for _ in 0..<22 {
+                    let ms = t { vg.tick(1.0 / 72) }
+                    if ms > worst { worst = ms }
+                    if ms > worstTick { worstTick = ms; worstWhat = TickProf.summary() }
+                }
+                ticksAfter.append(worst)
+                print(String(format: "view: digtime (creative): %@ at %d %d %d: break and shape %.1f ms (%d sections meshed on the frame); worst of the next 22 ticks %.1f ms", Blocks.key(b), p.x, p.y - YOFF, p.z, brk, World.syncMeshes - m1, worst))
+            }
+            let bs = breaks.sorted(), ts = ticksAfter.sorted()
+            if !bs.isEmpty {
+                print(String(format: "view: digtime (creative): %d breaks: break and shape mean %.1f ms, median %.1f, worst %.1f; worst tick between breaks mean %.1f, worst %.1f (%@)", bs.count, bs.reduce(0, +) / Double(bs.count), bs[bs.count / 2], bs.last!, ts.reduce(0, +) / Double(ts.count), ts.last!, worstWhat))
+            }
+            cells = []
+        }
         for p in cells {
             let b = vw.block(p.x, p.y, p.z)
             let hp = V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5)
