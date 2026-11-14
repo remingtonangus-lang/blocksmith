@@ -98,7 +98,9 @@ enum FrameGovernor {
         let used = now - start
         let must = max(0, used - deferred)
         mustEMA = must > mustEMA ? mustEMA * 0.5 + must * 0.5 : mustEMA * 0.9 + must * 0.1
-        mustHigh = max(must, mustHigh * 0.99)
+        // (one hitch, a save or a teleport, must not shut the waiting work out for seconds: no frame counts for more
+        // than most of the budget)
+        mustHigh = max(min(must, tickBudget * 0.8), mustHigh * 0.99)
         // (the spare is what the frame's own work leaves: the work that can wait is what is to fill it)
         let free = max(0, min(1, 1 - must / tickBudget))
         // (quick to see a full frame, slow to trust an empty one: one heavy frame takes the boost away at once)
@@ -139,15 +141,16 @@ enum FrameGovernor {
 
     // The kinds of work that can wait (each keeps count of the frames it has been refused).
     enum Job: Int, CaseIterable {
-        case handover, fluid, lava, randomTicks, gravity, settle, crush, carve, loadCheck, collapse, tip, groundCollapse, ghosts
+        case handover, fluid, lava, randomTicks, gravity, settle, crush, carve, loadCheck, collapse, tip, groundCollapse
     }
-    private static var starved = [Int](repeating: 0, count: Job.allCases.count)
+    private static var starved = [Int](repeating: 0, count: Job.allCases.count)      // (the frame of the first refusal; 0: none)
     private(set) static var took = [Double](repeating: 0, count: Job.allCases.count)        // (seconds, for the soak's line)
     static let patience = 12
+    static let lumpPatience = 4
 
     // What a job that can wait may take this frame, in seconds; 0: not this frame. `base`: its usual slice. `most`: how
     // many times that when frames have room. A job refused `patience` frames in a row gets `least` all the same.
-    static func slice(_ job: Job, _ base: Double, most: Double = 4, least: Double = 0.0004) -> Double {
+    static func slice(_ job: Job, _ base: Double, most: Double = 4, least: Double = 0.0004, patience wait: Int = FrameGovernor.patience) -> Double {
         guard armed else { return base }
         let room = left
         if room == .infinity { return base }
@@ -158,22 +161,28 @@ enum FrameGovernor {
         if room >= base * 0.25 {
             if k > 0 && room > base { boosted += 1 }
             starved[job.rawValue] = 0
-            return min(want, room)
+            // (its usual slice if the room has it; past that no more than six tenths of the room, so the first to ask,
+            // the world's hand-over with a backlog, does not leave the water and the collapses behind it with nothing)
+            return min(want, max(min(base, room), room * 0.6))
         }
-        if starved[job.rawValue] >= patience { forced += 1; starved[job.rawValue] = 0; return min(base, least) }
-        starved[job.rawValue] += 1
-        refused += 1
+        if overdue(job, wait) { return min(base, least) }
         return 0
+    }
+    // Refused: counted in frames since the first refusal (water asks four times a second, lava less: counted in asks
+    // they would wait many seconds). True once it has waited `wait` frames: it runs all the same.
+    private static func overdue(_ job: Job, _ wait: Int) -> Bool {
+        let i = job.rawValue
+        if starved[i] == 0 { starved[i] = frame }
+        if frame &- starved[i] >= wait { forced += 1; starved[i] = 0; return true }
+        refused += 1
+        return false
     }
 
     // A job that needs `want` seconds whole or not at all (a load check, a body let go): may it run now?
     static func room(_ job: Job, for want: Double) -> Bool {
         guard armed else { return true }
         if left >= want { starved[job.rawValue] = 0; return true }
-        if starved[job.rawValue] >= patience { forced += 1; starved[job.rawValue] = 0; return true }
-        starved[job.rawValue] += 1
-        refused += 1
-        return false
+        return overdue(job, patience)
     }
 
     // A job that comes in one piece of no fixed size (a load check, a body let go, a tip check: 0.2 to 8 ms): may it
@@ -189,10 +198,7 @@ enum FrameGovernor {
         let best = max(floor, (tickBudget - reserve) * 0.9)
         let want = min(best, max(floor, usual[job.rawValue]))
         if room >= want { starved[job.rawValue] = 0; return true }
-        if starved[job.rawValue] >= patience { forced += 1; starved[job.rawValue] = 0; return true }
-        starved[job.rawValue] += 1
-        refused += 1
-        return false
+        return overdue(job, lumpPatience)       // (a collapse's bodies come one a frame: a short wait, as before)
     }
     // What a piece of that job took (the caller charges it to the frame itself, CraterJob.spend): the next is taken
     // to cost as much as the dearest lately.
@@ -207,10 +213,12 @@ enum FrameGovernor {
         guard armed, seconds > 0 else { return }
         deferred += seconds; took[job.rawValue] += seconds
     }
-    // The job is done for this frame: what it took (since `t0`).
-    @inline(__always) static func done(_ job: Job, since t0: Double) {
+    // The job is done for this frame: what it took (since `t0`), less what was charged inside it by others (`mark`:
+    // `charged` as it stood when the job began).
+    @inline(__always) static var charged: Double { deferred }
+    @inline(__always) static func done(_ job: Job, since t0: Double, mark: Double? = nil) {
         guard armed else { return }
-        let s = CFAbsoluteTimeGetCurrent() - t0
+        let s = CFAbsoluteTimeGetCurrent() - t0 - (mark.map { max(0, deferred - $0) } ?? 0)
         if s > 0 { deferred += s; took[job.rawValue] += s }
     }
 
@@ -228,6 +236,6 @@ enum FrameGovernor {
     }
 
     // Checks: a frame loop of their own.
-    static func disarm() { armed = false; start = 0; tickEnd = 0; late = 0; lateBits = 0; lateBits2 = 0; spare = 0; deferred = 0; mustEMA = 0.004; mustHigh = 0; JobPool.shared.setHeld(0) }
+    static func disarm() { armed = false; start = 0; tickEnd = 0; late = 0; lateBits = 0; lateBits2 = 0; spare = 0; deferred = 0; mustEMA = 0.004; mustHigh = 0; starved = [Int](repeating: 0, count: Job.allCases.count); JobPool.shared.setHeld(0) }
     static func resetCounts() { took = [Double](repeating: 0, count: Job.allCases.count); grants = 0; refused = 0; forced = 0; boosted = 0; lateTotal = 0; frames = 0; worstOver = 0 }
 }

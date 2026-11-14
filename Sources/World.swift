@@ -1691,8 +1691,9 @@ final class World: LifeLinked {
         // they waited for a frame with budget to spare.
         // (ledger 126: what the frame has left for it, more when frames have room: FrameGovernor)
         let tHand = CFAbsoluteTimeGetCurrent()
-        let budget = World.deterministic ? World.handoverSeconds : FrameGovernor.slice(.handover, World.handoverSeconds, most: 5)
-        let budgetEnd = tHand + budget
+        // (refused, it goes all the same every third frame: land must keep arriving under a frame that is always full)
+        let budget = World.deterministic ? World.handoverSeconds : FrameGovernor.slice(.handover, World.handoverSeconds, most: 5, patience: 2)
+        let budgetEnd = (FrameGovernor.armed ? tHand : tUpdate) + budget
         let nearMeshes = World.deterministic ? 0 : mr.partition { abs($0.0.x - center.x) > 6 || abs($0.0.z - center.z) > 6 }
         var gi = 0, mi = 0
         // (P500: a shot waiting where it struck in the shell band, its chunks' blocks go in ahead of new land.)

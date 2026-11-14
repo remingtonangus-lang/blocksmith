@@ -465,8 +465,8 @@ final class CraterJob {
         let own = min(allow - used, max(floorSeconds - used, tickTarget - TickProf.elapsed))
         // (ledger 126: and what the frame has left by its own clock, FrameGovernor: with frames to spare the carving
         // takes up to three times its slice, in a full frame its floor)
-        guard FrameGovernor.armed else { return own }
         let room = FrameGovernor.left
+        guard FrameGovernor.armed, room.isFinite else { return own }
         let k = max(0, min(1, (FrameGovernor.spare - 0.25) / 0.5))
         return max(floorSeconds - used, min(frameSeconds * (1 + 2 * k) - used, room))
     }

@@ -70,10 +70,11 @@ final class JobPool {
     func setHeld(_ n: Int) {
         let h = max(0, min(workers - 1, n))
         cond.lock()
-        let less = h < held
+        let changed = h != held
         held = h
         cond.unlock()
-        if less { cond.broadcast() }
+        // (lowered: the held wake. Raised: a worker signalled for a job and now held would sleep on it, so all look.)
+        if changed { cond.broadcast() }
     }
     var heldNow: Int { cond.lock(); defer { cond.unlock() }; return held }
 

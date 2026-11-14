@@ -864,6 +864,7 @@ final class FrameStats {
         if !clocks.isEmpty { lastLine += " | clocks: " + clocks }
         if let n = perfNotice?(), !n.isEmpty { lastLine += " | runtime performance notice: " + n }
         if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
+        if FrameGovernor.armed { lastLine += " | " + FrameGovernor.line; FrameGovernor.resetCounts() }      // ledger 126
         print(lastLine)
         capture(game: game, target: target, now: now)
         // Auto Render Distance (VR page option; RenderDistanceGovernor.swift): a window missing frames (P240)
