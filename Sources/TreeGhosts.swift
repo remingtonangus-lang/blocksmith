@@ -12,8 +12,8 @@ import Foundation
 // through, to build in, to save as a block), but the trunks are grown as if the log still stood, so every log left
 // keeps the foot, height, girth, taper, crown and limbs it had. A ghost is not drawn; a log beside one shows a flat
 // cut end. A ghost remembers whether its trunk had a crown (the leaves fall with a felled tree). Ghosts go when
-// something is built in their cell, when wood is set down against them (a new tree, his own log: that wood is measured
-// fresh), and when no log is left that they could shape. Saved with the world (tree-ghosts.json).
+// something is built in their cell (a log put back there is a log again), when a sapling grows into a tree there, and
+// when no log is left that they could shape. At most 8,000 are kept (the oldest chunk's go first). Saved with the world (tree-ghosts.json).
 // BS_OLDTREEMORPH=1: none are made or read.
 final class TreeGhosts {
     static let on = ProcessInfo.processInfo.environment["BS_OLDTREEMORPH"] != "1"
@@ -24,6 +24,8 @@ final class TreeGhosts {
     private let lock = NSLock()
     private var byChunk: [ChunkKey: Map] = [:]
     private var total = 0
+    private var order: [ChunkKey] = []               // chunks by when a ghost was last made in them, oldest first
+    static let most = 8000
     var dirty = false
 
     var count: Int { lock.lock(); defer { lock.unlock() }; return total }
@@ -53,7 +55,24 @@ final class TreeGhosts {
         let k = TreeGhosts.key(c)
         if byChunk[k]?[c] == nil { total += 1; TreeGhosts.noted += 1 }
         byChunk[k, default: [:]][c] = v
+        if order.last != k { order.removeAll { $0 == k }; order.append(k) }
+        // (a long war in a forest: bounded; the chunk whose ghosts are oldest forgets them)
+        while total > TreeGhosts.most, let old = order.first, old != k {
+            order.removeFirst()
+            if let m = byChunk.removeValue(forKey: old) { total -= m.count; TreeGhosts.pruned += m.count }
+        }
         dirty = true
+    }
+    // A tree grows at p: the ghosts within `r` of its column go (the new wood is measured fresh).
+    func clear(near p: IVec3, radius r: Int) {
+        lock.lock(); defer { lock.unlock() }
+        if total == 0 { return }
+        for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
+            let k = ChunkKey(x: cx, z: cz)
+            guard let m = byChunk[k] else { continue }
+            let keep = m.filter { abs($0.key.x - p.x) > r || abs($0.key.z - p.z) > r }
+            if keep.count != m.count { total -= m.count - keep.count; TreeGhosts.pruned += m.count - keep.count; byChunk[k] = keep.isEmpty ? nil : keep; dirty = true }
+        } }
     }
     private func drop(_ cells: [IVec3]) {
         lock.lock(); defer { lock.unlock() }
@@ -135,13 +154,9 @@ final class TreeGhosts {
             return
         }
         if count == 0 { return }
-        if isTrunk[Int(id)] && !isTrunk[Int(old)] {
-            // Wood set down in or against ghosts (a sapling grown, a log of his): that wood is measured fresh.
-            let comp = component(w, from: c, skip: c, cap: 4000)
-            if !comp.cells.isEmpty { drop(comp.cells) }
-        } else if id != AIR && Blocks.collide[Int(id)], get(c) != nil {
-            drop([c])                                // (something built in the cell)
-        }
+        // Something built in a ghost's cell, or a log put back there: the ghost goes, the others stay (his own log set
+        // down against a stump leaves the stump as it is; a sapling grown there clears its ground first, Game.growTree).
+        if id != AIR && (Blocks.collide[Int(id)] || isTrunk[Int(id)]), get(c) != nil { drop([c]) }
     }
 
     // MARK: Save
@@ -159,7 +174,7 @@ final class TreeGhosts {
     }
     func load(_ rows: [TreeGhostSave]) {
         lock.lock(); defer { lock.unlock() }
-        byChunk = [:]; total = 0
+        byChunk = [:]; total = 0; order = []
         for r in rows where Blocks.has(r.block) {
             let b = Blocks.id(r.block)
             guard ShapeTrunks.isLog[Int(b)] else { continue }
@@ -167,6 +182,7 @@ final class TreeGhosts {
             let k = TreeGhosts.key(c)
             if byChunk[k]?[c] == nil { total += 1 }
             byChunk[k, default: [:]][c] = UInt32(b) | (r.crown ? TreeGhosts.crownBit : 0)
+            if !order.contains(k) { order.append(k) }
         }
         dirty = false
     }

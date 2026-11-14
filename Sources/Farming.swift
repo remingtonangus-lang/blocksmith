@@ -284,6 +284,7 @@ extension Game {
     // Saplings grow into the same trees world generation builds (2x2 saplings make the mega kinds).
     func growTree(_ p0: IVec3, _ sapling: String) {
         var p = p0
+        world.treeGhosts.clear(near: p0, radius: 6)          // (ledger 123: a new tree is measured fresh)
         let sap = world.materialAt(p.x, p.y, p.z)
         // Find a 2x2 square of this sapling containing p (north-west corner).
         var square: IVec3?
