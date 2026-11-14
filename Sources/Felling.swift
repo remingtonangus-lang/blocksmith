@@ -434,6 +434,7 @@ extension Game {
         // (ledger 45: no circuit marks a block when no circuit part is near the tree)
         let quiet0 = world.circuitQuiet
         if Explosion.circuitCalm && !world.circuitNear(Array(logs) + Array(leaves), margin: 3) { world.circuitQuiet = true }
+        let snap = Felling.shapeSnap(world, logs: logs, cut: p)      // (ledger 134: the shape it stood with, FellShape)
         world.treeGhosts.note(world, Array(logs))   // (ledger 123: read while the crown is still on)
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in logs { world.setBlockAsync(c.x, c.y, c.z, AIR) }
@@ -445,6 +446,7 @@ extension Game {
         s.prevPos = s.pos
         s.updateBounds()
         s.initialBlocks = s.blockCount
+        Felling.shapeStart(snap, ship: s, origin: IVec3(start.x + lo.x, start.y + lo.y, start.z + lo.z), world: world)
         // It goes over away from the woodsman (a nudge at the top; gravity does the rest).
         var away = V3(Float(p.x) + 0.5 - player.pos.x, 0, Float(p.z) + 0.5 - player.pos.z)
         if simd_length(away) < 0.1 { away = V3(-sinf(player.yaw), 0, -cosf(player.yaw)) }
@@ -544,6 +546,7 @@ extension Game {
         world.restoring = true
         let quiet0 = world.circuitQuiet                      // (ledger 45)
         if Explosion.circuitCalm && !world.circuitNear(cells + Array(leaves), margin: 3) { world.circuitQuiet = true }
+        let snap = !logs.isEmpty && logs.count == cells.count ? Felling.shapeSnap(world, logs: Set(logs), cut: nil) : nil     // (ledger 134)
         world.treeGhosts.note(world, cells)         // (ledger 123: read while the crown is still on)
         for c in riders { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
@@ -560,6 +563,7 @@ extension Game {
         s.prevPos = s.pos
         s.updateBounds()
         s.initialBlocks = s.blockCount
+        Felling.shapeStart(snap, ship: s, origin: IVec3(start.x + lo.x, start.y + lo.y, start.z + lo.z), world: world)
         tSpawn = CFAbsoluteTimeGetCurrent()
         var away = awayDir ?? V3(s.pos.x - player.pos.x, 0, s.pos.z - player.pos.z)      // (P507: a crawler's push, its way)
         if simd_length(away) < 0.1 { away = V3(-sinf(player.yaw), 0, -cosf(player.yaw)) }
@@ -599,6 +603,7 @@ extension Game {
         StructureImpact.thisFrame = 0
         guard dt > 0 else { return }
         Felling.roundTrunks = Felling.roundFor(world)
+        Felling.shapeCollect(world)
         let live = world.ships.list
         Felling.falls.removeAll { f in f.ship.map { s in !live.contains { $0 === s } } ?? true }
         // (Nov 10, the code reader's TNT stack: 2,000 TNT felled a wood's worth of trees at once and their pushed
@@ -624,7 +629,9 @@ extension Game {
                     pushT += CFAbsoluteTimeGetCurrent() - t0
                     pushN += f.wait.count
                 }
-                let built = !s.mesh.busy && !s.mesh.sections.isEmpty
+                // (ledger 134: and its trunk's shape is made, so it never shows as posts for a frame)
+                // (for half a second at most: a shape that comes later goes on when it does)
+                let built = !s.mesh.busy && !s.mesh.sections.isEmpty && (Felling.shapePending[s.id] == nil || f.held > 0.5)
                 if !(drawn && built) && f.held < 4 { s.vel = .zero; s.angVel = .zero; continue }
                 if !drawn { Felling.letLate += 1 }
                 s.hidden = false; s.kinematic = false
@@ -707,6 +714,7 @@ extension Game {
         let texT = Blocks.tex
         let sun = sunDir
         for s in ships where simd_length(s.pos - eye) < 112 {
+            if writeFellShape(&wr, s, eye: eye, sun: sun) { continue }       // (ledger 134: the shape it stood with)
             let g = s.grid
             if Felling.trunkCells[s.id]?.count != s.blockCount {
                 // The trunk (vertical runs of 3 or more) at the standing tree's girth, limbs as limbs.

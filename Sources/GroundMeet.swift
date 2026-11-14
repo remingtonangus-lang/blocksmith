@@ -10,6 +10,7 @@ import simd
 extension World {
     // BS_MEET=0: blocks placed on field ground as before P387 (before/after checks).
     static let meetGroundOn = ProcessInfo.processInfo.environment["BS_MEET"] != "0"
+    static let oldMeet = ProcessInfo.processInfo.environment["BS_OLDMEET"] == "1"
 
     // Does a block of this state rest on its cell's floor (so the ground under it should reach that floor)?
     static let restsOnFloor: [Bool] = {
@@ -48,17 +49,29 @@ extension World {
         guard !Blocks.collide[Int(under)] else { return 0 }
         let gap = floorGap(x, y, z)
         guard gap > 0.03 else { return 0 }
+        // Ledger 130 (Nov 14, building a house on a beach: "All that sand just spawned", "the ground just fucked up my
+        // house", "that shit was just hanging in the air", "look what happened inside"): a block set out from a wall's
+        // top, a block and more over the ground, raised a mound of ground up to its floor with a skirt nearly three
+        // blocks wide, into the rooms. The ground now rises only under a block set down on it (a gap of 0.8 at
+        // most; the caller says whether it was placed on ground), and its skirt is at most a block wide.
+        // BS_OLDMEET=1: as before.
+        if !World.oldMeet && gap > 0.8 { return 0 }
         // The shape: solid up to the floor over the footprint, falling away at 45 degrees round it.
         let fy = Float(y), x0 = Float(x), x1 = Float(x + 1), z0 = Float(z), z1 = Float(z + 1)
         // (a flat apron a third of a block wide round the foot first: the drawn ground interpolates between half-block
         // samples, so a skirt starting right at the footprint's edge still showed a third of a block of gap under it)
-        let apron: Float = 0.35, skirt = min(2.5, gap + 0.5) + apron
+        let apron: Float = 0.35
+        let run: Float = World.oldMeet ? min(2.5, gap + 0.5) : min(1.0, gap + 0.2)
+        let skirt = run + apron
+        // (the skirt's fall: 45 degrees, steeper where a block's width would not reach the ground)
+        let fall: Float = World.oldMeet ? 1 : max(1, (gap + 0.2) / run)
+        let norm: Float = 1 / (1 + fall * fall).squareRoot()
         func inside(_ p: V3) -> Float {
             let dx = max(0, x0 - p.x, p.x - x1), dz = max(0, z0 - p.z, p.z - z1)
             let out = (dx * dx + dz * dz).squareRoot()
             if out > skirt { return -4 }
-            // (about the distance to the surface: straight up over the footprint and apron, across the 45-degree skirt round them)
-            return out <= apron ? fy - p.y : (fy - (out - apron) - p.y) * 0.7071
+            // (about the distance to the surface: straight up over the footprint and apron, across the skirt round them)
+            return out <= apron ? fy - p.y : (fy - (out - apron) * fall - p.y) * norm
         }
         let lo = IVec3(x - 3, max(0, y - 3), z - 3), hi = IVec3(x + 3, y, z + 3)
         return fieldFill(lo, hi, inside, keep: IVec3(x, y, z))

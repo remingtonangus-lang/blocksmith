@@ -27,6 +27,16 @@ enum QuestStreamTest {
         let speed = Float(arg("--speed") ?? "") ?? 0
         let shots = Set((arg("--shots") ?? "").split(separator: ",").compactMap { Int($0) })
         let out = arg("--out") ?? "."
+        // Nov 14 (beach tear, ledger 129): --route "x,z;x,z;..." walks him from --at through the points at --speed, his
+        // feet on the ground's top (so land first drawn as a far shell is walked into, as on the headset); --slow K
+        // stretches the clock K times (the cloud host makes land many times slower than the headset does).
+        let route: [V2] = (arg("--route") ?? "").split(separator: ";").compactMap { s -> V2? in
+            let v = s.split(separator: ",").compactMap { Float($0) }
+            return v.count == 2 ? V2(v[0], v[1]) : nil
+        }
+        var leg = 0
+        var wrongMost = 0, wrongSeen = Set<String>()
+        let slow = Double(arg("--slow") ?? "") ?? 1
         // P484 (--shaft D): at 3 s a shaft is dug from the ground's top under him down D blocks and he stands in it, as
         // when he mines straight down in survival; each line then says whether the world counts him under the ground and
         // how many chunks within 8 still keep their buried sections undrawn (holes in the caves he can see).
@@ -41,7 +51,12 @@ enum QuestStreamTest {
         var staleSince: [Int64: Int] = [:]
         var tntWorst = 0.0
         TextureGen.registerAll()
-        let w = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: sharedSystemDevice, save: nil)
+        // (ledger 129) --savedir DIR: the world keeps a save there, so meshes leaving the view go to the disk cache and
+        // come back from it as shells; --seesaw S,LOW: the view steps down to LOW and back every S seconds, as Auto
+        // View Distance does on the headset when the GPU is at its budget.
+        let saveDir = arg("--savedir").map { SaveManager(dir: URL(fileURLWithPath: $0, isDirectory: true)) }
+        let seesaw = (arg("--seesaw") ?? "").split(separator: ",").compactMap { Int($0) }
+        let w = World(seed: UInt64(arg("--seed") ?? "") ?? 12345, device: sharedSystemDevice, save: saveDir)
         w.renderDistance = rd
         w.makeFieldWorld()
         let g = Game(world: w, save: nil, persistent: false)
@@ -88,6 +103,20 @@ enum QuestStreamTest {
             g.input.keys.removeAll(keepingCapacity: true)
             if crawler == nil { p.flying = true }
             p.yaw = yaw; p.pitch = pitch
+            if !route.isEmpty {
+                if leg < route.count {
+                    let to = route[leg], d = V2(to.x - p.pos.x, to.y - p.pos.z)
+                    let len = simd_length(d), step = speed * Float(dt)
+                    if len <= step { p.pos.x = to.x; p.pos.z = to.y; leg += 1 }
+                    else { p.pos.x += d.x / len * step; p.pos.z += d.y / len * step }
+                }
+                let x = Int(floor(p.pos.x)), z = Int(floor(p.pos.z))
+                if let c = w.chunkAt(x, z), !c.hollow {
+                    var top = CH - 2
+                    while top > 1 && !w.groundAt(x, top, z) { top -= 1 }
+                    if top > 1 { p.pos.y = Float(top) + 1.2 }
+                }
+            } else
             if speed > 0 && crawler == nil { p.pos += V3(-sinf(yaw), 0, -cosf(yaw)) * (speed * Float(dt)) }
             if let d = shaft, f == 3 * 72 {
                 let x = Int(floor(p.pos.x)), z = Int(floor(p.pos.z))
@@ -132,6 +161,10 @@ enum QuestStreamTest {
             if (f + 1) % 18 == 0 { FarRing.shared.request(g, eye: p.eye) }
             if (f + 1) % 72 == 0 {
                 let sec = (f + 1) / 72
+                if seesaw.count == 2, sec % seesaw[0] == 0 {
+                    g.setRenderDistance(w.renderDistance == rd ? seesaw[1] : rd)
+                    print("streamtest: view distance \(w.renderDistance); \(World.fromCache) chunks so far came back from the disk cache as shells")
+                }
                 let c0 = ChunkKey(x: floorDiv(Int(floor(p.pos.x)), CS), z: floorDiv(Int(floor(p.pos.z)), CS))
                 var inView = 0, made = 0, drawn = 0, shellN = 0, surf = 0, underOnly = 0, surfStale = 0, bumpUp = 0, bumpDeep = 0
                 for dz in -rd...rd { for dx in -rd...rd where w.inMeshRadius(dx, dz) {
@@ -190,6 +223,12 @@ enum QuestStreamTest {
                     for dz in -8...8 { for dx in -8...8 { if let c = w.chunks[ChunkKey(x: c0.x + dx, z: c0.z + dz)], c.deferredBuried > 0 { held += 1 } } }
                     print("streamtest: under the ground \(w.underground); chunks within 8 with buried sections undrawn: \(held)")
                 }
+                // (ledger 129: sections left unmeshed as buried that hold the ground's surface, as the walk goes)
+                let wd = w.wrongDeferred()
+                wrongMost = max(wrongMost, wd.wrong.count); wrongSeen.formUnion(wd.wrong)
+                if !wd.wrong.isEmpty || sec % 10 == 0 {
+                    print(String(format: "streamtest: %3d s: at %.0f %.0f %.0f; buried check: %d chunks, %d sections left unmeshed hold the surface%@", sec, p.pos.x, p.pos.y - Float(YOFF), p.pos.z, wd.checked, wd.wrong.count, wd.wrong.isEmpty ? "" : ": " + wd.wrong.prefix(4).joined(separator: "; ")))
+                }
                 World.handedOver = 0; World.handoverSpent = 0
                 stale0 = World.staleMeshes; drawn0 = World.staleDrawn; perf0 = pf; async0 = World.asyncEdits; sync0 = World.syncEdits
                 if shots.contains(sec), let ctx {
@@ -200,7 +239,7 @@ enum QuestStreamTest {
                     shift += CFAbsoluteTimeGetCurrent() - ts                      // (the shot's time is left out of the clock)
                 }
             }
-            let due = t0 + shift + Double(f + 1) * dt
+            let due = t0 + shift + Double(f + 1) * dt * slow
             let now = CFAbsoluteTimeGetCurrent()
             if due > now { usleep(useconds_t((due - now) * 1_000_000)) }
         }
@@ -224,6 +263,23 @@ enum QuestStreamTest {
                     return (ks.isEmpty ? "." : ks.map(String.init).joined(separator: ",")) + (c.lod != 0 ? "L\(c.lod)" : "")
                 }
                 print("streamtest: fine map z \(ccz + dz), x \(ccx - 4)...: " + row.joined(separator: " | "))
+            }
+        }
+        do {
+            let wd = w.wrongDeferred()
+            let c0 = ChunkKey(x: floorDiv(Int(floor(p.pos.x)), CS), z: floorDiv(Int(floor(p.pos.z)), CS))
+            let bs = w.buriedState(center: c0, r: 3)
+            print("streamtest: buried check (\(World.oldBuriedLow ? "BS_OLDBURIEDLOW" : "new")): \(wrongSeen.count) sections that hold the surface were left unmeshed during the run (most at once \(wrongMost)), \(wd.wrong.count) at the end of \(wd.checked) chunks checked; within 3 chunks of him \(bs.flagged) sections still flagged unmeshed, \(bs.unflagged) empty under the ground with no flag")
+            for l in wd.wrong.prefix(20) { print("streamtest: buried: " + l) }
+            // (--buriedshots N: a view straight down over the first N of them, 14 blocks over the section's top; the
+            // same spots go to --endshots for the picture after)
+            if let n = Int(arg("--buriedshots") ?? ""), let ctx {
+                for (i, q) in wd.live.sorted(by: { ($0.x, $0.z, $0.y) < ($1.x, $1.z, $1.y) }).prefix(n).enumerated() {
+                    p.pos = V3(Float(q.x * CS + 8), Float((q.y + 1) * 16 + 14), Float(q.z * CS + 8))
+                    let path = "\(out)/buried-\(i).png"
+                    do { try RenderTest.render(game: g, ctx: ctx, path: path, width: 640, height: 640, yaw: 0, pitch: -1.55); print(String(format: "streamtest: %@ (endshot %.0f,%.0f,%.0f,0,-89)", path, p.pos.x, p.pos.y, p.pos.z)) }
+                    catch { print("streamtest: shot failed: \(error)") }
+                }
             }
         }
         if let es = arg("--endshots"), let ctx {
