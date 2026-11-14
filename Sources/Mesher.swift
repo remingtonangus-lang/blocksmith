@@ -1729,7 +1729,8 @@ enum Mesher {
                         // now; a lone dot keeps its 6 px (BS_OLDWIRE=1: as before).
                         let pw = Mesher.oldWire || (count == 0 && Int(b - gbT[Int(b)]) >= 16) ? 5 : 6
                         var quads: [(Box, Int)] = [(Box(pw, 1, pw, 16 - pw, 1, 16 - pw), 2)]
-                        let arms = [Box(6, 1, 0, 10, 1, 5), Box(6, 1, 11, 10, 1, 16), Box(0, 1, 6, 5, 1, 10), Box(11, 1, 6, 16, 1, 10)]
+                        // (the arms meet the pad's edge: 5/11 by a 6 px pad, 6/10 by a 4 px one)
+                        let arms = [Box(6, 1, 0, 10, 1, pw), Box(6, 1, 16 - pw, 10, 1, 16), Box(0, 1, 6, pw, 1, 10), Box(16 - pw, 1, 6, 16, 1, 10)]
                         let walls = [(Box(6, 0, 1, 10, 16, 1), 4), (Box(6, 0, 15, 10, 16, 15), 5), (Box(1, 0, 6, 1, 16, 10), 0), (Box(15, 0, 6, 15, 16, 10), 1)]
                         for k in 0..<4 where conn[k] { quads.append((arms[k], 2)) }
                         for k in 0..<4 where climb[k] { quads.append(walls[k]) }
@@ -1740,7 +1741,7 @@ enum Mesher {
                         // strip (the arm follows the ground up), against a built block the strip climbs from the ground.
                         if drapeOn && natAt(i - RL),
                            drapeRect(lx, ly, lz, pw, 16 - pw, pw, 16 - pw, lift16: 1, trans: false, tint: 0, layer: layer, l: l, uv: { ($0, $1) }) {
-                            let armR = [(6, 10, 0, 5), (6, 10, 11, 16), (0, 5, 6, 10), (11, 16, 6, 10)]
+                            let armR = [(6, 10, 0, pw), (6, 10, 16 - pw, 16), (0, pw, 6, 10), (16 - pw, 16, 6, 10)]
                             for k in 0..<4 where conn[k] {
                                 let r = armR[k]
                                 _ = drapeRect(lx, ly, lz, r.0, r.1, r.2, r.3, lift16: 1, trans: false, tint: 0, layer: layer, l: l, uv: { ($0, $1) })
