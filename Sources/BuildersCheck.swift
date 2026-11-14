@@ -115,7 +115,7 @@ enum BuildersCheck {
             print(String(format: "builds: %@ built in %d ticks (%.1f s), %d placed, %d dug, %d presses, %d redone, %d missed; after 20 s %d cells wrong, %d fell; ground round it %d lost, %d gained",
                          bp.key, ticks, buildS, bot.placed, bot.dug, bot.presses, bot.redone, bot.missed.count, wrong.count, fell, lost, gained))
             if risen > 0 { print("builds:   ground came up in \(risen) of the build's cells while it went up") }
-            for m in bot.missed.prefix(8) { print("   missed: \(m)") }
+            for m in bot.missed.prefix(BuilderBot.trace ? 2000 : 8) { print("   missed: \(m)") }
             for m in wrong.prefix(8) { print("   wrong: \(m)") }
             fflush(stdout)
             check(bot.done && bot.missed.isEmpty, "builds: the agent builds the \(bp.key) on \(bp.ground) through the controls (\(bot.placed) placed, \(bot.dug) dug, \(bot.missed.count) missed)")

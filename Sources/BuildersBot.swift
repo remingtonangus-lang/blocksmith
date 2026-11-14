@@ -118,6 +118,8 @@ final class BuilderBot: AgentBot {
     private func tree(_ w: World, _ q: IVec3) -> Bool {
         let b = w.block(q.x, q.y, q.z)
         if b == AIR || Blocks.isLiquid(b) || planned.contains(q) || (w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) { return false }
+        // (only round the build: he clears the site, not the forest)
+        if q.x < plan.lo.x - 6 || q.x > plan.hi.x + 6 || q.z < plan.lo.z - 6 || q.z > plan.hi.z + 6 { return false }
         let k = Blocks.key(Blocks.groupBase[Int(b)])
         return k.hasSuffix("_leaves") || k.hasSuffix("_log") || k.hasSuffix("_wood") || Blocks.render[Int(b)] == RenderType.cross.rawValue || k.contains("vine")
     }
@@ -280,6 +282,27 @@ final class BuilderBot: AgentBot {
         phase = 0; ticks = 0; spots = []; path = []
         return true
     }
+    // Once the digging is done: the ground the digging took from under the floor (a creative break takes a ball, not a
+    // cell) filled again with the footing, bottom up, before the floor goes down, as he would.
+    private var refooted = false
+    private(set) var refills = 0
+    private func refoot(_ w: World) {
+        refooted = true
+        let d = plan.bp.draft, o = plan.origin
+        let fk = BuildersGrounds.Draft.id(d.footKey)
+        var want: [IVec3: BlockID] = [:]
+        for jb in jobs[i...] where jb.want != AIR { want[jb.cell] = jb.want }
+        var cells = Set<IVec3>()
+        for (x, z) in d.footprint {
+            var y = o.y - 1
+            while y > o.y - 24 && !solid(w, IVec3(o.x + x, y, o.z + z)) { cells.insert(IVec3(o.x + x, y, o.z + z)); y -= 1 }
+        }
+        refills = cells.filter { want[$0] == nil }.count
+        jobs.removeAll { cells.contains($0.cell) && $0.want != AIR }
+        i = min(i, jobs.count)
+        let add = cells.sorted { $0.y != $1.y ? $0.y < $1.y : ($0.x, $0.z) < ($1.x, $1.z) }.map { BuildersGrounds.Job(cell: $0, want: want[$0] ?? fk) }
+        jobs.insert(contentsOf: add, at: i)
+    }
     private var stuck = 0, inRow = 0, lastDeferSuccess = -1
     static let trace = ProcessInfo.processInfo.environment["BS_BUILDTRACE"] != nil
     private var lastDrop = ""
@@ -297,6 +320,7 @@ final class BuilderBot: AgentBot {
         var act = AgentAction()
         if flyCool > 0 { flyCool -= 1 }
         guard i < jobs.count else { if doneTick == nil { doneTick = s.tick }; return act }
+        if !refooted && jobs[i].want != AIR { refoot(w) }
         let j = jobs[i]
         if phase != 3 && BuildersGrounds.holds(w, j) { next(s, ok: true); return act }
         ticks += 1
