@@ -163,9 +163,9 @@ enum NavalBurst {
             let up = Float(i) / Float(max(1, column))
             let o = V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)) * (1.5 * size)
             let gy = Rand.float(in: 0.12...0.22)
-            var p = Particle(pos: foot + o, vel: V3(o.x * 0.3, Rand.float(in: 2.0...3.2), o.z * 0.3),
+            var p = Particle(pos: foot + o, vel: V3(o.x * 0.3, Rand.float(in: 0.8...1.7), o.z * 0.3),      // (it stands: the first rose out of sight in three seconds)
                              life: Rand.float(in: 4.5...7), maxLife: 7, layer: puff, uv0: V2(0, 0), uvSize: 1,
-                             size: Rand.float(in: 2.0...3.6) * size, gravity: 0.25, color: V3(gy, gy, gy), collide: false)
+                             size: Rand.float(in: 2.0...3.6) * size, gravity: 0.1, color: V3(gy, gy, gy), collide: false)
             p.delay = 0.3 + up * 1.6                  // (the column is fed for two seconds)
             ps.add(p)
         }
