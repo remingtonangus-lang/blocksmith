@@ -1290,6 +1290,7 @@ if let out = arg("--view"), let ctx = vkctx {
                              s.id, s.blockCount, logsN, lo, hi, s.lying ? "lying" : "awake", s.slips ? ", let through the trunks" : "", simd_length(s.vel)))
             }
             print("view: fell: \(vw.ships.list.filter { Felling.isFelled($0) }.count) felled bodies, \(vw.ships.list.filter { $0.name == Game.toppledName }.count) toppled, \(Felling.slipped) let through trunks")
+            print(String(format: "view: fell: standing shapes kept for %d bodies (%d quads, %d not made, slowest %.1f ms on the edit lane)", Felling.shapesMade, Felling.shapeQuads, Felling.shapesFailed, Felling.shapeWorstMs))
             if let s = vw.ships.list.last(where: { Felling.isFelled($0) }) {
                 print(String(format: "view: fell: after %.1f s the body is at %.1f %.1f %.1f, tipped %.0f deg, %d blocks; worst tick %.1f ms",
                              secs, s.pos.x, s.pos.y, s.pos.z, acosf(max(-1, min(1, s.rot.act(V3(0, 1, 0)).y))) * 180 / .pi, s.blockCount, worst))

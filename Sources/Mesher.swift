@@ -33,6 +33,7 @@ struct SectionMesh {
     var kinds = SIMD16<Int32>()   // P384 step 1: quads by kind (MeshKind), for questcheck --perfscenes
     var ground: GroundTris? = nil   // P386: the drawn ground for bodies and rays (GroundFeet.swift)
     var uploaded: Uploaded? = nil   // Nov 9: the words already copied into mesh slices by the worker (World.upload)
+    var trunkWords = SIMD2<Int32>(0, 0)   // ledger 134: the trunks' and limbs' words in `detail` (from, to): FellShape
     struct Uploaded {
         var opaque: MeshSlice?, trans: MeshSlice?, detail: MeshSlice?
         var opaqueWords = 0, farWords = 0, transWords = 0, detailWords = 0, detailFarWords = 0
@@ -436,7 +437,7 @@ enum Mesher {
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = [],
                              bites: [(Int, Int, Int, Bite)] = [], pieces: [FreePiece] = [], objects: [WorldObjects.Draw] = [], ghosts: TreeGhosts.Map? = nil,
                              smoothOK: Bool = true, blobLeaves: Bool = false, site: SmoothSite? = nil, chunk: (x: Int, z: Int)? = nil, nearSides: Int = 0,
-                             adaptive adaptiveOK: Bool = true, fineBeyond: [UInt32] = []) -> SectionMesh {
+                             adaptive adaptiveOK: Bool = true, fineBeyond: [UInt32] = [], trunkSkip: Set<IVec3>? = nil) -> SectionMesh {
         guard sy >= 0 && sy < NSEC else { return SectionMesh(opaque: [], trans: [], light: nil) }
         // lod: 0 full detail, 1 far (flat light, merged faces, no small decorations, "fast" leaves), 2 mid (full detail
         // but "fast" leaves: no faces between leaves; World.leafNear, Quest).
@@ -2241,6 +2242,8 @@ enum Mesher {
                 if !s.isEmpty { ctx.skipCells = s }
             }
             ctx.ghosts = ghosts                   // (ledger 123: read by the trunks alone, ShapeTrunks.emit)
+            // (ledger 134: a felled tree's shape is read with every other log taken as air, FellShape)
+            if let ts = trunkSkip, !ts.isEmpty { ctx.skipCells = ctx.skipCells.map { $0.union(ts) } ?? ts }
             var d0 = det.count + detCut.count
             func tally(_ k: Int) { let d = det.count + detCut.count; kv[k] &+= Int32((d - d0) / DetailMesh.wordsPerVertex); d0 = d }
             kv[MeshKind.struck] &+= Int32(d0 / DetailMesh.wordsPerVertex)
@@ -2550,10 +2553,12 @@ enum Mesher {
                 if canopyTrunks[1] > canopyTrunks[0] && trunkFar && trunkCtx != nil { canopyTrunks[2] = Int32((trunkFrom + det.count - trunkTo) / wq) }
             }
         }
-        return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
+        var made = SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid, leafy: leafy,
                            detail: detailOut, detailSolid: det.count / DetailMesh.wordsPerQuad, groundQuads: groundV / 4, blobQuads: blobV / 4, naturalCubes: naturalCubes,
                            farSkip: farSkipOut, farGround: farCopy, farCut: farCut, farTail: farTail, farPlants: farPlantCut.count / 8, farParts: parts,
                            detailFarSkip: detailFarSkip, detailFar: detailFar, canopyN: canopyN, canopyTrunks: canopyTrunks, solidFull: solidFull, kinds: kv, ground: groundTris)
+        made.trunkWords = SIMD2<Int32>(Int32(trunkFrom), Int32(trunkTo))
+        return made
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
