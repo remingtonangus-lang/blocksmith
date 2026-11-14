@@ -172,6 +172,26 @@ enum QuestToppleTest {
                 if StructureCollapse.weighed - w1 < 1 { print("FAIL toppletest: the tower on sixteen columns was never weighed whole"); fails += 1 }
             }
         }
+        // Ledger 125 (the Proving Grounds' circuit builds): a lamp on a signal torch on a stone, and a cobble on wire on a
+        // stone, stand; the circuit part carries them down. (BS_OLDCIRCUITLOAD=1: both fall.)
+        do {
+            let cx = -4990, cz = 2245
+            let y0 = top(cx, cz) + 1
+            let stone = Blocks.id("stone"), cobble = Blocks.id("cobblestone")
+            let torch = Blocks.id("redstone_torch"), wire = Blocks.id("redstone_wire"), lamp = Blocks.id("redstone_lamp")
+            w.setBlock(cx, y0, cz, stone); w.setBlock(cx, y0 + 1, cz, torch); w.setBlock(cx, y0 + 2, cz, lamp)
+            let y1 = top(cx + 4, cz) + 1
+            w.setBlock(cx + 4, y1, cz, stone); w.setBlock(cx + 4, y1 + 1, cz, wire); w.setBlock(cx + 4, y1 + 2, cz, cobble)
+            for _ in 0..<300 { g.menu = nil; g.tick(1.0 / 72); if StructureCollapse.withWorker { usleep(1000) } }
+            let lampUp = Blocks.groupBase[Int(w.builtBlock(cx, y0 + 2, cz))] == Blocks.groupBase[Int(lamp)]
+            let torchUp = Blocks.groupBase[Int(w.builtBlock(cx, y0 + 1, cz))] == Blocks.groupBase[Int(torch)]
+            let cobbleUp = w.builtBlock(cx + 4, y1 + 2, cz) == cobble
+            let wireUp = Blocks.groupBase[Int(w.builtBlock(cx + 4, y1 + 1, cz))] == Blocks.groupBase[Int(wire)]
+            print("toppletest: a lamp on a signal torch stands (\(lampUp), torch \(torchUp)); a cobble on wire stands (\(cobbleUp), wire \(wireUp))")
+            if Structure.circuitStrut[Int(torch)] && !(lampUp && torchUp && cobbleUp && wireUp) {
+                print("FAIL toppletest: what stands on a circuit part falls (lamp \(lampUp), torch \(torchUp), cobble \(cobbleUp), wire \(wireUp))"); fails += 1
+            }
+        }
         // The birch, 10 blocks west, on a one-block plinth of planks.
         let log = Blocks.id("birch_log"), leaf = Blocks.id("birch_leaves"), plank = Blocks.id("birch_planks")
         let bx = -4932, bz = 2260, by = top(bx, bz) + 1

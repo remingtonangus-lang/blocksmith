@@ -153,6 +153,9 @@ final class CapitalState {
     var rampDown = true                // crawler: the rear ramp is lowered (built so)
     var rampTimer: Float = 0           // seconds the crawler has wanted the ramp the other way
     var rutCarved: [Int: V3] = [:]     // P511: crawler: where each wheel last cut its track (world space)
+    var ramDebt: Float = 0             // ledger 124: crawler: the hardness of what its bow has broken, not yet paid in plate
+    var ramSlow: Float = 0             // ... the share of its speed that masonry has taken off it (0...0.6, eases back)
+    var ramFx: Float = 0               // ... seconds until the next crash sound and dust
     var ground: V3?                    // crawler: smoothed ground under it (height, pitch, roll)
     var grind: Float = -1              // disabled crawler: forward speed while it grinds to a stop (-1 not yet)
     var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
@@ -1986,7 +1989,8 @@ extension ShipManager {
         let top: Float = s.throttle > 0 ? 28 : 9
         let speed = steered && drives ? s.throttle * top * (1 - lost) : 0
         st.wantSpeed = abs(speed)
-        crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0, piloted: steered)
+        st.ramSlow = max(0, st.ramSlow - dt * 0.5); st.ramFx -= dt          // (ledger 124)
+        crawlerMotion(s, st, dt, want: want, speed: speed * (1 - st.ramSlow), turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0, piloted: steered)
         // P455 (Oct 25 14:21, driving one: "this thing's, like, impossible to drive 'cause of the trees"): it crushes
         // what stands in its way as it does under its own crew; and its rail gun reloads (ShipManager.playerRail).
         if st.wantSpeed > 0.3 { crawlerCrush(s, st, dt, g) }
@@ -2545,7 +2549,8 @@ extension ShipManager {
         st.wantSpeed = speed
         // The ramp down (troops going out, riders walking up): it creeps until it is raised.
         if st.rampDown { speed = min(speed, 1.5) }
-        crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: 0.18)
+        st.ramSlow = max(0, st.ramSlow - dt * 0.5); st.ramFx -= dt          // (ledger 124)
+        crawlerMotion(s, st, dt, want: want, speed: speed * (1 - st.ramSlow), turnRate: 0.18)
         TickProf.mark("cap: drive motion")                   // (store review: the drive split for the frame soak)
         crawlerCrush(s, st, dt, g)
     }
@@ -2678,6 +2683,17 @@ extension ShipManager {
     // Trees, plants, fences, glass and timber under the crawler's front give way (no drops); driving on, so does
     // masonry (P65).
     static var rutCells = 0, rutDug = 0, crawlerFelled = 0     // (checks)
+    static let oldRuts = ProcessInfo.processInfo.environment["BS_OLDRUTS"] == "1"
+    // Nov 14 (Remington: "Maybe make it consistent with our physics engine yes? Just like a frigate crashing into a small
+    // building obliterated the building and damages the frigate a little"; ledger 124): masonry the crawler's bow
+    // broke cost it nothing: it drove through a town at full speed unmarked. What its bow breaks now costs it by
+    // how hard the block is (a frigate's rule, ShipManager.crush): each block takes a little of its speed for the
+    // moment (up to 60%, easing back in a second), and every `ramPlate` of hardness broken tears a plate off its bow
+    // where it struck, with the crash and the dust of it. A hut goes down for a plate or two; a stone keep costs it
+    // a row of them and most of its speed. BS_OLDCRAWLERRAM=1: free, as before.
+    static let oldCrawlerRam = ProcessInfo.processInfo.environment["BS_OLDCRAWLERRAM"] == "1"
+    static let ramPlate: Float = 60
+    static var crawlerRammed = 0, crawlerTorn = 0               // (checks: masonry blocks its bow broke, plates that cost it)
     static let crawlerDraft: Float = 6                          // P510: its wheels and lower hull under the water when it swims
     static var crawlerWaded = 0                                 // (checks: steps it moved with water under its wheels)
     private func crawlerCrush(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
@@ -2789,11 +2805,44 @@ extension ShipManager {
                     }
                     worn(!(bow && Blocks.collide[Int(b)] && ShapeClass.kind[Int(b)] != .foliage))     // (P511: leaves wear too)
                     world.setBlockAsync(x, y, z, AIR)
+                    if built && !soft && !ShipManager.oldCrawlerRam { crawlerRam(s, st, b, at: w, g) }
                     n += 1
                     if n >= cap { return }
                 }
             }
         }
+    }
+
+    // Ledger 124: what a block of masonry costs the crawler that broke it (see ramPlate).
+    private func crawlerRam(_ s: Ship, _ st: CapitalState, _ b: BlockID, at w: V3, _ g: Game) {
+        let h = max(0.5, min(30, Blocks.hardness[Int(b)]))
+        ShipManager.crawlerRammed += 1
+        st.ramSlow = min(0.6, st.ramSlow + h * 0.004)
+        st.ramDebt += h
+        if st.ramFx <= 0 {
+            st.ramFx = 0.35
+            g.sfx(.shipCollideHard, min(1.4, 0.7 + st.ramDebt / 80), at: w)
+            g.particles.blockBreak(b, at: IVec3(Int(floor(w.x)), Int(floor(w.y)), Int(floor(w.z))))
+            if simd_length(g.player.pos - w) < 60 { g.addShake(0.12) }
+        }
+        guard st.ramDebt >= ShipManager.ramPlate else { return }
+        st.ramDebt -= ShipManager.ramPlate
+        // The plate of its bow nearest the blow (not the helm, a wheel or the hardest armour).
+        let gr = s.grid, l = s.toLocal(w)
+        let lo = s.localMin
+        var best: IVec3? = nil, bestD = Float.infinity
+        let kinds = ShipParts.kinds
+        for lz in Int(lo.z)...(Int(lo.z) + 4) { for dy in -3...3 { for dx in -3...3 {
+            let c = IVec3(Int(floor(l.x)) + dx, Int(floor(l.y)) + dy, lz)
+            let cb = gr.get(c.x, c.y, c.z)
+            guard cb != AIR, Blocks.collide[Int(cb)], c != s.helm, kinds[Int(cb)] != .wheel, let t = ShipManager.meltTime(cb), t < 60 else { continue }
+            let d = simd_length(V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5) - l)
+            if d < bestD { bestD = d; best = c }
+        } } }
+        guard let plate = best else { return }
+        ShipManager.crawlerTorn += 1
+        removeCells(s, [plate], chipped: [], center: w, power: 0, game: nil)
+        g.particles.explosion(at: w, power: 1.5)
     }
 
     // The trunk a log at (x, y, z) belongs to, from its foot up (26-connected logs; nil: not a standing tree, or too big).
@@ -2825,8 +2874,13 @@ extension ShipManager {
         // only once it has rolled on most of a ball's width from its last cut, one cut a pass at most (below).
         // (The fine ground a few blocks ahead of each wheel made before it gets there, one section a pass: with it made
         // only when a cut needed it, the cut waited and the rut had gaps at the sections' borders.)
+        // Nov 14 (Remington: "Ruts huh. Maybe there is a better way like, one block of ground damage"; ledger 124): the
+        // wheels no longer cut a rut into the ground (a ball dug out of the drawn ground every 1.4 blocks a wheel
+        // rolled: each cut made a section's fine ground and redrew the land round it, 4 to 21 ms a cut, and the wear
+        // behind it kept a third of the mesh workers busy while the land ahead waited). The ground's damage is its top
+        // block under each wheel, turned to bare earth once (below). BS_OLDRUTS=1: the cuts as before.
         let hv = V3(s.vel.x, 0, s.vel.z)
-        if simd_length(hv) > 0.3 && CraterJob.allowance() >= 0.001 {
+        if ShipManager.oldRuts && simd_length(hv) > 0.3 && CraterJob.allowance() >= 0.001 {
             let t0 = CFAbsoluteTimeGetCurrent()
             defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0) }
             let ahead = simd_normalize(hv) * 5
@@ -2846,7 +2900,7 @@ extension ShipManager {
                 // (and from the frame's shared carving, CraterJob.allowance: build 96's crawler soak had a rut's cut,
                 // 4-7 ms, in the frames the ground collapse and the drive were heaviest; it waits for a frame with a millisecond
                 // of carving left, after a light tick)
-                if sunk > 0 && dug < 1 && rolled > 1.4 && CraterJob.allowance() >= 0.001 {
+                if ShipManager.oldRuts && sunk > 0 && dug < 1 && rolled > 1.4 && CraterJob.allowance() >= 0.001 {
                     let t0 = CFAbsoluteTimeGetCurrent()
                     defer { CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0) }
                     // (a ball whose bottom is a third of a block under the wheel: a shallow rut, not a trench)

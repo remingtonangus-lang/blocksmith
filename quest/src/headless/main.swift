@@ -1129,14 +1129,22 @@ if let out = arg("--view"), let ctx = vkctx {
         let dir0 = simd_length(flat) > 0.1 ? simd_normalize(flat) : V3(0, 0, -1)
         let spot = vg.player.pos + dir0 * dist
         let sx = Int(floor(spot.x)), sz = Int(floor(spot.z))
-        let aim = V3(spot.x, Float(vw.topY(sx, sz)) + 1, spot.z)
+        // (the ground there, under any crown: down from the column's top to the first ground or solid block that is no leaf or log)
+        var gy = vw.topY(sx, sz)
+        while gy > 1 {
+            let gb = vw.block(sx, gy, sz)
+            if vw.groundAt(sx, gy, sz) || (Blocks.collide[Int(gb)] && !Mesher.leafT[Int(gb)] && !ShapeTrunks.isTrunk[Int(gb)]) { break }
+            gy -= 1
+        }
+        let aim = V3(spot.x, Float(gy) + 0.5, spot.z)
         let from = aim - dir0 * 60 + V3(0, 25, 0)
         let sh = Shell(pos: from, vel: simd_normalize(aim - from) * 120, owner: -7, power: Float(arg("--burstpower") ?? "") ?? 3.5)
         sh.gravity = 0; sh.life = 3
         vw.ships.shells.append(sh)
         let b0 = NavalBurst.bursts
         var waited = 0
-        while NavalBurst.bursts == b0 && waited < 72 * 3 { vg.tick(1.0 / 72); waited += 1 }
+        // (the shells are stepped here: with no ship in the world the game's tick has none to step)
+        while NavalBurst.bursts == b0 && waited < 72 * 3 { vw.ships.updateShells(1.0 / 72, game: vg); vg.tick(1.0 / 72); waited += 1 }
         print("view: navalburst: burst after \(waited) ticks at \(aim.x) \(aim.y) \(aim.z); \(NavalBurst.lastCount) particles, \(vg.particles.list.count) alive")
         var worst = 0.0
         for _ in 0..<Int(secs * 72) { let t0 = CFAbsoluteTimeGetCurrent(); vg.tick(1.0 / 72); worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
@@ -2988,6 +2996,10 @@ if CommandLine.arguments.contains("--gunwreck") {               // P459: a gun m
 if CommandLine.arguments.contains("--musictakes") {             // P457: several takes per soundtrack state
     MusicTakesCheck.run(game, check)
     print(failures == 0 ? "musictakes: all checks passed" : "musictakes: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--crawlerram") {            // ledger 124: what its bow breaks costs the crawler
+    CrawlerRamCheck.run(game, check)
+    print(failures == 0 ? "crawlerram: all checks passed" : "crawlerram: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--reader") {                // the code reader's Nov 10 batch: helm and TNT stalls
     ReaderChecks.run(game, check)
