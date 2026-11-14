@@ -183,7 +183,11 @@ enum GroundWeigh {
                     var block: BlockID = AIR
                     var open = false
                     if isGround { block = fieldBlocks[Int(ch.blocks.material(i))] }
-                    else if let b = j.carved[p] { block = b; open = true }
+                    else if let b = j.carved[p] {
+                        // (a prop set where the ground was dug stands in for it no more: the cell is the prop's)
+                        if Structure.part(&k, x, y, z) != nil || Structure.anchor(&k, x, y, z) { continue }
+                        block = b; open = true
+                    }
                     else { continue }
                     let m = mats[Int(block)]
                     let shell = side || y == j.lo.y || y == j.hi.y
@@ -191,7 +195,7 @@ enum GroundWeigh {
                     if !shell && !open && y > 1 {
                         // (on a built block or bedrock: carried by it, a prop under a tunnel's roof)
                         let below = Chunk.index(ci.0, y - 1, ci.1)
-                        if !ch.blocks.ground(below) && j.carved[IVec3(x, y - 1, z)] == nil && (Structure.part(&k, x, y - 1, z) != nil || Structure.anchor(&k, x, y - 1, z)) { gr = 1 }
+                        if !ch.blocks.ground(below) && (Structure.part(&k, x, y - 1, z) != nil || Structure.anchor(&k, x, y - 1, z)) { gr = 1 }
                     }
                     j.cells.append(p); j.weight.append(m.weight); j.bond.append(m.bond); j.crush.append(m.crush)
                     j.ground.append(gr); j.held.append(shell && !open || y <= 1); j.open.append(open)

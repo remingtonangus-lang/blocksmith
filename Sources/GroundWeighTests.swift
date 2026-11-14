@@ -6,7 +6,7 @@ import simd
 //       caves in;
 //   (2) rock: the same room 23 across stands;
 //   (3) a 294-cell boulder on four neck cells: two of them carved away it stands, three it comes down;
-//   (4) a roof the world came with (made, not dug) that no weighing would pass is left alone by a carve beside it;
+//   (4) a boulder the world came with on one neck cell (no weighing would pass it) is left alone by a dig at its corner;
 //   (5) earth, 23 across, with props every other cell: the roof stands.
 enum GroundWeighTests {
     static func run(_ g0: Game, check: (Bool, String) -> Void) {
@@ -94,18 +94,19 @@ enum GroundWeighTests {
         let rock = cover(rx, rz, 23, side: 31)
         check(rock == 1587 && GroundWeigh.fell == fell1, "groundweigh (2): rock over the same room 23 across stands (\(rock) of 1587 cover cells left, \(GroundWeigh.fell - fell1) fell; \(rock0) as made, \(rock1) once dug; " + tally() + ")")
         // (3) a boulder on a neck: 7 x 7 x 6 of rock on four cells, three high, over a rock floor
-        func boulder(_ x0: Int, _ z0: Int, cut: Int) -> Int {
+        func boulder(_ x0: Int, _ z0: Int, cut: Int, necks: Int = 4, poke: Bool = false) -> Int {
             let F = base + 4
             for z in (z0 - 6)...(z0 + 7) { for x in (x0 - 6)...(x0 + 7) {
                 for y in min(base - 12, top(x, z) - 2)...F { set(x, y, z, stone) }
                 for y in (F + 1)...(F + 16) { set(x, y, z, nil) }
             } }
             let neck = [(x0, z0), (x0 + 1, z0), (x0, z0 + 1), (x0 + 1, z0 + 1)]
-            for (x, z) in neck { for y in (F + 1)...(F + 3) { set(x, y, z, stone) } }
+            for (x, z) in neck.prefix(necks) { for y in (F + 1)...(F + 3) { set(x, y, z, stone) } }
             for z in (z0 - 3)...(z0 + 3) { for x in (x0 - 3)...(x0 + 3) { for y in (F + 4)...(F + 9) { set(x, y, z, stone) } } }
             var made = 0
             for z in (z0 - 3)...(z0 + 3) { for x in (x0 - 3)...(x0 + 3) { for y in (F + 4)...(F + 9) { if w.groundAt(x, y, z) { made += 1 } } } }
             for (x, z) in neck.suffix(cut) { for y in (F + 1)...(F + 3) { dig(x, y, z) } }
+            if poke { dig(x0 + 3, F + 4, z0 + 3) }
             var dug = 0
             for z in (z0 - 3)...(z0 + 3) { for x in (x0 - 3)...(x0 + 3) { for y in (F + 4)...(F + 9) { if w.groundAt(x, y, z) { dug += 1 } } } }
             print("groundweigh (3) boulder at \(x0) \(z0): \(made) cells as made, \(dug) once the neck was cut; floor at \(F); " + tally())
@@ -116,16 +117,11 @@ enum GroundWeighTests {
         }
         let two = boulder(30, -44, cut: 2), one = boulder(54, -44, cut: 3)
         check(two == 294 && one == 0, "groundweigh (3): a 294-cell boulder on two neck cells stands (\(two) left), on one it comes down (\(one) left)")
-        // (4) a roof the world came with: made, not dug; a carve in the wall beside it
-        let mx = -56, mz = -20
-        block(mx, mz, dirt, side: 31)
-        room(mx, mz, 23, carve: false, side: 31)
+        // (4) a boulder the world came with on ONE neck cell (no weighing passes it): a dig at its corner leaves it be
         let spared0 = GroundWeigh.spared, fell2 = GroundWeigh.fell
-        dig(mx + 1, H - 4, mz + 15)
-        settle()
-        let made = cover(mx, mz, 23, side: 31)
-        check(made == 1587 && GroundWeigh.fell == fell2 && GroundWeigh.spared > spared0,
-              "groundweigh (4): a roof the world came with is left alone by a carve beside it (\(made) of 1587 cover cells left, \(GroundWeigh.fell - fell2) fell, \(GroundWeigh.spared - spared0) cells with no way down before either)")
+        let made = boulder(30, -16, cut: 0, necks: 1, poke: true)
+        check(made == 293 && GroundWeigh.fell == fell2 && GroundWeigh.spared > spared0,
+              "groundweigh (4): a boulder the world came with on one neck cell is left alone by a dig at its corner (\(made) of 293 cells left, \(GroundWeigh.fell - fell2) fell, \(GroundWeigh.spared - spared0) cells with no way down before either)")
         // (5) props
         let px = -20, pz = -20
         block(px, pz, dirt, side: 31)
