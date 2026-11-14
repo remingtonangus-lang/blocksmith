@@ -630,7 +630,8 @@ extension Game {
                     pushN += f.wait.count
                 }
                 // (ledger 134: and its trunk's shape is made, so it never shows as posts for a frame)
-                let built = !s.mesh.busy && !s.mesh.sections.isEmpty && Felling.shapePending[s.id] == nil
+                // (for half a second at most: a shape that comes later goes on when it does)
+                let built = !s.mesh.busy && !s.mesh.sections.isEmpty && (Felling.shapePending[s.id] == nil || f.held > 0.5)
                 if !(drawn && built) && f.held < 4 { s.vel = .zero; s.angVel = .zero; continue }
                 if !drawn { Felling.letLate += 1 }
                 s.hidden = false; s.kinematic = false

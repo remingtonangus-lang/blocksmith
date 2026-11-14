@@ -501,7 +501,7 @@ enum TreeProbeCheck {
                     else if shapeFirst.isEmpty { shapeFirst = "\(c.x) \(c.y - 64) \(c.z): kind \(a.kind) girth \(a.rad) steps \(a.dist) became kind \(b.kind) girth \(b.rad) steps \(b.dist)" }
                 }
             }
-            let made0 = Felling.shapesMade
+            let made0 = Felling.shapesMade, failed0 = Felling.shapesFailed
             g.fellCheck(cutAt, cut)
             let fell = Felling.felled > n0
             // (the body's own shape comes from the edit lane)
@@ -510,7 +510,7 @@ enum TreeProbeCheck {
             let bodyShape = w.ships.list.last(where: { Felling.isFelled($0) }).flatMap { Felling.shapes[$0.id] }
             check(Felling.oldFellShape ? true : (!body.isEmpty && shapeSame == body.count && shapeQuads >= body.count * 4 && shapeCells == body.count && shapeStray == 0 && (bodyShape?.quads.count ?? 0) == shapeQuads),
                   "fellshape: his Taiga spruce felled two logs up: the falling body is drawn with the shape it stood with: \(shapeSame) of its \(body.count) logs grown as before the cut"
-                  + (shapeFirst.isEmpty ? "" : " (\(shapeFirst))") + ", \(shapeQuads) quads over \(shapeCells) logs, \(shapeStray) of them not by one of its logs; the body's own shape \(bodyShape?.quads.count ?? 0) quads after \(waited * 10) ms")
+                  + (shapeFirst.isEmpty ? "" : " (\(shapeFirst))") + ", \(shapeQuads) quads over \(shapeCells) logs, \(shapeStray) of them not by one of its logs; the body's own shape \(bodyShape?.quads.count ?? 0) quads after \(waited * 10) ms (\(Felling.shapesMade - made0) made, \(Felling.shapesFailed - failed0) not made, \(Felling.shapePending.count) still being made, \(w.ships.list.filter { Felling.isFelled($0) }.count) felled bodies)")
             let r = same(w, before, cells)
             let ghosts = w.treeGhosts.count
             // Saved and read back.

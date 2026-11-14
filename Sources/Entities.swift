@@ -31,6 +31,22 @@ struct EntityWriter {
         n += 6
     }
 
+    // A quad with a colour at each corner (a round trunk shaded smoothly round it: FellShape).
+    mutating func quad4c(_ p0: V3, _ p1: V3, _ p2: V3, _ p3: V3, _ u0: V2, _ u1: V2, _ u2: V2, _ u3: V2,
+                         _ layer: Int, _ c0: V4, _ c1: V4, _ c2: V4, _ c3: V4) {
+        guard n + 6 <= capacity else { return }
+        let l = Float(layer)
+        let a = EntityVert(pos: V4(p0, l), uv: V4(u0.x, u0.y, 0, 0), color: c0)
+        let c = EntityVert(pos: V4(p2, l), uv: V4(u2.x, u2.y, 0, 0), color: c2)
+        out[n] = a
+        out[n + 1] = EntityVert(pos: V4(p1, l), uv: V4(u1.x, u1.y, 0, 0), color: c1)
+        out[n + 2] = c
+        out[n + 3] = a
+        out[n + 4] = c
+        out[n + 5] = EntityVert(pos: V4(p3, l), uv: V4(u3.x, u3.y, 0, 0), color: c3)
+        n += 6
+    }
+
     static let fullUV = (V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0))
     static let cubeShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
 

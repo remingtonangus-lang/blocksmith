@@ -78,7 +78,7 @@ enum PlaceRowTests {
         // (6) ledger 133: stone set on a wall's top (as the game places it: the cell, then its swell toward the aim),
         // broken as Creative breaks it; what is left hanging in cells with no ground is a sliver, and a blow clears it
         let stone = FieldMat.index[Int(STONE)]
-        let cx = 12, cz = 12
+        let cx = -6, cz = 6
         w.setBlock(cx, H + 1, cz, planks); w.setBlock(cx, H + 2, cz, planks)
         func lumps() -> (n: Int, at: V3?) {
             var n = 0, first: V3?
