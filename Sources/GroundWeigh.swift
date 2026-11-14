@@ -34,7 +34,8 @@ final class GroundWeighState {
     var pending: [[IVec3]] = []
     var pendingOf: [IVec3] = []              // (the carved cells of the weighing they came from)
     var pendingFell = 0, pendingSpared = 0
-    var seeds = Set<IVec3>()                 // (where the older ground checks look afterwards: GroundCollapse's queue)
+    var seeds = Set<IVec3>()                 // (where the older ground checks look afterwards: a fallen cell per eight cells of it)
+    var seedLots = Set<IVec3>()
     var own = false                          // (its own drops: noted by itself, with the rest)
     init() { _ = GroundWeigh.mats }          // (built at load, not in the first weighing's frame)
     var busy: Bool { !carved.isEmpty || job != nil || !pending.isEmpty }
@@ -99,11 +100,18 @@ enum GroundWeigh {
     }
 
     // Every frame (Game.tick, after GroundCollapse).
+    static var worstTickMs = 0.0             // (all of it that runs on the frame, a tick)
     static func tick(_ g: Game) {
         let w = g.world
         guard enabled, w.fieldTerrain else { return }
         let st = w.groundWeigh
         st.ticks += 1
+        guard st.busy else { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        step(g, w, st)
+        worstTickMs = max(worstTickMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
+    }
+    private static func step(_ g: Game, _ w: World, _ st: GroundWeighState) {
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         if !st.pending.isEmpty { dropStep(g, paced); return }
         if st.job == nil {
@@ -183,7 +191,7 @@ enum GroundWeigh {
                 st.pendingFell += cells.count
                 fell += cells.count
                 let c = cells[0]
-                st.seeds.insert(IVec3(floorDiv(c.x, 8), floorDiv(c.y, 8), floorDiv(c.z, 8)))
+                if st.seedLots.insert(IVec3(floorDiv(c.x, 8), floorDiv(c.y, 8), floorDiv(c.z, 8))).inserted { st.seeds.insert(c) }
             }
             if CFAbsoluteTimeGetCurrent() - t0 > room { break }
         }
@@ -191,11 +199,12 @@ enum GroundWeigh {
         if paced { CraterJob.spend(dt) }
         worstDropMs = max(worstDropMs, dt * 1000)
         guard st.pending.isEmpty else { return }
-        // (what hung beyond it and what lay on it: the older ground checks' next, a look per eight cells of it)
+        // (what hung beyond it and what lay on it: the older ground checks' next, a look per eight cells of it, as
+        // small as a dug block's: a look six cells round a spot inside the land took 35 ms in the worst-case soak)
         for k in st.seeds.sorted(by: { $0.y != $1.y ? $0.y < $1.y : ($0.z != $1.z ? $0.z < $1.z : $0.x < $1.x) }) {
-            w.collapseQueue.append((IVec3(k.x * 8 + 4, k.y * 8, k.z * 8 + 4), 6))
+            w.collapseQueue.append((k, 3))
         }
-        st.seeds.removeAll()
+        st.seeds.removeAll(); st.seedLots.removeAll()
         if st.pendingFell == 0 {
             // (nothing of it was ground any more: done with, or the same answer would come for ever)
             let gone = Set(st.pendingOf)
