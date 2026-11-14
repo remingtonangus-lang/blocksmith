@@ -19,7 +19,7 @@ import simd
 //
 // Strengths are the materials' own (Structure.Mat): a joint hung or sideways carries StructureFlow.side (earth, sand
 // and gravel about one cell and a quarter, rock fifteen); pressed down, ground carries what rock does (it does not
-// crush under its own hill). So earth rooms up to about twelve cells across and tunnels up to seven hold, wider
+// crush under its own hill). So earth rooms up to about seventeen cells across and tunnels up to nine hold, wider
 // ones cave in up to the surface; rock holds any span a carve makes and gives way at a neck. A built block under
 // ground carries it (a prop in a tunnel). The box's outer cells are held by what lies past them.
 // BS_GROUNDWEIGH=0: off. BS_GROUNDWEIGHLOG=1: a line a weighing.

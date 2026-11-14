@@ -1300,6 +1300,30 @@ if let out = arg("--view"), let ctx = vkctx {
         if inTick { BlastShape.deferred = deferred0 }
         print("view: blast at \(bv[0]) \(bv[1]) \(bv[2]) power \(bv.count > 3 ? bv[3] : 4), \(n) ticks after; shapings queued \(queued), left \(BlastShape.queue.count)")
     }
+    // --blasts "X,Y,Z,POWER;X,Y,Z,POWER;..." (ledger 127): blasts one after another, half a second of play after each,
+    // then --settle SECS (default 3); prints what the ground weighings did (GroundWeigh).
+    if let list = arg("--blasts") {
+        vg.paused = false
+        let w0 = GroundWeigh.weighed, f0 = GroundWeigh.fell, s0 = GroundWeigh.spared
+        var worst = 0.0, why = ""
+        func play(_ secs: Double) {
+            for _ in 0..<Int(secs * 72) {
+                let t0 = CFAbsoluteTimeGetCurrent()
+                vg.tick(1.0 / 72)
+                let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                if ms > worst { worst = ms; why = TickProf.summary() }
+            }
+        }
+        for b in list.split(separator: ";") {
+            let v = b.split(separator: ",").compactMap { Float($0) }
+            guard v.count >= 3 else { continue }
+            Explosion.explode(at: V3(v[0], v[1], v[2]), power: v.count > 3 ? v[3] : 4, game: vg)
+            play(0.5)
+        }
+        play(Double(arg("--settle") ?? "") ?? 3)
+        print(String(format: "view: blasts: ground weighed %d times, %d cells came down, %d left that had no way down before; last %d cells in %.1f ms off the frame, worst read slice %.2f ms; worst tick %.1f ms (%@)",
+                     GroundWeigh.weighed - w0, GroundWeigh.fell - f0, GroundWeigh.spared - s0, GroundWeigh.lastCells, GroundWeigh.lastSolveMs, GroundWeigh.worstSliceMs, worst, why))
+    }
     // --shells YAWS,PITCHES (Nov 12, the hovering tower top): heavy shells as he fires them from a manned deck gun
     // (VehicleControls.shoot: his power and breach), from the eye, at each yaw and pitch (degrees, "a:b:step" or one
     // value), half a second of play after each, then --settle SECS (default 6) more; --floatscan R lists every built
