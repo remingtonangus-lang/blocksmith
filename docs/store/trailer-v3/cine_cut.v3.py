@@ -44,7 +44,7 @@ CUT = [
     _shot("v3_ride", 3.4, "Ride out on your own horse", 0.6),
     _shot("v3_build", 3.4, "Build your home, block by block", 0.6),
     _shot("v3_farm", 2.8, "Work the land", 0.5),
-    _shot("v3_train", 3.2, "Ride the rails", 2.5, [(0.3, "trainWhistle.wav", 0.7), (0.9, "steamChuff.wav", 0.6)]),
+    _shot("v3_train", 3.2, "Ride the rails", 3.8, [(0.3, "trainWhistle.wav", 0.7), (0.9, "steamChuff.wav", 0.6)]),
     _shot("v3_cave", 2.8, "Explore the caves below", 1.0),
     # ACT II: trouble comes (ash_vault_battle.m4a drops here)
     _shot("v3_outlaws", 4.6, "Defend your town from outlaws", 1.2),
