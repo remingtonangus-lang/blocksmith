@@ -1165,6 +1165,7 @@ if let out = arg("--view"), let ctx = vkctx {
         let ys = shown.map { $0.pos.y }
         print(String(format: "view: navalburst: %.2f s on, %d particles alive, worst tick %.1f ms (%@); big smoke puffs %d (%d shown, y %.1f to %.1f, burst at %.1f)",
                      secs, vg.particles.list.count, worst, worstWhy, smokes.count, shown.count, ys.min() ?? 0, ys.max() ?? 0, aim.y))
+        if Felling.worstMs > 0 { print(String(format: "view: navalburst: slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
     }
     // --fell S (P441): the foot log of the nearest living trunk is cut as the game cuts it (Game.breakBlock: what stood
     // on it comes loose and topples away from the eye), then the game runs S seconds before the render.

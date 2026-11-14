@@ -564,11 +564,13 @@ enum Structure {
         guard enabled, !w.loadQueue.isEmpty else { return }
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         if paced {
-            if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
+            // (ledger 126: with the frame governor, when the frame has room for what a check took lately)
+            if let go = FrameGovernor.lump(.loadCheck, atLeast: wantSeconds) { if !go { return } }
+            else if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
             waited = 0
         }
         let began = CFAbsoluteTimeGetCurrent()
-        defer { if paced { CraterJob.spend(CFAbsoluteTimeGetCurrent() - began) } }
+        defer { if paced { let s = CFAbsoluteTimeGetCurrent() - began; CraterJob.spend(s); FrameGovernor.learn(.loadCheck, s) } }
         var budget = 1
         while budget > 0, !w.loadQueue.isEmpty {
             let p = w.loadQueue.removeFirst()

@@ -42,7 +42,8 @@ enum StructureTip {
         guard Structure.enabled else { return }
         let split = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         if split && (overhangs != nil || !w.tipQueue.isEmpty) {
-            if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
+            if let go = FrameGovernor.lump(.tip, atLeast: wantSeconds) { if !go { return } }
+            else if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
             waited = 0
         }
         if let (p, r) = overhangs {
@@ -51,7 +52,7 @@ enum StructureTip {
             let t0 = CFAbsoluteTimeGetCurrent()
             if let piece = cantilever(w, at: p, r: r) { g.topple(piece); snapped += 1 }
             let dt = CFAbsoluteTimeGetCurrent() - t0
-            CraterJob.spend(dt)
+            CraterJob.spend(dt); FrameGovernor.learn(.tip, dt)
             if dt * 1000 > worstMs { worstMs = dt * 1000; worstSplit = String(format: "the overhangs %.1f", dt * 1000) }
             return
         }
@@ -71,7 +72,7 @@ enum StructureTip {
         }
         checks += 1
         let t1 = CFAbsoluteTimeGetCurrent(), ms = (t1 - t0) * 1000
-        CraterJob.spend(t1 - t0)
+        CraterJob.spend(t1 - t0); FrameGovernor.learn(.tip, t1 - t0)
         if ms > worstMs {
             worstMs = ms
             worstSplit = String(format: "%d blocks: fill %.1f, footings %.1f, levels %.1f, overhangs or the fall %.1f", cells, (fillAt - t0) * 1000,
