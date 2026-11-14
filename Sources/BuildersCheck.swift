@@ -8,6 +8,7 @@ import simd
 // agent put down, and every cell it dug, is read back; the ground round each build is compared with how it was.
 // BS_BUILDONLY=key,key limits it to some builds.
 enum BuildersCheck {
+    static let maxTicks = Int(ProcessInfo.processInfo.environment["BS_BUILDTICKS"] ?? "") ?? 240_000
     static func run(_ g0: Game, _ check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
@@ -59,7 +60,7 @@ enum BuildersCheck {
             }
             var columns0: [IVec3: String] = [:]
             for x in plan.lo.x...plan.hi.x { for z in plan.lo.z...plan.hi.z { columns0[IVec3(x, 0, z)] = column(x, z) } }
-            while !bot.done && ticks < 240_000 {
+            while !bot.done && ticks < BuildersCheck.maxTicks {
                 agent.step(bot); ticks += 1
                 if ticks % 20 == 0 {
                     for (q, was) in groundWas {
