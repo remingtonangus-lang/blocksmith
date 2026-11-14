@@ -17,7 +17,8 @@ final class JobPool {
 
     init(workers: Int) {
         self.workers = workers
-        for i in 0..<workers {
+        // (ledger 126: one more than `workers`, the spare worker: asleep unless the frame governor lets it run)
+        for i in 0...workers {
             let t = Thread { [unowned self] in self.run(i) }
             t.name = "blocksmith.world.\(i)"
             t.qualityOfService = .userInitiated
@@ -77,13 +78,37 @@ final class JobPool {
     }
     var heldNow: Int { cond.lock(); defer { cond.unlock() }; return held }
 
+    // Ledger 126 ("constantly using all of its compute"): the spare worker, thread number `workers`. The pool keeps two
+    // cores clear of world jobs for the frame's own threads; while the frame governor sees frames with room to spare
+    // and none late, this one more thread takes jobs too, and goes back to sleep at the first late frame. Never on
+    // without the governor (the checks, the Mac). BS_SPAREWORKER=0: never.
+    static let spareAllowed = ProcessInfo.processInfo.environment["BS_SPAREWORKER"] != "0"
+    private let spareGate = NSCondition()      // the spare worker sleeps here, off the workers' condition, until let run
+    private var spare = false
+    private(set) var spareJobs = 0
+    func setSpare(_ on: Bool) {
+        let want = on && JobPool.spareAllowed
+        spareGate.lock()
+        let wake = want && !spare
+        spare = want
+        spareGate.unlock()
+        if wake { spareGate.signal() }
+    }
+
     private func run(_ index: Int) {
         #if os(Linux) || os(Android)
         if JobPool.nice > 0 { _ = jobPoolSetPriority(0, 0, JobPool.nice) }      // (PRIO_PROCESS, this thread)
         #endif
         while true {
+            // (the spare worker: waits at its own gate; told to stop while it waits for a job, it takes that one more)
+            if index == workers {
+                spareGate.lock()
+                while !spare { spareGate.wait() }
+                spareGate.unlock()
+            }
             cond.lock()
             while head == jobs.count || index < held { cond.wait() }
+            if index == workers { spareJobs += 1 }
             let job = jobs[head]
             jobs[head] = {}
             head += 1

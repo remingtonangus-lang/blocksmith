@@ -42,6 +42,11 @@ enum FrameGovernor {
     private(set) static var late = 0               // frames over their period, of the last `window`
     private static var lateBits: UInt64 = 0, lateBits2: UInt64 = 0
     static let window = 72
+    static let stale = 0.25
+    private static var sinceLate = 0
+    static var spareAfter = 360                    // frames without a late one before the spare worker runs
+    private(set) static var spareWorker = false
+    private(set) static var spareFrames = 0
 
     // Harness and the perf line.
     private(set) static var grants = 0, refused = 0, forced = 0, boosted = 0
@@ -62,6 +67,9 @@ enum FrameGovernor {
     @inline(__always) static var left: Double {
         guard armed else { return .infinity }
         let elapsed = CFAbsoluteTimeGetCurrent() - start
+        // (no frame begun for a quarter of a second: the frame loop is not running, a check or a loading screen is
+        // ticking the game itself: nothing to guard, the usual slices)
+        if elapsed > stale { return .infinity }
         let must = max(mustEMA * 1.1, elapsed - deferred)
         return max(0, min(tickBudget - elapsed, tickBudget - must - deferred))
     }
@@ -112,7 +120,12 @@ enum FrameGovernor {
         lateBits = lateBits << 1 | (wasLate ? 1 : 0)
         late += (wasLate ? 1 : 0) - Int(out)
         tickEnd = 0
+        sinceLate = wasLate ? 0 : sinceLate + 1
         JobPool.shared.setHeld(workersHeld)
+        // The spare worker: only with frames well clear (half the tick's time free) and none late for five seconds.
+        spareWorker = late == 0 && sinceLate >= spareAfter && spare > 0.5
+        if spareWorker { spareFrames += 1 }
+        JobPool.shared.setSpare(spareWorker)
     }
 
     // How many of the world's workers take no new job just now: none with room; after late frames a share of them,
@@ -136,8 +149,9 @@ enum FrameGovernor {
     // many times that when frames have room. A job refused `patience` frames in a row gets `least` all the same.
     static func slice(_ job: Job, _ base: Double, most: Double = 4, least: Double = 0.0004) -> Double {
         guard armed else { return base }
-        grants += 1
         let room = left
+        if room == .infinity { return base }
+        grants += 1
         // With room to spare the slice grows: nothing more at a quarter spare, all of `most` at three quarters.
         let k = max(0, min(1, (spare - 0.25) / 0.5))
         let want = base * (1 + (most - 1) * k)
@@ -162,6 +176,32 @@ enum FrameGovernor {
         return false
     }
 
+    // A job that comes in one piece of no fixed size (a load check, a body let go, a tip check: 0.2 to 8 ms): may it
+    // run this frame? It may when the frame has room for what such a piece took lately (`learn`; never asked for more
+    // than a frame with nothing else waiting can give, so the piece gets the emptiest frame and two such pieces do not
+    // share one). nil: not armed, the caller's own rule.
+    private static var usual = [Double](repeating: 0, count: Job.allCases.count)
+    static func lump(_ job: Job, atLeast floor: Double) -> Bool? {
+        guard armed else { return nil }
+        let room = left
+        if room == .infinity { return nil }
+        grants += 1
+        let best = max(floor, (tickBudget - mustEMA * 1.1) * 0.9)
+        let want = min(best, max(floor, usual[job.rawValue]))
+        if room >= want { starved[job.rawValue] = 0; return true }
+        if starved[job.rawValue] >= patience { forced += 1; starved[job.rawValue] = 0; return true }
+        starved[job.rawValue] += 1
+        refused += 1
+        return false
+    }
+    // What a piece of that job took (the caller charges it to the frame itself, CraterJob.spend): the next is taken
+    // to cost as much as the dearest lately.
+    static func learn(_ job: Job, _ seconds: Double) {
+        guard armed else { return }
+        usual[job.rawValue] = max(seconds, usual[job.rawValue] * 0.97)
+        took[job.rawValue] += seconds; took[Job.carve.rawValue] -= seconds       // (charged as carving by CraterJob.spend)
+    }
+
     // Seconds a job took, counted by the job itself.
     @inline(__always) static func charge(_ job: Job, _ seconds: Double) {
         guard armed, seconds > 0 else { return }
@@ -177,8 +217,8 @@ enum FrameGovernor {
     // For the perf line and the soak.
     static var line: String {
         guard armed else { return "governor off" }
-        return String(format: "governor: tick budget %.1f ms, must %.1f ms, spare %.0f%%, late %d/%d (all %d of %d, worst +%.1f ms), grants %d (boosted %d, refused %d, forced %d), workers held %d",
-                      tickBudget * 1000, mustEMA * 1000, spare * 100, late, window, lateTotal, frames, worstOver * 1000, grants, boosted, refused, forced, workersHeld)
+        return String(format: "governor: tick budget %.1f ms, must %.1f ms, spare %.0f%%, late %d/%d (all %d of %d, worst +%.1f ms), grants %d (boosted %d, refused %d, forced %d), workers held %d, spare worker on %d frames (%d jobs)",
+                      tickBudget * 1000, mustEMA * 1000, spare * 100, late, window, lateTotal, frames, worstOver * 1000, grants, boosted, refused, forced, workersHeld, spareFrames, JobPool.shared.spareJobs)
     }
 
     static func tookLine(frames: Int) -> String {
@@ -188,6 +228,6 @@ enum FrameGovernor {
     }
 
     // Checks: a frame loop of their own.
-    static func disarm() { armed = false; start = 0; tickEnd = 0; late = 0; lateBits = 0; lateBits2 = 0; spare = 0; deferred = 0; mustEMA = 0.004; JobPool.shared.setHeld(0) }
-    static func resetCounts() { took = [Double](repeating: 0, count: Job.allCases.count); grants = 0; refused = 0; forced = 0; boosted = 0; lateTotal = 0; frames = 0; worstOver = 0 }
+    static func disarm() { armed = false; start = 0; tickEnd = 0; late = 0; lateBits = 0; lateBits2 = 0; spare = 0; deferred = 0; mustEMA = 0.004; sinceLate = 0; spareWorker = false; JobPool.shared.setHeld(0); JobPool.shared.setSpare(false) }
+    static func resetCounts() { took = [Double](repeating: 0, count: Job.allCases.count); grants = 0; refused = 0; forced = 0; boosted = 0; lateTotal = 0; frames = 0; worstOver = 0; spareFrames = 0 }
 }
