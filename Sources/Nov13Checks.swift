@@ -38,6 +38,17 @@ enum Nov13Checks {
             if p.onGround { landed = true; gap = p.airPeak - p.pos.y; break }
         }
         p.update(dt: 1.0 / 30, input: MoveInput(), world: w)
+        // A soldier dropped from 40 up opens his and lands unhurt; a cow doesn't have one.
+        let sx = x + 6, stop = w.topY(sx, z)
+        let m = Mob(.soldierTrooper, at: V3(Float(sx) + 0.5, Float(stop + 41), Float(z) + 0.5))
+        m.persistent = true
+        let hp0 = m.health
+        var mChute = false, mSteps = 0
+        while mSteps < 20 * 40 && !(m.onGround && mSteps > 5) { m.update(0.05, game: g); mChute = mChute || m.chute; mSteps += 1 }
+        let mHurt = m.health < hp0, mFolded = !m.chute
+        check(mChute && m.onGround && !mHurt && mFolded,
+              String(format: "parachute: a soldier dropped from 40 blocks opens his (%@), lands after %.1f s unhurt (%@), folds it (%@)",
+                     mChute ? "yes" : "no", Float(mSteps) * 0.05, mHurt ? "hurt" : "yes", mFolded ? "yes" : "no"))
         check(!groundUse && opened && landed && sink < Parachute.sink + 0.3 && fwd > 4.5 && gap < 1 && !p.parachute,
               String(format: "parachute: a use on the ground does nothing (%@); falling at 25 b/s it opens (%@), sinks at %.1f b/s at worst, drifts %.1f b/s stick forward, lands after %.1f s with %.1f blocks of fall to take, folds away (%@)",
                      groundUse ? "it opened" : "yes", opened ? "yes" : "no", sink, fwd, Float(steps) / 30, gap, p.parachute ? "still open" : "yes"))

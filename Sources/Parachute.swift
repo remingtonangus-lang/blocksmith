@@ -14,6 +14,12 @@ enum Parachute {
     static var openedAt: Double = -100           // Game.clock when the last one opened (it blossoms over 0.5 s)
     static let rise: Float = 3.4                 // canopy middle over his feet
     static let radius: Float = 2.4
+    static func wears(_ k: MobKind) -> Bool {
+        switch k {
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew: return true
+        default: return false
+        }
+    }
 }
 
 extension Game {
@@ -33,15 +39,23 @@ extension Game {
         sfx(.armorEquip(0), 1.2, at: player.eye)
     }
 
-    // The canopy: twelve gores in two colours on a shallow dome, its rim, and lines from the rim to his shoulders.
+    // His canopy, and the soldiers' within 96 blocks.
     func writeParachute(_ wr: inout EntityWriter, eye: V3) {
-        guard player.parachute else { return }
+        if player.parachute {
+            let open = Float(min(1, max(0.15, (clock - Parachute.openedAt) / 0.5)))
+            writeCanopy(&wr, eye: eye, feet: player.pos, vel: player.vel, height: player.height, open: open)
+        }
+        for m in mobs.mobs where m.chute && simd_length_squared(m.pos - eye) < 96 * 96 {
+            writeCanopy(&wr, eye: eye, feet: m.pos, vel: m.vel, height: m.height, open: 1)
+        }
+    }
+
+    // The canopy: twelve gores in two colours on a shallow dome, its rim, and lines from the rim to the shoulders.
+    func writeCanopy(_ wr: inout EntityWriter, eye: V3, feet: V3, vel: V3, height: Float, open: Float) {
         let white = Int(Tex.id("smoke"))
         let uv = [V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6)]
-        let open = Float(min(1, max(0.15, (clock - Parachute.openedAt) / 0.5)))
-        let feet = player.pos
-        // It trails a little behind his drift.
-        let hv = V3(player.vel.x, 0, player.vel.z)
+        // It trails a little behind the drift.
+        let hv = V3(vel.x, 0, vel.z)
         let mid: V3 = feet + V3(0, Parachute.rise * (0.6 + 0.4 * open), 0) - hv * 0.06
         let r = Parachute.radius * open
         let cell = (Int(floor(mid.x)), Int(floor(mid.y)), Int(floor(mid.z)))
@@ -64,7 +78,7 @@ extension Game {
             }
         }
         // Lines from every other gore's rim to his shoulders.
-        let shoulders: V3 = feet + V3(0, player.height * 0.82, 0)
+        let shoulders: V3 = feet + V3(0, height * 0.82, 0)
         let lineC = V4(V3(0.18, 0.17, 0.14) * light, 1)
         for g in stride(from: 0, to: gores, by: 2) {
             let a: V3 = at(g, rings.count - 1) - eye
