@@ -1689,7 +1689,10 @@ final class World: LifeLinked {
         // Results are applied within a per-frame budget; the rest wait for the next frame. P430 (a): meshes of chunks
         // round the player (a blast's crater, a dug block) go in whatever the budget; behind the streaming's installs
         // they waited for a frame with budget to spare.
-        let budget = World.handoverSeconds
+        // (ledger 126: what the frame has left for it, more when frames have room: FrameGovernor)
+        let tHand = CFAbsoluteTimeGetCurrent()
+        let budget = World.deterministic ? World.handoverSeconds : FrameGovernor.slice(.handover, World.handoverSeconds, most: 5)
+        let budgetEnd = tHand + budget
         let nearMeshes = World.deterministic ? 0 : mr.partition { abs($0.0.x - center.x) > 6 || abs($0.0.z - center.z) > 6 }
         var gi = 0, mi = 0
         // (P500: a shot waiting where it struck in the shell band, its chunks' blocks go in ahead of new land.)
@@ -1697,7 +1700,7 @@ final class World: LifeLinked {
             let refills = strikeRefills
             _ = gr.partition { !refills.contains($0.0) }
         }
-        while gi < gr.count && (gi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+        while gi < gr.count && (World.deterministic || (budget > 0 && (gi == 0 || CFAbsoluteTimeGetCurrent() < budgetEnd))) {
             let (k, p) = gr[gi]; gi += 1
             genInFlight.remove(k)
             jobs -= 1
@@ -1708,7 +1711,7 @@ final class World: LifeLinked {
             install(k, p)
             if World.resultsProfile { World.noteResult(ti, (p.fromDisk ? "install (saved): " : "install (generated): ") + World.installSplit) }
         }
-        while mi < mr.count && (mi <= nearMeshes || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+        while mi < mr.count && (mi < nearMeshes || World.deterministic || (budget > 0 && (mi == nearMeshes || CFAbsoluteTimeGetCurrent() < budgetEnd))) {
             let (k, list) = mr[mi]; mi += 1
             jobs -= 1
             if !frontOut.isEmpty { frontOut.remove(k) }
@@ -1721,6 +1724,7 @@ final class World: LifeLinked {
             World.noteResult(ti, "meshes applied")
         }
         World.handoverSpent += CFAbsoluteTimeGetCurrent() - tUpdate; World.handedOver += gi + mi
+        FrameGovernor.done(.handover, since: tHand)
         World.leftWaiting = gr.count - gi + mr.count - mi
         if gi < gr.count || mi < mr.count {
             lock.lock()
@@ -2930,9 +2934,11 @@ final class World: LifeLinked {
         let stepLevel = lava && !dim.ultrawarm ? 2 : 1
         let t0 = CFAbsoluteTimeGetCurrent()
         if lava { lavaDone = batch.count } else { fluidDone = batch.count }
+        let fluidSlice = timed ? FrameGovernor.slice(lava ? .lava : .fluid, World.fluidSeconds, most: 3) : 0       // (ledger 126)
+        defer { if timed { FrameGovernor.done(lava ? .lava : .fluid, since: t0) } }
         for (bi, p) in batch.enumerated() {
             // Out of time (Quest): the rest wait for the next fluid tick.
-            if timed && CFAbsoluteTimeGetCurrent() - t0 > World.fluidSeconds {     // (P416: every cell: 16 lava cells ran 30-50 ms past the 2 ms)
+            if timed && CFAbsoluteTimeGetCurrent() - t0 > fluidSlice {     // (P416: every cell: 16 lava cells ran 30-50 ms past the 2 ms)
                 if lava { lavaPending.giveBack(batch.count - bi); lavaDone = bi } else { fluidPending.giveBack(batch.count - bi); fluidDone = bi }
                 break
             }

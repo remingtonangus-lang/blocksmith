@@ -2766,7 +2766,9 @@ extension ShipManager {
                 st.crushEndZ = min(hi.z, lo.z + 8)
             }
         }
-        let deadline = full ? Double.infinity : CFAbsoluteTimeGetCurrent() + ShipManager.crushSeconds
+        let tSlice = CFAbsoluteTimeGetCurrent()
+        let deadline = full ? Double.infinity : tSlice + max(0.0004, FrameGovernor.slice(.crush, ShipManager.crushSeconds, most: 2))      // (ledger 126; never none: the hull must not sit in a trunk)
+        defer { FrameGovernor.done(.crush, since: tSlice) }
         for lz in stride(from: resume ?? (lo.z - ahead), through: st.crushEndZ, by: 1) {
             if CFAbsoluteTimeGetCurrent() > deadline { st.crushNextZ = lz; return }
             let bow = lz <= lo.z + 6

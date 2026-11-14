@@ -710,6 +710,7 @@ enum QuestFrameSoak {
         let frames = secs * 72
         let warm = 3 * 72                                                    // (the first 3 s: first meshes in, not counted)
         World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; Felling.worstMs = 0; Felling.worstSplit = ""; Structure.dropWorstMs = 0; Structure.dropWorst = ""; Structure.crumbMs = 0; Structure.crumbN = 0; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; CraterJob.finesUnfetched = 0; CraterJob.stepsUnfetched = 0; CraterJob.unfetchedPhases = [:]; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks, loadMs0 = Structure.totalMs; Structure.worstMs = 0
+        var handed0 = World.handedOver
         let t0 = CFAbsoluteTimeGetCurrent()
         var mobsPeak = 0, shellsPeak = 0
         var stages: [String: (Double, Double)] = [:]
@@ -732,7 +733,11 @@ enum QuestFrameSoak {
             let a = CFAbsoluteTimeGetCurrent()
             let ta = threadMs()
             StallTrace.begin(f)
+            // (ledger 126: the governor as the headset's frame loop arms it; the period is the headset's, in host time)
+            FrameGovernor.begin(period: hostBudgetMs / 1000, now: a)
+            if f == warm { FrameGovernor.resetCounts(); handed0 = World.handedOver }
             g.tick(dt)
+            FrameGovernor.ticked()
             let tk = (CFAbsoluteTimeGetCurrent() - a) * 1000
             StallTrace.end(slow: f >= warm && tk * 1e6 > Double(StallTrace.afterNs), ms: tk, what: TickProf.summary())
             let tickWhy = TickProf.summary()
@@ -751,6 +756,7 @@ enum QuestFrameSoak {
             let b = CFAbsoluteTimeGetCurrent()
             wr.record(s, targets[f % 2], camera())
             let rc = (CFAbsoluteTimeGetCurrent() - b) * 1000
+            FrameGovernor.recorded()
             vkCmdEndRenderPass(s.cmd)
             let own = threadMs() - ta
             try scene.submit(s)
@@ -775,6 +781,8 @@ enum QuestFrameSoak {
             let now = CFAbsoluteTimeGetCurrent()
             if due > now { usleep(useconds_t((due - now) * 1_000_000)) }
         }
+        let govLine = FrameGovernor.line, govTook = FrameGovernor.tookLine(frames: frames)
+        FrameGovernor.disarm()
         scene.waitIdle()
         let voids = voidCheck(g, ctx: ctx, scene: scene, wr: wr)
         let n = Double(max(1, cpu.count))
@@ -823,6 +831,8 @@ enum QuestFrameSoak {
         }
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
+        print("    " + govLine)
+        print("    work that can wait (ms a frame): " + govTook + String(format: "; results handed over %d", World.handedOver - handed0))
         print("    came in after the first 3 s: " + PopIn.line)
         print("    soldiers gone without dying: " + TroopVanish.line + "; despawns held while he could see the mob: \(MobManager.heldInSight); mobs left undrawn with the buffer full: \(MobDrawStats.dropped)")
         if RandomTickRng.frameWorstMs > 0 && mobProf { print(String(format: "    dearest frame of random ticks: %.1f ms (%@)", RandomTickRng.frameWorstMs, RandomTickRng.frameWorst)) }
