@@ -134,6 +134,7 @@ enum CircuitWorkshop {
             b.putB(b.P(x, -1, z), (z >= -3 && z <= -1) || (x == -1 && z == -4) ? Blocks.id(markerBlock) : floor)
             for y in 0...5 { b.putB(b.P(x, y, z), AIR) }
         } }
+        supports(w, at: o)
         var at: [String: IVec3] = [:]
         for (bench, x) in layout() {
             b.o = o + IVec3(x, 0, 0)
@@ -151,6 +152,46 @@ enum CircuitWorkshop {
             }
         }
         return at
+    }
+
+    // Nov 14 (Remington: "make it so the circuit playground doesn't fall into pieces because of the physics, add supports
+    // or something"): the deck stood 10 over the land on nothing, so the load checks weighed it, benches and all, and
+    // brought it down. Its floor is held like bedrock (World.heldDeck), and stone-brick pillars stand under it down to
+    // the ground: at the corners, every 8 blocks along both long edges and down the middle. BS_OLDDECKHOLD=1: neither.
+    static func held(_ o: IVec3) -> HeldDeck { .floor(y: o.y - 1, x0: o.x - 1, x1: o.x + deckLength, z0: o.z - 4, z1: o.z + deckDepth) }
+    static func pillars() -> [(Int, Int)] {
+        var xs = Array(stride(from: -1, through: deckLength, by: 8))
+        if xs.last != deckLength { xs.append(deckLength) }
+        return xs.flatMap { x in [(x, -4), (x, 4), (x, deckDepth)] }
+    }
+    static func supports(_ w: World, at o: IVec3) {
+        guard !HeldDeck.old else { return }
+        let brick = Blocks.has("stone_bricks") ? Blocks.id("stone_bricks") : STONE
+        for (x, z) in pillars() {
+            var y = o.y - 2
+            // down through air, water, plants and trees to the land (64 at most)
+            while y > 1 && y > o.y - 66 {
+                let b = w.rawBlock(o.x + x, y, o.z + z)
+                if b != AIR && b != brick && Blocks.collide[Int(b)] && !Blocks.isLiquid(b) && SmoothTerrain.natural[Int(b)] && !Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("leaves") { break }
+                if b != brick { _ = w.setBlockAsync(o.x + x, y, o.z + z, brick) }
+                y -= 1
+            }
+        }
+    }
+    // Whether every bench still has its sign (a deck the load checks brought down before its floor was held is built again).
+    static func whole(_ w: World, at o: IVec3) -> Bool {
+        layout().allSatisfy { w.blockEntities[o + IVec3($0.1 - 1, 0, -1)]?.kind == .sign }
+    }
+    // The deck's origin, where one stands at this spawn (found as `built` finds it).
+    static func found(_ w: World, spawn: V3) -> IVec3? {
+        let x0 = Int(floorf(spawn.x)) - 8, z0 = Int(floorf(spawn.z)) - 4
+        let first = layout()[0].1
+        let marker = Blocks.id(markerBlock)
+        for y in 1..<CH {
+            if w.block(x0 - 1, y - 1, z0 - 4) == marker && w.block(x0 - 1, y - 1, z0 - 3) == marker { return IVec3(x0, y, z0) }
+            if w.blockEntities[IVec3(x0 + first - 1, y, z0 - 1)]?.kind == .sign { return IVec3(x0, y, z0) }
+        }
+        return nil
     }
 
     // The player's start on the walkway: its west end, middle row.
@@ -191,12 +232,23 @@ extension Game {
         // alone, so it never moves (spawnPoint does: a bed, the spawn command) and never lands on the deck itself.
         let site = findSpawn()
         _ = world.loadSync(center: site, radius: 1)                                // the marker corner is near the site
-        if CircuitWorkshop.built(world, spawn: site) { return }
+        let len = CircuitWorkshop.deckLength
+        if let o = CircuitWorkshop.found(world, spawn: site) {
+            // (Nov 14: its floor held; a deck from before, its pillars added, and built again where it came down)
+            world.heldDeck = CircuitWorkshop.held(o)
+            if HeldDeck.old { return }
+            _ = world.loadSync(center: site + V3(Float(len / 2 - 8), 0, 0), radius: len / 32 + 2)
+            if CircuitWorkshop.whole(world, at: o) { CircuitWorkshop.supports(world, at: o); return }
+            CircuitWorkshop.clear(world, at: o)
+            CircuitWorkshop.build(world, at: o)
+            onToast?("Sparkstone Workshop: rebuilt")
+            return
+        }
         // Building: the whole deck area now, rather than waiting for streaming (a short render distance never reaches
         // its far end). Once per world.
-        let len = CircuitWorkshop.deckLength
         _ = world.loadSync(center: site + V3(Float(len / 2 - 8), 0, 0), radius: len / 32 + 2)
         let o = CircuitWorkshop.origin(world, spawn: site)
+        world.heldDeck = CircuitWorkshop.held(o)                       // (before a block of it goes down)
         CircuitWorkshop.build(world, at: o)
         player.pos = CircuitWorkshop.walkwayStart(o)
         player.vel = .zero

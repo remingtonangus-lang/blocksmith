@@ -224,6 +224,7 @@ extension Game {
     }
     func topple(_ cells: [IVec3], away awayDir: V3? = nil) {
         guard let start = cells.min(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) else { return }
+        Structure.fellTotal += cells.count
         let t0 = CFAbsoluteTimeGetCurrent()
         var tCopy = t0, tTake = t0, tSpawn = t0
         defer {

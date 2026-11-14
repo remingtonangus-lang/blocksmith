@@ -194,6 +194,7 @@ enum Structure {
         if w.groundAt(x, y, z) { return true }
         let b = w.builtBlock(x, y, z)
         if b == AIR { return false }
+        if w.heldDeck.holds(x, y, z) { return true }                                            // (a test world's deck)
         if Blocks.isLiquid(b) { return true }                                                   // (a raft floats)
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }                // bedrock, barriers
         // a block world's terrain; in a field world, soil a structure laid on its floor (a garden: FieldTerrain.split)
@@ -203,6 +204,7 @@ enum Structure {
         let b = w.builtBlock(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
         if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(w, x, y, z)) { return nil }
+        if w.heldDeck.holds(x, y, z) { return nil }
         return m
     }
     // (the same two through a chunk cursor: the fills below, CellSet.swift)
@@ -210,6 +212,7 @@ enum Structure {
         let b = k.built(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
         if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(&k, x, y, z)) { return nil }
+        if k.w.heldDeck.holds(x, y, z) { return nil }
         return m
     }
     @inline(__always) static func anchor(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -217,6 +220,7 @@ enum Structure {
         if k.ground(x, y, z) { return true }
         let b = k.built(x, y, z)
         if b == AIR { return false }
+        if k.w.heldDeck.holds(x, y, z) { return true }
         if Blocks.isLiquid(b) { return true }
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }
         return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(&k, x, y, z))
@@ -652,8 +656,10 @@ enum Structure {
     static let wholeMin = 12
     static var dropWorstMs = 0.0, dropWorst = ""         // (the soak: the slowest drop and its parts)
     static var crumbMs = 0.0, crumbN = 0                  // (the soak: the crumbs' clearing, all of it)
+    static var fellTotal = 0                              // (harness: blocks dropped or toppled by the load checks, DeckHold)
     static func drop(_ g: Game, _ all: [IVec3]) {
         let w = g.world
+        fellTotal += all.count
         let t0 = CFAbsoluteTimeGetCurrent()
         var tSplit = t0, tWhole = t0, wholes = 0, nCrumbs = 0
         defer {
@@ -888,4 +894,13 @@ extension World {
         guard Structure.enabled, frame == nil else { return }
         if loadQueued.insert(IVec3(floorDiv(p.x, 4), floorDiv(p.y, 4), floorDiv(p.z, 4))).inserted { loadQueue.append(p) }
     }
+}
+
+// A test world's deck floor, held like bedrock (World.heldDeck): one layer, a box in x and z. BS_OLDDECKHOLD=1: never.
+struct HeldDeck {
+    var y = Int.min, x0 = 0, x1 = -1, z0 = 0, z1 = -1
+    static let none = HeldDeck()
+    static let old = ProcessInfo.processInfo.environment["BS_OLDDECKHOLD"] == "1"
+    static func floor(y: Int, x0: Int, x1: Int, z0: Int, z1: Int) -> HeldDeck { old ? none : HeldDeck(y: y, x0: x0, x1: x1, z0: z0, z1: z1) }
+    @inline(__always) func holds(_ x: Int, _ y: Int, _ z: Int) -> Bool { y == self.y && x >= x0 && x <= x1 && z >= z0 && z <= z1 }
 }

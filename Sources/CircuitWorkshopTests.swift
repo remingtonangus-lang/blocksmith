@@ -18,8 +18,33 @@ enum CircuitWorkshopTests {
         var top = SEA
         for x in stride(from: -1, through: CircuitWorkshop.deckLength, by: 4) { for z in stride(from: -4, through: CircuitWorkshop.deckDepth, by: 4) { top = max(top, w.topY(x0 + x, z0 + z)) } }
         let o = IVec3(x0, min(CH - 12, top + 12), z0)
+        let held0 = w.heldDeck
+        w.heldDeck = CircuitWorkshop.held(o)
         let at = CircuitWorkshop.build(w, at: o)
-        defer { CircuitWorkshop.clear(w, at: o) }
+        defer { CircuitWorkshop.clear(w, at: o); w.heldDeck = held0 }
+        // Nov 14: the load checks the build queued run to the end (the whole weigh too): nothing of the deck comes down,
+        // and every pillar reaches the land.
+        do {
+            func census() -> Int {
+                var n = 0
+                for x in -1...CircuitWorkshop.deckLength { for z in -4...CircuitWorkshop.deckDepth { for y in -1...5 where w.rawBlock(o.x + x, o.y + y, o.z + z) != AIR { n += 1 } } }
+                return n
+            }
+            let before = census()
+            let (frames, fell) = DeckHold.settle(g)
+            let after = census()
+            var short = 0
+            if !HeldDeck.old {
+                for (x, z) in CircuitWorkshop.pillars() {
+                    var y = o.y - 2
+                    while y > 1 && w.rawBlock(o.x + x, y, o.z + z) == Blocks.id("stone_bricks") { y -= 1 }
+                    let b = w.rawBlock(o.x + x, y, o.z + z)
+                    if !(Blocks.collide[Int(b)] && SmoothTerrain.natural[Int(b)]) { short += 1 }
+                }
+            }
+            check(after == before && fell == 0 && short == 0,
+                  "workshop: the deck stands through its load checks (\(frames) frames, \(before) blocks then \(after), \(fell) fell), \(CircuitWorkshop.pillars().count) pillars, \(short) not down to the land")
+        }
 
         func blk(_ p: IVec3) -> BlockID { w.block(p.x, p.y, p.z) }
         func st(_ p: IVec3) -> Int { let b = blk(p); return Int(b - Blocks.groupBase[Int(b)]) }
@@ -188,5 +213,22 @@ extension CircuitWorkshop {
             _ = w.setBlockAsync(p.x, p.y, p.z, AIR)
         } } }
         for _ in 0..<10 { w.redstone.tick() }
+    }
+}
+
+// Nov 14: runs the load checks a build queued (Structure.tick, StructureTip, StructureCollapse's whole weigh) until
+// none is left, as the game's ticks would. Returns the frames it took and the blocks brought down.
+enum DeckHold {
+    static func settle(_ g: Game, frames most: Int = 400_000) -> (Int, Int) {
+        let w = g.world
+        let fell0 = StructureCollapse.fellBlocks + Structure.fellTotal
+        var n = 0, quiet = 0
+        while n < most {
+            Structure.tick(g); StructureTip.tick(g); StructureCollapse.tick(g)
+            n += 1
+            if w.loadQueue.isEmpty && !StructureCollapse.busy { quiet += 1; if quiet > 400 { break } } else { quiet = 0 }
+            if StructureCollapse.withWorker { usleep(500) }
+        }
+        return (n, StructureCollapse.fellBlocks + Structure.fellTotal - fell0)
     }
 }
