@@ -277,12 +277,13 @@ enum BuildersGrounds {
             case "forest": if wet == 0 && wood > n * 2 / 3 && hi - lo <= 3 { out.append(k) }
             case "rocky": if wet == 0 && rock > n / 2 && hi - lo <= 5 { out.append(k) }
             case "hilltop":
-                if wet == 0 && hi - lo <= 3 && lo > SEA + 12 {
-                    var top = true
-                    for (ox, oz) in [(-14, 5), (24, 5), (5, -14), (5, 24), (-10, -10), (20, 20), (-10, 20), (20, -10)] where top {
-                        if w.gen.column(x0 + ox, z0 + oz).height > lo - 3 { top = false }
+                if wet == 0 && hi - lo <= 4 && lo > SEA + 8 {
+                    // higher than the land 16 out on every side (six of eight looks at least 3 down)
+                    var lower = 0
+                    for (ox, oz) in [(-16, 5), (26, 5), (5, -16), (5, 26), (-12, -12), (22, 22), (-12, 22), (22, -12)] {
+                        if w.gen.column(x0 + ox, z0 + oz).height <= lo - 3 { lower += 1 }
                     }
-                    if top { out.append(k) }
+                    if lower >= 6 { out.append(k) }
                 }
             default: break
             }

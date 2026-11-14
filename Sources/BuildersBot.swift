@@ -105,8 +105,21 @@ final class BuilderBot: AgentBot {
     }
 
     // Spots to stand and points to aim at for a job, nearest to `from` first.
+    private var why = ""
+    private var blocker: IVec3?                 // the tree cell most in the way of the faces (a crown over a dig, say)
+    private var noFaces = false
+    private var successes = 0, deferredAt: [IVec3: Int] = [:], cleared = 0
+    private lazy var planned: Set<IVec3> = Set(plan.jobs.filter { $0.want != AIR }.map { $0.cell })
+    private func tree(_ w: World, _ q: IVec3) -> Bool {
+        let b = w.block(q.x, q.y, q.z)
+        if b == AIR || Blocks.isLiquid(b) || planned.contains(q) || (w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) { return false }
+        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        return k.hasSuffix("_leaves") || k.hasSuffix("_log") || k.hasSuffix("_wood") || Blocks.render[Int(b)] == RenderType.cross.rawValue || k.contains("vine")
+    }
     private func candidates(_ w: World, _ j: BuildersGrounds.Job, from: V3) -> [(feet: V3, aim: V3, overhead: Bool)] {
         let c = j.cell
+        var nBody = 0, nState = 0, nRay = 0, nWay = 0, rayAt: [String: Int] = [:], blockers: [IVec3: Int] = [:]
+        blocker = nil
         var faces: [(hit: IVec3, n: IVec3, aim: V3)] = []
         let cc = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5)
         if j.want == AIR {
@@ -139,14 +152,27 @@ final class BuilderBot: AgentBot {
                 for dist in [2.2, 3.0, 3.9] as [Float] {
                     let eye = f.aim + look * dist
                     let feet = eye - V3(0, 1.62, 0)
-                    guard feet.y > 1, bodyFree(w, feet, not: c) else { continue }
+                    guard feet.y > 1, bodyFree(w, feet, not: c) else { nBody += 1; continue }
                     let dv = f.aim - eye
                     if j.want != AIR {
                         let yaw = atan2f(-dv.x, -dv.z)
                         let fy = f.aim.y - Float(f.hit.y)
-                        if !BuilderBot.wouldPlace(j.want, normal: f.n, fracY: fy, yaw: yaw) { continue }
+                        if !BuilderBot.wouldPlace(j.want, normal: f.n, fracY: fy, yaw: yaw) { nState += 1; continue }
                     }
-                    guard let h = w.raycast(eye, simd_normalize(dv), maxDist: simd_length(dv) + 0.4), h.hit == f.hit else { continue }
+                    // (Natural ground is met where the drawn surface is, which can name the next cell over: near enough
+                    // here; the game's own aim decides at the spot.)
+                    let fGround = w.fieldTerrain && w.groundAt(f.hit.x, f.hit.y, f.hit.z)
+                    guard let h = w.raycast(eye, simd_normalize(dv), maxDist: simd_length(dv) + 0.4),
+                          h.hit == f.hit || (fGround && w.groundAt(h.hit.x, h.hit.y, h.hit.z) && h.hit != c
+                                              && abs(h.hit.x - f.hit.x) <= 1 && abs(h.hit.y - f.hit.y) <= 1 && abs(h.hit.z - f.hit.z) <= 1) else {
+                        nRay += 1
+                        if let h = w.raycast(eye, simd_normalize(dv), maxDist: simd_length(dv) + 0.4) {
+                            let k = "\(h.hit.x - c.x),\(h.hit.y - c.y),\(h.hit.z - c.z) \(Blocks.key(w.block(h.hit.x, h.hit.y, h.hit.z)))"
+                            rayAt[k, default: 0] += 1
+                            if tree(w, h.hit) { blockers[h.hit, default: 0] += 1 }
+                        } else { rayAt["nothing", default: 0] += 1 }
+                        continue
+                    }
                     spots.append((feet, f.aim, simd_length(feet - from)))
                 }
             }
@@ -157,25 +183,30 @@ final class BuilderBot: AgentBot {
         for sp in spots {
             if pathFree(w, from: from, to: sp.0, not: c) { out.append((sp.0, sp.1, false)) }
             else if startFree && columnFree(w, sp.0, not: c) { out.append((sp.0, sp.1, true)) }
+            else { nWay += 1 }
             if out.count >= 6 { break }
         }
+        noFaces = faces.isEmpty
+        blocker = blockers.max { $0.value < $1.value }?.key
+        let top = rayAt.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) x\($0.value)" }.joined(separator: ", ")
+        why = "\(faces.count) faces; spots: \(nBody) body blocked, \(nState) wrong way round, \(nRay) ray elsewhere (\(top)), \(nWay) no way there, \(spots.count) seen"
         return out
     }
 
     // MARK: Acting
 
     private func next(_ s: AgentState, ok: Bool, why: String = "") {
-        if ok { if jobs[i].want == AIR { dug += 1 } else { placed += 1 } }
-        else { missed.append("\(jobs[i].want == AIR ? "dig" : Blocks.key(jobs[i].want)) at \(jobs[i].cell.x) \(jobs[i].cell.y) \(jobs[i].cell.z): \(why)") }
+        if ok { successes += 1; if jobs[i].want == AIR { dug += 1 } else { placed += 1 } }
+        else { missed.append("\(jobs[i].want == AIR ? "dig" : Blocks.key(jobs[i].want)) at \(jobs[i].cell.x) \(jobs[i].cell.y - YOFF) \(jobs[i].cell.z): \(why)") }
         i += 1; phase = 0; ticks = 0; cands = []; ci = 0
     }
     // A job that can't be reached yet (nothing to click on, no spot) goes to the back, three times at most.
     private func later(_ s: AgentState, _ why: String) {
         let j = jobs[i]
-        let n = deferred[j.cell, default: 0] + 1
-        deferred[j.cell] = n
-        if n > 8 { next(s, ok: false, why: why); return }
-        jobs.remove(at: i); jobs.append(j)
+        let n = deferredAt[j.cell] == successes ? deferred[j.cell, default: 0] + 1 : 1
+        deferred[j.cell] = n; deferredAt[j.cell] = successes
+        if n > 3 { next(s, ok: false, why: why); return }
+        jobs.remove(at: i); jobs.insert(j, at: min(jobs.count, i + 4))
         phase = 0; ticks = 0; cands = []; ci = 0
     }
 
@@ -204,7 +235,18 @@ final class BuilderBot: AgentBot {
         case 0:
             cands = candidates(w, j, from: p.pos)
             ci = 0
-            if cands.isEmpty { later(s, "no face to click from a free spot"); return act }
+            if cands.isEmpty {
+                // A crown over a dig, or leaves between the spots and the face: cleared first, as he would.
+                let up = j.cell + IVec3(0, 1, 0)
+                let clear: IVec3? = (j.want == AIR && noFaces && tree(w, up)) ? up : blocker
+                if let q = clear, cleared < 400 {
+                    cleared += 1
+                    jobs.insert(BuildersGrounds.Job(cell: q, want: AIR), at: i)
+                    phase = 0; ticks = 0
+                    return act
+                }
+                later(s, "no spot: " + why); return act
+            }
             phase = 1; moveTicks = 0
             return act
         case 1, 2:

@@ -49,8 +49,25 @@ enum BuildersCheck {
             let fell0 = Structure.fellTotal
             let tb = CFAbsoluteTimeGetCurrent()
             var ticks = 0
+            // Ground that comes up in the build's own cells while it goes up (the reshaping), as it happens.
+            var groundWas: [IVec3: Bool] = [:]
+            for j in plan.jobs { groundWas[j.cell] = w.groundAt(j.cell.x, j.cell.y, j.cell.z) }
+            var risen = 0
             while !bot.done && ticks < 240_000 {
                 agent.step(bot); ticks += 1
+                if ticks % 20 == 0 {
+                    for (q, was) in groundWas {
+                        let now = w.groundAt(q.x, q.y, q.z)
+                        if now && !was {
+                            risen += 1
+                            if risen <= 6 {
+                                let jb = bot.i < bot.jobs.count ? bot.jobs[bot.i] : nil
+                                print("builds:   ground came up at \(q.x) \(q.y - YOFF) \(q.z) by tick \(ticks) (job \(bot.i): \(jb.map { ($0.want == AIR ? "dig" : Blocks.key($0.want)) + " at \($0.cell.x) \($0.cell.y - YOFF) \($0.cell.z)" } ?? "-"))")
+                            }
+                        }
+                        groundWas[q] = now
+                    }
+                }
                 if ticks % 6000 == 0 { print("builds:   \(bp.key) tick \(ticks): job \(bot.i)/\(bot.jobs.count), \(bot.placed) placed, \(bot.dug) dug, \(bot.missed.count) missed"); fflush(stdout) }
             }
             let buildS = CFAbsoluteTimeGetCurrent() - tb
@@ -69,6 +86,7 @@ enum BuildersCheck {
             let fell = Structure.fellTotal - fell0
             print(String(format: "builds: %@ built in %d ticks (%.1f s), %d placed, %d dug, %d presses, %d redone, %d missed; after 20 s %d cells wrong, %d fell; ground round it %d lost, %d gained",
                          bp.key, ticks, buildS, bot.placed, bot.dug, bot.presses, bot.redone, bot.missed.count, wrong.count, fell, lost, gained))
+            if risen > 0 { print("builds:   ground came up in \(risen) of the build's cells while it went up") }
             for m in bot.missed.prefix(8) { print("   missed: \(m)") }
             for m in wrong.prefix(8) { print("   wrong: \(m)") }
             fflush(stdout)
