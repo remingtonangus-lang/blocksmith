@@ -460,8 +460,7 @@ if let out = arg("--view"), let ctx = vkctx {
                 let hp = V3(Float(p.x) + 0.5, Float(p.y) + 1, Float(p.z) + 0.5)
                 let m1 = World.syncMeshes
                 let brk = t {
-                    vg.breakBlock(p, b, drop: false)
-                    if SmoothTerrain.natural[Int(b)] { _ = vw.carve(at: hp - V3(0, 0.25, 0), radius: Game.digRadius(b), mode: .shape, remesh: true) }
+                    vg.breakAndShape(p, b, at: hp - V3(0, 0.25, 0), drop: false)
                 }
                 breaks.append(brk)
                 var worst = 0.0
@@ -493,8 +492,7 @@ if let out = arg("--view"), let ctx = vkctx {
             }
             let m1 = World.syncMeshes
             let brk = t {
-                vg.breakBlock(p, b, drop: true, toPack: true)
-                if SmoothTerrain.natural[Int(b)] { _ = vw.carve(at: hp - V3(0, 0.25, 0), radius: Game.digRadius(b), mode: .shape) }
+                vg.breakAndShape(p, b, at: hp - V3(0, 0.25, 0), drop: true, toPack: true)       // (as the game does it)
             }
             let brkMeshed = World.syncMeshes - m1
             var worst = 0.0, worstWhat = ""

@@ -1646,13 +1646,17 @@ final class Game: LifeLinked {
         if !weaponGuard && strikeObject(breakNow: breakNow, breakHeld: breakHeld, dt: fdt) { return }
         if let t = target, breakHeld, !weaponGuard {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            if b == AIR, let g = targetGround, g.cell == t.hit, !Game.oldSliver, !world.groundAt(t.hit.x, t.hit.y, t.hit.z) {
+                if breakNow || breakCooldown <= 0 { clearSliver(at: g.at); swing = 1; breakCooldown = 0.3 }
+                mining = nil
+                return
+            }
             if !survival {
                 if !held.isEmpty && held.def.tool == .sword { return }     // (P483: a sword in creative breaks nothing)
                 if breakNow || breakCooldown <= 0 {
                     let dug = hitPoint(t)
-                    breakBlock(t.hit, b, drop: false)
                     // P377 step 3: in creative too the hole follows the tool (survival's PG1 ball where the blow landed).
-                    if SmoothTerrain.natural[Int(b)] { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape, remesh: true) }
+                    breakAndShape(t.hit, b, at: dug + player.look * 0.25, drop: false)
                     if t.hit == digDownCell { centreOverHole(t.hit) }
                     breakCooldown = 0.3
                 }
@@ -1716,10 +1720,9 @@ final class Game: LifeLinked {
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         // P364 (g): a block he mines through no longer bursts into pieces that scatter and lie over what
                         // was under it (blasts still shatter blocks); what it gives goes straight into his pack.
-                        let natural = SmoothTerrain.natural[Int(b)], dug = hitPoint(t)
-                        breakBlock(t.hit, b, drop: true, toPack: true)
+                        let dug = hitPoint(t)
                         // PG1: the hole follows the tool: the field round it is shaped by a ball where the blow landed.
-                        if natural { world.carve(at: dug + player.look * 0.25, radius: Game.digRadius(b), mode: .shape, remesh: true) }
+                        breakAndShape(t.hit, b, at: dug + player.look * 0.25, drop: true, toPack: true)
                         if t.hit == digDownCell { centreOverHole(t.hit) }
                         if b == SEALROCK {
                             achieve("break_seal")
@@ -2555,6 +2558,34 @@ final class Game: LifeLinked {
 
     // quiet (P389: a struck object's cell going): no sound or break particles (the object throws its own pieces), and
     // the sections round it are left to the mesh workers (a synchronous remesh is 6-230 ms on the frame thread).
+    // Ledger 132 (Nov 14, Creative with break held, sinking shafts in earth: "definitely the frame rate drops breaking
+    // blocks, which is one of the most common things you do", "Lots of lag" mining sand, fps 69 -> 56): a block he broke
+    // meshed its sections on the frame twice over, once for the block going and once for the ball that shapes the hole
+    // (2-4 sections, 54-67 ms a break in earth on the cloud host, several frames on the headset), where a placed block
+    // has gone to the edit lane since P440/P446. The break and its shaping are one edit now: on the headset its sections
+    // mesh together on the edit lane and go in a frame or two later (the old meshes stay up until then); elsewhere they
+    // mesh once on the frame, not once a step. BS_OLDDIGMESH=1: as before.
+    static let oldDigMesh = ProcessInfo.processInfo.environment["BS_OLDDIGMESH"] == "1"
+    func breakAndShape(_ p: IVec3, _ b: BlockID, at ball: V3, drop: Bool, toPack: Bool = false) {
+        let natural = SmoothTerrain.natural[Int(b)]
+        func go() {
+            breakBlock(p, b, drop: drop, toPack: toPack)
+            if natural { world.carve(at: ball, radius: Game.digRadius(b), mode: .shape, remesh: true) }
+        }
+        if Game.oldDigMesh { go() } else { world.editBatch(go) }
+    }
+
+    // Ledger 133 (Nov 14, building a house: "little remnant of stone here I can't get rid of"): a lump of ground whose
+    // surface hangs into a cell that holds no ground of its own (the swell of a placed natural block left round a broken
+    // one, on a wall's top) could be aimed at and never broken: the aim names the cell, the cell is air, and breaking
+    // air did nothing. A blow on such a sliver now takes the ball of ground round the point (no cell goes, nothing
+    // drops). BS_OLDSLIVER=1: as before.
+    static let oldSliver = ProcessInfo.processInfo.environment["BS_OLDSLIVER"] == "1"
+    func clearSliver(at p: V3) {
+        world.editBatch { world.carve(at: p + player.look * 0.2, radius: 0.72, mode: .shape, remesh: true) }
+        particles.dust(DIRT, at: p, count: 3, spread: 0.3)
+    }
+
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool, toPack: Bool = false, quiet: Bool = false) {
         boarlingsGuard(p, block: b)
         if Blocks.key(b) == DeepGates.liftKey { noteDeepLift(p, placed: false) }
