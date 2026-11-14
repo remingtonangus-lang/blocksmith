@@ -521,6 +521,9 @@ enum Cinema {
                     if l > 1.2 {
                         let v = d / l * mr.speed
                         mr.m.vel.x = v.x; mr.m.vel.z = v.z
+                        // (Their combat AI holds its range and overrode the walk: the first try stood 30 m off. The
+                        // march is carried as well, the ground and collisions still the mob's own step.)
+                        if !mr.m.collides(mr.m.pos + V3(v.x, 0, v.z) * Float(dt) + V3(0, 0.05, 0), w) { mr.m.pos += V3(v.x, 0, v.z) * Float(dt) }
                         mr.m.yaw = -atan2f(d.x, -d.z)
                     }
                 }

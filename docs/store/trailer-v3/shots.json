@@ -66,22 +66,8 @@
   "warm": 3,
   "peaceful": true,
   "rd": 16,
-  "fov": 80,
+  "fov": 70,
   "playerMount": "horse",
-  "hold": "hands",
-  "hands": [
-   [
-    0.09,
-    -0.42,
-    -0.4
-   ],
-   [
-    -0.09,
-    -0.42,
-    -0.4
-   ]
-  ],
-  "handTilt": 45,
   "cam": [
    {
     "t": 0,
@@ -111,6 +97,12 @@
     ],
     "ground": true
    }
+  ],
+  "chase": [
+   0.9,
+   1.1,
+   4.2,
+   8
   ]
  },
  {
@@ -519,34 +511,36 @@
     "do": "spawn",
     "mob": "soldier_trooper@marauder^90",
     "at": [
-     -32,
+     -28,
      0,
-     -3
+     -2
     ],
     "to": [
-     -15,
+     -14,
      0,
-     1
+     0
     ],
     "n": 5,
-    "spread": 4
+    "spread": 4,
+    "power": 3
    },
    {
     "t": 0,
     "do": "spawn",
     "mob": "soldier_marksman@marauder^90",
     "at": [
-     -36,
+     -31,
      0,
      3
     ],
     "to": [
-     -18,
+     -17,
      0,
-     4
+     3
     ],
     "n": 2,
-    "spread": 2
+    "spread": 2,
+    "power": 3
    },
    {
     "t": 2.0,
@@ -850,7 +844,13 @@
      -9
     ],
     "n": 8,
-    "spread": 6
+    "spread": 6,
+    "to": [
+     1,
+     0,
+     -10
+    ],
+    "power": 2.2
    },
    {
     "t": 0,
