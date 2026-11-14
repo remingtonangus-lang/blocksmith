@@ -1,6 +1,6 @@
 import Foundation
-#if !canImport(Darwin)
-import Synchronization
+#if canImport(CZlib)
+import CZlib           // (bs_cas64, bs_load64: quest/c/CZlib/shim.h)
 #endif
 
 // Item 8 (Nov 8): weak references that leave their target's reference counting on the fast path.
@@ -33,23 +33,21 @@ final class LifeLink {
     var object: AnyObject? {
         if !LifeLink.old {
             let word = address + MemoryLayout<Int>.size
-            #if canImport(Darwin)
-            var bits = word.load(as: UInt64.self)
+            #if canImport(CZlib)
+            var bits = bs_load64(word)
             #else
-            let atom = word.assumingMemoryBound(to: Atomic<UInt64>.self)
-            var bits = atom.pointee.load(ordering: .relaxed)
+            var bits = word.load(as: UInt64.self)
             #endif
             // (bit 63: the count lives in a side table; a count near its top: both left to the runtime, below)
             while bits >> 63 == 0 && (bits >> 33) & 0x3FFF_FFFF < 0x3FFF_0000 {
                 if (bits >> 32) & 1 != 0 { return nil }
                 let more = bits &+ (1 << 33)            // (one more strong reference: the count starts at bit 33)
-                #if canImport(Darwin)
+                #if canImport(CZlib)
+                if bs_cas64(word, bits, more) { return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue() }
+                bits = bs_load64(word)
+                #else
                 if lifeLinkSwap(Int64(bitPattern: bits), Int64(bitPattern: more), word) { return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue() }
                 bits = word.load(as: UInt64.self)
-                #else
-                let (done, now) = atom.pointee.compareExchange(expected: bits, desired: more, ordering: .sequentiallyConsistent)
-                if done { return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue() }
-                bits = now
                 #endif
             }
         }
@@ -70,7 +68,8 @@ final class LifeLink {
     @inline(never) private static func retain(_ p: UnsafeMutableRawPointer) { _ = Unmanaged<AnyObject>.fromOpaque(p).retain() }
 }
 
-#if canImport(Darwin)
+#if !canImport(CZlib)
+// (the Mac build has no C header of its own: the system's compare-and-swap)
 @_silgen_name("OSAtomicCompareAndSwap64Barrier") private func lifeLinkSwap(_ old: Int64, _ new: Int64, _ at: UnsafeMutableRawPointer) -> Bool
 #endif
 
