@@ -287,6 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.diffLevel, smooth: true)   // (PG6: a new world is Polygons, even from a block world)
             case "workshop": self.switchWorld(name: CircuitWorkshop.worldName, seed: CircuitWorkshop.seed, survival: false, difficulty: 2)
             case "proving": self.switchWorld(name: ProvingGrounds.worldName, seed: ProvingGrounds.seed, survival: false, difficulty: 2, smooth: false)
+            case "builders": self.switchWorld(name: BuildersGrounds.worldName, seed: BuildersGrounds.seed, survival: false, difficulty: 2, smooth: true)
             case _ where id.hasPrefix("create:"):
                 // create:<survival 0/1>:<difficulty>:<smooth terrain 0/1>:<name>:<seed text>
                 guard let r = WorldRequest.create(action: id) else { return }
