@@ -257,6 +257,7 @@ enum Cinema {
         var aims: [(t0: Double, t1: Double, at: () -> V3)] = []
         var shots: [(t: Double, at: () -> V3)] = []
         var lays: [(t: Double, c: IVec3, id: BlockID, cut: Bool)] = []
+        var marchers: [(m: Mob, goal: V3, speed: Float)] = []      // spawned with `to`: they advance on their goal
         // Riding: the player on a saddled horse at the first camera spot, galloping along the camera's heading; the
         // camera is the rider's eye from then on (the keys only give the look direction).
         var mount: Mob?
@@ -303,6 +304,7 @@ enum Cinema {
                     Explosion.explode(at: p, power: e.power ?? 4, game: g, fire: e.fire ?? false)
                 case "spawn":
                     let n = e.n ?? 1, sp = e.spread ?? 3
+                    let goal = e.to.map { rel($0, true) }
                     for i in 0..<n {
                         let ang = Float(i) * 2.399, r = sp * sqrtf(Float(i) / Float(max(1, n)))
                         let q = V3(p.x + cosf(ang) * r, 0, p.z + sinf(ang) * r)
@@ -311,6 +313,7 @@ enum Cinema {
                             if let y = e.yaw { m.yaw = -y * .pi / 180 }
                             m.persistent = true
                             g.mobs.mobs.append(m)
+                            if let gl = goal { marchers.append((m, gl + (q - p), e.power ?? 3.2)) }
                         }
                     }
                     g.mobs.rebuildIndex()
@@ -497,6 +500,14 @@ enum Cinema {
             }
             for _ in 0..<perFrame {
                 hold(eye)
+                for mr in marchers where mr.m.health > 0 {
+                    let d = V3(mr.goal.x - mr.m.pos.x, 0, mr.goal.z - mr.m.pos.z), l = simd_length(d)
+                    if l > 1.2 {
+                        let v = d / l * mr.speed
+                        mr.m.vel.x = v.x; mr.m.vel.z = v.z
+                        mr.m.yaw = -atan2f(d.x, -d.z)
+                    }
+                }
                 if let fr = frigate {
                     if s.cruise == nil { fr.vel = .zero }
                     fr.angVel = .zero
@@ -673,6 +684,9 @@ enum Cinema {
                     sim.hands[hi] = hd
                 }
                 host!.handed.refresh(dt: 1.0 / 30, walk: false)      // the hands as QuestControls reads them
+                // The tracking space stands on the camera's own feet: the game's collision can lift the player out of a
+                // slope the camera key dips into, and the hands then floated a metre over the view (v3 build shot).
+                if game.riding == nil { game.player.pos = eye - V3(0, game.player.eyeHeight, 0) }
                 host!.rig.update(xr: sim, game: game)
             }
             let cam = EyeCamera(center: eye, viewProj: [vp, vp], cullViewProj: vp, yaw: yaw, pitch: pitch, far: far)
