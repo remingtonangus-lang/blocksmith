@@ -23,6 +23,7 @@ extension Felling {
         var p0: V3, p1: V3, p2: V3, p3: V3           // ship grid coordinates
         var n0: V3, n1: V3, n2: V3, n3: V3           // (each corner's own: a trunk is shaded smoothly round it, as it stood)
         var u0: V2, u1: V2, u2: V2, u3: V2
+        var ao: SIMD4<Float>                         // (each corner's shade under its own crown, as it stood: chunk_detail.vert aoCurve)
         var layer: Int32
         var cell: Int32                              // index into Shape.cells
     }
@@ -172,6 +173,8 @@ extension Felling {
             while k + 16 <= to {
                 var ps = [V3](repeating: .zero, count: 4), uvs = [V2](repeating: .zero, count: 4)
                 var ns = [V3](repeating: V3(0, 1, 0), count: 4), layer: Int32 = 0
+                var ao = SIMD4<Float>(repeating: 1)
+                let aoCurve: [Float] = [0.42, 0.62, 0.81, 1.0]
                 for v in 0..<4 {
                     let w0 = m.detail[k + v * 4], w1 = m.detail[k + v * 4 + 1], w2 = m.detail[k + v * 4 + 2], w3 = m.detail[k + v * 4 + 3]
                     let x = Float(Int16(truncatingIfNeeded: w0 & 0xFFFF)) / 256, y = Float(Int16(truncatingIfNeeded: w0 >> 16)) / 256
@@ -181,6 +184,7 @@ extension Felling {
                     let nl = simd_length(nv)
                     if nl > 0 { ns[v] = nv / nl }
                     layer = Int32((w2 >> 20) & 2047)
+                    ao[v] = aoCurve[Int((w2 >> 10) & 3)]
                     uvs[v] = V2(unhalf(w3 & 0xFFFF), unhalf(w3 >> 16))
                 }
                 k += 16
@@ -202,7 +206,7 @@ extension Felling {
                 var ci = index[local] ?? -1
                 if ci < 0 { ci = Int32(shape.cells.count); index[local] = ci; shape.cells.append(local); shape.blocks.append(snap.logs[cell]!) }
                 shape.quads.append(ShapeQuad(p0: ps[0] - o, p1: ps[1] - o, p2: ps[2] - o, p3: ps[3] - o, n0: ns[0], n1: ns[1], n2: ns[2], n3: ns[3],
-                                             u0: uvs[0], u1: uvs[1], u2: uvs[2], u3: uvs[3], layer: layer, cell: ci))
+                                             u0: uvs[0], u1: uvs[1], u2: uvs[2], u3: uvs[3], ao: ao, layer: layer, cell: ci))
             }
         }
         return shape.quads.isEmpty ? nil : shape
@@ -283,14 +287,12 @@ extension Game {
         let day = daylight
         for q in sh.quads where sh.live[Int(q.cell)] {
             let l = sh.light[Int(q.cell)]
-            @inline(__always) func col(_ n: V3) -> V4 {
-                let c = Felling.shade(X * n.x + Y * n.y + Z * n.z, sky: Int(l.x), block: Int(l.y), day: day, sun: sun)
+            @inline(__always) func col(_ n: V3, _ a: Float) -> V4 {
+                let c = Felling.shade(X * n.x + Y * n.y + Z * n.z, sky: Int(l.x), block: Int(l.y), day: day, sun: sun) * a
                 return V4(c.x, c.y, c.z, 1)
             }
-            // (a flat face, a cut end: one shade for its four corners)
-            let c0 = col(q.n0), same = q.n1 == q.n0 && q.n2 == q.n0 && q.n3 == q.n0
             wr.quad4c(w(q.p0), w(q.p1), w(q.p2), w(q.p3), q.u0, q.u1, q.u2, q.u3, Int(q.layer),
-                      c0, same ? c0 : col(q.n1), same ? c0 : col(q.n2), same ? c0 : col(q.n3))
+                      col(q.n0, q.ao[0]), col(q.n1, q.ao[1]), col(q.n2, q.ao[2]), col(q.n3, q.ao[3]))
         }
         let sides = 9
         for cap in sh.caps where sh.live[Int(cap.cell)] {

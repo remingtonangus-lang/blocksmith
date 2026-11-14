@@ -3,6 +3,7 @@ import simd
 
 // Ledgers 130 and 131 (`questcheck --placerow`), in a field world of seed 4242 on a made flat of earth:
 //   (6) ledger 133: stone set on a wall top and broken leaves no lump that cannot be broken;
+//   (7) a sliver of ground no cell holds is cleared by a blow;
 //   (1) a block built out from a wall's top, a block and a half over the ground, leaves the ground as it is (it rose
 //       to meet it before: BS_OLDMEET=1);
 //   (2) a block set down on the ground with a gap under it still has the ground rise to its floor;
@@ -109,5 +110,23 @@ enum PlaceRowTests {
         let holdsGround = left.at.map { w.groundAt(Int(floor($0.x)), Int(floor($0.y)), Int(floor($0.z))) }
         check(clean == 0 && placed > 0 && now.n == 0,
               "placerow (6): stone set on a wall's top and broken: \(placed) sample points of ground once placed, \(left.n) left by the break\(holdsGround.map { $0 ? " (in a cell that holds ground)" : " (in a cell that holds none: a sliver)" } ?? ""), \(now.n) after \(blows) blows on what was left (clean before: \(clean))")
+        // (7) ledger 133: a sliver, a lump of ground between cell middles so that no cell holds ground: the aim names an
+        // air cell (nothing to break before); a blow on it clears it
+        let sp = V3(6.0, Float(H) + 2.6, -6.0)
+        w.fieldSphere(sp, radius: 0.5, carve: false, material: stone, remesh: true)
+        func sliver() -> (n: Int, cells: Int, at: V3?) {
+            var n = 0, first: V3?, cells = 0
+            for iy in 0..<16 { for iz in 0..<16 { for ix in 0..<16 {
+                let p = sp + V3((Float(ix) - 7.5) * 0.125, (Float(iy) - 7.5) * 0.125, (Float(iz) - 7.5) * 0.125)
+                if w.fieldDensity(at: p) > 0 { n += 1; if first == nil { first = p } }
+            } } }
+            for dy in -1...0 { for dz in -1...0 { for dx in -1...0 where w.groundAt(6 + dx, H + 2 + dy + 1, -6 + dz) { cells += 1 } } }
+            return (n, cells, first)
+        }
+        let s0 = sliver()
+        var s1 = s0, sBlows = 0
+        while let p = s1.at, sBlows < 4 { g.clearSliver(at: p); sBlows += 1; s1 = sliver() }
+        check(s0.n > 0 && s0.cells == 0 && s1.n == 0,
+              "placerow (7): a sliver of ground between cell middles (\(s0.n) sample points, \(s0.cells) of the 8 cells round it hold ground) is cleared by \(sBlows) blows (\(s1.n) points left)")
     }
 }
