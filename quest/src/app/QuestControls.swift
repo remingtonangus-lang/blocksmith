@@ -1932,6 +1932,7 @@ final class QuestControls {
     private func drawHeld(_ s: SceneRenderer.Slot, eye: V3) {
         // A frame without a valid aim pose (tracking blip) keeps the last one instead of hiding the tool.
         if app.input.hands[aimHand].aimValid { lastAimHand = app.input.hands[aimHand] }
+        game.vrMuzzle = nil
         guard let hd = lastAimHand, game.menu == nil, !game.paused, game.sleeping == 0 else { drawnAim = nil; return }
         let held = game.held
         if held.isEmpty || scopeT > 0.5 { drawnAim = nil; return }            // (G21: looking through the scope, the rifle is out of view)
@@ -1944,6 +1945,9 @@ final class QuestControls {
         let l = game.world.lightAt(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
         let skyK: Float = 0.12 + 0.88 * game.renderDaylight
         let light = max(0.15, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
+        // Nov 14 (trailer review v3l: "the flash pops up to the left of the hand, nowhere near the barrel"): the flash
+        // goes at the muzzle of the gun as it is drawn, 3.2x and held out, not 0.2 m past the controller.
+        game.vrMuzzle = game.heldGun.flatMap { gi in gi < CapitalArms.models.count ? drawnPoint(CapitalArms.models[gi].muzzle) : nil }
         if let gi = game.heldGun {
             let (ptr, off, cap) = app.scene.reserve(s, MobVert.self, priority: true)
             guard cap > 2048 else { return }      // up to ~1700 with upgrade parts (Upgrades.gunParts) and the arm
