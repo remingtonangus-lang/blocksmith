@@ -49,8 +49,9 @@ CUT = [
     # ACT II: trouble comes (ash_vault_battle.m4a drops here)
     _shot("v3_outlaws", 4.6, "Defend your town from outlaws", 1.2),
     _shot("v3_frigate", 3.0, "Take command of a sky frigate", 0.6),
-    _shot("v3_strike", 4.2, "and bring its main gun to bear", 1.6),
-    _shot("v3_base", 2.6, "Infiltrate a base in the snow", 0.8),
+    _shot("v3_strike", 1.9, "and bring its main gun to bear", 1.0),      # the hull dips, the gun charges, fires
+    _shot("v3_strike2", 3.0, None, 2.85),                                    # where the slug lands (from below)
+    _shot("v3_base", 2.6, "Infiltrate an enemy base", 0.8),
     # ACT III: deeper
     _shot("v3_vault", 4.0, "Then go deeper, into the last war", 0.8),
     _shot("v3_finale", 3.6, None, 0.8),

@@ -736,6 +736,73 @@
   ]
  },
  {
+  "name": "v3_strike2",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -200,
+    150,
+    45
+   ]
+  },
+  "time": 0.35,
+  "seconds": 6,
+  "warm": 2,
+  "rd": 18,
+  "fov": 70,
+  "events": [
+   {
+    "t": 0.2,
+    "do": "fire",
+    "pitch": -20
+   },
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_trooper@marauder^45",
+    "at": [
+     -106,
+     0,
+     -106
+    ],
+    "n": 6,
+    "spread": 5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -150,
+     -45,
+     -150
+    ],
+    "look": [
+     -75,
+     -38,
+     -75
+    ]
+   },
+   {
+    "t": 6,
+    "pos": [
+     -148,
+     -45,
+     -148
+    ],
+    "look": [
+     -75,
+     -38,
+     -75
+    ]
+   }
+  ]
+ },
+ {
   "name": "v3_base",
   "anchor": {
    "near": "boreal_station",
