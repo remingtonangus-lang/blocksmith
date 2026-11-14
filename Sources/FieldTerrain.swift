@@ -599,6 +599,7 @@ extension World {
                     if was != now {
                         if now && c.blocks.raw(i) != AIR { continue }      // a fill never swallows a built block
                         let m = material ?? fieldNeighbourMaterial(x, y, z)
+                        if !now { GroundWeigh.note(self, IVec3(x, y, z), FieldMat.blocks[Int(c.blocks.material(i))]) }      // ledger 127
                         c.blocks.setDensity(i, now ? max(q, 1) : min(q, -1), material: now ? m : nil, follow: false)
                         flipped.append(IVec3(x, y, z))
                         c.modified = true

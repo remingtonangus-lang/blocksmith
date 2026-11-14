@@ -61,6 +61,7 @@ final class World: LifeLinked {
     var strikeRefills = Set<ChunkKey>()             // shells a far strike waits on: handed over first (World.dataReady)
     lazy var meshCache: MeshCache? = World.shells ? save.flatMap { MeshCache(saveDir: $0.chunkDir) } : nil      // P376 (ChunkShells)
     var collapseQueue: [(IVec3, Int)] = [] // P351: carves to check for loose ground (GroundCollapse)
+    let groundWeigh = GroundWeighState()   // ledger 127: ground opened and not yet weighed (GroundWeigh)
     var batchShape = false                 // a blast opening its cells: the bowl carved after shapes them (Explosion)
     var tipQueue: [(IVec3, Int)] = []      // P503: blasts that broke built blocks, what stood over them weighed (StructureTip)
     var loadQueue: [IVec3] = []            // P388: structural changes whose piece carries its load next (Structure.tick)
