@@ -496,7 +496,7 @@
   "time": 0.42,
   "seconds": 6,
   "warm": 2,
-  "survival": true,
+  "survival": false,
   "rd": 18,
   "fov": 76,
   "hold": "gun_revolver",
