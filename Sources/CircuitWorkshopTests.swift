@@ -20,6 +20,7 @@ enum CircuitWorkshopTests {
         let o = IVec3(x0, min(CH - 12, top + 12), z0)
         let held0 = w.heldDeck
         w.heldDeck = CircuitWorkshop.held(o)
+        _ = DeckHold.settle(g, quiet: true)                 // (what earlier checks left queued, first)
         let at = CircuitWorkshop.build(w, at: o)
         defer { CircuitWorkshop.clear(w, at: o); w.heldDeck = held0 }
         // Nov 14: the load checks the build queued run to the end (the whole weigh too): nothing of the deck comes down,
@@ -31,7 +32,7 @@ enum CircuitWorkshopTests {
                 return n
             }
             let before = census()
-            let (frames, fell) = DeckHold.settle(g, around: (V3(Float(o.x + CircuitWorkshop.deckLength / 2), Float(o.y), Float(o.z + 4)), Float(CircuitWorkshop.deckLength / 2 + 16)))
+            let (frames, fell) = DeckHold.settle(g, around: (V3(Float(o.x + CircuitWorkshop.deckLength / 2), Float(o.y), Float(o.z + 4)), Float(CircuitWorkshop.deckLength / 2 + 16)), origin: o)
             let after = census()
             var short = 0
             if !HeldDeck.old {
@@ -221,13 +222,14 @@ extension CircuitWorkshop {
 enum DeckHold {
     // `around`: a centre and half-width the checks run in as though he stood there (a hot zone, FarTicks), the checks
     // parked past the active distance brought back.
-    static func settle(_ g: Game, around: (V3, Float)? = nil, frames most: Int = 400_000) -> (Int, Int) {
+    static func settle(_ g: Game, around: (V3, Float)? = nil, origin: IVec3? = nil, quiet: Bool = false, frames most: Int = 400_000) -> (Int, Int) {
         let w = g.world
         let fell0 = Structure.fellTotal
-        Structure.fellTally = [:]
+        Structure.fellTally = quiet ? nil : [:]
+        Structure.fellOrigin = origin
         defer {
-            if let t = Structure.fellTally, !t.isEmpty { print("  fell: " + t.sorted { $0.value > $1.value }.prefix(12).map { "\($0.key) \($0.value)" }.joined(separator: ", ")) }
-            Structure.fellTally = nil
+            if let t = Structure.fellTally, !t.isEmpty { print("  fell: " + t.sorted { $0.value > $1.value }.prefix(40).map { "\($0.key) \($0.value)" }.joined(separator: ", ")) }
+            Structure.fellTally = nil; Structure.fellOrigin = nil
         }
         if let (c, r) = around { w.heat(at: c, radius: r, seconds: 3600); w.unparkActive() }
         defer { if let (c, _) = around { w.hotZones.removeAll { $0.center == c } } }

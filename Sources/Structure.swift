@@ -72,6 +72,7 @@ enum Structure {
     static let concrete = mat("concrete", 24, 10000, 24, crush: 7500) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
     static let metal = mat("metal", 78, 12000, 8, crush: 20000)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
     static let plate = mat("plate", 16, 12000, 8, crush: 20000)     // steel sheet on a frame: a deck, a catwalk, a rail
+    static let tube = mat("tube", 78, 12000, 12, crush: 20000)      // a gun's bored steel: barrels run out a long way off the ring
     static let titanium = mat("titanium", 45, 15000, 10, crush: 20000) // 4.5 t/m3, stronger still for its weight
     static let gold = mat("gold", 193, 300, 3, crush: 3000)      // 19.3 t/m3 and soft: heavy and weak for a metal
 
@@ -86,6 +87,7 @@ enum Structure {
         // sound blocks it's fixed to)
         return Mat(weight: m.weight * min(1, max(0.1, v)), bond: m.bond, reach: m.reach, fixture: v < 0.5, crush: m.crush)
     }
+    static let oldGunMetal = ProcessInfo.processInfo.environment["BS_OLDGUNMETAL"] == "1"
     static func material(_ i: Int) -> Mat? {
         let b = BlockID(i)
         guard b != AIR, Blocks.collide[i], !Blocks.isLiquid(b), !CapitalBase.isLeaf(b), Blocks.hardness[i] >= 0 else { return nil }
@@ -97,6 +99,11 @@ enum Structure {
         // when the station was weighed whole in a field world. BS_MATS="plate=78/12000/8" for before.)
         if k.contains("plating") || k.contains("grating") || k.contains("railing") { return plate }
         if k.hasPrefix("steel_") { return metal }
+        // (Nov 14, the Proving Grounds' gun range weighed: a built gun's barrels are steel tubes, but they sound as stone
+        // and were weighed as masonry, reaching five out, so a long gun's muzzle broke off its barrel in a load check.
+        // Barrels, cannons, breeches and turret rings are steel tube, reaching twelve out (a ten-barrel rifle stands).
+        // BS_OLDGUNMETAL=1: masonry, as before.)
+        if !oldGunMetal && (k.hasPrefix("gun_barrel") || k == "ship_gun_barrel" || k == "ship_cannon" || k == "ship_turret_ring" || k == "tidebreaker_breech") { return tube }
         if k.hasPrefix("capital_") || k.hasPrefix("bunker_") || k.contains("armored_glass") { if soundMat(b) == .glass { return framed } }
         if (k.hasPrefix("capital_") || k.hasPrefix("bunker_") || k.contains("concrete") || k.hasPrefix("light_panel")) && soundMat(b) != .glass { return concrete }   // (a light panel is cast into its slab)
         if k == "gold_block" || k == "raw_gold_block" { return gold }
@@ -658,11 +665,16 @@ enum Structure {
     static var crumbMs = 0.0, crumbN = 0                  // (the soak: the crumbs' clearing, all of it)
     static var fellTotal = 0                              // (harness: blocks dropped or toppled by the load checks, DeckHold)
     static var fellTally: [String: Int]?                  // (harness: ... by block and where the first was)
+    static var fellOrigin: IVec3?                         // (... relative to this)
     static func tallyFell(_ w: World, _ cells: [IVec3]) {
         fellTotal += cells.count
         guard fellTally != nil else { return }
         for c in cells { fellTally![Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y, c.z))]), default: 0] += 1 }
-        if let c = cells.first { fellTally!["first at \(c.x) \(c.y) \(c.z)", default: 0] += 1 }
+        if let c = cells.first {
+            let under = Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y - 1, c.z))])
+            let at = fellOrigin.map { "\(c.x - $0.x) \(c.y - $0.y) \(c.z - $0.z)" } ?? "\(c.x) \(c.y) \(c.z)"
+            fellTally!["(\(cells.count) from \(Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y, c.z))])) on \(under) at \(at))", default: 0] += 1
+        }
     }
     static func drop(_ g: Game, _ all: [IVec3]) {
         let w = g.world

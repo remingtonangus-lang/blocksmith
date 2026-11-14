@@ -20,6 +20,7 @@ enum ProvingGroundsCheck {
         g.player.pos = ProvingGrounds.start(o); g.player.flying = true
         let held0 = w.heldDeck
         w.heldDeck = ProvingGrounds.held(o)
+        _ = DeckHold.settle(g, quiet: true)                 // (what earlier checks left queued, first)
         defer { w.heldDeck = held0 }
         let b = ProvingGrounds.plan(o)
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -41,7 +42,7 @@ enum ProvingGroundsCheck {
         // first steps (nearest first), not after the whole deck.
         let dk = ProvingGrounds.deck
         let mid = V3(Float(o.x + (dk.x0 + dk.x1) / 2), Float(o.y), Float(o.z + (dk.z0 + dk.z1) / 2))
-        let (frames, fell) = DeckHold.settle(g, around: (mid, Float(max(dk.x1 - dk.x0, dk.z1 - dk.z0)) / 2 + 32))
+        let (frames, fell) = DeckHold.settle(g, around: (mid, Float(max(dk.x1 - dk.x0, dk.z1 - dk.z0)) / 2 + 32), origin: o)
         check(fell == 0, "proving: the deck and all on it stand through the build's load checks (\(frames) frames, \(fell) blocks fell)")
         if !ProvingGrounds.oldSteps {
             let probe = ProvingGrounds.plan(o)
@@ -83,7 +84,7 @@ enum ProvingGroundsCheck {
         var taken = 0, fired = 0, notes: [String] = []
         for k in 0..<ProvingGrounds.guns.count {
             let c = o + ProvingGrounds.gunAt(k)
-            let console = IVec3(c.x + 2, o.y, c.z + 2)
+            let console = ProvingGrounds.console(IVec3(c.x, o.y, c.z))
             g.player.pos = V3(Float(console.x) + 0.5, Float(o.y), Float(console.z) + 1.6)
             let before = ships.list.count
             var said = ""

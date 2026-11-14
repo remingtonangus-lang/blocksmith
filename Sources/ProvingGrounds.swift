@@ -61,6 +61,11 @@ enum ProvingGrounds {
 
     static let gunZ = -14, gunGap = 16, targetZ = -78
     static func gunAt(_ k: Int) -> IVec3 { IVec3(8 + k * gunGap, 0, gunZ) }
+    // Each gun's computer. (Nov 14: it stood on the pad's corner, joined to the gun only through the pad; on the worked
+    // stone deck a computer's search takes the deck for the floor and the pad with it, so it took the computer alone,
+    // no gun. Now beside the ring, behind the barrels. BS_OLDGUNPAD=1: on the corner.)
+    static let oldGunPad = ProcessInfo.processInfo.environment["BS_OLDGUNPAD"] == "1"
+    static func console(_ c: IVec3) -> IVec3 { oldGunPad ? IVec3(c.x + 2, c.y, c.z + 2) : IVec3(c.x, c.y, c.z + 1) }
 
     // The deck's extent (x0...x1, z0...z1).
     static var deck: (x0: Int, x1: Int, z0: Int, z1: Int) {
@@ -283,7 +288,7 @@ enum ProvingGrounds {
                 for y in o.y...(o.y + 7) { for z in (c.z - 11)...(c.z + 3) { for x in (c.x - 2)...(c.x + 2) { put(w, x, y, z, AIR) } } }
                 for z in -2...2 { for x in -2...2 { put(w, c.x + x, o.y - 1, c.z + z, key("oak_planks", "stone")) } }
                 gd.build { x, y, z, n in put(w, c.x + x, o.y + y, c.z + z, key(n)) }
-                put(w, c.x + 2, o.y, c.z + 2, key("command_console"))
+                put(w, console(c).x, o.y, console(c).z, key("command_console"))
                 sign(w, IVec3(c.x, o.y, c.z + 5), facingSouth: true, gd.lines)
             }
         }
