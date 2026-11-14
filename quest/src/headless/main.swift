@@ -625,6 +625,8 @@ if let out = arg("--view"), let ctx = vkctx {
             vw.setBlock(Int(floor(e.x)) + o[0], Int(floor(e.y)) + o[1], Int(floor(e.z)) + o[2], Blocks.id(String(kv[0])))
         }
     }
+    // --parachute (Nov 14): a parachute open over the eye (look up to see it).
+    if CommandLine.arguments.contains("--parachute") { vg.player.parachute = true; vg.player.flying = false; Parachute.openedAt = -100 }
     // --workshop (Nov 13 circuit looks): the Sparkstone Workshop deck built round the eye, the eye on its walkway's
     // west end and the benches to the south (+z), its clocks run 70 ticks.
     if CommandLine.arguments.contains("--workshop") {

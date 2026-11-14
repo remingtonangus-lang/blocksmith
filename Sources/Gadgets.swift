@@ -27,6 +27,7 @@ extension Game {
     func useGadget(useHeld: Bool, useNow: Bool) -> Bool {
         let k = Items.key(held.item)
         if k == "spyglass" && useHeld { scoping = true; return true }
+        if k == "parachute" && useNow { return openParachute() }        // Parachute.swift
         if k == Lasso.key && useNow { return throwLasso() }                // D1 (Lasso.swift)
         if (k == Property.townKey || k == Property.homeKey) && useNow { return Property.use(self, k) }   // D28
         if useNow && wearTroopSet() { return true }                      // P204
@@ -83,6 +84,7 @@ extension Game {
     // Leashes draw as sagging ropes from the mob to the player's hand or the fence knot.
     func writeLeads(_ wr: inout EntityWriter, eye: V3) {
         let white = Int(Tex.id("smoke"))
+        writeParachute(&wr, eye: eye)                 // (Parachute.swift: drawn in this pass on the Mac and the Quest)
         // The Meridian frigates' winch lines (P483): a dark cable, square to the view, from the door down to the hook.
         for (id, c) in FrigateBoarding.cables {
             if clock - c.at > 0.25 { FrigateBoarding.cables[id] = nil; continue }

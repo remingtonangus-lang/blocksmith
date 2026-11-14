@@ -487,7 +487,8 @@ extension Game {
                 player.pos = seat + lift * 3.4 + (up.y > 0.3 ? .zero : side * 3)
                 player.vel = s.velocity(at: player.pos) + V3(0, 7, 0)
                 player.airPeak = player.pos.y
-                applyEffect(.slowFalling, amp: 0, seconds: 40)               // (a canopy: the drop down, not a fall)
+                // (a canopy: the drop down, not a fall; Nov 14, a parachute he sees over him, steered: Parachute.swift)
+                if Parachute.old { applyEffect(.slowFalling, amp: 0, seconds: 40) } else { deployParachute() }
             }
             ships.aboard = nil
             ships.riderShip = nil

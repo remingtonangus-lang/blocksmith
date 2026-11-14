@@ -23,7 +23,7 @@ enum PlaneExitCheck {
         } }
         guard let at = spot else { check(false, "plane exit: open ground for a Salvaged Fighter near \(Int(pos0.x)) \(Int(pos0.z))"); return }
         defer { g.player.pos = pos0; g.player.vel = .zero; g.player.flying = flying0; ships.aboard = nil; ships.riderShip = nil
-            g.helmLeft = nil; g.helmLeftT = 0; g.effects.remove(.slowFalling) }
+            g.helmLeft = nil; g.helmLeftT = 0; g.effects.remove(.slowFalling); g.player.parachute = false }
 
         // Landed: off the helm he stands on the ground beside it, out of its frame, and the next use doesn't take it back.
         let fp = ships.spawn(AshWrecks.salvagedFighter(), at: at + V3(0, 1.2, 0), yaw: 0.6, name: AshWrecks.fighterName, role: "capplane")
@@ -35,12 +35,13 @@ enum PlaneExitCheck {
         // (on the ground: a solid cell under the feet, or one a block down where a field world's drawn ground stands up to a
         // block over its cell's foot: dismountSpot's own rule; not bailed out)
         let gx = Int(floor(p.x)), gz = Int(floor(p.z))
-        let ground = (w.solidAt(gx, Int(floor(p.y - 0.05)), gz) || w.solidAt(gx, Int(floor(p.y - 1.05)), gz)) && !g.effects.has(.slowFalling)
+        let bailed = g.effects.has(.slowFalling) || g.player.parachute
+        let ground = (w.solidAt(gx, Int(floor(p.y - 0.05)), gz) || w.solidAt(gx, Int(floor(p.y - 1.05)), gz)) && !bailed
         let retake = g.commandeerable() === fp
         check(atHelm && ships.aboard == nil && out && ground && !retake,
               String(format: "plane exit: off a landed Salvaged Fighter's helm he stands on the ground beside it (%.1f %.1f %.1f, aboard %@, clear of the hull %@, on ground %@, bailed out %@), the next use doesn't retake it (%@)",
                      p.x, p.y, p.z, ships.aboard == nil ? "no" : "yes", out ? "yes" : "no", ground ? "yes" : "no",
-                     g.effects.has(.slowFalling) ? "yes" : "no", retake ? "it does" : "no"))
+                     bailed ? "yes" : "no", retake ? "it does" : "no"))
         // A moment later its helm can be taken again from beside it.
         g.helmLeftT = 0.01
         g.shipPlayerUpdate(1 / 30, MoveInput())
@@ -54,9 +55,10 @@ enum PlaneExitCheck {
         g.leaveHelm()
         let q = g.player.pos
         let clear = !w.ships.list.contains { s in s === ap && ships.boundsDistance(s, q) < 0.2 && q.y < s.worldMax.y }
-        check(ships.aboard == nil && ships.riderShip == nil && clear && q.y > ap.worldMax.y - 0.5 && g.effects.has(.slowFalling) && g.player.vel.z < -10,
-              String(format: "plane exit: off a flying Salvaged Fighter's helm he bails out over it (%.1f over its top, carried on at %.0f b/s, slow falling %@, aboard %@)",
-                     q.y - ap.worldMax.y, -g.player.vel.z, g.effects.has(.slowFalling) ? "yes" : "no", ships.aboard == nil ? "no" : "yes"))
+        let chute = Parachute.old ? g.effects.has(.slowFalling) : g.player.parachute
+        check(ships.aboard == nil && ships.riderShip == nil && clear && q.y > ap.worldMax.y - 0.5 && chute && g.player.vel.z < -10,
+              String(format: "plane exit: off a flying Salvaged Fighter's helm he bails out over it (%.1f over its top, carried on at %.0f b/s, parachute open %@, aboard %@)",
+                     q.y - ap.worldMax.y, -g.player.vel.z, chute ? "yes" : "no", ships.aboard == nil ? "no" : "yes"))
         ships.remove(ap, turrets: false)
     }
 }
