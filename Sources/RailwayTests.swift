@@ -713,15 +713,29 @@ enum RailwayTests {
         let tally0 = Railways.tally
         Railways.tally = { k in whyLock.lock(); why[k, default: 0] += 1; whyLock.unlock() }
         defer { Railways.tally = tally0 }
+        var crossings = 0, ranOn = 0, seaCells = 0, longest = 0, fedTwice = 0
         for k in 0..<12 {
             let seed = UInt64(1000 + k * 7919)
             let gen = WorldGen(seed: seed)
             gen.fieldWorld = true
-            for l in Railways.near(gen, x0: -6000, z0: -6000, x1: 6000, z1: 6000, pad: 0) {
+            // (ledger 135: no link's track over another track's cells, no start run into by two links)
+            var owner: [Int64: Int64] = [:], fed: [Int64: Int] = [:]
+            let all = Railways.near(gen, x0: -6000, z0: -6000, x1: 6000, z1: 6000, pad: 0)
+            for l in all { for c in l.cells { owner[Railways.colKey(c.x, c.z)] = l.id } }
+            for l in all {
                 lines += 1
                 let (row, st) = Railways.rowStretch(l.id)
                 guard let lk = Railways.link(gen, row: row, stretch: st), let b = Railways.linkTarget(gen, lk) else { continue }
                 linked += 1
+                fed[b.id, default: 0] += 1
+                if fed[b.id]! == 2 { fedTwice += 1 }
+                if lk.runOn { ranOn += 1; longest = max(longest, lk.cells.count) }
+                for (i, c) in lk.cells.enumerated() {
+                    if lk.runOn && i % 4 == 0 && gen.column(c.x, c.z).biome.isOcean { seaCells += 4 }
+                    let ck = Railways.colKey(c.x, c.z)
+                    if let o = owner[ck], o != lk.id { crossings += 1; if crossings <= 4 { bad.append("seed \(seed) \(lk.name): link cell \(c) on another track") } }
+                    owner[ck] = lk.id
+                }
                 // Joined end to end: a's last cell, the link's cells, b's first, each a step on from the one before, the
                 // planned heights within a grade's step across both joins.
                 let chain = [l.cells.last!] + lk.cells + [b.cells.first!]
@@ -742,7 +756,8 @@ enum RailwayTests {
             }
         }
         whyLock.lock()
-        let whyText = why.filter { $0.key.hasPrefix("link") && !$0.key.hasPrefix("link route detail") }.sorted { $0.value > $1.value }.prefix(12).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        let whyText = why.filter { !$0.key.hasPrefix("link route detail") && !$0.key.hasPrefix("fewer") && !$0.key.hasPrefix("no run") }.sorted { $0.value > $1.value }.prefix(24).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        print("rail links: \(ranOn) of the \(linked) by the run-on rule (ledger 135), the longest \(longest) cells, about \(seaCells) cells over the sea; \(crossings) cells on another track, \(fedTwice) starts run into twice")
         for d in why.keys.filter({ $0.hasPrefix("link route detail") }).sorted().prefix(16) { print("rail links: " + d) }
         whyLock.unlock()
         print(String(format: "rail links: %d of %d lines run on to the next (%.1f s); no link: ", linked, lines, CFAbsoluteTimeGetCurrent() - t0) + whyText)

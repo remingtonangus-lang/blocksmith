@@ -48,6 +48,7 @@ enum Railways {
         var target: Int64 = 0              // a link's: the key of the line it runs on to (0: a line, or a link of before)
         var joins = -1                     // P511, a loop's (RailLoops.swift): the line's cell it comes back into
         var diagonal = false               // N12: planned with diagonal legs and eased turns (wider bed, beds by nearest cell)
+        var runOn = false                  // ledger 135: a run-on link (planRunOn): sea bridges on long piers
         init(id: Int64, name: String, cells: [IVec3], stations: [Station], heights: [Float]? = nil) {
             self.id = id; self.name = name; self.cells = cells; self.stations = stations; self.heights = heights
             minX = cells.map { $0.x }.min() ?? 0; maxX = cells.map { $0.x }.max() ?? 0
@@ -276,12 +277,99 @@ enum Railways {
             guard let a = line(gen, row: row - 1, stretch: s - k, wait: wait) else { continue }
             if let lk = link(gen, row: row - 1, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
         }
+        guard runOn && gen.fieldWorld else { return nil }
+        // Ledger 135: a run-on link north from the row south.
+        for k in 0...linkReach where hasLine(gen, row + 1, s - k) {
+            guard let a = line(gen, row: row + 1, stretch: s - k, wait: wait) else { continue }
+            if let lk = link(gen, row: row + 1, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
+        }
         return nil
     }
 
     static func planLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
-        gated(gen, old: { planLink(gen, row: row, stretch: s, diagonal: false) }, new: { planLink(gen, row: row, stretch: s, diagonal: true) })
+        if let l = gated(gen, old: { planLink(gen, row: row, stretch: s, diagonal: false) }, new: { planLink(gen, row: row, stretch: s, diagonal: true) }) { return l }
+        return planRunOn(gen, row: row, stretch: s)
     }
+
+    // Ledger 135 (Nov 14 12:04:52 at Toriwick, of its terminus loop: "another example of the rails getting fucked up.
+    // Turned into a circle"; Nov 1: "The train should never end... keeps connecting shit to shit"; Nov 2, of a buffer
+    // end: "there was still a 'start' to it"): neither buffers nor a loop is what he wants at a line's end; the line
+    // should run on. The link check before: 36 of 267 lines ran on. A quarter had no line to run on to; most of the
+    // rest were stopped by the sea (a link crossed 6 squares of it at most and never the deep sea), by the track
+    // standing more than 28 off the land, or by the search's way crossing itself at its goal.
+    // Where the link as before can't be laid, the end still runs on to the start the old rules gave it (the next line
+    // east in its row, else one in the row south that nothing in its own row runs into), now over the sea on a bridge
+    // however wide and up to 64 off the land (a viaduct or a tunnel); and an end with no such start runs on to one in
+    // the row north that neither its own row nor the row north of it runs into. So a start is still run into by one
+    // end at most, and no two links cross. Only in field worlds, only on ground no save had before
+    // (structure-guard-l135.txt). BS_OLDRUNON=1: as before.
+    static let oldRunOn = ProcessInfo.processInfo.environment["BS_OLDRUNON"] == "1"
+    static var runOnOn = true                         // (checks compare)
+    static var runOn: Bool { runOnOn && !oldRunOn && !oldRails }
+    // The start a line's east end runs on to by the rules alone (no way looked for), and the rule: 1 the next line
+    // east in its row, 2 one in the row south, 3 (run-on) one in the row north.
+    static func eastIn(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
+        for k in 1...linkReach where hasLine(gen, row, s + k) {
+            if let l = line(gen, row: row, stretch: s + k) { return (l, key(row, s + k)) }
+        }
+        return nil
+    }
+    static func fedInRow(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
+        for j in 1...linkReach where hasLine(gen, row, s - j) { if line(gen, row: row, stretch: s - j) != nil { return true } }
+        return false
+    }
+    static func southOf(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
+        guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let pa = a.cells.last, eastIn(gen, row, s) == nil else { return nil }
+        for k in 0...linkReach where hasLine(gen, row + 1, s + k) {
+            guard let l = line(gen, row: row + 1, stretch: s + k), let f = l.cells.first, f.x - pa.x >= 40 else { continue }
+            if fedInRow(gen, row + 1, s + k) { continue }
+            return (l, key(row + 1, s + k))
+        }
+        return nil
+    }
+    static func fedFromNorth(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
+        let me = key(row, s)
+        for k in 0...linkReach where hasLine(gen, row - 1, s - k) { if let t = southOf(gen, row - 1, s - k), t.1 == me { return true } }
+        return false
+    }
+    static func northOf(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
+        guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let pa = a.cells.last,
+              eastIn(gen, row, s) == nil, southOf(gen, row, s) == nil else { return nil }
+        for k in 0...linkReach where hasLine(gen, row - 1, s + k) {
+            guard let l = line(gen, row: row - 1, stretch: s + k), let f = l.cells.first, f.x - pa.x >= 5 * routeCell else { continue }
+            if fedInRow(gen, row - 1, s + k) || fedFromNorth(gen, row - 1, s + k) { continue }
+            return (l, key(row - 1, s + k))
+        }
+        return nil
+    }
+    static func planRunOn(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        guard runOn, gen.fieldWorld, hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures,
+              let pa = a.cells.last else { return nil }
+        guard let (b, bKey) = eastIn(gen, row, s) ?? southOf(gen, row, s) ?? northOf(gen, row, s), let pb = b.cells.first else {
+            tally?("run-on: no start to run on to"); return nil
+        }
+        guard pb.x - pa.x >= 5 * routeCell else { tally?("run-on: lines overlap"); return nil }
+        var way = smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
+        if way == nil { way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true) }
+        guard let run = way, run.count > 8 else { tally?("run-on: no way"); return nil }
+        for (i, q) in run.enumerated() where i % 8 == 0 || i == run.count - 1 {
+            let cx = floorDiv(q.0, CS), cz = floorDiv(q.1, CS)
+            for g in [sc.legacyC1, sc.legacyP510, sc.legacyL135] where !g.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: g) {
+                tally?("run-on: old ground"); return nil
+            }
+        }
+        let flat = run.map { IVec3($0.0, 0, $0.1) }
+        let h0 = a.heights?.last ?? Float(pa.y), h1 = b.heights?.first ?? Float(pb.y)
+        guard let h = gentleProfile(gen, flat, [], ends: (h0, h1), diagonal: true, maxOff: 64) else { tally?("run-on: grade"); return nil }
+        let cells = flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }
+        let lk = Line(id: linkKey(row, s), name: a.name, cells: cells, stations: [], heights: h)
+        lk.target = bKey
+        lk.diagonal = true
+        lk.runOn = true
+        tally?("run-on: laid")
+        return lk
+    }
+
     static func planLink(_ gen: WorldGen, row: Int, stretch s: Int, diagonal: Bool) -> Line? {
         guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures else { return nil }
         var b: Line? = nil, bKey: Int64 = 0
@@ -370,7 +458,11 @@ enum Railways {
     // coast across the whole band, and the band's edges): a link may cross open water on a trestle for up to seaRun
     // squares together (a bridge as a line takes over a lake), each such square costing seaCost.
     static let seaRun = 6, seaCost: Int32 = 6
-    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false) -> [(Int, Int)]? {
+    // `runOn` (ledger 135): the sea and the deep sea are crossed on a bridge at a cost (up to seaRunOn squares together),
+    // ground saved before run-on links is shut, and the way never comes back through its first square or into its
+    // last square but heading east (the search's "over itself": it came at the goal from the side and went round).
+    static let seaRunOn = 160, deepCost: Int32 = 9
+    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false, runOn: Bool = false) -> [(Int, Int)]? {
         let G = routeCell
         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
         let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
@@ -408,10 +500,11 @@ enum Railways {
                 var v: UInt8 = 1
                 if !sc.legacyC1.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyC1) { v = 2 }
                 if v == 1 && !sc.legacyP510.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyP510) { v = 2 }
+                if v == 1 && runOn && !sc.legacyL135.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacyL135) { v = 2 }
                 if v == 1 { let b = gen.column(x, z).biome; if b.isDeepOcean { v = 4 } else if b.isOcean { v = 3 } }   // (no legs down into the deep sea)
                 looked[i] = v
             }
-            return looked[i] == 1 || looked[i] == 3
+            return looked[i] == 1 || looked[i] == 3 || (runOn && looked[i] == 4)
         }
         let start = (floorDiv(s0.1, G) - gz0) * nx + (floorDiv(s0.0, G) - gx0)
         let goal = (floorDiv(e0.1, G) - gz0) * nx + (floorDiv(e0.0, G) - gx0)
@@ -456,8 +549,9 @@ enum Railways {
                 let x2 = x + dx[nd], z2 = z + dz[nd]
                 guard x2 >= 0 && x2 < nx && z2 >= 0 && z2 < nz else { continue }
                 let j = z2 * nx + x2
+                if runOn && (j == start || (j == goal && nd != 0)) { continue }
                 guard open(j) else { continue }
-                let c2 = cost[si] + 1 + (nd == d ? 0 : turnCost) + (looked[j] == 3 ? seaCost : 0)
+                let c2 = cost[si] + 1 + (nd == d ? 0 : turnCost) + (looked[j] == 3 ? seaCost : looked[j] == 4 ? deepCost : 0)
                 let sj = j * 4 + nd
                 if c2 < cost[sj] { cost[sj] = c2; from[sj] = Int32(si); push(c2 + h(j), Int32(sj)) }
             }
@@ -494,8 +588,8 @@ enum Railways {
         squares.reverse()
         // (no open water longer than a trestle takes)
         var wet = 0, wettest = 0
-        for q in squares { wet = looked[q] == 3 ? wet + 1 : 0; wettest = max(wettest, wet) }
-        if wettest > seaRun { tally?("link route: over the sea (\(wettest) squares at a stretch)"); return nil }
+        for q in squares { wet = looked[q] == 3 || looked[q] == 4 ? wet + 1 : 0; wettest = max(wettest, wet) }
+        if wettest > (runOn ? seaRunOn : seaRun) { tally?("link route: over the sea (\(wettest) squares at a stretch)"); return nil }
         // The corners (squares where the way turns), as block points on the squares' middles; the ends on the rows.
         var pts: [(Int, Int)] = [s0]
         for k in 1..<max(1, squares.count - 1) {
@@ -505,11 +599,11 @@ enum Railways {
         pts.append(e0)
         // N12: the way's corners pulled straight where the straight is clear (a diagonal across the squares between),
         // then eased round, the whole way checked again; else the square way below.
-        if diagonal, let d = diagonalWay(gen, sc, pts, from: a, to: b, open: { x, z in
+        if diagonal, let d = diagonalWay(gen, sc, pts, from: a, to: b, sea: runOn, open: { x, z in
             let qx = floorDiv(x, G) - gx0, qz = floorDiv(z, G) - gz0
             guard qx >= 0 && qx < nx && qz >= 0 && qz < nz else { return false }
             let i = qz * nx + qx
-            return open(i) && looked[i] == 1
+            return open(i) && (looked[i] == 1 || runOn)
         }) { return d }
         // Along x then z between points, one block a step; then on to b along its row.
         var cells: [(Int, Int)] = []
@@ -531,7 +625,9 @@ enum Railways {
         guard on, linksOn else { return [] }
         // (a link may go round things up to routeWander off its rows)
         // (and one from the row north may come south a row)
-        let r0 = floorDiv(z0 - pad - span / 2 - routeWander - routeCell, span) - 1, r1 = floorDiv(z1 + pad + span / 2 + routeWander + routeCell, span)
+        // (ledger 135: and a run-on link may go north a row)
+        let r0 = floorDiv(z0 - pad - span / 2 - routeWander - routeCell, span) - 1
+        let r1 = floorDiv(z1 + pad + span / 2 + routeWander + routeCell, span) + (runOn && gen.fieldWorld ? 1 : 0)
         let w = stretch * span
         // (a link starts in its own line's stretch and runs up to linkReach stretches on east)
         let s0 = floorDiv(x0 - pad - span, w) - linkReach, s1 = floorDiv(x1 + pad + span, w)
@@ -683,7 +779,7 @@ enum Railways {
     // A link's routed way (route's corner points, `open` saying which ground a straight may cross) pulled straight
     // between corners where clear, eased round its turns, from just east of a to just west of b.
     static func diagonalWay(_ gen: WorldGen, _ sc: StructureCache, _ pts: [(Int, Int)], from a: (Int, Int), to b: (Int, Int),
-                            open: (Int, Int) -> Bool) -> [(Int, Int)]? {
+                            sea: Bool = false, open: (Int, Int) -> Bool) -> [(Int, Int)]? {
         guard pts.count >= 2 else { return nil }
         func clear(_ p: (Int, Int), _ q: (Int, Int)) -> Bool {
             let n = max(1, Int(hypotf(Float(q.0 - p.0), Float(q.1 - p.1)) / 4))
@@ -705,7 +801,7 @@ enum Railways {
         let c = rasterPolyline(roundPolyline(poly, radius: 14))
         guard let f = c.first, let l = c.last, f == (a.0 + 1, a.1), l == (b.0 - 1, b.1), c.count > 8, !touchesItself(c),
               !polylineBlocked(gen, sc, c, skipEnds: 2, except: []),
-              !stride(from: 0, to: c.count, by: 4).contains(where: { gen.column(c[$0].0, c[$0].1).biome.isOcean }) else { return nil }
+              sea || !stride(from: 0, to: c.count, by: 4).contains(where: { gen.column(c[$0].0, c[$0].1).biome.isOcean }) else { return nil }
         return c
     }
 
@@ -983,7 +1079,7 @@ enum Railways {
     // ground, the track cut or banked to it (a terminus loop: its four corners on ground up to 10 apart were each fixed
     // at their own, and half the loops in the rail check failed the grade: "loop: field grade" 127 of 256 ends).
     static func gentleProfile(_ gen: WorldGen, _ cells: [IVec3], _ stations: [Station], ends: (Float, Float)? = nil, floatCurves: Bool = false,
-                              diagonal: Bool = false) -> [Float]? {
+                              diagonal: Bool = false, maxOff: Float = 28) -> [Float]? {
         let n = cells.count
         guard n > 2 else { return nil }
         var target = [Float](repeating: Float(SEA + 2), count: n)
@@ -1054,8 +1150,8 @@ enum Railways {
             }
             h = m
         }
-        for i in 1..<n where abs(h[i] - h[i - 1]) > grade + 0.01 { return nil }
-        for i in 0..<n where abs(h[i] - target[i]) > 28 { tally?("grade: track 28+ off the land"); return nil }
+        for i in 1..<n where abs(h[i] - h[i - 1]) > grade + 0.01 { tally?("grade: a step over the grade"); return nil }
+        for i in 0..<n where abs(h[i] - target[i]) > maxOff { tally?("grade: track \(Int(maxOff))+ off the land"); return nil }
         // (N12: with its turns free to climb, a diagonal line's valley floor or crest can round one cell a block off both
         // its neighbours, a rail a step down and up again (the rail check's dip/hump, 3 of 151 lines): that cell's height
         // is moved to the edge of its neighbours' block, an eighth of a block at most)
@@ -1226,12 +1322,12 @@ enum Railways {
                     }
                     w.set(x, y - 1, z, deck)                                       // trestle deck
                     let edge = l.diagonal ? abs(x - c.x) + abs(z - c.z) >= 2 : (alongX && z != c.z) || (!alongX && x != c.x)
-                    if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - 48) }
+                    if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - (l.runOn ? 96 : 48)) }
                 }
             }
             // Over water the deck's centre gets a leg too (a bridge pier).
             if i % 8 == 4, w.inside(c.x, y - 2, c.z), w.get(c.x, y - 2, c.z) == water || w.get(c.x, y - 2, c.z) == AIR {
-                if !(Blocks.opaque[Int(w.get(c.x, y - 1, c.z))]) || w.get(c.x, y - 1, c.z) == deck { w.groundDown(c.x, y - 2, c.z, leg, minY: y - 48) }
+                if !(Blocks.opaque[Int(w.get(c.x, y - 1, c.z))]) || w.get(c.x, y - 1, c.z) == deck { w.groundDown(c.x, y - 2, c.z, leg, minY: y - (l.runOn ? 96 : 48)) }
             }
         }
         // Buffer stops past both ends (P337 (a): the line ended at a single block): the bed runs on two cells past
