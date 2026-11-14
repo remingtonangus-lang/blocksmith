@@ -869,6 +869,8 @@ final class QuestControls {
         lastFeet = game.player.pos
     }
 
+    static let oldTorchHeld = ProcessInfo.processInfo.environment["BS_OLDTORCHHELD"] == "1"
+
     // The held gun model's offset in the hand's frame (drawHeld): the screen model's sight is at its origin, so the
     // eyepiece of the drawn gun sits at the hand plus this shift.
     static func heldGunShift(_ gi: Int) -> V3 {
@@ -1992,6 +1994,21 @@ final class QuestControls {
             // ~1.55 m, other tools / bows ~1.3 m, everything else a 40 cm icon.
             // Tools and weapons are held by the handle: the icon's grip texel (~3/16 in, 4/16 up) sits in the hand.
             let (h, tool) = heldSize()
+            // Nov 14 (Remington on the trailer's cave: "torch was not quite in hand"): a torch is held upright by its
+            // stick, the stick's lower texel (row 13 of 16) in the fist and its face turned to the eye, its flame lit
+            // whatever the light where he stands. Before it was a 40 cm icon floating 12 cm ahead of the hand, rolled
+            // on its side, and as dark as the cave. BS_OLDTORCHHELD=1: as before.
+            if !QuestControls.oldTorchHeld, let b = held.def.block, Blocks.shape[Int(b)] == "torch" || Items.key(held.item).hasSuffix("_torch") {
+                let tUp = rot.act(simd_normalize(V3(0, 1, 0.12))), tRight = rot.act(V3(1, 0, 0))
+                let tN = simd_normalize(simd_cross(tRight, tUp))
+                let c = pos + rot.act(V3(0, 0.0, -0.02)) + tUp * (0.625 * h)
+                let lit = Blocks.emit[Int(b)] > 0 ? max(light, 1) : light
+                heldQuads = wr.extrudedItem(center: c, half: h, right: tRight, up: tUp, normal: tN, thick: h / 8, layer: layer, light: lit)
+                app.scene.commit(off, wr.n, EntityVert.self)
+                app.scene.drawScratch(s, "entity", offset: off, count: wr.n)
+                if let m = prev { app.scene.addMotion(s, .entity, offset: off, count: wr.n, prev: m) }
+                return
+            }
             let c = tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
                                 : pos + rot.act(V3(0, 0.07, -0.12))
             // One texel (h/8) thick and closed: both faces plus a wall round every opaque texel (ItemExtrude.swift; the
