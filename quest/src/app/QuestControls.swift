@@ -1209,7 +1209,8 @@ final class QuestControls {
         (V3(0.022, -0.004, -0.047), V3(0.0072, 0.026, 0.009), 0.96, false, false),
         (V3(0.034, 0.03, -0.022), V3(0.01, 0.01, 0.026), 1.08, false, true),       // thumb over the top
         (V3(0, 0.008, 0.052), V3(0.035, 0.031, 0.013), 0.72, false, false),        // the glove's flared cuff
-        (V3(0, 0.0, 0.15), V3(0.03, 0.03, 0.085), 1.0, true, false),               // shirt sleeve down the forearm
+        (V3(0, 0.0, 0.11), V3(0.03, 0.03, 0.05), 1.0, true, false),                // the shirt sleeve at the wrist (a longer
+        // one swung through the view as the hand reached down, a dark slab across the trailer's farm shot)
     ]
     static let controllerParts: [(V3, V3)] = [(V3(0, 0, 0.02), V3(0.018, 0.026, 0.05)), (V3(0, 0.012, -0.05), V3(0.012, 0.012, 0.03)),
                                               (V3(0, 0.03, 0.0), V3(0.035, 0.008, 0.035))]

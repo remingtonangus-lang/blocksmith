@@ -466,6 +466,11 @@ enum Cinema {
                 }
             }
             rig.aimAt = aims.last { $0.t0 <= t && t <= $0.t1 }.map { $0.at() }
+            // Nov 14 (blind review: "blocks appear 5 m away with no hand reach, like mouse placement"): while the hand
+            // lays or cuts, it points at the cell it works on next, so its laser lands on the block as it appears.
+            if rig.aimAt == nil, let next = reach.first(where: { $0.t >= t - 0.1 }), next.t - t < 0.6, reach.contains(where: { $0.t <= t + 0.6 }) {
+                rig.aimAt = next.at
+            }
             // A reach: out over 0.18 s to the cell, back over 0.25 s.
             rig.reach = nil
             for r in reach {
@@ -681,6 +686,8 @@ enum Cinema {
                 let down = simd_quatf(angle: -tilt, axis: V3(1, 0, 0))
                 let t = Float(n) / 30
                 let bob = V3(0, 0.008 * sinf(t * 2 * .pi * 1.2), 0)
+                // the off hand never quite still ("a frozen fist at the frame edge"): its own slow sway
+                let sway = V3(0.012 * sinf(t * 2 * .pi * 0.45 + 1.3), 0.014 * sinf(t * 2 * .pi * 0.7 + 0.4), 0.01 * sinf(t * 2 * .pi * 0.33))
                 // The aiming hand turned (eased) to point at the aim spot: its forward (-Z) along the line from the grip.
                 var want: simd_quatf? = nil
                 if let a = aimAt {
@@ -694,7 +701,7 @@ enum Cinema {
                 for hi in 0..<2 {
                     var hd = XRHand()
                     hd.aimValid = true; hd.gripValid = true
-                    var off = rest[hi] + bob
+                    var off = rest[hi] + bob + (hi == 0 ? sway : .zero)
                     var rot = head * down
                     if hi == 1 {
                         if let r = aimRot { rot = r; off.y += 0.05; off.z -= 0.04 }      // raised to aim
@@ -702,6 +709,7 @@ enum Cinema {
                             let local = head.inverse.act(at - eye)
                             let toward = simd_normalize(local - off)
                             off += toward * (0.3 * k)
+                            off.z = min(off.z, -0.36)                              // never back past the face
                         }
                     }
                     hd.gripPos = sim.headPos + head.act(off); hd.aimPos = hd.gripPos
