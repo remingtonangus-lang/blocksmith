@@ -2646,6 +2646,11 @@ if CommandLine.arguments.contains("--groundweigh") {
     GroundWeighTests.run(game, check: check)
     print(failures == 0 ? "groundweigh: all checks passed" : "groundweigh: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --placerow: ledgers 130 and 131, where a placed block goes on the ground (Sources/PlaceRowTests.swift).
+if CommandLine.arguments.contains("--placerow") {
+    PlaceRowTests.run(game, check: check)
+    print(failures == 0 ? "placerow: all checks passed" : "placerow: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --weaklinktest: ledger 128, links read while their objects are let go (Sources/WeakLinkTests.swift).
 if CommandLine.arguments.contains("--weaklinktest") {
     WeakLinkTests.run(cycles: 2_000_000, check: check)
@@ -4501,6 +4506,7 @@ if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deepte
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
 WeakLinkTests.run(check: check)       // (ledger 128: a link read while its object is let go)
+PlaceRowTests.run(game, check: check) // (ledgers 130, 131: where a placed block goes on the ground)
 check(!LifeLink.sideTable(game.world) && !LifeLink.sideTable(game) && !LifeLink.sideTable(game.world.ships),
       "weaklink: the world, the game and the ships have no side table after the run (no `weak` reference was made to them)")
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }

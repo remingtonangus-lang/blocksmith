@@ -52,10 +52,10 @@ extension World {
         // Ledger 130 (Nov 14, building a house on a beach: "All that sand just spawned", "the ground just fucked up my
         // house", "that shit was just hanging in the air", "look what happened inside"): a block set out from a wall's
         // top, a block and more over the ground, raised a mound of ground up to its floor with a skirt nearly three
-        // blocks wide, into the rooms. The ground now rises only under a block set down on it (a gap of a block at
+        // blocks wide, into the rooms. The ground now rises only under a block set down on it (a gap of 0.8 at
         // most; the caller says whether it was placed on ground), and its skirt is at most a block wide.
         // BS_OLDMEET=1: as before.
-        if !World.oldMeet && gap > 1.0 { return 0 }
+        if !World.oldMeet && gap > 0.8 { return 0 }
         // The shape: solid up to the floor over the footprint, falling away at 45 degrees round it.
         let fy = Float(y), x0 = Float(x), x1 = Float(x + 1), z0 = Float(z), z1 = Float(z + 1)
         // (a flat apron a third of a block wide round the foot first: the drawn ground interpolates between half-block
