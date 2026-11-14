@@ -116,9 +116,9 @@ final class BuilderBot: AgentBot {
     private var noFaces = false
     private var successes = 0, deferredAt: [IVec3: Int] = [:], cleared = 0
     private lazy var planned: Set<IVec3> = Set(plan.jobs.filter { $0.want != AIR }.map { $0.cell })
-    private func tree(_ w: World, _ q: IVec3) -> Bool {
+    private func tree(_ w: World, _ q: IVec3, evenPlanned: Bool = false) -> Bool {
         let b = w.block(q.x, q.y, q.z)
-        if b == AIR || Blocks.isLiquid(b) || planned.contains(q) || (w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) { return false }
+        if b == AIR || Blocks.isLiquid(b) || (planned.contains(q) && !evenPlanned) || (w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) { return false }
         // (only round the build: he clears the site, not the forest)
         if q.x < plan.lo.x - 6 || q.x > plan.hi.x + 6 || q.z < plan.lo.z - 6 || q.z > plan.hi.z + 6 { return false }
         let k = Blocks.key(Blocks.groupBase[Int(b)])
@@ -305,13 +305,15 @@ final class BuilderBot: AgentBot {
         let fk = BuildersGrounds.Draft.id(d.footKey)
         var want: [IVec3: BlockID] = [:]
         for jb in jobs[i...] where jb.want != AIR { want[jb.cell] = jb.want }
-        var cells = Set<IVec3>(), digs: [IVec3] = []
-        for (x, z) in d.footprint {
+        var cells = Set<IVec3>(), digs: [IVec3] = [], key: [IVec3: BlockID] = [:]
+        let cols = d.footprint.map { ($0.x, $0.z, fk, 24) } + d.posts.map { ($0.x, $0.z, BuildersGrounds.Draft.id($0.key), 40) }
+        for (x, z, k, deep) in cols {
             var y = o.y - 1
-            while y > o.y - 24 {
+            while y > o.y - deep {
+                key[IVec3(o.x + x, y, o.z + z)] = k
                 let c = IVec3(o.x + x, y, o.z + z)
                 if !solid(w, c) { cells.insert(c) }
-                else if tree(w, c) && !cutCells.contains(c) { digs.append(c); cells.insert(c) }     // (a stilt never stands on leaves)
+                else if tree(w, c, evenPlanned: true) && !cutCells.contains(c) { digs.append(c); cells.insert(c) }     // (a stilt never stands on leaves)
                 else { break }
                 y -= 1
             }
@@ -326,7 +328,7 @@ final class BuilderBot: AgentBot {
         refills = cells.filter { want[$0] == nil }.count
         jobs.removeAll { cells.contains($0.cell) && $0.want != AIR }
         i = min(i, jobs.count)
-        let add = cells.sorted { $0.y != $1.y ? $0.y < $1.y : ($0.x, $0.z) < ($1.x, $1.z) }.map { BuildersGrounds.Job(cell: $0, want: want[$0] ?? fk) }
+        let add = cells.sorted { $0.y != $1.y ? $0.y < $1.y : ($0.x, $0.z) < ($1.x, $1.z) }.map { BuildersGrounds.Job(cell: $0, want: want[$0] ?? key[$0] ?? fk) }
         jobs.insert(contentsOf: add, at: i)
     }
     private var cutCells = Set<IVec3>()
@@ -421,9 +423,20 @@ final class BuilderBot: AgentBot {
             let flat = simd_length(V2(d.x, d.z))
             if phase == 1 {
                 // Flying: a landing stops it, the fly key starts it again.
-                if !p.flying && flyCool == 0 && (flat > 0.6 || d.y > 0.4) { act.key = KeyBinds.key(.fly); flyCool = 12; return act }
+                if !p.flying && flyCool == 0 && (flat > 0.6 || d.y > 0.4) {
+                    // (with a jump: started on the ground, a flight lands again the same tick)
+                    act.key = KeyBinds.key(.fly); act.jump = true; flyCool = 12; return act
+                }
                 moveTicks += 1
-                if moveTicks > 120 + 25 * path.count { drop(s, "the flight there stalled"); return act }
+                if moveTicks > 120 + 25 * path.count {
+                    if BuilderBot.trace {
+                        let fx = Int(floor(p.pos.x)), fz = Int(floor(p.pos.z)), fy = Int(floor(p.pos.y))
+                        let col = (-1...3).map { dy in "\(fy + dy):\(Blocks.key(w.block(fx, fy + dy, fz)))\(w.fieldTerrain && w.groundAt(fx, fy + dy, fz) ? "(g)" : "")" }.joined(separator: " ")
+                        let up = (1...12).first { k in w.collides(V3(p.pos.x - 0.3, p.pos.y + 0.01 + Float(k) * 0.1, p.pos.z - 0.3), V3(p.pos.x + 0.3, p.pos.y + 1.8 + Float(k) * 0.1, p.pos.z + 0.3)) }
+                        print("  trace t\(s.tick) job \(i) stalled at \(p.pos) water \(p.inWater) ground \(p.onGround) fly \(p.flying) room up \(up.map { String(Float($0) * 0.1) } ?? ">1.2"); column \(col); spot free \(bodyFree(w, c.feet, not: j.cell))")
+                    }
+                    drop(s, "the flight there stalled"); return act
+                }
                 // Waypoint by waypoint, each axis held to a speed that dies away as it closes (the keys are all or
                 // nothing: pressed toward while slower than that, against while faster).
                 if wp < path.count - 1 && simd_length(path[wp] - p.pos) < 0.45 { wp += 1 }
@@ -487,7 +500,8 @@ final class BuilderBot: AgentBot {
                     if BuilderBot.trace && g.target == nil {
                         let r = w.raycast(p.eye, p.look, maxDist: 6)
                         let dist = simd_length(c.aim - p.eye)
-                        print("  trace t\(s.tick) job \(i) aim on nothing (menu \(g.menu.map { String(describing: type(of: $0)) } ?? "none"), paused \(g.paused), ray \(r.map { "\($0.hit.x - j.cell.x),\($0.hit.y - j.cell.y),\($0.hit.z - j.cell.z)" } ?? "nil"), aim \(String(format: "%.2f", dist)) away, look err \(String(format: "%.3f %.3f", ey, ep)))")
+                        let sh = w.ships.list.min { simd_length($0.pos - p.pos) < simd_length($1.pos - p.pos) }
+                        print("  trace t\(s.tick) job \(i) aim on nothing (ship aimed \(w.ships.target.map { $0.0.name } ?? "no"), nearest ship \(sh.map { "\($0.name) \(Int(simd_length($0.pos - p.pos)))" } ?? "none"), menu \(g.menu.map { String(describing: type(of: $0)) } ?? "none"), paused \(g.paused), ray \(r.map { "\($0.hit.x - j.cell.x),\($0.hit.y - j.cell.y),\($0.hit.z - j.cell.z)" } ?? "nil"), aim \(String(format: "%.2f", dist)) away, look err \(String(format: "%.3f %.3f", ey, ep)))")
                     }
                     if BuilderBot.trace, let t = g.target {
                         let at = j.want == AIR ? t.hit : g.placeCell(t, for: Blocks.groupBase[Int(j.want)])

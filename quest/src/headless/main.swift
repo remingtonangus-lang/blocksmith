@@ -269,6 +269,20 @@ if let out = arg("--view"), let ctx = vkctx {
         let h = vw.gen.column(Int(floor(vg.player.pos.x)), Int(floor(vg.player.pos.z))).height
         vg.player.pos.y = Float(max(h, SEA) + 1) + up
     }
+    // --builders KEY (Builders' Grounds, Nov 14): that blueprint put up on its kind of ground nearest --at (BuildersGrounds
+    // .findSites; run with --field and the Builders' Grounds --seed), every job applied as the world applies it, and the
+    // eye --off (24) off its middle to the south-east, looking at it.
+    if let key = arg("--builders"), let bp = BuildersGrounds.blueprints().first(where: { $0.key == key }) {
+        if let site = BuildersGrounds.findSites(vw, centre: vg.player.pos, kinds: [bp.ground])[bp.ground] {
+            let pl = BuildersGrounds.place(bp, on: vw, at: site)
+            for j in pl.jobs { BuildersGrounds.apply(vg, j) }
+            let mid = V3(Float(pl.lo.x + pl.hi.x) / 2, Float(pl.lo.y + pl.hi.y) / 2, Float(pl.lo.z + pl.hi.z) / 2)
+            let off = Float(arg("--off") ?? "") ?? 24
+            vg.player.pos = V3(mid.x + off * 0.7, mid.y + off * 0.25, mid.z + off * 0.7)
+            nearYaw = .pi / 4
+            print("view: builders \(key) at \(site.x) \(site.y) \(site.z), \(pl.jobs.count) jobs")
+        } else { print("view: builders \(key): no site") }
+    }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
     // --finechunks "DX,DZ;..." (Nov 12, FAILURES 4): those chunks (offsets from the eye's chunk) get half-block samples
