@@ -642,11 +642,13 @@ enum Cinema {
         private var lastHead = simd_quatf(angle: 0, axis: V3(0, 1, 0)), lastEye = V3.zero
         private var aimRot: simd_quatf?
         // Where the right hand's rounds leave from (the last drawn pose's grip, a little ahead along its aim).
+        // The aiming hand where it was last drawn (raised to aim, reaching): the game puts the flash and the round
+        // 0.3 m on from it along the aim, as from a controller. (It was the rest pose plus 0.3 m, then 0.3 m more in
+        // the game: the flash hung in mid-air near the middle of the frame, "far from the barrel", Nov 14 review.)
+        var aimHandWorld: V3?
         func muzzle() -> V3 {
-            let off = rest[1]
-            let p = lastEye + lastHead.act(off)
-            let d = aimAt.map { simd_normalize($0 - p) } ?? lastHead.act(V3(0, 0, -1))
-            return p + d * 0.3
+            if let h = aimHandWorld { return h }
+            return lastEye + lastHead.act(rest[1])
         }
         init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, hold: String? = nil) throws {
             self.game = game; self.width = width; self.height = height
@@ -719,6 +721,7 @@ enum Cinema {
                         }
                     }
                     hd.gripPos = sim.headPos + head.act(off); hd.aimPos = hd.gripPos
+                    if hi == 1 { aimHandWorld = eye + head.act(off) }
                     hd.gripRot = rot
                     hd.aimRot = hd.gripRot
                     sim.hands[hi] = hd
