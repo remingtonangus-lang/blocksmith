@@ -149,6 +149,14 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float, posed: Bool =
         parts.append(Part(mn: V3(5, 9, -5), mx: V3(7, 13, -1), pivot: V3(6, 22, 0), rotX: walk + hit, color: c))
     }
     if posed { seatArms(g, &parts, pitch: pitch, hit: hit) }
+    // In the saddle (seen from the behind view): the legs straddle the horse, thighs forward and apart, not standing
+    // through its back.
+    if let m = g.riding, m.kind == .horse {
+        for i in parts.indices where parts[i].pivot.y == 12 && abs(parts[i].pivot.x) == 2 {
+            parts[i].rotX = 0.5                         // forward, as the arms raise (HandsPose.aim)
+            parts[i].rotZ = parts[i].pivot.x > 0 ? 0.5 : -0.5
+        }
+    }
 
     return parts
 }

@@ -63,6 +63,7 @@ enum Cinema {
         let follow: Bool?           // false: the camera keeps its own keyframes while the frigate flies past (default true)
         let hold: String?           // first person: the VR hands drawn, holding this item (an item key; "" or "hands": empty hands)
         let playerMount: String?    // "horse": the camera rides a saddled horse that gallops along the camera's heading
+        let chase: [Float]?         // with playerMount: the game's behind view instead of the rider's eye, [side, up, back, ahead]
         let heldScale: Float?       // the game's Held Item Size option for this shot (default 0.8, its smallest)
         let hands: [[Float]]?       // the right and left hands' rest offsets from the eye (metres, view space: x right, y up, -z ahead)
         let handTilt: Float?        // degrees the held item tips down from the view (default 10)
@@ -491,9 +492,19 @@ enum Cinema {
                     calm()
                 }
                 eye = g.player.eye; look = eye + d
+                if let c = s.chase, c.count >= 3 {
+                    // The behind view (the View button's third person): the rider drawn in the saddle, the camera
+                    // trailing the horse at [side, up, back] in its frame, looking `ahead` blocks past the rider.
+                    g.cameraMode = 1
+                    let yw = g.player.yaw
+                    let fwd = V3(-sinf(yw), 0, -cosf(yw)), right = V3(cosf(yw), 0, -sinf(yw))
+                    let rider = g.player.eye
+                    eye = rider + right * c[0] + V3(0, c[1], 0) - fwd * c[2]
+                    look = rider + fwd * (c.count > 3 ? c[3] : 4) + V3(0, -0.6, 0)
+                }
                 if f % 30 == 0 { _ = w.loadSync(center: eye, radius: min(w.renderDistance, 6)) }
                 if still && f != frames / 2 { continue }
-                let dn = simd_normalize(d)
+                let dn = simd_normalize(look - eye)
                 try rig.shoot(still ? dir + ".png" : String(format: "%@/f%05d.png", dir, f), eye: eye, yaw: atan2f(-dn.x, -dn.z), pitch: asinf(max(-1, min(1, dn.y))))
                 continue
             }
