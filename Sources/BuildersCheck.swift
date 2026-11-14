@@ -53,6 +53,12 @@ enum BuildersCheck {
             var groundWas: [IVec3: Bool] = [:]
             for j in plan.jobs { groundWas[j.cell] = w.groundAt(j.cell.x, j.cell.y, j.cell.z) }
             var risen = 0
+            // (the columns over the build as they were, to tell where risen ground came from)
+            func column(_ x: Int, _ z: Int) -> String {
+                (plan.lo.y - 2...plan.hi.y + 16).map { w.groundAt(x, $0, z) ? "#" : (w.block(x, $0, z) == AIR ? "." : "b") }.joined()
+            }
+            var columns0: [IVec3: String] = [:]
+            for x in plan.lo.x...plan.hi.x { for z in plan.lo.z...plan.hi.z { columns0[IVec3(x, 0, z)] = column(x, z) } }
             while !bot.done && ticks < 240_000 {
                 agent.step(bot); ticks += 1
                 if ticks % 20 == 0 {
@@ -62,6 +68,10 @@ enum BuildersCheck {
                             risen += 1
                             if risen <= 6 {
                                 let jb = bot.i < bot.jobs.count ? bot.jobs[bot.i] : nil
+                                if risen <= 2 {
+                                    print("builds:     column then \(columns0[IVec3(q.x, 0, q.z)] ?? "?") (from y \(plan.lo.y - 2 - YOFF))")
+                                    print("builds:     column now  \(column(q.x, q.z))")
+                                }
                                 print("builds:   ground came up at \(q.x) \(q.y - YOFF) \(q.z) by tick \(ticks) (job \(bot.i): \(jb.map { ($0.want == AIR ? "dig" : Blocks.key($0.want)) + " at \($0.cell.x) \($0.cell.y - YOFF) \($0.cell.z)" } ?? "-"))")
                             }
                         }

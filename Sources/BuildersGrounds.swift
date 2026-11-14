@@ -125,7 +125,7 @@ enum BuildersGrounds {
             d.cells[IVec3(c, 1, c + 3)] = nil; d.cells[IVec3(c, 2, c + 3)] = nil
             d.put(c, 1, c + 3, "spruce_door", 1); d.put(c, 2, c + 3, "spruce_door", 1 + 8)
             for y in [5, 9, 12] { d.put(c + 3, y, c, "glass_pane"); d.put(c - 3, y, c, "glass_pane") }
-            ring(0, 4.6) { x, z in d.put(x, 15, z, "stone_brick_slab", 1) }          // the gallery floor (top half)
+            ring(0, 4.6) { x, z in d.put(x, 15, z, "stone_brick_slab", 1) }          // the gallery floor (top half: the agent props it)
             ring(3.6, 4.6) { x, z in d.put(x, 16, z, "spruce_fence") }
             ring(0, 2.4) { x, z in d.put(x, 16, z, "stone_bricks") }
             d.put(c, 17, c, "lantern")
@@ -409,8 +409,12 @@ enum BuildersGrounds {
         // Bottom up; in a course, the middle first (a room's lantern before its walls, a wall before its eaves); a door's
         // upper half after its lower.
         let mx = Float(o.x) + Float(lo.x + hi.x) / 2, mz = Float(o.z) + Float(lo.z + hi.z) / 2
+        // (a hanging lantern goes after the course over it, which it hangs from)
+        func course(_ p: (IVec3, BlockID)) -> Int {
+            Blocks.shape[Int(p.1)] == "lantern" && p.1 != Blocks.groupBase[Int(p.1)] ? p.0.y * 2 + 3 : p.0.y * 2
+        }
         places.sort { a, b in
-            if a.0.y != b.0.y { return a.0.y < b.0.y }
+            if course(a) != course(b) { return course(a) < course(b) }
             let da = (Float(a.0.x) - mx) * (Float(a.0.x) - mx) + (Float(a.0.z) - mz) * (Float(a.0.z) - mz)
             let db = (Float(b.0.x) - mx) * (Float(b.0.x) - mx) + (Float(b.0.z) - mz) * (Float(b.0.z) - mz)
             return da != db ? da < db : (a.0.x, a.0.z) < (b.0.x, b.0.z)

@@ -14,11 +14,15 @@ final class BuilderBot: AgentBot {
     private(set) var jobs: [BuildersGrounds.Job]
     private(set) var i = 0
     private var phase = 0, ticks = 0, moveTicks = 0, aimTicks = 0, wait = 0, flyCool = 0
-    private var cands: [(feet: V3, aim: V3, overhead: Bool)] = []
-    private var ci = 0
+    private var spots: [(feet: V3, aim: V3)] = []
+    private var ci = 0                                  // the spot flown to
+    private var path: [V3] = [], wp = 0
     private var deferred: [IVec3: Int] = [:]
     private var slotOf: [ItemID: Int] = [:], nextSlot = 0
     let cruise: Float
+    private(set) var routed = 0, cuts = 0, scaffolds = 0
+    private var scaffoldFor: [IVec3: IVec3] = [:]
+    private enum Draft0 { static let plank = Blocks.has("oak_planks") ? Blocks.id("oak_planks") : STONE }
     private(set) var placed = 0, dug = 0, presses = 0, redone = 0
     private(set) var missed: [String] = []
     private(set) var doneTick: Int?
@@ -116,14 +120,20 @@ final class BuilderBot: AgentBot {
         let k = Blocks.key(Blocks.groupBase[Int(b)])
         return k.hasSuffix("_leaves") || k.hasSuffix("_log") || k.hasSuffix("_wood") || Blocks.render[Int(b)] == RenderType.cross.rawValue || k.contains("vine")
     }
-    private func candidates(_ w: World, _ j: BuildersGrounds.Job, from: V3) -> [(feet: V3, aim: V3, overhead: Bool)] {
+    private func candidates(_ w: World, _ j: BuildersGrounds.Job, from: V3) -> [(feet: V3, aim: V3)] {
         let c = j.cell
         var nBody = 0, nState = 0, nRay = 0, nWay = 0, rayAt: [String: Int] = [:], blockers: [IVec3: Int] = [:]
         blocker = nil
         var faces: [(hit: IVec3, n: IVec3, aim: V3)] = []
         let cc = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5)
         if j.want == AIR {
-            for d in BuilderBot.dirs6 where !solid(w, c + d) { faces.append((c, d, cc + fv(d) * 0.45)) }
+            // (aimed at the middle of what is there: a snow layer or a plant is lower and smaller than the cell)
+            var mid = cc, half = V3(0.45, 0.45, 0.45)
+            let b = w.block(c.x, c.y, c.z)
+            if !(w.fieldTerrain && w.groundAt(c.x, c.y, c.z)), let box = w.selectionBoxes(b).first {
+                mid = fv(c) + (box.0 + box.1) * 0.5; half = (box.1 - box.0) * 0.45
+            }
+            for d in BuilderBot.dirs6 where !solid(w, c + d) { faces.append((c, d, mid + fv(d) * half)) }
         } else {
             let shape = Blocks.shape[Int(j.want)], off = Int(j.want - Blocks.groupBase[Int(j.want)])
             let wantsUpper: Bool? = shape == "stairs" ? off >= 4 : (shape == "slab" ? off == 1 : (shape == "trapdoor" ? off >= 8 : nil))
@@ -178,19 +188,62 @@ final class BuilderBot: AgentBot {
             }
         }
         spots.sort { $0.2 < $1.2 }
-        var out: [(feet: V3, aim: V3, overhead: Bool)] = []
-        let startFree = columnFree(w, from, not: c)
-        for sp in spots {
-            if pathFree(w, from: from, to: sp.0, not: c) { out.append((sp.0, sp.1, false)) }
-            else if startFree && columnFree(w, sp.0, not: c) { out.append((sp.0, sp.1, true)) }
-            else { nWay += 1 }
-            if out.count >= 6 { break }
-        }
         noFaces = faces.isEmpty
         blocker = blockers.max { $0.value < $1.value }?.key
         let top = rayAt.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) x\($0.value)" }.joined(separator: ", ")
-        why = "\(faces.count) faces; spots: \(nBody) body blocked, \(nState) wrong way round, \(nRay) ray elsewhere (\(top)), \(nWay) no way there, \(spots.count) seen"
-        return out
+        why = "\(faces.count) faces; spots: \(nBody) body blocked, \(nState) wrong way round, \(nRay) ray elsewhere (\(top)), \(spots.count) seen"
+        return spots.prefix(80).map { (feet: $0.0, aim: $0.1) }
+    }
+
+    // MARK: The way there
+
+    // A flight from the body's cell to the nearest of the spots, cell by cell (a cell free with the one over it, never
+    // the cell being worked), in a box round the build. `through`: tree cells count as free (to find what to cut).
+    private func route(_ w: World, from: V3, to spots: [(feet: V3, aim: V3)], not c: IVec3, through: Bool) -> (spot: Int, path: [IVec3])? {
+        let x0 = min(plan.lo.x, Int(floor(from.x))) - 16, x1 = max(plan.hi.x, Int(floor(from.x))) + 16
+        let z0 = min(plan.lo.z, Int(floor(from.z))) - 16, z1 = max(plan.hi.z, Int(floor(from.z))) + 16
+        let y0 = max(1, min(plan.lo.y, Int(floor(from.y))) - 30), y1 = min(CH - 3, max(Int(cruise), Int(floor(from.y))) + 6)
+        let nx = x1 - x0 + 1, nz = z1 - z0 + 1, ny = y1 - y0 + 1
+        func idx(_ q: IVec3) -> Int { ((q.y - y0) * nz + (q.z - z0)) * nx + (q.x - x0) }
+        func inside(_ q: IVec3) -> Bool { q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1 && q.z >= z0 && q.z <= z1 }
+        func open(_ q: IVec3) -> Bool { q != c && (!solid(w, q) || (through && tree(w, q))) }
+        func free(_ q: IVec3) -> Bool { open(q) && open(q + IVec3(0, 1, 0)) }
+        var goal: [Int: Int] = [:]
+        for (k, sp) in spots.enumerated() {
+            let q = IVec3(Int(floor(sp.feet.x)), Int(floor(sp.feet.y)), Int(floor(sp.feet.z)))
+            if inside(q) && goal[idx(q)] == nil { goal[idx(q)] = k }
+        }
+        var start = IVec3(Int(floor(from.x)), Int(floor(from.y + 0.1)), Int(floor(from.z)))
+        if !free(start) {
+            if let s2 = [IVec3(0, 1, 0), IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0)].map({ start + $0 }).first(where: { inside($0) && free($0) }) { start = s2 }
+        }
+        guard inside(start), !goal.isEmpty else { return nil }
+        var parent = [Int32](repeating: -1, count: nx * ny * nz)
+        var queue: [IVec3] = [start]
+        parent[idx(start)] = Int32(idx(start))
+        var head = 0
+        while head < queue.count {
+            let q = queue[head]; head += 1
+            if let k = goal[idx(q)] {
+                var path: [IVec3] = [q]
+                var at = idx(q)
+                while Int(parent[at]) != at {
+                    at = Int(parent[at])
+                    let x = at % nx, r = at / nx, z = r % nz, y = r / nz
+                    path.append(IVec3(x + x0, y + y0, z + z0))
+                }
+                return (k, path.reversed())
+            }
+            for d in BuilderBot.dirs6 {
+                let n = q + d
+                guard inside(n) else { continue }
+                let ni = idx(n)
+                if parent[ni] != -1 || !free(n) { continue }
+                parent[ni] = Int32(idx(q))
+                queue.append(n)
+            }
+        }
+        return nil
     }
 
     // MARK: Acting
@@ -198,7 +251,7 @@ final class BuilderBot: AgentBot {
     private func next(_ s: AgentState, ok: Bool, why: String = "") {
         if ok { successes += 1; if jobs[i].want == AIR { dug += 1 } else { placed += 1 } }
         else { missed.append("\(jobs[i].want == AIR ? "dig" : Blocks.key(jobs[i].want)) at \(jobs[i].cell.x) \(jobs[i].cell.y - YOFF) \(jobs[i].cell.z): \(why)") }
-        i += 1; phase = 0; ticks = 0; cands = []; ci = 0
+        i += 1; phase = 0; ticks = 0; spots = []; ci = 0; path = []
     }
     // A job that can't be reached yet (nothing to click on, no spot) goes to the back, three times at most.
     private func later(_ s: AgentState, _ why: String) {
@@ -207,7 +260,25 @@ final class BuilderBot: AgentBot {
         deferred[j.cell] = n; deferredAt[j.cell] = successes
         if n > 3 { next(s, ok: false, why: why); return }
         jobs.remove(at: i); jobs.insert(j, at: min(jobs.count, i + 4))
-        phase = 0; ticks = 0; cands = []; ci = 0
+        phase = 0; ticks = 0; spots = []; ci = 0; path = []
+    }
+
+    // A tree cell in the way: dug first (a job of its own, moved up if it is one already).
+    private func cut(_ q: IVec3) -> Bool {
+        guard cuts < 600 else { return false }
+        cuts += 1
+        if let k = jobs[i...].firstIndex(where: { $0.cell == q && $0.want == AIR }) { jobs.remove(at: k) }
+        jobs.insert(BuildersGrounds.Job(cell: q, want: AIR), at: i)
+        phase = 0; ticks = 0; spots = []; path = []
+        return true
+    }
+    private var lastDrop = ""
+    // The spot didn't work: the next nearest, by a new route.
+    private func drop(_ s: AgentState, _ why: String) {
+        lastDrop = why
+        if ci < spots.count { spots.remove(at: ci) }
+        if spots.isEmpty { later(s, why); return }
+        phase = 4; moveTicks = 0
     }
 
     func act(_ s: AgentState, _ a: Agent) -> AgentAction {
@@ -233,24 +304,47 @@ final class BuilderBot: AgentBot {
         }
         switch phase {
         case 0:
-            cands = candidates(w, j, from: p.pos)
+            spots = candidates(w, j, from: p.pos)
             ci = 0
-            if cands.isEmpty {
+            if spots.isEmpty {
                 // A crown over a dig, or leaves between the spots and the face: cleared first, as he would.
                 let up = j.cell + IVec3(0, 1, 0)
                 let clear: IVec3? = (j.want == AIR && noFaces && tree(w, up)) ? up : blocker
-                if let q = clear, cleared < 400 {
-                    cleared += 1
-                    jobs.insert(BuildersGrounds.Job(cell: q, want: AIR), at: i)
-                    phase = 0; ticks = 0
-                    return act
+                if let q = clear, cut(q) { return act }
+                // Nothing to place it against (the first block of a ceiling, a top slab over a wall): a plank put down
+                // beside it first and broken after, as he would.
+                if j.want != AIR && noFaces && scaffolds < 120 && scaffoldFor[j.cell] == nil {
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0)] {
+                        let q = j.cell + d
+                        guard w.block(q.x, q.y, q.z) == AIR, !(w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) else { continue }
+                        let backed = BuilderBot.dirs6.contains { e in let r = q + e; return r != j.cell && solid(w, r) }
+                        guard backed else { continue }
+                        scaffolds += 1; scaffoldFor[j.cell] = q
+                        jobs.insert(BuildersGrounds.Job(cell: q, want: Draft0.plank), at: i)
+                        jobs.insert(BuildersGrounds.Job(cell: q, want: AIR), at: i + 2)
+                        phase = 0; ticks = 0
+                        return act
+                    }
                 }
                 later(s, "no spot: " + why); return act
             }
-            phase = 1; moveTicks = 0
+            phase = 4
+            return act
+        case 4:
+            // The way to the nearest spot; none clear: the first tree cell on a way through the trees is cut.
+            if let r = route(w, from: p.pos, to: spots, not: j.cell, through: false) {
+                routed += 1
+                ci = r.spot
+                path = r.path.dropFirst().map { V3(Float($0.x) + 0.5, Float($0.y) + 0.05, Float($0.z) + 0.5) } + [spots[ci].feet]
+                wp = 0; phase = 1; moveTicks = 0
+                return act
+            }
+            if let r = route(w, from: p.pos, to: spots, not: j.cell, through: true),
+               let q = r.path.lazy.flatMap({ [$0, $0 + IVec3(0, 1, 0)] }).first(where: { self.tree(w, $0) }), cut(q) { return act }
+            later(s, "no way to any of \(spots.count) spots (\(why))\(lastDrop.isEmpty ? "" : "; last: " + lastDrop)")
             return act
         case 1, 2:
-            let c = cands[ci]
+            let c = spots[ci]
             // Look at the aim point the whole way.
             let dv = c.aim - p.eye
             let wantYaw = atan2f(-dv.x, -dv.z)
@@ -264,17 +358,22 @@ final class BuilderBot: AgentBot {
                 // Flying: a landing stops it, the fly key starts it again.
                 if !p.flying && flyCool == 0 && (flat > 0.6 || d.y > 0.4) { act.key = KeyBinds.key(.fly); flyCool = 12; return act }
                 moveTicks += 1
-                if moveTicks > 420 { ci += 1; moveTicks = 0; if ci >= cands.count { later(s, "no way to a spot") }; return act }
-                var go = d
-                if c.overhead && flat > 0.6 && p.pos.y < cruise - 0.4 { go = V3(0, cruise - p.pos.y, 0) }      // up
-                else if c.overhead && flat > 0.6 { go = V3(d.x, cruise - p.pos.y, d.z) }                       // over
+                if moveTicks > 420 { drop(s, "the flight there stalled"); return act }
+                // Waypoint by waypoint, each axis held to a speed that dies away as it closes (the keys are all or
+                // nothing: pressed toward while slower than that, against while faster).
+                if wp < path.count - 1 && simd_length(path[wp] - p.pos) < 0.45 { wp += 1 }
+                let go = path[min(wp, path.count - 1)] - p.pos
                 let f = V3(-sinf(p.yaw), 0, -cosf(p.yaw)), r = V3(cosf(p.yaw), 0, -sinf(p.yaw))
-                let fw = simd_dot(go, f), rt = simd_dot(go, r)
-                let gate = flat < 1.2 ? (s.tick % 2 == 0) : true                       // (eased in: the keys are all or nothing)
-                if abs(fw) > 0.18 && gate { act.forward = fw > 0 ? 1 : -1 }
-                if abs(rt) > 0.18 && gate { act.strafe = rt > 0 ? 1 : -1 }
-                if go.y > 0.25 { act.jump = true } else if go.y < -0.25 { act.sneak = true }
-                if flat < 0.5 && abs(d.y) < 0.5 && simd_length(p.vel) < 3 { phase = 2; aimTicks = 0 }
+                func key(_ dist: Float, _ v: Float, _ top: Float) -> Float {
+                    let want = max(-top, min(top, dist * 4))
+                    if abs(dist) < 0.08 && abs(v) < 0.4 { return 0 }
+                    return v < want - 0.4 ? 1 : (v > want + 0.4 ? -1 : 0)
+                }
+                act.forward = key(simd_dot(go, f), simd_dot(p.vel, f), 6)
+                act.strafe = key(simd_dot(go, r), simd_dot(p.vel, r), 6)
+                let ud = key(go.y, p.vel.y, 5)
+                if ud > 0 { act.jump = true } else if ud < 0 { act.sneak = true }
+                if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 { phase = 2; aimTicks = 0 }
                 return act
             }
             // Aiming: once the view is on the point and the game's aim is on the face and the cell, press.
@@ -294,9 +393,9 @@ final class BuilderBot: AgentBot {
                         return act
                     }
                 }
-                if aimTicks > 12 { ci += 1; phase = 1; moveTicks = 0; if ci >= cands.count { later(s, "the aim never fell on the face") } }
+                if aimTicks > 12 { drop(s, "the aim never fell on the face") }
             }
-            if aimTicks > 60 { ci += 1; phase = 1; moveTicks = 0; if ci >= cands.count { later(s, "never steadied on the face") } }
+            if aimTicks > 60 { drop(s, "never steadied on the face") }
             return act
         default:
             // Pressed: see what came of it.
@@ -314,7 +413,7 @@ final class BuilderBot: AgentBot {
                 phase = 0; ticks = 0
                 return act
             }
-            if wait > 20 { ci += 1; phase = 1; moveTicks = 0; if ci >= cands.count { later(s, "pressed, nothing came of it") } }
+            if wait > 20 { drop(s, "pressed, nothing came of it") }
             return act
         }
     }
