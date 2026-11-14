@@ -61,7 +61,7 @@ extension Game {
             // however busy the host is: the main-gun suite's Gravesworn duel went 7.2 s to 9.8 s with the host's load.)
             let tDrawn = track ? CFAbsoluteTimeGetCurrent() : 0, cDrawn = track ? Explosion.threadMs() : 0
             let tSlice = CFAbsoluteTimeGetCurrent()
-            let deadline = Rand.deterministic ? .infinity : tSlice + FrameGovernor.slice(.randomTicks, RandomTickRng.frameSeconds, most: 2)     // (ledger 126)
+            let deadline = Rand.deterministic ? .infinity : tSlice + FrameGovernor.slice(.randomTicks, RandomTickRng.frameSeconds, most: 1)     // (ledger 126)
             defer { if !Rand.deterministic { FrameGovernor.done(.randomTicks, since: tSlice) } }
             var k = 0, frameWorst = 0.0
             for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {     // (an earlier tick may have changed it)

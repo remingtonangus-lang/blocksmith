@@ -468,7 +468,8 @@ final class CraterJob {
         let room = FrameGovernor.left
         guard FrameGovernor.armed, room.isFinite else { return own }
         let k = max(0, min(1, (FrameGovernor.spare - 0.25) / 0.5))
-        return max(floorSeconds - used, min(frameSeconds * (1 + 2 * k) - used, room))
+        let more = max(0, min(frameSeconds * 2 * k, room - frameSeconds - FrameGovernor.headroom))       // (past its slice: only clear of the headroom)
+        return max(floorSeconds - used, min(frameSeconds + more - used, room))
     }
     // Other ground carving drawing on the same allowance (the crawler's ruts).
     static func spend(_ seconds: Double) { if inTick { _ = allowance(); used += seconds; FrameGovernor.charge(.carve, seconds) } }

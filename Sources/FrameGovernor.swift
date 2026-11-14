@@ -146,6 +146,7 @@ enum FrameGovernor {
     private static var starved = [Int](repeating: 0, count: Job.allCases.count)      // (the frame of the first refusal; 0: none)
     private(set) static var took = [Double](repeating: 0, count: Job.allCases.count)        // (seconds, for the soak's line)
     static let patience = 12
+    static var headroom: Double { tickBudget * 0.25 }
     static let lumpPatience = 4
 
     // What a job that can wait may take this frame, in seconds; 0: not this frame. `base`: its usual slice. `most`: how
@@ -163,7 +164,11 @@ enum FrameGovernor {
             starved[job.rawValue] = 0
             // (its usual slice if the room has it; past that no more than six tenths of the room, so the first to ask,
             // the world's hand-over with a backlog, does not leave the water and the collapses behind it with nothing)
-            return min(want, max(min(base, room), room * 0.6))
+            // More than the usual slice comes only out of what is left past a clear quarter of the tick's budget: the
+            // soak's crawler drive, quiet on the mean, put 6 frames over against 2 when the larger slices ran up to
+            // the room and a volley's physics then came on top.
+            let extra = max(0, min(want - base, room * 0.6 - base, room - base - headroom))
+            return min(base, room) + extra
         }
         if overdue(job, wait) { return min(base, least) }
         return 0
