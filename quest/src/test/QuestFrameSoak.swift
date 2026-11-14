@@ -709,6 +709,7 @@ enum QuestFrameSoak {
         }
         let frames = secs * 72
         let warm = 3 * 72                                                    // (the first 3 s: first meshes in, not counted)
+        GroundCollapse.worstMs = 0; GroundCollapse.worstWhat = ""; GroundWeigh.worstTickMs = 0; GroundWeigh.worstSliceMs = 0; GroundWeigh.worstDropMs = 0; GroundWeigh.worstSolveMs = 0; let looseDropped0 = GroundCollapse.dropped, overhangs0 = GroundSettle.overhangDrops, bigs0 = GroundSettle.bigDrops; let weighed0 = GroundWeigh.weighed, fell0 = GroundWeigh.fell, spared0 = GroundWeigh.spared
         World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; Felling.worstMs = 0; Felling.worstSplit = ""; Structure.dropWorstMs = 0; Structure.dropWorst = ""; Structure.crumbMs = 0; Structure.crumbN = 0; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; CraterJob.finesUnfetched = 0; CraterJob.stepsUnfetched = 0; CraterJob.unfetchedPhases = [:]; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks, loadMs0 = Structure.totalMs; Structure.worstMs = 0
         var handed0 = World.handedOver
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -805,6 +806,12 @@ enum QuestFrameSoak {
         if ProcessInfo.processInfo.environment["BS_RCPROBE"] == "1" { print("    side tables: " + RefcountProbe.census(g)) }
         if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
         if StructureTip.worstMs > 0 { print(String(format: "    slowest collapse check: %.1f ms (%@)", StructureTip.worstMs, StructureTip.worstSplit)) }
+        if GroundCollapse.worstMs > 0 { print(String(format: "    slowest loose-ground check: %.1f ms (%@)", GroundCollapse.worstMs, GroundCollapse.worstWhat)) }
+        if GroundWeigh.weighed > weighed0 || GroundWeigh.worstTickMs > 0 {
+            print(String(format: "    ground weighed (ledger 127): %d times, %d cells came down, %d left that had no way down before; on the frame at most %.2f ms a tick (read slice %.2f, fall slice %.2f); slowest weighing %.1f ms off the frame",
+                         GroundWeigh.weighed - weighed0, GroundWeigh.fell - fell0, GroundWeigh.spared - spared0, GroundWeigh.worstTickMs, GroundWeigh.worstSliceMs, GroundWeigh.worstDropMs, GroundWeigh.worstSolveMs))
+        }
+        print("    loose ground: \(GroundCollapse.dropped - looseDropped0) cells dropped, \(GroundSettle.overhangDrops - overhangs0) thin overhangs, \(GroundSettle.bigDrops - bigs0) large pieces")
         if StructureTip.tipVerify { print("    tip checks run both ways (BS_TIPVERIFY): \(StructureTip.verified), differing \(StructureTip.verifyDiffs)") }
         if Structure.loadVerify { print("    " + Structure.verifyLine) }
         if World.storeVerify { print("    " + World.storeVerifyLine); World.storeVerified = 0; World.storeVerifyDiffs = 0 }

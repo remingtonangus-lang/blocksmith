@@ -78,6 +78,13 @@ extension World {
             // PG1 rewrite: ground opened or placed reshapes the stored field round the cell (FieldTerrain.swift). A built
             // block of natural rock (a structure's) taken or set is a block like any other.
             let now = chunkAt(x, z).map { $0.blocks.ground(Chunk.index(mod(x, CS), y, mod(z, CS))) } ?? false
+            // ledger 127: ground opened is weighed; so is ground whose prop was taken; a weighing under way is told of
+            // anything set inside its box
+            if wasGround && !now { GroundWeigh.note(self, IVec3(x, y, z), old) }
+            else if !wasGround && !now && old != new {
+                if Blocks.collide[Int(old)] && !Blocks.collide[Int(new)] { GroundWeigh.propTaken(self, IVec3(x, y, z), old) }
+                else if Blocks.collide[Int(new)] { GroundWeigh.placed(self, IVec3(x, y, z)) }
+            } else if now && !wasGround { GroundWeigh.placed(self, IVec3(x, y, z)) }
             if wasGround != now && !(batchShape && wasGround) { fieldShape(x, y, z, opened: wasGround) }
             return
         }

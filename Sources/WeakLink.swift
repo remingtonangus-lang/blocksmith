@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(CZlib)
+import CZlib           // (bs_cas64, bs_load64: quest/c/CZlib/shim.h)
+#endif
 
 // Item 8 (Nov 8): weak references that leave their target's reference counting on the fast path.
 // A Swift `weak` reference gives its object a side table for life, and every retain and release of that object then
@@ -17,7 +20,37 @@ final class LifeLink {
     private unowned(safe) let keep: AnyObject       // (never read: it keeps the allocation while links exist)
     private let address: UnsafeMutableRawPointer
     init(_ o: AnyObject) { keep = o; address = Unmanaged.passUnretained(o).toOpaque() }
+    // Ledger 128 (Nov 14): the read no longer counts itself onto an object whose deinit has begun. Before, it took its
+    // reference first and looked second; when the object's deinit ended inside those few instructions (a worker put
+    // aside by the scheduler between the two holds the window open for milliseconds) the runtime found a count it did
+    // not expect on a dead object and stopped the game: "Object of class World deallocated with non-zero retain count
+    // 2", which the full check run met about once in four (a world let go on the main thread while a worker's job read
+    // its link). Now one compare-and-swap on the count word does both: only a word that says alive is raised.
+    // BS_OLDWEAKLINK=1: as before. `--weaklinktest` makes and lets go objects under three readers.
+    // (the word's layout is the 64-bit runtimes'; an object that got a side table, from a `weak` reference made to it
+    // after all, still takes the old read below: no linked class has one)
+    static var old = ProcessInfo.processInfo.environment["BS_OLDWEAKLINK"] == "1" || MemoryLayout<Int>.size != 8
     var object: AnyObject? {
+        if !LifeLink.old {
+            let word = address + MemoryLayout<Int>.size
+            #if canImport(CZlib)
+            var bits = bs_load64(word)
+            #else
+            var bits = word.load(as: UInt64.self)
+            #endif
+            // (bit 63: the count lives in a side table; a count near its top: both left to the runtime, below)
+            while bits >> 63 == 0 && (bits >> 33) & 0x3FFF_FFFF < 0x3FFF_0000 {
+                if (bits >> 32) & 1 != 0 { return nil }
+                let more = bits &+ (1 << 33)            // (one more strong reference: the count starts at bit 33)
+                #if canImport(CZlib)
+                if bs_cas64(word, bits, more) { return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue() }
+                bits = bs_load64(word)
+                #else
+                if lifeLinkSwap(Int64(bitPattern: bits), Int64(bitPattern: more), word) { return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue() }
+                bits = word.load(as: UInt64.self)
+                #endif
+            }
+        }
         LifeLink.retain(address)                    // (not inlined: the look below can't move above it)
         // The 64-bit runtimes' inline count word: bit 32 = deinit begun (a test reads 0x100000003 in a deinit); bit
         // 63 = the count lives elsewhere (a side table: a `weak` reference was made to it after all), when this
@@ -27,8 +60,18 @@ final class LifeLink {
         if bits >> 63 == 0 && (bits >> 32) & 1 != 0 { Unmanaged<AnyObject>.fromOpaque(address).release(); return nil }
         return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue()
     }
+    // Has the object been given a side table (a `weak` reference made to it)? Then its links take the old read.
+    static func sideTable(_ o: AnyObject) -> Bool {
+        let bits = Unmanaged.passUnretained(o).toOpaque().load(fromByteOffset: MemoryLayout<Int>.size, as: UInt64.self)
+        return bits >> 63 != 0 && UInt32(truncatingIfNeeded: bits) != UInt32.max       // (not an immortal one)
+    }
     @inline(never) private static func retain(_ p: UnsafeMutableRawPointer) { _ = Unmanaged<AnyObject>.fromOpaque(p).retain() }
 }
+
+#if !canImport(CZlib)
+// (the Mac build has no C header of its own: the system's compare-and-swap)
+@_silgen_name("OSAtomicCompareAndSwap64Barrier") private func lifeLinkSwap(_ old: Int64, _ new: Int64, _ at: UnsafeMutableRawPointer) -> Bool
+#endif
 
 protocol LifeLinked: AnyObject { var lifeLink: LifeLink { get } }
 
