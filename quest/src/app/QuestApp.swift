@@ -384,6 +384,8 @@ final class QuestApp {
         let f: XRSession.Frame
         do { f = try xr.beginFrame() } catch { print("xr frame: \(error)"); return !xr.exitRequested }
         let t0 = CFAbsoluteTimeGetCurrent()
+        // Ledger 126: the frame's clock for the work that can wait (FrameGovernor), from here to the next frame.
+        if game != nil { FrameGovernor.begin(period: (f.period > 0 ? f.period : 1.0 / 72) * (xr.spaceWarpOn ? 2 : 1), now: t0) }
         xr.pollInput()
         var tickMs = 0.0, recordMs = 0.0
         if game == nil, f.shouldRender { rig.updateLoading(xr: xr) }
@@ -439,6 +441,7 @@ final class QuestApp {
             if xr.focused && xr.headTracked { g.tick(dt) } else { g.world.update(center: g.player.pos) }
             controls?.afterTick(dt: Float(dt))
             tickMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
+            FrameGovernor.ticked()
         }
         if f.shouldRender, f.imageIndex >= 0, f.imageIndex < targets.count {
             let a = CFAbsoluteTimeGetCurrent()
@@ -484,6 +487,7 @@ final class QuestApp {
             QuestVideo.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: xr.width, height: xr.height, drawn: (viewW, viewH))
             do { try scene.submit(s) } catch { print("submit: \(error)") }
             recordMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
+            FrameGovernor.recorded()
         }
         do { try xr.endFrame(f) } catch { print("xr end frame: \(error)") }
         if f.shouldRender { lastDisplayTime = f.displayTime }
@@ -860,6 +864,7 @@ final class FrameStats {
         if !clocks.isEmpty { lastLine += " | clocks: " + clocks }
         if let n = perfNotice?(), !n.isEmpty { lastLine += " | runtime performance notice: " + n }
         if let st = recordStages?(), !st.isEmpty { lastLine += " | record ms: " + st }
+        if FrameGovernor.armed { lastLine += " | " + FrameGovernor.line; FrameGovernor.resetCounts() }      // ledger 126
         print(lastLine)
         capture(game: game, target: target, now: now)
         // Auto Render Distance (VR page option; RenderDistanceGovernor.swift): a window missing frames (P240)

@@ -32,7 +32,10 @@ extension Game {
         // (Store review, crawler soak build 102: 1500 checks took 2.4 ms of a frame behind the crawler's ruts and
         // shells, a plant popped or a fire put out at each. The checks stop at `gravitySeconds`; the cells left go back
         // to the queue's front for the next tick.)
-        let deadline = World.deterministic || Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + Game.gravitySeconds
+        let tSlice = CFAbsoluteTimeGetCurrent()
+        let clocked = !(World.deterministic || Rand.deterministic)
+        let deadline = clocked ? tSlice + FrameGovernor.slice(.gravity, Game.gravitySeconds, most: 3) : .infinity      // (ledger 126)
+        defer { if clocked { FrameGovernor.done(.gravity, since: tSlice) } }
         world.editBatch {                              // (ledger 44: the tick's falls and pops remeshed together)
             for (k, p) in q.enumerated() {
                 if k & 15 == 15 && CFAbsoluteTimeGetCurrent() > deadline {

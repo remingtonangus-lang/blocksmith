@@ -243,8 +243,10 @@ enum GroundSettle {
         guard spread, !queued.isEmpty else { return }
         if queuedWorld !== w { queued.removeAll(); queuedSet.removeAll(); queuedWorld = w; return }
         let t0 = CFAbsoluteTimeGetCurrent()
+        let slice = FrameGovernor.slice(.settle, stepSeconds, most: 3)            // (ledger 126)
+        defer { FrameGovernor.done(.settle, since: t0) }
         var i = 0
-        while i < queued.count && CFAbsoluteTimeGetCurrent() - t0 < stepSeconds {
+        while i < queued.count && CFAbsoluteTimeGetCurrent() - t0 < slice {
             let k = queued[i]; i += 1
             queuedSet.remove(k)
             borderCheckNow(w, k)
