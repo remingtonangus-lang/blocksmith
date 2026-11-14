@@ -251,6 +251,7 @@ enum Cinema {
         // Warm-up: the game runs at the first camera spot.
         let warm = Int((s.warm ?? 3) * 72)
         for i in 0..<warm { hold(start); g.tick(dt); calm(); if i % 144 == 143 { _ = w.loadSync(center: start, radius: w.renderDistance) } }
+        MainGun.hideAim = true                     // shots look on from outside the helm; its aim ring reads as a stray line
         if s.hold != nil { QuestSettings.heldScale = s.heldScale ?? 0.8 }
         let rig = try Rig(game: g, ctx: ctx, width: W, height: H, fovDeg: s.fov ?? 70, hold: s.hold)
         if let hs = s.hands, hs.count > 0, hs[0].count == 3 { rig.rest[1] = V3(hs[0][0], hs[0][1], hs[0][2]) }
