@@ -334,7 +334,41 @@ final class BuilderBot: AgentBot {
     private var cutCells = Set<IVec3>()
     private var refootRuns = 0
     private var aimK = 0
-    private static let jitter: [V3] = [V3(0, 0, 0), V3(0.22, 0, 0), V3(-0.22, 0, 0), V3(0, 0.22, 0), V3(0, -0.22, 0), V3(0, 0, 0.22), V3(0, 0, -0.22)]
+    private var aimAt = V3.zero
+    // Would the game's aim on t do the job: break that cell, or put the block in it the right way round?
+    private func onJob(_ g: Game, _ j: BuildersGrounds.Job, _ t: (hit: IVec3, normal: IVec3)) -> Bool {
+        let w = g.world
+        if j.want == AIR {
+            // (natural ground: the aim names the cell where the drawn surface is; a creative break takes a ball round
+            // the point it lands, so a point inside the cell will do)
+            let hp = g.hitPoint(t), lo = fv(j.cell) - V3(0.1, 0.1, 0.1), hi = fv(j.cell) + V3(1.1, 1.1, 1.1)
+            let inCell = hp.x >= lo.x && hp.y >= lo.y && hp.z >= lo.z && hp.x <= hi.x && hp.y <= hi.y && hp.z <= hi.z
+            return t.hit == j.cell || (w.fieldTerrain && w.groundAt(j.cell.x, j.cell.y, j.cell.z) && inCell)
+        }
+        let at = g.placeCell(t, for: Blocks.groupBase[Int(j.want)])
+        let fy = g.hitPoint(t).y - Float(t.hit.y)
+        return at == j.cell && BuilderBot.wouldPlace(j.want, normal: t.normal, fracY: fy, yaw: g.player.yaw)
+    }
+    // Where the body stopped (never quite the spot): of the points round the planned aim, the nearest one that the
+    // game's aim, looked at from this eye, turns into the job. He'd nudge the crosshair the same way. (The look is tried
+    // and put back; the game sets its own aim from the real look every tick.)
+    private func solveAim(_ g: Game, _ j: BuildersGrounds.Job, _ a: V3) -> V3? {
+        let w = g.world, p = g.player
+        let y0 = p.yaw, p0 = p.pitch
+        defer { p.yaw = y0; p.pitch = p0; _ = w.raycast(p.eye, p.look, maxDist: 6) }
+        var pts: [V3] = []
+        let st: [Float] = [-0.36, -0.24, -0.12, 0, 0.12, 0.24, 0.36]
+        for u in st { for v in st {
+            pts.append(a + V3(u, v, 0)); if u != 0 || v != 0 { pts.append(a + V3(u, 0, v)); pts.append(a + V3(0, u, v)) }
+        } }
+        pts.sort { simd_length_squared($0 - a) < simd_length_squared($1 - a) }
+        for q in pts {
+            let dv = q - p.eye
+            p.yaw = atan2f(-dv.x, -dv.z); p.pitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
+            if let t = w.raycast(p.eye, p.look, maxDist: 6), onJob(g, j, t) { return q }
+        }
+        return nil
+    }
     private var stuck = 0, inRow = 0, lastDeferSuccess = -1
     static let trace = ProcessInfo.processInfo.environment["BS_BUILDTRACE"] != nil
     private var lastDrop = ""
@@ -413,7 +447,7 @@ final class BuilderBot: AgentBot {
         case 1, 2:
             let c = spots[ci]
             // Look at the aim point the whole way.
-            let dv = c.aim + BuilderBot.jitter[aimK] - p.eye
+            let dv = (phase == 2 ? aimAt : c.aim) - p.eye
             let wantYaw = atan2f(-dv.x, -dv.z)
             let wantPitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
             let ey = wrapAngle(wantYaw - p.yaw), ep = wantPitch - p.pitch
@@ -465,7 +499,12 @@ final class BuilderBot: AgentBot {
                 // (held against a lip of ground: up over it)
                 if (act.forward != 0 || act.strafe != 0) && simd_length(V2(p.vel.x, p.vel.z)) < 0.15 { stuck += 1 } else { stuck = 0 }
                 if stuck > 10 { act.jump = true; act.sneak = false }
-                if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 { phase = 2; aimTicks = 0; aimK = 0 }
+                if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 {
+                    // (the spot's own eye is a little off where the body stops: the point on the face seen from here)
+                    phase = 2; aimTicks = 0; aimK = 0
+                    guard let q = solveAim(g, j, c.aim) else { drop(s, "nowhere on the face seen from where it stopped"); return act }
+                    aimAt = q
+                }
                 if BuilderBot.trace && s.tick % 30 == 0 {
                     print(String(format: "  trace t%d job %d ph1 pos %.2f %.2f %.2f wp %d/%d -> %.2f %.2f %.2f vel %.1f %.1f %.1f fly %d keys %.0f %.0f %d%d",
                                  s.tick, i, p.pos.x, p.pos.y, p.pos.z, wp, path.count, path[min(wp, path.count - 1)].x, path[min(wp, path.count - 1)].y,
@@ -477,20 +516,7 @@ final class BuilderBot: AgentBot {
             aimTicks += 1
             if abs(ey) < 0.02 && abs(ep) < 0.02 {
                 if let t = g.target {
-                    let ok: Bool
-                    if j.want == AIR {
-                        // (natural ground: the aim names the cell where the drawn surface is; a creative break takes a
-                        // ball round the point it lands, so a point inside the cell will do)
-                        let hp = g.hitPoint(t), lo = fv(j.cell) - V3(0.1, 0.1, 0.1), hi = fv(j.cell) + V3(1.1, 1.1, 1.1)
-                        let inCell = hp.x >= lo.x && hp.y >= lo.y && hp.z >= lo.z && hp.x <= hi.x && hp.y <= hi.y && hp.z <= hi.z
-                        ok = t.hit == j.cell || (w.fieldTerrain && w.groundAt(j.cell.x, j.cell.y, j.cell.z) && inCell)
-                    }
-                    else {
-                        let at = g.placeCell(t, for: Blocks.groupBase[Int(j.want)])
-                        let fy = g.hitPoint(t).y - Float(t.hit.y)
-                        ok = at == j.cell && BuilderBot.wouldPlace(j.want, normal: t.normal, fracY: fy, yaw: p.yaw)
-                    }
-                    if ok {
+                    if onJob(g, j, t) {
                         if j.want == AIR { act.attack = true } else { act.use = true }
                         presses += 1; phase = 3; wait = 0
                         return act
@@ -510,7 +536,7 @@ final class BuilderBot: AgentBot {
                     if let t = g.target, t.hit != j.cell, tree(w, t.hit), cut(t.hit) { return act }    // (leaves in the way: cut)
                     // (a little to one side of the face: the drawn ground and the game's own choice of cell can differ a
                     // fraction off the middle)
-                    if aimK + 1 < BuilderBot.jitter.count { aimK += 1; aimTicks = 0; return act }
+                    if aimK < 2, let q = solveAim(g, j, c.aim) { aimK += 1; aimAt = q; aimTicks = 0; return act }
                     drop(s, "the aim never fell on the face")
                 }
             }
