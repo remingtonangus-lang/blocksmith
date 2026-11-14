@@ -21,6 +21,9 @@ import Foundation
 //   under a frame that is always full (the world must still load).
 // The workers (chunk generation and meshing, JobPool) are told as well: after a late frame fewer of them take new
 // jobs for a moment, so the frame's own threads are not kept off the cores; with room, all of them run.
+// (Tried and taken out: one more worker while frames had room. On the 4-core host flying at view 24 it brought in no
+// more land (3,665 results in 40 s against 3,825) and put 28 frames over against 5: the workers already run flat out
+// and the two cores left clear are what the picture's helpers need.)
 //
 // Not armed (the host checks, the Mac, a deterministic run): every grant is the job's usual slice, as before.
 // BS_GOVERNOR=0: never armed.
@@ -43,10 +46,6 @@ enum FrameGovernor {
     private static var lateBits: UInt64 = 0, lateBits2: UInt64 = 0
     static let window = 72
     static let stale = 0.25
-    private static var sinceLate = 0
-    static var spareAfter = 360                    // frames without a late one before the spare worker runs
-    private(set) static var spareWorker = false
-    private(set) static var spareFrames = 0
 
     // Harness and the perf line.
     private(set) static var grants = 0, refused = 0, forced = 0, boosted = 0
@@ -59,6 +58,11 @@ enum FrameGovernor {
     // What the frame must do whatever happens (the tick less the work that can wait), lately; and this frame's count of
     // the work that can wait so far.
     private(set) static var mustEMA = 0.004
+    // The dearest of it in the last second or so (falls by half in a second): what is kept back for it. The mean was
+    // kept back at first, and the larger slices then sat where a heavy frame of the game's own (a volley landing,
+    // forty soldiers thinking) needed the room: the soak's crawler drive went from 0 frames over to 2.
+    private(set) static var mustHigh = 0.0
+    private static var reserve: Double { max(mustEMA * 1.1, mustHigh) }
     private static var deferred = 0.0
 
     // Seconds the work that can wait may still take this frame (never under 0); .infinity when not armed. Early in
@@ -70,7 +74,7 @@ enum FrameGovernor {
         // (no frame begun for a quarter of a second: the frame loop is not running, a check or a loading screen is
         // ticking the game itself: nothing to guard, the usual slices)
         if elapsed > stale { return .infinity }
-        let must = max(mustEMA * 1.1, elapsed - deferred)
+        let must = max(reserve, elapsed - deferred)
         return max(0, min(tickBudget - elapsed, tickBudget - must - deferred))
     }
 
@@ -94,6 +98,7 @@ enum FrameGovernor {
         let used = now - start
         let must = max(0, used - deferred)
         mustEMA = must > mustEMA ? mustEMA * 0.5 + must * 0.5 : mustEMA * 0.9 + must * 0.1
+        mustHigh = max(must, mustHigh * 0.99)
         // (the spare is what the frame's own work leaves: the work that can wait is what is to fill it)
         let free = max(0, min(1, 1 - must / tickBudget))
         // (quick to see a full frame, slow to trust an empty one: one heavy frame takes the boost away at once)
@@ -120,12 +125,7 @@ enum FrameGovernor {
         lateBits = lateBits << 1 | (wasLate ? 1 : 0)
         late += (wasLate ? 1 : 0) - Int(out)
         tickEnd = 0
-        sinceLate = wasLate ? 0 : sinceLate + 1
         JobPool.shared.setHeld(workersHeld)
-        // The spare worker: only with frames well clear (half the tick's time free) and none late for five seconds.
-        spareWorker = late == 0 && sinceLate >= spareAfter && spare > 0.5
-        if spareWorker { spareFrames += 1 }
-        JobPool.shared.setSpare(spareWorker)
     }
 
     // How many of the world's workers take no new job just now: none with room; after late frames a share of them,
@@ -186,7 +186,7 @@ enum FrameGovernor {
         let room = left
         if room == .infinity { return nil }
         grants += 1
-        let best = max(floor, (tickBudget - mustEMA * 1.1) * 0.9)
+        let best = max(floor, (tickBudget - reserve) * 0.9)
         let want = min(best, max(floor, usual[job.rawValue]))
         if room >= want { starved[job.rawValue] = 0; return true }
         if starved[job.rawValue] >= patience { forced += 1; starved[job.rawValue] = 0; return true }
@@ -217,8 +217,8 @@ enum FrameGovernor {
     // For the perf line and the soak.
     static var line: String {
         guard armed else { return "governor off" }
-        return String(format: "governor: tick budget %.1f ms, must %.1f ms, spare %.0f%%, late %d/%d (all %d of %d, worst +%.1f ms), grants %d (boosted %d, refused %d, forced %d), workers held %d, spare worker on %d frames (%d jobs)",
-                      tickBudget * 1000, mustEMA * 1000, spare * 100, late, window, lateTotal, frames, worstOver * 1000, grants, boosted, refused, forced, workersHeld, spareFrames, JobPool.shared.spareJobs)
+        return String(format: "governor: tick budget %.1f ms, must %.1f ms, spare %.0f%%, late %d/%d (all %d of %d, worst +%.1f ms), grants %d (boosted %d, refused %d, forced %d), workers held %d",
+                      tickBudget * 1000, mustEMA * 1000, spare * 100, late, window, lateTotal, frames, worstOver * 1000, grants, boosted, refused, forced, workersHeld)
     }
 
     static func tookLine(frames: Int) -> String {
@@ -228,6 +228,6 @@ enum FrameGovernor {
     }
 
     // Checks: a frame loop of their own.
-    static func disarm() { armed = false; start = 0; tickEnd = 0; late = 0; lateBits = 0; lateBits2 = 0; spare = 0; deferred = 0; mustEMA = 0.004; sinceLate = 0; spareWorker = false; JobPool.shared.setHeld(0); JobPool.shared.setSpare(false) }
-    static func resetCounts() { took = [Double](repeating: 0, count: Job.allCases.count); grants = 0; refused = 0; forced = 0; boosted = 0; lateTotal = 0; frames = 0; worstOver = 0; spareFrames = 0 }
+    static func disarm() { armed = false; start = 0; tickEnd = 0; late = 0; lateBits = 0; lateBits2 = 0; spare = 0; deferred = 0; mustEMA = 0.004; mustHigh = 0; JobPool.shared.setHeld(0) }
+    static func resetCounts() { took = [Double](repeating: 0, count: Job.allCases.count); grants = 0; refused = 0; forced = 0; boosted = 0; lateTotal = 0; frames = 0; worstOver = 0 }
 }
