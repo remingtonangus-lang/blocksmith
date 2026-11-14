@@ -1764,6 +1764,8 @@ if let out = arg("--view"), let ctx = vkctx {
             if CommandLine.arguments.contains("--aim") { m.aimHold = 1 }              // --aim: archers drawn on the camera (P444)
             if let s = Int(arg("--mobseed") ?? "") { m.coatSeed = UInt32(truncatingIfNeeded: s + i * 7919) }   // --mobseed N: their looks
             m.persistent = true
+            // --mobup H [--chute]: held H blocks up (under an open parachute: Nov 14)
+            if let up = Float(arg("--mobup") ?? "") { m.pos.y += up; m.onGround = false; m.chute = CommandLine.arguments.contains("--chute") }
             if CommandLine.arguments.contains("--boreal") && kind.ashVehicle { m.borealSetup() }     // --boreal: P460's winter vehicles
             if let v = Int(arg("--mobvariant") ?? "") { m.variant = v }                // --mobvariant N: e.g. 7, a Dead Sheriff (P483)
             vg.mobs.mobs.append(m)
