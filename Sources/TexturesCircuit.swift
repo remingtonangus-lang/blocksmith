@@ -109,6 +109,11 @@ extension TextureGen {
             if (x == 7 || x == 8) && y < 12 { return hex(0xB8B8B8) }
             return cob?(x, y) ?? hex(0x7A7A7A)
         }
+        let side = p["piston_side"]!
+        p["piston_side_up"] = side
+        p["piston_side_down"] = { x, y in side(x, 15 - y) }
+        p["piston_side_left"] = { x, y in side(y, x) }
+        p["piston_side_right"] = { x, y in side(y, 15 - x) }
         p["piston_bottom"] = { x, y in cob?(x, y) ?? hex(0x7A7A7A) }
         // P442: the machines' casing (dark stone in a riveted copper frame; a hatch on top) and the piston's steel rod.
         func casing(_ hatch: Bool) -> Painter {

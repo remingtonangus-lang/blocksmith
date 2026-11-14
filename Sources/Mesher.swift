@@ -93,6 +93,30 @@ enum Mesher {
     }
     // Built cubes (planks, bricks, metal, concrete...): crisp, but no knife edges (realistic world 1.6).
     static let bevelT: [Bool] = (0..<Blocks.count).map { ShapeClass.kind[$0] == .built && Blocks.tint[$0] != 3 }
+    // Remington, Nov 11 (the store trailer: "plenty of areas where cracks show through"): which sides of a cell a shaped
+    // block's boxes close whole (index id * 6 + face, faces +X -X +Y -Y +Z -Z). A stair or slab is not opaque, so a
+    // built cube under or beside one took that side as open and chamfered the edge, while the stair's own face there
+    // is culled against the cube: a 1/16 slit through the roofs and gables of every village house. A side a neighbour
+    // closes whole is contact, as an opaque neighbour's is.
+    static let coverT: [Bool] = {
+        var t = [Bool](repeating: false, count: Blocks.count * 6)
+        for id in 0..<Blocks.count where Blocks.render[id] == RenderType.model.rawValue {
+            let bx = Blocks.boxes[id]
+            guard !bx.isEmpty, bx.allSatisfy({ $0.leanX == 0 && $0.leanZ == 0 }) else { continue }
+            for f in 0..<6 {
+                let a = f >> 1, hi = f & 1 == 0
+                var grid = [Bool](repeating: false, count: 256)
+                for b in bx {
+                    let lo = [Int(b.x0), Int(b.y0), Int(b.z0)], up = [Int(b.x1), Int(b.y1), Int(b.z1)]
+                    guard hi ? up[a] == 16 : lo[a] == 0 else { continue }
+                    let u = (a + 1) % 3, v = (a + 2) % 3
+                    for i in max(0, lo[u])..<min(16, up[u]) { for j in max(0, lo[v])..<min(16, up[v]) { grid[i * 16 + j] = true } }
+                }
+                t[id * 6 + f] = !grid.contains(false)
+            }
+        }
+        return t
+    }()
 
     // Shared light arrays for uniform sections (most of a chunk's sections are fully dark or fully sky-lit).
     static let dark = [UInt8](repeating: 0, count: 4096)
@@ -142,6 +166,7 @@ enum Mesher {
     // in the section. Its sides take the face-projected texture (u = v = 31 in chunk.vert), which repeats per block
     // exactly as faceUV lays it, so the look is the same. BS_RUNMERGE=0 for before.
     static let runMerge = ProcessInfo.processInfo.environment["BS_RUNMERGE"] != "0"
+    static let oldWire = ProcessInfo.processInfo.environment["BS_OLDWIRE"] == "1"     // (the beaded wire, Nov 13)
     // The same for a stack of one still, full-size cross (hanging vines: the jungle's most drawn block, 51k quads at the
     // perf spot): one tall cross per run, its corners' u = 28 (rising with x) or 29 (falling) and chunk.vert / ship.vert
     // lay the texture by position as the per-block corners did. Headset shaders only (the Mac's don't read 28 / 29).
@@ -474,7 +499,7 @@ enum Mesher {
         // world shows no square trunk at any distance.
         let detailDraw = detail
         // Realistic world: built blocks near the eye get a 1/16 chamfer on their exposed edges (Mesher.bevelT).
-        let bevel = detail && lod == 0, bevelT = Mesher.bevelT
+        let bevel = detail && lod == 0, bevelT = Mesher.bevelT, coverT = Mesher.coverT
         if !anyBlock && !(smooth && (smoothEdgeNatural(srcs, sy: sy, leaves: leafBlob) || fieldOn && fieldEdgeGround(n9, sy: sy))) {
             return SectionMesh(opaque: [], trans: [], light: nil)
         }
@@ -1723,8 +1748,13 @@ enum Mesher {
                         let count = conn.filter { $0 }.count
                         if count == 0 && Int(b - gbT[Int(b)]) < 16 { conn = [true, true, true, true] }   // cross (a dot stays bare)
                         else if count == 1, let k = conn.firstIndex(of: true) { conn[[1, 0, 3, 2][k]] = true }
-                        var quads: [(Box, Int)] = [(Box(5, 1, 5, 11, 1, 11), 2)]
-                        let arms = [Box(6, 1, 0, 10, 1, 5), Box(6, 1, 11, 10, 1, 16), Box(0, 1, 6, 5, 1, 10), Box(11, 1, 6, 16, 1, 10)]
+                        // Nov 13 playtest (13:05:27, the workshop: "Looks like shit"): the 6 px centre pad stood a pixel out
+                        // of the 4 px arms on every block, so a run of wire was a beaded ribbon. The pad is the arms' width
+                        // now; a lone dot keeps its 6 px (BS_OLDWIRE=1: as before).
+                        let pw = Mesher.oldWire || (count == 0 && Int(b - gbT[Int(b)]) >= 16) ? 5 : 6
+                        var quads: [(Box, Int)] = [(Box(pw, 1, pw, 16 - pw, 1, 16 - pw), 2)]
+                        // (the arms meet the pad's edge: 5/11 by a 6 px pad, 6/10 by a 4 px one)
+                        let arms = [Box(6, 1, 0, 10, 1, pw), Box(6, 1, 16 - pw, 10, 1, 16), Box(0, 1, 6, pw, 1, 10), Box(16 - pw, 1, 6, 16, 1, 10)]
                         let walls = [(Box(6, 0, 1, 10, 16, 1), 4), (Box(6, 0, 15, 10, 16, 15), 5), (Box(1, 0, 6, 1, 16, 10), 0), (Box(15, 0, 6, 15, 16, 10), 1)]
                         for k in 0..<4 where conn[k] { quads.append((arms[k], 2)) }
                         for k in 0..<4 where climb[k] { quads.append(walls[k]) }
@@ -1734,8 +1764,8 @@ enum Mesher {
                         // its arms running on over the ground to the next wire's; up a slope of ground there is no wall
                         // strip (the arm follows the ground up), against a built block the strip climbs from the ground.
                         if drapeOn && natAt(i - RL),
-                           drapeRect(lx, ly, lz, 5, 11, 5, 11, lift16: 1, trans: false, tint: 0, layer: layer, l: l, uv: { ($0, $1) }) {
-                            let armR = [(6, 10, 0, 5), (6, 10, 11, 16), (0, 5, 6, 10), (11, 16, 6, 10)]
+                           drapeRect(lx, ly, lz, pw, 16 - pw, pw, 16 - pw, lift16: 1, trans: false, tint: 0, layer: layer, l: l, uv: { ($0, $1) }) {
+                            let armR = [(6, 10, 0, pw), (6, 10, 16 - pw, 16), (0, pw, 6, 10), (16 - pw, 16, 6, 10)]
                             for k in 0..<4 where conn[k] {
                                 let r = armR[k]
                                 _ = drapeRect(lx, ly, lz, r.0, r.1, r.2, r.3, lift16: 1, trans: false, tint: 0, layer: layer, l: l, uv: { ($0, $1) })
@@ -2024,7 +2054,7 @@ enum Mesher {
                                 let j = i + offs[g]
                                 let nb = Int(R[j])
                                 // (Natural ground counts as contact here: a wall standing on it has no chamfer at its foot.)
-                                if (!opaqueT[nb] || detT[nb] || leafBlob && leafT[nb]) && !(cullSameT[bi] && R[j] == b) { ex |= 1 << g }
+                                if (!opaqueT[nb] || detT[nb] || leafBlob && leafT[nb]) && !(cullSameT[bi] && R[j] == b) && !coverT[nb * 6 + (g ^ 1)] { ex |= 1 << g }
                             }
                             let a = f >> 1, t1 = (a + 1) % 3, t2 = (a + 2) % 3
                             let sideMask = (3 << (t1 * 2)) | (3 << (t2 * 2))
@@ -2034,7 +2064,7 @@ enum Mesher {
                                     // The neighbour across d: a bevelled cube of its own whose sides f1 and g1 are open too.
                                     let j = i + offs[d], nb = Int(R[j])
                                     guard bevelT[nb], renderT[nb] == rCube else { return false }
-                                    func open(_ k: Int) -> Bool { let m = Int(R[j + offs[k]]); return (!opaqueT[m] || detT[m] || leafBlob && leafT[m]) && !(cullSameT[nb] && R[j + offs[k]] == R[j]) }
+                                    func open(_ k: Int) -> Bool { let m = Int(R[j + offs[k]]); return (!opaqueT[m] || detT[m] || leafBlob && leafT[m]) && !(cullSameT[nb] && R[j + offs[k]] == R[j]) && !coverT[m * 6 + (k ^ 1)] }
                                     return open(f1) && open(g1)
                                 }, cham: { g1, h1 in
                                     guard ex & (1 << g1) != 0 && ex & (1 << h1) != 0 else { return false }

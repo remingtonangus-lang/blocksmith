@@ -66,6 +66,7 @@ enum MainGun {
     static var lastTorn = 0                             // hull blocks the last ship hit tore out
     static var shipHits = 0                             // slugs that struck another ship's hull (ShipCombat)
     static var aimUpdates = 0                           // helm aim predictions made (MainGunTests)
+    static var hideAim = false                          // the cine harness films from outside the helm: no helm ring
     static var boreMarks = 0                            // frames the bore ring was drawn (P483: no impact in reach)
     static let boreMark: Float = 220                    // how far out along the barrel that ring sits
     static var warnings = 0                             // charges an AI frigate aimed at a player (MainGunTests)
@@ -561,6 +562,7 @@ extension ShipManager {
     // the gun is loaded or charging, dim amber while it reloads; drawn bigger with distance so it reads from the
     // helm at a few hundred blocks. The prediction runs 10 times a second.
     func mainGunAimTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        if MainGun.hideAim { return }
         st.aimTimer -= dt
         if st.aimTimer <= 0 {
             st.aimTimer = 0.1

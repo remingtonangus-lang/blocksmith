@@ -312,6 +312,7 @@ final class Mob {
     var vel = V3(0, 0, 0)
     var yaw: Float
     var onGround = false
+    var chute = false               // a soldier's parachute open (Parachute.swift): a steady sink till he lands
     var viewDY: Float = 0, viewDV: Float = 0        // eased step offset of the drawn model (ViewStep.swift)
     var drawnAt = V3(repeating: .infinity)          // P403 7b: where it was last drawn (MobMotion)
     // P142: the drawn smooth ground under the feet (World.smoothGroundOffset), and its 4 column heights cached by cell.
@@ -1327,6 +1328,7 @@ final class Mob {
             // P279 (Oct 14 19:34, "the Drowned is walking on top of the water"): buoyancy pushed every mob up until its
             // feet left the water, so it rode the surface standing up, and a Sunken chasing a player in a boat rose to the
             // player's feet and stood on the sea. Now the water's surface over the mob sets how it sits in it.
+            chute = false                   // (a parachute folds in the water)
             let surf = liquidTop(w)
             let headOut: Float = surf - max(0.35, height * 0.78)       // the highest the feet go: head and shoulders out
             if swimClimb > 0 {
@@ -1358,10 +1360,16 @@ final class Mob {
             let want = forward * speed + side
             vel.x += (want.x - vel.x) * min(1, dt * 5)
             vel.z += (want.z - vel.z) * min(1, dt * 5)
+        } else if chute {
+            vel.y += (-Parachute.sink - vel.y) * min(1, dt * 2.5)
+            if onGround { chute = false }
         } else {
             vel.y -= 28 * dt
             if kind == .chicken { vel.y = max(vel.y, -3.5) }
             vel.y = max(vel.y, -40)
+            // Nov 14: a soldier falling from a height (off a ship, out of an aircraft, blown off a tower) opens his
+            // parachute after four blocks or so.
+            if vel.y < -15 && !onGround && Parachute.wears(kind) && !Parachute.old && health > 0 { chute = true }
         }
 
         // Ladders and vines: climb when the path leads up (centred on the rung), slow slide otherwise.
@@ -1452,6 +1460,7 @@ final class Mob {
                 restPos = pos; restVer = c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version; restStamp = w.fieldStamp
             } else { restPos.x = .nan }
         }
+        if chute && onGround { chute = false }             // (his parachute folds as he lands)
         // P311 (a): stopped by the player's body, not a wall: no hop up at him.
         if bumped && speed != 0 && !(pressedPlayer && !onLadder && !inWater) {
             if onLadder { vel.y = 2.35 }

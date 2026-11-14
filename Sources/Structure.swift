@@ -72,6 +72,7 @@ enum Structure {
     static let concrete = mat("concrete", 24, 10000, 24, crush: 7500) // 2.4 t/m3 with steel bars through it: modern slabs and walls span a hall
     static let metal = mat("metal", 78, 12000, 8, crush: 20000)    // steel 7.8 t/m3 and stronger than reinforced concrete (iron, steel plate, copper)
     static let plate = mat("plate", 16, 12000, 8, crush: 20000)     // steel sheet on a frame: a deck, a catwalk, a rail
+    static let tube = mat("tube", 78, 12000, 12, crush: 20000)      // a gun's bored steel: barrels run out a long way off the ring
     static let titanium = mat("titanium", 45, 15000, 10, crush: 20000) // 4.5 t/m3, stronger still for its weight
     static let gold = mat("gold", 193, 300, 3, crush: 3000)      // 19.3 t/m3 and soft: heavy and weak for a metal
 
@@ -99,6 +100,7 @@ enum Structure {
         // sound blocks it's fixed to)
         return Mat(weight: m.weight * min(1, max(0.1, v)), bond: m.bond, reach: m.reach, fixture: v < 0.5, crush: m.crush)
     }
+    static let oldGunMetal = ProcessInfo.processInfo.environment["BS_OLDGUNMETAL"] == "1"
     static func material(_ i: Int) -> Mat? {
         let b = BlockID(i)
         if circuitStrut[i] { return strut }
@@ -111,6 +113,11 @@ enum Structure {
         // when the station was weighed whole in a field world. BS_MATS="plate=78/12000/8" for before.)
         if k.contains("plating") || k.contains("grating") || k.contains("railing") { return plate }
         if k.hasPrefix("steel_") { return metal }
+        // (Nov 14, the Proving Grounds' gun range weighed: a built gun's barrels are steel tubes, but they sound as stone
+        // and were weighed as masonry, reaching five out, so a long gun's muzzle broke off its barrel in a load check.
+        // Barrels, cannons, breeches and turret rings are steel tube, reaching twelve out (a ten-barrel rifle stands).
+        // BS_OLDGUNMETAL=1: masonry, as before.)
+        if !oldGunMetal && (k.hasPrefix("gun_barrel") || k == "ship_gun_barrel" || k == "ship_cannon" || k == "ship_turret_ring" || k == "tidebreaker_breech") { return tube }
         if k.hasPrefix("capital_") || k.hasPrefix("bunker_") || k.contains("armored_glass") { if soundMat(b) == .glass { return framed } }
         if (k.hasPrefix("capital_") || k.hasPrefix("bunker_") || k.contains("concrete") || k.hasPrefix("light_panel")) && soundMat(b) != .glass { return concrete }   // (a light panel is cast into its slab)
         if k == "gold_block" || k == "raw_gold_block" { return gold }
@@ -208,6 +215,7 @@ enum Structure {
         if w.groundAt(x, y, z) { return true }
         let b = w.builtBlock(x, y, z)
         if b == AIR { return false }
+        if w.heldDeck.holds(x, y, z) { return true }                                            // (a test world's deck)
         if Blocks.isLiquid(b) { return true }                                                   // (a raft floats)
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }                // bedrock, barriers
         // a block world's terrain; in a field world, soil a structure laid on its floor (a garden: FieldTerrain.split)
@@ -217,6 +225,7 @@ enum Structure {
         let b = w.builtBlock(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
         if SmoothTerrain.natural[Int(b)] && (!w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(w, x, y, z)) { return nil }
+        if w.heldDeck.holds(x, y, z) { return nil }
         return m
     }
     // (the same two through a chunk cursor: the fills below, CellSet.swift)
@@ -224,6 +233,7 @@ enum Structure {
         let b = k.built(x, y, z)
         guard b != AIR, let m = table[Int(b)] else { return nil }
         if SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(&k, x, y, z)) { return nil }
+        if k.w.heldDeck.holds(x, y, z) { return nil }
         return m
     }
     @inline(__always) static func anchor(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -231,6 +241,7 @@ enum Structure {
         if k.ground(x, y, z) { return true }
         let b = k.built(x, y, z)
         if b == AIR { return false }
+        if k.w.heldDeck.holds(x, y, z) { return true }
         if Blocks.isLiquid(b) { return true }
         if Blocks.hardness[Int(b)] < 0 && Blocks.collide[Int(b)] { return true }
         return SmoothTerrain.natural[Int(b)] && (!k.w.fieldTerrain || FieldTerrain.gardenSoil[Int(b)] || lies(&k, x, y, z))
@@ -666,8 +677,22 @@ enum Structure {
     static let wholeMin = 12
     static var dropWorstMs = 0.0, dropWorst = ""         // (the soak: the slowest drop and its parts)
     static var crumbMs = 0.0, crumbN = 0                  // (the soak: the crumbs' clearing, all of it)
+    static var fellTotal = 0                              // (harness: blocks dropped or toppled by the load checks, DeckHold)
+    static var fellTally: [String: Int]?                  // (harness: ... by block and where the first was)
+    static var fellOrigin: IVec3?                         // (... relative to this)
+    static func tallyFell(_ w: World, _ cells: [IVec3]) {
+        fellTotal += cells.count
+        guard fellTally != nil else { return }
+        for c in cells { fellTally![Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y, c.z))]), default: 0] += 1 }
+        if let c = cells.first {
+            let under = Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y - 1, c.z))])
+            let at = fellOrigin.map { "\(c.x - $0.x) \(c.y - $0.y) \(c.z - $0.z)" } ?? "\(c.x) \(c.y) \(c.z)"
+            fellTally!["(\(cells.count) from \(Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y, c.z))])) on \(under) at \(at))", default: 0] += 1
+        }
+    }
     static func drop(_ g: Game, _ all: [IVec3]) {
         let w = g.world
+        tallyFell(w, all)
         let t0 = CFAbsoluteTimeGetCurrent()
         var tSplit = t0, tWhole = t0, wholes = 0, nCrumbs = 0
         defer {
@@ -904,4 +929,13 @@ extension World {
         guard Structure.enabled, frame == nil else { return }
         if loadQueued.insert(IVec3(floorDiv(p.x, 4), floorDiv(p.y, 4), floorDiv(p.z, 4))).inserted { loadQueue.append(p) }
     }
+}
+
+// A test world's deck floor, held like bedrock (World.heldDeck): one layer, a box in x and z. BS_OLDDECKHOLD=1: never.
+struct HeldDeck {
+    var y = Int.min, x0 = 0, x1 = -1, z0 = 0, z1 = -1
+    static let none = HeldDeck()
+    static let old = ProcessInfo.processInfo.environment["BS_OLDDECKHOLD"] == "1"
+    static func floor(y: Int, x0: Int, x1: Int, z0: Int, z1: Int) -> HeldDeck { old ? none : HeldDeck(y: y, x0: x0, x1: x1, z0: z0, z1: z1) }
+    @inline(__always) func holds(_ x: Int, _ y: Int, _ z: Int) -> Bool { y == self.y && x >= x0 && x <= x1 && z >= z0 && z <= z1 }
 }

@@ -77,7 +77,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") || CommandLine.arguments.contains("--framesoak")
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? arg("--cine") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") || CommandLine.arguments.contains("--framesoak")
     || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare")
     || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") || CommandLine.arguments.contains("--streamtest") ? "" : nil)
 var vkctx: VkContext?
@@ -100,6 +100,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--saveacross"), i + 2 < Command
 }
 // --perfscenes [--rd 12,16] [--only NAME,...] [--blockworld]: the Quest frame's CPU side in the playtest scenes (P283,
 // quest/src/test/QuestPerf.swift).
+// --cine SHOTS.json --out DIR: scripted trailer footage through the Quest renderer (quest/src/headless/Cinema.swift).
+if arg("--cine") != nil, let ctx = vkctx { exit(Cinema.run(ctx: ctx)) }
 if CommandLine.arguments.contains("--perfscenes"), let ctx = vkctx { exit(QuestPerf.run(ctx: ctx)) }
 // --framesoak [--only crawler,citadel,naval,train,hell,battle] [--seconds 40] [--rd 10]: the store review's frame rate
 // (VRC.Quest.Performance.1) in the heavy scenes of play, frame by frame in real time (quest/src/test/QuestFrameSoak.swift).
@@ -625,15 +627,19 @@ if let out = arg("--view"), let ctx = vkctx {
             vw.setBlock(Int(floor(e.x)) + o[0], Int(floor(e.y)) + o[1], Int(floor(e.z)) + o[2], Blocks.id(String(kv[0])))
         }
     }
+    // --parachute (Nov 14): a parachute open over the eye (look up to see it).
+    if CommandLine.arguments.contains("--parachute") { vg.player.parachute = true; vg.player.flying = false; Parachute.openedAt = -100 }
     // --workshop (Nov 13 circuit looks): the Sparkstone Workshop deck built round the eye, the eye on its walkway's
     // west end and the benches to the south (+z), its clocks run 70 ticks.
     if CommandLine.arguments.contains("--workshop") {
         let e = vg.player.pos
-        let o = IVec3(Int(floor(e.x)) + 1, Int(floor(e.y)), Int(floor(e.z)) + 2)
+        // (--workshopup N: the deck N above the eye, to look at its pillars from beside them)
+        let up = CommandLine.arguments.firstIndex(of: "--workshopup").flatMap { Int(CommandLine.arguments[$0 + 1]) } ?? 0
+        let o = IVec3(Int(floor(e.x)) + 1, Int(floor(e.y)) + up, Int(floor(e.z)) + 2)
         _ = CircuitWorkshop.build(vw, at: o)
         for _ in 0..<70 { vw.redstone.tick() }
         // (the builder writes cells raw: the sections round it mesh again)
-        vw.remeshArea(x0: o.x - 2, z0: o.z - 5, x1: o.x + CircuitWorkshop.deckLength + 1, z1: o.z + CircuitWorkshop.deckDepth + 1, y0: o.y - 2, y1: o.y + 8)
+        vw.remeshArea(x0: o.x - 2, z0: o.z - 5, x1: o.x + CircuitWorkshop.deckLength + 1, z1: o.z + CircuitWorkshop.deckDepth + 1, y0: max(1, o.y - 70), y1: o.y + 8)
         print("view: Sparkstone Workshop at \(o.x) \(o.y) \(o.z)")
     }
     // --provinggrounds DX,DY,DZ (Nov 13): the Proving Grounds built with its origin at the eye's column (its deck at
@@ -1827,6 +1833,8 @@ if let out = arg("--view"), let ctx = vkctx {
             if CommandLine.arguments.contains("--aim") { m.aimHold = 1 }              // --aim: archers drawn on the camera (P444)
             if let s = Int(arg("--mobseed") ?? "") { m.coatSeed = UInt32(truncatingIfNeeded: s + i * 7919) }   // --mobseed N: their looks
             m.persistent = true
+            // --mobup H [--chute]: held H blocks up (under an open parachute: Nov 14)
+            if let up = Float(arg("--mobup") ?? "") { m.pos.y += up; m.onGround = false; m.chute = CommandLine.arguments.contains("--chute") }
             if CommandLine.arguments.contains("--boreal") && kind.ashVehicle { m.borealSetup() }     // --boreal: P460's winter vehicles
             if let v = Int(arg("--mobvariant") ?? "") { m.variant = v }                // --mobvariant N: e.g. 7, a Dead Sheriff (P483)
             vg.mobs.mobs.append(m)

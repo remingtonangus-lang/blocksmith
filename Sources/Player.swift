@@ -42,6 +42,7 @@ final class Player {
     var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
     var jumped = false             // a ground jump started this frame
     var gliding = false            // glider wings flight
+    var parachute = false          // a parachute open over him (Parachute.swift): a steady sink, steered by the stick
     var jetThrust = false          // jetpack thrusting this frame (set by Game.jetpackTick before update)
     var jetHold: Float = 0         // seconds jump has been held (jetpack takes over after 0.15 s)
     var jetBurn: Float = 0         // fractional fuel ticks burnt
@@ -375,6 +376,7 @@ final class Player {
         jumped = false
         if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
+        if parachute && (onGround || inFluid || flying || jetThrust) { parachute = false }       // (folded away on landing)
         if onGround || flying || inFluid || jetThrust || levitate > 0 { clamberBase = pos.y }
         if clamber != nil { stepClamber(dt, w); return }       // P511
 
@@ -430,9 +432,17 @@ final class Player {
         walkWant = V2(target.x, target.z)
         let accel: Float = flying ? 10 : (onGround ? 20 : (inFluid ? 8 : (jetThrust ? 8 : 5)))
         let k = 1 - expf(-accel * dt)
-        if !(jetThrust && jetBoost > 0) {                // (P322: a forward thrust steers the whole velocity below)
+        if !(jetThrust && jetBoost > 0) && !parachute {  // (P322: a forward thrust steers the whole velocity below)
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
+        }
+        if parachute {
+            // Under a canopy he drifts the way he faces, faster with the stick forward, stopped held back; the stick
+            // sideways turns the drift. What he carried in (a plane's speed) bleeds off over a second or two.
+            let want: V3 = fh * (Parachute.drift + Parachute.drift * input.forward) + r * (input.strafe * Parachute.drift * 0.8)
+            let kc: Float = 1 - expf(-1.2 * dt)
+            vel.x += (want.x - vel.x) * kc
+            vel.z += (want.z - vel.z) * kc
         }
         if held != nil && !Player.brush(feet) && !Player.brush(body) { vel.x = target.x; vel.z = target.z }        // no momentum carried into a web or a bush
 
@@ -473,6 +483,9 @@ final class Player {
             // Jetpack: ease the climb toward ~6 blocks/s; the fall restarts from wherever the thrust stops.
             vel.y += (6 - vel.y) * (1 - expf(-4 * dt))
             airPeak = pos.y
+        } else if parachute {
+            vel.y += (-Parachute.sink - vel.y) * (1 - expf(-2.5 * dt))
+            airPeak = pos.y                       // (a landing under a canopy is no fall)
         } else {
             if onGround || vel.y < -Player.jumpV { jumpArc = false }
             vel.y -= (slowFalling && vel.y < 0 ? 2.8 : (jumpArc ? Player.jumpG : 28)) * dt

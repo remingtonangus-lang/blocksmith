@@ -20,7 +20,7 @@ enum AshLook {
 
     static func torso(_ m: Mob, _ lv: Livery, rank r: Int, full: Bool, mid: Bool, tb: Box, strap: Strap) {
         let steps = full ? 4 : 2
-        if mid { tb(-2.5, 23.5, -2.42, 1.3, 1.0, 0.14, lv.trim, Pat.cloth); tb(1.2, 23.5, -2.42, 1.3, 1.0, 0.14, lv.trim, Pat.cloth) }   // collar tabs
+        if mid && SoldierRig.oldAshLook { tb(-2.5, 23.5, -2.42, 1.3, 1.0, 0.14, lv.trim, Pat.cloth); tb(1.2, 23.5, -2.42, 1.3, 1.0, 0.14, lv.trim, Pat.cloth) }   // collar tabs
         if r == 4 {
             // Greatcoat: double-breasted, red lapels, belted, a cross strap from the right shoulder.
             let coat: Float = m.kind == .ashChancellor ? Pat.leather : Pat.cloth
@@ -84,7 +84,7 @@ enum AshLook {
         var o: [Part] = []
         o.append(SoldierRig.on(s, ua, V3(-1.95, 1.3, -1.95), V3(1.95, 2.05, 1.95), r == 4 ? lv.metal * 0.85 : lv.cloth * 1.3, Pat.cloth))
         if mid { o.append(SoldierRig.on(s, ua, V3(-2.0, 1.2, -2.0), V3(2.0, 1.36, 2.0), lv.trim, Pat.cloth)) }
-        if side < 0 {
+        if side < 0 && SoldierRig.oldAshLook {
             o.append(SoldierRig.on(s, ua, V3(-1.84, -3.6, -1.84), V3(1.84, -1.9, 1.84), band, Pat.cloth))
             if mid {
                 let x = side * 1.86
@@ -96,6 +96,7 @@ enum AshLook {
     }
 
     static func head(_ m: Mob, _ lv: Livery, rank r: Int, full: Bool, mid: Bool, hb: Box) {
+        if !SoldierRig.oldAshLook && r <= 4 { visorHelmet(lv, rank: r, full: full, mid: mid, hb: hb); return }
         switch r {
         case 0, 1, 3:
             // Flared steel helmet: dome, rim, a short brow, the skirt flaring out over the ears and the neck.
@@ -146,5 +147,28 @@ enum AshLook {
             hb(-4.7, 25.8, -1.2, 0.7, 2.4, 2.4, leather, Pat.leather); hb(4.0, 25.8, -1.2, 0.7, 2.4, 2.4, leather, Pat.leather)
             hb(-4.7, 28.2, -0.5, 9.4, 0.5, 1.0, leather, Pat.leather)
         }
+    }
+
+    // Nov 14 (the trailer's blind review: flared steel helmets, peaked caps, armbands and collar tabs on grey "read as a
+    // WWII German army"): the Ashguard's own headgear. A rounded dome with no flared skirt, a dark visor band across the
+    // eyes with two ember slits, ear plates; heavies keep the gas-mask hood under it, officers wear a brass crest on it,
+    // sharpshooters one long lens. No armband, no collar tabs (BS_OLDASHLOOK=1: the old dress).
+    static func visorHelmet(_ lv: Livery, rank r: Int, full: Bool, mid: Bool, hb: Box) {
+        let shell = r == 4 ? lv.metal * 0.75 : lv.plate
+        if r == 3 {
+            hb(-4.3, 24.0, -4.3, 8.6, 4.7, 8.6, leather * 0.85, Pat.leather)                    // the gas-mask hood
+            hb(-1.0, 24.0, -5.7, 2.0, 1.8, 1.3, lv.metal, Pat.metal)                             // its filter snout
+        }
+        hb(-4.3, 28.2, -4.3, 8.6, 3.4, 8.6, shell, Pat.metal)                                    // dome
+        hb(-3.5, 31.6, -3.5, 7.0, 0.9, 7.0, shell, Pat.metal)                                    // crown
+        hb(-4.5, 26.2, -1.6, 0.6, 2.6, 3.6, shell, Pat.metal); hb(3.9, 26.2, -1.6, 0.6, 2.6, 3.6, shell, Pat.metal)   // ear plates
+        hb(-4.4, 26.5, -4.75, 8.8, 1.7, 0.5, V3(0.05, 0.05, 0.06), Pat.metal)                   // visor band
+        if r == 2 {
+            hb(-2.9, 26.9, -4.9, 2.2, 0.9, 0.2, lv.glow * 0.6, Pat.glow)                          // one long lens
+        } else {
+            hb(-3.2, 27.0, -4.9, 2.4, 0.6, 0.2, lv.glow * 0.6, Pat.glow); hb(0.8, 27.0, -4.9, 2.4, 0.6, 0.2, lv.glow * 0.6, Pat.glow)
+        }
+        if mid { hb(-4.36, 28.1, -4.36, 8.72, 0.3, 8.72, lv.trim, Pat.metal) }                   // ember rim line
+        if r == 4 { hb(-0.5, 32.4, -3.8, 1.0, 1.4, 7.6, brass, Pat.metal) }                      // officer's crest
     }
 }

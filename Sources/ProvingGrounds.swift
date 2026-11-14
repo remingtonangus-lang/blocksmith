@@ -61,6 +61,11 @@ enum ProvingGrounds {
 
     static let gunZ = -14, gunGap = 16, targetZ = -78
     static func gunAt(_ k: Int) -> IVec3 { IVec3(8 + k * gunGap, 0, gunZ) }
+    // Each gun's computer. (Nov 14: it stood on the pad's corner, joined to the gun only through the pad; on the worked
+    // stone deck a computer's search takes the deck for the floor and the pad with it, so it took the computer alone,
+    // no gun. Now beside the ring, behind the barrels. BS_OLDGUNPAD=1: on the corner.)
+    static let oldGunPad = ProcessInfo.processInfo.environment["BS_OLDGUNPAD"] == "1"
+    static func console(_ c: IVec3) -> IVec3 { oldGunPad ? IVec3(c.x + 2, c.y, c.z + 2) : IVec3(c.x, c.y, c.z + 1) }
 
     // The deck's extent (x0...x1, z0...z1).
     static var deck: (x0: Int, x1: Int, z0: Int, z1: Int) {
@@ -70,6 +75,20 @@ enum ProvingGrounds {
     // Where he stands at first: the walkway between the gun range and the park, looking south down the park.
     static func start(_ o: IVec3) -> V3 { V3(Float(o.x) + 2.5, Float(o.y), Float(o.z) - 1.5) }
     static func marker(_ o: IVec3) -> IVec3 { IVec3(o.x - 2, o.y - 1, o.z - 2) }
+    // (Nov 14: a second marker beside it, laid by builds whose deck is held (World.heldDeck): grounds built before, whose
+    // vehicles the load checks brought down, are built again once)
+    static func marker2(_ o: IVec3) -> IVec3 { IVec3(o.x - 1, o.y - 1, o.z - 2) }
+    // The deck's floor layer, held like bedrock (World.heldDeck): it stands on nothing the load checks count as ground.
+    static func held(_ o: IVec3) -> HeldDeck {
+        let d = deck
+        return .floor(y: o.y - 1, x0: o.x + d.x0, x1: o.x + d.x1, z0: o.z + d.z0, z1: o.z + d.z1)
+    }
+    // Nov 14 (Remington: "I never saw the vehicle playground thing, no vehicles were on the platform... I want to see them
+    // all"): every deck tile went down before the first vehicle, a step a frame each waiting for its chunks to stream,
+    // so for minutes the deck stood empty. Now every step goes in order of its distance from the start, the deck under
+    // a place before what stands there (each kind a margin further out than the tiles round it): the near vehicles
+    // stand within seconds. BS_OLDPROVINGSTEPS=1: the deck, the walkways, the channels, then the rest.
+    static let oldSteps = ProcessInfo.processInfo.environment["BS_OLDPROVINGSTEPS"] == "1"
 
     // MARK: The ten guns (ring at the origin at deck level; barrels run north, -z, the way BuiltGunCheck builds his)
 
@@ -125,12 +144,19 @@ enum ProvingGrounds {
         let o: IVec3
         var steps: [(Game) -> Void] = []
         var needs: [(V3, Int)?] = []          // the chunks each step works in (a centre, a radius in chunks)
+        var after: [Float] = []               // (how far past its own tile's distance a step waits: ProvingGrounds.oldSteps)
         var next = 0
         var circuitsOK = 0
         var waited = 0
         init(_ o: IVec3) { self.o = o }
         var done: Bool { next >= steps.count }
-        func add(_ at: V3?, _ r: Int, _ f: @escaping (Game) -> Void) { steps.append(f); needs.append(at.map { ($0, r) }) }
+        func add(_ at: V3?, _ r: Int, after a: Float = 0, _ f: @escaping (Game) -> Void) { steps.append(f); needs.append(at.map { ($0, r) }); after.append(a) }
+        // Every step by its distance from `from` plus its margin (ties in the order added); steps with no place last.
+        func nearestFirst(from: V3) {
+            let key: [Float] = needs.indices.map { i in needs[i].map { simd_distance(SIMD2($0.0.x, $0.0.z), SIMD2(from.x, from.z)) + after[i] } ?? .infinity }
+            let order = steps.indices.sorted { key[$0] != key[$1] ? key[$0] < key[$1] : $0 < $1 }
+            steps = order.map { steps[$0] }; needs = order.map { needs[$0] }; after = order.map { after[$0] }
+        }
         // Runs steps for up to `budget` seconds (at least one). With `stream`, a step whose chunks aren't made yet waits
         // for the world's workers to make them (World.extraCenter streams round it, as round a second player) instead
         // of making them on the frame; after 30 s of waiting it makes them itself.
@@ -209,10 +235,11 @@ enum ProvingGrounds {
             }
         }
         // Over a rectangle (relative x0...x1, z0...z1), a 32-block tile a step, each tile's chunks made first.
+        // (a tile of these goes after the deck tiles round it: they are within 46 blocks of its centre)
         func tiles(_ x0: Int, _ x1: Int, _ z0: Int, _ z1: Int, _ body: @escaping (World, Int, Int) -> Void) {
             for tz in stride(from: z0, through: z1, by: 32) { for tx in stride(from: x0, through: x1, by: 32) {
                 let at = V3(Float(o.x + tx + 16), Float(o.y), Float(o.z + tz + 16))
-                b.add(at, 1) { g in
+                b.add(at, 1, after: 64) { g in
                     let w = g.world
                     _ = w.loadSync(center: at, radius: 1)
                     for z in thru(tz, min(tz + 31, z1)) { for x in thru(tx, min(tx + 31, x1)) { body(w, o.x + x, o.z + z) } }
@@ -236,7 +263,7 @@ enum ProvingGrounds {
         for pl in park.plots {
             let base = o + pl.at
             let at = V3(Float(base.x + pl.size.x / 2), Float(o.y), Float(base.z + pl.size.z / 2))
-            b.add(at, 1) { g in
+            b.add(at, 1, after: 192) { g in
                 let w = g.world
                 let p = VehicleZoo.plan(pl.index)
                 _ = w.loadSync(center: at, radius: 1)
@@ -255,17 +282,17 @@ enum ProvingGrounds {
         // The ten guns, each on its plank pad with its computer, a sign on the walkway side; and the targets.
         for (k, gd) in guns.enumerated() {
             let c = o + gunAt(k)
-            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 1) { g in
+            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 1, after: 192) { g in
                 let w = g.world
                 _ = w.loadSync(center: V3(Float(c.x), Float(o.y), Float(c.z)), radius: 1)
                 for y in o.y...(o.y + 7) { for z in (c.z - 11)...(c.z + 3) { for x in (c.x - 2)...(c.x + 2) { put(w, x, y, z, AIR) } } }
                 for z in -2...2 { for x in -2...2 { put(w, c.x + x, o.y - 1, c.z + z, key("oak_planks", "stone")) } }
                 gd.build { x, y, z, n in put(w, c.x + x, o.y + y, c.z + z, key(n)) }
-                put(w, c.x + 2, o.y, c.z + 2, key("command_console"))
+                put(w, console(c).x, o.y, console(c).z, key("command_console"))
                 sign(w, IVec3(c.x, o.y, c.z + 5), facingSouth: true, gd.lines)
             }
         }
-        b.add(V3(Float(o.x + 70), Float(o.y), Float(o.z + targetZ)), 3) { g in
+        b.add(V3(Float(o.x + 70), Float(o.y), Float(o.z + targetZ)), 3, after: 256) { g in
             let w = g.world
             let iron = key("iron_block"), bricks = key("stone_bricks"), plank = key("spruce_planks")
             for k in 0..<5 {
@@ -279,7 +306,7 @@ enum ProvingGrounds {
         let cases = CircuitZoo.cases()
         for i in 0..<min(100, cases.count) {
             let c = o + pad(i)
-            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 2) { g in
+            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 2, after: 192) { g in
                 let w = g.world
                 _ = w.loadSync(center: V3(Float(c.x), Float(o.y), Float(c.z)), radius: 2)
                 let h = padGap / 2 - 1
@@ -307,8 +334,12 @@ enum ProvingGrounds {
                 }
             }
         }
-        // Done: the marker at the start corner.
-        b.add(nil, 0) { g in put(g.world, marker(o).x, marker(o).y, marker(o).z, key(markerBlock)) }
+        if !oldSteps { b.nearestFirst(from: start(o)) }
+        // Done: the marker at the start corner (and the held deck's beside it).
+        b.add(nil, 0) { g in
+            put(g.world, marker(o).x, marker(o).y, marker(o).z, key(markerBlock))
+            if !HeldDeck.old { put(g.world, marker2(o).x, marker2(o).y, marker2(o).z, key(markerBlock)) }
+        }
         return b
     }
 
@@ -316,8 +347,8 @@ enum ProvingGrounds {
     static func origin(spawn: V3) -> IVec3 { IVec3(Int(floorf(spawn.x)) - 4, deckY, Int(floorf(spawn.z)) + 6) }
 
     static func built(_ w: World, _ o: IVec3) -> Bool {
-        let m = marker(o)
-        return w.block(m.x, m.y, m.z) == key(markerBlock)
+        let m = marker(o), m2 = marker2(o)
+        return w.block(m.x, m.y, m.z) == key(markerBlock) && (HeldDeck.old || w.block(m2.x, m2.y, m2.z) == key(markerBlock))
     }
 }
 
@@ -344,6 +375,7 @@ extension Game {
         provingChecked = true
         world.ships.spawnEncounters = false                                 // (nothing sails in to shell the grounds)
         let o = ProvingGrounds.origin(spawn: findSpawn())
+        world.heldDeck = ProvingGrounds.held(o)                             // (before a block of it goes down)
         _ = world.loadSync(center: V3(Float(o.x), Float(o.y), Float(o.z)), radius: 1)
         let first = ProvingGrounds.built(world, o) == false
         if first {

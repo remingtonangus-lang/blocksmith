@@ -194,6 +194,7 @@ enum Recipes {
         r.append(shaped(["###"], ["#": "sugar_cane"], "paper", 3))
         r.append(shapeless(["sugar_cane"], "sugar", 1))
         r.append(shapeless(["paper", "paper", "paper", "leather"], "book", 1))
+        r.append(shaped(["WWW", "S S", " L "], ["W": "white_wool", "S": "string", "L": "leather"], "parachute", 1))
         r.append(shaped(["###", "BBB", "###"], ["#": "#planks", "B": "book"], "bookshelf", 1))
         r.append(shaped(["##", "##"], ["#": "end_stone"], "end_stone_bricks", 4))
         r.append(shaped(["X", "X"], ["X": "stone_brick_slab"], "chiseled_stone_bricks", 1))     // two slabs stacked (reference)

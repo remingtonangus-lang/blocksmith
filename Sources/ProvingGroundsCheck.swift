@@ -18,6 +18,10 @@ enum ProvingGroundsCheck {
         defer { g.survival = wasSurvival; g.player.pos = pos0; g.player.flying = fly0; g.player.vel = .zero }
         let o = IVec3(Int(floor(pos0.x)) + 3000, ProvingGrounds.deckY, Int(floor(pos0.z)) + 3000)
         g.player.pos = ProvingGrounds.start(o); g.player.flying = true
+        let held0 = w.heldDeck
+        w.heldDeck = ProvingGrounds.held(o)
+        _ = DeckHold.settle(g, quiet: true)                 // (what earlier checks left queued, first)
+        defer { w.heldDeck = held0 }
         let b = ProvingGrounds.plan(o)
         let t0 = CFAbsoluteTimeGetCurrent()
         var worst = 0.0, worstStep = 0
@@ -33,6 +37,24 @@ enum ProvingGroundsCheck {
         let total = CFAbsoluteTimeGetCurrent() - t0
         print(String(format: "proving: %d steps in %.1f s, slowest step %d at %.0f ms", b.steps.count, total, worstStep, worst))
         check(ProvingGrounds.built(w, o), "proving: the grounds' marker is down once every step has run (\(b.steps.count) steps)")
+        // Nov 14 ("no vehicles were on the platform"): the load checks the build queued, run to the end as the game's
+        // ticks run them, bring nothing down (the deck is held, World.heldDeck); and the first vehicle stands within the
+        // first steps (nearest first), not after the whole deck.
+        let dk = ProvingGrounds.deck
+        let mid = V3(Float(o.x + (dk.x0 + dk.x1) / 2), Float(o.y), Float(o.z + (dk.z0 + dk.z1) / 2))
+        let (frames, fell) = DeckHold.settle(g, around: (mid, Float(max(dk.x1 - dk.x0, dk.z1 - dk.z0)) / 2 + 32), origin: o)
+        check(fell == 0, "proving: the deck and all on it stand through the build's load checks (\(frames) frames, \(fell) blocks fell)")
+        if !ProvingGrounds.oldSteps {
+            let probe = ProvingGrounds.plan(o)
+            // (which step lays the first vehicle: the plan's steps for plots are told apart by running none; count the
+            // deck tiles ahead of the nearest plot instead, by the same keys)
+            let near = ProvingGrounds.park.plots.map { pl -> Float in
+                let base = o + pl.at
+                return simd_distance(SIMD2(Float(base.x + pl.size.x / 2), Float(base.z + pl.size.z / 2)), SIMD2(ProvingGrounds.start(o).x, ProvingGrounds.start(o).z))
+            }.min() ?? 0
+            let ahead = probe.needs.prefix { n in n.map { simd_distance(SIMD2($0.0.x, $0.0.z), SIMD2(ProvingGrounds.start(o).x, ProvingGrounds.start(o).z)) <= near + 192 } ?? false }.count
+            check(ahead < probe.steps.count / 4, "proving: the nearest vehicle goes down by step \(ahead) of \(probe.steps.count)")
+        }
 
         // The park.
         var standing = 0, whole = 0, wrong: [String] = []
@@ -62,7 +84,7 @@ enum ProvingGroundsCheck {
         var taken = 0, fired = 0, notes: [String] = []
         for k in 0..<ProvingGrounds.guns.count {
             let c = o + ProvingGrounds.gunAt(k)
-            let console = IVec3(c.x + 2, o.y, c.z + 2)
+            let console = ProvingGrounds.console(IVec3(c.x, o.y, c.z))
             g.player.pos = V3(Float(console.x) + 0.5, Float(o.y), Float(console.z) + 1.6)
             let before = ships.list.count
             var said = ""
