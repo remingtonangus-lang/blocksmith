@@ -2932,6 +2932,10 @@ if CommandLine.arguments.contains("--elevator") {              // FAILURES.md 2:
     ElevatorCheck.run(game, check)
     print(failures == 0 ? "elevator: all checks passed" : "elevator: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--builds") {                // Builders' Grounds: an agent builds on natural ground
+    BuildersCheck.run(game, check)
+    print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--craterplace") {           // P507: blocks go down in a rocket's bowl
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
