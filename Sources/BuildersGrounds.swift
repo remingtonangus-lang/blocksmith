@@ -125,12 +125,16 @@ enum BuildersGrounds {
             d.cells[IVec3(c, 1, c + 3)] = nil; d.cells[IVec3(c, 2, c + 3)] = nil
             d.put(c, 1, c + 3, "spruce_door", 1); d.put(c, 2, c + 3, "spruce_door", 1 + 8)
             for y in [5, 9, 12] { d.put(c + 3, y, c, "glass_pane"); d.put(c - 3, y, c, "glass_pane") }
-            ring(0, 4.6) { x, z in d.put(x, 15, z, "stone_brick_slab", 1) }          // the gallery floor (top half: the agent props it)
+            // The gallery floor: full bricks over the hollow (a span of half slabs gave way at its middle once the agent's
+            // props came out: the load checks), top-half slabs out round it (the agent props the first).
+            ring(0, 2.4) { x, z in d.put(x, 15, z, "stone_bricks") }
+            ring(2.4, 4.6) { x, z in d.put(x, 15, z, "stone_brick_slab", 1) }
             ring(3.6, 4.6) { x, z in d.put(x, 16, z, "spruce_fence") }
             ring(0, 2.4) { x, z in d.put(x, 16, z, "stone_bricks") }
             d.put(c, 17, c, "lantern")
             ring(1.4, 2.4) { x, z in for y in 17...18 { d.put(x, y, z, "glass") } }
-            ring(0, 2.4) { x, z in d.put(x, 19, z, "stone_brick_slab") }
+            ring(0, 1.4) { x, z in d.put(x, 19, z, "stone_bricks") }
+            ring(1.4, 2.4) { x, z in d.put(x, 19, z, "stone_brick_slab") }
             d.put(c, 19, c, "stone_bricks"); d.put(c, 20, c, "lightning_rod", or: "spruce_fence")
             ring(0, 3.5) { x, z in d.footprint.append((x, z)) }
             out.append(Blueprint(key: "lighthouse", title: ["Beach Lighthouse", "on the sand"], ground: "beach", footing: .terrace, draft: d))

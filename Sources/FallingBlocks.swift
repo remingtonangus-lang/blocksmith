@@ -68,6 +68,7 @@ extension Game {
 
     static let gravityChecksPerTick = 1500
     static let oldLanding = ProcessInfo.processInfo.environment["BS_OLDLAND"] == "1"
+    static let oldReland = ProcessInfo.processInfo.environment["BS_OLDRELAND"] == "1"
     static var gravitySeconds = 0.0008
 
     // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs
@@ -141,6 +142,19 @@ extension Game {
                     continue
                 }
                 for _ in 0..<3 where !open(at) { at.y += 1 }
+                // Builders' Grounds (Nov 14): a block the load check let go comes back down into the very cell it left
+                // when the built block under it is what failed to hold it (an agent's stilt log on spruce leaves): it was
+                // set back, weighed again and let go again, 25,522 falls in one run. What it rested on gives way under
+                // it instead and it falls on (BS_OLDRELAND=1: set back in place).
+                if !Game.oldReland && !ground && at.y == Int(floor(f.start + 0.01)) && at.y == cell.y + 1,
+                   Structure.enabled, Structure.part(world, cell.x, cell.y, cell.z) != nil {
+                    world.setBlock(cell.x, cell.y, cell.z, AIR)
+                    for s in Explosion.blastDrops(b) { drops.spawn(s, at: next) }
+                    sfx(.place(soundMat(b)), 1, at: next)
+                    Structure.crushed += 1
+                    f.pos = next
+                    continue
+                }
                 f.dead = true
                 let key = Blocks.key(f.block)
                 let fell = f.start - Float(at.y)

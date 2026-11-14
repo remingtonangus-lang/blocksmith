@@ -64,7 +64,7 @@ final class BuilderBot: AgentBot {
         let y0 = Int(floor(f.y)), y1 = Int(floor(f.y + 1.79))
         for y in y0...y1 { for z in z0...z1 { for x in x0...x1 {
             let q = IVec3(x, y, z)
-            if q == c || solid(w, q) { return false }
+            if q == c || solid(w, q) || Blocks.isLiquid(w.block(q.x, q.y, q.z)) { return false }   // (in water flight stops: dry spots only)
         } } }
         // (and the ground as bodies meet it: a field world's drawn surface reaches into cells counted open)
         return !w.collides(V3(f.x - 0.3, f.y + 0.01, f.z - 0.3), V3(f.x + 0.3, f.y + 1.8, f.z + 0.3))
@@ -222,7 +222,7 @@ final class BuilderBot: AgentBot {
         let nx = x1 - x0 + 1, nz = z1 - z0 + 1, ny = y1 - y0 + 1
         func idx(_ q: IVec3) -> Int { ((q.y - y0) * nz + (q.z - z0)) * nx + (q.x - x0) }
         func inside(_ q: IVec3) -> Bool { q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1 && q.z >= z0 && q.z <= z1 }
-        func open(_ q: IVec3) -> Bool { q != c && (!solid(w, q) || (through && tree(w, q))) }
+        func open(_ q: IVec3) -> Bool { q != c && !Blocks.isLiquid(w.block(q.x, q.y, q.z)) && (!solid(w, q) || (through && tree(w, q))) }
         func free(_ q: IVec3) -> Bool {
             guard open(q) && open(q + IVec3(0, 1, 0)) else { return false }
             if through { return true }
@@ -288,8 +288,8 @@ final class BuilderBot: AgentBot {
 
     // A tree cell in the way: dug first (a job of its own, moved up if it is one already).
     private func cut(_ q: IVec3) -> Bool {
-        guard cuts < 600 else { return false }
-        cuts += 1
+        guard cuts < 600, !cutCells.contains(q) else { return false }      // (a cell cut once and missed is not cut again)
+        cuts += 1; cutCells.insert(q)
         if let k = jobs[i...].firstIndex(where: { $0.cell == q && $0.want == AIR }) { jobs.remove(at: k) }
         jobs.insert(BuildersGrounds.Job(cell: q, want: AIR), at: i)
         phase = 0; ticks = 0; spots = []; path = []
@@ -305,10 +305,23 @@ final class BuilderBot: AgentBot {
         let fk = BuildersGrounds.Draft.id(d.footKey)
         var want: [IVec3: BlockID] = [:]
         for jb in jobs[i...] where jb.want != AIR { want[jb.cell] = jb.want }
-        var cells = Set<IVec3>()
+        var cells = Set<IVec3>(), digs: [IVec3] = []
         for (x, z) in d.footprint {
             var y = o.y - 1
-            while y > o.y - 24 && !solid(w, IVec3(o.x + x, y, o.z + z)) { cells.insert(IVec3(o.x + x, y, o.z + z)); y -= 1 }
+            while y > o.y - 24 {
+                let c = IVec3(o.x + x, y, o.z + z)
+                if !solid(w, c) { cells.insert(c) }
+                else if tree(w, c) && !cutCells.contains(c) { digs.append(c); cells.insert(c) }     // (a stilt never stands on leaves)
+                else { break }
+                y -= 1
+            }
+        }
+        // Leaves or a log under the footing: cut first (top down), then this runs again for what the cutting left.
+        if !digs.isEmpty && refootRuns < 3 {
+            refootRuns += 1; refooted = false
+            for c in digs { cutCells.insert(c); cuts += 1 }
+            jobs.insert(contentsOf: digs.sorted { $0.y > $1.y }.map { BuildersGrounds.Job(cell: $0, want: AIR) }, at: i)
+            return
         }
         refills = cells.filter { want[$0] == nil }.count
         jobs.removeAll { cells.contains($0.cell) && $0.want != AIR }
@@ -316,6 +329,10 @@ final class BuilderBot: AgentBot {
         let add = cells.sorted { $0.y != $1.y ? $0.y < $1.y : ($0.x, $0.z) < ($1.x, $1.z) }.map { BuildersGrounds.Job(cell: $0, want: want[$0] ?? fk) }
         jobs.insert(contentsOf: add, at: i)
     }
+    private var cutCells = Set<IVec3>()
+    private var refootRuns = 0
+    private var aimK = 0
+    private static let jitter: [V3] = [V3(0, 0, 0), V3(0.22, 0, 0), V3(-0.22, 0, 0), V3(0, 0.22, 0), V3(0, -0.22, 0), V3(0, 0, 0.22), V3(0, 0, -0.22)]
     private var stuck = 0, inRow = 0, lastDeferSuccess = -1
     static let trace = ProcessInfo.processInfo.environment["BS_BUILDTRACE"] != nil
     private var lastDrop = ""
@@ -365,7 +382,7 @@ final class BuilderBot: AgentBot {
                     for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0)] {
                         let q = j.cell + d
                         guard w.block(q.x, q.y, q.z) == AIR, !(w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) else { continue }
-                        let backed = BuilderBot.dirs6.contains { e in let r = q + e; return r != j.cell && solid(w, r) }
+                        let backed = BuilderBot.dirs6.contains { e in let r = q + e; return r != j.cell && solid(w, r) && !tree(w, r) }
                         guard backed else { continue }
                         scaffolds += 1; scaffoldFor[j.cell] = q
                         jobs.insert(BuildersGrounds.Job(cell: q, want: Draft0.plank), at: i)
@@ -394,7 +411,7 @@ final class BuilderBot: AgentBot {
         case 1, 2:
             let c = spots[ci]
             // Look at the aim point the whole way.
-            let dv = c.aim - p.eye
+            let dv = c.aim + BuilderBot.jitter[aimK] - p.eye
             let wantYaw = atan2f(-dv.x, -dv.z)
             let wantPitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
             let ey = wrapAngle(wantYaw - p.yaw), ep = wantPitch - p.pitch
@@ -435,7 +452,7 @@ final class BuilderBot: AgentBot {
                 // (held against a lip of ground: up over it)
                 if (act.forward != 0 || act.strafe != 0) && simd_length(V2(p.vel.x, p.vel.z)) < 0.15 { stuck += 1 } else { stuck = 0 }
                 if stuck > 10 { act.jump = true; act.sneak = false }
-                if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 { phase = 2; aimTicks = 0 }
+                if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 { phase = 2; aimTicks = 0; aimK = 0 }
                 if BuilderBot.trace && s.tick % 30 == 0 {
                     print(String(format: "  trace t%d job %d ph1 pos %.2f %.2f %.2f wp %d/%d -> %.2f %.2f %.2f vel %.1f %.1f %.1f fly %d keys %.0f %.0f %d%d",
                                  s.tick, i, p.pos.x, p.pos.y, p.pos.z, wp, path.count, path[min(wp, path.count - 1)].x, path[min(wp, path.count - 1)].y,
@@ -467,11 +484,19 @@ final class BuilderBot: AgentBot {
                     }
                 }
                 if aimTicks > 12 {
+                    if BuilderBot.trace && g.target == nil {
+                        let r = w.raycast(p.eye, p.look, maxDist: 6)
+                        let dist = simd_length(c.aim - p.eye)
+                        print("  trace t\(s.tick) job \(i) aim on nothing (menu \(g.menu.map { String(describing: type(of: $0)) } ?? "none"), paused \(g.paused), ray \(r.map { "\($0.hit.x - j.cell.x),\($0.hit.y - j.cell.y),\($0.hit.z - j.cell.z)" } ?? "nil"), aim \(String(format: "%.2f", dist)) away, look err \(String(format: "%.3f %.3f", ey, ep)))")
+                    }
                     if BuilderBot.trace, let t = g.target {
                         let at = j.want == AIR ? t.hit : g.placeCell(t, for: Blocks.groupBase[Int(j.want)])
                         print("  trace t\(s.tick) job \(i) aim on \(t.hit.x - j.cell.x),\(t.hit.y - j.cell.y),\(t.hit.z - j.cell.z) n \(t.normal.x),\(t.normal.y),\(t.normal.z) \(Blocks.key(w.block(t.hit.x, t.hit.y, t.hit.z))) -> cell \(at.x - j.cell.x),\(at.y - j.cell.y),\(at.z - j.cell.z)")
                     }
                     if let t = g.target, t.hit != j.cell, tree(w, t.hit), cut(t.hit) { return act }    // (leaves in the way: cut)
+                    // (a little to one side of the face: the drawn ground and the game's own choice of cell can differ a
+                    // fraction off the middle)
+                    if aimK + 1 < BuilderBot.jitter.count { aimK += 1; aimTicks = 0; return act }
                     drop(s, "the aim never fell on the face")
                 }
             }
