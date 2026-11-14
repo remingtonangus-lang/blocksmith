@@ -211,8 +211,8 @@ final class BuilderBot: AgentBot {
         func free(_ q: IVec3) -> Bool {
             guard open(q) && open(q + IVec3(0, 1, 0)) else { return false }
             if through { return true }
-            let m = V3(Float(q.x) + 0.5, Float(q.y) + 0.05, Float(q.z) + 0.5)
-            return !w.collides(V3(m.x - 0.32, m.y + 0.01, m.z - 0.32), V3(m.x + 0.32, m.y + 1.8, m.z + 0.32))
+            let m = V3(Float(q.x) + 0.5, Float(q.y) + 0.15, Float(q.z) + 0.5)
+            return !w.collides(V3(m.x - 0.32, m.y, m.z - 0.32), V3(m.x + 0.32, m.y + 1.8, m.z + 0.32))
         }
         var goal: [Int: Int] = [:]
         for (k, sp) in spots.enumerated() {
@@ -265,7 +265,9 @@ final class BuilderBot: AgentBot {
         let n = deferredAt[j.cell] == successes ? deferred[j.cell, default: 0] + 1 : 1
         deferred[j.cell] = n; deferredAt[j.cell] = successes
         if n > 3 { next(s, ok: false, why: why); return }
-        jobs.remove(at: i); jobs.insert(j, at: min(jobs.count, i + 4))
+        // (further back the more jobs in a row have waited: a course's middle waiting on its ends goes behind the ends)
+        if lastDeferSuccess == successes { inRow += 1 } else { inRow = 1; lastDeferSuccess = successes }
+        jobs.remove(at: i); jobs.insert(j, at: min(jobs.count, i + 3 + inRow))
         phase = 0; ticks = 0; spots = []; ci = 0; path = []
     }
 
@@ -278,6 +280,7 @@ final class BuilderBot: AgentBot {
         phase = 0; ticks = 0; spots = []; path = []
         return true
     }
+    private var stuck = 0, inRow = 0, lastDeferSuccess = -1
     static let trace = ProcessInfo.processInfo.environment["BS_BUILDTRACE"] != nil
     private var lastDrop = ""
     // The spot didn't work: the next nearest, by a new route.
@@ -343,7 +346,7 @@ final class BuilderBot: AgentBot {
             if let r = route(w, from: p.pos, to: spots, not: j.cell, through: false) {
                 routed += 1
                 ci = r.spot
-                path = r.path.dropFirst().map { V3(Float($0.x) + 0.5, Float($0.y) + 0.05, Float($0.z) + 0.5) } + [spots[ci].feet]
+                path = r.path.dropFirst().map { V3(Float($0.x) + 0.5, Float($0.y) + 0.15, Float($0.z) + 0.5) } + [spots[ci].feet]
                 wp = 0; phase = 1; moveTicks = 0
                 return act
             }
@@ -366,7 +369,7 @@ final class BuilderBot: AgentBot {
                 // Flying: a landing stops it, the fly key starts it again.
                 if !p.flying && flyCool == 0 && (flat > 0.6 || d.y > 0.4) { act.key = KeyBinds.key(.fly); flyCool = 12; return act }
                 moveTicks += 1
-                if moveTicks > 420 { drop(s, "the flight there stalled"); return act }
+                if moveTicks > 120 + 25 * path.count { drop(s, "the flight there stalled"); return act }
                 // Waypoint by waypoint, each axis held to a speed that dies away as it closes (the keys are all or
                 // nothing: pressed toward while slower than that, against while faster).
                 if wp < path.count - 1 && simd_length(path[wp] - p.pos) < 0.45 { wp += 1 }
@@ -392,6 +395,9 @@ final class BuilderBot: AgentBot {
                 act.strafe = key(simd_dot(vdes, r), simd_dot(p.vel, r), 6, 9)
                 let ud = key(vdes.y, p.vel.y, 5, 8)
                 if ud > 0 { act.jump = true } else if ud < 0 { act.sneak = true }
+                // (held against a lip of ground: up over it)
+                if (act.forward != 0 || act.strafe != 0) && simd_length(V2(p.vel.x, p.vel.z)) < 0.15 { stuck += 1 } else { stuck = 0 }
+                if stuck > 10 { act.jump = true; act.sneak = false }
                 if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 { phase = 2; aimTicks = 0 }
                 if BuilderBot.trace && s.tick % 30 == 0 {
                     print(String(format: "  trace t%d job %d ph1 pos %.2f %.2f %.2f wp %d/%d -> %.2f %.2f %.2f vel %.1f %.1f %.1f fly %d keys %.0f %.0f %d%d",
@@ -428,6 +434,7 @@ final class BuilderBot: AgentBot {
                         let at = j.want == AIR ? t.hit : g.placeCell(t, for: Blocks.groupBase[Int(j.want)])
                         print("  trace t\(s.tick) job \(i) aim on \(t.hit.x - j.cell.x),\(t.hit.y - j.cell.y),\(t.hit.z - j.cell.z) n \(t.normal.x),\(t.normal.y),\(t.normal.z) \(Blocks.key(w.block(t.hit.x, t.hit.y, t.hit.z))) -> cell \(at.x - j.cell.x),\(at.y - j.cell.y),\(at.z - j.cell.z)")
                     }
+                    if let t = g.target, t.hit != j.cell, tree(w, t.hit), cut(t.hit) { return act }    // (leaves in the way: cut)
                     drop(s, "the aim never fell on the face")
                 }
             }
