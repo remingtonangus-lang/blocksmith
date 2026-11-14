@@ -664,6 +664,10 @@ extension MobKind {
 }
 
 extension Game {
+    static let oldVRFlash = ProcessInfo.processInfo.environment["BS_OLDVRFLASH"] == "1"
+}
+
+extension Game {
     var heldGun: Int? { Guns.index(held.item) }
 
     // Ammo of a kind in the inventory (creative: unlimited).
@@ -896,11 +900,18 @@ extension Game {
         }
         let right = V3(cosf(player.yaw), 0, -sinf(player.yaw))
         let sideOff: Float = 0.2 * (1 - a.aim)
-        let flash: V3 = player.eye + look * 0.9 + right * sideOff - V3(0, 0.12, 0)
+        // Nov 14 (store trailer blind reviews, four in a row: "the muzzle flash floats in mid-air well away from the
+        // barrel, a flat yellow sprite"): in the headset the flash sat where the flat screen's gun is, 0.9 m ahead of the
+        // eyes and off to the side, whatever the hand was doing. With a tracked hand it is at the muzzle, a little past
+        // the controller along its aim, and smaller (it is that much nearer the eye than a far target). The rocket's
+        // back-blast smoke goes out behind the hand. BS_OLDVRFLASH=1: the screen-space flash.
+        let vrFlash = vrAim != nil && !Game.oldVRFlash
+        let flash: V3 = vrFlash ? muzzle + look * 0.12 : player.eye + look * 0.9 + right * sideOff - V3(0, 0.12, 0)
+        let fsize: Float = (gs.shot == .beam ? 0.12 : 0.16) * (vrFlash ? 0.55 : 1)
         particles.add(Particle(pos: flash, vel: look * 0.5, life: 0.05, maxLife: 0.05, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
-                               size: gs.shot == .beam ? 0.12 : 0.16, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6),
+                               size: fsize, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6),
                                collide: false, glow: true))
-        let smokeAt: V3 = player.eye - look * 0.6 + right * 0.2
+        let smokeAt: V3 = vrFlash ? muzzle - look * 0.9 : player.eye - look * 0.6 + right * 0.2
         if gs.shot == .rocket { for _ in 0..<6 { particles.smoke(at: smokeAt, dark: false) } }
     }
 
