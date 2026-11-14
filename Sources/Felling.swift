@@ -434,6 +434,7 @@ extension Game {
         // (ledger 45: no circuit marks a block when no circuit part is near the tree)
         let quiet0 = world.circuitQuiet
         if Explosion.circuitCalm && !world.circuitNear(Array(logs) + Array(leaves), margin: 3) { world.circuitQuiet = true }
+        world.treeGhosts.note(world, Array(logs))   // (ledger 123: read while the crown is still on)
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in logs { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0
@@ -541,6 +542,7 @@ extension Game {
         world.restoring = true
         let quiet0 = world.circuitQuiet                      // (ledger 45)
         if Explosion.circuitCalm && !world.circuitNear(cells + Array(leaves), margin: 3) { world.circuitQuiet = true }
+        world.treeGhosts.note(world, cells)         // (ledger 123: read while the crown is still on)
         for c in riders { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in cells { world.setBlockAsync(c.x, c.y, c.z, AIR) }

@@ -125,6 +125,7 @@ extension ShipManager {
                     // Naval guns (fast, heavy shells) boom louder and further.
                     g.sfx(.shipCannon, t.gunPower > 3 ? 1.6 : 1, at: muzzle)
                     g.particles.smoke(at: muzzle)
+                    if sh.kind != 4 && sh.power >= NavalBurst.shipPower { NavalBurst.muzzle(at: muzzle, dir: dir, carry: t.velocity(at: muzzle), g) }   // (ledger 122)
                     g.baseNoise(at: muzzle, kind: .cannon, hostile: s.factionValue != .steelhold)   // the Capital's own guns don't alarm it
                 }
             }
@@ -349,6 +350,7 @@ extension ShipManager {
                 // (a wall's blocks stand to them as if no harder than Guns.rocketBreach; a Capital Steel wall's 12 broke none).
                 Explosion.explode(at: at, power: power, game: g, breakBlocks: !gentle, resistCap: steered ? Guns.rocketBreach : .infinity,
                                   along: onHull ? nil : vel)   // (P357 e)
+                if (kind == 0 || kind == 6) && power >= NavalBurst.shipPower { NavalBurst.burst(at: at, power: power, along: vel, g) }   // (ledger 122)
                 TickProf.mark("shells: explode")
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely

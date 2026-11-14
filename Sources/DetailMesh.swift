@@ -79,6 +79,16 @@ struct DetailContext {
     var field: [BlockStore]? = nil
     // P389: cells a struck object draws (world coordinates): air to the round-shape generators.
     var skipCells: Set<IVec3>? = nil
+    // Ledger 123 (TreeGhosts): logs taken out of standing wood, by world cell. With `ghostsOn` (the copy of the context
+    // ShapeTrunks grows its trunks from) a cell with no wood in it reads as the log that stood there.
+    var ghosts: TreeGhosts.Map? = nil
+    var ghostsOn = false
+    @inline(__always) func ghosted(_ b: BlockID, _ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if ShapeTrunks.isTrunk[Int(b)] { return b }
+        guard let g = ghosts?[IVec3(wx0 + x, wy0 + y, wz0 + z)] else { return b }
+        return BlockID(g & 0xFFFF)
+    }
+    @inline(__always) func ghostAt(_ x: Int, _ y: Int, _ z: Int) -> UInt32? { ghosts?[IVec3(wx0 + x, wy0 + y, wz0 + z)] }
     @inline(__always) func skipped(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard let s = skipCells else { return false }
         return s.contains(IVec3(wx0 + x, wy0 + y, wz0 + z))
@@ -87,6 +97,10 @@ struct DetailContext {
     // A block anywhere in the 3x3 chunks (section-local x, z in -16..<32), any height: for shapes taller than the region
     // (a 25-block trunk measured from its foot). Below the world: bedrock; above the stored part: air.
     @inline(__always) func column(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        let b = columnReal(x, y, z)
+        return ghostsOn ? ghosted(b, x, y, z) : b
+    }
+    @inline(__always) func columnReal(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
         if skipCells != nil && skipped(x, y, z) { return AIR }
         let cx = (x + 16) >> 4, cz = (z + 16) >> 4
         guard cx >= 0 && cz >= 0 && cx < 3 && cz < 3 else { return AIR }
@@ -126,6 +140,10 @@ struct DetailContext {
 
     @inline(__always) func ri(_ x: Int, _ y: Int, _ z: Int) -> Int { (x + Mesher.C0) + (z + Mesher.C0) * Mesher.RW + (y + Mesher.C0) * Mesher.RL }
     @inline(__always) func block(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        let b = blockReal(x, y, z)
+        return ghostsOn ? ghosted(b, x, y, z) : b
+    }
+    @inline(__always) func blockReal(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
         let rx = x + Mesher.C0, ry = y + Mesher.C0, rz = z + Mesher.C0
         guard rx >= 0 && ry >= 0 && rz >= 0 && rx < Mesher.RW && ry < Mesher.RH && rz < Mesher.RW else { return AIR }
         if skipCells != nil && skipped(x, y, z) { return AIR }

@@ -417,4 +417,111 @@ enum TreeProbeCheck {
                   "fellnov13: his Ash Vault dark oak on a slope stands with one foot of four cut (\(firstStands ? "yes" : "no")) and falls with two (\(secondFalls ? "yes" : "no")); four feet found: \(wide ? "yes" : "no")")
         }
     }
+
+    // Ledger 123 (Nov 13 22:20: "when I break a wood tree, the other wood around it morphs"): how every log of a tree is
+    // grown (trunk or limb, girth, steps out from the trunk) before a cut, and the logs left after it. His Taiga spruce
+    // felled two logs up: the stump's two logs as they were. His Ash Vault dark oak (four logs wide) with one foot
+    // struck out, then felled: the logs left as they were each time. The ghosts are saved, and go with the last log.
+    static func fellGhosts(_ g0: Game, _ check: (Bool, String) -> Void) {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0; ShapeTrunks.probing = false; ShapeTrunks.probeOut = [:] }
+        // The logs joined to `from` (26-connected), at most 400.
+        func tree(_ w: World, _ from: IVec3) -> [IVec3] {
+            var seen: Set<IVec3> = [from], q = [from], head = 0
+            while head < q.count && q.count < 400 {
+                let p = q[head]; head += 1
+                for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 {
+                    let n = IVec3(p.x + dx, p.y + dy, p.z + dz)
+                    if !seen.contains(n) && ShapeTrunks.isTrunk[Int(w.builtBlock(n.x, n.y, n.z))] { seen.insert(n); q.append(n) }
+                } } }
+            }
+            return q
+        }
+        func grown(_ w: World, _ cells: [IVec3]) -> [IVec3: ShapeTrunks.Probe] {
+            ShapeTrunks.probeLock.lock(); ShapeTrunks.probeOut = [:]; ShapeTrunks.probeLock.unlock()
+            ShapeTrunks.probing = true
+            var done = Set<IVec3>()
+            for c in cells {
+                let k = IVec3(floorDiv(c.x, CS), c.y >> 4, floorDiv(c.z, CS))
+                guard done.insert(k).inserted, let ch = w.chunkAt(c.x, c.z), let nb = w.neighbourhood(ch) else { continue }
+                _ = Mesher.buildSection(nb.0, nb.1, sy: k.y, lod: 0, ghosts: w.treeGhosts.near(ch.cx, ch.cz), chunk: (ch.cx, ch.cz))
+            }
+            ShapeTrunks.probing = false
+            var out: [IVec3: ShapeTrunks.Probe] = [:]
+            for c in cells { if let p = ShapeTrunks.probeOut[c] { out[c] = p } }
+            return out
+        }
+        // Of the logs still standing, how many are grown as before (and how many were measured at all).
+        func same(_ w: World, _ before: [IVec3: ShapeTrunks.Probe], _ cells: [IVec3]) -> (kept: Int, of: Int, first: String) {
+            let left = cells.filter { ShapeTrunks.isTrunk[Int(w.builtBlock($0.x, $0.y, $0.z))] }
+            let now = grown(w, left)
+            var kept = 0, first = ""
+            for c in left {
+                guard let a = before[c], let b = now[c] else { continue }
+                if a.kind == b.kind && abs(a.rad - b.rad) < 1e-4 && a.dist == b.dist { kept += 1 }
+                else if first.isEmpty { first = "\(c.x) \(c.y - 64) \(c.z): kind \(a.kind) girth \(a.rad) steps \(a.dist) became kind \(b.kind) girth \(b.rad) steps \(b.dist)" }
+            }
+            return (kept, left.count, first)
+        }
+        do {
+            let w = World(seed: 2117423538372845574, device: g0.world.device, save: nil)
+            w.makeFieldWorld()
+            w.renderDistance = 3; w.activeDistance = 3
+            let g = Game(world: w, save: nil, persistent: false)
+            g.paused = false; g.survival = false
+            g.player.pos = V3(5663.0, 132.3, -3887.9)
+            _ = w.loadSync(center: g.player.pos, radius: 3)
+            var foot = IVec3(5665, 132, -3887)
+            while foot.y > 100 && CapitalBase.isLog(w.builtBlock(foot.x, foot.y - 1, foot.z)) { foot.y -= 1 }
+            let cells = tree(w, foot)
+            let before = grown(w, cells)
+            let cutAt = IVec3(foot.x, foot.y + 2, foot.z)
+            let cut = w.builtBlock(cutAt.x, cutAt.y, cutAt.z), n0 = Felling.felled
+            w.setBlock(cutAt.x, cutAt.y, cutAt.z, AIR)
+            g.fellCheck(cutAt, cut)
+            let fell = Felling.felled > n0
+            let r = same(w, before, cells)
+            let ghosts = w.treeGhosts.count
+            // Saved and read back.
+            let back = TreeGhosts()
+            back.load(w.treeGhosts.encodedNamed())
+            let saved = back.count == ghosts
+            // The stump taken too: no log left for the ghosts to shape, they go.
+            for y in foot.y...(foot.y + 1) { w.setBlock(foot.x, y, foot.z, AIR) }
+            // (roots and the like the generator left by the foot)
+            for c in cells where ShapeTrunks.isTrunk[Int(w.builtBlock(c.x, c.y, c.z))] { w.setBlock(c.x, c.y, c.z, AIR) }
+            let gone = w.treeGhosts.count
+            check(before.count == cells.count && fell && r.of >= 2 && r.kept == r.of && ghosts > 0 && saved && gone == 0,
+                  "fellghosts: his Taiga spruce felled two logs up: \(r.kept) of the \(r.of) logs left are grown as before the cut"
+                  + (r.first.isEmpty ? "" : " (\(r.first))") + "; \(before.count) of \(cells.count) logs measured, fell \(fell ? "yes" : "no"), "
+                  + "\(ghosts) ghosts, saved and read back \(saved ? "yes" : "no"), \(gone) left once the stump is gone")
+        }
+        do {
+            let w = World(seed: 5663059916303033239, device: g0.world.device, save: nil, dim: .deep)
+            w.makeFieldWorld()
+            w.renderDistance = 3; w.activeDistance = 3
+            let g = Game(world: w, save: nil, persistent: false)
+            g.paused = false; g.survival = false
+            g.player.pos = V3(3230.4, 30.6, -3050.7)
+            _ = w.loadSync(center: g.player.pos, radius: 3)
+            let a = IVec3(3233, 29, -3051), b = IVec3(3233, 29, -3050)
+            let cells = tree(w, a)
+            let before = grown(w, cells)
+            let wideBefore = cells.filter { before[$0]?.kind == 1 }.count
+            let cutA = w.builtBlock(a.x, a.y, a.z)
+            w.setBlock(a.x, a.y, a.z, AIR)
+            g.fellCheck(a, cutA)
+            let one = same(w, before, cells)
+            let n0 = Felling.felled
+            let cutB = w.builtBlock(b.x, b.y, b.z)
+            w.setBlock(b.x, b.y, b.z, AIR)
+            g.fellCheck(b, cutB)
+            let two = same(w, before, cells)
+            check(before.count == cells.count && wideBefore >= 8 && one.of == cells.count - 1 && one.kept == one.of && Felling.felled > n0 && two.of >= 1 && two.kept == two.of,
+                  "fellghosts: his Ash Vault dark oak, one foot of four struck out: \(one.kept) of the \(one.of) logs left grown as before"
+                  + (one.first.isEmpty ? "" : " (\(one.first))") + "; felled by a second cut: \(two.kept) of the \(two.of) left as before"
+                  + (two.first.isEmpty ? "" : " (\(two.first))") + "; \(before.count) of \(cells.count) measured, \(wideBefore) trunk cells")
+        }
+    }
 }

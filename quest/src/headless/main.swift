@@ -1119,6 +1119,29 @@ if let out = arg("--view"), let ctx = vkctx {
             vw.remeshArea(x0: x - 10, z0: z - 10, x1: x + 10, z1: z + 10, y0: cy - 12, y1: cy + 24)
         } else { print("view: cutlog: no living trunk within 16 blocks") }
     }
+    // --navalburst S (ledger 122): a naval shell (--burstpower P, 3.5) strikes the ground --burstdist D (24) blocks ahead of the
+    // eye, as a ship's gun fires it; the game runs S seconds past the burst before the render. Prints the burst's particles.
+    if let secs = Double(arg("--navalburst") ?? "") {
+        vg.paused = false
+        for _ in 0..<36 { vg.tick(1.0 / 72) }
+        let dist = Float(arg("--burstdist") ?? "") ?? 24
+        let flat = V3(vg.player.look.x, 0, vg.player.look.z)
+        let dir0 = simd_length(flat) > 0.1 ? simd_normalize(flat) : V3(0, 0, -1)
+        let spot = vg.player.pos + dir0 * dist
+        let sx = Int(floor(spot.x)), sz = Int(floor(spot.z))
+        let aim = V3(spot.x, Float(vw.topY(sx, sz)) + 1, spot.z)
+        let from = aim - dir0 * 60 + V3(0, 25, 0)
+        let sh = Shell(pos: from, vel: simd_normalize(aim - from) * 120, owner: -7, power: Float(arg("--burstpower") ?? "") ?? 3.5)
+        sh.gravity = 0; sh.life = 3
+        vw.ships.shells.append(sh)
+        let b0 = NavalBurst.bursts
+        var waited = 0
+        while NavalBurst.bursts == b0 && waited < 72 * 3 { vg.tick(1.0 / 72); waited += 1 }
+        print("view: navalburst: burst after \(waited) ticks at \(aim.x) \(aim.y) \(aim.z); \(NavalBurst.lastCount) particles, \(vg.particles.list.count) alive")
+        var worst = 0.0
+        for _ in 0..<Int(secs * 72) { let t0 = CFAbsoluteTimeGetCurrent(); vg.tick(1.0 / 72); worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
+        print(String(format: "view: navalburst: %.2f s on, %d particles alive, worst tick %.1f ms", secs, vg.particles.list.count, worst))
+    }
     // --fell S (P441): the foot log of the nearest living trunk is cut as the game cuts it (Game.breakBlock: what stood
     // on it comes loose and topples away from the eye), then the game runs S seconds before the render.
     if let secs = Double(arg("--fell") ?? "") {
@@ -2922,6 +2945,7 @@ if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled
     TreeProbeCheck.fellReal(game, check)
     TreeProbeCheck.fellHalf(game, check)
     TreeProbeCheck.fellNov13(game, check)
+    TreeProbeCheck.fellGhosts(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--jetplate") {             // P478: a jetpack strapped onto a chest piece
@@ -4455,6 +4479,18 @@ var tickAllocs: [Int] = []
 var slow: [(Double, Double, Int, Int, Int)] = []
 let frames = 72 * 20
 let p0 = game.player.pos
+// Nov 14 (build 58: the walk stopped in a pond after 22 blocks, 55 before, and the checks after it ran from another
+// spot: the Reckoning's underground step and the countries' ore chunk failed there): a tree an earlier check felled lies
+// on the ground now (ledger 114; it hung on its own crown before), across the walk's line. The walk is of streaming and
+// menus: what earlier checks felled within 60 blocks is listed and cleared first.
+do {
+    let lying = world.ships.list.filter { Felling.isFelled($0) && simd_length($0.pos - p0) < 60 }
+    if !lying.isEmpty {
+        print("walk: \(lying.count) felled bodies left by earlier checks cleared: "
+              + lying.prefix(6).map { String(format: "%.0f %.0f %.0f", $0.pos.x, $0.pos.y - Float(YOFF), $0.pos.z) }.joined(separator: "; "))
+        for s in lying { world.ships.remove(s) }
+    }
+}
 // (Nov 4, build 134: he died in this walk once, the death menu still up at its end: what hurt him, and when)
 var walkHurt: [String] = []
 let walkHealth0 = game.health
@@ -4508,6 +4544,14 @@ if !tickAllocs.isEmpty {
 print(String(format: "ticks: median %.2f ms, p99 %.2f ms, worst %.2f ms", tickMs[tickMs.count / 2], tickMs[tickMs.count * 99 / 100], tickMs.last!))
 let moved = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
 print("walk: from \(p0); every 2 s: " + walkTrace.joined(separator: "; "))
+do {
+    let q = game.player.pos
+    let near = world.ships.list.filter { simd_length($0.pos - q) < 12 }
+    if !near.isEmpty {
+        print("walk: bodies within 12 of where it ended: " + near.prefix(8).map {
+            String(format: "%@%@ at %.1f %.1f %.1f", $0.name, Felling.isFelled($0) ? " (felled)" : "", $0.pos.x, $0.pos.y - Float(YOFF), $0.pos.z) }.joined(separator: "; "))
+    }
+}
 check(game.player.pos.x.isFinite && game.player.pos.y.isFinite, "player position finite")
 check(moved > 10, String(format: "walked %.1f blocks with the left stick", moved) + (walkHurt.isEmpty ? "" : " (hurt: " + walkHurt.prefix(6).joined(separator: "; ") + ")"))
 check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing: type(of: $0)) } ?? "none"))"

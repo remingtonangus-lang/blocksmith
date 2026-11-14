@@ -1548,6 +1548,7 @@ enum HeavyTurret {
         g.particles.add(Particle(pos: muzzle, vel: fwd, life: 0.08, maxLife: 0.08, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
                                  size: 0.5, gravity: 0, color: V3(2.6, 1.8, 0.7), collide: false, glow: true))
         g.addFlash(at: muzzle + fwd * 0.5, color: V3(6, 4, 2), radius: 10, life: 0.1)
+        if smoke >= 6 { NavalBurst.muzzle(at: muzzle, dir: fwd, carry: V3(0, 0, 0), g) }       // (a main battery: ledger 122)
     }
     // A heavy shell: bursts like TNT where it lands, breaking blocks and hurting everything near.
     static func arm(_ s: inout Slug) {
