@@ -58,4 +58,4 @@ CUT = [
 TITLE = 4.5
 SWITCH = "v3_outlaws"
 FINALE = "v3_finale"
-CARD = ("EARLY ACCESS ON META QUEST", "Play it now")
+CARD = ("COMING SOON TO META QUEST", "Wishlist now")
