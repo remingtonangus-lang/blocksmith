@@ -215,10 +215,14 @@ enum Cinema {
         }
         let camPos = { (k: Key) -> V3 in rel(k.pos, k.ground ?? false) }
         let camLook = { (k: Key) -> V3 in rel(k.look, k.ground ?? false) }
-        let start = sample(s.cam, 0, camPos)
+        var start = sample(s.cam, 0, camPos)
         g.player.pos = start - V3(0, g.player.eyeHeight, 0)
         let lt = w.loadSync(center: start, radius: w.renderDistance)
         _ = w.loadSync(center: origin, radius: min(6, w.renderDistance))
+        // The ground asked before the chunks loaded was the generator's guess; the field world's own surface can stand a
+        // block or more off it, and v3's eye heights came out at knee height. Ask again now that the ground is loaded.
+        groundSeen.removeAll()
+        start = sample(s.cam, 0, camPos)
         print(String(format: "cine: %@: %d chunks (gen %.0f ms, mesh %.0f ms)", s.name, w.chunks.count, lt.gen * 1000, lt.mesh * 1000))
         // The train on its line (the clock set to when the timetable has it at the cell).
         if let kn = s.anchor?.train, let l = railLine {
@@ -629,6 +633,7 @@ enum Cinema {
                 wr.extraOpaque = { s, eye in c.drawOpaque(s, eye: eye) }
                 game.inventory.selected = 0
                 if !item.isEmpty && item != "hands" && Items.has(item) { game.inventory.held = ItemStack(Items.id(item), 1) }
+                else { game.inventory.held = .empty }               // empty hands (the creative inventory's first slot showed a grass block)
                 else if !item.isEmpty && item != "hands" { print("cine: no item \(item)") }
             } else { host = nil; controls = nil }
             img = try VkImg(ctx, width: width, height: height, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
