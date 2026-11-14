@@ -545,6 +545,17 @@
   "events": [
    {
     "t": 0,
+    "do": "clear",
+    "mob": "villager",
+    "at": [
+     -26,
+     0,
+     2
+    ],
+    "spread": 40
+   },
+   {
+    "t": 0,
     "do": "spawn",
     "mob": "soldier_trooper@marauder^90",
     "at": [
@@ -1020,7 +1031,7 @@
     ]
    }
   ],
-  "hold": "gun_launcher",
+  "hold": "gun_faust",
   "hands": [
    [
     0.2,
