@@ -205,11 +205,24 @@ enum DeepGapTests {
     // Duskium armour, food full, normal difficulty; the unit `dist` blocks off on the open vault floor. Returns how long
     // the unit takes to do 20 points of damage to the player (who stands still; their health is topped up each tick)
     // and how long the player, aiming and firing `gun`, takes to kill it. nil: not within the time limit.
+    static var duelFloor: [IVec3: BlockID] = [:]
     static func duel(_ g: Game, _ make: (V3) -> Mob?, gun: String, ammo: String, dist: Float, limit: Float = 60) -> (Float?, Float?) {
         let w = g.world
         let spot = V3(130.5, Float(DeepGen.floorBase + 1), 380.5)
         func place() -> Mob? {
             g.mobs.mobs.removeAll(); w.pendingMobs.removeAll(); g.arms.slugs.removeAll()
+            // (Check fix, Nov 14: rounds wear the floor they strike (BlockWear) and the wear of one duel carried into the
+            // next: by the seventh rifleman the block under the foe's spot was shot out, he stood in the pit and 300
+            // rounds struck its rim, on an idle machine only. Each duel starts on the floor the first one found.)
+            BlockWear.marks.removeAll()
+            let fy = DeepGen.floorBase
+            if duelFloor.isEmpty {
+                for z in 350...384 { for x in 127...133 { for y in (fy - 1)...(fy + 3) { duelFloor[IVec3(x, y, z)] = w.block(x, y, z) } } }
+            } else {
+                var mended = 0
+                for (c, id) in duelFloor where w.block(c.x, c.y, c.z) != id { w.setBlock(c.x, c.y, c.z, id); mended += 1 }
+                if mended > 0 { print("deep balance: \(mended) blocks of the duel floor mended (shot out by the duel before)") }
+            }
             g.ashStrikes.removeAll(); g.ashSpot = nil
             g.ashAlarm = 0; g.ashAlarmLevel = 0; g.ashReinforceT = 999; g.ashPatrolT = 999
             guard var m = make(spot + V3(0, 0, -dist)) else { return nil }
@@ -342,7 +355,7 @@ enum DeepGapTests {
             ("Cinder Tank (launcher)", ash("ash_tank@ash"), "gun_launcher", "rocket_ammo", 24),
             ("The Ash Marshal", marshalAlone, "gun_launcher", "rocket_ammo", 16),
         ]
-        report = []
+        report = []; duelFloor = [:]
         var kesselDealt = 0, kesselHits = 0, kesselDuels = 0
         // Seeded duels (a single duel's spread and hit luck swung a rifleman's time by 2x). The numbers still shift a
         // little with what ran before (a full questcheck vs --deep-only): the rules below hold with room to spare.
