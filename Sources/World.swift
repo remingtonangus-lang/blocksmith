@@ -1966,8 +1966,8 @@ final class World: LifeLinked {
 
     // (harness, ledger 129) Sections left unmeshed as buried that hold the ground's surface: every chunk whose own
     // and eight neighbours' lowest ground tops are known, each deferred section reaching over the lowest of them.
-    func wrongDeferred() -> (checked: Int, wrong: [String]) {
-        var checked = 0, out: [String] = []
+    func wrongDeferred() -> (checked: Int, wrong: [String], live: [IVec3]) {
+        var checked = 0, out: [String] = [], live: [IVec3] = []
         for (k, c) in chunks where c.deferredBuried > 0 {
             guard var low = c.groundLowKnown else { continue }
             var known = true
@@ -1979,9 +1979,10 @@ final class World: LifeLinked {
             checked += 1
             for sy in 0..<NSEC where c.sections[sy].deferred && (sy + 1) * 16 > low {
                 out.append("chunk \(k.x) \(k.z) section \(sy) (lowest ground top round it \(low - YOFF))\(c.hollow ? " shell" : "")")
+                live.append(IVec3(k.x, sy, k.z))
             }
         }
-        return (checked, out)
+        return (checked, out, live)
     }
     // (harness) Sections of the chunks within r of a centre that are flagged unmeshed, and those with an empty mesh
     // under the chunk's lowest ground that carry no flag (a mesh read back from the disk without it).

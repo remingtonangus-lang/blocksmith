@@ -271,6 +271,16 @@ enum QuestStreamTest {
             let bs = w.buriedState(center: c0, r: 3)
             print("streamtest: buried check (\(World.oldBuriedLow ? "BS_OLDBURIEDLOW" : "new")): \(wrongSeen.count) sections that hold the surface were left unmeshed during the run (most at once \(wrongMost)), \(wd.wrong.count) at the end of \(wd.checked) chunks checked; within 3 chunks of him \(bs.flagged) sections still flagged unmeshed, \(bs.unflagged) empty under the ground with no flag")
             for l in wd.wrong.prefix(20) { print("streamtest: buried: " + l) }
+            // (--buriedshots N: a view straight down over the first N of them, 14 blocks over the section's top; the
+            // same spots go to --endshots for the picture after)
+            if let n = Int(arg("--buriedshots") ?? ""), let ctx {
+                for (i, q) in wd.live.sorted(by: { ($0.x, $0.z, $0.y) < ($1.x, $1.z, $1.y) }).prefix(n).enumerated() {
+                    p.pos = V3(Float(q.x * CS + 8), Float((q.y + 1) * 16 + 14), Float(q.z * CS + 8))
+                    let path = "\(out)/buried-\(i).png"
+                    do { try RenderTest.render(game: g, ctx: ctx, path: path, width: 640, height: 640, yaw: 0, pitch: -1.55); print(String(format: "streamtest: %@ (endshot %.0f,%.0f,%.0f,0,-89)", path, p.pos.x, p.pos.y, p.pos.z)) }
+                    catch { print("streamtest: shot failed: \(error)") }
+                }
+            }
         }
         if let es = arg("--endshots"), let ctx {
             for (n, spec) in es.split(separator: ";").enumerated() {
