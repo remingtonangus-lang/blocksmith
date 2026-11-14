@@ -2566,6 +2566,11 @@ if CommandLine.arguments.contains("--settletest") {
     GroundSettleTests.run(game, check: check)
     print(failures == 0 ? "settle: all checks passed" : "settle: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --groundweigh: ledger 127, ground that is dug under is weighed (Sources/GroundWeighTests.swift).
+if CommandLine.arguments.contains("--groundweigh") {
+    GroundWeighTests.run(game, check: check)
+    print(failures == 0 ? "groundweigh: all checks passed" : "groundweigh: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --treesheet DIR (with --render X): P406's designed trees: the shape checks, then one contact sheet per species.
 if let dir = arg("--treesheet"), let ctx = vkctx {
     TreeTest.run(check: check)

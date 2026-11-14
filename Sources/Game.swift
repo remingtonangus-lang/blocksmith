@@ -3527,6 +3527,7 @@ final class Game: LifeLinked {
         TickProf.mark("crater shaping")
         if TreeGhosts.on { world.treeGhosts.tick(world) }      // ledger 123: ghosts that shape no wood any more go
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
+        GroundWeigh.tick(self)                                 // ledger 127: ground opened is weighed, what it no longer carries falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load
         TickProf.mark("structure load")
