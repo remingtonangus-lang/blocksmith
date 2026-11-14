@@ -156,6 +156,7 @@ final class CapitalState {
     var ramDebt: Float = 0             // ledger 124: crawler: the hardness of what its bow has broken, not yet paid in plate
     var ramSlow: Float = 0             // ... the share of its speed that masonry has taken off it (0...0.6, eases back)
     var ramFx: Float = 0               // ... seconds until the next crash sound and dust
+    var ramWait: Float = 0             // ... seconds until the next plate can tear (a quarter second apart: one hull rebuild a time)
     var ground: V3?                    // crawler: smoothed ground under it (height, pitch, roll)
     var grind: Float = -1              // disabled crawler: forward speed while it grinds to a stop (-1 not yet)
     var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
@@ -1989,7 +1990,7 @@ extension ShipManager {
         let top: Float = s.throttle > 0 ? 28 : 9
         let speed = steered && drives ? s.throttle * top * (1 - lost) : 0
         st.wantSpeed = abs(speed)
-        st.ramSlow = max(0, st.ramSlow - dt * 0.5); st.ramFx -= dt          // (ledger 124)
+        st.ramSlow = max(0, st.ramSlow - dt * 0.5); st.ramFx -= dt; st.ramWait -= dt          // (ledger 124)
         crawlerMotion(s, st, dt, want: want, speed: speed * (1 - st.ramSlow), turnRate: steered && drives && abs(s.steer) > 0.05 ? 0.18 : 0, piloted: steered)
         // P455 (Oct 25 14:21, driving one: "this thing's, like, impossible to drive 'cause of the trees"): it crushes
         // what stands in its way as it does under its own crew; and its rail gun reloads (ShipManager.playerRail).
@@ -2549,7 +2550,7 @@ extension ShipManager {
         st.wantSpeed = speed
         // The ramp down (troops going out, riders walking up): it creeps until it is raised.
         if st.rampDown { speed = min(speed, 1.5) }
-        st.ramSlow = max(0, st.ramSlow - dt * 0.5); st.ramFx -= dt          // (ledger 124)
+        st.ramSlow = max(0, st.ramSlow - dt * 0.5); st.ramFx -= dt; st.ramWait -= dt          // (ledger 124)
         crawlerMotion(s, st, dt, want: want, speed: speed * (1 - st.ramSlow), turnRate: 0.18)
         TickProf.mark("cap: drive motion")                   // (store review: the drive split for the frame soak)
         crawlerCrush(s, st, dt, g)
@@ -2818,15 +2819,18 @@ extension ShipManager {
         let h = max(0.5, min(30, Blocks.hardness[Int(b)]))
         ShipManager.crawlerRammed += 1
         st.ramSlow = min(0.6, st.ramSlow + h * 0.004)
-        st.ramDebt += h
+        st.ramDebt = min(ShipManager.ramPlate * 4, st.ramDebt + h)       // (a wall of obsidian owes four plates at most)
         if st.ramFx <= 0 {
             st.ramFx = 0.35
             g.sfx(.shipCollideHard, min(1.4, 0.7 + st.ramDebt / 80), at: w)
             g.particles.blockBreak(b, at: IVec3(Int(floor(w.x)), Int(floor(w.y)), Int(floor(w.z))))
             if simd_length(g.player.pos - w) < 60 { g.addShake(0.12) }
         }
-        guard st.ramDebt >= ShipManager.ramPlate else { return }
+        // (one plate a quarter second at the most: each is a hull rebuild and a search for what hangs loose; a pass
+        // through a stone wall breaks hundreds of blocks in a frame)
+        guard st.ramDebt >= ShipManager.ramPlate, st.ramWait <= 0 else { return }
         st.ramDebt -= ShipManager.ramPlate
+        st.ramWait = 0.25
         // The plate of its bow nearest the blow (not the helm, a wheel or the hardest armour).
         let gr = s.grid, l = s.toLocal(w)
         let lo = s.localMin

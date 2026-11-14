@@ -18,6 +18,7 @@ enum NavalBurst {
     static let shipPower: Float = 3.5              // (GunSpec2.naval and .heavy; the autocannons stay small)
     static var bursts = 0                          // (harness)
     static var lastAt = -10.0
+    static var recent = 0                          // bursts in a row less than a quarter second apart
     static var lastCount = 0                       // (harness: particles the last burst added)
 
     static func burst(at c: V3, power: Float, along: V3?, _ g: Game) {
@@ -25,13 +26,17 @@ enum NavalBurst {
         bursts += 1
         let ps = g.particles
         let n0 = ps.list.count
-        let far = simd_length(c - g.player.pos) > 140
-        var share: Float = far ? 0.5 : 1
+        let away = simd_length(c - g.player.pos)
+        var share: Float = away > 140 ? 0.5 : 1
         if n0 > ParticleManager.cap / 2 { share *= 0.5 }
-        // (a quick-firing heavy gun, his frigate's held autocannon: bursts a quarter second apart are half each)
-        if g.clock - lastAt < 0.25 { share *= 0.5 }
+        // (a quick-firing heavy gun, his frigate's held autocannon, a broadside landing in one frame: each burst within
+        // a quarter second of the one before is thinner again: half, a third, a quarter... so eight shells at once
+        // make under three bursts' worth)
+        if g.clock - lastAt < 0.25 { recent += 1 } else { recent = 0 }
+        share /= Float(1 + recent)
         lastAt = g.clock
-        let lean = n0 > ParticleManager.cap * 3 / 4
+        // (the fireball and flash alone when the pool is nearly full, past 300 blocks, or deep in a broadside)
+        let lean = n0 > ParticleManager.cap * 3 / 4 || away > 300 || recent >= 6
         let puff = ParticleManager.puffLayer
         let size = max(0.8, min(1.5, power / 3.2))             // (a deck gun's 2.4 to a heavy turret's 4)
         let w = g.world

@@ -491,6 +491,7 @@ enum TreeProbeCheck {
             for y in foot.y...(foot.y + 1) { w.setBlock(foot.x, y, foot.z, AIR) }
             // (roots and the like the generator left by the foot)
             for c in cells where ShapeTrunks.isTrunk[Int(w.builtBlock(c.x, c.y, c.z))] { w.setBlock(c.x, c.y, c.z, AIR) }
+            w.treeGhosts.tick(w, all: true)
             let gone = w.treeGhosts.count
             check(before.count == cells.count && fell && r.of >= 2 && r.kept == r.of && ghosts > 0 && saved && gone == 0,
                   "fellghosts: his Taiga spruce felled two logs up: \(r.kept) of the \(r.of) logs left are grown as before the cut"

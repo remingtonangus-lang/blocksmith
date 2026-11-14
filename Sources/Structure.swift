@@ -87,7 +87,9 @@ enum Structure {
         let k = Blocks.key(Blocks.groupBase[i])
         return k == "redstone_wire" || k == "redstone_torch" || k == "redstone_wall_torch" || k == "repeater" || k == "comparator"
     }
-    static let strut = mat("strut", 1, 400, 1, crush: 6000)
+    // (a slight thing: it bears a few blocks set straight on it, a lamp, a short stack, and holds next to nothing
+    // out sideways or hanging, so a torch is no post for a tower and a wall torch no bracket)
+    static let strut = mat("strut", 1, 40, 1, crush: 200)
     static let table: [Mat?] = (0..<Blocks.count).map { i in
         guard let m = material(i) else { return nil }
         if circuitStrut[i] { return m }
@@ -861,6 +863,8 @@ extension World {
     // P388 (2): a structural block placed or taken away: the piece round it is checked (Structure.tick), once per 4-cube.
     @inline(__always) func queueLoadCheck(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
         guard Structure.enabled, frame == nil, Structure.member[Int(old)] || Structure.member[Int(new)] else { return }
+        // (ledger 125: wire, a torch or a repeater changing its state, every tick of a clock: nothing structural)
+        if Structure.circuitStrut[Int(old)] && Structure.circuitStrut[Int(new)] { return }
         if lyingBodies > 0 { ships.rouseLying(at: x, y, z) }      // (Nov 13: a fallen piece lying against it)
         // (Nov 13, StructureCollapse: a piece being read whole starts over when one of its blocks changes)
         if StructureCollapse.tracking { if structChanged.count < 512 { structChanged.append(IVec3(x, y, z)) } else { structFlood = true } }

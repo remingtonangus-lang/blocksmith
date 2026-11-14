@@ -50,6 +50,12 @@ final class TreeGhosts {
         return out
     }
 
+    private var forgot: [ChunkKey] = []              // chunks whose ghosts the cap took: their trunks are drawn again
+    private var pending: [IVec3] = []                // cells where a log went: their ghosts are checked on a later tick
+    private var pendingHead = 0
+    static let floodsPerTick = 2
+    var waiting: Int { lock.lock(); defer { lock.unlock() }; return pending.count - pendingHead }
+
     private func put(_ c: IVec3, _ v: UInt32) {
         lock.lock(); defer { lock.unlock() }
         let k = TreeGhosts.key(c)
@@ -59,20 +65,25 @@ final class TreeGhosts {
         // (a long war in a forest: bounded; the chunk whose ghosts are oldest forgets them)
         while total > TreeGhosts.most, let old = order.first, old != k {
             order.removeFirst()
-            if let m = byChunk.removeValue(forKey: old) { total -= m.count; TreeGhosts.pruned += m.count }
+            if let m = byChunk.removeValue(forKey: old) { total -= m.count; TreeGhosts.pruned += m.count; forgot.append(old) }
         }
         dirty = true
     }
-    // A tree grows at p: the ghosts within `r` of its column go (the new wood is measured fresh).
-    func clear(near p: IVec3, radius r: Int) {
+    // A tree grows: the ghosts in its trunk's columns and the columns beside them go (the new wood is measured
+    // fresh; a stump two blocks off keeps its shape).
+    func clear(columns cols: Set<SIMD2<Int>>) {
         lock.lock(); defer { lock.unlock() }
-        if total == 0 { return }
-        for cz in floorDiv(p.z - r, CS)...floorDiv(p.z + r, CS) { for cx in floorDiv(p.x - r, CS)...floorDiv(p.x + r, CS) {
-            let k = ChunkKey(x: cx, z: cz)
+        if total == 0 || cols.isEmpty { return }
+        var chunks: Set<ChunkKey> = []
+        for c in cols { for dz in -1...1 { for dx in -1...1 { chunks.insert(ChunkKey(x: floorDiv(c.x + dx, CS), z: floorDiv(c.y + dz, CS))) } } }
+        for k in chunks {
             guard let m = byChunk[k] else { continue }
-            let keep = m.filter { abs($0.key.x - p.x) > r || abs($0.key.z - p.z) > r }
+            let keep = m.filter { g in
+                for dz in -1...1 { for dx in -1...1 where cols.contains(SIMD2(g.key.x + dx, g.key.z + dz)) { return false } }
+                return true
+            }
             if keep.count != m.count { total -= m.count - keep.count; TreeGhosts.pruned += m.count - keep.count; byChunk[k] = keep.isEmpty ? nil : keep; dirty = true }
-        } }
+        }
     }
     private func drop(_ cells: [IVec3]) {
         lock.lock(); defer { lock.unlock() }
@@ -121,42 +132,79 @@ final class TreeGhosts {
     }
 
     // The ghosts joined to c through ghosts (26-connected; c's own cell counted as one), and whether a standing log
-    // touches any of them (`skip`: the cell being changed, its block not yet written).
-    private func component(_ w: World, from c: IVec3, skip: IVec3?, cap: Int = 600) -> (cells: [IVec3], wood: Bool) {
+    // touches any of them. Land not loaded beside them counts as wood (a ghost is never dropped on what cannot be read),
+    // and so does a piece too big to walk. One lock for the whole walk.
+    private func component(_ w: World, from c: IVec3, seen: inout Set<IVec3>, cap: Int = 600) -> (cells: [IVec3], wood: Bool) {
         let isTrunk = ShapeTrunks.isTrunk
-        var seen: Set<IVec3> = [c], queue = [c], head = 0, cells: [IVec3] = []
-        if get(c) != nil { cells.append(c) }
+        lock.lock(); defer { lock.unlock() }
+        @inline(__always) func ghost(_ q: IVec3) -> Bool { byChunk[TreeGhosts.key(q)]?[q] != nil }
+        var queue = [c], head = 0, cells: [IVec3] = []
+        seen.insert(c)
+        if ghost(c) { cells.append(c) }
+        var wood = false, walked = 0
         while head < queue.count {
             let p = queue[head]; head += 1
-            if seen.count > cap { return (cells, true) }
+            walked += 1
+            if walked > cap { return (cells, true) }
             for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 {
                 let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
-                if q == skip || seen.contains(q) { continue }
-                if isTrunk[Int(w.block(q.x, q.y, q.z))] { return (cells, true) }
-                if get(q) != nil { seen.insert(q); queue.append(q); cells.append(q) }
+                if seen.contains(q) { continue }
+                if ghost(q) { seen.insert(q); queue.append(q); cells.append(q); continue }
+                if wood { continue }
+                if isTrunk[Int(w.block(q.x, q.y, q.z))] || !w.isLoaded(q.x, q.z) { wood = true }
             } } }
         }
-        return (cells, false)
+        return (cells, wood)
     }
 
-    // World.setBlock and setBlockAsync, before the write: `old` at (x, y, z) becomes `id`.
+    // World.setBlock and setBlockAsync, before the write: `old` at (x, y, z) becomes `id`. Cheap: a blast or a felled
+    // tree takes a hundred logs in a frame, so whether the ghosts round a log that went still shape any wood is asked
+    // later (tick).
     func blockChanging(_ w: World, _ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ id: BlockID) {
         let isTrunk = ShapeTrunks.isTrunk
         let c = IVec3(x, y, z)
         if ShapeTrunks.isLog[Int(old)] && !isTrunk[Int(id)] {
             // A log goes. Into air (or water, fire): its ghost stays while a log it shaped stands.
             let open = id == AIR || !Blocks.collide[Int(id)]
-            if open && get(c) == nil && woodBeside(w, c) { put(c, UInt32(old) | (crowned(w, c) ? TreeGhosts.crownBit : 0)) }
-            if !open, get(c) != nil { drop([c]) }
+            let had = get(c) != nil
+            if open && !had && woodBeside(w, c) { put(c, UInt32(old) | (crowned(w, c) ? TreeGhosts.crownBit : 0)) }
+            if !open && had { drop([c]) }
             if count == 0 { return }
-            let comp = component(w, from: c, skip: c)
-            if !comp.wood && !comp.cells.isEmpty { drop(comp.cells) }
+            lock.lock(); pending.append(c); lock.unlock()
             return
         }
         if count == 0 { return }
         // Something built in a ghost's cell, or a log put back there: the ghost goes, the others stay (his own log set
         // down against a stump leaves the stump as it is; a sapling grown there clears its ground first, Game.growTree).
         if id != AIR && (Blocks.collide[Int(id)] || isTrunk[Int(id)]), get(c) != nil { drop([c]) }
+    }
+
+    // Each tick: a few of the cells where a log went are looked at; ghosts that no standing wood touches any more
+    // go (they shape nothing). And the chunks the cap emptied are drawn again. `all`: every waiting cell (checks, saving).
+    func tick(_ w: World, all: Bool = false) {
+        lock.lock()
+        let gone = forgot; forgot.removeAll()
+        if pendingHead == pending.count { pending.removeAll(keepingCapacity: true); pendingHead = 0 }
+        let idle = pendingHead == pending.count
+        lock.unlock()
+        for k in gone { for dz in -1...1 { for dx in -1...1 {
+            guard let ch = w.chunks[ChunkKey(x: k.x + dx, z: k.z + dz)] else { continue }
+            for sec in ch.sections where sec.meshedVersion != -1 { sec.version += 1 }
+        } } }
+        if idle { return }
+        var seen: Set<IVec3> = []
+        var floods = 0
+        while all || floods < TreeGhosts.floodsPerTick {
+            lock.lock()
+            guard pendingHead < pending.count else { lock.unlock(); break }
+            let c = pending[pendingHead]; pendingHead += 1
+            lock.unlock()
+            if seen.contains(c) { continue }
+            if count == 0 { continue }
+            let comp = component(w, from: c, seen: &seen)
+            floods += 1
+            if !comp.wood && !comp.cells.isEmpty { drop(comp.cells) }
+        }
     }
 
     // MARK: Save

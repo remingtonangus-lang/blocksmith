@@ -475,14 +475,16 @@ enum ShapeTrunks {
         if living {
             for k in 0..<4 {
                 let ax = x - (k & 1), az = z - (k >> 1)
-                var have = 0, cuts = 0, firstJ = -1
+                var have = 0, cuts = 0, firstJ = -1, real = 0
                 for j in 0..<4 {
                     let a = ax + (j & 1), b = az + (j >> 1)
-                    if colAt(a, b) { have += 1; if firstJ < 0 && s.gh[wi(a, y, b)] == 0 { firstJ = j } } else if cutAt(a, b) { cuts += 1 }
+                    if colAt(a, b) { have += 1; if s.gh[wi(a, y, b)] == 0 { real += 1; if firstJ < 0 { firstJ = j } } } else if cutAt(a, b) { cuts += 1 }
                 }
-                if have == 4 || have == 3 && cuts == 1 {
+                // (ledger 123: a corner that is a ghost is a log gone: the level is waisted as a cut one is; with two
+                // or more gone each log left is drawn on its own)
+                if have == 4 && real >= 3 || have == 3 && cuts == 1 {
                     if ax + (firstJ & 1) != x || az + (firstJ >> 1) != z { return }     // another corner draws it
-                    cx = Float(ax) + 1; cz = Float(az) + 1; scale = have == 4 ? 2.15 : 1.55
+                    cx = Float(ax) + 1; cz = Float(az) + 1; scale = have == 4 && real == 4 ? 2.15 : 1.55
                     hasQuad = true; quadX = ax; quadZ = az
                     break
                 }
@@ -512,7 +514,7 @@ enum ShapeTrunks {
                 n += 1; rad = max(rad, s.rad[wi(a, yy, b)])
                 if s.gh[wi(a, yy, b)] == 0 { real += 1 }
             }
-            return (real > 0, n > 0 ? rad * (n == 4 || !living ? 2.15 : 1.55) : r)
+            return (real > 0, n > 0 ? rad * (n == 4 && real == 4 || !living ? 2.15 : 1.55) : r)
         }
         let (below, rBelow) = colNear(y - 1)
         let (above, rAbove) = colNear(y + 1)
