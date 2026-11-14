@@ -267,6 +267,7 @@ enum ShapeTrunks {
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
             guard isTrunk[Int(b)] else { continue }
+            if ctx.skipDraw && ctx.skipped(x, y, z) { continue }       // (ledger 134: another tree's log, the stump)
             let i = wi(x, y, z)
             // (P433: a root block wears its tree's bark, not its own see-through root texture)
             let base = Int(Blocks.groupBase[Int(isRoot[Int(b)] ? treeOf(g, s, i) : b)])

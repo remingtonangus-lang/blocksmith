@@ -2000,7 +2000,7 @@ final class World: LifeLinked {
         return (a, b)
     }
 
-    private func nearBuried(_ k: ChunkKey) -> Bool {
+    func nearBuried(_ k: ChunkKey) -> Bool {
         let r = underground ? World.buriedNearUnder : flyingHigh ? (flyingFast ? -1 : World.buriedNearHigh) : (groundFast ? World.buriedNearFast : World.buriedNear)
         guard let c0 = buriedCentre else { return true }
         if max(abs(k.x - c0.x), abs(k.z - c0.z)) <= r { return true }
@@ -2063,7 +2063,7 @@ final class World: LifeLinked {
     }
 
     // A chunk's deferred sections mesh again (he came near, went underground, or the ground under them was opened).
-    private func undeferBuried(_ c: Chunk) {
+    func undeferBuried(_ c: Chunk) {
         guard c.deferredBuried > 0 else { return }
         // (P446: in the queue's order, not ahead of it: new land's surface comes before the rock under the land he nears.
         // A dig under the lowest surface undefers too; the dig's own edit marks its sections for the edit lane.)

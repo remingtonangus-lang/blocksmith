@@ -1955,10 +1955,11 @@ final class Game: LifeLinked {
         var at = placeCell(t, for: blockItem)
         // (ledger 131: a block sunk into the ground's row takes the cell: its ground goes first)
         let rowCell = groundRowCell(t, for: blockItem)
-        if let r = rowCell, r.cell == at, r.sunk {
-            world.fieldSphere(V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5), radius: 0.56, carve: true, material: nil, remesh: true)
+        // (cleared with the block's own write, below: on the edit lane together, and not at all when the block is refused)
+        let sunkCell: IVec3? = rowCell.flatMap { r in
+            r.cell == at && r.sunk && Blocks.hardness[Int(world.block(at.x, at.y, at.z))] >= 0 ? r.cell : nil
         }
-        let existing = world.block(at.x, at.y, at.z)
+        let existing = sunkCell != nil ? AIR : world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
             else if useNow { placeRefused("Something is in the way") }                        // (P507: never a silent click)
@@ -2090,6 +2091,9 @@ final class Game: LifeLinked {
         if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.health > 0 && $0.intersects(at) }) {
             // (P440: the write and the ground's swell mesh each section once, together)
             world.editBatch {
+                if sunkCell == at {
+                    world.fieldSphere(V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5), radius: 0.56, carve: true, material: nil, remesh: true)
+                }
                 world.setBlock(at.x, at.y, at.z, id)
                 // P377 step 3: ground placed in a field world swells toward where it was aimed, not only round the cell's
                 // middle (the cell lump World.fieldShape lays; only the surface moves, no other cell fills).
@@ -2272,8 +2276,11 @@ final class Game: LifeLinked {
         let cell = IVec3(x, row, z)
         let sunk = world.groundAt(x, row, z)
         // (never a cell he or a creature stands in: the ground would be cleared and the block refused)
-        if sunk && (player.intersectsBlock(cell) || mobs.mobs.contains { $0.health > 0 && $0.intersects(cell) }) {
-            return high ? (IVec3(x, r0 + 1, z), world.groundAt(x, r0 + 1, z)) : nil
+        func taken(_ c: IVec3) -> Bool { player.intersectsBlock(c) || mobs.mobs.contains { $0.health > 0 && $0.intersects(c) } }
+        if sunk && taken(cell) {
+            let up = IVec3(x, r0 + 1, z)
+            guard row == r0, high, !(world.groundAt(up.x, up.y, up.z) && taken(up)) else { return nil }
+            return (up, world.groundAt(up.x, up.y, up.z))
         }
         return (cell, sunk)
     }

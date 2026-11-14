@@ -115,6 +115,7 @@ extension World {
 
     func refill(_ c: Chunk, _ p: Produced) {
         guard c.hollow, p.cached == nil else { return }
+        let k0 = ChunkKey(x: c.cx, z: c.cz)
         c.blocks = World.store(of: p)
         // (P401: only a refill the cached collision columns can have read clears them: refills stream in the shell band
         // all the time at view 24, and clearing the whole cache with each one made every mob's moves and path searches
@@ -127,6 +128,9 @@ extension World {
         for t in p.tracked { redstone.tracked.insert(t) }
         for q in p.springs { if Blocks.fluidKind[Int(rawBlock(q.x, q.y, q.z))] == 2 { lavaPending.insert(q) } else { fluidPending.insert(q) } }
         World.refilled += 1
+        // (ledger 129: a shell whose cached meshes left its buried sections out, refilled while already inside the
+        // near ring, underground with the ring at 8: its rock is drawn now, not when he next crosses a chunk line)
+        if c.deferredBuried > 0 && !World.oldBuriedLow && nearBuried(k0) { undeferBuried(c) }
     }
 
     // A missing chunk in the shell band with cached meshes: installed from them (on a worker: read and decoded).

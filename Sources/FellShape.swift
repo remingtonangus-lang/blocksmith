@@ -36,6 +36,7 @@ extension Felling {
         var live: [Bool] = []
         var caps: [ShapeCap] = []
         var count = -1                               // the body's block count `live` and `caps` were made for
+        var dims: IVec3? = nil                       // the body's grid when first drawn (a grid that grows shifts its cells)
         var light: [SIMD2<Int32>] = []               // (per cell, this frame)
         init(owner: ObjectIdentifier) { self.owner = owner }
     }
@@ -51,6 +52,9 @@ extension Felling {
     static var shapes: [Int: Shape] = [:]            // by ship id (main thread)
     static var shapePending: [Int: ObjectIdentifier] = [:]   // bodies whose shape is being made (main thread)
     private static let shapeLock = NSLock()
+    // (its own lane: up to 24 whole sections, which must not hold up a door or a placed block on the quick lane)
+    private static let shapeQueue = DispatchQueue(label: "blocksmith.fellshape", qos: .userInitiated)
+    private static var shapesOf: ObjectIdentifier?
     private static var shapeDone: [(ship: Int, shape: Shape?)] = []
     static var shapesMade = 0, shapesFailed = 0, shapeQuads = 0      // (harness)
     static var shapeWorstMs = 0.0
@@ -108,8 +112,10 @@ extension Felling {
     static func shapeStart(_ snap: ShapeSnap?, ship s: Ship, origin: IVec3, world w: World) {
         guard let snap else { return }
         let id = s.id, owner = ObjectIdentifier(w)
+        // (another world's bodies: ship ids start again, and a new world can take an old one's address)
+        if shapesOf != owner { shapesOf = owner; shapes.removeAll(); shapePending.removeAll() }
         shapePending[id] = owner
-        World.quickQueue.async {
+        shapeQueue.async {
             let t0 = CFAbsoluteTimeGetCurrent()
             let shape = Felling.shapeBuild(snap, origin: origin, owner: owner)
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
@@ -179,7 +185,7 @@ extension Felling {
                 let c = IVec3(Int(floor(mid.x)), Int(floor(mid.y)), Int(floor(mid.z)))
                 var best: IVec3? = snap.logs[c] != nil ? c : nil
                 if best == nil {
-                    var bd = Float(2.6)                          // (within about a block and a half)
+                    var bd = Float(1.3)                          // (within a little over a block: a limb's tube between two logs)
                     for dy in -1...1 { for dz in -1...1 { for dx in -1...1 {
                         let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
                         guard snap.logs[q] != nil else { continue }
@@ -216,13 +222,20 @@ extension Felling {
     }
 
     // Which cells are still there, and a ring where a log now ends at one that went.
-    fileprivate static func refresh(_ sh: Shape, _ s: Ship) {
+    // False where the shape no longer fits the body (its grid grew and shifted, or a log was added to it): the shape
+    // is dropped and the body drawn as cylinders.
+    fileprivate static func refresh(_ sh: Shape, _ s: Ship) -> Bool {
         let g = s.grid
         let trunkT = ShapeTrunks.isTrunk, texT = Blocks.tex
+        let dims = IVec3(g.sx, g.sy, g.sz)
+        if sh.dims == nil { sh.dims = dims }
         sh.live = sh.cells.map { trunkT[Int(g.get($0.x, $0.y, $0.z))] }
+        var wood = 0
+        for b in g.blocks where trunkT[Int(b)] { wood += 1 }
+        if sh.dims != dims || wood > sh.live.filter({ $0 }).count + 2 { return false }    // (a log or two may own no quad)
         sh.caps.removeAll()
         sh.count = s.blockCount
-        guard sh.live.contains(false) else { return }
+        guard sh.live.contains(false) else { return true }
         var at: [IVec3: Int] = [:]
         for (i, c) in sh.cells.enumerated() { at[c] = i }
         for (i, c) in sh.cells.enumerated() where sh.live[i] {
@@ -243,6 +256,7 @@ extension Felling {
                 sh.caps.append(ShapeCap(c: mid + dv * 0.5, n: dv, r: min(0.5, sum / n), layer: Int32(texT[b * 6 + ax * 2]), cell: Int32(i)))
             }
         }
+        return true
     }
 }
 
@@ -250,7 +264,7 @@ extension Game {
     // The body's standing shape, drawn with its pose. False where it has none (drawn as cylinders, writeFelled).
     func writeFellShape(_ wr: inout EntityWriter, _ s: Ship, eye: V3, sun: V3) -> Bool {
         guard !Felling.oldFellShape, let sh = Felling.shapes[s.id], sh.owner == ObjectIdentifier(world) else { return false }
-        if sh.count != s.blockCount { Felling.refresh(sh, s) }
+        if sh.count != s.blockCount, !Felling.refresh(sh, s) { Felling.shapes[s.id] = nil; return false }
         let X = s.rot.act(V3(1, 0, 0)), Y = s.rot.act(V3(0, 1, 0)), Z = s.rot.act(V3(0, 0, 1))
         let base = s.pos - eye
         let com = s.com

@@ -2243,7 +2243,7 @@ enum Mesher {
             }
             ctx.ghosts = ghosts                   // (ledger 123: read by the trunks alone, ShapeTrunks.emit)
             // (ledger 134: a felled tree's shape is read with every other log taken as air, FellShape)
-            if let ts = trunkSkip, !ts.isEmpty { ctx.skipCells = ctx.skipCells.map { $0.union(ts) } ?? ts }
+            if let ts = trunkSkip, !ts.isEmpty { ctx.skipCells = ctx.skipCells.map { $0.union(ts) } ?? ts; ctx.skipDraw = true }
             var d0 = det.count + detCut.count
             func tally(_ k: Int) { let d = det.count + detCut.count; kv[k] &+= Int32((d - d0) / DetailMesh.wordsPerVertex); d0 = d }
             kv[MeshKind.struck] &+= Int32(d0 / DetailMesh.wordsPerVertex)
