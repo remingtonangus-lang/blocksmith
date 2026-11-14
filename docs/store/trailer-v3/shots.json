@@ -410,6 +410,41 @@
     ],
     "ground": true
    }
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "clear",
+    "mob": "villager",
+    "at": [
+     -10,
+     0,
+     0
+    ],
+    "spread": 60
+   },
+   {
+    "t": 2,
+    "do": "clear",
+    "mob": "villager",
+    "at": [
+     -10,
+     0,
+     0
+    ],
+    "spread": 60
+   },
+   {
+    "t": 4,
+    "do": "clear",
+    "mob": "villager",
+    "at": [
+     -10,
+     0,
+     0
+    ],
+    "spread": 60
+   }
   ]
  },
  {
@@ -1107,6 +1142,74 @@
      -2
     ],
     "ground": true
+   }
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "clear",
+    "mob": "sheep",
+    "at": [
+     56,
+     0,
+     43
+    ],
+    "spread": 25
+   },
+   {
+    "t": 0,
+    "do": "clear",
+    "mob": "cow",
+    "at": [
+     56,
+     0,
+     43
+    ],
+    "spread": 25
+   },
+   {
+    "t": 0,
+    "do": "clear",
+    "mob": "pig",
+    "at": [
+     56,
+     0,
+     43
+    ],
+    "spread": 25
+   },
+   {
+    "t": 2.5,
+    "do": "clear",
+    "mob": "sheep",
+    "at": [
+     56,
+     0,
+     43
+    ],
+    "spread": 25
+   },
+   {
+    "t": 2.5,
+    "do": "clear",
+    "mob": "cow",
+    "at": [
+     56,
+     0,
+     43
+    ],
+    "spread": 25
+   },
+   {
+    "t": 2.5,
+    "do": "clear",
+    "mob": "pig",
+    "at": [
+     56,
+     0,
+     43
+    ],
+    "spread": 25
    }
   ]
  }

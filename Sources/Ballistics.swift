@@ -906,7 +906,7 @@ extension Game {
         // the controller along its aim (a pistol's barrel), and smaller (it is that much nearer the eye than a far target). The rocket's
         // back-blast smoke goes out behind the hand. BS_OLDVRFLASH=1: the screen-space flash.
         let vrFlash = vrAim != nil && !Game.oldVRFlash
-        let flash: V3 = vrFlash ? muzzle - look * 0.1 : player.eye + look * 0.9 + right * sideOff - V3(0, 0.12, 0)
+        let flash: V3 = vrFlash ? (vrMuzzle.map { $0 + look * 0.05 } ?? muzzle - look * 0.1) : player.eye + look * 0.9 + right * sideOff - V3(0, 0.12, 0)
         let fsize: Float = (gs.shot == .beam ? 0.12 : 0.16) * (vrFlash ? 0.4 : 1)
         particles.add(Particle(pos: flash, vel: look * 0.5, life: 0.05, maxLife: 0.05, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
                                size: fsize, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6),
