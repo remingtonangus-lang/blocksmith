@@ -147,6 +147,10 @@ extension World {
             s.naturalCubes = m.counts[7]; s.groundQuads = m.counts[8]; s.blobQuads = m.counts[9]; s.solidFull = m.counts[10] != 0
             s.farCut = m.counts[11]; s.detailFarSkip = m.counts[12]; s.detailFarExtra = m.counts[13]; s.farTail = m.counts[14]; s.farPlants = 0
             s.vis = m.vis; s.leafy = m.leafy
+            // (ledger 129: a section left unmeshed as buried comes back as one, so it meshes when he comes near; read
+            // back as an empty mesh with no flag, the rock and caves under such a chunk were never drawn again, and a
+            // section wrongly taken for buried stayed a hole however near he came)
+            if m.counts[15] != 0 && !World.oldBuriedLow { s.deferred = true; c.deferredBuried += 1 }
             s.meshedVersion = s.version
         }
         c.meshedOnce = true
@@ -198,9 +202,10 @@ extension World {
 // writes it fresh. Writes run on a background queue from the section buffers (kept alive until written). The folder
 // is held under `capBytes` (oldest files go first).
 final class MeshCache {
-    static let format: UInt32 = 4                       // 2: P381 adaptive ground; 3: P383 per-position ground vertices;
+    static let format: UInt32 = 5                       // 2: P381 adaptive ground; 3: P383 per-position ground vertices;
                                                         // 4: P384 far copies (far cutout skip, detail far copy)
-    static let countsPerSection = 15
+                                                        // 5: ledger 129, a section's "left unmeshed as buried" flag
+    static let countsPerSection = 16
     static let capBytes = 768 << 20
     // P400 step 2: what a cached mesh depends on besides the format and registries. The headset sets it to a hash of
     // the sources that shape meshes and terrain (quest/tools/build-apk.sh: QuestBuild.meshHash), so an update that
@@ -307,6 +312,7 @@ final class MeshCache {
             counts.append(s.transQuads); counts.append(s.detailQuads); counts.append(s.detailSolid); counts.append(s.naturalCubes)
             counts.append(s.groundQuads); counts.append(s.blobQuads); counts.append(s.solidFull ? 1 : 0); counts.append(s.farCut)
             counts.append(s.detailFarSkip); counts.append(s.detailFarExtra); counts.append(s.farTail)
+            counts.append(s.deferred ? 1 : 0)
             viss.append(s.vis); leafs.append(s.leafy)
         }
         let height = c.height, tint = c.tint, modified = c.modified

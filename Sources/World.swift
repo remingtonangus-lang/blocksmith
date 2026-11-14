@@ -1933,8 +1933,7 @@ final class World: LifeLinked {
         guard World.deferBuried && fieldTerrain && dim != .deep else { return todo }
         let k = ChunkKey(x: c.cx, z: c.cz)
         if nearBuried(k) { return todo }
-        let low = buriedLow(c)
-        guard low > 16 else { return todo }
+        guard let low = buriedLow(c), low > 16 else { return todo }
         var keep: [(Int, Int)] = []
         keep.reserveCapacity(todo.count)
         for (sy, v) in todo {
@@ -1943,13 +1942,61 @@ final class World: LifeLinked {
         return keep
     }
 
-    // The lowest ground top over a chunk and its eight neighbours (an unloaded neighbour: the chunk's own).
-    private func buriedLow(_ c: Chunk) -> Int {
+    // The lowest ground top over a chunk and its eight neighbours; nil when a neighbour's is not known.
+    // Ledger 129 (Nov 14, his beach at 2995 64 3522: "that's a huge tear", a band of sky along a chunk line where the
+    // sand steps down one block from y 64 to 63): a neighbour that was a shell or not made yet was left out, so the
+    // answer was the chunk's own lowest top. The section under a surface at a section line (ground tops at 128, section
+    // 7) holds no ground of its own but draws the quads that join that surface to a neighbour's one block lower, at 127
+    // (the dual cells straddling the chunk line): with the neighbour left out it counted as buried, and each time he
+    // crossed a chunk line the pass that gives buried meshes back emptied it in the chunks at the edge of the land that
+    // keeps its blocks and at the edge of the view, where neighbours are shells or still to come. BS_OLDBURIEDLOW=1.
+    static let oldBuriedLow = ProcessInfo.processInfo.environment["BS_OLDBURIEDLOW"] == "1"
+    private func buriedLow(_ c: Chunk) -> Int? {
         var low = c.groundLow
         for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
-            if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], !n.hollow { low = min(low, n.groundLow) }
+            if World.oldBuriedLow {
+                if let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], !n.hollow { low = min(low, n.groundLow) }
+                continue
+            }
+            guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)], let g = n.groundLowKnown else { return nil }
+            low = min(low, g)
         } }
         return low
+    }
+
+    // (harness, ledger 129) Sections left unmeshed as buried that hold the ground's surface: every chunk whose own
+    // and eight neighbours' lowest ground tops are known, each deferred section reaching over the lowest of them.
+    func wrongDeferred() -> (checked: Int, wrong: [String]) {
+        var checked = 0, out: [String] = []
+        for (k, c) in chunks where c.deferredBuried > 0 {
+            guard var low = c.groundLowKnown else { continue }
+            var known = true
+            for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
+                guard let n = chunks[ChunkKey(x: k.x + dx, z: k.z + dz)], let g = n.groundLowKnown else { known = false; continue }
+                low = min(low, g)
+            } }
+            guard known else { continue }
+            checked += 1
+            for sy in 0..<NSEC where c.sections[sy].deferred && (sy + 1) * 16 > low {
+                out.append("chunk \(k.x) \(k.z) section \(sy) (lowest ground top round it \(low - YOFF))\(c.hollow ? " shell" : "")")
+            }
+        }
+        return (checked, out)
+    }
+    // (harness) Sections of the chunks within r of a centre that are flagged unmeshed, and those with an empty mesh
+    // under the chunk's lowest ground that carry no flag (a mesh read back from the disk without it).
+    func buriedState(center: ChunkKey, r: Int) -> (flagged: Int, unflagged: Int) {
+        var a = 0, b = 0
+        for dz in -r...r { for dx in -r...r {
+            guard let c = chunks[ChunkKey(x: center.x + dx, z: center.z + dz)], !c.hollow, c.meshedOnce else { continue }
+            let low = c.groundLow
+            for sy in 0..<NSEC {
+                let s = c.sections[sy]
+                if s.deferred { a += 1 }
+                else if (sy + 1) * 16 <= low - 16 && sy * 16 >= 64 && s.meshedVersion >= 0 && s.empty && s.vis == 0 { b += 1 }
+            }
+        } }
+        return (a, b)
     }
 
     private func nearBuried(_ k: ChunkKey) -> Bool {
@@ -2077,8 +2124,7 @@ final class World: LifeLinked {
             // Past the ring by two (not see-sawing at its edge), and only when the ring didn't just grow: buried
             // sections meshed while he was near give their meshes back.
             if d > rKeep + 1 && !wasUnder && !under && c.meshedOnce && !c.meshInFlight {
-                let low = buriedLow(c)
-                guard low > 16 else { continue }
+                guard let low = buriedLow(c), low > 16 else { continue }
                 for sy in 0..<min(NSEC, low / 16) where !c.sections[sy].deferred && !c.sections[sy].needsMesh && c.sections[sy].meshedVersion >= 0 {
                     deferSection(c, sy)
                 }
