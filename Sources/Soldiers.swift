@@ -455,7 +455,7 @@ extension Mob {
         if b.losTimer <= 0 {
             b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
             MobManager.stage("before sees")
-            b.sees = canTarget && dist < (aggro ? Soldier.sight(r, gun: b.gun, fighting: true) : Soldier.notice(r, sneaking: g.player.sneaking)) * WeatherWar.sight && w.canSee(eye, g.player.eye, except: g.playerCarrier(for: self))    // O7: fog and storms
+            b.sees = canTarget && dist < (aggro ? Soldier.sight(r, gun: b.gun, fighting: true) : Soldier.notice(r, sneaking: g.player.sneaking)) * WeatherWar.sight && w.canSee(eye, g.player.eye, except: g.playerCarrier) && !g.hullHides(self, eye, g.player.eye)    // O7: fog and storms
             MobManager.stage("sees")
         }
         let sees = b.sees && canTarget
@@ -882,8 +882,8 @@ extension Mob {
         // (Nov 4, callgrind of the worst-case soak: a soldier ready to fire with a wall in the way traced the line and the
         // thin cover again every tick, 39 a tick, a third of the mob tick; blocked, it looks again in a fifth of a second.)
         // (Nov 12: at him in a vehicle, its hull is what the rounds strike, not cover: Game.playerCarrier.)
-        let carrier = simd_length(target - g.player.eye) < 1.5 ? g.playerCarrier(for: self) : -1
-        guard g.world.clearShot(muzzle, target, except: carrier) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else {
+        let carrier = simd_length(target - g.player.eye) < 1.5 ? g.playerCarrier : -1
+        guard (g.world.clearShot(muzzle, target, except: carrier) && !(carrier >= 0 && g.hullHides(self, muzzle, target))) || BlockWear.thinCover(g.world, muzzle, target, max: 2) else {
             b.aimTime = 0; b.shotTimer = max(b.shotTimer, 0.2); MobManager.stage("fire: line"); return
         }
         MobManager.stage("fire: line")
@@ -1103,12 +1103,12 @@ extension Mob {
             // Nov 12 playtest (in the Ironback Crawler: "Greywall base guns don't fire at me in the crawler, only on foot"):
             // the sight line ran to his eye inside the hull, and a ship's hull hides what is behind it (P434 a), so the
             // crawler hid its own driver. The vessel he is in is what the gun sees (Game.playerCarrier).
-            b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye, except: g.playerCarrier(for: self))
+            b.sees = canTarget && g.world.canSee(pivot + V3(0, 0.8, 0), g.player.eye, except: g.playerCarrier) && !g.hullHides(self, pivot + V3(0, 0.8, 0), g.player.eye)
             // P504 (Nov 1 07:27:56-07:28:11: "as soon as the base is in [range], it is able to spot me because of its
             // special radar ability. And then its naval guns just immediately evaporate me if they can. Have to have a
             // clear line of fire"): a base's gun knows him in its reach by radar and lays on him; it fires once the
             // line from its muzzle is clear (its own parapet hid him from the turret's middle at a wall's foot).
-            b.lineClear = b.sees || canTarget && g.world.canSee(HeavyTurret.muzzle(self, 0), g.player.eye, except: g.playerCarrier(for: self))
+            b.lineClear = b.sees || canTarget && g.world.canSee(HeavyTurret.muzzle(self, 0), g.player.eye, except: g.playerCarrier) && !g.hullHides(self, HeavyTurret.muzzle(self, 0), g.player.eye)
             b.crewed = deckGunCrewed(g)
             if !b.crewed && factionValue != .greywall && !consoleGun(g) { claimGunner(g) }
             if !GunParts.supported(self, g.world) { GunParts.fall(self, g); return }         // P465: its tower shot away

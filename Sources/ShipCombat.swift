@@ -402,6 +402,23 @@ extension ShipManager {
 
     // The first solid ship block along a segment (0.4-block steps), skipping the root `except`: hand-held rockets
     // and heavy gun shells (Armory) flew straight through hulls.
+    // Nov 13 (ledger 118): whether the vessel `root` (its parts too) has a block between two points aboard her, the
+    // 0.8 at either end left out.
+    func hullBetween(_ root: Ship, _ a: V3, _ b: V3) -> Bool {
+        let d = b - a
+        let len = simd_length(d)
+        guard len > 1.7 else { return false }
+        let n = max(1, Int(ceil((len - 1.6) / 0.4)))
+        for s in list where s.root === root {
+            for i in 0...n {
+                let t = 0.8 + (len - 1.6) * Float(i) / Float(n)
+                let l = s.toLocal(a + d * (t / len))
+                if Blocks.collide[Int(s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))))] { return true }
+            }
+        }
+        return false
+    }
+
     func segmentHit(_ o: V3, _ d: V3, _ len: Float, except: Int) -> (Float, Ship)? {
         let lo = simd_min(o, o + d * len), hi = simd_max(o, o + d * len)
         for s in list where hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
