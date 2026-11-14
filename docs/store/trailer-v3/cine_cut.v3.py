@@ -48,11 +48,10 @@ CUT = [
     _shot("v3_cave", 2.8, "Explore the caves below", 1.0),
     # ACT II: trouble comes (ash_vault_battle.m4a drops here)
     _shot("v3_outlaws", 4.6, "Defend your town from outlaws", 1.2),
-    _shot("v3_frigate", 3.0, "Take command of a sky frigate", 0.6),
-    _shot("v3_strike2", 3.4, "and bring its main gun to bear", 1.3),     # the gun charging, bow on, then the blast
+    _shot("v3_strike2", 4.4, "Command a sky frigate's main gun", 0.9),     # from the deck behind the gun: it charges, fires, the blast
     _shot("v3_base", 2.6, "Infiltrate an enemy base", 1.0),
     # ACT III: deeper
-    _shot("v3_vault", 3.4, "Then go deeper, to the war below", 0.8),
+    _shot("v3_vault", 3.4, "Bring down war machines in the Deep", 0.8),
     _shot("v3_finale", 3.6, None, 0.8),
 ]
 TITLE = 4.5
