@@ -7,7 +7,8 @@ import simd
 //   (2) rock: the same room 23 across stands;
 //   (3) a 294-cell boulder on four neck cells: two of them carved away it stands, three it comes down;
 //   (4) a boulder the world came with on one neck cell (no weighing would pass it) is left alone by a dig at its corner;
-//   (5) earth, 23 across, with props every other cell: the roof stands.
+//   (5) earth, 23 across, with props every other cell: the roof stands;
+//   (6) the props taken away: it comes down.
 enum GroundWeighTests {
     static func run(_ g0: Game, check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds
@@ -135,6 +136,14 @@ enum GroundWeighTests {
         settle()
         let propped = cover(px, pz, 23, side: 31)
         check(propped == 1587, "groundweigh (5): the same earth roof on props every other cell stands (\(propped) of 1587 cover cells left, \(GroundWeigh.fell - fell3) fell)")
+        // (6) the props taken away: the roof they carried comes down
+        for z in stride(from: pz + a, to: pz + a + 23, by: 2) { for x in stride(from: px + a, to: px + a + 23, by: 2) {
+            for y in (H - 5)...(H - 3) { w.setBlock(x, y, z, AIR) }
+        } }
+        let fell4 = GroundWeigh.fell
+        settle()
+        let unpropped = (H - 2...H).filter { w.groundAt(px + 15, $0, pz + 15) }.count
+        check(unpropped == 0 && GroundWeigh.fell > fell4, "groundweigh (6): the props taken away, the roof comes down (\(unpropped) of 3 left over the middle, \(GroundWeigh.fell - fell4) cells fell)")
         print(String(format: "groundweigh: %d weighings, slowest %.1f ms off the frame, worst read slice %.2f ms", GroundWeigh.weighed, GroundWeigh.worstSolveMs, GroundWeigh.worstSliceMs))
     }
 }

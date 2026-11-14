@@ -1333,6 +1333,10 @@ if let out = arg("--view"), let ctx = vkctx {
             play(0.5)
         }
         play(Double(arg("--settle") ?? "") ?? 3)
+        // (weighings and falls still under way: played out, a minute at most)
+        var extra = 0
+        while vg.world.groundWeigh.busy && extra < 60 * 72 { play(1.0 / 72); extra += 1 }
+        print(String(format: "view: blasts: %d more frames till the ground was still; worst fall slice %.2f ms", extra, GroundWeigh.worstDropMs))
         print(String(format: "view: blasts: ground weighed %d times, %d cells came down, %d left that had no way down before; last %d cells in %.1f ms off the frame, worst read slice %.2f ms; worst tick %.1f ms (%@)",
                      GroundWeigh.weighed - w0, GroundWeigh.fell - f0, GroundWeigh.spared - s0, GroundWeigh.lastCells, GroundWeigh.lastSolveMs, GroundWeigh.worstSliceMs, worst, why))
     }
@@ -4462,6 +4466,8 @@ if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deepte
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
 WeakLinkTests.run(check: check)       // (ledger 128: a link read while its object is let go)
+check(!LifeLink.sideTable(game.world) && !LifeLink.sideTable(game) && !LifeLink.sideTable(game.world.ships),
+      "weaklink: the world, the game and the ships have no side table after the run (no `weak` reference was made to them)")
 if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "borealtest: all checks passed" : "borealtest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 
 // Greywall Command bases (Sources/GreywallTests.swift, backlog A1): the faction, rarity, and a real base of every tier walked.

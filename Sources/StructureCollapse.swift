@@ -123,7 +123,7 @@ enum StructureCollapse {
 
     // A change whose check stopped at its bound: the piece at p is weighed whole once things are quiet.
     // (another world, a dimension entered or a save loaded: nothing read from the last one is carried over)
-    private static weak var owner: World?
+    @WeakLink private static var owner: World?      // (not `weak`: that gives the world a side table and its links the slow, unsure read: WeakLink.swift, ledger 128)
     @inline(__always) private static func own(_ w: World) { if owner !== w { reset(); owner = w } }
     static func request(_ w: World, at p: IVec3, ground: Bool = false) {
         guard enabled, w.frame == nil else { return }

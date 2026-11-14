@@ -27,7 +27,9 @@ final class LifeLink {
     // 2", which the full check run met about once in four (a world let go on the main thread while a worker's job read
     // its link). Now one compare-and-swap on the count word does both: only a word that says alive is raised.
     // BS_OLDWEAKLINK=1: as before. `--weaklinktest` makes and lets go objects under three readers.
-    static var old = ProcessInfo.processInfo.environment["BS_OLDWEAKLINK"] == "1"
+    // (the word's layout is the 64-bit runtimes'; an object that got a side table, from a `weak` reference made to it
+    // after all, still takes the old read below: no linked class has one)
+    static var old = ProcessInfo.processInfo.environment["BS_OLDWEAKLINK"] == "1" || MemoryLayout<Int>.size != 8
     var object: AnyObject? {
         if !LifeLink.old {
             let word = address + MemoryLayout<Int>.size
@@ -59,6 +61,11 @@ final class LifeLink {
         let bits = address.load(fromByteOffset: MemoryLayout<Int>.size, as: UInt64.self)
         if bits >> 63 == 0 && (bits >> 32) & 1 != 0 { Unmanaged<AnyObject>.fromOpaque(address).release(); return nil }
         return Unmanaged<AnyObject>.fromOpaque(address).takeRetainedValue()
+    }
+    // Has the object been given a side table (a `weak` reference made to it)? Then its links take the old read.
+    static func sideTable(_ o: AnyObject) -> Bool {
+        let bits = Unmanaged.passUnretained(o).toOpaque().load(fromByteOffset: MemoryLayout<Int>.size, as: UInt64.self)
+        return bits >> 63 != 0 && UInt32(truncatingIfNeeded: bits) != UInt32.max       // (not an immortal one)
     }
     @inline(never) private static func retain(_ p: UnsafeMutableRawPointer) { _ = Unmanaged<AnyObject>.fromOpaque(p).retain() }
 }
