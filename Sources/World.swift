@@ -140,6 +140,11 @@ final class World: LifeLinked {
     private(set) var deferredTotal = 0          // (harness: sections deferred so far)
     // Split-screen co-op (Coop.swift): the second player's position, streamed around like the first (nil when alone).
     var extraCenter: V3?
+    // Nov 14 (Remington: "no vehicles were on the platform", "make it so the circuit playground doesn't fall into
+    // pieces because of the physics, add supports"): a test world's deck, the Proving Grounds' 300 up and the Sparkstone
+    // Workshop's 10 over the land, stood on nothing the load checks count as ground, so a change on it weighed the deck
+    // with what stood on it and brought the lot down. Its floor layer is held like bedrock (Structure.anchor).
+    var heldDeck = HeldDeck.none
     private var lastExtra: ChunkKey?
     private var scanExtra: ChunkKey?
     private var offsets: [(Int, Int, Int)] = []

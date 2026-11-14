@@ -2162,6 +2162,21 @@ enum HDTex {
                 }
             } }
             return img
+        case "piston_side_up", "piston_side_down", "piston_side_left", "piston_side_right":
+            // Nov 13 playtest (13:06:38, "Pistons look like shit"): the side's wooden head band sat on the texture's top
+            // edge whichever way the piston faced (a piston facing east wore it along its top). One per way the head
+            // points on the face (BlockRegistry.arrowWay), the band on that edge.
+            let src = sparkFaceImage("piston_side", n, s)
+            var img = Img(n)
+            for y in 0..<n { for x in 0..<n {
+                switch kind {
+                case "piston_side_down": img[x, y] = src[x, n - 1 - y]
+                case "piston_side_left": img[x, y] = src[y, x]
+                case "piston_side_right": img[x, y] = src[y, n - 1 - x]
+                default: img[x, y] = src[x, y]
+                }
+            } }
+            return img
         case "piston_inner":
             var img = casing(frame: false)
             rod(&img, 5 * u, 11 * u, 5 * u, 11 * u)
@@ -6147,6 +6162,10 @@ enum HDTex {
         "piston_top": sparkFace("piston_top"),
         "piston_top_sticky": sparkFace("piston_top_sticky"),
         "piston_side": sparkFace("piston_side"),
+        "piston_side_up": sparkFace("piston_side_up"),
+        "piston_side_down": sparkFace("piston_side_down"),
+        "piston_side_left": sparkFace("piston_side_left"),
+        "piston_side_right": sparkFace("piston_side_right"),
         "piston_inner": sparkFace("piston_inner"),
         "piston_bottom": sparkFace("piston_bottom"),
         "piston_rod": sparkFace("piston_rod"),

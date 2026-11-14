@@ -265,6 +265,7 @@ final class ItemRegistry {
         item("netherite_horse_armor", "Duskium Horse Armor", "horse_armor", 0x5A555A, stack: 1)   // smithing upgrade of diamond
         item("lead", "Lead", "lead", 0xB08A5A)
         item("spyglass", "Spyglass", "spyglass", 0xC8783A, ["c": 0xE8C040], stack: 1)
+        item("parachute", "Parachute", "parachute", 0x6E7446, ["s": 0xD8D0B8], stack: 1)        // Parachute.swift
         for (_, disp, need) in Banners.patterns { if let n = need { item(n, "Banner Pattern (\(disp))", "paper", 0xE0D8C0, ["a": 0x5A5040], stack: 1) } }
         item("armor_stand", "Armor Stand", "armor_stand", 0x9A7A4A, stack: 16)
         item("cocoa_beans", "Cocoa Beans", "seeds", 0x7A4A2A)

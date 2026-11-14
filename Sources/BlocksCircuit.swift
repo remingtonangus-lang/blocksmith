@@ -17,6 +17,7 @@ import Foundation
 // dir6: 0 down, 1 up, 2 north(-Z), 3 south(+Z), 4 west(-X), 5 east(+X). facing (4): 0 north, 1 south, 2 west, 3 east.
 extension BlockRegistry {
     static let oldSignalTorch = ProcessInfo.processInfo.environment["BS_OLDSIGNALTORCH"] == "1"
+    static let oldPistonLook = ProcessInfo.processInfo.environment["BS_OLDPISTONLOOK"] == "1"
     static let dir6 = [IVec3(0, -1, 0), IVec3(0, 1, 0), IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)]
     static let buttonWoods = ["oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "crimson", "warped", "pale_oak"]
 
@@ -254,6 +255,16 @@ extension BlockRegistry {
                 let k = dd + (ext ? 6 : 0)
                 var d = state(k == 0 ? n : "\(n)[\(k)]", n, sticky ? "Sticky Piston" : "Piston", k == 0)
                 d.tex = BlockRegistry.facedTex(dd, front: ext ? "piston_inner" : (sticky ? "piston_top_sticky" : "piston_top"), back: "piston_bottom", side: "piston_side")
+                if !BlockRegistry.oldPistonLook {
+                    // Nov 13 playtest (13:06:38, the workshop's piston door: "Pistons look like shit"): the sides' wooden
+                    // head band followed the texture, not the head (along the top of a piston facing east, on the
+                    // extended body whose head had gone out). Retracted, the band is on the head's edge of each side;
+                    // extended, the body is bare casing (BS_OLDPISTONLOOK=1: as before).
+                    let toHead = BlockRegistry.dir6[dd]
+                    for f in 0..<6 where d.tex[f] == "piston_side" {
+                        d.tex[f] = ext ? "machine_casing" : "piston_side_" + BlockRegistry.arrowWay(face: f, toHead)
+                    }
+                }
                 d.hardness = 1.5; d.tool = .pickaxe; d.shape = "piston"
                 if ext { d.render = .model; d.opaque = false; d.boxes = [BlockRegistry.slab6([1, 0, 3, 2, 5, 4][dd], from: 0, to: 12)] }
                 add(d)
@@ -264,7 +275,11 @@ extension BlockRegistry {
             var d = state(k == 0 ? "piston_head" : "piston_head[\(k)]", "piston_head", "Piston Head", k == 0)
             d.tex = BlockRegistry.facedTex(dd, front: sticky ? "piston_top_sticky" : "piston_top", back: "piston_top", side: "piston_side")
             d.render = .model; d.opaque = false; d.hardness = 1.5; d.tool = .pickaxe; d.hidden = true; d.skyStop = false
-            let plate = BlockRegistry.slab6(dd, from: 0, to: 4)
+            var plate = BlockRegistry.slab6(dd, from: 0, to: 4)
+            if !BlockRegistry.oldPistonLook {
+                // (the plate's thin sides are the head's planks, not 4 px of the body's side)
+                plate.tex = d.tex.map { Tex.id($0 == "piston_side" ? "oak_planks" : $0) }
+            }
             let arm: Box
             switch dd {
             case 0: arm = Box(6, 4, 6, 10, 16, 10)
