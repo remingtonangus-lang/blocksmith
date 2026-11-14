@@ -242,6 +242,13 @@ enum Cinema {
             g.health = 20
         }
         func calm() {
+            // Nov 14 (v3d/v3e reviews: "a dark blade sweeps through the camera", "a sheared tarp of leaves"): a field
+            // dug in under a tree cut its trunk, and the felled tree came down across the view. Staged plots and
+            // walls clear what they cut into: no felled bodies in the footage.
+            if !Felling.falls.isEmpty {
+                for f in Felling.falls { if let sh = f.ship { w.ships.remove(sh) } }
+                Felling.falls.removeAll()
+            }
             guard s.peaceful == true else { return }
             let night: Set<MobKind> = [.zombie, .skeleton, .creeper, .spider, .enderman, .witch, .slime, .phantom, .drowned, .husk, .stray,
                                        .caveSpider, .zombieVillager, .silverfish, .endermite, .bogged, .parched]
