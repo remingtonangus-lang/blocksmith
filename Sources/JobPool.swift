@@ -18,7 +18,7 @@ final class JobPool {
     init(workers: Int) {
         self.workers = workers
         for i in 0..<workers {
-            let t = Thread { [unowned self] in self.run() }
+            let t = Thread { [unowned self] in self.run(i) }
             t.name = "blocksmith.world.\(i)"
             t.qualityOfService = .userInitiated
             t.stackSize = 8 << 20
@@ -35,16 +35,18 @@ final class JobPool {
     func add(_ job: @escaping () -> Void) {
         cond.lock()
         jobs.append(job)
+        let h = held
         cond.unlock()
-        cond.signal()
+        if h > 0 { cond.broadcast() } else { cond.signal() }      // (a held worker woken alone would sleep on the job)
     }
 
     // P414: ahead of every waiting job (the ground under and ahead of the player).
     func addFront(_ job: @escaping () -> Void) {
         cond.lock()
         if head > 0 { head -= 1; jobs[head] = job } else { jobs.insert(job, at: 0) }
+        let h = held
         cond.unlock()
-        cond.signal()
+        if h > 0 { cond.broadcast() } else { cond.signal() }
     }
 
     // Blocks until every job added so far has finished (World.deterministic harness runs; never from a worker).
@@ -61,13 +63,28 @@ final class JobPool {
     // helper (or the frame thread) goes first. The Mac keeps its quality-of-service classes. BS_WORKERNICE=0: as before.
     static let nice: Int32 = Int32(ProcessInfo.processInfo.environment["BS_WORKERNICE"] ?? "") ?? 5
 
-    private func run() {
+    // Ledger 126 (FrameGovernor): after late frames the first `held` workers take no new job (one already under way
+    // finishes), so the frame's own threads get the cores; never all of them. Jobs sent ahead of the queue (the ground
+    // under the player) still go at once on the workers left.
+    private var held = 0
+    func setHeld(_ n: Int) {
+        let h = max(0, min(workers - 1, n))
+        cond.lock()
+        let changed = h != held
+        held = h
+        cond.unlock()
+        // (lowered: the held wake. Raised: a worker signalled for a job and now held would sleep on it, so all look.)
+        if changed { cond.broadcast() }
+    }
+    var heldNow: Int { cond.lock(); defer { cond.unlock() }; return held }
+
+    private func run(_ index: Int) {
         #if os(Linux) || os(Android)
         if JobPool.nice > 0 { _ = jobPoolSetPriority(0, 0, JobPool.nice) }      // (PRIO_PROCESS, this thread)
         #endif
         while true {
             cond.lock()
-            while head == jobs.count { cond.wait() }
+            while head == jobs.count || index < held { cond.wait() }
             let job = jobs[head]
             jobs[head] = {}
             head += 1

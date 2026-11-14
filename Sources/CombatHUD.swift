@@ -404,4 +404,20 @@ extension Game {
         return s.root.id
     }
     static let oldCarrier = ProcessInfo.processInfo.environment["BS_OLDCARRIER"] == "1"
+    // Nov 13 (playtest 12:47:55-12:49:10, inside the Meridian Frigate he had taken: "There's people who are shooting at
+    // me even though they don't have a line of sight", "People are shooting at me through walls... That's definitely a
+    // glitch"; ledger 118): the rule above made the hull he was in no cover from anyone, her own marines on the next
+    // deck included: they saw him through every bulkhead, and their arc bolts (Armory.beam) never stopped on a hull.
+    // To a foe aboard the same vessel her hull is a hull. BS_OLDSHIPSIGHT=1: seen through, and bolts through hulls.
+    // Checked beside the sight line that passes her (`except: playerCarrier`): the hull between the two of them hides
+    // him, the cells within 0.8 of either's eyes left out (a marine standing in rubble or a doorway, him in a seat).
+    // The same vessel, not the same number: ship ids start again in every world.
+    func hullHides(_ m: Mob, _ a: V3, _ b: V3) -> Bool {
+        guard !Game.oldCarrier, !Game.oldShipSight, let s = world.ships.pilot ?? world.ships.aboard, let d = m.deck, d.root === s.root else { return false }
+        let hid = world.ships.hullBetween(s.root, a, b)
+        if Game.sightLog { print("sight: \(m.kind.key) shares \(s.root.name) (\(s.root.id), \(s.root.blockCount) blocks) with him: hull between \(hid)") }
+        return hid
+    }
+    static let sightLog = ProcessInfo.processInfo.environment["BS_SIGHTLOG"] == "1"
+    static let oldShipSight = ProcessInfo.processInfo.environment["BS_OLDSHIPSIGHT"] == "1"
 }

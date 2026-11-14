@@ -869,6 +869,8 @@ final class QuestControls {
         lastFeet = game.player.pos
     }
 
+    static let oldTorchHeld = ProcessInfo.processInfo.environment["BS_OLDTORCHHELD"] == "1"
+
     // The held gun model's offset in the hand's frame (drawHeld): the screen model's sight is at its origin, so the
     // eyepiece of the drawn gun sits at the hand plus this shift.
     static func heldGunShift(_ gi: Int) -> V3 {
@@ -1194,6 +1196,24 @@ final class QuestControls {
     static let quadOrder = [0, 1, 2, 0, 2, 3]
     static let faceShades: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     // Controller model boxes (centre, half size): grip, pointer nose, top plate.
+    static let oldHands = ProcessInfo.processInfo.environment["BS_OLDHANDS"] == "1"
+    // The glove in the grip pose (metres; -Z along the pointing direction, +Y up): back of the hand over the grip,
+    // knuckles, four curled fingers wrapped under and in front, the thumb (mirrored to the hand's inner side), the cuff.
+    static let gloveParts: [(c: V3, half: V3, shade: Float, cuff: Bool, mirror: Bool)] = [
+        (V3(0, 0.012, 0.0), V3(0.03, 0.026, 0.042), 1.0, false, false),           // back of the hand and palm
+        (V3(-0.022, 0.04, -0.03), V3(0.007, 0.006, 0.008), 1.18, false, false),    // knuckles
+        (V3(-0.0075, 0.041, -0.031), V3(0.007, 0.006, 0.008), 1.12, false, false),
+        (V3(0.0075, 0.041, -0.031), V3(0.007, 0.006, 0.008), 1.18, false, false),
+        (V3(0.022, 0.04, -0.03), V3(0.007, 0.006, 0.008), 1.12, false, false),
+        (V3(-0.022, -0.004, -0.047), V3(0.0072, 0.028, 0.009), 0.9, false, false), // fingers, curled round the grip
+        (V3(-0.0075, -0.006, -0.049), V3(0.0072, 0.03, 0.009), 0.96, false, false),
+        (V3(0.0075, -0.006, -0.049), V3(0.0072, 0.03, 0.009), 0.9, false, false),
+        (V3(0.022, -0.004, -0.047), V3(0.0072, 0.026, 0.009), 0.96, false, false),
+        (V3(0.034, 0.03, -0.022), V3(0.01, 0.01, 0.026), 1.08, false, true),       // thumb over the top
+        (V3(0, 0.008, 0.052), V3(0.035, 0.031, 0.013), 0.72, false, false),        // the glove's flared cuff
+        (V3(0, 0.0, 0.11), V3(0.03, 0.03, 0.05), 1.0, true, false),                // the shirt sleeve at the wrist (a longer
+        // one swung through the view as the hand reached down, a dark slab across the trailer's farm shot)
+    ]
     static let controllerParts: [(V3, V3)] = [(V3(0, 0, 0.02), V3(0.018, 0.026, 0.05)), (V3(0, 0.012, -0.05), V3(0.012, 0.012, 0.03)),
                                               (V3(0, 0.03, 0.0), V3(0.035, 0.008, 0.035))]
     // Two triangles a b c, a c d.
@@ -1744,10 +1764,31 @@ final class QuestControls {
             // P260 (c): at the controls each hand holds one: a throttle lever (moving hand) or a helm grip (aiming hand),
             // a dark grip rising out of the fist with a brass cap.
             let pilot = game.world.ships.pilot != nil, lever = h == moveHand
+            // Nov 14 (the store trailer's blind reviews, twice: "nothing reads as VR: no hands", "the hand is a grey L
+            // that reads as a stapler"): a gloved hand closed round the controller's grip in place of the bare grip
+            // block, nose and plate: a tan leather glove, knuckles and four
+            // curled fingers in front, the thumb over the top, a flared cuff and a shirt sleeve (the worn chest piece as a bracer). BS_OLDHANDS=1: the grip block.
+            if !QuestControls.oldHands {
+                let leather = V3(0.56, 0.39, 0.24), cuff = gauntlet?.color ?? V3(0.3, 0.34, 0.44)
+                let thumbX: Float = h == aimHand ? -1 : 1
+                for gp in QuestControls.gloveParts {
+                    let c = V3(gp.c.x * (gp.mirror ? thumbX : 1), gp.c.y, gp.c.z), half = gp.half
+                    let col = gp.cuff ? cuff : leather * gp.shade
+                    for f in 0..<6 {
+                        for k in QuestControls.quadOrder {
+                            let ci = (f * 4 + k) * 3
+                            let lp = c + V3(Float(CT[ci] * 2 - 1) * half.x, Float(CT[ci + 1] * 2 - 1) * half.y, Float(CT[ci + 2] * 2 - 1) * half.z)
+                            v.append(SimpleVert(pos: V4(rot.act(lp) + pos, 1), color: V4(col * shades[f], 1)))
+                        }
+                    }
+                }
+            }
             for pi in 0..<8 {
                 let c: V3, half: V3
                 switch pi {
-                case 0, 1, 2: (c, half) = QuestControls.controllerParts[pi]
+                case 0, 1, 2:
+                    guard QuestControls.oldHands else { continue }
+                    (c, half) = QuestControls.controllerParts[pi]
                 case 6:
                     guard gauntlet != nil else { continue }
                     (c, half) = (V3(0, -0.012, 0.125), V3(0.032, 0.031, 0.05))         // the bracer down the forearm
@@ -1891,6 +1932,7 @@ final class QuestControls {
     private func drawHeld(_ s: SceneRenderer.Slot, eye: V3) {
         // A frame without a valid aim pose (tracking blip) keeps the last one instead of hiding the tool.
         if app.input.hands[aimHand].aimValid { lastAimHand = app.input.hands[aimHand] }
+        game.vrMuzzle = nil
         guard let hd = lastAimHand, game.menu == nil, !game.paused, game.sleeping == 0 else { drawnAim = nil; return }
         let held = game.held
         if held.isEmpty || scopeT > 0.5 { drawnAim = nil; return }            // (G21: looking through the scope, the rifle is out of view)
@@ -1903,6 +1945,9 @@ final class QuestControls {
         let l = game.world.lightAt(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
         let skyK: Float = 0.12 + 0.88 * game.renderDaylight
         let light = max(0.15, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
+        // Nov 14 (trailer review v3l: "the flash pops up to the left of the hand, nowhere near the barrel"): the flash
+        // goes at the muzzle of the gun as it is drawn, 3.2x and held out, not 0.2 m past the controller.
+        game.vrMuzzle = game.heldGun.flatMap { gi in gi < CapitalArms.models.count ? drawnPoint(CapitalArms.models[gi].muzzle) : nil }
         if let gi = game.heldGun {
             let (ptr, off, cap) = app.scene.reserve(s, MobVert.self, priority: true)
             guard cap > 2048 else { return }      // up to ~1700 with upgrade parts (Upgrades.gunParts) and the arm
@@ -1953,6 +1998,21 @@ final class QuestControls {
             // ~1.55 m, other tools / bows ~1.3 m, everything else a 40 cm icon.
             // Tools and weapons are held by the handle: the icon's grip texel (~3/16 in, 4/16 up) sits in the hand.
             let (h, tool) = heldSize()
+            // Nov 14 (Remington on the trailer's cave: "torch was not quite in hand"): a torch is held upright by its
+            // stick, the stick's lower texel (row 13 of 16) in the fist and its face turned to the eye, its flame lit
+            // whatever the light where he stands. Before it was a 40 cm icon floating 12 cm ahead of the hand, rolled
+            // on its side, and as dark as the cave. BS_OLDTORCHHELD=1: as before.
+            if !QuestControls.oldTorchHeld, let b = held.def.block, Blocks.shape[Int(b)] == "torch" || Items.key(held.item).hasSuffix("_torch") {
+                let tUp = rot.act(simd_normalize(V3(0, 1, 0.12))), tRight = rot.act(V3(1, 0, 0))
+                let tN = simd_normalize(simd_cross(tRight, tUp))
+                let c = pos + rot.act(V3(0, 0.0, -0.02)) + tUp * (0.625 * h)
+                let lit = Blocks.emit[Int(b)] > 0 ? max(light, 1) : light
+                heldQuads = wr.extrudedItem(center: c, half: h, right: tRight, up: tUp, normal: tN, thick: h / 8, layer: layer, light: lit)
+                app.scene.commit(off, wr.n, EntityVert.self)
+                app.scene.drawScratch(s, "entity", offset: off, count: wr.n)
+                if let m = prev { app.scene.addMotion(s, .entity, offset: off, count: wr.n, prev: m) }
+                return
+            }
             let c = tool ? pos + rot.act(V3(0, 0.01, -0.03)) + r * (0.62 * h) + up * (0.5 * h)
                                 : pos + rot.act(V3(0, 0.07, -0.12))
             // One texel (h/8) thick and closed: both faces plus a wall round every opaque texel (ItemExtrude.swift; the

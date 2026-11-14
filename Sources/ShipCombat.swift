@@ -125,6 +125,7 @@ extension ShipManager {
                     // Naval guns (fast, heavy shells) boom louder and further.
                     g.sfx(.shipCannon, t.gunPower > 3 ? 1.6 : 1, at: muzzle)
                     g.particles.smoke(at: muzzle)
+                    if sh.kind != 4 && sh.power >= NavalBurst.shipPower { NavalBurst.muzzle(at: muzzle, dir: dir, carry: t.velocity(at: muzzle), g) }   // (ledger 122)
                     g.baseNoise(at: muzzle, kind: .cannon, hostile: s.factionValue != .steelhold)   // the Capital's own guns don't alarm it
                 }
             }
@@ -275,6 +276,18 @@ extension ShipManager {
                         if !sh.gentle && !m.kind.shellProof {
                             if g.world.ships.pilot?.root.id == sh.owner { m.killedByPlayer = true; m.playerHurtAt = g.clock }
                             m.hit(from: p - simd_normalize(sh.vel + V3(0, 1e-4, 0)) * 2, damage: m.health + 1000, knockback: 1.2)
+                        } else if !sh.gentle && sh.kind != 3 && ShipManager.gunsDie && (m.kind == .deckGun || m.kind.ashVehicle && m.kind != .ashBehemoth),
+                                  g.world.ships.pilot?.root.id == sh.owner || list.first(where: { $0.id == sh.owner })?.factionValue != m.factionValue {
+                            // Nov 13 (playtest 12:51:36 over a Boreal Station, from the frigate he had taken: "I feel like I
+                            // absolutely obliterated this gun. I don't know how it didn't die"; ledger 119): a ship's round
+                            // that struck a gun or a vehicle was only its burst beside it (through the plate, a few points,
+                            // and nothing while the last one still counted). The round's own weight lands on what it
+                            // strikes, past the plate. BS_OLDGUNSDIE=1: the burst only.
+                            if g.world.ships.pilot?.root.id == sh.owner { m.killedByPlayer = true; m.playerHurtAt = g.clock }
+                            Mob.plateHit = true
+                            m.invulnerable = 0
+                            m.hit(from: p - simd_normalize(sh.vel + V3(0, 1e-4, 0)) * 2, damage: Int((sh.power * 14).rounded()), knockback: 0)
+                            Mob.plateHit = false
                         }
                         hit = p; break
                     }
@@ -335,6 +348,8 @@ extension ShipManager {
                 // P507 (Nov 1 12:27:33, his frigate's autocannons on a Capital tower: "Frigate's little guns didn't do enough
                 // damage to this building"): shells from a gun he steers are high-explosive and breach as his rockets do
                 // (a wall's blocks stand to them as if no harder than Guns.rocketBreach; a Capital Steel wall's 12 broke none).
+                // (ledger 122, before the blast opens the ground: the burst reads what it struck)
+                if (kind == 0 || kind == 6) && power >= NavalBurst.shipPower { NavalBurst.burst(at: at, power: power, along: vel, g) }   // (ledger 122)
                 Explosion.explode(at: at, power: power, game: g, breakBlocks: !gentle, resistCap: steered ? Guns.rocketBreach : .infinity,
                                   along: onHull ? nil : vel)   // (P357 e)
                 TickProf.mark("shells: explode")
@@ -390,6 +405,23 @@ extension ShipManager {
 
     // The first solid ship block along a segment (0.4-block steps), skipping the root `except`: hand-held rockets
     // and heavy gun shells (Armory) flew straight through hulls.
+    // Nov 13 (ledger 118): whether the vessel `root` (its parts too) has a block between two points aboard her, the
+    // 0.8 at either end left out.
+    func hullBetween(_ root: Ship, _ a: V3, _ b: V3) -> Bool {
+        let d = b - a
+        let len = simd_length(d)
+        guard len > 1.7 else { return false }
+        let n = max(1, Int(ceil((len - 1.6) / 0.4)))
+        for s in list where s.root === root {
+            for i in 0...n {
+                let t = 0.8 + (len - 1.6) * Float(i) / Float(n)
+                let l = s.toLocal(a + d * (t / len))
+                if Blocks.collide[Int(s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))))] { return true }
+            }
+        }
+        return false
+    }
+
     func segmentHit(_ o: V3, _ d: V3, _ len: Float, except: Int) -> (Float, Ship)? {
         let lo = simd_min(o, o + d * len), hi = simd_max(o, o + d * len)
         for s in list where hi.x > s.worldMin.x && lo.x < s.worldMax.x && hi.y > s.worldMin.y
@@ -697,7 +729,7 @@ extension ShipManager {
             // (P441, Oct 24 20:50: "this log turned into a square": a felled trunk chopped in two left a "wreck" that drew
             // as cube logs; a felled tree's pieces are felled trees, round, and fall on their own)
             part.name = Felling.isFelled(s) ? Felling.name : s.name + " wreck"
-            if Felling.isFelled(s) { Felling.inherit(s, part) }
+            if Felling.isFelled(s) { Felling.inherit(s, part); part.slips = s.slips }
             part.rebuild()
             part.rot = s.rot
             part.pos = s.toWorld(off + part.com)

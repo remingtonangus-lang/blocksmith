@@ -317,6 +317,7 @@ final class Game: LifeLinked {
     var vrBow: (draw: Float, origin: V3, dir: V3)?
     // Quest: the aiming hand's ray (world), set each frame; the crossbow shoots from it (GameCombat.crossbowUse).
     var vrAim: (origin: V3, dir: V3)?
+    var vrMuzzle: V3?          // (VR) the drawn gun's muzzle in the world, last frame (QuestControls.drawHeld): the flash goes there
     var vrPinch: Float?                // VR, in a menu: the distance between the hands while both grips are held (P273 map pinch)
     var grapple: GrappleLine.Hook?           // a Grapple Line's hook, reeling the player in (SkyIsle.swift, C7)
     var consoleRadarUntil: Double = -1      // a citadel console's readout shows on the radar until then (FactionGear, P36)
@@ -3525,6 +3526,7 @@ final class Game: LifeLinked {
         TickProf.mark("ships.shockwaves: bowls")
         BlastShape.tick(self)                                  // ledger 42: craters shaped over the frames after a blast
         TickProf.mark("crater shaping")
+        if TreeGhosts.on { world.treeGhosts.tick(world) }      // ledger 123: ghosts that shape no wood any more go
         GroundCollapse.tick(self)                              // P351: loose ground after a carve falls
         TickProf.mark("ground collapse")
         Structure.tick(self)                                   // P388: built pieces near a change carry their load

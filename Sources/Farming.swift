@@ -60,7 +60,9 @@ extension Game {
             // (A seeded run, Rand.deterministic: no clock in it, so a replay or a harness duel draws the same numbers
             // however busy the host is: the main-gun suite's Gravesworn duel went 7.2 s to 9.8 s with the host's load.)
             let tDrawn = track ? CFAbsoluteTimeGetCurrent() : 0, cDrawn = track ? Explosion.threadMs() : 0
-            let deadline = Rand.deterministic ? .infinity : CFAbsoluteTimeGetCurrent() + RandomTickRng.frameSeconds
+            let tSlice = CFAbsoluteTimeGetCurrent()
+            let deadline = Rand.deterministic ? .infinity : tSlice + FrameGovernor.slice(.randomTicks, RandomTickRng.frameSeconds, most: 1)     // (ledger 126)
+            defer { if !Rand.deterministic { FrameGovernor.done(.randomTicks, since: tSlice) } }
             var k = 0, frameWorst = 0.0
             for (p, b) in hits where world.materialAt(p.x, p.y, p.z) == b {     // (an earlier tick may have changed it)
                 let t0 = track ? CFAbsoluteTimeGetCurrent() : 0
@@ -339,6 +341,10 @@ extension Game {
             world.setBlock(p0.x, p0.y, p0.z, sap)
             return
         }
+        // (ledger 123: the new trunk is measured fresh: ghosts of a tree cut here before, in its columns, go)
+        var cols: Set<SIMD2<Int>> = []
+        for (q, b) in changes where ShapeTrunks.isLog[Int(b)] { cols.insert(SIMD2(q.x, q.z)) }
+        world.treeGhosts.clear(columns: cols)
         for (q, b) in changes { world.setBlockAsync(q.x, q.y, q.z, b) }
         world.setBlock(p.x, p.y, p.z, world.materialAt(p.x, p.y, p.z))
     }

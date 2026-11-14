@@ -281,7 +281,8 @@ enum StructureCollapse {
         // One body a frame, lowest first.
         if j.next < o.parts.count {
             if paced {
-                if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
+                if let go = FrameGovernor.lump(.collapse, atLeast: wantSeconds) { if !go { return } }
+                else if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
                 waited = 0
             }
             let t0 = CFAbsoluteTimeGetCurrent()
@@ -304,14 +305,15 @@ enum StructureCollapse {
                 }
             } while !paced && j.next < o.parts.count
             let dt = CFAbsoluteTimeGetCurrent() - t0
-            if paced { CraterJob.spend(dt) }
+            if paced { CraterJob.spend(dt); FrameGovernor.learn(.collapse, dt) }
             worstBodyMs = max(worstBodyMs, dt * 1000)
             if j.next < o.parts.count { return }
         }
         // The loose blocks, `crumbsAFrame` a frame (a citadel's collapse leaves hundreds along the pieces' borders).
         while j.crumb < o.crumbs.count {
             if paced {
-                if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
+                if let go = FrameGovernor.lump(.collapse, atLeast: wantSeconds) { if !go { return } }
+                else if CraterJob.allowance() < wantSeconds && waited < maxWait { waited += 1; return }
                 waited = 0
             }
             let t0 = CFAbsoluteTimeGetCurrent()
@@ -341,7 +343,7 @@ enum StructureCollapse {
             if !cells.isEmpty { Structure.drop(g, cells) }
             w.restoring = was
             let dt = CFAbsoluteTimeGetCurrent() - t0
-            if paced { CraterJob.spend(dt) }
+            if paced { CraterJob.spend(dt); FrameGovernor.learn(.collapse, dt) }
             worstBodyMs = max(worstBodyMs, dt * 1000)
             if j.crumb < o.crumbs.count { return }
         }

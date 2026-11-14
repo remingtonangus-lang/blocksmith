@@ -462,10 +462,17 @@ final class CraterJob {
         }
         // (and what this tick has left of `tickTarget` by now: carving run late in the tick, after the mobs, waits
         // when they ran long. Never under the floor a tick, so a bowl always goes on.)
-        return min(allow - used, max(floorSeconds - used, tickTarget - TickProf.elapsed))
+        let own = min(allow - used, max(floorSeconds - used, tickTarget - TickProf.elapsed))
+        // (ledger 126: and what the frame has left by its own clock, FrameGovernor: with frames to spare the carving
+        // takes up to three times its slice, in a full frame its floor)
+        let room = FrameGovernor.left
+        guard FrameGovernor.armed, room.isFinite else { return own }
+        let k = max(0, min(1, (FrameGovernor.spare - 0.25) / 0.5))
+        let more = max(0, min(frameSeconds * 2 * k, room - frameSeconds - FrameGovernor.headroom))       // (past its slice: only clear of the headroom)
+        return max(floorSeconds - used, min(frameSeconds + more - used, room))
     }
     // Other ground carving drawing on the same allowance (the crawler's ruts).
-    static func spend(_ seconds: Double) { if inTick { _ = allowance(); used += seconds } }
+    static func spend(_ seconds: Double) { if inTick { _ = allowance(); used += seconds; FrameGovernor.charge(.carve, seconds) } }
     static var initCost = ""                 // (MainGunTests)
     static var worstStepMs = 0.0, worstStep = ""   // (the soak: the slowest timed step and where its time went)
     static var outside = 0                   // (P502: breaches burst outside the world, questcheck --turretfreeze)
@@ -555,7 +562,7 @@ final class CraterJob {
         defer {
             if stepPhase == nil { stepPhase = phase }     // (the innermost call's: a scan that finds nothing carves at once)
             let took = CFAbsoluteTimeGetCurrent() - began
-            if timed && CraterJob.inTick { CraterJob.used += took }
+            if timed && CraterJob.inTick { CraterJob.used += took; FrameGovernor.charge(.carve, took) }
             // (sections given their fine samples by a step that was not a prefetch: one at a time or not, a frame's cost)
             if timed && World.fineMade - fine0 > (phase.hasSuffix("fine prefetch") || fetchedNow ? 1 : 0) {
                 CraterJob.finesUnfetched += World.fineMade - fine0; CraterJob.stepsUnfetched += 1

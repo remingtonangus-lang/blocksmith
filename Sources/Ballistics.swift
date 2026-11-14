@@ -496,6 +496,7 @@ final class Armory {
         // P471: a heavy naval shell's blast is a blow of its own on the levels' caps (Game.hurtPlayer).
         Explosion.heavyShell = s.kind == .shell && s.power >= HeavyTurret.power
         defer { g.ashQuiet = false; g.blastSpares = .none; Explosion.heavyShell = false }
+        if Explosion.heavyShell { NavalBurst.burst(at: at, power: s.power, along: s.vel, g) }       // (ledger 122, before the ground is opened)
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: s.kind == .rocket || s.breaks,   // (P510 20:13: anyone's missile craters)
                           resistCap: s.breach, along: simd_length(s.vel) > 25 ? s.vel : nil)        // (P357 e: shells, not grenades)
         let hb0 = CFAbsoluteTimeGetCurrent()
@@ -508,8 +509,16 @@ final class Armory {
     // Hitscan energy beam (arc lance): damages and ignites the first thing it meets.
     func beam(_ g: Game, from o: V3, dir: V3, range: Float, damage: Float, fromPlayer: Bool, shooter: Mob?, by: String, incendiary: Bool = false) {
         var end = range
-        let struck = Armory.blockHit(g.world, o, dir, range)
+        var struck = Armory.blockHit(g.world, o, dir, range)
         if let b = struck { end = b.0 }
+        // Nov 13 (ledger 118, "shooting at me through walls" inside the frigate): a bolt stops on a ship's hull as a
+        // round does (P434 a); his own, fired aboard the hull he steers, clears her plates for the first 3 blocks.
+        if !Game.oldShipSight, !g.world.ships.list.isEmpty {
+            let own = fromPlayer && shooter == nil ? (g.world.ships.pilot?.root.id ?? -1) : -1
+            var hull = g.world.ships.segmentHit(o, dir, end, except: own)
+            if own >= 0, end > 3, let h = g.world.ships.segmentHit(o + dir * 3, dir, end - 3, except: -1), h.0 + 3 < (hull?.0 ?? .infinity) { hull = (h.0 + 3, h.1) }
+            if let h = hull, h.0 < end { end = h.0; struck = nil; g.sfx(.bulletImpact(.metal), 0.5, at: o + dir * end) }
+        }
         var mob: Mob?
         var player = false
         if let h = Armory.mobHit(g, o, dir, end, shooter: shooter.map { ObjectIdentifier($0) }, friendly: !fromPlayer, spareStock: !fromPlayer || shooter != nil,
@@ -652,6 +661,10 @@ extension MobKind {
         self == .soldierRecruit || self == .soldierTrooper || self == .soldierMarksman || self == .soldierIronclad || self == .deckGun
             || self == .soldierOfficer || self == .soldierCrew || self == .ashMarshal || self == .ashChancellor
     }
+}
+
+extension Game {
+    static let oldVRFlash = ProcessInfo.processInfo.environment["BS_OLDVRFLASH"] == "1"
 }
 
 extension Game {
@@ -887,11 +900,18 @@ extension Game {
         }
         let right = V3(cosf(player.yaw), 0, -sinf(player.yaw))
         let sideOff: Float = 0.2 * (1 - a.aim)
-        let flash: V3 = player.eye + look * 0.9 + right * sideOff - V3(0, 0.12, 0)
+        // Nov 14 (store trailer blind reviews, four in a row: "the muzzle flash floats in mid-air well away from the
+        // barrel, a flat yellow sprite"): in the headset the flash sat where the flat screen's gun is, 0.9 m ahead of the
+        // eyes and off to the side, whatever the hand was doing. With a tracked hand it is at the muzzle, 0.2 m on from
+        // the controller along its aim (a pistol's barrel), and smaller (it is that much nearer the eye than a far target). The rocket's
+        // back-blast smoke goes out behind the hand. BS_OLDVRFLASH=1: the screen-space flash.
+        let vrFlash = vrAim != nil && !Game.oldVRFlash
+        let flash: V3 = vrFlash ? (vrMuzzle.map { $0 + look * 0.05 } ?? muzzle - look * 0.1) : player.eye + look * 0.9 + right * sideOff - V3(0, 0.12, 0)
+        let fsize: Float = (gs.shot == .beam ? 0.12 : 0.16) * (vrFlash ? 0.4 : 1)
         particles.add(Particle(pos: flash, vel: look * 0.5, life: 0.05, maxLife: 0.05, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
-                               size: gs.shot == .beam ? 0.12 : 0.16, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6),
+                               size: fsize, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6),
                                collide: false, glow: true))
-        let smokeAt: V3 = player.eye - look * 0.6 + right * 0.2
+        let smokeAt: V3 = vrFlash ? muzzle - look * 0.9 : player.eye - look * 0.6 + right * 0.2
         if gs.shot == .rocket { for _ in 0..<6 { particles.smoke(at: smokeAt, dark: false) } }
     }
 

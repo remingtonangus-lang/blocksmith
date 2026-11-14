@@ -113,7 +113,9 @@ struct Livery {
             l.cloth = V3(0.36, 0.31, 0.24); l.legs = V3(0.19, 0.17, 0.15); l.plate = V3(0.27, 0.2, 0.13)
             l.trim = V3(0.58, 0.1, 0.08); l.metal = V3(0.44, 0.42, 0.38); l.accent = V3(0.66, 0.52, 0.28)
             l.glove = V3(0.3, 0.22, 0.14); l.boots = V3(0.17, 0.12, 0.08); l.glow = V3(1.5, 1.0, 0.5)
-            if r == 4 { l.cloth = V3(0.13, 0.12, 0.11); l.plate = V3(0.1, 0.09, 0.08) }      // the leader in black
+            // Nov 14 (trailer review: "a black uniform with a red armband and an angular gold emblem"): the leader wears a
+            // dark brown duster, the shoulder cords in plain leather.
+            if r == 4 { l.cloth = V3(0.26, 0.18, 0.12); l.plate = V3(0.18, 0.13, 0.09); l.accent = V3(0.3, 0.22, 0.14) }
         }
         // P326 (b): the Ash Vault's fallen Allied soldiers: olive-drab wool, khaki trousers, a dull olive helmet and webbing,
         // brown boots, the lenses dark.

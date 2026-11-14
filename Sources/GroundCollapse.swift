@@ -88,13 +88,16 @@ enum GroundCollapse {
     static func tick(_ g: Game) {
         let w = g.world
         guard w.fieldTerrain, !w.collapseQueue.isEmpty else { return }
-        if waited < maxWait && !World.deterministic && !Rand.deterministic && CraterJob.allowance() < wantSeconds { waited += 1; return }
+        if !World.deterministic && !Rand.deterministic {
+            if let go = FrameGovernor.lump(.groundCollapse, atLeast: wantSeconds) { if !go { return } }
+            else if waited < maxWait && CraterJob.allowance() < wantSeconds { waited += 1; return }
+        }
         waited = 0
         let began = CFAbsoluteTimeGetCurrent()
         var seedN = 0, filled = 0, bigs = 0, fillEnd = 0.0, overEnd = 0.0, rr = 0
         defer {
             let took = CFAbsoluteTimeGetCurrent() - began
-            CraterJob.spend(took)
+            CraterJob.spend(took); FrameGovernor.learn(.groundCollapse, took)
             if took * 1000 > worstMs {
                 let fillMs: Double = fillEnd > 0 ? (fillEnd - began) * 1000 : took * 1000
                 let overMs: Double = overEnd > 0 ? (overEnd - fillEnd) * 1000 : 0

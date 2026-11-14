@@ -5,17 +5,28 @@ import CAndroidGlue
 
 // P368 (Oct 17 20:59: "voice notes get video"), playtest builds only (STORE=1 leaves it out with the rest of the
 // voice-note code). While Bug Notes listens, about 30 times a second the frame thread blits the left eye (after the
-// eye pass, the HUD panel included) down to a quarter of its size on the GPU (QuestScreenshot.record into one of four
-// staging buffers, no CPU copy on the frame thread) and a utility queue, once that frame's fence has signalled, turns
-// it into NV12 and hands it to the hardware H.264 encoder (quest/c/voice/voicevideo.c: ~2 Mb/s, a keyframe every
-// second), which keeps the last 10 s of packets in memory. Nothing is written while he is silent. When a note starts,
+// eye pass, the HUD panel included) on the GPU (QuestScreenshot.record into a staging buffer, no CPU copy on the frame
+// thread; the whole eye since Nov 13, a quarter of it each way before) and a utility queue, once that frame's fence
+// has signalled, turns it into NV12 in the hardware H.264 encoder's input (quest/c/voice/voicevideo.c: a keyframe
+// every second), which keeps the last 10 s of packets in memory. Nothing is written while he is silent. When a note starts,
 // vn-<stamp>.mp4 gets the buffered 10 s and then everything until 2 s after the note ends (BugNotes lists it in the
 // sidecar). Options > Interface > Bug Note Video turns it off for performance runs. The cost is logged every 10 s
 // ("voicevideo: frame thread ... ms"): the frame-thread recording time and the GPU blit share the frame; conversion
 // and encoding run on the utility queue and the encoder block.
 enum QuestVideo {
     static let fps = 30.0
-    static let bitrate: Int32 = 2_000_000
+    // Nov 13 (Remington, 14:48: "Why doesn't the recorder capture at higher resolution", "I want it at max resolution";
+    // ledger 120): the clip was a quarter of the left eye each way (384x416 on the headset, ~2 Mb/s). It is the whole
+    // eye now, every pixel the game drew: the GPU copy is the same one blit (full size), the conversion to the
+    // encoder's picture is NEON in C straight into its input buffer (voicevideo.c; the Swift loop and a copy are
+    // gone), still on the utility queue, and the bit rate goes by the picture's size (0.2 bits a pixel a picture,
+    // 4 to 24 Mb/s). Three pictures in flight, not four (each is 12 MB at this size). An encoder that will not open
+    // at a size (the whole eye is taller than some encoders' 2160 rows) steps down: full, three quarters, half, a
+    // quarter. A size that failed is remembered, so the pictures still in flight at it are dropped and step down no
+    // further. BS_VIDEOSCALE=2 or 4: half or the quarter picture (as before) from the start.
+    static var quarters: Int = 4 / max(1, min(4, ProcessInfo.processInfo.environment["BS_VIDEOSCALE"].flatMap { Int($0) } ?? 1))
+    private static var failW = 0, failH = 0
+    static func bitrate(_ w: Int, _ h: Int) -> Int32 { Int32(max(4_000_000, min(24_000_000, Double(w * h) * fps * 0.2))) }
     static let window: Int32 = 10              // seconds buffered before a note
     static let tail = 2.0                      // seconds after a note
 
@@ -38,7 +49,6 @@ enum QuestVideo {
     // Queue-owned.
     private static var enc: UnsafeMutableRawPointer?
     private static var encW = 0, encH = 0
-    private static var nv12: [UInt8] = []
     private static var clipGen = 0
 
     // Cost (frame thread, then the utility queue), logged every 10 s.
@@ -78,13 +88,14 @@ enum QuestVideo {
         guard t0 - lastAt >= 1 / fps - 0.004 else { return }
         let fourByte: [VkFormat] = [VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM]
         guard fourByte.contains(format) else { unsupported = true; print("voicevideo: eye format \(format.rawValue) not supported"); return }
-        // A quarter of the eye, rows a multiple of 128 bytes wide and the height of 32 (no encoder padding).
-        let w = max(256, width / 4 / 128 * 128), h = max(128, height / 4 / 32 * 32)
-        if entries.first.map({ $0.st.srcW != width || $0.st.srcH != height || $0.st.format != format }) ?? true {
+        // `quarters` of the eye each way (4: all of it), rows a multiple of 128 bytes wide and the height of 32 (no encoder padding).
+        lock.lock(); let k = quarters; lock.unlock()
+        let w = max(256, width * k / 4 / 128 * 128), h = max(128, height * k / 4 / 32 * 32)
+        if entries.first.map({ $0.st.srcW != width || $0.st.srcH != height || $0.st.format != format || $0.st.w != w || $0.st.h != h }) ?? true {
             lock.lock(); let idle = !entries.contains { $0.busy || $0.slot != nil }; lock.unlock()
             guard idle else { return }
             do {
-                entries = try (0..<4).map { _ in Entry(try QuestScreenshot.Staging(ctx: ctx, srcW: width, srcH: height, format: format, w: w, h: h, forceCopy: false)) }
+                entries = try (0..<(k >= 3 ? 3 : 4)).map { _ in Entry(try QuestScreenshot.Staging(ctx: ctx, srcW: width, srcH: height, format: format, w: w, h: h, forceCopy: false)) }
             } catch { unsupported = true; print("voicevideo: staging: \(error)"); return }
             if !entries[0].st.blit { unsupported = true; entries = []; print("voicevideo: no GPU blit from the eye image: video off"); return }
         }
@@ -122,16 +133,23 @@ enum QuestVideo {
     private static func encode(_ st: QuestScreenshot.Staging, pts: Int64) {
         guard let mapped = st.buffer.mapped else { return }
         let w = st.w, h = st.h
+        if w == failW && h == failH { return }               // (a picture still in flight at the size that failed)
         if enc == nil || encW != w || encH != h {
             if let e = enc { bs_venc_close(e) }
-            enc = bs_venc_open(Int32(w), Int32(h), Int32(fps), bitrate, 1, window)
+            enc = bs_venc_open(Int32(w), Int32(h), Int32(fps), bitrate(w, h), 1, window)
             encW = w; encH = h
-            nv12 = [UInt8](repeating: 0, count: w * h * 3 / 2)
-            if enc == nil { lock.lock(); unsupported = true; lock.unlock(); return }
+            if enc == nil {
+                // (no encoder at this size: the next captures are half of it, down to the quarter picture)
+                lock.lock()
+                failW = w; failH = h
+                if quarters > 1 { quarters -= 1; print("voicevideo: no encoder at \(w)x\(h): \(quarters)/4 of the eye from here") } else { unsupported = true }
+                lock.unlock()
+                encW = 0; encH = 0
+                return
+            }
         }
         let src = UnsafePointer(mapped.bindMemory(to: UInt8.self, capacity: w * h * 4))
-        nv12.withUnsafeMutableBufferPointer { out in toNV12(src, w, h, out.baseAddress!) }
-        nv12.withUnsafeBufferPointer { _ = bs_venc_frame(enc, $0.baseAddress, pts) }
+        _ = bs_venc_frame_rgba(enc, src, Int32(w * 4), pts)
     }
 
     // RGBA8 display values -> NV12 (BT.601, limited range), chroma from each 2x2 block's mean.

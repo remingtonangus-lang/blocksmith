@@ -17,6 +17,7 @@ struct Particle {
     var glow = false
     var follow: Mob? = nil        // R11: carried along with this mob (a cut mark stays on the body it was cut into)
     var followAt = V3.zero
+    var delay: Float = 0          // ledger 122: seconds until it appears (it neither moves, ages nor is drawn before)
 }
 
 final class ParticleManager {
@@ -178,6 +179,7 @@ final class ParticleManager {
         let ships = w.ships.any                    // (debris settles on ship decks too: P70)
         let field = w.fieldTerrain                 // (P377 step 2: on the drawn ground, not its cells)
         for i in list.indices {
+            if list[i].delay > 0 { list[i].delay -= dt; continue }
             list[i].life -= dt
             list[i].vel.y -= list[i].gravity * dt
             var np = list[i].pos + list[i].vel * dt
@@ -221,6 +223,7 @@ final class ParticleManager {
     func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float, soft: Bool? = nil) {
         let amb = world.dim.ambient
         for p in list {
+            if p.delay > 0 { continue }
             var alpha: Float = 1, layer = p.layer
             if let soft {
                 let sm = ParticleManager.isSmoke(p), gp = !sm && ParticleManager.isGlowPuff(p)

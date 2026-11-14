@@ -23,6 +23,7 @@ enum AirDefence {
     static let flakBite: Float = 3.2              // ... and its bite on a hull beside it (P504)
     static let rangingShots = 2
     static let warnDelay: Float = 1.5
+    static let oldFuse = ProcessInfo.processInfo.environment["BS_OLDAIRFUSE"] == "1"
 
     // Whether the player is flying: in a craft clear of the ground, under a jetpack's thrust or glider wings, or off
     // the ground well above it.
@@ -66,7 +67,15 @@ enum AirDefence {
                      shooter: ObjectIdentifier(m), by: m.spec.name, life: 4, gravity: HeavyTurret.gravity)
         s.power = power
         s.breaks = false
-        s.fuse = max(0.05, fuse + (ranging ? -0.12 : 0.04))
+        // Nov 13 (playtest 13:02:34 under a citadel's twin 42 cm, flying a Sky Skiff: "The guns at the Capitol, they
+        // explode prematurely before hitting their target... causing them to do nothing"; ledger 117): the time fuze
+        // was set by the clock, 0.12 s early for a ranging shot (a few blocks for a slow shell, 31 blocks short at the
+        // main battery's 260 a second) and at the reckoned meeting point for the rest, so a craft that had slowed or
+        // turned since the shot saw every shell burst in the air well ahead of it. A ranging shot bursts 7 blocks
+        // short at any speed; a shell fired for effect flies on to him (the proximity fuze) and bursts only once it is
+        // 0.35 s past the reckoned point. BS_OLDAIRFUSE=1: by the clock, as before.
+        if oldFuse { s.fuse = max(0.05, fuse + (ranging ? -0.12 : 0.04)) }
+        else { s.fuse = max(0.05, fuse + (ranging ? -7 / max(40, speed) : 0.35)) }
         s.prox = ranging ? 0 : prox
         s.tracer = true
         return s

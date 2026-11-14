@@ -163,6 +163,86 @@ int bs_venc_frame(void *enc, const uint8_t *nv12, int64_t ptsUs) {
     return 0;
 }
 
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#endif
+
+// Nov 13 (ledger 120, "I want it at max resolution"): RGBA8 rows (rowBytes apart) straight into the encoder's NV12
+// input (BT.601, limited range; chroma from each 2x2 block's mean), 8 pixels a step on the headset's NEON. At the full
+// eye this is ~3 million pixels a picture: the Swift loop it replaces took a quarter-size picture's 160 thousand.
+static void rgbaToNV12(const uint8_t *px, size_t rowBytes, int w, int h, uint8_t *yPlane, uint8_t *uvPlane, size_t stride) {
+    for (int y = 0; y < h; y++) {
+        const uint8_t *s = px + (size_t)y * rowBytes;
+        uint8_t *d = yPlane + (size_t)y * stride;
+        int x = 0;
+#if defined(__aarch64__)
+        const uint8x8_t c66 = vdup_n_u8(66), c129 = vdup_n_u8(129), c25 = vdup_n_u8(25), c16 = vdup_n_u8(16);
+        for (; x + 8 <= w; x += 8) {
+            uint8x8x4_t p = vld4_u8(s + (size_t)x * 4);
+            uint16x8_t t = vmull_u8(p.val[0], c66);
+            t = vmlal_u8(t, p.val[1], c129);
+            t = vmlal_u8(t, p.val[2], c25);
+            vst1_u8(d + x, vadd_u8(vrshrn_n_u16(t, 8), c16));
+        }
+#endif
+        for (; x < w; x++) {
+            int r = s[x * 4], g = s[x * 4 + 1], b = s[x * 4 + 2];
+            d[x] = (uint8_t)(((66 * r + 129 * g + 25 * b + 128) >> 8) + 16);
+        }
+    }
+    for (int y = 0; y < h / 2; y++) {
+        const uint8_t *a = px + (size_t)(2 * y) * rowBytes, *c = a + rowBytes;
+        uint8_t *d = uvPlane + (size_t)y * stride;
+        int x = 0;                                  // (chroma samples)
+#if defined(__aarch64__)
+        const uint8x8_t k112 = vdup_n_u8(112), k38 = vdup_n_u8(38), k74 = vdup_n_u8(74), k94 = vdup_n_u8(94), k18 = vdup_n_u8(18);
+        const uint8x8_t lo = vdup_n_u8(16), hi = vdup_n_u8(240);
+        const int16x8_t mid = vdupq_n_s16(128);
+        for (; x + 8 <= w / 2; x += 8) {
+            uint8x16x4_t pa = vld4q_u8(a + (size_t)x * 8), pc = vld4q_u8(c + (size_t)x * 8);
+            uint8x8_t r = vrshrn_n_u16(vaddq_u16(vpaddlq_u8(pa.val[0]), vpaddlq_u8(pc.val[0])), 2);
+            uint8x8_t g = vrshrn_n_u16(vaddq_u16(vpaddlq_u8(pa.val[1]), vpaddlq_u8(pc.val[1])), 2);
+            uint8x8_t b = vrshrn_n_u16(vaddq_u16(vpaddlq_u8(pa.val[2]), vpaddlq_u8(pc.val[2])), 2);
+            int16x8_t u = vreinterpretq_s16_u16(vmull_u8(b, k112));
+            u = vsubq_s16(u, vreinterpretq_s16_u16(vmull_u8(r, k38)));
+            u = vsubq_s16(u, vreinterpretq_s16_u16(vmull_u8(g, k74)));
+            int16x8_t v = vreinterpretq_s16_u16(vmull_u8(r, k112));
+            v = vsubq_s16(v, vreinterpretq_s16_u16(vmull_u8(g, k94)));
+            v = vsubq_s16(v, vreinterpretq_s16_u16(vmull_u8(b, k18)));
+            uint8x8x2_t o;
+            o.val[0] = vmin_u8(hi, vmax_u8(lo, vqmovun_s16(vaddq_s16(vrshrq_n_s16(u, 8), mid))));
+            o.val[1] = vmin_u8(hi, vmax_u8(lo, vqmovun_s16(vaddq_s16(vrshrq_n_s16(v, 8), mid))));
+            vst2_u8(d + (size_t)x * 2, o);
+        }
+#endif
+        for (; x < w / 2; x++) {
+            int k = x * 8;
+            int r = (a[k] + a[k + 4] + c[k] + c[k + 4] + 2) >> 2;
+            int g = (a[k + 1] + a[k + 5] + c[k + 1] + c[k + 5] + 2) >> 2;
+            int b = (a[k + 2] + a[k + 6] + c[k + 2] + c[k + 6] + 2) >> 2;
+            int u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128, v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+            d[x * 2] = (uint8_t)(u < 16 ? 16 : (u > 240 ? 240 : u));
+            d[x * 2 + 1] = (uint8_t)(v < 16 ? 16 : (v > 240 ? 240 : v));
+        }
+    }
+}
+
+int bs_venc_frame_rgba(void *enc, const uint8_t *rgba, int32_t rowBytes, int64_t ptsUs) {
+    VEnc *e = (VEnc *)enc;
+    if (!e) return -1;
+    ssize_t i = AMediaCodec_dequeueInputBuffer(e->codec, 0);
+    if (i < 0) { drain(e); i = AMediaCodec_dequeueInputBuffer(e->codec, 2000); }
+    if (i < 0) return -1;               // the encoder is behind: this picture is dropped
+    size_t cap = 0;
+    uint8_t *buf = AMediaCodec_getInputBuffer(e->codec, (size_t)i, &cap);
+    size_t need = (size_t)e->stride * e->slice + (size_t)e->stride * (e->h / 2);
+    if (!buf || cap < need) { AMediaCodec_queueInputBuffer(e->codec, (size_t)i, 0, 0, (uint64_t)ptsUs, 0); return -1; }
+    rgbaToNV12(rgba, (size_t)rowBytes, e->w, e->h, buf, buf + (size_t)e->stride * e->slice, (size_t)e->stride);
+    AMediaCodec_queueInputBuffer(e->codec, (size_t)i, 0, need, (uint64_t)ptsUs, 0);
+    drain(e);
+    return 0;
+}
+
 int bs_venc_begin(void *enc, const char *path) {
     VEnc *e = (VEnc *)enc;
     if (!e || !e->outFormat) return -1;
