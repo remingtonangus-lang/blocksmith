@@ -1198,14 +1198,18 @@ final class QuestControls {
     // The glove in the grip pose (metres; -Z along the pointing direction, +Y up): back of the hand over the grip,
     // knuckles, four curled fingers wrapped under and in front, the thumb (mirrored to the hand's inner side), the cuff.
     static let gloveParts: [(c: V3, half: V3, shade: Float, cuff: Bool, mirror: Bool)] = [
-        (V3(0, 0.012, 0.012), V3(0.034, 0.03, 0.05), 1.0, false, false),          // palm and back of the hand
-        (V3(0, 0.03, -0.04), V3(0.036, 0.014, 0.014), 1.1, false, false),         // knuckles
-        (V3(-0.025, -0.008, -0.05), V3(0.0085, 0.03, 0.012), 0.92, false, false), // fingers, curled round the grip
-        (V3(-0.0085, -0.01, -0.052), V3(0.0085, 0.032, 0.012), 0.95, false, false),
-        (V3(0.0085, -0.01, -0.052), V3(0.0085, 0.032, 0.012), 0.92, false, false),
-        (V3(0.025, -0.006, -0.048), V3(0.0085, 0.028, 0.012), 0.95, false, false),
-        (V3(0.036, 0.035, -0.03), V3(0.011, 0.011, 0.03), 1.05, false, true),     // thumb over the top
-        (V3(0, 0.012, 0.085), V3(0.04, 0.038, 0.026), 1.0, true, false),          // cuff
+        (V3(0, 0.012, 0.0), V3(0.03, 0.026, 0.042), 1.0, false, false),           // back of the hand and palm
+        (V3(-0.022, 0.04, -0.03), V3(0.007, 0.006, 0.008), 1.18, false, false),    // knuckles
+        (V3(-0.0075, 0.041, -0.031), V3(0.007, 0.006, 0.008), 1.12, false, false),
+        (V3(0.0075, 0.041, -0.031), V3(0.007, 0.006, 0.008), 1.18, false, false),
+        (V3(0.022, 0.04, -0.03), V3(0.007, 0.006, 0.008), 1.12, false, false),
+        (V3(-0.022, -0.004, -0.047), V3(0.0072, 0.028, 0.009), 0.9, false, false), // fingers, curled round the grip
+        (V3(-0.0075, -0.006, -0.049), V3(0.0072, 0.03, 0.009), 0.96, false, false),
+        (V3(0.0075, -0.006, -0.049), V3(0.0072, 0.03, 0.009), 0.9, false, false),
+        (V3(0.022, -0.004, -0.047), V3(0.0072, 0.026, 0.009), 0.96, false, false),
+        (V3(0.034, 0.03, -0.022), V3(0.01, 0.01, 0.026), 1.08, false, true),       // thumb over the top
+        (V3(0, 0.008, 0.052), V3(0.035, 0.031, 0.013), 0.72, false, false),        // the glove's flared cuff
+        (V3(0, 0.0, 0.15), V3(0.03, 0.03, 0.085), 1.0, true, false),               // shirt sleeve down the forearm
     ]
     static let controllerParts: [(V3, V3)] = [(V3(0, 0, 0.02), V3(0.018, 0.026, 0.05)), (V3(0, 0.012, -0.05), V3(0.012, 0.012, 0.03)),
                                               (V3(0, 0.03, 0.0), V3(0.035, 0.008, 0.035))]
@@ -1759,10 +1763,10 @@ final class QuestControls {
             let pilot = game.world.ships.pilot != nil, lever = h == moveHand
             // Nov 14 (the store trailer's blind reviews, twice: "nothing reads as VR: no hands", "the hand is a grey L
             // that reads as a stapler"): a gloved hand closed round the controller's grip in place of the bare grip
-            // block, nose and plate. A leather glove (the worn chest piece's colour as a gauntlet), knuckles and four
-            // curled fingers in front, the thumb over the top, a tunic cuff at the wrist. BS_OLDHANDS=1: the grip block.
+            // block, nose and plate: a tan leather glove, knuckles and four
+            // curled fingers in front, the thumb over the top, a flared cuff and a shirt sleeve (the worn chest piece as a bracer). BS_OLDHANDS=1: the grip block.
             if !QuestControls.oldHands {
-                let leather = gauntlet?.color ?? V3(0.46, 0.32, 0.2), cuff = gauntlet?.trim ?? V3(0.62, 0.26, 0.16)
+                let leather = V3(0.56, 0.39, 0.24), cuff = gauntlet?.color ?? V3(0.3, 0.34, 0.44)
                 let thumbX: Float = h == aimHand ? -1 : 1
                 for gp in QuestControls.gloveParts {
                     let c = V3(gp.c.x * (gp.mirror ? thumbX : 1), gp.c.y, gp.c.z), half = gp.half
