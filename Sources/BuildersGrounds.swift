@@ -249,6 +249,40 @@ enum BuildersGrounds {
         return Blocks.isLiquid(w.block(x, y + 1, z))
     }
 
+    static func maybe(_ w: World, _ x0: Int, _ z0: Int, kinds: [String]) -> Bool {
+        var hs: [Int] = [], wet = 0, beach = 0, wood = 0, rock = 0
+        for z in stride(from: 0, through: 10, by: 2) { for x in stride(from: 0, through: 10, by: 2) {
+            let c = w.gen.column(x0 + x, z0 + z)
+            hs.append(c.height)
+            if c.height < SEA { wet += 1 }
+            switch c.biome {
+            case .beach, .snowyBeach: beach += 1
+            case .stonyShore, .windsweptHills, .windsweptGravellyHills, .stonyPeaks, .jaggedPeaks, .grove, .snowySlopes: rock += 1
+            case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest, .taiga, .oldGrowthPineTaiga,
+                 .oldGrowthSpruceTaiga, .snowyTaiga, .windsweptForest, .jungle, .sparseJungle, .paleGarden, .cherryGrove: wood += 1
+            default: break
+            }
+        } }
+        let lo = hs.min() ?? 0, hi = hs.max() ?? 0, n = hs.count
+        for k in kinds {
+            switch k {
+            case "slope": if wet == 0 && hi - lo >= 3 && hi - lo <= 10 { return true }
+            case "beach": if (beach > 0 || wet > 0) && wet <= n / 2 && hi - lo <= 5 { return true }
+            case "shore": if wet >= n / 5 && wet <= n * 3 / 5 && hi - lo <= 8 { return true }
+            case "forest": if wet == 0 && wood > n / 2 && hi - lo <= 5 { return true }
+            case "rocky": if wet == 0 && hi - lo <= 7 && (rock > 0 || lo > SEA + 30) { return true }
+            case "hilltop":
+                if wet == 0 && hi - lo <= 4 && lo > SEA + 10 {
+                    var top = true
+                    for (ox, oz) in [(-14, 5), (24, 5), (5, -14), (5, 24)] where top { if w.gen.column(x0 + ox, z0 + oz).height > lo - 3 { top = false } }
+                    if top { return true }
+                }
+            default: return true
+            }
+        }
+        return false
+    }
+
     // Each kind of ground, the nearest spot to `centre` that fits it (a grid 12 apart, 600 out), each 40 or more from
     // the others. Loads what it reads.
     static func findSites(_ w: World, centre: V3, kinds: [String]) -> [String: IVec3] {
@@ -266,6 +300,9 @@ enum BuildersGrounds {
             if kinds.allSatisfy({ found[$0] != nil }) { break }
             let x0 = cx + dx, z0 = cz + dz
             if found.values.contains(where: { abs($0.x - x0) < 40 && abs($0.z - z0) < 40 }) { continue }
+            // A first look from the generator's own columns (no chunk made): only a spot that could be one of the kinds
+            // still wanted is loaded and read cell by cell.
+            if !maybe(w, x0, z0, kinds: kinds.filter { found[$0] == nil }) { continue }
             _ = w.loadSync(center: V3(Float(x0), 100, Float(z0)), radius: 1)
             var hs: [Int] = [], sand = 0, wet = 0, rock = 0, snow = 0, grass = 0
             for z in stride(from: 0, through: 10, by: 2) { for x in stride(from: 0, through: 10, by: 2) {

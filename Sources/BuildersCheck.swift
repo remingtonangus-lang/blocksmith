@@ -22,9 +22,11 @@ enum BuildersCheck {
         _ = w.loadSync(center: spawn, radius: 2)
         let only = ProcessInfo.processInfo.environment["BS_BUILDONLY"].map { Set($0.split(separator: ",").map(String.init)) }
         let bps = BuildersGrounds.blueprints().filter { only?.contains($0.key) ?? true }
+        print("builds: finding the sites round \(Int(spawn.x)) \(Int(spawn.z))"); fflush(stdout)
         let t0 = CFAbsoluteTimeGetCurrent()
         let sites = BuildersGrounds.findSites(w, centre: spawn, kinds: bps.map { $0.ground })
         print(String(format: "builds: spawn %.0f %.0f, sites found in %.1f s:", spawn.x, spawn.z, CFAbsoluteTimeGetCurrent() - t0))
+        fflush(stdout)
         for bp in bps { print("  \(bp.key) on \(bp.ground): \(sites[bp.ground].map { "\($0.x) \($0.z)" } ?? "NONE")") }
         check(bps.allSatisfy { sites[$0.ground] != nil }, "builds: a site for every kind of ground (\(sites.count)/\(Set(bps.map { $0.ground }).count))")
         for bp in bps {
@@ -47,7 +49,10 @@ enum BuildersCheck {
             let fell0 = Structure.fellTotal
             let tb = CFAbsoluteTimeGetCurrent()
             var ticks = 0
-            while !bot.done && ticks < 240_000 { agent.step(bot); ticks += 1 }
+            while !bot.done && ticks < 240_000 {
+                agent.step(bot); ticks += 1
+                if ticks % 6000 == 0 { print("builds:   \(bp.key) tick \(ticks): job \(bot.i)/\(bot.jobs.count), \(bot.placed) placed, \(bot.dug) dug, \(bot.missed.count) missed"); fflush(stdout) }
+            }
             let buildS = CFAbsoluteTimeGetCurrent() - tb
             // The world runs on for 20 s with the agent standing by.
             for _ in 0..<1200 { agent.step(bot) }
@@ -66,6 +71,7 @@ enum BuildersCheck {
                          bp.key, ticks, buildS, bot.placed, bot.dug, bot.presses, bot.redone, bot.missed.count, wrong.count, fell, lost, gained))
             for m in bot.missed.prefix(8) { print("   missed: \(m)") }
             for m in wrong.prefix(8) { print("   wrong: \(m)") }
+            fflush(stdout)
             check(bot.done && bot.missed.isEmpty, "builds: the agent builds the \(bp.key) on \(bp.ground) through the controls (\(bot.placed) placed, \(bot.dug) dug, \(bot.missed.count) missed)")
             check(wrong.isEmpty && fell == 0, "builds: the \(bp.key) stands whole 20 s later (\(wrong.count) cells wrong, \(fell) fell)")
             check(lost + gained <= 12, "builds: the ground round the \(bp.key) is left as it was (\(lost) cells lost, \(gained) gained; want at most 12)")
