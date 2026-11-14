@@ -25,8 +25,8 @@ def _sfx(name, ss, secs, speed=1.0):
         elif e["do"] == "fire":
             out.append((t, "mainGunCharge.wav", 0.8))
             out.append((t + 2.6, "mainGunFire.wav", 1.0))
-            out.append((t + 2.6 + e.get("flight", 0.9), "explodeLarge.wav", 1.0))
-            out.append((t + 2.62 + e.get("flight", 0.9), "explodeLarge_1.wav", 0.9))
+            out.append((t + 2.6 + e.get("flight", 0.2), "explodeLarge.wav", 1.0))
+            out.append((t + 2.62 + e.get("flight", 0.2), "explodeLarge_1.wav", 0.9))
         elif e["do"] in ("wreck", "explode", "impact"):
             out.append((t, "explodeLarge.wav", 1.0))
     if s.get("playerMount") == "horse":
