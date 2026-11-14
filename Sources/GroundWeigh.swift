@@ -56,7 +56,7 @@ enum GroundWeigh {
     static let maxSide = 44                  // (at most this many cells a side: a naval crater and its surroundings)
     static let maxCarved = 60_000
     static var quietTicks = 20, longestWait = 144
-    static var sliceSeconds = 0.0006, sliceFloor = 0.0002
+    static var sliceSeconds = 0.0003, sliceFloor = 0.0001
     static var objectSeconds = 0.0004
     static let lot = 4                       // what comes down goes in lots of this many cells a side
     // (harness)
@@ -260,7 +260,12 @@ enum GroundWeigh {
             if prop { props.insert(p) } else { inBox[p] = b }
         }
         guard !inBox.isEmpty || !props.isEmpty else { st.carved.removeAll { $0.p == c0 }; if st.carved.isEmpty { st.firstCarve = -1 }; return }
-        st.job = Job(lo: lo, hi: hi, carved: inBox, props: props)
+        let j = Job(lo: lo, hi: hi, carved: inBox, props: props)
+        // (room for half the box at once: grown as they filled, the arrays were copied a dozen times in the read's slices)
+        let room = (hi.x - lo.x + 1) * (hi.y - lo.y + 1) * (hi.z - lo.z + 1) / 2
+        j.cells.reserveCapacity(room); j.weight.reserveCapacity(room); j.bond.reserveCapacity(room); j.crush.reserveCapacity(room)
+        j.ground.reserveCapacity(room); j.groundWas.reserveCapacity(room); j.held.reserveCapacity(room); j.open.reserveCapacity(room)
+        st.job = j
     }
 
     // Reads the box a column at a time; true when all of it is read.
@@ -271,7 +276,7 @@ enum GroundWeigh {
         while j.z <= j.hi.z {
             while j.x <= j.hi.x {
                 n += 1
-                if n & 1 == 0 && CFAbsoluteTimeGetCurrent() > deadline { return false }
+                if n > 1 && CFAbsoluteTimeGetCurrent() > deadline { return false }      // (a look at the clock a column)
                 let x = j.x, z = j.z
                 j.x += 1
                 let side = x == j.lo.x || x == j.hi.x || z == j.lo.z || z == j.hi.z
