@@ -1144,11 +1144,21 @@ if let out = arg("--view"), let ctx = vkctx {
         let b0 = NavalBurst.bursts
         var waited = 0
         // (the shells are stepped here: with no ship in the world the game's tick has none to step)
-        while NavalBurst.bursts == b0 && waited < 72 * 3 { vw.ships.updateShells(1.0 / 72, game: vg); vg.tick(1.0 / 72); waited += 1 }
+        // (until the shell is gone: with BS_OLDNAVALBURST=1 no burst is counted)
+        while NavalBurst.bursts == b0 && !vw.ships.shells.isEmpty && waited < 72 * 3 { vw.ships.updateShells(1.0 / 72, game: vg); vg.tick(1.0 / 72); waited += 1 }
         print("view: navalburst: burst after \(waited) ticks at \(aim.x) \(aim.y) \(aim.z); \(NavalBurst.lastCount) particles, \(vg.particles.list.count) alive")
         var worst = 0.0
-        for _ in 0..<Int(secs * 72) { let t0 = CFAbsoluteTimeGetCurrent(); vg.tick(1.0 / 72); worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
-        print(String(format: "view: navalburst: %.2f s on, %d particles alive, worst tick %.1f ms", secs, vg.particles.list.count, worst))
+        var worstWhy = ""
+        for _ in 0..<Int(secs * 72) {
+            let t0 = CFAbsoluteTimeGetCurrent(); vg.tick(1.0 / 72)
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            if ms > worst { worst = ms; worstWhy = TickProf.summary() }
+        }
+        let smokes = vg.particles.list.filter { ParticleManager.isSmoke($0) && $0.size >= 1 }
+        let shown = smokes.filter { $0.delay <= 0 }
+        let ys = shown.map { $0.pos.y }
+        print(String(format: "view: navalburst: %.2f s on, %d particles alive, worst tick %.1f ms (%@); big smoke puffs %d (%d shown, y %.1f to %.1f, burst at %.1f)",
+                     secs, vg.particles.list.count, worst, worstWhy, smokes.count, shown.count, ys.min() ?? 0, ys.max() ?? 0, aim.y))
     }
     // --fell S (P441): the foot log of the nearest living trunk is cut as the game cuts it (Game.breakBlock: what stood
     // on it comes loose and topples away from the eye), then the game runs S seconds before the render.

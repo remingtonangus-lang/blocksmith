@@ -348,9 +348,10 @@ extension ShipManager {
                 // P507 (Nov 1 12:27:33, his frigate's autocannons on a Capital tower: "Frigate's little guns didn't do enough
                 // damage to this building"): shells from a gun he steers are high-explosive and breach as his rockets do
                 // (a wall's blocks stand to them as if no harder than Guns.rocketBreach; a Capital Steel wall's 12 broke none).
+                // (ledger 122, before the blast opens the ground: the burst reads what it struck)
+                if (kind == 0 || kind == 6) && power >= NavalBurst.shipPower { NavalBurst.burst(at: at, power: power, along: vel, g) }   // (ledger 122)
                 Explosion.explode(at: at, power: power, game: g, breakBlocks: !gentle, resistCap: steered ? Guns.rocketBreach : .infinity,
                                   along: onHull ? nil : vel)   // (P357 e)
-                if (kind == 0 || kind == 6) && power >= NavalBurst.shipPower { NavalBurst.burst(at: at, power: power, along: vel, g) }   // (ledger 122)
                 TickProf.mark("shells: explode")
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely

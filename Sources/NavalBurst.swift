@@ -43,8 +43,8 @@ enum NavalBurst {
         let bx = Int(floor(c.x)), by = Int(floor(c.y)), bz = Int(floor(c.z))
         // What is under the burst, within three blocks: ground (dust, pieces), water (spray) or nothing (an air burst).
         var struck: BlockID = AIR, groundY: Float = c.y, wet = false, grounded = false
-        for dy in 0...3 {
-            let b = w.block(bx, by - dy, bz)
+        for dy in 0...4 {
+            let b = w.materialAt(bx, by - dy, bz)
             if b == AIR { continue }
             struck = b; wet = Blocks.isLiquid(b); grounded = true
             groundY = Float(by - dy) + 1
@@ -144,26 +144,30 @@ enum NavalBurst {
                 }
             }
         }
-        // Soot round the fireball's foot (low and outside it: over the fire it hid the fire), then the column that
-        // stands over the hole. The column starts under the ground and climbs out through the fire as it dies, so the
-        // burst is fire, then smoke, and the smoke stays (a burst in the air has no ground: its smoke starts small in
-        // the heart of the fire).
+        // Soot round the fireball's foot, a moment after the flash, then the column that stands over the hole: it comes
+        // up through the fire as the fire dies (each puff waits its turn, Particle.delay), so the burst is fire, then
+        // smoke, and the smoke stays. (The first two tries had the smoke there from the first frame: a black ball over
+        // the fire, unlit in the fresh hole.)
         for _ in 0..<Int(10 * share) {
             let a = Rand.float(in: 0..<(2 * .pi))
-            let o = V3(cosf(a), Rand.float(in: -0.1...0.15), sinf(a)) * (3.4 * size)
+            let o = V3(cosf(a), Rand.float(in: 0.1...0.3), sinf(a)) * (3.0 * size)
             let gy = Rand.float(in: 0.2...0.3)
-            ps.add(Particle(pos: c + o, vel: o * 0.8 + V3(0, Rand.float(in: 0.6...1.8), 0), life: Rand.float(in: 1.4...2.6), maxLife: 2.6, layer: puff,
-                            uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.0...1.8) * size, gravity: -0.6, color: V3(gy * 1.1, gy, gy * 0.9), collide: false))
+            var p = Particle(pos: c + o, vel: o * 0.8 + V3(0, Rand.float(in: 0.6...1.8), 0), life: Rand.float(in: 1.4...2.6), maxLife: 2.6, layer: puff,
+                             uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 1.0...1.8) * size, gravity: -0.6, color: V3(gy * 1.1, gy, gy * 0.9), collide: false)
+            p.delay = Rand.float(in: 0.15...0.4)
+            ps.add(p)
         }
         let column = Int(28 * share)
+        let foot: V3 = grounded ? V3(c.x, max(groundY, c.y) + 0.8, c.z) : c
         for i in 0..<column {
             let up = Float(i) / Float(max(1, column))
-            let o = V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1)) * (1.4 * size)
-            let gy = Rand.float(in: 0.1...0.2)
-            let from: V3 = grounded && !wet ? V3(c.x, groundY - 1.5 - up * 5, c.z) : c + V3(0, up * 1.5, 0)
-            ps.add(Particle(pos: from + o, vel: V3(o.x * 0.25, Rand.float(in: 2.2...3.4), o.z * 0.25),
-                            life: Rand.float(in: 4.5...7), maxLife: 7, layer: puff, uv0: V2(0, 0), uvSize: 1,
-                            size: (grounded && !wet ? Rand.float(in: 2.2...4.0) : Rand.float(in: 1.4...2.8)) * size, gravity: 0.3, color: V3(gy, gy, gy), collide: false))
+            let o = V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)) * (1.5 * size)
+            let gy = Rand.float(in: 0.12...0.22)
+            var p = Particle(pos: foot + o, vel: V3(o.x * 0.3, Rand.float(in: 2.0...3.2), o.z * 0.3),
+                             life: Rand.float(in: 4.5...7), maxLife: 7, layer: puff, uv0: V2(0, 0), uvSize: 1,
+                             size: Rand.float(in: 2.0...3.6) * size, gravity: 0.25, color: V3(gy, gy, gy), collide: false)
+            p.delay = 0.3 + up * 1.6                  // (the column is fed for two seconds)
+            ps.add(p)
         }
         // Near enough, the ground shakes under him.
         let dist = simd_length(c - g.player.pos)

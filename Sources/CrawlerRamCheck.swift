@@ -62,7 +62,7 @@ enum CrawlerRamCheck {
         let drove = simd_length(V2(s.pos.x - from.x, s.pos.z - from.z))
         let rammed = ShipManager.crawlerRammed - rammed0, torn = ShipManager.crawlerTorn - torn0
         let lost = hull0 - s.blockCount
-        check(stood > 100 && drove > 30 && rammed >= 20 && torn >= 1 && lost >= 1 && lost <= 30 && slowest < 11.5 && ShipManager.rutDug == dug0,
+        check(stood > 100 && drove > 30 && rammed >= 20 && left * 2 < stood && torn >= 1 && torn <= 8 && slowest < 11.5 && ShipManager.rutDug == dug0,
               String(format: "crawlerram: through a stone-brick hut of %d blocks at 12 blocks a second: %d left standing in its way of %d its bow met, "
                      + "the crawler paid %d plates (%d of its %d blocks gone), slowed to %.1f, drove %.0f blocks; its wheels dug %d cells out of the ground",
                      stood, left, rammed, torn, lost, hull0, slowest, drove, ShipManager.rutDug - dug0))

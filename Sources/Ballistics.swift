@@ -496,9 +496,9 @@ final class Armory {
         // P471: a heavy naval shell's blast is a blow of its own on the levels' caps (Game.hurtPlayer).
         Explosion.heavyShell = s.kind == .shell && s.power >= HeavyTurret.power
         defer { g.ashQuiet = false; g.blastSpares = .none; Explosion.heavyShell = false }
+        if Explosion.heavyShell { NavalBurst.burst(at: at, power: s.power, along: s.vel, g) }       // (ledger 122, before the ground is opened)
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: s.kind == .rocket || s.breaks,   // (P510 20:13: anyone's missile craters)
                           resistCap: s.breach, along: simd_length(s.vel) > 25 ? s.vel : nil)        // (P357 e: shells, not grenades)
-        if Explosion.heavyShell { NavalBurst.burst(at: at, power: s.power, along: s.vel, g) }       // (ledger 122)
         let hb0 = CFAbsoluteTimeGetCurrent()
         NavalGuns.heavyBurst(s, at: at, shooter: shooter, spares: g.blastSpares, g)       // P102 / P103
         Armory.worstBurst = max(Armory.worstBurst, (CFAbsoluteTimeGetCurrent() - hb0) * 1000)

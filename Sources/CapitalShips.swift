@@ -2693,7 +2693,7 @@ extension ShipManager {
     // where it struck, with the crash and the dust of it. A hut goes down for a plate or two; a stone keep costs it
     // a row of them and most of its speed. BS_OLDCRAWLERRAM=1: free, as before.
     static let oldCrawlerRam = ProcessInfo.processInfo.environment["BS_OLDCRAWLERRAM"] == "1"
-    static let ramPlate: Float = 60
+    static let ramPlate: Float = Float(ProcessInfo.processInfo.environment["BS_RAMPLATE"] ?? "") ?? 20      // (a hut of 36 bricks met: two or three plates)
     static var crawlerRammed = 0, crawlerTorn = 0               // (checks: masonry blocks its bow broke, plates that cost it)
     static let crawlerDraft: Float = 6                          // P510: its wheels and lower hull under the water when it swims
     static var crawlerWaded = 0                                 // (checks: steps it moved with water under its wheels)
@@ -2831,22 +2831,25 @@ extension ShipManager {
         guard st.ramDebt >= ShipManager.ramPlate, st.ramWait <= 0 else { return }
         st.ramDebt -= ShipManager.ramPlate
         st.ramWait = 0.25
-        // The plate of its bow nearest the blow (not the helm, a wheel or the hardest armour).
+        // The plate of its bow nearest the blow: plain hull (not the helm, a wheel, an engine, a gun or a fitted block),
+        // looked for round the blow first and then over more of the bow (the blow is often at the ground, under the hull).
         let gr = s.grid, l = s.toLocal(w)
         let lo = s.localMin
         var best: IVec3? = nil, bestD = Float.infinity
         let kinds = ShipParts.kinds
-        for lz in Int(lo.z)...(Int(lo.z) + 4) { for dy in -3...3 { for dx in -3...3 {
-            let c = IVec3(Int(floor(l.x)) + dx, Int(floor(l.y)) + dy, lz)
-            let cb = gr.get(c.x, c.y, c.z)
-            guard cb != AIR, Blocks.collide[Int(cb)], c != s.helm, kinds[Int(cb)] != .wheel, let t = ShipManager.meltTime(cb), t < 60 else { continue }
-            let d = simd_length(V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5) - l)
-            if d < bestD { bestD = d; best = c }
-        } } }
+        for (rx, yLo, yHi, deep) in [(6, -4, 12, 5), (14, -6, 24, 8)] where best == nil {
+            for lz in Int(lo.z)...(Int(lo.z) + deep) { for dy in yLo...yHi { for dx in -rx...rx {
+                let c = IVec3(Int(floor(l.x)) + dx, Int(floor(l.y)) + dy, lz)
+                let cb = gr.get(c.x, c.y, c.z)
+                guard cb != AIR, Blocks.collide[Int(cb)], Blocks.hardness[Int(cb)] >= 0, c != s.helm, kinds[Int(cb)] == .none, s.blockEntities[c] == nil else { continue }
+                let d = simd_length(V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5) - l)
+                if d < bestD { bestD = d; best = c }
+            } } }
+        }
         guard let plate = best else { return }
         ShipManager.crawlerTorn += 1
-        removeCells(s, [plate], chipped: [], center: w, power: 0, game: nil)
-        g.particles.explosion(at: w, power: 1.5)
+        removeCells(s, [plate], chipped: [], center: w, power: 0, game: nil, detach: false)      // (one plate off the bow parts nothing from the hull)
+        g.particles.explosion(at: s.toWorld(V3(Float(plate.x) + 0.5, Float(plate.y) + 0.5, Float(plate.z) + 0.5)), power: 1.5)
     }
 
     // The trunk a log at (x, y, z) belongs to, from its foot up (26-connected logs; nil: not a standing tree, or too big).
