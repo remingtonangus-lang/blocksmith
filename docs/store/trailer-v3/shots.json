@@ -496,7 +496,7 @@
   "time": 0.42,
   "seconds": 6,
   "warm": 2,
-  "survival": true,
+  "survival": false,
   "rd": 18,
   "fov": 76,
   "hold": "gun_revolver",
@@ -749,6 +749,55 @@
      -50,
      -35,
      -50
+    ]
+   }
+  ]
+ },
+ {
+  "name": "v3_frigate2",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -200,
+    150,
+    45
+   ]
+  },
+  "time": 0.35,
+  "seconds": 4,
+  "warm": 2,
+  "rd": 18,
+  "fov": 62,
+  "events": [],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -60,
+     -14,
+     70
+    ],
+    "look": [
+     0,
+     -6,
+     0
+    ]
+   },
+   {
+    "t": 4,
+    "pos": [
+     -70,
+     -14,
+     62
+    ],
+    "look": [
+     0,
+     -6,
+     0
     ]
    }
   ]

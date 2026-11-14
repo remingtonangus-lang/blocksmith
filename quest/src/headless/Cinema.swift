@@ -721,7 +721,6 @@ enum Cinema {
                         }
                     }
                     hd.gripPos = sim.headPos + head.act(off); hd.aimPos = hd.gripPos
-                    if hi == 1 { aimHandWorld = eye + head.act(off) }
                     hd.gripRot = rot
                     hd.aimRot = hd.gripRot
                     sim.hands[hi] = hd
@@ -731,6 +730,8 @@ enum Cinema {
                 // slope the camera key dips into, and the hands then floated a metre over the view (v3 build shot).
                 if game.riding == nil { game.player.pos = eye - V3(0, game.player.eyeHeight, 0) }
                 host!.rig.update(xr: sim, game: game)
+                // the aiming hand where the game draws it (the rig's recentring maps tracking space onto the world)
+                aimHandWorld = host!.rig.toWorld(sim.hands[1].gripPos)
             }
             let cam = EyeCamera(center: eye, viewProj: [vp, vp], cullViewProj: vp, yaw: yaw, pitch: pitch, far: far)
             // The first frame twice (what it starts building is in it); after that once a frame, as in play.
