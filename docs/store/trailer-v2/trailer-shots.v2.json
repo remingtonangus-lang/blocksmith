@@ -1,0 +1,946 @@
+[
+ {
+  "name": "hook_frigate_bow",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -45,
+    95,
+    -25
+   ]
+  },
+  "time": 0.36,
+  "seconds": 4.5,
+  "warm": 3,
+  "peaceful": true,
+  "rd": 18,
+  "fov": 74,
+  "cruise": 26,
+  "follow": false,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     108,
+     1.7,
+     -52
+    ],
+    "look": [
+     25,
+     62,
+     -55
+    ],
+    "ground": true
+   },
+   {
+    "t": 4.5,
+    "pos": [
+     110,
+     1.7,
+     -55
+    ],
+    "look": [
+     62,
+     62,
+     -140
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "fp_build",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    400,
+    400
+   ]
+  },
+  "time": 0.3,
+  "seconds": 7.5,
+  "warm": 3,
+  "peaceful": true,
+  "fov": 76,
+  "events": [
+   {
+    "t": 0.1,
+    "do": "build",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "size": [
+     9,
+     5,
+     8
+    ],
+    "dur": 6.2
+   },
+   {
+    "t": 5.8,
+    "do": "place",
+    "block": "lantern",
+    "at": [
+     3,
+     1,
+     -1
+    ],
+    "n": 2,
+    "spread": 3
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -3.5,
+     1.75,
+     11.5
+    ],
+    "look": [
+     4.5,
+     2.6,
+     3.5
+    ],
+    "ground": true
+   },
+   {
+    "t": 4,
+    "pos": [
+     1.5,
+     1.8,
+     12.5
+    ],
+    "look": [
+     4.5,
+     3.4,
+     4.0
+    ],
+    "ground": true
+   },
+   {
+    "t": 7.5,
+    "pos": [
+     7.5,
+     2.1,
+     11.5
+    ],
+    "look": [
+     4.5,
+     3.8,
+     4.0
+    ],
+    "ground": true
+   }
+  ],
+  "hold": "oak_planks"
+ },
+ {
+  "name": "fp_farm",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    2000,
+    2000
+   ]
+  },
+  "time": 0.29,
+  "seconds": 5.5,
+  "warm": 3,
+  "peaceful": true,
+  "fov": 75,
+  "events": [
+   {
+    "t": 0,
+    "do": "farm",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "size": [
+     11,
+     9
+    ],
+    "block": "wheat",
+    "dur": 4.2
+   },
+   {
+    "t": 0,
+    "do": "farm",
+    "at": [
+     0,
+     0,
+     10
+    ],
+    "size": [
+     11,
+     5
+    ],
+    "block": "carrots",
+    "dur": 4.2
+   },
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "villager:farmer",
+    "at": [
+     12,
+     0,
+     6
+    ],
+    "n": 1,
+    "yaw": 260
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -3.2,
+     1.72,
+     -2.0
+    ],
+    "look": [
+     6.5,
+     1.1,
+     6.5
+    ],
+    "ground": true
+   },
+   {
+    "t": 5.5,
+    "pos": [
+     -2.5,
+     1.75,
+     7.5
+    ],
+    "look": [
+     7.5,
+     1.2,
+     9.0
+    ],
+    "ground": true
+   }
+  ],
+  "hold": "iron_hoe"
+ },
+ {
+  "name": "fp_ride",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    400,
+    400
+   ]
+  },
+  "time": 0.32,
+  "seconds": 4.5,
+  "warm": 3,
+  "peaceful": true,
+  "rd": 16,
+  "fov": 78,
+  "events": [],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -12,
+     2.25,
+     6
+    ],
+    "look": [
+     25,
+     -11,
+     2
+    ],
+    "ground": true
+   },
+   {
+    "t": 4.5,
+    "pos": [
+     18,
+     2.25,
+     3
+    ],
+    "look": [
+     55,
+     -11,
+     -1
+    ],
+    "ground": true
+   }
+  ],
+  "playerMount": "horse",
+  "hold": "lead"
+ },
+ {
+  "name": "train_pass",
+  "anchor": {
+   "rail": 50,
+   "from": [
+    -1500,
+    1500
+   ],
+   "train": "passenger"
+  },
+  "time": 0.44,
+  "seconds": 7,
+  "warm": 4,
+  "fov": 74,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -3.8,
+     1.85,
+     -3.5
+    ],
+    "look": [
+     -24,
+     2.3,
+     0.5
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     -3.4,
+     1.85,
+     -4.2
+    ],
+    "look": [
+     -12,
+     2.3,
+     0.8
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "town_life",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ]
+  },
+  "time": 0.38,
+  "seconds": 5,
+  "warm": 10,
+  "peaceful": true,
+  "rd": 18,
+  "fov": 72,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -27,
+     1.75,
+     -5
+    ],
+    "look": [
+     8,
+     3.2,
+     -8
+    ],
+    "ground": true
+   },
+   {
+    "t": 5,
+    "pos": [
+     -16,
+     1.8,
+     -5.5
+    ],
+    "look": [
+     24,
+     4.0,
+     -9
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "fp_cave_lush",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    3000,
+    1500
+   ],
+   "cave": true
+  },
+  "time": 0.3,
+  "seconds": 5,
+  "warm": 2,
+  "peaceful": true,
+  "rd": 8,
+  "fov": 78,
+  "events": [
+   {
+    "t": 0,
+    "do": "place",
+    "block": "lantern",
+    "at": [
+     5,
+     0,
+     0
+    ],
+    "n": 11,
+    "spread": 7.5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -4.5,
+     1.75,
+     1.8
+    ],
+    "look": [
+     10,
+     1.3,
+     -1
+    ]
+   },
+   {
+    "t": 5,
+    "pos": [
+     2.0,
+     1.7,
+     0.3
+    ],
+    "look": [
+     14,
+     1.5,
+     -2.5
+    ]
+   }
+  ],
+  "hold": "lantern"
+ },
+ {
+  "name": "station_approach",
+  "anchor": {
+   "near": "boreal_station",
+   "from": [
+    1500,
+    -1500
+   ],
+   "station": "boreal_station"
+  },
+  "time": 0.28,
+  "seconds": 5,
+  "warm": 6,
+  "skip": [
+   "ships"
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "clear",
+    "mob": "deck_gun",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "spread": 120
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     1,
+     1,
+     12
+    ],
+    "look": [
+     4,
+     -25,
+     -52
+    ]
+   },
+   {
+    "t": 5,
+    "pos": [
+     2,
+     -10,
+     -8
+    ],
+    "look": [
+     4,
+     -24,
+     -52
+    ]
+   }
+  ]
+ },
+ {
+  "name": "station_breach",
+  "anchor": {
+   "near": "boreal_station",
+   "from": [
+    1500,
+    -1500
+   ],
+   "station": "boreal_corridor"
+  },
+  "time": 0.3,
+  "seconds": 4,
+  "warm": 6,
+  "fov": 76,
+  "events": [
+   {
+    "t": 0,
+    "do": "clear",
+    "mob": "deck_gun",
+    "at": [
+     0,
+     0,
+     0
+    ],
+    "spread": 120
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     1.65,
+     3.5
+    ],
+    "look": [
+     0,
+     1.62,
+     -20
+    ]
+   },
+   {
+    "t": 4,
+    "pos": [
+     0,
+     1.65,
+     -4.5
+    ],
+    "look": [
+     0,
+     1.62,
+     -22
+    ]
+   }
+  ],
+  "hold": "gun_sidearm"
+ },
+ {
+  "name": "outlaw_fight",
+  "anchor": {
+   "at": [
+    3090,
+    0,
+    65
+   ]
+  },
+  "time": 0.42,
+  "seconds": 5,
+  "warm": 2,
+  "rain": false,
+  "survival": false,
+  "rd": 18,
+  "fov": 75,
+  "events": [
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_trooper@marauder^90",
+    "at": [
+     -23,
+     0,
+     -2
+    ],
+    "n": 12,
+    "spread": 8
+   },
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_marksman@marauder^90",
+    "at": [
+     -29,
+     0,
+     7
+    ],
+    "n": 6,
+    "spread": 6
+   },
+   {
+    "t": 0.35,
+    "do": "explode",
+    "at": [
+     -18,
+     0,
+     8
+    ],
+    "power": 4.5,
+    "fire": true
+   },
+   {
+    "t": 1.4,
+    "do": "explode",
+    "at": [
+     -24,
+     0,
+     -5
+    ],
+    "power": 5,
+    "fire": true
+   },
+   {
+    "t": 2.6,
+    "do": "explode",
+    "at": [
+     -27,
+     0,
+     9
+    ],
+    "power": 5.5,
+    "fire": true
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -8.5,
+     1.7,
+     6.0
+    ],
+    "look": [
+     -25,
+     1.55,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 5,
+    "pos": [
+     -10.5,
+     1.72,
+     1.5
+    ],
+    "look": [
+     -27,
+     1.55,
+     -1.5
+    ],
+    "ground": true
+   }
+  ],
+  "hold": "gun_rifle"
+ },
+ {
+  "name": "frigate_command",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -200,
+    160,
+    0
+   ]
+  },
+  "time": 0.34,
+  "seconds": 4.5,
+  "warm": 2,
+  "rd": 18,
+  "fov": 72,
+  "cruise": 20,
+  "follow": true,
+  "events": [
+   {
+    "t": 0.4,
+    "do": "fire",
+    "pitch": -12
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -38,
+     -5,
+     -48
+    ],
+    "look": [
+     0,
+     -1,
+     -12
+    ]
+   },
+   {
+    "t": 4.5,
+    "pos": [
+     -32,
+     -3,
+     -28
+    ],
+    "look": [
+     0,
+     -2,
+     -4
+    ]
+   }
+  ]
+ },
+ {
+  "name": "frigate_strike",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -200,
+    160,
+    45
+   ]
+  },
+  "time": 0.35,
+  "seconds": 4.5,
+  "warm": 2,
+  "rd": 18,
+  "fov": 70,
+  "events": [
+   {
+    "t": 0.55,
+    "do": "impact",
+    "at": [
+     216,
+     0,
+     -190
+    ],
+    "ground": true
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     252,
+     20,
+     -154
+    ],
+    "look": [
+     215,
+     1,
+     -190
+    ],
+    "ground": true
+   },
+   {
+    "t": 4.5,
+    "pos": [
+     244,
+     17,
+     -160
+    ],
+    "look": [
+     215,
+     -2,
+     -190
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "hell_descent",
+  "dim": "deep",
+  "anchor": {
+   "at": [
+    60,
+    0,
+    60
+   ],
+   "deep": "hell"
+  },
+  "seconds": 4.5,
+  "warm": 2,
+  "rd": 12,
+  "fov": 78,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     36,
+     4
+    ],
+    "look": [
+     -34,
+     18,
+     -60
+    ]
+   },
+   {
+    "t": 4.5,
+    "pos": [
+     -8,
+     24,
+     -18
+    ],
+    "look": [
+     -32,
+     15,
+     -78
+    ]
+   }
+  ]
+ },
+ {
+  "name": "ash_vault_war",
+  "dim": "deep",
+  "anchor": {
+   "at": [
+    -80,
+    0,
+    0
+   ],
+   "deep": "vault"
+  },
+  "seconds": 5.5,
+  "warm": 2,
+  "rd": 10,
+  "fov": 72,
+  "survival": false,
+  "events": [
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_trooper@ash^0",
+    "at": [
+     2,
+     0,
+     -8
+    ],
+    "n": 10,
+    "spread": 7
+   },
+   {
+    "t": 0,
+    "do": "vehicle",
+    "mob": "ash_tank",
+    "at": [
+     5,
+     0,
+     -15
+    ],
+    "yaw": 15
+   },
+   {
+    "t": 2.4,
+    "do": "wreck",
+    "at": [
+     5,
+     0,
+     -15
+    ],
+    "spread": 7,
+    "power": 5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -7,
+     2.1,
+     -13
+    ],
+    "look": [
+     12,
+     2.4,
+     -9
+    ]
+   },
+   {
+    "t": 5.5,
+    "pos": [
+     -2,
+     2.0,
+     -7
+    ],
+    "look": [
+     13,
+     2.5,
+     -13
+    ]
+   }
+  ]
+ },
+ {
+  "name": "sunset_finale",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ]
+  },
+  "time": 0.435,
+  "timeRate": 0.009,
+  "seconds": 5.5,
+  "warm": 6,
+  "peaceful": true,
+  "rd": 18,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     40,
+     12,
+     40
+    ],
+    "look": [
+     0,
+     5,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 5.5,
+    "pos": [
+     64,
+     26,
+     64
+    ],
+    "look": [
+     -8,
+     2,
+     -8
+    ],
+    "ground": true
+   }
+  ]
+ }
+]

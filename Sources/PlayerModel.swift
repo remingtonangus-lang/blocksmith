@@ -20,7 +20,9 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
     let order = [0, 1, 2, 0, 2, 3]
     let cy = cosf(p.yaw), sy = sinf(p.yaw)
     let sneak: Float = p.sneaking && !p.flying ? -0.15 : 0
-    let base = p.pos + V3(0, (prone ? 0.3 : sneak) + p.viewDY, 0) - eye
+    // In the saddle the seat of the trousers sits on the saddle (drawn at the standing height the legs hung in the air).
+    let seat: Float = g.riding?.kind == .horse ? -0.14 : 0
+    let base = p.pos + V3(0, (prone ? 0.3 : sneak) + p.viewDY + seat, 0) - eye
     // Swimming / crawling / gliding: the whole body lies along the view, head first.
     let tilt: Float = prone ? -.pi / 2 : 0
     let ct = cosf(tilt), st = sinf(tilt)
@@ -149,6 +151,14 @@ func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float, posed: Bool =
         parts.append(Part(mn: V3(5, 9, -5), mx: V3(7, 13, -1), pivot: V3(6, 22, 0), rotX: walk + hit, color: c))
     }
     if posed { seatArms(g, &parts, pitch: pitch, hit: hit) }
+    // In the saddle (seen from the behind view): the legs straddle the horse, thighs forward and apart, not standing
+    // through its back.
+    if let m = g.riding, m.kind == .horse {
+        for i in parts.indices where parts[i].pivot.y == 12 && abs(parts[i].pivot.x) == 2 {
+            parts[i].rotX = 0.5                         // forward, as the arms raise (HandsPose.aim)
+            parts[i].rotZ = parts[i].pivot.x > 0 ? 0.5 : -0.5
+        }
+    }
 
     return parts
 }
