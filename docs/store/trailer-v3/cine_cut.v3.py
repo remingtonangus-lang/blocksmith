@@ -50,7 +50,7 @@ CUT = [
     _shot("v3_outlaws", 4.6, "Defend your town from outlaws", 1.2),
     _shot("v3_frigate", 3.0, "Take command of a sky frigate", 0.6),
     _shot("v3_strike2", 3.4, "and bring its main gun to bear", 1.3),     # the gun charging, bow on, then the blast
-    _shot("v3_base", 2.6, "Infiltrate an enemy base", 0.8),
+    _shot("v3_base", 2.6, "Infiltrate an enemy base", 1.0),
     # ACT III: deeper
     _shot("v3_vault", 3.4, "Then go deeper, to the war below", 0.8),
     _shot("v3_finale", 3.6, None, 0.8),
