@@ -44,6 +44,12 @@ final class GroundWeighState {
 enum GroundWeigh {
     static let enabled = ProcessInfo.processInfo.environment["BS_GROUNDWEIGH"] != "0"
     static let log = ProcessInfo.processInfo.environment["BS_GROUNDWEIGHLOG"] == "1"
+    // (to tell the parts' costs apart in a soak: BS_GWSEEDS=0 no look by the older checks after a fall, BS_GWNOTEOLD=0
+    // their drops not noted, BS_GWPROPS=0 props not noted, BS_GWQUEUE=dispatch the weighing on a utility queue)
+    static let seedsOn = ProcessInfo.processInfo.environment["BS_GWSEEDS"] != "0"
+    static let noteOld = ProcessInfo.processInfo.environment["BS_GWNOTEOLD"] != "0"
+    static let propsOn = ProcessInfo.processInfo.environment["BS_GWPROPS"] != "0"
+    static let onPool = ProcessInfo.processInfo.environment["BS_GWQUEUE"] != "dispatch"
     static let reach = 8                     // the box: the carve's cells and this far round them
     static let maxSide = 44                  // (at most this many cells a side: a naval crater and its surroundings)
     static let maxCarved = 60_000
@@ -83,7 +89,7 @@ enum GroundWeigh {
     static func note(_ w: World, _ p: IVec3, _ was: BlockID, prop: Bool = false) {
         guard enabled, w.fieldTerrain, w.frame == nil, !w.restoring, p.y > 1 else { return }
         let st = w.groundWeigh
-        guard !st.own else { return }
+        guard !st.own, noteOld || !w.collapsing else { return }
         if st.carved.count >= maxCarved { st.carved.removeFirst(maxCarved / 4) }       // (forgotten: weighed as if always open)
         st.carved.append((p, was, prop))
         st.lastCarve = st.ticks
@@ -91,7 +97,7 @@ enum GroundWeigh {
     }
     // A built block was taken from a field world: if ground lay on it, it was that ground's prop.
     static func propTaken(_ w: World, _ p: IVec3, _ old: BlockID) {
-        guard enabled, w.frame == nil, !w.restoring, Structure.table[Int(old)] != nil, w.groundAt(p.x, p.y + 1, p.z) else { return }
+        guard enabled, propsOn, w.frame == nil, !w.restoring, Structure.table[Int(old)] != nil, w.groundAt(p.x, p.y + 1, p.z) else { return }
         note(w, p, old, prop: true)
     }
     // Ground or a built block was set inside the box of a weighing under way: its answer is of a world that is gone.
@@ -134,7 +140,8 @@ enum GroundWeigh {
         if !j.solving {
             j.solving = true
             if paced {
-                DispatchQueue.global(qos: .utility).async { solve(j) }
+                // (on one of the world's workers: below the frame's threads, and held back with them after late frames)
+                if onPool { JobPool.shared.add { solve(j) } } else { DispatchQueue.global(qos: .utility).async { solve(j) } }
                 return
             }
             solve(j)
@@ -201,9 +208,9 @@ enum GroundWeigh {
         guard st.pending.isEmpty else { return }
         // (what hung beyond it and what lay on it: the older ground checks' next, a look per eight cells of it, as
         // small as a dug block's: a look six cells round a spot inside the land took 35 ms in the worst-case soak)
-        for k in st.seeds.sorted(by: { $0.y != $1.y ? $0.y < $1.y : ($0.z != $1.z ? $0.z < $1.z : $0.x < $1.x) }) {
+        if seedsOn { for k in st.seeds.sorted(by: { $0.y != $1.y ? $0.y < $1.y : ($0.z != $1.z ? $0.z < $1.z : $0.x < $1.x) }) {
             w.collapseQueue.append((k, 3))
-        }
+        } }
         st.seeds.removeAll(); st.seedLots.removeAll()
         if st.pendingFell == 0 {
             // (nothing of it was ground any more: done with, or the same answer would come for ever)
