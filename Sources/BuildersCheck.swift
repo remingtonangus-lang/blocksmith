@@ -21,6 +21,23 @@ enum BuildersCheck {
         let spawn = g.spawnPoint
         g.player.pos = spawn
         _ = w.loadSync(center: spawn, radius: 2)
+        // A block placed over a drop (a lintel, a deck, an eave) grows no ground under it; one on the ground still meets it.
+        do {
+            let x = Int(floor(spawn.x)) + 3, z = Int(floor(spawn.z)) + 3
+            let gy = BuildersGrounds.groundY(w, x, z)
+            func census() -> Int {
+                var n = 0
+                for y in (gy - 1)...(gy + 8) { for dz in -3...3 { for dx in -3...3 where w.groundAt(x + dx, y, z + dz) { n += 1 } } }
+                return n
+            }
+            let n0 = census()
+            let brick = Blocks.id("stone_bricks")
+            w.setBlock(x, gy + 6, z, brick)
+            let grew = w.meetGround(x, gy + 6, z, brick)
+            let n1 = census()
+            w.setBlock(x, gy + 6, z, AIR)
+            check(grew == 0 && n1 == n0, "builds: a stone brick 5 over the ground grows none under it (\(grew) cells filled, \(n1 - n0) ground cells more; BS_OLDMEET=1 filled them)")
+        }
         let only = ProcessInfo.processInfo.environment["BS_BUILDONLY"].map { Set($0.split(separator: ",").map(String.init)) }
         let bps = BuildersGrounds.blueprints().filter { only?.contains($0.key) ?? true }
         print("builds: finding the sites round \(Int(spawn.x)) \(Int(spawn.z))"); fflush(stdout)

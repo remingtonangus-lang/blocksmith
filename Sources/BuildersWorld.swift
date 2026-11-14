@@ -32,6 +32,7 @@ extension BuildersGrounds {
         }
         w.setBlock(c.x, c.y, c.z, job.want)
         if Blocks.shape[Int(job.want)] == "door" { w.setBlock(c.x, c.y + 1, c.z, job.want + 8) }
+        else { w.meetGround(c.x, c.y, c.z, job.want) }                 // (as a placed block does: Game.useItem)
     }
 
     // A sign by a build, on the ground two out from its south side.

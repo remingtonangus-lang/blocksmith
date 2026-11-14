@@ -66,7 +66,8 @@ final class BuilderBot: AgentBot {
             let q = IVec3(x, y, z)
             if q == c || solid(w, q) { return false }
         } } }
-        return true
+        // (and the ground as bodies meet it: a field world's drawn surface reaches into cells counted open)
+        return !w.collides(V3(f.x - 0.3, f.y + 0.01, f.z - 0.3), V3(f.x + 0.3, f.y + 1.8, f.z + 0.3))
     }
     private func pathFree(_ w: World, from a: V3, to b: V3, not c: IVec3) -> Bool {
         let d = b - a, n = max(1, Int(simd_length(d) / 0.3))
@@ -207,7 +208,12 @@ final class BuilderBot: AgentBot {
         func idx(_ q: IVec3) -> Int { ((q.y - y0) * nz + (q.z - z0)) * nx + (q.x - x0) }
         func inside(_ q: IVec3) -> Bool { q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1 && q.z >= z0 && q.z <= z1 }
         func open(_ q: IVec3) -> Bool { q != c && (!solid(w, q) || (through && tree(w, q))) }
-        func free(_ q: IVec3) -> Bool { open(q) && open(q + IVec3(0, 1, 0)) }
+        func free(_ q: IVec3) -> Bool {
+            guard open(q) && open(q + IVec3(0, 1, 0)) else { return false }
+            if through { return true }
+            let m = V3(Float(q.x) + 0.5, Float(q.y) + 0.05, Float(q.z) + 0.5)
+            return !w.collides(V3(m.x - 0.32, m.y + 0.01, m.z - 0.32), V3(m.x + 0.32, m.y + 1.8, m.z + 0.32))
+        }
         var goal: [Int: Int] = [:]
         for (k, sp) in spots.enumerated() {
             let q = IVec3(Int(floor(sp.feet.x)), Int(floor(sp.feet.y)), Int(floor(sp.feet.z)))
@@ -369,8 +375,12 @@ final class BuilderBot: AgentBot {
                 // (each axis: of pressing toward, letting go and pressing against, the one whose speed next tick
                 // comes nearest a speed that dies away as it closes; flight eases the speed toward the keys' at 10/s)
                 let k: Float = 1 - expf(-10.0 / 60)
+                // (the speed wanted: along the way to the waypoint, as fast as the rest of the path allows)
+                var rest = simd_length(go)
+                if wp + 1 < path.count { for q in (wp + 1)..<path.count { rest += simd_length(path[q] - path[q - 1]) } }
+                let vdes = rest > 0.001 ? (go / simd_length(go) * min(6, rest * 3)) : V3(0, 0, 0)
                 func key(_ dist: Float, _ v: Float, _ top: Float, _ speed: Float) -> Float {
-                    let want = max(-top, min(top, dist * 3))
+                    let want = max(-top, min(top, dist))
                     var best: Float = 0, err = Float.greatestFiniteMagnitude
                     for a in [0, 1, -1] as [Float] {
                         let e = abs(v + (a * speed - v) * k - want)
@@ -378,9 +388,9 @@ final class BuilderBot: AgentBot {
                     }
                     return best
                 }
-                act.forward = key(simd_dot(go, f), simd_dot(p.vel, f), 6, 9)
-                act.strafe = key(simd_dot(go, r), simd_dot(p.vel, r), 6, 9)
-                let ud = key(go.y, p.vel.y, 5, 8)
+                act.forward = key(simd_dot(vdes, f), simd_dot(p.vel, f), 6, 9)
+                act.strafe = key(simd_dot(vdes, r), simd_dot(p.vel, r), 6, 9)
+                let ud = key(vdes.y, p.vel.y, 5, 8)
                 if ud > 0 { act.jump = true } else if ud < 0 { act.sneak = true }
                 if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 { phase = 2; aimTicks = 0 }
                 if BuilderBot.trace && s.tick % 30 == 0 {
@@ -395,7 +405,13 @@ final class BuilderBot: AgentBot {
             if abs(ey) < 0.02 && abs(ep) < 0.02 {
                 if let t = g.target {
                     let ok: Bool
-                    if j.want == AIR { ok = t.hit == j.cell }
+                    if j.want == AIR {
+                        // (natural ground: the aim names the cell where the drawn surface is; a creative break takes a
+                        // ball round the point it lands, so a point inside the cell will do)
+                        let hp = g.hitPoint(t), lo = fv(j.cell) - V3(0.1, 0.1, 0.1), hi = fv(j.cell) + V3(1.1, 1.1, 1.1)
+                        let inCell = hp.x >= lo.x && hp.y >= lo.y && hp.z >= lo.z && hp.x <= hi.x && hp.y <= hi.y && hp.z <= hi.z
+                        ok = t.hit == j.cell || (w.fieldTerrain && w.groundAt(j.cell.x, j.cell.y, j.cell.z) && inCell)
+                    }
                     else {
                         let at = g.placeCell(t, for: Blocks.groupBase[Int(j.want)])
                         let fy = g.hitPoint(t).y - Float(t.hit.y)
@@ -407,7 +423,13 @@ final class BuilderBot: AgentBot {
                         return act
                     }
                 }
-                if aimTicks > 12 { drop(s, "the aim never fell on the face") }
+                if aimTicks > 12 {
+                    if BuilderBot.trace, let t = g.target {
+                        let at = j.want == AIR ? t.hit : g.placeCell(t, for: Blocks.groupBase[Int(j.want)])
+                        print("  trace t\(s.tick) job \(i) aim on \(t.hit.x - j.cell.x),\(t.hit.y - j.cell.y),\(t.hit.z - j.cell.z) n \(t.normal.x),\(t.normal.y),\(t.normal.z) \(Blocks.key(w.block(t.hit.x, t.hit.y, t.hit.z))) -> cell \(at.x - j.cell.x),\(at.y - j.cell.y),\(at.z - j.cell.z)")
+                    }
+                    drop(s, "the aim never fell on the face")
+                }
             }
             if aimTicks > 60 { drop(s, "never steadied on the face") }
             return act
