@@ -21,8 +21,11 @@ enum Nov13Checks {
         let top = w.topY(x, z)
         p.flying = false; p.yaw = 0
         p.pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5); p.vel = .zero
-        for _ in 0..<15 { p.update(dt: 1.0 / 30, input: MoveInput(), world: w) }
-        let groundUse = g.openParachute()
+        // (settled on its feet first: in the full suite the spot can be a tree's crown or a plant, a few blocks to fall)
+        var settle = 0
+        repeat { p.update(dt: 1.0 / 30, input: MoveInput(), world: w); settle += 1 } while settle < 15 || (!p.onGround && settle < 300)
+        let stood = p.onGround
+        let groundUse = stood ? g.openParachute() : true
         p.parachute = false
         // 60 blocks up, already falling fast.
         p.pos = V3(Float(x) + 0.5, Float(top + 61), Float(z) + 0.5); p.vel = V3(0, -25, 0); p.onGround = false; p.airPeak = p.pos.y
@@ -51,7 +54,7 @@ enum Nov13Checks {
                      mChute ? "yes" : "no", Float(mSteps) * 0.05, mHurt ? "hurt" : "yes", mFolded ? "yes" : "no"))
         check(!groundUse && opened && landed && sink < Parachute.sink + 0.3 && fwd > 4.5 && gap < 1 && !p.parachute,
               String(format: "parachute: a use on the ground does nothing (%@); falling at 25 b/s it opens (%@), sinks at %.1f b/s at worst, drifts %.1f b/s stick forward, lands after %.1f s with %.1f blocks of fall to take, folds away (%@)",
-                     groundUse ? "it opened" : "yes", opened ? "yes" : "no", sink, fwd, Float(steps) / 30, gap, p.parachute ? "still open" : "yes"))
+                     !stood ? "never stood" : groundUse ? "it opened" : "yes", opened ? "yes" : "no", sink, fwd, Float(steps) / 30, gap, p.parachute ? "still open" : "yes"))
     }
 
     // 12:45:04-12:45:10, a Capital side tower's top floor: its commandant, tough, carrying two Sunder Charges.
