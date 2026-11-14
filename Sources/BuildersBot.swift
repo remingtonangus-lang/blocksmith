@@ -52,6 +52,7 @@ final class BuilderBot: AgentBot {
         return v
     }()
 
+    private func fv(_ v: IVec3) -> V3 { V3(Float(v.x), Float(v.y), Float(v.z)) }
     private func solid(_ w: World, _ c: IVec3) -> Bool { w.solidAt(c.x, c.y, c.z) }
     // The body standing with its feet at f: clear of every solid cell and of the cell being worked.
     private func bodyFree(_ w: World, _ f: V3, not c: IVec3) -> Bool {
@@ -109,7 +110,7 @@ final class BuilderBot: AgentBot {
         var faces: [(hit: IVec3, n: IVec3, aim: V3)] = []
         let cc = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5)
         if j.want == AIR {
-            for d in BuilderBot.dirs6 where !solid(w, c + d) { faces.append((c, d, cc + V3(d) * 0.45)) }
+            for d in BuilderBot.dirs6 where !solid(w, c + d) { faces.append((c, d, cc + fv(d) * 0.45)) }
         } else {
             let shape = Blocks.shape[Int(j.want)], off = Int(j.want - Blocks.groupBase[Int(j.want)])
             let wantsUpper: Bool? = shape == "stairs" ? off >= 4 : (shape == "slab" ? off == 1 : (shape == "trapdoor" ? off >= 8 : nil))
@@ -118,11 +119,11 @@ final class BuilderBot: AgentBot {
                 let sb = w.block(s.x, s.y, s.z)
                 guard solid(w, s) || (sb != AIR && !Blocks.replaceable[Int(sb)]) else { continue }
                 if BuilderBot.clickable(sb, holding: j.want) { continue }
-                let n = IVec3(0, 0, 0) &- d
+                let n = IVec3(-d.x, -d.y, -d.z)
                 if shape == "door" && n.y != 1 { continue }
                 if shape == "lantern" && n.y == 0 { continue }
-                var a = cc + V3(d) * 0.5
-                a = a - V3(d) * 0.02                      // (just on the support's face, on the cell's side)
+                var a = cc + fv(d) * 0.5
+                a = a - fv(d) * 0.02                      // (just on the support's face, on the cell's side)
                 if let up = wantsUpper {
                     if n.y == 1 && up { continue }
                     if n.y == -1 && !up { continue }
@@ -134,7 +135,7 @@ final class BuilderBot: AgentBot {
         // Cheap tests first (the body fits, the block would come out right, the ray meets the face), the way there last.
         var spots: [(V3, V3, Float)] = []
         for f in faces {
-            for look in BuilderBot.looks where simd_dot(look, V3(f.n)) >= 0.3 {
+            for look in BuilderBot.looks where simd_dot(look, fv(f.n)) >= 0.3 {
                 for dist in [2.2, 3.0, 3.9] as [Float] {
                     let eye = f.aim + look * dist
                     let feet = eye - V3(0, 1.62, 0)
