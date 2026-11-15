@@ -267,7 +267,9 @@ extension ShipManager {
         TickProf.mark("ships.shells")
         // Carry riders with their ship.
         for (m, s) in mobRiders where s.pos != s.prevPos || s.rot != s.prevRot {
-            m.pos = s.toWorld(s.prevToLocal(m.pos))
+            let mp = s.toWorld(s.prevToLocal(m.pos))
+            if !Player.oldGoodPos && !(simd_length(mp - m.pos) < 64) { continue }       // (ledger 138: as for him below)
+            m.pos = mp
             m.yaw += angleDelta(s.yaw, s.prevYaw)
             // Carried into the ground beside the hull (a crawler easing down onto its buried ramp foot): up to a block
             // up to free space, as Mob.update does for a rider that starts its step inside a block.
@@ -277,7 +279,9 @@ extension ShipManager {
             world.frame = nil
         }
         for (it, s) in itemRiders where s.pos != s.prevPos || s.rot != s.prevRot {
-            it.pos = s.toWorld(s.prevToLocal(it.pos))
+            let ip = s.toWorld(s.prevToLocal(it.pos))
+            if !Player.oldGoodPos && !(simd_length(ip - it.pos) < 64) { continue }
+            it.pos = ip
         }
         // Mobs a moving hull ran into are shoved aside (or lifted onto it when they are near its top).
         if let game {
