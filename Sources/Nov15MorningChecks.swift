@@ -99,7 +99,7 @@ enum Nov15MorningChecks {
             seen.append(Blocks.key(w.block(p.x, p.y, p.z)))
         }
         let holed = Blocks.has("sea_ice[1]") ? Blocks.id("sea_ice[1]") : AIR
-        check(seen.first == "sea_ice[1]" && seen.contains("sea_ice[2]") && seen.last == Blocks.key(WATER) && Loot.drops(holed, ItemStack.empty).isEmpty,
+        check(seen.first == "sea_ice[1]" && seen.contains("sea_ice[2]") && seen.last == Blocks.key(WATER) && Mining.drops(holed, ItemStack.empty).isEmpty,
               "Nov 15 ice: pistol rounds hole sheet ice, then shoot it through to the water (\(seen.joined(separator: ", ")))")
     }
 

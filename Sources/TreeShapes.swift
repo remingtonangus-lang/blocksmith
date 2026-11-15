@@ -629,6 +629,7 @@ enum TreeShapes {
     static let oldLitter = ProcessInfo.processInfo.environment["BS_OLDLITTER"] == "1"
     static let oldLitterMoss = ProcessInfo.processInfo.environment["BS_OLDLITTERMOSS"] == "1"
     static let oldLitterLie = ProcessInfo.processInfo.environment["BS_OLDLITTERLIE"] == "1"
+    static let oldShrubs = ProcessInfo.processInfo.environment["BS_OLDSHRUBS"] == "1"
     static let shrubs: [TreeShape] = [
         make("knee shrub", 401, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.3, 0.4, 0, 1.5, 1.1) },
         make("spreading shrub", 402, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.5, 0.3, 0.3, 2.2, 1.0) },
@@ -676,6 +677,20 @@ enum TreeShapes {
         // delete the moss"): stumps and fallen trunks carried a moss carpet on top; they go bare (BS_OLDLITTERMOSS=1).
         let mossy = leaf == g("moss_carpet")
         guard kind == .fallenOak else {
+            // Nov 15 playtest (08:17:53-08:17:57 at 164 111 127: "I don't think the preset trees are in yet... unless this
+            // is a preset bush, like, wow. Like that. Hope not"): a shrub was a log with a cube of leaves on it, a tree
+            // in miniature. A shrub is a bush now: the leafy bush plant, a few of them in a clump round its spot, each
+            // only on ground in open air (decided per cell, so every chunk agrees). BS_OLDSHRUBS=1: as before.
+            if [.shrubOak, .shrubSpruce, .shrubAcacia].contains(kind) && !TreeShapes.oldShrubs && Blocks.has("bush") {
+                let bush = g("bush")
+                for (dx, dz) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1)] {
+                    let bx = x + dx, bz = z + dz
+                    guard (dx == 0 && dz == 0) || hashf(bx, y, bz, 0xB054) < 0.45, w.inside(bx, y, bz), w.inside(bx, y - 1, bz) else { continue }
+                    let under = w.get(bx, y - 1, bz), here = w.get(bx, y, bz)
+                    if Blocks.opaque[Int(under)] && !Mesher.leafT[Int(under)] && here == AIR { w.force(bx, y, bz, bush) }
+                }
+                return
+            }
             if mossy && !TreeShapes.oldLitterMoss {
                 let bare = TreeShape(name: s.name, id: s.id, logs: s.logs, leaves: [], roots: s.roots, rootTips: s.rootTips, bole: s.bole,
                                      stretch: s.stretch, wide: s.wide, top: s.top)

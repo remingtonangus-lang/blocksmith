@@ -573,6 +573,20 @@ enum Cinema {
             try rig.shoot(still ? dir + ".png" : String(format: "%@/f%05d.png", dir, f), eye: eye, yaw: yaw, pitch: pitch)
             if f % 30 == 0 { print(String(format: "cine: %@: frame %d/%d (%.0f s), %d mobs, %d particles", s.name, f, frames, CFAbsoluteTimeGetCurrent() - t0, g.mobs.mobs.count, g.particles.list.count)) }
         }
+        // BS_CINEDUMP=R: what stands round the subject (built blocks that are no ground, plants or snow; mobs, ships), to
+        // name a thing a shot shows.
+        if let r = Int(ProcessInfo.processInfo.environment["BS_CINEDUMP"] ?? "") {
+            let ox = Int(floor(origin.x)), oy = Int(floor(origin.y)), oz = Int(floor(origin.z))
+            for y in (oy - r)...(oy + r) { for z in (oz - r)...(oz + r) { for x in (ox - r)...(ox + r) {
+                let b = w.builtBlock(x, y, z)
+                guard b != AIR, !Blocks.isLiquid(b), !SmoothTerrain.natural[Int(b)] else { continue }
+                let k = Blocks.key(b)
+                if k == "snow" || k.contains("grass") || k.contains("leaves") || k.contains("fern") { continue }
+                print("cine: \(s.name): block \(x) \(y - YOFF) \(z) \(k)")
+            } } }
+            for m in g.mobs.mobs where simd_length(m.pos - origin) < Float(r) * 2 { print("cine: \(s.name): mob \(m.kind.key) at \(Int(m.pos.x)) \(Int(m.pos.y) - YOFF) \(Int(m.pos.z))") }
+            for sh in w.ships.list where simd_length(sh.pos - origin) < Float(r) * 4 { print("cine: \(s.name): ship \(sh.name) (\(sh.role)) \(sh.blockCount) blocks") }
+        }
         print(String(format: "cine: %@: done in %.0f s", s.name, CFAbsoluteTimeGetCurrent() - t0))
     }
 
