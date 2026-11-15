@@ -3035,7 +3035,12 @@ final class Renderer: NSObject, MTKViewDelegate {
             // (the name sat in the bubble row beside the bubbles: run 362 survival shot).
             let armourRow: Float = game.survival && (game.inventory.armorPoints > 0 || game.air < 15) ? 10 : 0
             let lines = wrapLines(game.toastText, maxW: min(W - 24 * s, 300 * s), s, maxLines: 4)
-            let ty0 = L.hotbarY0 - ((game.survival ? 26 : 14) + armourRow) * s - Float(lines.count - 1) * 10 * s
+            // Nov 14 playtest (21:00 at the frigate's helm, "The UI's a little too noisy": "Greywall Garrison marked on the map"
+            // lay across the driving panel's rows): at a helm the hotbar is hidden and the panel stands in its place, so
+            // the message goes over the panel (and the hearts over it), not over the rows. BS_OLDDRIVEHUD=1: as before.
+            var base = L.hotbarY0
+            if !CombatHUD.oldPanel, let top = CombatHUD.driveTop(game, L) { base = min(base, top + 2 * s) }
+            let ty0 = base - ((game.survival ? 26 : 14) + armourRow) * s - Float(lines.count - 1) * 10 * s
             let tb = Settings.shared.textBackground
             for (i, ln) in lines.enumerated() {
                 let ty = ty0 + Float(i) * 10 * s, tw = textWidth(ln, s)

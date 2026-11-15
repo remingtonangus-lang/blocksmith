@@ -269,7 +269,7 @@ extension MobManager {
         }
         for (k, p) in packsLater {
             guard w.chunks[k] != nil else { packsLater[k] = nil; continue }
-            if hiddenSpot(p.x, p.z) { packsLater[k] = nil; spawnAnimalPack(w, p.kind, p.x, p.z, p.n, chunk: k) }
+            if hiddenSpot(p.x, p.z) { packsLater[k] = nil; spawnAnimalPack(w, p.kind, p.x, p.z, p.n, chunk: k, why: "chunk (later)") }
         }
         for (k, c) in w.chunks where !populated.contains(k) {
             if budget <= 0 { populateTimer = 0.1; break }
@@ -294,7 +294,7 @@ extension MobManager {
             guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { continue }
             let n = Rand.int(in: lo...hi)
             if !hiddenSpot(x, z) { packsLater[k] = (kind, x, z, n); continue }
-            spawnAnimalPack(w, kind, x, z, n, chunk: k)
+            spawnAnimalPack(w, kind, x, z, n, chunk: k, why: "chunk")
         }
     }
 
@@ -311,7 +311,8 @@ extension MobManager {
         return true
     }
 
-    func spawnAnimalPack(_ w: World, _ kind: MobKind, _ x: Int, _ z: Int, _ n: Int, chunk: ChunkKey? = nil) {
+    static var packLog: [(why: String, kind: MobKind, n: Int, x: Int, z: Int)]? = nil     // (--spawncensus: every pack put down)
+    func spawnAnimalPack(_ w: World, _ kind: MobKind, _ x: Int, _ z: Int, _ n: Int, chunk: ChunkKey? = nil, why: String = "other") {
         let biome = w.gen.column(x, z).biome
         if kind == .turtle && !MobManager.turtleShore(w, x, z) { return }
         var placed = 0
@@ -331,6 +332,7 @@ extension MobManager {
             placed += 1
         }
         if kind == .horse && placed > 0 { HorseHerds.spawned(Array(mobs.suffix(placed))) }     // D2 (HorseHerds.swift)
+        if placed > 0 { MobManager.packLog?.append((why, kind, placed, x, z)) }
     }
 
     // P373 (e, Oct 18 08:03-08:13: no horses until a stable, then a herd right after): a steady wild herd. Every 45 s,
@@ -358,7 +360,7 @@ extension MobManager {
             let before = mobs.count
             let donkeys = Rand.int(in: 0..<6) == 0
             spawnAnimalPack(w, donkeys ? .donkey : .horse, x, z, donkeys ? Rand.int(in: 1...3) : Rand.int(in: 3...6),
-                            chunk: ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS)))
+                            chunk: ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS)), why: "herd")
             if mobs.count > before { MobManager.herdsSpawned += 1; return }
         }
     }
@@ -377,7 +379,7 @@ extension MobManager {
         guard case let (kind, lo, hi)? = MobManager.pickAnimal(biome) else { return }
         // Item 71: a pack 32-136 blocks off came in wherever the roll fell, in front of him too: it comes in out of sight.
         if !Game.oldSpawnSight && !game.spawnHidden(V3(Float(x) + 0.5, Float(w.topY(x, z) + 1), Float(z) + 0.5), min: 24) { return }
-        spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: ChunkKey(x: c.cx, z: c.cz))
+        spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: ChunkKey(x: c.cx, z: c.cz), why: "passive")
     }
 
     // MARK: Monsters

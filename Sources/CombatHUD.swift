@@ -51,13 +51,17 @@ final class CombatHUD {
     // The top of the driving panel's box (the hearts and hunger go over it), or nil when not driving.
     static func driveTop(_ g: Game, _ L: HudLayout) -> Float? {
         guard g.drivingHUD, g.menu == nil else { return nil }
+        return panelOrigin(g, L, rows: panelRows(g)).y0 - 4 * L.s
+    }
+    // The driving panel's height (in s): the hull, rounds and throttle rows, a warship's drive and big gun, a cab's.
+    static func panelRows(_ g: Game) -> Float {
         var rows: Float = 0
         if let ship = g.world.ships.pilot {
             rows = 34 + (g.world.ships.mainGunStatus(ship.root) == nil ? 0 : 11)
                 + (VehicleControls.kind(ship) == .warship && g.world.ships.capState[ship.root.id] != nil ? 11 : 0)
         }
         if Trains.cab(g) != nil { rows = max(rows, 46) }
-        return panelOrigin(g, L, rows: rows).y0 - 4 * L.s
+        return rows
     }
 
     func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {

@@ -230,12 +230,10 @@ extension Game {
     // P344's seat fired the coaxial MG while the main gun reloaded; P449's hull of blocks kept only the cannon. Again:
     // with the turret's gun reloading, the trigger held fires the coaxial gun beside it, along the turret's lay (its
     // rounds pass the tank's own plates, as the half-track's do).
-    static let oldTankCoax = ProcessInfo.processInfo.environment["BS_OLDTANKCOAX"] == "1"
-    static var coaxCool: Float = 0
     func ashTankCoax(_ s: Ship, _ dt: Float) {
         AshCommandeer.coaxCool -= dt
         let held = input.leftDown || (seatPad?.rt ?? 0) > 0.5
-        guard held, AshCommandeer.coaxCool <= 0, let t = ships.turrets(of: s).first, t.reload > 0.3 else { return }
+        guard held, AshCommandeer.coaxCool <= 0, let t = world.ships.turrets(of: s).first, t.reload > 0.3 else { return }
         AshCommandeer.coaxCool = 0.11
         let flat = t.dirToWorld(V3(0, 0, -1))
         let yaw = atan2f(-flat.x, -flat.z), pitch = s.gunPitch
@@ -249,7 +247,6 @@ extension Game {
         AshSeat.shots += 1
         AshCommandeer.coaxShots += 1
     }
-    static var coaxShots = 0                // (checks)
 
     // P464 (Oct 25 19:33, "should be able to run people over with it"): the vehicle he drives runs down whoever stands
     // in front of it (behind, backing up) at more than a walking pace: a blow growing with the speed (a truck at full
@@ -468,6 +465,12 @@ final class AshSeat {
 // itself, his at its controls): the tank, half-track and truck drive and turn, the tank's main gun, the half-track's
 // rear gun (jump to its seat) and the field gun fire, and sneaking out leaves the vehicle parked. A half-track knocked
 // under a third bails out and stands empty; trucks round a yard park sidecars beside some of them.
+extension AshCommandeer {
+    static let oldTankCoax = ProcessInfo.processInfo.environment["BS_OLDTANKCOAX"] == "1"
+    static var coaxCool: Float = 0
+    static var coaxShots = 0                // (checks)
+}
+
 enum AshDriveCheck {
     final class Drive: AgentBot {
         let name = "ashdrive"
@@ -734,6 +737,34 @@ enum AshDriveCheck {
                 check(AshCommandeer.oldTankCoax || (AshCommandeer.coaxShots - c0 >= 3 && game.arms.slugs.count > slugs0 && h.blockCount == hb0 && t.blockCount == tb0),
                       "Cinder Tank: held while the gun reloads, the trigger fires the coaxial MG (\(AshCommandeer.coaxShots - c0) rounds in 0.5 s; its own blocks \(hb0 + tb0) -> \(h.blockCount + t.blockCount))")
                 run(260, act())
+                // Nov 14 (21:15, "this tank has aiming problems"): a stone wall well ahead, sighted from his seat; the turret
+                // comes round and lays on it, and the shell it fires bursts on the sighted point.
+                do {
+                    let wx = x, wz = z - 40
+                    for dx in -2...2 { for dy in 1...5 { world.setBlock(wx + dx, yardTop + dy, wz, STONE) } }
+                    let aimPt = V3(Float(wx) + 0.5, Float(yardTop) + 3.5, Float(wz) + 1.0)
+                    func look() {
+                        let v = aimPt - game.player.eye
+                        game.player.yaw = atan2f(-v.x, -v.z)
+                        game.player.pitch = atan2f(v.y, simd_length(V2(v.x, v.z)))
+                    }
+                    for _ in 0..<12 { look(); run(15, act()) }
+                    let laidOn = TankSight.laid, sightErr = TankSight.aim.map { simd_length($0 - aimPt) } ?? 99
+                    let before = Set(game.world.ships.shells.map { ObjectIdentifier($0) })
+                    look(); run(2, act(attack: true)); run(1, act())
+                    var last: V3? = nil, flying = true, ticks = 0
+                    while flying && ticks < 200 {
+                        let mine = game.world.ships.shells.filter { !before.contains(ObjectIdentifier($0)) }
+                        if let sh = mine.first { last = sh.pos } else if last != nil { flying = false }
+                        look(); run(1, act()); ticks += 1
+                    }
+                    let miss = last.map { simd_length($0 - aimPt) } ?? 99
+                    check(laidOn && sightErr < 1.5 && miss < 3,
+                          String(format: "Cinder Tank: sighted on a wall %.0f blocks off the gun lays (%@, sight %.1f off) and its shell bursts %.1f blocks from the sighted point",
+                                 simd_length(aimPt - h.pos), laidOn ? "laid" : "still traversing", sightErr, miss))
+                    for dx in -2...2 { for dy in 1...5 { world.setBlock(wx + dx, yardTop + dy, wz, AIR) } }
+                    run(260, act())
+                }
                 // A shell bursting on its flank (a medium gun's: power 6) takes plates off.
                 let b0 = h.blockCount
                 game.world.ships.heavyHit(h, at: h.toWorld(h.com + V3(1.8, 0, 0)), game: game, power: 6)
