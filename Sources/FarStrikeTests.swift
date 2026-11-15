@@ -77,11 +77,12 @@ extension MainGunTests {
                 if !w.ships.shells.contains(where: { $0 === sh }) && hitAt == nil { hitAt = p0 }
                 frames += 1
                 if hitAt != nil && w.ships.shockwaves.allSatisfy({ $0.crater?.done ?? true }) { break }
-                usleep(2000)
-                // (check fix 42: a shot waiting for its chunk's blocks waits in game seconds (ShipManager.refillWait), so
-                // the frames of the wait are paced like the headset's: at 2 ms a frame the wait ran out in a fifth of the
-                // time, before the cloud's unoptimized build had the blocks back, and the frame thread made them)
-                if sh.parked >= 0 { let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000; if ms < 1000.0 / 72 { usleep(useconds_t((1000.0 / 72 - ms) * 1000)) } }
+                // (Nov 15: paced as the headset's frames are, 1/72 s each. The shot waits at most refillWait (1.5 s) of
+                // game time for its blocks; at 2 ms a frame that was 0.3 s of the workers' time, and on a loaded
+                // host the 25 chunks round a Tidebreaker's aim were not back by then: it went off on a shell, nothing
+                // broke, and a rail slug's chunk was refilled on the frame thread.)
+                let spent = CFAbsoluteTimeGetCurrent() - t0
+                if spent < 1.0 / 72 { usleep(useconds_t((1.0 / 72 - spent) * 1_000_000)) }
                 if sh.parked >= 0 { waitMs += (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
             }
             let removed = before.map { b in zip(b, box.map { w.block($0.x, $0.y, $0.z) }).filter { $0 != AIR && $1 == AIR }.count } ?? -1

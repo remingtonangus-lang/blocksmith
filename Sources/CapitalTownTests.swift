@@ -49,14 +49,15 @@ extension TownTests {
         let charges = w.blockEntities.filter { abs($0.key.x - Int(centre.x)) < 120 && abs($0.key.z - Int(centre.z)) < 120 }
             .reduce(0) { $0 + $1.value.container.countOf(chargeItem) }
         check(charges == 1, "capitals: the city holds one Ember Charge (\(charges)), in the officer's strongbox by the fountain")
-        var keepers: [ShopKind: Int] = [:], citizens = 0, desks = 0, blocked: [String] = []
+        var keepers: [ShopKind: Int] = [:], citizens = 0, residents = 0, desks = 0, blocked: [String] = []
         func room(_ q: V3) -> Bool {
             !w.collides(q + V3(-0.3, 0.01, -0.3), q + V3(0.3, 1.95, 0.3)) && w.collides(q + V3(-0.3, -0.2, -0.3), q + V3(0.3, -0.01, 0.3))
         }
         for (name, q) in w.pendingMobs where name.hasPrefix("villager") {
             if !room(q) { blocked.append("\(name.prefix(24)) at \(Int(q.x)) \(Int(q.y)) \(Int(q.z))") }
             if name.hasPrefix("villager:shop_"), let k = ShopKind(rawValue: String(name.dropFirst(14))) { keepers[k, default: 0] += 1 }
-            if name.hasPrefix("villager:citizen") {
+            if name.hasPrefix("villager:citizen") && name.contains("#") { residents += 1 }     // (upper floors' residents keep house)
+            else if name.hasPrefix("villager:citizen") {
                 citizens += 1
                 if let at = name.split(separator: "@").dropFirst().first {
                     let c = at.split(separator: ",").compactMap { Int($0) }
@@ -92,8 +93,9 @@ extension TownTests {
         }
         check(keepers.count == 8 && keepers.values.allSatisfy { $0 == 1 } && signs >= 8,
               "capitals: the city holds one keeper of each of the 8 shops (\(keepers.count) kinds) and \(signs) shop signs")
-        check(!welcome.isEmpty && bells >= 1 && citizens >= 8 && desks >= citizens * 2 / 3 && beds >= citizens + 8,
-              "capitals: \(welcome.isEmpty ? "no name sign" : "\"\(welcome)\""), \(bells) bells, \(citizens) citizens (\(desks) with a desk), \(beds) beds")
+        check(!welcome.isEmpty && bells >= 1 && citizens >= 8 && desks >= citizens * 2 / 3 && beds >= citizens + residents + 8
+              && (CapitalTown.upperResidents == 0 || residents >= 8),
+              "capitals: \(welcome.isEmpty ? "no name sign" : "\"\(welcome)\""), \(bells) bells, \(citizens) citizens (\(desks) with a desk), \(residents) upper floors' residents, \(beds) beds")
         if let (c, n) = CapitalCity.sampleTower { print("capitals: a tower of \(n) storeys, its stair shaft's newel at \(c.x) \(c.y) \(c.z)") }
         // P499 (Oct 30 15:10, "we need way more troops here... It should be 50"): the city's watch, each on a floor.
         let watch = w.pendingMobs.filter { $0.0.hasPrefix("soldier_") }

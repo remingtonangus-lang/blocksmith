@@ -140,6 +140,8 @@ final class DebrisField {
     // A blast nearby: pieces already lying round fly again.
     func blast(at c: V3, radius: Float, speed: Float) { bodies.blast(centre: c, radius: radius, speed: speed) }
 
+    static var woke = 0                         // (harness: sleepers woken by World.supportGone)
+    private var woke: Int { get { DebrisField.woke } set { DebrisField.woke = newValue } }
     // A block changed (removed or placed): sleeping pieces round it fall or get pushed out.
     func blockChanged(_ p: IVec3) {
         ground?.forget()
@@ -151,6 +153,14 @@ final class DebrisField {
     func clear() { bodies.clear(); ragdolls.removeAll() }
 
     func tick(_ dt: Float, world: World) {
+        // (World.supportGone) What held something up went since the last tick: what sleeps over it wakes and falls.
+        if let (lo, hi) = world.takeSupportGone(), !World.oldDebrisWake {
+            let a = V3(Float(lo.x), Float(lo.y), Float(lo.z)), b = V3(Float(hi.x + 1), Float(hi.y + 1), Float(hi.z + 1))
+            let c = (a + b) * 0.5, r = simd_length(b - a) * 0.5
+            ground?.forget()                    // (the column tops it read there are stale)
+            if bodies.count > 0 { woke += bodies.wake(centre: c, radius: r + 1.2) }
+            woke += ragdolls.wake(near: c, radius: r + 2.5)
+        }
         let limp = ragdolls.awakeCount > 0
         guard bodies.count > 0 || limp else { return }
         if ground == nil || ground!.world !== world { ground = WorldGround(world) }

@@ -66,7 +66,7 @@ extension Game {
         var deg = Double(atan2f(dx, -dz) * 180 / .pi)
         if deg < 0 { deg += 360 }
         let abs8 = dirs[Int((deg + 22.5) / 45) % 8]
-        let rel = atan2f(dx, -dz) + player.yaw                 // 0 = ahead (yaw 0 looks toward -z)
+        let rel = atan2f(dx, -dz) + radarYaw                   // 0 = ahead (yaw 0 looks toward -z; Nov 15: where he looks)
         var r = Double(rel * 180 / .pi).truncatingRemainder(dividingBy: 360)
         if r < 0 { r += 360 }
         let words = ["ahead", "ahead right", "right", "behind right", "behind", "behind left", "left", "ahead left"]
@@ -309,6 +309,9 @@ extension Game {
     // Greywall blue-grey, the rest green; past the rim, on the rim), a tick for north, and under it one short line for
     // the nearest contact. BS_OLDRADARLIST=1: the list.
     static let oldRadarList = ProcessInfo.processInfo.environment["BS_OLDRADARLIST"] == "1"
+    static let oldRadarYaw = ProcessInfo.processInfo.environment["BS_OLDRADARYAW"] == "1"
+    var radarYaw: Float { Game.oldRadarYaw ? player.yaw : lookYaw }
+    static var scopeNorth: Float = 0              // (checks: the north tick's bearing on the scope last frame)
     static var scopeBlips = 0                     // (checks: blips drawn last frame)
     func radarScope(_ L: HudLayout) -> [HudLine] {
         let s = L.s
@@ -338,8 +341,12 @@ extension Game {
             if k % 2 == 0 { out.append(HudLine(text: "", x: cx + sinf(a) * R / 2 - s / 2, y: cy - cosf(a) * R / 2 - s / 2, scale: s, bg: faint, box: V2(s, s))) }
         }
         // North: a tick and an N on the rim, turning as the ship turns (heading up).
-        let yaw = player.yaw
+        // Nov 15 playtest (08:31:18, at a crawler's helm: "the radar is based on wherever my stick's pointed. It should be
+        // based on wherever... I'm looking"): heading up is where his head looks (the headset's yaw), not where the body
+        // was turned by the stick (BS_OLDRADARYAW=1: the body's).
+        let yaw = radarYaw
         let north = yaw                                           // (bearing of -z from ahead, clockwise)
+        Game.scopeNorth = north
         out.append(HudLine(text: "", x: cx + sinf(north) * (R - 4 * s) - s, y: cy - cosf(north) * (R - 4 * s) - s, scale: s, bg: V4(0.9, 1, 0.9, 0.9), box: V2(2 * s, 2 * s)))
         out.append(HudLine(text: "N", x: cx + sinf(north) * (R + 5 * s) - 2.5 * s, y: cy - cosf(north) * (R + 5 * s) - 3.5 * s, scale: s, color: V4(0.75, 1, 0.8, 0.9)))
         // The ship: a white mark pointing up.

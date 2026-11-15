@@ -107,6 +107,21 @@ extension TextureGen {
             let frost = r(x / 3, y / 3, 380) > 0.8
             return V4(0.6, 0.78, 0.9, crack ? 0.62 : (frost ? 0.42 : 0.2 + 0.06 * r(x, y, 381)))
         }
+        // Nov 15: shot sheet ice: round holes with a white bruise and cracks running out of them (1 a few, 2 many).
+        for k in 1...2 {
+            let base = p["sea_ice"]!
+            p["sea_ice_holed_\(k)"] = { x, y in
+                var c = base(x, y)
+                for (hx, hy, rr) in BlockWear.iceHoles(k, n: 16) {
+                    let dx = Float(x) + 0.5 - hx, dy = Float(y) + 0.5 - hy
+                    let d = (dx * dx + dy * dy).squareRoot()
+                    if d < rr * 0.55 { return V4(0.5, 0.66, 0.78, 0.06) }                 // the hole: open to the water
+                    if d < rr { c = V4(0.92, 0.96, 1.0, 0.85) }                           // its bruised rim
+                    else if d < rr * 3, abs(sinf(atan2f(dy, dx) * 3 + hx)) < 0.12 { c = V4(0.9, 0.95, 1.0, 0.7) }   // cracks
+                }
+                return c
+            }
+        }
         // Packed / blue ice: frosty mottling, pale fracture lines and a few bright crystal glints.
         func iceP(_ c: UInt32, _ salt: Int) -> Painter {
             { x, y in

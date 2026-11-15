@@ -109,11 +109,16 @@ enum GreywallArms {
                 b(-0.9, -1.8, 5, 1.8, 3.6, 6.4, slate * 0.9, pPoly),              // stock
                 b(-0.95, -2.0, 11.2, 1.9, 4.0, 0.6, dark, pPoly),
                 b(-0.2, -0.8, -20, 0.4, 1.15, 5, dark, pMetal),                   // bipod (P499: folded up to the heat shield)
+                // Nov 15: the charging handle on the right, where the off hand works it (`bolt`), and its slot; it
+                // stands drawn back while the gun wants charging (GunActions.slideDrawn).
+                b(1.2, 0.95, -6.4, 0.06, 0.3, 4.6, bore, 0),                       // handle slot
+                b(1.2, 0.75, -5.6, 1.1, 0.7, 0.9, steel, pMetal),                  // charging handle
             ]
-            let m = p.count
+            let m = p.count, handle = m - 1
             p += [b(-2.9, -2.8, -6.8, 1.9, 3.0, 3.6, dark, pPoly)]                  // box magazine on the left
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.9, 1.6), fore: V3(0, -0.6, -12), butt: V3(0, -0.2, 11.5),
-                            muzzle: V3(0, 1.1, -22.1), magAt: V3(-2.0, -1.2, -5), bolt: V3(1.5, 0.8, -5), scale: 0.55)
+                            muzzle: V3(0, 1.1, -22.1), magAt: V3(-2.0, -1.2, -5), bolt: V3(1.5, 0.8, -5), scale: 0.55,
+                            slide: GunActions.oldChargeLook ? [] : [handle], slideTravel: GunActions.oldChargeLook ? 0 : 3.4)
         }
     }
 

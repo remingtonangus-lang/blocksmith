@@ -618,6 +618,27 @@ final class World: LifeLinked {
         wasGround && BlockStore.keepGround && (id == AIR || Blocks.fluidKind[Int(id)] != 0)
     }
 
+    // (Nov 15, his note 20:58:21 at a Capital citadel after his crawler's battle: "looks like we got some floating
+    // pieces here") Sleeping debris and bodies (a soldier's ragdoll on a wall, a broken block's pieces on a roof) woke
+    // only when the player broke a block by hand (Game.breakBlock); a blast's cells, a bowl's carving, a collapse or a
+    // shot through a hull took what they lay on and they slept on in the air. Every cell that stops holding anything
+    // up (a solid block gone, ground carved: FieldTerrain.fieldSphere) is noted in one box a frame here; the debris
+    // tick wakes what sleeps over it (DebrisField.tick). A box over two far changes wakes more than it must, never
+    // less. BS_OLDDEBRISWAKE=1: as before.
+    static let oldDebrisWake = ProcessInfo.processInfo.environment["BS_OLDDEBRISWAKE"] == "1"
+    var goneLo = IVec3(Int.max, Int.max, Int.max), goneHi = IVec3(Int.min, Int.min, Int.min)
+    @inline(__always) func supportGone(_ x: Int, _ y: Int, _ z: Int) {
+        if x < goneLo.x { goneLo.x = x }; if y < goneLo.y { goneLo.y = y }; if z < goneLo.z { goneLo.z = z }
+        if x > goneHi.x { goneHi.x = x }; if y > goneHi.y { goneHi.y = y }; if z > goneHi.z { goneHi.z = z }
+    }
+    // The box since the last call (nil: nothing went), cleared.
+    func takeSupportGone() -> (lo: IVec3, hi: IVec3)? {
+        guard goneLo.x <= goneHi.x else { return nil }
+        let b = (goneLo, goneHi)
+        goneLo = IVec3(Int.max, Int.max, Int.max); goneHi = IVec3(Int.min, Int.min, Int.min)
+        return b
+    }
+
     var placeCube = false                    // (ledger 136: the main thread, round one write)
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return }
@@ -646,7 +667,7 @@ final class World: LifeLinked {
         var fbox: (lo: IVec3, hi: IVec3)? = nil
         if old != id { fbox = measureChanges { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) } }      // PG1 (TerrainField.swift)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
-        if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id) }
+        if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id); if Blocks.collide[Int(old)] && !Blocks.collide[Int(id)] { supportGone(x, y, z) } }
         c.modified = true
         c.recomputeHeight(lx, lz)
         if wasGround && !c.blocks.ground(Chunk.index(lx, y, lz)) { groundOpened(c, y) }
@@ -736,6 +757,9 @@ final class World: LifeLinked {
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return false }
         if !objectReg.owner.isEmpty && !objectReg.editing, let o = objectReg.object(at: IVec3(x, y, z)) { objectReg.forget(self, o) }   // (P389)
+        let pOn = World.asyncProfOn
+        var pT = pOn ? CFAbsoluteTimeGetCurrent() : 0
+        @inline(__always) func pLap(_ k: Int) { if pOn { let t = CFAbsoluteTimeGetCurrent(); World.asyncProf[k] += t - pT; pT = t } }
         let c = editing(c0)
         World.asyncEdits &+= 1
         if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
@@ -747,18 +771,27 @@ final class World: LifeLinked {
             World.editTally![1 << 32 | UInt64(old) << 16 | UInt64(id), default: 0] += 1
             World.editCells[IVec3(x, y, z), default: 0] += 1
         }
+        pLap(0)
         if TreeGhosts.on && old != id { treeGhosts.blockChanging(self, x, y, z, old, id) }      // (ledger 123, before the write)
+        pLap(1)
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) && !World.keepsGround(wasGround, id) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
+        pLap(2)
         c.blocks[Chunk.index(lx, y, lz)] = id
+        pLap(3)
         if old != id { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) }      // PG1 (TerrainField.swift)
+        pLap(4)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
-        if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id) }
+        if old != id { queueSupportChecks(x, y, z, old, id); queueLoadCheck(x, y, z, old, id); if Blocks.collide[Int(old)] && !Blocks.collide[Int(id)] { supportGone(x, y, z) } }
+        pLap(5)
         c.modified = true
         let oldH = Int(c.height[lx + lz * CS])
-        c.recomputeHeight(lx, lz)
+        if World.oldCraterCell || y >= min(CH, c.blocks.storedCount / CSQ) { c.recomputeHeight(lx, lz) } else { c.updateHeight(lx, lz, changed: y) }
+        pLap(6)
         if wasGround && !c.blocks.ground(Chunk.index(lx, y, lz)) { groundOpened(c, y) }      // (a crater's cells: below)
+        pLap(7)
         let newH = Int(c.height[lx + lz * CS])
+        defer { pLap(8) }
         // P283: a change that leaves the light as it was (the same light-blocking and glow, the column's top where it
         // was) only redraws the sections within two blocks of it. Grass creeping onto dirt and dying back under cover,
         // about 26 changes a second round his homestead with nobody touching anything, each remeshed the 27 sections
@@ -774,7 +807,7 @@ final class World: LifeLinked {
             for cz in floorDiv(z - r, CS)...floorDiv(z + r, CS) {
                 for cx in floorDiv(x - r, CS)...floorDiv(x + r, CS) {
                     guard let n = chunkAt(cx * CS, cz * CS) else { continue }
-                    for sy in s0...s1 { n.sections[sy].version += 1 }
+                    for sy in s0...s1 { bumpSection(n, sy) }
                 }
             }
             return true
@@ -787,10 +820,31 @@ final class World: LifeLinked {
         for dz in -1...1 {
             for dx in -1...1 {
                 guard let n = chunkAt(x + dx * 16, z + dz * 16) else { continue }
-                for sy in lo...hi { n.sections[sy].version += 1 }
+                for sy in lo...hi { bumpSection(n, sy) }
             }
         }
         return true
+    }
+
+    // Nov 15 (Fable's list, the main gun's bowl over 4 s): each cell a crater took marked the 9 chunks' 3-4 sections round
+    // it for remeshing one by one (each mark wakes the chunk's mesh bookkeeping), 13.6 us of the 47 a cell cost, though
+    // the cells of one frame's carving mark nearly the same sections. While `bumpBatch` is on (CraterJob's carving), a
+    // section is marked once a batch, at `flushBumps`. BS_OLDCRATERCELL=1: every cell its own marks, and the full
+    // height scan (Chunk.updateHeight).
+    static let oldCraterCell = ProcessInfo.processInfo.environment["BS_OLDCRATERCELL"] == "1"
+    private(set) var bumpBatch = false
+    private var bumps: [Int: Chunk] = [:]
+    @inline(__always) func bumpSection(_ n: Chunk, _ sy: Int) {
+        if !bumpBatch { n.sections[sy].version += 1; return }
+        let k = (n.cx & 0x1FFFFF) | (n.cz & 0x1FFFFF) << 21 | sy << 42
+        if bumps[k] == nil { bumps[k] = n }
+    }
+    func beginBumps() { if !World.oldCraterCell { bumpBatch = true } }
+    func flushBumps() {
+        bumpBatch = false
+        if bumps.isEmpty { return }
+        for (k, n) in bumps { n.sections[(k >> 42) & 63].version += 1 }
+        bumps.removeAll(keepingCapacity: true)
     }
 
     // MARK: Collision (shared by the player, mobs and items)
@@ -1249,6 +1303,11 @@ final class World: LifeLinked {
     private var syncBatch: [(Chunk, Int)]?
     static var syncMeshes = 0                       // sections meshed on the frame since start (questcheck --edittime)
     static var editLane = false
+    // (Nov 15, questcheck maingun: a bowl's cell took 45 us here; where, by part: before the write, tree ghosts, ground
+    // and fine samples, the write, the field, support and load checks, the column's height, ground opened, redraws)
+    static var asyncProfOn = false
+    static var asyncProf = [Double](repeating: 0, count: 9)
+    static let asyncProfNames = ["before", "tree ghosts", "fine", "write", "field", "checks", "height", "opened", "redraw"]
     static let editQueue = DispatchQueue(label: "blocksmith.editmesh", qos: .userInteractive)
     // P475 (Oct 27 19:12, in a Greywall base under fire: "It took three seconds for the door to open"; "It took a minute
     // for those blocks to get destroyed in the base"): every edit's sections waited on the one lane behind all the

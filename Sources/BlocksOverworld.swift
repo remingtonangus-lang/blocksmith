@@ -76,6 +76,13 @@ extension BlockRegistry {
         sheet.cullSame = true; sheet.skyStop = true; sheet.randomTicks = true; sheet.hidden = true
         sheet.fluid = 0; sheet.fluidKind = 1
         add(sheet)
+        // Nov 15 (08:39:11, on a frozen lake: "Shooting at ice should put bullet holes in it"): the sheet shot holed, then
+        // shot through (BlockWear.wearSheetIce): two more states of it, holed and shattered, that break to the water.
+        for k in 1...2 {
+            var holed = sheet
+            holed.name = "sea_ice[\(k)]"; holed.group = "sea_ice"; holed.tex = ["sea_ice_holed_\(k)"]; holed.randomTicks = true
+            add(holed)
+        }
         cube("packed_ice", "Packed Ice", h: 0.5, snd: .glass)
         cube("blue_ice", "Blue Ice", h: 2.8, snd: .glass)
         var layer = BlockDef("snow", "Snow")

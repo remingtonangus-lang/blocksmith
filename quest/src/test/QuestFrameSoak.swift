@@ -340,7 +340,9 @@ enum QuestFrameSoak {
                 _ = g.world.loadSync(center: g.player.pos, radius: g.world.renderDistance)
                 for (n, q) in g.world.pendingMobs { if let m = Mob.structureMob(n, at: q) { g.mobs.mobs.append(m) } }
                 g.world.pendingMobs.removeAll()
-                print(String(format: "framesoak: %@ at %.0f %.0f, %.0f across", kind, c.x, c.z, 2 * r))
+                let folk = g.mobs.mobs.filter { $0.kind == .villager }.count
+                let citizens = g.mobs.mobs.filter { $0.villager?.role == "citizen" }.count
+                print(String(format: "framesoak: %@ at %.0f %.0f, %.0f across, %d townsfolk (%d citizens)", kind, c.x, c.z, 2 * r, folk, citizens))
             } else { print("framesoak: no \(kind) near spawn") }
             base.prepare(g)
             g.player.yaw = .pi / 2                                       // (facing west, into it)

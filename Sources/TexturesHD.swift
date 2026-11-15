@@ -969,6 +969,28 @@ enum HDTex {
         return img
     }
 
+    // Nov 15: shot sheet ice (BlockWear.iceHoles): the sheet with round holes through it, a white bruise round each and
+    // cracks running out from it.
+    static func seaIceHoledHD(_ k: Int) -> Gen {
+        { n, s in
+            var img = seaIceHD(n, s)
+            let fn = Float(n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                for (hx, hy, rr) in BlockWear.iceHoles(k, n: 16) {
+                    let dx = (Float(x) + 0.5) / fn * 16 - hx, dy = (Float(y) + 0.5) / fn * 16 - hy
+                    let d = (dx * dx + dy * dy).squareRoot()
+                    let a = atan2f(dy, dx)
+                    let ray: Float = abs(sinf(a * 3 + hx)) * d
+                    if d < rr * 0.55 { img.px[i] = V4(0.48, 0.64, 0.76, 0.05) }
+                    else if d < rr { img.px[i] = V4(0.92, 0.96, 1.0, 0.88) }
+                    else if d < rr * 3.2 && ray < 0.18 { img.px[i] = V4(0.9, 0.95, 1.0, 0.72) }
+                }
+            } }
+            return img
+        }
+    }
+
     // Gourds and cactus.
     // Ribbed side (pumpkin): `ribs` rounded lobes across the face, dark grooves between them, faint vertical streaks.
     static func ribbedSide(_ pal: [(Float, UInt32)], ribs: Int) -> Gen {
@@ -5947,6 +5969,7 @@ enum HDTex {
         }
         if name.hasPrefix("stripped_") && (name.hasSuffix("_log") || name.hasSuffix("_stem")) { return strippedSide(pal(avg, lo: 0.78, hi: 1.16)) }
         if name.hasPrefix("frosted_ice_") { return iceHD }
+        if name.hasPrefix("sea_ice_holed_"), let k = Int(name.dropFirst("sea_ice_holed_".count)) { return seaIceHoledHD(k) }
         if name.hasPrefix("cocoa_stage") { return cocoaPod(avg) }
         if name.hasPrefix("moon_"), let ph = Int(name.dropFirst("moon_".count)) { return moonHD(ph) }
         if name.hasPrefix("redstone_dust_"), let lv = Int(name.dropFirst("redstone_dust_".count)) { return sparkDust(lv) }

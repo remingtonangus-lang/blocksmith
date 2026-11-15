@@ -24,6 +24,14 @@ enum BlockWear {
     static var shotOut = 0, throughShots = 0     // (counters)
     static let oldSplash = ProcessInfo.processInfo.environment["BS_OLDWEARSPLASH"] == "1"
     static var splash = !oldSplash                // (checks compare the two ways)
+    static let oldIceHoles = ProcessInfo.processInfo.environment["BS_OLDICEHOLES"] == "1"
+    static let iceHP: Float = 40, iceHoled2: Float = 0.45           // (a pistol round wears 8: holed at 1, through at 5)
+    static var iceHoled = 0, iceShot = 0                              // (counters)
+    // Where a holed sheet's holes are, in pixels of a 16 grid: (x, y, rim radius). Level 2 has level 1's and more.
+    static func iceHoles(_ k: Int, n: Int) -> [(Float, Float, Float)] {
+        let one: [(Float, Float, Float)] = [(5.5, 6, 1.6), (11, 10.5, 1.3)]
+        return k <= 1 ? one : one + [(3, 12, 1.4), (12.5, 3.5, 1.5), (8, 8.5, 1.1), (14, 13.5, 1.2)]
+    }
     static let splashShare: Float = 0.25          // (Game.splashWear: of a round's damage, to each open neighbour on the face)
 
     // Rounds it takes to wear the block away (as damage points); .infinity: rounds never break it.
@@ -135,10 +143,43 @@ extension Game {
         }
     }
 
+    // Nov 15: sheet ice shot: the first round holes it, past `iceHoled2` of its wear it is shot full of holes, and at
+    // `iceHP` it goes and the water under it is open (BS_OLDICEHOLES=1: rounds left it as it was).
+    func wearSheetIce(_ b: IVec3, _ id: BlockID, damage: Float, at: V3, fromPlayer: Bool) -> Float {
+        let base = Game.seaIceID
+        let dmg = damage * (fromPlayer ? BlockWear.playerShare : BlockWear.enemyShare)
+        guard dmg > 0 else { return 0 }
+        let stage = Int(id) - Int(base)
+        var m = BlockWear.marks[b] ?? BlockWear.Mark(dealt: 0, id: base, at: clock)
+        if m.id != base || clock - m.at > BlockWear.heal { m = BlockWear.Mark(dealt: 0, id: base, at: clock) }
+        m.dealt = max(m.dealt, stage >= 2 ? BlockWear.iceHP * BlockWear.iceHoled2 : 0) + dmg
+        m.at = clock
+        let c = V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5)
+        if m.dealt >= BlockWear.iceHP {
+            BlockWear.marks[b] = nil
+            BlockWear.iceShot += 1
+            world.setBlock(b.x, b.y, b.z, world.dim.ultrawarm ? AIR : WATER)
+            world.scheduleFluid(around: b)
+            particles.blockBreak(id, at: b)
+            sfx(.glassBreak, 0.9, at: c)
+            return 0
+        }
+        BlockWear.marks[b] = m
+        let want = m.dealt >= BlockWear.iceHP * BlockWear.iceHoled2 ? 2 : 1
+        if want > stage {
+            world.setBlockAsync(b.x, b.y, b.z, base + BlockID(want))
+            BlockWear.iceHoled += 1
+            sfx(.glassBreak, 0.35, at: at)
+        }
+        particles.dust(id, at: at, count: 3, spread: 0.08)
+        return 0
+    }
+
     @discardableResult
     func wearBlock(_ b: IVec3, damage: Float, at: V3, fromPlayer: Bool, arc: Bool = false, quiet: Bool = false) -> Float {
         let w = world
         let id = w.materialAt(b.x, b.y, b.z)                // (what it's made of: ground wears as its rock)
+        if !BlockWear.oldIceHoles, Game.isSheetIce(id) { return wearSheetIce(b, id, damage: damage, at: at, fromPlayer: fromPlayer) }
         if fromPlayer && BlockWear.tankPlate(id) && ruptureTank(b, at: at) { return 0 }        // P507
         let hp = BlockWear.hp(id)
         guard hp.isFinite, w.blockEntities[b] == nil else { return 0 }

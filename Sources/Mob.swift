@@ -578,6 +578,7 @@ final class Mob {
     var shieldIdle: Float = 0, shieldLock: Float = 0
     var shieldFx: Int8 = 0          // this update's shield effect: 1 flare, 2 pop (drawn by navyTick, which has the game)
     var hired = false               // a companion following the player (Companions.swift, O2)
+    var escort = false              // Nov 15: an escort contract's traveller, keeping to the player (Contracts.escortStep)
     var routed = false              // P511: his garrison broke (Rout.swift): running from the player, not fighting
     var fledClear = false           // P511: ... and clear of him: removed at the next despawn pass
     weak var companionFoe: Mob?     // ... the threat it is firing on
@@ -1232,6 +1233,7 @@ final class Mob {
             }
         }
 
+        if escort && health > 0 && mount == nil && !Contracts.oldEscort { speed = escortStep(g) }     // Nov 15 (Contracts.swift)
         // Crew aboard a capital vehicle hold their posts in the hull's frame (they turn and fire as the soldier AI
         // decides, but don't stroll, flank or chase off the deck); troops sent out walk their route down the ramp.
         if let s = deck, crewPost != nil || !crewRoute.isEmpty || crewFree { speed = crewStep(s, speed); crewSpeed = speed }
@@ -1243,9 +1245,14 @@ final class Mob {
             faceGoal = nil
         }
         // Riders sit on their mount (and attack from there).
+        if escort, let mt = mount, mt !== g.riding {             // Nov 15: he got down (or off): so do they, beside the horse
+            mount = nil; mountOffset = nil
+            pos = g.world.freeSpawn(mt.pos + V3(cosf(mt.yaw), 0, -sinf(mt.yaw)) * 1.2)
+            vel = .zero
+        }
         if let mt = mount {
             if mt.health > 0 {
-                if speed != 0 && !mt.kind.hostile { mt.driven = 0.3; mt.driveSpeed = abs(speed); mt.driveYaw = speed < 0 ? yaw + .pi : yaw }
+                if speed != 0 && !mt.kind.hostile && mt !== g.riding { mt.driven = 0.3; mt.driveSpeed = abs(speed); mt.driveYaw = speed < 0 ? yaw + .pi : yaw }
                 if let o = mountOffset {
                     let cy = cosf(mt.yaw), sy = sinf(mt.yaw)
                     pos = mt.pos + V3(cy * o.x + sy * o.z, o.y, -sy * o.x + cy * o.z)
@@ -2608,6 +2615,7 @@ enum MobMotion {
 // MARK: Manager
 
 final class MobManager {
+    static var noSpawns = false          // a check's scene with no natural spawns (ashdrive: seeded runs that repeat)
     var mobs: [Mob] = []
     private var lodFrame = 0                      // P283: the far mobs' beat (update)
     // P283: how often m runs (every tick, 2nd or 4th): calm and far, nothing riding, ridden, leashed or on a deck, and no

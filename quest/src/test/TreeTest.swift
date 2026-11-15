@@ -34,7 +34,8 @@ enum TreeTest {
         return b
     }
 
-    static func isLog(_ id: BlockID) -> Bool { let k = Blocks.key(id); return k.hasSuffix("_log") || k.hasSuffix("_wood") }
+    // (By the group: a lying log's state is "oak_wood[x]", Nov 15 ledger 145.)
+    static func isLog(_ id: BlockID) -> Bool { let k = Blocks.key(Blocks.groupBase[Int(id)]); return k.hasSuffix("_log") || k.hasSuffix("_wood") }
 
     static func run(check: (Bool, String) -> Void) {
         let leafT = Mesher.leafT
@@ -105,7 +106,7 @@ enum TreeTest {
         let wood = Blocks.id("oak_wood")
         for s in 0..<20 {
             let b = grow(.fallenOak, seed: UInt64(s) &* 31 &+ 3)
-            for z in 0..<CS { for x in 0..<CS { for y in (groundY + 1)...(groundY + 3) where b[Chunk.index(x, y, z)] == wood {
+            for z in 0..<CS { for x in 0..<CS { for y in (groundY + 1)...(groundY + 3) where Blocks.groupBase[Int(b[Chunk.index(x, y, z)])] == wood {
                 if b[Chunk.index(x, y - 1, z)] == AIR { hanging += 1 } else { lying += 1 }
             } } }
         }

@@ -149,6 +149,8 @@ enum Vessels {
 
     // MARK: Ironstride Siege Carriage (bow toward -Z)
 
+    static let oldCarriageLadder = ProcessInfo.processInfo.environment["BS_OLDCARRIAGELADDER"] == "1"
+    static let carriageLadderZ = 8
     static func carriage() -> Blueprint {
         let b = Blueprint()
         // Armoured hull on six big wheels.
@@ -176,8 +178,18 @@ enum Vessels {
         // P455 (Oct 25 14:21, "entering from the bottom gives a weird reaction"): nothing led up to the deck, seven blocks
         // over the ground, so he came at it from under the belly. A ladder now climbs the stern from the ground to the
         // cab's door, on a post under the hull.
-        for y in 0...2 { b.set(0, y, 22, "polished_blackstone") }
-        for y in 0...7 { b.set(0, y, 23, "ladder[1]") }
+        // Nov 15 playtest (08:27:52, its helm stuck among trees: "This tail on the siege carriage has to go"; Nov 14 12:14:44,
+        // "that giant-ass ladder coming off the back of it"): the post stood on the ground behind the stern and dragged,
+        // the ladder trailing up it. Now the ladder climbs the hull's port side between the first two wheels, inside
+        // the wheels' line, its foot a block off the ground, and the deck rail opens over it (BS_OLDCARRIAGELADDER=1:
+        // the post and stern ladder).
+        if Vessels.oldCarriageLadder {
+            for y in 0...2 { b.set(0, y, 22, "polished_blackstone") }
+            for y in 0...7 { b.set(0, y, 23, "ladder[1]") }
+        } else {
+            for y in 1...7 { b.set(-6, y, Vessels.carriageLadderZ, "ladder[2]") }
+            b.clear(-5, 7, Vessels.carriageLadderZ)
+        }
         b.set(0, 7, 19, "ship_helm[south]")
         b.set(1, 7, 21, "chest")
         b.chests.append((IVec3(1, 7, 21), "bastion"))
