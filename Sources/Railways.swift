@@ -444,6 +444,12 @@ enum Railways {
         for r in (min(row, brow) - 1)...(max(row, brow) + 1) { for t in (s - 1)...(bs + 1) where hasLine(gen, r, t) {
             guard let o = line(gen, row: r, stretch: t) else { continue }
             for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
+            // (and the three squares out from each end, where its own links leave and arrive: the last crossing in
+            // build 97's count was a link passing a square west of another line's start, over the link coming in there)
+            if !oldLinkBox {
+                if let f = o.cells.first, !(r == brow && t == bs) { for k in 1...3 { shut.insert(colKey(floorDiv(f.x, routeCell) - k, floorDiv(f.z, routeCell))) } }
+                if let e = o.cells.last, !(r == row && t == s) { for k in 1...3 { shut.insert(colKey(floorDiv(e.x, routeCell) + k, floorDiv(e.z, routeCell))) } }
+            }
         } }
         // (a far link, the lowest in rank, also keeps off the nearer links laid between its ends: the count on build 91
         // found 9,216 link cells lying on another link; a nearer link never asks for a far one, so this ends)
