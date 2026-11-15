@@ -1242,6 +1242,7 @@ if let out = arg("--view"), let ctx = vkctx {
             vg.player.pos = home; vg.player.vel = .zero
             for _ in 0..<36 { vg.tick(1.0 / 72) }
         }
+        print("trainboard: moves of 64+ blocks in a tick by a deck refused \(Game.wildCarries), non-finite bodies repaired \(Player.quarantined)")
     }
     // --fell S (P441): the foot log of the nearest living trunk is cut as the game cuts it (Game.breakBlock: what stood
     // on it comes loose and topples away from the eye), then the game runs S seconds before the render.

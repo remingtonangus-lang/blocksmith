@@ -186,7 +186,9 @@ extension Trains {
             if back { d = -d }
             let p = t.point(sk)
             let along = simd_length(V2(d.x, d.z))
-            m.vel = dt > 0 ? simd_normalize(t.point(t.advance(sk, by: dir * 0.7)) - t.point(t.advance(sk, by: -dir * 0.7))) * (moving / max(dt, 1e-4)) : .zero
+            // (ledger 138: where the track gives no heading, at its very end, the car has no speed: it was 0/0)
+            let tan = t.point(t.advance(sk, by: dir * 0.7)) - t.point(t.advance(sk, by: -dir * 0.7))
+            m.vel = dt > 0 && (simd_length(tan) > 1e-5 || Player.oldGoodPos) ? simd_normalize(tan) * (moving / max(dt, 1e-4)) : .zero
             m.pos = p
             if along > 0.01 { m.yaw = atan2f(-d.x, -d.z); m.trainPitch = atan2f(d.y, along) }
             m.walkPhase += moving * dir * (back ? -1 : 1)           // (blocks run forward: the wheels turn by it)

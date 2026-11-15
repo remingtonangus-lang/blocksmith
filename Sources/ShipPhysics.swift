@@ -323,7 +323,15 @@ extension ShipManager {
                 for s in self.list where (s === self.aboard || s === self.pilot) && (s.pos != s.prevPos || s.rot != s.prevRot) {
                     let p = game.player
                     let old = p.pos
-                    p.pos = s.toWorld(s.prevToLocal(p.pos))
+                    let np = s.toWorld(s.prevToLocal(p.pos))
+                    // (ledger 138: a hull whose place is not finite for a frame carries no one)
+                    // (and none is carried 64 blocks in a tick: he is left where he stands, off the deck)
+                    if !Player.oldGoodPos && !(simd_length(np - old) < 64) {
+                        Game.wildCarries += 1
+                        if self.aboard === s && self.pilot !== s { self.aboard = nil }
+                        continue
+                    }
+                    p.pos = np
                     p.yaw += self.angleDelta(s.yaw, s.prevYaw)
                     // Carried, not fallen: the fall height and the teleport check move with the deck (a frigate settling
                     // to the ground carries its riders down without fall damage; falls inside the hull still count).

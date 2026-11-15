@@ -13,6 +13,7 @@ import simd
 // Using a helm that isn't part of a ship assembles everything connected to it; sneak-using the helm of a
 // ship docks it back into the world, snapped to the block grid.
 extension Game {
+    static var wildCarries = 0                    // (ledger 138: moves of 64 blocks or more in a tick by a deck, refused)
     // Player movement, in a ship's frame when aboard one (replaces player.update in Game.tick).
     func shipPlayerUpdate(_ dt: Float, _ mi: MoveInput) {
         let ships = world.ships
@@ -34,6 +35,14 @@ extension Game {
         // Boarding takes a hold on the ship (its deck under the feet, its ladder, its cabin air): beside or under a
         // moving hull you stay in the world.
         if let s = cand, s !== ships.aboard, !ships.canBoard(s, p.pos, halfW: p.halfW) { cand = nil }
+        // Ledger 138 (Nov 14 12:07:42, stepping into a train car at Toriwick: "I tried to get into the train, and then I
+        // just ended up free falling from the sky in a totally different area of the world"; from 5768 3962 to
+        // 9730 -1806, which is his own place turned a quarter turn round the world's origin and added to the car's, the
+        // car heading east): a body left non-finite goes back to its last finite place (Player.update), and that place
+        // was kept in whichever space the body was last updated in. On the ground that is the world; the frame update
+        // below then read it as a place in the car's frame and took it "back" to the world: 7,000 blocks off and up.
+        // The place now goes into the frame and back with the body, and a hull whose own place is not finite is not boarded.
+        if let s = cand, !Player.oldGoodPos, !(s.pos.x.isFinite && s.pos.y.isFinite && s.pos.z.isFinite && s.rot.real.isFinite && s.rot.imag.x.isFinite) { cand = nil }
         guard let s = cand else {
             ships.aboard = nil
             ships.riderShip = nil
@@ -54,6 +63,7 @@ extension Game {
         p.vel = lv
         p.pos = s.toLocal(w0)
         p.lastUpdatePos = s.toLocal(p.lastUpdatePos)
+        if !Player.oldGoodPos { p.lastGoodPos = p.lastGoodPos.map { s.toLocal($0) } }
         p.yaw -= yawOff
         // The Quest's locomotion yaw and look (Player.moveYaw / moveLook) are world-space too: left as they were, the
         // stick walked along the ship's heading instead of the head's on a turned or turning deck (Quest round 4).
@@ -73,8 +83,21 @@ extension Game {
         ships.riderVel = p.vel
         let fall2 = p.airPeak - p.pos.y
         let w1 = s.toWorld(p.pos)
+        // (ledger 138's net: no deck moves him 64 blocks in a tick. A round trip through a frame that would, or that
+        // comes back non-finite, leaves him where he stood in the world, off the deck.)
+        if !Player.oldGoodPos, !(simd_length(w1 - w0) < 64) {
+            p.pos = w0; p.lastUpdatePos = w0; p.lastGoodPos = w0
+            p.vel = .zero
+            p.yaw += yawOff
+            p.airPeak = w0.y + fall
+            ships.aboard = nil
+            ships.riderShip = nil
+            Game.wildCarries += 1
+            return
+        }
         p.pos = w1
         p.lastUpdatePos = s.toWorld(p.lastUpdatePos)
+        if !Player.oldGoodPos { p.lastGoodPos = p.lastGoodPos.map { s.toWorld($0) } }
         p.vel = s.dirToWorld(p.vel) + s.velocity(at: w1)
         ships.riderOut = p.vel
         p.yaw += yawOff

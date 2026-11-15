@@ -208,8 +208,11 @@ enum TrainHulls {
     @inline(__always) static func pose(_ s: Ship, _ m: Mob, ahead dt: Float) {
         let rot = simd_normalize(Quat(angle: m.yaw, axis: V3(0, 1, 0)) * Quat(angle: m.trainPitch, axis: V3(1, 0, 0)))
         let p0 = V3(1.5, 0, Float(s.grid.sz) * 0.5)
+        let np = m.pos + m.vel * dt + rot.act(s.com - p0)
+        // (ledger 138: a car whose place or speed is not finite for a frame leaves its hull where it was)
+        if !Player.oldGoodPos && !(np.x.isFinite && np.y.isFinite && np.z.isFinite && rot.real.isFinite && rot.imag.x.isFinite) { return }
         s.rot = rot
-        s.pos = m.pos + m.vel * dt + rot.act(s.com - p0)
+        s.pos = np
     }
 
     // ShipManager.update, after the physics step and before riders are carried: each hull goes where its car will be
@@ -363,6 +366,38 @@ enum TrainHullCheck {
             let onRoof = abs(l.y - 4.125) < 0.2 && l.x > 0 && l.x < 3 && l.z > 0 && l.z < Float(s.grid.sz)
             check(onRoof && moved > 20, String(format: "FAILURES 3 train: on the coach's roof he rides it (%.2f over the rail, %.1f along it)", l.y, l.z))
         } else { check(false, "FAILURES 3 train: no roof on the coach's body") }
+        // Ledger 138: his body left non-finite while he rides in the aisle goes back to where he stood in the car, not to
+        // the car's own numbers read as a place in the world (and the other way round on boarding).
+        p.pos = Trains.seat(coach) + V3(0, 0.05, 0)
+        p.vel = .zero
+        frames(6, MoveInput())
+        let stood = p.pos
+        p.pos = V3(.nan, .nan, .nan)
+        frames(2, MoveInput())
+        let back = simd_length(p.pos - stood)
+        check(back.isFinite && back < 8, String(format: "ledger 138: a body left non-finite aboard a coach comes back where it stood (%.1f blocks off; at %.0f %.0f %.0f)", back, p.pos.x, p.pos.y, p.pos.z))
+        // A hull thrown thousands of blocks for a frame (its car's speed read wild) carries no one with it.
+        p.pos = Trains.seat(coach) + V3(0, 0.05, 0)
+        p.vel = .zero
+        frames(6, MoveInput())
+        let stood2 = p.pos, wild0 = Game.wildCarries
+        coach.vel = V3(400_000, 0, 0)
+        frames(1, MoveInput())
+        let lunge = simd_length(p.pos - stood2)
+        frames(3, MoveInput())
+        check(lunge < 8 && Game.wildCarries > wild0, String(format: "ledger 138: a coach's hull thrown 13,000 blocks for a frame leaves him where he stood (%.1f blocks moved, %d refused)", lunge, Game.wildCarries - wild0))
+        // ...and one that was last whole on the platform, non-finite as he steps aboard.
+        w.ships.aboard = nil
+        p.pos = stood + V3(0, 30, 0); p.vel = .zero; p.flying = true
+        frames(2, MoveInput())
+        let free = w.ships.aboard == nil
+        p.flying = false
+        let seatNow = Trains.seat(coach) + V3(0, 0.05, 0)
+        w.ships.aboard = s
+        p.pos = V3(.nan, .nan, .nan)
+        frames(2, MoveInput())
+        let off = simd_length(p.pos - seatNow)
+        check(free && off.isFinite && off < 60, String(format: "ledger 138: last whole off the train, non-finite as he boards: he is %.1f blocks from the coach (at %.0f %.0f %.0f)", off, p.pos.x, p.pos.y, p.pos.z))
         // Down from the engine: free in its cab.
         if let eng = tr.cars.first(where: { Trains.isEngine($0) && $0.variant == Trains.loco }), let es = TrainHulls.hull(eng) {
             _ = Trains.use(g, eng)
