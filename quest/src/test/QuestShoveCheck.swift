@@ -29,7 +29,28 @@ enum QuestShoveCheck {
             while y > 1 && !w.groundAt(x, y, z) && w.builtBlock(x, y, z) == AIR { y -= 1 }
             return y
         }
-        let log = Blocks.id("oak_log")
+        // Trees are tree wood (TreeWood); a plain log is timber, a solid block like the planks.
+        let log = TreeWood.of(Blocks.id("oak_log"))
+        let logKey = Blocks.key(Blocks.groupBase[Int(log)])
+        // A level place for each drive (the land at a fixed spot changes with the generator: Nov 15, the old spot had
+        // become a slope five blocks high off the carriage's bow, and the check had failed unseen since).
+        let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z))
+        let R = 60
+        var hm = [Int](repeating: 0, count: (2 * R + 1) * (2 * R + 1))
+        for dz in -R...R { for dx in -R...R { hm[(dz + R) * (2 * R + 1) + dx + R] = top(px + dx, pz + dz) } }
+        func level(halfX: Int, halfZ: Int, awayFrom: (Int, Int)?) -> (Int, Int, Int) {
+            var best = (px, pz, Int.max)
+            for cz in stride(from: -R + halfZ, through: R - halfZ, by: 2) { for cx in stride(from: -R + halfX, through: R - halfX, by: 2) {
+                if let a = awayFrom, abs(px + cx - a.0) < halfX + 14 { continue }
+                var lo = Int.max, hi = Int.min
+                for dz in stride(from: -halfZ, through: halfZ, by: 2) { for dx in stride(from: -halfX, through: halfX, by: 2) {
+                    let h = hm[(cz + dz + R) * (2 * R + 1) + cx + dx + R]
+                    lo = min(lo, h); hi = max(hi, h)
+                } }
+                if hi - lo < best.2 { best = (px + cx, pz + cz, hi - lo) }
+            } }
+            return best
+        }
         var ghosts = 0
         var wallLeft = (0, 0)
 
@@ -60,7 +81,7 @@ enum QuestShoveCheck {
                     let (x, z) = cell(a, k)
                     for y in (top(x, z) - 6)...(top(x, z) + 6) {
                         let key = Blocks.key(Blocks.groupBase[Int(w.builtBlock(x, y, z))])
-                        if key == "oak_log" || key == "oak_planks" { n += 1 }
+                        if key == logKey || key == "oak_planks" { n += 1 }
                     }
                 } }
                 return n
@@ -89,7 +110,7 @@ enum QuestShoveCheck {
                     var n = 0
                     for y in (top(x, z) - 6)...(top(x, z) + 6) {
                         let key = Blocks.key(Blocks.groupBase[Int(w.builtBlock(x, y, z))])
-                        if key == "oak_log" || key == "oak_planks" { n += 1 }
+                        if key == logKey || key == "oak_planks" { n += 1 }
                     }
                     row += "\(n)"
                 }
@@ -101,7 +122,7 @@ enum QuestShoveCheck {
                 let (x, z) = cell(a, k)
                 for y in (top(x, z) - 6)...(top(x, z) + 6) {
                     let key = Blocks.key(Blocks.groupBase[Int(w.builtBlock(x, y, z))])
-                    guard key == "oak_log" || key == "oak_planks" else { continue }
+                    guard key == logKey || key == "oak_planks" else { continue }
                     let l = s.toLocal(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
                     if s.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z))) != AIR {
                         inside += 1
@@ -122,7 +143,9 @@ enum QuestShoveCheck {
             return (s, n0, count(), simd_dot(s.pos - p0, ahead))
         }
         let shoved0 = Momentum.shoved
-        let (big, b0, b1, bMoved) = drive(Vessels.carriage(), "Ironstride Siege Carriage", at: -500, 6110, seconds: 10)
+        let bigAt = level(halfX: 10, halfZ: 30, awayFrom: nil)
+        print("shovecheck: the carriage's place \(bigAt.0) \(bigAt.1), the land \(bigAt.2) blocks from lowest to highest under its run")
+        let (big, b0, b1, bMoved) = drive(Vessels.carriage(), "Ironstride Siege Carriage", at: bigAt.0, bigAt.1 + 10, seconds: 10)
         print(String(format: "shovecheck: the siege carriage (mass %.0f) broke %d of %d trunk and plank blocks and drove %.1f blocks", big.mass, b0 - b1, b0, bMoved))
         // (the rows two and five blocks off its bow, then the spruce wood beyond: his 14:19 "blasts through trees")
         check(bMoved > 12, String(format: "the siege carriage drives on past both rows (%.1f blocks in 10 s; it was held at 9.1 by a tree against its upper works)", bMoved))
@@ -159,7 +182,9 @@ enum QuestShoveCheck {
         car.box(0, 1, 0, 2, 1, 3, "oak_planks")
         car.set(1, 2, 1, "ship_helm[south]"); car.set(1, 2, 3, "ship_engine")
         let shoved1 = Momentum.shoved
-        let (small, s0, s1, sMoved) = drive(car, "car", at: -470, 6080, seconds: 4)
+        let carAt = level(halfX: 4, halfZ: 12, awayFrom: (bigAt.0, bigAt.1))
+        print("shovecheck: the car's place \(carAt.0) \(carAt.1), the land \(carAt.2) blocks from lowest to highest")
+        let (small, s0, s1, sMoved) = drive(car, "car", at: carAt.0, carAt.1 + 4, seconds: 4)
         print(String(format: "shovecheck: the light car (mass %.0f) broke %d of %d and drove %.1f blocks", small.mass, s0 - s1, s0, sMoved))
         check(Momentum.shoved == shoved1 || small.mass / 100 >= 2, "a light car is stopped by trunks (it cannot shift a log)")
         w.ships.remove(small)
