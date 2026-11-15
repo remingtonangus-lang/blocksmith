@@ -67,8 +67,9 @@ extension TownTests {
             let with = a.generate(cx: cx, cz: cz), without = b.generate(cx: cx, cz: cz)
             var added = 0, other = 0, first = ""
             for i in 0..<min(with.count, without.count) where with[i] != without[i] {
-                // (a country's vein laid into stone; or into the cell a later vein of another ore takes without it: veins
-                // only fill stone, so that vein passes the cell by. About one suite run in four met one such cell.)
+                // (a country's vein laid into stone, or in a cell that holds another ore without it. The second is taken
+                // to be two veins crossing; it was not traced. The check failed on and off with "1 other changes" at
+                // whichever chunk the suite had left the player by, so any other change now names its blocks.)
                 let overOre = Blocks.key(Blocks.groupBase[Int(without[i])]).hasSuffix("_ore")
                 if richOres.contains(with[i]) && (stones.contains(without[i]) || overOre) { added += 1 }
                 else { other += 1; if first.isEmpty { first = " (\(Blocks.key(without[i])) became \(Blocks.key(with[i])))" } }
