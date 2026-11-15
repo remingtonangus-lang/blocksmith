@@ -116,6 +116,7 @@ enum ShapeTrunks {
         // a living trunk, a stump, a root or a limb, and timber is a post or a beam whatever stands round it.
         let woodOn = TreeWood.on
         let treeT = TreeWood.isTree
+        let drawn = Mesher.detailT
         // P433: root cells are limb cells of the tree (col 3): the walk below grows them out of the trunk's foot.
         for y in -M..<(16 + M) { for z in -M..<(16 + M) { for x in -M..<(16 + M) where isRoot[Int(g.block(x, y, z))] { s.col[wi(x, y, z)] = 3 } } }
 
@@ -285,7 +286,7 @@ enum ShapeTrunks {
         let limbSides = ctx.lod == 0 ? 6 : (ctx.lod == 3 ? ShapeTrunks.farLimbSides : (ctx.lod == 2 ? 5 : 4))
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
-            guard isTrunk[Int(b)] else { continue }
+            guard isTrunk[Int(b)], drawn[Int(b)] else { continue }     // (timber is the mesher's cube: TreeWood.cubeTimber)
             if ctx.skipDraw && ctx.skipped(x, y, z) { continue }       // (ledger 134: another tree's log, the stump)
             let i = wi(x, y, z)
             // (P433: a root block wears its tree's bark, not its own see-through root texture)

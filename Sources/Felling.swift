@@ -754,7 +754,11 @@ extension Game {
             // or settling goes 1.5 s after it first struck the ground (in his world at 3961 74 -1737 a spruce took 5.4 s
             // to lie still after its crown struck).
             let settled = f.landed && (f.still >= 0.3 || f.age - f.landedAge >= 1.5)
-            if !Felling.keep && Felling.isFelled(s) && (settled || !f.landed && f.age > 2.5 && f.still >= 0.3 || f.age > 9) {
+            // Nov 15 morning (Remington, on that build: "We don't want the tree to just break apart like that. I break
+            // the bottom log, tree falls just like before. It doesn't despawn"): the fallen tree stays where it lies.
+            // Its logs go into his pack when he strikes or uses it (ShipPlay, fellUse), whole, as before.
+            // BS_AUTOGATHER=1: gathered by itself once it has landed, as on Nov 15's first build.
+            if Felling.autoGather && !Felling.keep && Felling.isFelled(s) && (settled || !f.landed && f.age > 2.5 && f.still >= 0.3 || f.age > 9) {
                 gatherFelled(s); f.age = -1; continue
             }
             // P478 (Oct 27 18:47: "I don't want the branches and shit to disappear after the log falls"): the crown stays
@@ -910,6 +914,7 @@ extension ShipManager {
 extension Felling {
     static let oldKeep = ProcessInfo.processInfo.environment["BS_OLDFELLKEEP"] == "1"
     static var keep = oldKeep                    // (the checks that look at a lying body set it)
+    static let autoGather = ProcessInfo.processInfo.environment["BS_AUTOGATHER"] == "1"
     static var gathered = 0, gatheredLogs = 0    // (counters)
     static let gatherReach: Float = 32           // (farther off, a tree something else brought down drops its logs there)
 }

@@ -170,8 +170,8 @@ enum TreeProbeCheck {
         }
     }
 
-    // Nov 15 (Fable's list, 5): his trees felled in survival with an empty pack: each lands, the body is gone within 2 s
-    // of landing, his pack holds exactly the body's logs, and no Felled Tree is left.
+    // Nov 15 (Fable's list, 5; his correction that morning): his trees felled in survival with an empty pack: each
+    // lands and lies there; struck, the body is gone, his pack holds exactly its logs, and no Felled Tree is left.
     static func fellGather(_ g0: Game, _ check: (Bool, String) -> Void) {
         let keep0 = Felling.keep
         Felling.keep = false
@@ -211,15 +211,20 @@ enum TreeProbeCheck {
                 if landedAt < 0, Felling.falls.first(where: { $0.ship === s })?.landed == true { landedAt = t }
                 if !w.ships.list.contains(where: { $0 === s }) { goneAt = t; break }
             }
+            // (Nov 15 morning: it lies there until he strikes it; a blow on a lying tree is ShipPlay's gatherFelled)
+            let stayed = goneAt < 0 && w.ships.list.contains(where: { $0 === s })
+            let packBefore = g.inventory.main.slots.filter { !$0.isEmpty && Items.key($0.item).hasSuffix("_log") }.reduce(0) { $0 + $1.count }
+            if stayed { g.gatherFelled(s.root) }
             let inPack = g.inventory.main.slots.filter { !$0.isEmpty && Items.key($0.item).hasSuffix("_log") }.reduce(0) { $0 + $1.count }
             let left = w.ships.list.filter { Felling.isFelled($0) }.count
-            let ok = landedAt > 0 && goneAt > 0 && goneAt - landedAt <= 2 && inPack == logs && left == 0
+            let ok = Felling.autoGather ? (landedAt > 0 && goneAt > 0 && goneAt - landedAt <= 2 && inPack == logs && left == 0)
+                                        : (stayed && packBefore == 0 && inPack == logs && left == 0)
             if !ok { bad += 1 }
-            lines.append(String(format: "%d %d %d: landed %.1f s, gone %.1f s, %d logs in the body, %d in his pack, %d felled bodies left", a.x, a.y - 64, a.z, landedAt, goneAt, logs, inPack, left))
+            lines.append(String(format: "%d %d %d: landed %.1f s, %@, %d logs in the body, %d in his pack before a blow, %d after, %d felled bodies left", a.x, a.y - 64, a.z, landedAt, stayed ? "still lying at 14 s" : String(format: "gone %.1f s", goneAt), logs, packBefore, inPack, left))
             for s2 in w.ships.list where Felling.isFelled(s2) { w.ships.remove(s2) }
         }
         print("fellgather: " + lines.joined(separator: "; "))
-        check(!feet.isEmpty && bad == 0, "Nov 15 fell: \(feet.count) of his trees felled land and go into his pack whole within 2 s (\(bad) wrong: \(lines.joined(separator: "; ")))")
+        check(!feet.isEmpty && bad == 0, "Nov 15 fell: \(feet.count) of his trees felled land and lie there; struck, each goes into his pack whole (\(bad) wrong: \(lines.joined(separator: "; ")))")
     }
 
     // How far over a felled trunk lies, in degrees from upright: its lowest log to its highest as it stood.
