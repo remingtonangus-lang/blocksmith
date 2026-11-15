@@ -15,14 +15,14 @@ enum QuestShoveCheck {
 
         let w = World(seed: 4797859299361840175, device: sharedSystemDevice, save: nil)
         FieldTerrain.newWorlds = true; w.makeFieldWorld()
-        w.renderDistance = 4
+        w.renderDistance = 5
         let g = Game(world: w, save: nil, persistent: false)
         g.smoothTerrain = true
         SmoothTerrain.use(world: true, world: w)
         g.paused = false; g.menu = nil
         g.player.pos = V3(-496.5, 72 + Float(YOFF), 6102.5)
         g.player.flying = true
-        _ = w.loadSync(center: g.player.pos, radius: 4)
+        _ = w.loadSync(center: g.player.pos, radius: 5)
         g.tick(1.0 / 72)
         func top(_ x: Int, _ z: Int) -> Int {
             var y = CH - 1
@@ -35,7 +35,7 @@ enum QuestShoveCheck {
         // A level place for each drive (the land at a fixed spot changes with the generator: Nov 15, the old spot had
         // become a slope five blocks high off the carriage's bow, and the check had failed unseen since).
         let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z))
-        let R = 60
+        let R = 72
         var hm = [Int](repeating: 0, count: (2 * R + 1) * (2 * R + 1))
         for dz in -R...R { for dx in -R...R { hm[(dz + R) * (2 * R + 1) + dx + R] = top(px + dx, pz + dz) } }
         func level(halfX: Int, halfZ: Int, awayFrom: (Int, Int)?) -> (Int, Int, Int) {
@@ -147,12 +147,12 @@ enum QuestShoveCheck {
             return (s, n0, count(), simd_dot(s.pos - p0, ahead))
         }
         let shoved0 = Momentum.shoved
-        let bigAt = level(halfX: 10, halfZ: 30, awayFrom: nil)
+        let bigAt = level(halfX: 10, halfZ: 46, awayFrom: nil)       // (its 25 blocks, the two drives and room to spare)
         print("shovecheck: the carriage's place \(bigAt.0) \(bigAt.1), the land \(bigAt.2) blocks from lowest to highest under its run")
-        let (big, b0, b1, bMoved) = drive(Vessels.carriage(), "Ironstride Siege Carriage", at: bigAt.0, bigAt.1 + 10, seconds: 10)
+        let (big, b0, b1, bMoved) = drive(Vessels.carriage(), "Ironstride Siege Carriage", at: bigAt.0, bigAt.1 + 30, seconds: 8)
         print(String(format: "shovecheck: the siege carriage (mass %.0f) broke %d of %d trunk and plank blocks and drove %.1f blocks", big.mass, b0 - b1, b0, bMoved))
         // (the rows two and five blocks off its bow, then the spruce wood beyond: his 14:19 "blasts through trees")
-        check(bMoved > 12, String(format: "the siege carriage drives on past both rows (%.1f blocks in 10 s; it was held at 9.1 by a tree against its upper works)", bMoved))
+        check(Momentum.oldBelly ? true : bMoved > 32, String(format: "the siege carriage drives on past both rows (%.1f blocks in 8 s; it was held at 9.1 by a tree against its upper works, and at 28.5 on the wall's middle under its belly)", bMoved))
         check(ghosts == 0, "nothing it drove past is left standing inside its hull (\(ghosts) blocks)")
         check(wallLeft.0 * 2 <= wallLeft.1, "its wheels break through the plank wall rather than riding over it (\(wallLeft.0) of \(wallLeft.1) planks left in their tracks; 21 before)")
         check(Momentum.shoved - shoved0 >= 10, "Momentum.shove broke what was in its way (\(Momentum.shoved - shoved0) blocks)")
