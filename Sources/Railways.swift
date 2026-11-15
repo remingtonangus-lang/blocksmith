@@ -811,7 +811,13 @@ enum Railways {
         // (a link starts in its own line's stretch and runs up to linkReach stretches on east)
         let s0 = floorDiv(x0 - pad - span, w) - (runOn && gen.fieldWorld ? farReach : linkReach), s1 = floorDiv(x1 + pad + span, w)
         var out: [Line] = []
+        // (a line five or six stretches west reaches here only by a far link, which it has only with no line in the three
+        // stretches east of it; those are the nearer ones, planned for this box anyway, and with one of them there the
+        // far-off line is never planned. A first launch on build 100: 30,223 structure starts against 10,635 before the
+        // run-on rule, 3.6 s more to the first frame, all for lines up to six stretches west that only pruned.)
+        let farOnly = runOn && gen.fieldWorld && !oldLinkBox && !exactFarBox ? s0 + 1 : Int.min
         for row in r0...r1 { for s in s0...s1 where hasLine(gen, row, s) {
+            if wait, s <= farOnly, (1...linkReach).reversed().contains(where: { hasLine(gen, row, s + $0) && line(gen, row: row, stretch: s + $0) != nil }) { continue }
             if wait, let b = linkBox(gen, row, s), b.x1 + pad < x0 || b.x0 - pad > x1 || b.z1 + pad < z0 || b.z0 - pad > z1 { continue }
             guard let l = link(gen, row: row, stretch: s, wait: wait) else { continue }
             if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
