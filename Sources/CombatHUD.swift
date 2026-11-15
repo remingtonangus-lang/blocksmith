@@ -22,7 +22,7 @@ final class CombatHUD {
     func integrity(_ s: Ship) -> Float {
         let p = max(s.initialBlocks, peak[s.id] ?? 0, s.blockCount)
         peak[s.id] = p
-        return CombatHUD.hullMeter(p > 0 ? Float(s.blockCount) / Float(p) : 1)
+        return CombatHUD.hullMeter(p > 0 ? Float(s.hullBlocks) / Float(p) : 1)        // (Nov 14: less small arms' chip)
     }
     // P504: the hull reads its blocks left from 100% down to 70% (under 70% of them: 0).
     static func hullMeter(_ share: Float) -> Float { max(0, min(1, (share - 0.7) / 0.3)) }

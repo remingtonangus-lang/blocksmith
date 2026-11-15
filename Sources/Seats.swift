@@ -16,6 +16,7 @@ extension BlockRegistry {
         return Box(min(a.0, c.0), Int(bx.y0), min(a.1, c.1), max(a.0, c.0), Int(bx.y1), max(a.1, c.1), tex: bx.tex)
     }
 
+    static let oldSeatOrder = ProcessInfo.processInfo.environment["BS_OLDSEATORDER"] == "1"
     func registerSeats() {
         let dirs = ["north", "south", "west", "east"]
         for w in BlockRegistry.doorWoods where has("\(w)_planks") {
@@ -32,10 +33,24 @@ extension BlockRegistry {
                          Box(3, 14, 11, 13, 16, 13), Box(5, 11, 12, 11, 13, 13)]
             // Bench: a long plank seat at 8/16 on two trestles, open front and back.
             let bench = [Box(0, 6, 3, 16, 8, 13), Box(1, 0, 4, 3, 6, 12), Box(13, 0, 4, 15, 6, 12), Box(3, 2, 7, 13, 3, 9)]
-            for (k, dir) in dirs.enumerated() {
-                let cn = "\(w)_chair", bn = "\(w)_bench"
-                add(def(k == 0 ? cn : "\(cn)[\(dir)]", "\(wood) Chair", chair.map { BlockRegistry.turnBox($0, k) }, group: cn, hidden: k != 0))
-                add(def(k == 0 ? bn : "\(bn)[\(dir)]", "\(wood) Bench", bench.map { BlockRegistry.turnBox($0, k) }, group: bn, hidden: k != 0))
+            // Nov 14 evening (21:17, "This chair's not facing the right way"): each seat's four facings in a row, so its
+            // state k is its plain state + k as every four-facing block's is (placing one, sitting on one and the towns'
+            // seats count on it). They were registered chair, bench, chair[south], bench[south]...: a chair placed or
+            // built facing south came out a bench facing north, one facing west a chair facing south, and so on.
+            // BS_OLDSEATORDER=1: interleaved, as before.
+            let cn = "\(w)_chair", bn = "\(w)_bench"
+            if BlockRegistry.oldSeatOrder {
+                for (k, dir) in dirs.enumerated() {
+                    add(def(k == 0 ? cn : "\(cn)[\(dir)]", "\(wood) Chair", chair.map { BlockRegistry.turnBox($0, k) }, group: cn, hidden: k != 0))
+                    add(def(k == 0 ? bn : "\(bn)[\(dir)]", "\(wood) Bench", bench.map { BlockRegistry.turnBox($0, k) }, group: bn, hidden: k != 0))
+                }
+            } else {
+                for (k, dir) in dirs.enumerated() {
+                    add(def(k == 0 ? cn : "\(cn)[\(dir)]", "\(wood) Chair", chair.map { BlockRegistry.turnBox($0, k) }, group: cn, hidden: k != 0))
+                }
+                for (k, dir) in dirs.enumerated() {
+                    add(def(k == 0 ? bn : "\(bn)[\(dir)]", "\(wood) Bench", bench.map { BlockRegistry.turnBox($0, k) }, group: bn, hidden: k != 0))
+                }
             }
             // Stool: three splayed legs and a round-ish top at 10/16.
             let stool = [Box(4, 8, 4, 12, 10, 12), Box(3, 8, 5, 13, 10, 11), Box(5, 8, 3, 11, 10, 13),

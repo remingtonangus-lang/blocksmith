@@ -5,7 +5,51 @@ import simd
 enum Nov14EveningChecks {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         townSeats(check)
+        facingStates(check)
         treeCatalogue(check)
+        hullChip(g, check)
+        check(Game.travelNews("Fort Red Station marked on the map") && Game.travelNews("You found the Fort & Ash Rail Road: 2 stations, marked on your map")
+              && Game.travelNews("Entering Savenonia") && !Game.travelNews("Engines hit: going down") && !Game.travelNews("Intel: this base is a Radar Station"),
+              "Nov 14 HUD: at the helm the map's and the borders' news waits in the journal; hits, orders and intel still show")
+    }
+
+    // Nov 14 ("Bullets should be doing micro damage to the hulls"): forty rifle rounds into a Salvaged Fighter's hull
+    // each chip it (counted on the hull bar), no block goes; small arms alone stop at a tenth of the hull.
+    static func hullChip(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world
+        let fp = w.ships.spawn(AshWrecks.salvagedFighter(), at: g.player.pos + V3(0, 8, 24), yaw: 0, name: "Chip Test", role: "capplane")
+        fp.initialBlocks = fp.blockCount
+        defer { w.ships.remove(fp, turrets: false) }
+        let blocks0 = fp.blockCount, bar0 = CombatHUD.shared.integrity(fp), hits0 = ShipManager.chipHits
+        let target = fp.pos
+        let from = target + V3(-14, 0.2, 0)
+        for k in 0..<40 {
+            let d = simd_normalize(target + V3(0, Float(k % 3) * 0.1, 0) - from)
+            g.arms.spawn(Slug(pos: from, vel: d * 150, kind: .bullet, damage: 5, fromPlayer: true, shooter: nil, by: "Player", life: 0.6, gravity: 0))
+        }
+        for _ in 0..<40 { g.arms.update(1.0 / 60, g) }
+        let hits = ShipManager.chipHits - hits0, bar1 = CombatHUD.shared.integrity(fp)
+        check(hits >= 30 && fp.blockCount == blocks0 && bar1 < bar0 && bar0 - bar1 < 0.1 && abs(fp.chip - Float(hits) * 0.05) < 0.01,
+              String(format: "Nov 14 hulls: %d of 40 rifle rounds chip the fighter's hull (%.2f blocks' worth), no block lost (%d of %d), its bar %.1f%% -> %.1f%%",
+                     hits, fp.chip, fp.blockCount, blocks0, bar0 * 100, bar1 * 100))
+        w.ships.chip(fp, 1e7)
+        check(fp.hullBlocks >= fp.initialBlocks * 9 / 10 - 1 && fp.blockCount == blocks0,
+              "Nov 14 hulls: small arms alone take at most a tenth of a hull (\(fp.hullBlocks) of \(fp.initialBlocks) left after a flood of rounds)")
+    }
+
+    // The chair's class: every block with four facings has them in a row (state k = its plain state + k), as placing,
+    // sitting and building count on; the seats were interleaved chair, bench, chair[south], bench[south]...
+    static func facingStates(_ check: (Bool, String) -> Void) {
+        var groups = 0, wrong: [String] = []
+        for i in 0..<Blocks.count where Blocks.groupBase[i] == BlockID(i) {
+            let k = Blocks.key(BlockID(i))
+            guard Blocks.has(k + "[south]"), Blocks.shape[i].isEmpty else { continue }      // (as placing turns them: Game.useItem)
+            groups += 1
+            for (f, d) in ["south", "west", "east"].enumerated() where Blocks.has("\(k)[\(d)]") {
+                if Blocks.id("\(k)[\(d)]") != BlockID(i + f + 1) { wrong.append("\(k)[\(d)]"); break }
+            }
+        }
+        check(wrong.isEmpty && groups > 20, "Nov 14 chair (the class): every four-facing block's facings follow its plain state in order (\(groups) blocks, \(wrong.count) out of order\(wrong.isEmpty ? "" : ": " + wrong.prefix(4).joined(separator: ", ")))")
     }
 
     // Nov 15 (Fable's list, 1): the tree catalogue holds exactly 100 designs, names and ids unique, every log joined to

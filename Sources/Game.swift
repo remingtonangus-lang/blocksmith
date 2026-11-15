@@ -512,6 +512,7 @@ final class Game: LifeLinked {
         onToast = { [me = weakLink] s in              // (item 8: a link, not a weak reference: WeakLink.swift)
             guard let self = me.wrappedValue else { return }
             self.logMessage(s)                                         // (the journal gets every one at once, in order)
+            if self.quietWhileDriving(s) { return }                    // (Nov 14: travel news waits in the journal)
             // Q2c-console-12: the message showing keeps the HUD until it has been readable (Game.readFor); newer ones
             // wait their turn (toastQueueTick). A line that extends the one showing (the journal's note) replaces it.
             let shown = self.clock - self.toastTime

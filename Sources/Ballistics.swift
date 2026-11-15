@@ -205,6 +205,7 @@ final class Armory {
                 s.dead = true
                 slugs[i] = s
                 g.sfx(.bulletImpact(.metal), 0.5, at: s.pos + dir * h.0)
+                w.ships.chip(h.1, s.damage)                                     // (Nov 14: micro damage, no hole)
                 continue
             }
             if s.kind == .shell || s.kind == .rocket {

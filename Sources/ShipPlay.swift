@@ -257,7 +257,7 @@ extension Game {
                 // Capital vehicles: a machine, not a health pool: the label lists its components and crew.
                 if world.ships.boundsDistance(s, player.pos) < 300 { out.append((world.ships.capitalStatus(s), world.ships.capitalIntegrity(s))) }
             } else if simd_length(s.pos - player.pos) < 96 {
-                out.append((s.name, Float(s.blockCount) / Float(s.initialBlocks)))
+                out.append((s.name, Float(s.hullBlocks) / Float(s.initialBlocks)))
             }
         }
         return out

@@ -3048,6 +3048,7 @@ if CommandLine.arguments.contains("--elevator") {              // FAILURES.md 2:
     print(failures == 0 ? "elevator: all checks passed" : "elevator: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--spawncensus") { exit(SpawnCensus.run(game)) }   // Nov 14 evening: animals in clumps (Sources/SpawnCensus.swift)
+if CommandLine.arguments.contains("--wearprobe") { exit(WearProbe.run(game)) }   // Nov 14 evening: the concrete he could not shoot through (Sources/SpawnCensus.swift)
 if CommandLine.arguments.contains("--builds") {                // Builders' Grounds: an agent builds on natural ground
     BuildersCheck.run(game, check)
     print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)

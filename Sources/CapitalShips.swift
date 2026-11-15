@@ -40,7 +40,7 @@ enum DropLift {
         let (l0, r0) = base[s.id] ?? (max(1, max(l, r)), max(1, max(l, r)))
         let fl = Float(l) / Float(l0), fr = Float(r) / Float(r0)
         let lopsided = l + r > 60 && min(fl, fr) < max(fl, fr) * 0.67
-        let torn = s.initialBlocks > 0 && s.blockCount * 10 < s.initialBlocks * 6
+        let torn = s.initialBlocks > 0 && s.hullBlocks * 10 < s.initialBlocks * 6
         let lame = lopsided || torn
         seen[s.id] = (g.clock, lame)
         if lame && !told.contains(s.id) && g.world.ships.pilot === s {
@@ -1316,6 +1316,8 @@ extension ShipManager {
             let left = Float(st.wheels.count - st.wheelsLost) / Float(st.wheels.count)
             m = min(m, max(0, min(1, (left - 0.5) / 0.5)))
         }
+        // Nov 14: small arms' chip takes its share off too (at most ShipManager.chipCap of it).
+        if s.chip > 0 && s.initialBlocks > 0 { m *= 1 - min(ShipManager.chipCap, s.chip / Float(s.initialBlocks)) }
         return m
     }
 
@@ -3296,7 +3298,7 @@ extension ShipManager {
             }
         }
         let keelY = s.pos.y - keel
-        if !s.wrecked && s.initialBlocks > 0 && s.blockCount * 10 < s.initialBlocks * 6 {
+        if !s.wrecked && s.initialBlocks > 0 && s.hullBlocks * 10 < s.initialBlocks * 6 {
             s.wrecked = true
             g.sfx(.explode, 1, at: s.pos)
             for t in turrets(of: s) { t.aimAt = nil }

@@ -92,7 +92,7 @@ extension Game {
         let x = Int(floor(s.pos.x)), z = Int(floor(s.pos.z))
         let col = EnemySub.deep(world, x, z)
         // Hull hurt: the crew gives up and she surfaces (the player claims her at the helm).
-        if s.blockCount * 100 < s.initialBlocks * EnemySub.giveUpAt || s.helm == nil || Reckoning.won {
+        if s.hullBlocks * 100 < s.initialBlocks * EnemySub.giveUpAt || s.helm == nil || Reckoning.won {
             s.name = EnemySub.abandoned
             s.autopilot = V3(0, 0, 0)
             if let (top, _) = col { s.depthY = Float(top) + 2 }

@@ -1872,11 +1872,11 @@ final class QuestControls {
     // the view, the inventory figure's own (playerParts: tunic, trousers, boots and every worn piece as its shell, in the
     // piece's colours), without the head and arms (the tracked hands are the arms). It hangs from the head: the neck a
     // little under and behind the eyes, the feet on the ground (shorter when he sits), facing the way he last faced
-    // (it turns after the head once the head is well round, or as he walks); the legs walk. Not on a seat or at controls.
+    // (it turns after the head once the head is well round, or as he walks); the legs walk. Not on a seat or at controls,
+    // but always on a locomotive's footplate as he drives it (Game.bodyUnderView).
     private func appendBody(_ v: inout [SimpleVert], eye: V3) {
         let g = game, p = g.player
-        guard QuestSettings.showBody, g.alive, g.sleeping == 0, g.riding == nil, g.world.ships.pilot == nil, Turrets.shared.manned == nil, !p.prone,
-              !g.handsOnControls else { return }
+        guard g.bodyUnderView(showBody: QuestSettings.showBody) else { return }      // (Nov 14: and at a locomotive's regulator)
         var h = Hasher()
         for s in g.inventory.armor.slots { h.combine(s.item); h.combine(s.damage * 4 / max(1, s.def.durability)); h.combine(s.ench); h.combine(s.pat?.first ?? 0) }
         h.combine(g.coop.current)
