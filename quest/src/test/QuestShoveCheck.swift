@@ -15,14 +15,14 @@ enum QuestShoveCheck {
 
         let w = World(seed: 4797859299361840175, device: sharedSystemDevice, save: nil)
         FieldTerrain.newWorlds = true; w.makeFieldWorld()
-        w.renderDistance = 5
+        w.renderDistance = 4
         let g = Game(world: w, save: nil, persistent: false)
         g.smoothTerrain = true
         SmoothTerrain.use(world: true, world: w)
         g.paused = false; g.menu = nil
         g.player.pos = V3(-496.5, 72 + Float(YOFF), 6102.5)
         g.player.flying = true
-        _ = w.loadSync(center: g.player.pos, radius: 5)
+        _ = w.loadSync(center: g.player.pos, radius: 4)
         g.tick(1.0 / 72)
         func top(_ x: Int, _ z: Int) -> Int {
             var y = CH - 1
@@ -35,7 +35,7 @@ enum QuestShoveCheck {
         // A level place for each drive (the land at a fixed spot changes with the generator: Nov 15, the old spot had
         // become a slope five blocks high off the carriage's bow, and the check had failed unseen since).
         let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z))
-        let R = 72
+        let R = 60
         var hm = [Int](repeating: 0, count: (2 * R + 1) * (2 * R + 1))
         for dz in -R...R { for dx in -R...R { hm[(dz + R) * (2 * R + 1) + dx + R] = top(px + dx, pz + dz) } }
         func level(halfX: Int, halfZ: Int, awayFrom: (Int, Int)?) -> (Int, Int, Int) {
@@ -53,11 +53,13 @@ enum QuestShoveCheck {
         }
         var ghosts = 0
         var wallLeft = (0, 0)
+        var startAt = V3(0, 0, 0)
 
         func drive(_ bp: Blueprint, _ name: String, at x0: Int, _ z0: Int, seconds: Float) -> (Ship, Int, Int, Float) {
             var gy = 0
             for dz in -30...30 { for dx in -16...16 { gy = max(gy, top(x0 + dx, z0 + dz)) } }
-            let s = w.ships.spawn(bp, at: V3(Float(x0) + 0.5, Float(gy) + 6, Float(z0) + 0.5), yaw: 0, name: name, role: "")
+            startAt = V3(Float(x0) + 0.5, Float(gy) + 6, Float(z0) + 0.5)
+            let s = w.ships.spawn(bp, at: startAt, yaw: 0, name: name, role: "")
             for _ in 0..<144 { g.tick(1.0 / 72) }                    // (settles on its wheels)
             // Which way it drives (its helm's heading), on the nearer axis.
             let fw = s.dirToWorld(s.fwd)
@@ -147,9 +149,9 @@ enum QuestShoveCheck {
             return (s, n0, count(), simd_dot(s.pos - p0, ahead))
         }
         let shoved0 = Momentum.shoved
-        let bigAt = level(halfX: 10, halfZ: 46, awayFrom: nil)       // (its 25 blocks, the two drives and room to spare)
+        let bigAt = level(halfX: 10, halfZ: 30, awayFrom: nil)
         print("shovecheck: the carriage's place \(bigAt.0) \(bigAt.1), the land \(bigAt.2) blocks from lowest to highest under its run")
-        let (big, b0, b1, bMoved) = drive(Vessels.carriage(), "Ironstride Siege Carriage", at: bigAt.0, bigAt.1 + 30, seconds: 8)
+        let (big, b0, b1, bMoved) = drive(Vessels.carriage(), "Ironstride Siege Carriage", at: bigAt.0, bigAt.1 + 10, seconds: 8)
         print(String(format: "shovecheck: the siege carriage (mass %.0f) broke %d of %d trunk and plank blocks and drove %.1f blocks", big.mass, b0 - b1, b0, bMoved))
         // (the rows two and five blocks off its bow, then the spruce wood beyond: his 14:19 "blasts through trees")
         check(Momentum.oldBelly ? true : bMoved > 32, String(format: "the siege carriage drives on past both rows (%.1f blocks in 8 s; it was held at 9.1 by a tree against its upper works, and at 28.5 on the wall's middle under its belly)", bMoved))
@@ -158,7 +160,11 @@ enum QuestShoveCheck {
         check(Momentum.shoved - shoved0 >= 10, "Momentum.shove broke what was in its way (\(Momentum.shoved - shoved0) blocks)")
         // Ledger 163 (Nov 15 08:36, the carriage "stuck in the trees"): a felled tree lying across its way is a body, not
         // blocks, so Momentum.shove never broke it and the carriage pushed a pile of trunks. A heavy driven hull smashes it.
+        w.ships.remove(big)
         do {
+            // (a second carriage set down where the first started: the level ground it has just cleared)
+            let big = w.ships.spawn(Vessels.carriage(), at: startAt, yaw: 0, name: "Ironstride Siege Carriage", role: "")
+            for _ in 0..<144 { g.tick(1.0 / 72) }
             let fw0 = big.dirToWorld(big.fwd)
             let fw = simd_normalize(V3(fw0.x, 0, fw0.z))
             let mid = (big.worldMin + big.worldMax) * 0.5
@@ -171,14 +177,14 @@ enum QuestShoveCheck {
             let c0 = Felling.crushed, p0 = big.pos
             let lying = w.ships.list.contains(where: { $0 === body })
             big.autopilot = V3(1, 0, 0)
-            for _ in 0..<(5 * 72) { g.tick(1.0 / 72) }
+            for _ in 0..<(4 * 72) { g.tick(1.0 / 72) }
             big.autopilot = nil
             let gone = !w.ships.list.contains(where: { $0 === body })
             let moved = simd_dot(big.pos - p0, fw)
-            check(Momentum.oldCrush ? true : (lying && gone && Felling.crushed > c0 && moved > 4),
-                  String(format: "a felled tree lying across the carriage's way (there before: %@) is smashed (gone: %@, %d bodies crushed) and it drives on (%.1f blocks in 5 s)", lying ? "yes" : "no", gone ? "yes" : "no", Felling.crushed - c0, moved))
+            check(Momentum.oldCrush ? true : (lying && gone && Felling.crushed > c0 && moved > 8),
+                  String(format: "a felled tree lying across the carriage's way (there before: %@) is smashed (gone: %@, %d bodies crushed) and it drives on (%.1f blocks in 4 s)", lying ? "yes" : "no", gone ? "yes" : "no", Felling.crushed - c0, moved))
+            w.ships.remove(big)
         }
-        w.ships.remove(big)
 
         // A light car: four wheels, an engine and a seat.
         let car = Blueprint()
