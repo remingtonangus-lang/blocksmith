@@ -474,6 +474,7 @@ final class Game: LifeLinked {
     private var lastSpaceTap: Double = -1
     private var flyTapAt: Double = -1         // (the tick of a double-tapped jump: the fly toggle waits for the player's update)
     var clock: Double = 0            // (settable: the deep-war checks step it without a full tick)
+    var lastJump: (at: Double, what: String)?         // ledger 138: the last move of 48+ blocks between two frames
     var toastText = ""
     static func toastLife(_ t: String) -> Double { min(9, 2.2 + Double(max(0, t.count - 30)) * 0.06) }   // P209: time to read it
     var toastTime: Double = -100
@@ -1135,6 +1136,16 @@ final class Game: LifeLinked {
             var moved = V3.zero
             if let p0 = leadFrom, dt > 0 { moved = V3(at.x - p0.x, 0, at.z - p0.z) / Float(dt) }
             if simd_length(moved) > 250 { moved = .zero; leadSmooth = .zero }
+            // Ledger 138: a move of 48 blocks or more between two frames is kept for his voice notes (their "jump" line:
+            // where from, where to, and what he was on), so a move nobody asked for names its own cause next time.
+            if let p0 = leadFrom, simd_length(at - p0) >= 48 {
+                let sh = world.ships
+                let on = sh.pilot.map { "piloting \($0.name) (\($0.role ?? "ship"))" } ?? sh.aboard.map { "aboard \($0.name) (\($0.role ?? "ship"))" }
+                    ?? riding.map { "riding \($0.customName ?? $0.kind.name)" } ?? "on foot"
+                lastJump = (clock, String(format: "%.0f blocks, from %.1f %.1f %.1f to %.1f %.1f %.1f, %@%@; decks refused %d, bodies repaired %d",
+                                          simd_length(at - p0), p0.x, p0.y - Float(YOFF), p0.z, at.x, at.y - Float(YOFF), at.z, on,
+                                          menu.map { ", screen \(type(of: $0))" } ?? "", Game.wildCarries, Player.quarantined))
+            }
             leadFrom = at
             leadSmooth += (moved - leadSmooth) * Float(min(1, dt * 6))
             world.lead = simd_length(leadSmooth) < 0.5 ? .zero : leadSmooth
