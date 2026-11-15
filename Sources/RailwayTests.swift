@@ -729,7 +729,15 @@ enum RailwayTests {
                 linked += 1
                 fed[b.id, default: 0] += 1
                 if fed[b.id]! == 2 { fedTwice += 1 }
-                if lk.runOn { ranOn += 1; longest = max(longest, lk.cells.count) }
+                if lk.runOn {
+                    ranOn += 1; longest = max(longest, lk.cells.count)
+                    // (where to look at one: its first cell over the sea, its highest over the land, its middle)
+                    if ranOn <= 6 {
+                        let sea = lk.cells.first { gen.column($0.x, $0.z).biome.isOcean }
+                        let mid = lk.cells[lk.cells.count / 2]
+                        print("rail links: seed \(seed) run-on link of \(lk.cells.count) cells from \(lk.cells[0]) to \(lk.cells[lk.cells.count - 1]), middle \(mid), first sea cell \(sea.map { "\($0)" } ?? "none")")
+                    }
+                }
                 for (i, c) in lk.cells.enumerated() {
                     if lk.runOn && i % 4 == 0 && gen.column(c.x, c.z).biome.isOcean { seaCells += 4 }
                     let ck = Railways.colKey(c.x, c.z)
