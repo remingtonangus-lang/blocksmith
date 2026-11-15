@@ -283,6 +283,12 @@ enum Railways {
             guard let a = line(gen, row: row + 1, stretch: s - k, wait: wait) else { continue }
             if let lk = link(gen, row: row + 1, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
         }
+        // ...or from the next line west in its own row, further off.
+        for k in (linkReach + 1)...farReach where hasLine(gen, row, s - k) {
+            guard let a = line(gen, row: row, stretch: s - k, wait: wait) else { continue }
+            if let lk = link(gen, row: row, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
+            return nil
+        }
         return nil
     }
 
@@ -300,7 +306,8 @@ enum Railways {
     // Where the link as before can't be laid, the end still runs on to the start the old rules gave it (the next line
     // east in its row, else one in the row south that nothing in its own row runs into), now over the sea on a bridge
     // however wide and up to 128 off the land (a viaduct or a tunnel), clear of every other line's track; and an end with no such start runs on to one in
-    // the row north that neither its own row nor the row north of it runs into. So a start is still run into by one
+    // the row north that neither its own row nor the row north of it runs into, or else to the next line east in its
+    // own row up to six stretches on. So a start is still run into by one
     // end at most, and no two links cross. Only in field worlds, only on ground no save had before
     // (structure-guard-l135.txt). BS_OLDRUNON=1: as before.
     static let oldRunOn = ProcessInfo.processInfo.environment["BS_OLDRUNON"] == "1"
@@ -342,10 +349,26 @@ enum Railways {
         }
         return nil
     }
+    static func fedFromSouth(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
+        let me = key(row, s)
+        for k in 0...linkReach where hasLine(gen, row + 1, s - k) { if let t = northOf(gen, row + 1, s - k), t.1 == me { return true } }
+        return false
+    }
+    // 4 (run-on): with none of those, the next line east in its row up to farReach stretches on, where no row beside
+    // that one runs into it.
+    static let farReach = 6
+    static func farEastIn(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
+        guard eastIn(gen, row, s) == nil, southOf(gen, row, s) == nil, northOf(gen, row, s) == nil else { return nil }
+        for k in (linkReach + 1)...farReach where hasLine(gen, row, s + k) {
+            guard let l = line(gen, row: row, stretch: s + k) else { continue }
+            return fedFromNorth(gen, row, s + k) || fedFromSouth(gen, row, s + k) ? nil : (l, key(row, s + k))
+        }
+        return nil
+    }
     static func planRunOn(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         guard runOn, gen.fieldWorld, hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures,
               let pa = a.cells.last else { return nil }
-        guard let (b, bKey) = eastIn(gen, row, s) ?? southOf(gen, row, s) ?? northOf(gen, row, s), let pb = b.cells.first else {
+        guard let (b, bKey) = eastIn(gen, row, s) ?? southOf(gen, row, s) ?? northOf(gen, row, s) ?? farEastIn(gen, row, s), let pb = b.cells.first else {
             tally?("run-on: no start to run on to"); return nil
         }
         guard pb.x - pa.x >= 5 * routeCell else { tally?("run-on: lines overlap"); return nil }
@@ -651,7 +674,7 @@ enum Railways {
         let r1 = floorDiv(z1 + pad + span / 2 + routeWander + routeCell, span) + (runOn && gen.fieldWorld ? 1 : 0)
         let w = stretch * span
         // (a link starts in its own line's stretch and runs up to linkReach stretches on east)
-        let s0 = floorDiv(x0 - pad - span, w) - linkReach, s1 = floorDiv(x1 + pad + span, w)
+        let s0 = floorDiv(x0 - pad - span, w) - (runOn && gen.fieldWorld ? farReach : linkReach), s1 = floorDiv(x1 + pad + span, w)
         var out: [Line] = []
         for row in r0...r1 { for s in s0...s1 where hasLine(gen, row, s) {
             guard let l = link(gen, row: row, stretch: s, wait: wait) else { continue }
