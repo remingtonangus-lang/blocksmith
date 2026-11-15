@@ -26,7 +26,7 @@ extension ShipManager {
             // pit in the ground under it. It lands as a tree (Felling: a thud and a rustle of leaves).
             if Felling.isFelled(s) { continue }
             let held = Momentum.held(s, dt)
-            if (s.pushing || held || Momentum.underWay(s)) && !s.kinematic { Momentum.shove(s, dt, g) } else { s.shoveStore = 0 }
+            if (s.pushing || held || Momentum.underWay(s)) && !s.kinematic { Momentum.shove(s, dt, g); Momentum.crush(s, g) } else { s.shoveStore = 0 }
             s.pushing = false; s.pushInto = 0
             // P262: a heavy, fast hull breaks through what it hits in the world (any physics hull, AI or yours).
             var gave = false
@@ -121,6 +121,31 @@ enum Momentum {
     // what it drives on (anything not standing above its lowest point) is left alone.
     static func underWay(_ s: Ship) -> Bool {
         s.piloted && abs(s.throttleEase) > 0.25 && s.mass >= 300 && s.engines > 0
+    }
+
+    // Ledger 146 (Nov 15 08:27:40-08:28:34, the Ironstride Siege Carriage in a forest at -6532 82 8952: "siege carriage
+    // is stuck", "this thing might need a little more torque", "It's not able to show these trees who's boss", "It's
+    // stuck in the trees"): its push snaps the trunk ahead (shove, below) and the tree comes down as a body, a
+    // physics hull of its own lying across the bow, and nothing a hull does shifts another hull's body: every tree it
+    // felled was a new bar across its way. A hull heavy enough to snap a trunk (200 t and more) driven onto a felled
+    // tree that has landed (or one down for a second and a half) smashes it: wood and leaf bits, the body gone,
+    // nothing left to pick up (P452). BS_OLDCRUSH=1: as before.
+    static let oldCrush = ProcessInfo.processInfo.environment["BS_OLDCRUSH"] == "1"
+    static func crush(_ s: Ship, _ g: Game) {
+        guard !oldCrush, s.mass >= 200, s.engines > 0, s.parent == nil else { return }
+        var dir = s.dirToWorld(s.fwd) * (s.throttleEase < 0 ? -1 : 1)
+        dir.y = 0
+        guard simd_length(dir) > 1e-3 else { return }
+        dir = simd_normalize(dir)
+        // (its own box, a block further the way it drives)
+        let lo = simd_min(s.worldMin, s.worldMin + dir) - V3(0.3, 0.3, 0.3), hi = simd_max(s.worldMax, s.worldMax + dir) + V3(0.3, 0.3, 0.3)
+        var hit: [Ship] = []
+        for f in g.world.ships.list where f.parent == nil && f !== s && Felling.isFelled(f) && Felling.carried !== f {
+            guard f.worldMin.x < hi.x && f.worldMax.x > lo.x && f.worldMin.y < hi.y && f.worldMax.y > lo.y && f.worldMin.z < hi.z && f.worldMax.z > lo.z else { continue }
+            if let fall = Felling.falls.first(where: { $0.ship === f }), !fall.landed, fall.age < 1.5 { continue }     // (let it fall first)
+            hit.append(f)
+        }
+        for f in hit { g.gatherFelled(f, crushed: true) }
     }
 
     static func shove(_ s: Ship, _ dt: Float, _ g: Game) {

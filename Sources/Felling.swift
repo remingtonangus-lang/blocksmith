@@ -915,12 +915,13 @@ extension Felling {
     static let oldKeep = ProcessInfo.processInfo.environment["BS_OLDFELLKEEP"] == "1"
     static var keep = oldKeep                    // (the checks that look at a lying body set it)
     static let autoGather = ProcessInfo.processInfo.environment["BS_AUTOGATHER"] == "1"
-    static var gathered = 0, gatheredLogs = 0    // (counters)
+    static var gathered = 0, gatheredLogs = 0, crushed = 0    // (counters)
     static let gatherReach: Float = 32           // (farther off, a tree something else brought down drops its logs there)
 }
 
 extension Game {
-    func gatherFelled(_ s0: Ship) {
+    // `crushed` (ledger 146): a heavy hull driven over it: the tree is smashed, nothing goes to the pack or drops.
+    func gatherFelled(_ s0: Ship, crushed: Bool = false) {
         let s = s0.root
         guard Felling.isFelled(s), world.ships.list.contains(where: { $0 === s }) else { return }
         if Felling.carried === s { Felling.carried = nil; ShipManager.ghosts.remove(s.id) }
@@ -951,7 +952,7 @@ extension Game {
         let at = s.pos + V3(0, 0.6, 0)
         let near = alive && simd_length(player.pos - s.pos) < Felling.gatherReach
         // Logs: into the pack by kind; what doesn't fit drops at the body.
-        for (item, n0) in byKind {
+        for (item, n0) in byKind where !crushed {
             var n = n0
             let max = Swift.max(1, ItemStack(item, 1).def.maxStack)
             while n > 0 {
@@ -962,11 +963,11 @@ extension Game {
                 n -= k
             }
         }
-        for st in loot where !st.isEmpty { drops.spawn(st, at: at) }
+        for st in loot where !st.isEmpty && !crushed { drops.spawn(st, at: at) }
         for (c, b) in bits { particles.blockBreak(b, at: c) }
         sfx(.breakBlock(.wood), 1, at: s.pos)
         sfx(.plantBrush, 1.2, at: s.pos)
-        Felling.gathered += 1; Felling.gatheredLogs += logCount
+        if crushed { Felling.crushed += 1 } else { Felling.gathered += 1; Felling.gatheredLogs += logCount }
         world.ships.remove(s)
     }
 }
