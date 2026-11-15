@@ -32,6 +32,7 @@ final class WorldRenderer {
     func takeStages() -> String {
         let n = Double(max(1, stageFrames))
         let parts = zip(WorldRenderer.stageNames, stageSums).map { "\($0) " + String(format: "%.2f", $1 * 1000 / n) }
+        let ents = takeEntities(frames: stageFrames)
         let extra = String(format: " | table re-read %.1f columns a frame, occluder raster %.2f ms a frame; taken back from the workers: mobs %d, raster %d of %d frames; landmark builds: %d full, %d mid, %d smoke, %.0f vertices, %.2f ms a frame",
                            Double(tableReads) / n, rasterSum / n, mobWork.takeTookBack(), scene.occWork.takeTookBack(), stageFrames,
                            lmTally[0], lmTally[1], lmTally[2], Double(lmVertSum) / Double(max(1, lmTally[0] + lmTally[1] + lmTally[2])),
@@ -39,7 +40,7 @@ final class WorldRenderer {
         for i in stageSums.indices { stageSums[i] = 0; stagePrev[i] = 0 }
         stageFrames = 0; stageWorst = 0; tableReads = 0; rasterSum = 0
         lmTally = [0, 0, 0]; lmVertSum = 0; lmBuildMs = 0
-        return parts.joined(separator: ", ") + extra
+        return parts.joined(separator: ", ") + " (entities: " + ents + ")" + extra
     }
     // P385 step 3: the mobs' vertices are written on a worker while the frame thread culls and draws the terrain (they read the
     // mobs, the light and the model tables, none of which the cull touches), into a vertex buffer of the slot's own,
@@ -376,6 +377,17 @@ final class WorldRenderer {
         stage(17)
     }
     private var particleSec = 0.0
+    static let entityNames = ["drops, projectiles", "tnt, end, fangs, beams", "falling", "shells", "decor", "bobber, leads, banners, rockets",
+                              "arms", "books, shelves", "felled", "debris", "shadows", "halos", "weather"]
+    private var entitySums = [Double](repeating: 0, count: 13)
+    // The three dearest entity writers since the last take, ms a frame.
+    func takeEntities(frames: Int) -> String {
+        let n = Double(max(1, frames))
+        let order = entitySums.indices.sorted { entitySums[$0] > entitySums[$1] }.prefix(3)
+        let out = order.map { "\(WorldRenderer.entityNames[$0]) " + String(format: "%.2f", entitySums[$0] * 1000 / n) }.joined(separator: ", ")
+        for i in entitySums.indices { entitySums[i] = 0 }
+        return out
+    }
 
     // F4: the middle ring after the opaque terrain (the loaded chunks win the depth test; far.vert sinks the ring under
     // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
@@ -802,24 +814,37 @@ final class WorldRenderer {
         let right = V3(cosf(yaw), 0, -sinf(yaw))
         let up = simd_normalize(simd_cross(right, look))
         let w = game.world, daylight = game.daylight, es = WorldRenderer.entitySkip
+        // (Nov 15: the fight's "entities 1.04 ms" by writer, for the perf line)
+        var te = CFAbsoluteTimeGetCurrent()
+        func lapE(_ i: Int) { let n = CFAbsoluteTimeGetCurrent(); entitySums[i] += n - te; te = n }
         if !es.contains("drops") { game.drops.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, time: Float(game.clock)) }
         if !es.contains("projectiles") { game.projectiles.write(&wr, eye: eye, world: w, daylight: daylight) }
+        lapE(0)
         if !es.contains("tnts") { game.tnts.write(&wr, eye: eye, world: w, daylight: daylight) }
         game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
         game.writeFangs(&wr, eye: eye)
         game.writeBeams(&wr, eye: eye)
+        lapE(1)
         if !es.contains("falling") { game.writeFalling(&wr, eye: eye) }
+        lapE(2)
         if !es.contains("shells") { w.ships.writeShells(&wr, eye: eye) }
+        lapE(3)
         if !es.contains("decor") { game.writeDecor(&wr, eye: eye) }
+        lapE(4)
         game.writeBobber(&wr, eye: eye, right: right, up: -up)
         game.writeLeads(&wr, eye: eye)
         game.writeBanners(&wr, eye: eye)
         game.writeRockets(&wr, eye: eye)
+        lapE(5)
         if !es.contains("arms") { game.writeArms(&wr, eye: eye) }
+        lapE(6)
         game.writeLecternBooks(&wr, eye: eye)
         game.writeShelves(&wr, eye: eye)
+        lapE(7)
         if !es.contains("felled") { game.writeFelled(&wr, eye: eye) }   // (P297 d: round felled trunks)
+        lapE(8)
         if !es.contains("debris") { game.debris.write(&wr, eye: eye, world: w, daylight: daylight) }   // (R15: ragdolls and debris in every world)
+        lapE(9)
         let tp0 = CFAbsoluteTimeGetCurrent()
         let split = !ParticleManager.oldSmoke                       // (smoke in its own see-through pass: Particles.isSmoke)
         if !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, soft: split ? false : nil) }
@@ -827,9 +852,13 @@ final class WorldRenderer {
         if split && !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, soft: true) }
         particleSec = CFAbsoluteTimeGetCurrent() - tp0
         let nSmoke = wr.n
+        te = CFAbsoluteTimeGetCurrent()
         if !es.contains("shadows") { game.writeShadows(&wr, eye: eye) }
+        lapE(10)
         if !es.contains("halos") { game.writeHalos(&wr, eye: eye, right: right, up: -up) }   // SH1 light halos
+        lapE(11)
         if !es.contains("weather") { game.writeWeather(&wr, eye: eye) }
+        lapE(12)
         if let m = game.mining, game.mineProgress > 0, w.damageLevel(m) == 0, game.targetGround?.cell != m {      // (P297 b: not on polygon ground)
             let layer = HudTex.destroy(Int(game.mineProgress * 10))
             let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye
