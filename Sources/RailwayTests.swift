@@ -690,6 +690,37 @@ enum RailwayTests {
                       + "with them down he takes it (\(took)), its guard car's gun goes quiet on him (\(quiet)) and he works it (\(manned)), a shell a shot (\(fired))")
             } else { check(false, "P510 military train: no troop car, engine or guard car (\(mtr.cars.map { $0.variant }))") }
         } else { check(false, "P510 military train: no train could be put on the line") }
+        // Ledger 137: a train leaving a stop whistles once (it whistled on every frame of the stand's last two seconds).
+        for old in Trains.trains.values where !old.cars.isEmpty { Trains.remove(g, old) }
+        Trains.trains.removeAll()
+        TrainGun.shared.leave(g)
+        if g.riding != nil { g.dismount() }
+        g.player.pos = V3(Float(sc.x) + 0.5, Float(sc.y), Float(sc.z - 2) + 0.5)
+        _ = world.loadSync(center: g.player.pos, radius: 4)
+        for k in 0..<Int(t.period) + 1 where t.at(g.time + Double(k)).stop == si { g.time += Double(k) + 2; break }
+        Trains.forceKind = .passenger
+        Trains.tick(g)
+        if let tr2 = Trains.trains[t.id], !tr2.cars.isEmpty {
+            // (its own track's timetable: the line's circuit once its loops are planned) to two seconds into its next stand
+            let tk = tr2.track
+            for k in 0..<Int(tk.period) + 1 where tk.at(g.time - tr2.delay + Double(k)).stop != nil { g.time += Double(k) + 2; break }
+            tr2.time = g.time - tr2.delay
+            Trains.place(g, tr2, dt: 0)
+            if let lead = tr2.cars.first { g.player.pos = lead.pos + V3(4, 0, 0) }
+            let stood = tk.at(tr2.time).stop != nil
+            let w0 = Trains.whistles
+            var left = false, frames = 0
+            while frames < Int((Trains.dwell + 6) * 72) && !(left && frames % 72 == 0) {
+                g.time += 1.0 / 72; g.clock += 1.0 / 72
+                tr2.time = g.time - tr2.delay
+                Trains.place(g, tr2, dt: 1.0 / 72)
+                if tk.at(tr2.time).stop == nil { left = true }
+                frames += 1
+            }
+            let n = Trains.whistles - w0
+            check(stood && left && n == 1, "ledger 137: a train leaving a station whistles once (\(n) whistles in the \(frames) frames to its leaving\(stood ? "" : "; it was not at a stop")\(left ? "" : "; it never left"))")
+            Trains.remove(g, tr2)
+        } else { check(false, "ledger 137: no train stands at \(st.name) Station") }
         Trains.trains.removeAll()
     }
 

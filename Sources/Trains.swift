@@ -216,6 +216,7 @@ enum Trains {
         var raidT: Float = 0
         var raidedDay = -1
         var roofAt: Double = -1e9               // when the player last stood on one of its roofs
+        var whistledAt: Double = -1e9           // when it last whistled (ledger 137)
         var chuff: Float = 0
         var lastS: Float = 0
         // P470 part 2 (TrainCars.swift): a real-size train's kind, its cars' places along it (variant, turned round,
@@ -799,8 +800,18 @@ enum Trains {
         return tr
     }
 
+    // Ledger 137 (Nov 14 12:07:30 at Toriwick, the game's own sound record: a whistle every frame for two seconds,
+    // 144 of them at once): the whistle that marks a train about to leave a stop was asked on every frame of the last
+    // two seconds of its stand. One whistle a train in any three seconds. BS_OLDWHISTLE=1: every ask sounds.
+    static let oldWhistle = ProcessInfo.processInfo.environment["BS_OLDWHISTLE"] == "1"
+    static var whistles = 0                                 // (checks: whistles sounded)
     static func whistle(_ g: Game, _ tr: Train) {
         guard let lead = lead(tr) else { return }
+        if !oldWhistle {
+            guard g.clock - tr.whistledAt > 3 || g.clock < tr.whistledAt else { return }
+            tr.whistledAt = g.clock
+        }
+        whistles += 1
         g.sfx(.trainWhistle, tr.track.armoured ? 0.7 : 1, at: chimney(lead))
     }
 
