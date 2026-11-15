@@ -370,8 +370,12 @@ enum Railways {
     }
     // 4 (run-on): with none of those, the next line east in its row up to farReach stretches on, where no row beside
     // that one runs into it.
-    // (BS_FARREACH=3: no far rule at all, to weigh what it links against what asking about six stretches costs)
-    static let farReach = max(linkReach, Int(ProcessInfo.processInfo.environment["BS_FARREACH"] ?? "") ?? 6)
+    // OFF since build 103 (farReach = linkReach): it linked 7 more of 267 line ends (197 against 190), and to know
+    // whether a far link passes a chunk every row round it is asked for lines three stretches further west; asking
+    // costs 0.1 to 0.4 s a stretch whether a line stands there or not (its towns' and sites' structure starts). A
+    // first launch reached its first frame in 10 s with it, 7.5 s without (7.0 s before the run-on rule); land beside
+    // a link generated in 23 s with it, 12.6 s without. BS_FARREACH=6: on.
+    static let farReach = max(linkReach, Int(ProcessInfo.processInfo.environment["BS_FARREACH"] ?? "") ?? linkReach)
     static let farRange: [Int] = farReach > linkReach ? Array((linkReach + 1)...farReach) : []
     static func farEastIn(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
         guard eastIn(gen, row, s) == nil, southOf(gen, row, s) == nil, northOf(gen, row, s) == nil else { return nil }
