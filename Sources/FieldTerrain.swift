@@ -551,6 +551,7 @@ extension World {
     @discardableResult
     // `keepSolid`: only the surface moves (a blast's bowl walls, a bullet's dent): no cell turns from ground to open or
     // back, so nothing is removed without its drop.
+    static let oldSphere = ProcessInfo.processInfo.environment["BS_OLDSPHERE"] == "1"       // ledger 164
     func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
                      remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []
@@ -571,6 +572,8 @@ extension World {
         // chunk is looked up when the row crosses into another)
         var lkx = Int.min, lkz = Int.min
         var lc: Chunk?
+        let quick = !World.oldSphere
+        let stop: Int8 = carve ? -127 : 127
         for y in stride(from: max(0, cyI - reach), through: min(CH - 1, cyI + reach), by: 1) {
             for z in (czI - reach)...(czI + reach) {
                 for x in (cxI - reach)...(cxI + reach) {
@@ -580,10 +583,19 @@ extension World {
                     }
                     guard let c = lc else { continue }
                     guard c.blocks.isField else { continue }
-                    let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
-                    let dist = simd_length(p - ctr)
                     let i = Chunk.index(mod(x, CS), y, mod(z, CS))
-                    let d0 = FieldTerrain.f(c.blocks.density(i))
+                    let v0 = c.blocks.density(i)
+                    if quick && v0 == stop { continue }                // ledger 164 (FineField.fineSphere)
+                    let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                    let off = p - ctr
+                    let d0 = FieldTerrain.f(v0)
+                    if quick {
+                        let d2 = simd_length_squared(off)
+                        // (a carve lifts an unbreakable cell's low value even where it changes nothing else)
+                        if carve { let lim = r + d0 + 0.02; if (v0 <= 0 || v0 >= 8) && (lim <= 0 || d2 >= lim * lim) { continue } }
+                        else { let lim = r - d0 + 0.02; if lim <= 0 || d2 >= lim * lim { continue } }
+                    }
+                    let dist = simd_length(off)
                     let d1 = carve ? min(d0, dist - r) : max(d0, r - dist)
                     var q = FieldTerrain.q(d1)
                     let was = d0 > 0

@@ -195,6 +195,8 @@ extension World {
     func fineSphere(_ ctr: V3, radius r: Float, carve: Bool, prepared: [(Chunk, Int, Bool)]) -> [(Chunk, Int)] {
         var changed: [(Chunk, Int)] = []
         let reach = r + 1.0
+        let quick = !World.oldSphere
+        let stop: Int8 = carve ? -127 : 127
         for (c, sy, fresh) in prepared {
             guard var f = c.blocks.fine[sy] else { continue }
             c.blocks.fine[sy] = nil                                  // (written back below: no copy on write)
@@ -206,10 +208,23 @@ extension World {
             var any = false
             if x0 <= x1 && y0 <= y1 && z0 <= z1 {
                 for fy in y0...y1 { for fz in z0...z1 { for fx in x0...x1 {
-                    let p = V3(ox + (Float(fx) + 0.5) * 0.5, oy + (Float(fy) + 0.5) * 0.5, oz + (Float(fz) + 0.5) * 0.5)
-                    let dist = simd_length(p - ctr)
                     let k = FineField.index(fx, fy, fz)
-                    let d0 = FieldTerrain.f(f[k])
+                    // Ledger 164 (Nov 15, the fights' crater shaping at 8 ms of a headset frame): most samples a ball
+                    // reaches cannot change, the open air over the ground and what an earlier ball emptied (already at
+                    // the bottom of the scale), and every sample farther from the ball's face than its own value; they
+                    // are passed on a byte or a squared distance, with no root and no rounding. The samples written
+                    // are the same ones with the same values. BS_OLDSPHERE=1: every sample worked out as before.
+                    let v0 = f[k]
+                    if quick && v0 == stop { continue }
+                    let p = V3(ox + (Float(fx) + 0.5) * 0.5, oy + (Float(fy) + 0.5) * 0.5, oz + (Float(fz) + 0.5) * 0.5)
+                    let off = p - ctr
+                    let d0 = FieldTerrain.f(v0)
+                    if quick {
+                        let d2 = simd_length_squared(off)
+                        if carve { let lim = r + d0 + 0.02; if lim <= 0 || d2 >= lim * lim { continue } }
+                        else { let lim = r - d0 + 0.02; if lim <= 0 || d2 >= lim * lim { continue } }
+                    }
+                    let dist = simd_length(off)
                     let d1 = carve ? min(d0, dist - r) : max(d0, r - dist)
                     var q = FieldTerrain.q(d1)
                     if q == f[k] { continue }
