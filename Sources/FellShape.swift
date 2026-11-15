@@ -61,7 +61,7 @@ extension Felling {
     static var shapeWorstMs = 0.0
 
     // Before the logs leave the world. Nil where no shape can be made (the body is then drawn as before).
-    static func shapeSnap(_ w: World, logs: Set<IVec3>, cut: IVec3?) -> ShapeSnap? {
+    static func shapeSnap(_ w: World, logs: Set<IVec3>, cut: IVec3?, struck: [IVec3: BlockID] = [:]) -> ShapeSnap? {
         guard roundTrunks, !oldFellShape, !logs.isEmpty, logs.count <= 600 else { return nil }
         let trunkT = ShapeTrunks.isTrunk
         var lo = IVec3(Int.max, Int.max, Int.max), hi = IVec3(Int.min, Int.min, Int.min)
@@ -87,6 +87,7 @@ extension Felling {
             let h = hoods[ck]!
             secs.append((h.0, h.1, k.x, k.z, k.y, h.2))
         }
+        for (c, b) in struck { ghosts[c] = UInt32(b) }
         // Every other log near it is air to the drawing (a neighbour's bough, the stump); the logs straight under the
         // body are ghosts as well, so the trunk is measured from the foot it stood on.
         var skip = Set<IVec3>()
@@ -99,6 +100,7 @@ extension Felling {
             var y = c.y - 1
             while y >= 0 && y > c.y - 64 {
                 let q = IVec3(c.x, y, c.z)
+                if blocks[q] != nil { break }                // (a whole tree: its own wood under the struck log)
                 let b = w.block(q.x, q.y, q.z)
                 if trunkT[Int(b)] { ghosts[q] = UInt32(b) | TreeGhosts.crownBit; skip.insert(q) }
                 else if q == cut || ghosts[q] != nil { if ghosts[q] == nil { ghosts[q] = UInt32(b0) | TreeGhosts.crownBit } }

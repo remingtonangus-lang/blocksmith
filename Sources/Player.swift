@@ -233,7 +233,7 @@ final class Player {
         if brush(b) { return (1, 6, 20) }
         return nil
     }
-    @inline(__always) static func brush(_ b: BlockID) -> Bool { ShapeClass.kind[Int(b)] == .foliage || ShapeClass.kind[Int(b)] == .trunk }
+    @inline(__always) static func brush(_ b: BlockID) -> Bool { ShapeClass.kind[Int(b)] == .foliage || ShapeClass.kind[Int(b)] == .trunk && !TreeWood.timber[Int(b)] }
     // (Ledger 138: in the space the body is updated in. Aboard a vehicle that is the vehicle's own frame, so
     // Game.shipPlayerUpdate takes it into the frame and back with the body, as it does lastUpdatePos.)
     var lastGoodPos: V3?

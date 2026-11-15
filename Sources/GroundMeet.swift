@@ -92,6 +92,69 @@ extension World {
         return fieldFill(lo, hi, inside, keep: IVec3(x, y, z))
     }
 
+    // Ledger 160 (Nov 15 08:45:01, bricks put into a hollow he had dug beside a floor: "Can't place blocks in here. And
+    // look, the ground doesn't come back to it"; "Still pretty unsatisfying, building"; 08:46:27 "Nearly unplayable").
+    // A blow on the ground takes a cell and rounds the ground of the cells beside it down into a bowl; a block put back
+    // in that cell is a cube, so the bowl stayed open all round it. The ground of the cells round a full block he
+    // places now stands up to it again: in each cell beside it that the blow only rounded off (its middle still within
+    // half a block of the level), up to the ground a block and a half further out that way, never over the block's
+    // top; a cell he dug out (its middle lower) is left: a trench or a cellar beside the block stays open. Returns the samples' cells it changed. BS_OLDBACK=1: as before.
+    static let oldBack = ProcessInfo.processInfo.environment["BS_OLDBACK"] == "1"
+    @discardableResult
+    func groundBack(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Int {
+        guard !World.oldBack, World.meetGroundOn, fieldTerrain, frame == nil, Blocks.fullCollide[Int(id)], y > 1, y + 2 < CH else { return 0 }
+        let fy = Float(y), top = fy + 1
+        // The ground further out, each of the eight ways: its height, or nil where there is none within a block of the
+        // block's own height (open air, a drop, a pit: nothing to come back to).
+        var ref = [Float?](repeating: nil, count: 9)
+        var any = false
+        for sz in -1...1 { for sx in -1...1 where sx != 0 || sz != 0 {
+            let reach: Float = sx != 0 && sz != 0 ? 1.4 : 1.7
+            let px = Float(x) + 0.5 + Float(sx) * reach, pz = Float(z) + 0.5 + Float(sz) * reach
+            let cx = Int(floor(px)), cz = Int(floor(pz))
+            var h: Float?
+            if Blocks.fullCollide[Int(builtBlock(cx, y, cz))] { h = top }                       // (a block of the same row: flush with it)
+            else if builtBlock(cx, y + 1, cz) != AIR && Blocks.collide[Int(builtBlock(cx, y + 1, cz))] { h = nil }
+            else {
+                let o = V3(px, top + 0.6, pz)
+                if fieldDensity(at: o) > 0 { h = top + 0.6 }
+                else if let hit = fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.9) { h = hit.at.y }
+            }
+            // (ground lower than the block's floor that way: the block stands proud of it, nothing to raise)
+            guard let hh = h, hh > fy + 0.05 else { continue }
+            // The cell beside the block that way: rounded off by the blow (its middle still stands within half a block
+            // of the level) or dug out (lower: his, left alone).
+            let mx = Float(x + sx) + 0.5, mz = Float(z + sz) + 0.5
+            guard !Blocks.collide[Int(builtBlock(x + sx, y, z + sz))] else { continue }
+            let mo = V3(mx, top + 0.6, mz)
+            var mid: Float = -1
+            if fieldDensity(at: mo) > 0 { mid = top + 0.6 } else if let hit = fieldRaySegment(mo, V3(0, -1, 0), from: 0, to: 2.2) { mid = hit.at.y }
+            // (the level further out can itself be rounded down by the blow that dug the cell, so it alone cannot tell a
+            // dug cell: a cell with no ground left over a fifth of its height is open, whatever stands beyond it)
+            guard mid >= min(top, hh) - 0.5, mid >= fy + 0.2 else { continue }
+            ref[(sx + 1) + (sz + 1) * 3] = hh; any = true
+        } }
+        guard any else { return 0 }
+        let x0 = Float(x), x1 = Float(x + 1), z0 = Float(z), z1 = Float(z + 1)
+        var changed = 0
+        func inside(_ p: V3) -> Float {
+            let ox = p.x < x0 ? p.x - x0 : (p.x > x1 ? p.x - x1 : 0), oz = p.z < z0 ? p.z - z0 : (p.z > z1 ? p.z - z1 : 0)
+            guard ox != 0 || oz != 0 else { return -4 }
+            let out = max(abs(ox), abs(oz))
+            guard out <= 1 else { return -4 }
+            guard let h = ref[(ox < 0 ? 0 : (ox > 0 ? 2 : 1)) + (oz < 0 ? 0 : (oz > 0 ? 2 : 1)) * 3] else { return -4 }
+            let near = min(top, h)
+            let t = near + max(0, h - top) * out
+            return t - p.y
+        }
+        _ = fieldFill(IVec3(x - 1, y - 1, z - 1), IVec3(x + 1, y + 1, z + 1), { p in
+            let v = inside(p)
+            if v > 0 { changed += 1 }
+            return v
+        }, keep: IVec3(x, y, z))
+        return changed
+    }
+
     // Fills the field's ground in the cells lo...hi (and their fine samples) up to the shape `inside` (> 0 inside, about
     // the distance to its surface): each sample becomes the larger of what it was and the shape, so the ground only
     // grows. Never into a built block's cell, nor `keep`. Material from the ground round each new cell.

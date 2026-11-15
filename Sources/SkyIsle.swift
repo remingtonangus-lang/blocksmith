@@ -83,7 +83,7 @@ enum SkyIsle {
             }
         } }
         // Trees on the turf away from the shrine.
-        let log = b("oak_log"), leaves = b("oak_leaves")
+        let log = TreeWood.of(b("oak_log")), leaves = b("oak_leaves")
         let trees = 2 + Int(rng.float() * 3)
         for i in 0..<trees {
             let a = Float(i) / Float(trees) * 2 * .pi + rng.float() * 0.8

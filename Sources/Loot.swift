@@ -136,6 +136,7 @@ enum Mining {
         // removed both halves and dropped nothing, Quest v63).
         if gkey.hasSuffix("_bed_head") { return one(String(gkey.dropLast(5))) }
         switch gkey {
+        case _ where gkey.hasPrefix(TreeWood.prefix) && gkey.hasSuffix("_log"): return one(String(gkey.dropFirst(TreeWood.prefix.count)))   // a tree's wood: the log
         case "ammo_crate": return []                                     // P254: it splinters; its contents spill (BaseMaterials)
         case _ where gkey.hasSuffix(Armour.twinSuffix): return one(String(gkey.dropLast(Armour.twinSuffix.count)))   // P501: the plain block
         case "wheat":

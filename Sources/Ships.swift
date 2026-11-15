@@ -231,6 +231,7 @@ final class Ship: LifeLinked {
     var crashVel = V3(0, 0, 0)
     // P455: driven into something this frame (the contact it presses on most squarely, out of the world, not a hull)
     var pushing = false, pushInto: Float = 0, pushAt = V3(0, 0, 0), pushN = V3(0, 0, 0)
+    var bellyOn = false, bellyAt = V3(0, 0, 0)          // (a driven wheeled hull resting on something under its belly: Momentum.shove)
     var shoveStore: Float = 0, heldT: Float = 0         // (the engine's push banked against what is in the way: Momentum.shove)
     var crashCD: Float = 0            // H4: a salvaged Tidebreaker breech (centre, muzzle direction; ship space)
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)

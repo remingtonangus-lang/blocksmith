@@ -111,7 +111,7 @@ enum CapitalBase {
         let L = g("light_panel"), C = g("command_console"), Cr = g("ammo_crate")
         let S = g("capital_stone_stairs", white), Sl = g("capital_stone_slab", white)
         let hedge = g("oak_leaves", LEAVES), bloom = g("flowering_azalea_leaves", hedge), grass = GRASS, moss = g("moss_block", GRASS)
-        let birch = BIRCH_LOG, birchL = BIRCH_LEAVES, water = WATER, ladder = g("ladder"), bars = g("iron_bars"), wool = g("white_wool")
+        let birch = TreeWood.of(BIRCH_LOG), birchL = BIRCH_LEAVES, water = WATER, ladder = g("ladder"), bars = g("iron_bars"), wool = g("white_wool")
         let flowers: [BlockID] = ["white_tulip", "oxeye_daisy", "lily_of_the_valley", "azure_bluet", "allium"].filter { Blocks.has($0) }.map { Blocks.id($0) }
         let A = CapitalBase.A, PO = CapitalBase.podium
         let P1 = y0 + 4                       // plaza floor

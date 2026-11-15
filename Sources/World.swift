@@ -958,6 +958,7 @@ final class World: LifeLinked {
             // any log cell whose column of logs doesn't stand on the ground: it hangs over air or over leaves (a limb laid
             // on a leaf mass stopped him, as did one limb grown up from another). A bush's stem, one log on the ground
             // under its leaves, is passed through too. Trunks standing on the ground still stop him.
+            if TreeWood.timber[b] { return false }               // (timber is met as a block: TreeWood.plainTimber)
             var yy = y - 1, n = 0
             while n < 40 {
                 let u = Int(block(x, yy, z))
@@ -975,7 +976,7 @@ final class World: LifeLinked {
     // (ShapeTrunks.timber), but was met as a whole block: he stood on air half a block over it and bumped into nothing
     // beside it. Met now as the trunk is drawn (the cell-local box), in field worlds where trunks are drawn round.
     @inline(__always) func fallenLog(_ b: Int, _ x: Int, _ y: Int, _ z: Int) -> (V3, V3)? {
-        guard ShapeTrunks.isLog[b], Felling.roundTrunks else { return nil }
+        guard ShapeTrunks.isLog[b], Felling.roundTrunks, !TreeWood.timber[b] else { return nil }
         let a = ShapeTrunks.axisOf[b]
         guard a != 1, SmoothTerrain.natural[Int(materialAt(x, y - 1, z))], !ShapeTrunks.isTrunk[Int(builtBlock(x, y + 1, z))] else { return nil }
         let r = ShapeTrunks.fallenRadius

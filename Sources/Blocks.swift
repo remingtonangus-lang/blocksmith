@@ -721,6 +721,7 @@ final class BlockRegistry {
         registerSpringBlocks()
         registerShipBlocks()
         registerTrainHulls()                              // FAILURES 3 (TrainHulls.swift)
+        registerTreeWood()                                // Nov 15: a tree's own wood (TreeWood.swift)
         registerDepthChargeBlocks()                       // P278 (DepthCharges.swift)
         registerVehicleWorks()
         registerFuelPump()                                // D44 (VehicleDepot.swift)

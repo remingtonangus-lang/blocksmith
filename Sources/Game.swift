@@ -2129,6 +2129,7 @@ final class Game: LifeLinked {
                     // the ground itself, not one built out from another block over it.)
                     let onBuilt = Blocks.collide[Int(world.builtBlock(t.hit.x, t.hit.y, t.hit.z))]
                     if World.oldMeet || (!onBuilt && (t.normal.y == 1 || rowCell?.cell == at)) { world.meetGround(at.x, at.y, at.z, id) }
+                    world.groundBack(at.x, at.y, at.z, id)      // (ledger 160: the bowl of a dig closes round the block)
                 }
             }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
@@ -2277,6 +2278,7 @@ final class Game: LifeLinked {
     // fills less than half of it there, else the one over it); when just one of those two rows has a built block beside
     // the cell, that row. `sunk`: the cell holds ground, which the placing clears (Game.place). BS_OLDPLACEROW=1: before.
     static let oldPlaceRow = ProcessInfo.processInfo.environment["BS_OLDPLACEROW"] == "1"
+    static let oldNotch = ProcessInfo.processInfo.environment["BS_OLDNOTCH"] == "1"
     func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
         guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
               let g = targetGround, g.cell == t.hit, g.normal.y >= 0.5 else { return nil }
