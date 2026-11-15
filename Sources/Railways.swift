@@ -286,7 +286,7 @@ enum Railways {
             if let lk = link(gen, row: row + 1, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
         }
         // ...or from the next line west in its own row, further off.
-        for k in (linkReach + 1)...farReach where hasLine(gen, row, s - k) {
+        for k in farRange where hasLine(gen, row, s - k) {
             guard let a = line(gen, row: row, stretch: s - k, wait: wait) else { continue }
             if let lk = link(gen, row: row, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
             return nil
@@ -370,10 +370,12 @@ enum Railways {
     }
     // 4 (run-on): with none of those, the next line east in its row up to farReach stretches on, where no row beside
     // that one runs into it.
-    static let farReach = 6
+    // (BS_FARREACH=3: no far rule at all, to weigh what it links against what asking about six stretches costs)
+    static let farReach = max(linkReach, Int(ProcessInfo.processInfo.environment["BS_FARREACH"] ?? "") ?? 6)
+    static let farRange: [Int] = farReach > linkReach ? Array((linkReach + 1)...farReach) : []
     static func farEastIn(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
         guard eastIn(gen, row, s) == nil, southOf(gen, row, s) == nil, northOf(gen, row, s) == nil else { return nil }
-        for k in (linkReach + 1)...farReach where hasLine(gen, row, s + k) {
+        for k in farRange where hasLine(gen, row, s + k) {
             guard let l = line(gen, row: row, stretch: s + k) else { continue }
             let fed = fedInRow(gen, row, s + k) || fedFromNorth(gen, row, s + k) || fedFromSouth(gen, row, s + k)
             return fed ? nil : (l, key(row, s + k))
@@ -416,7 +418,7 @@ enum Railways {
             // rule itself asks for the lines of two more rows each side and three more stretches on, for a box that
             // only prunes: build 98's timers, 131 line plans round one view where 80 were made before.)
             if exactFarBox { take(farEastIn(gen, row, s)?.0) } else {
-                for k in (linkReach + 1)...farReach where hasLine(gen, row, s + k) { if let l = line(gen, row: row, stretch: s + k) { take(l); break } }
+                for k in farRange where hasLine(gen, row, s + k) { if let l = line(gen, row: row, stretch: s + k) { take(l); break } }
             }
         }
         guard any else { return (0, -1, 0, -1) }
