@@ -298,6 +298,7 @@ enum TreePlacer {
         }
         // P406: living trees are designs pasted whole (TreeShapes.swift); what's left here is woodland litter and ice.
         if let set = TreeShapes.designs(kind) { TreeShapes.build(w, kind, set, x, y, z, &rng); return }
+        if let set = TreeShapes.litter(kind) { TreeShapes.buildLitter(w, kind, set, x, y, z, &rng); return }      // (Nov 15: litter designs)
         switch kind {
         case .shrubOak, .shrubSpruce, .shrubAcacia:
             // A knee-high woody shrub: a low, lopsided leaf mound on the ground round one hidden log. P499 (Oct 30 20:16,

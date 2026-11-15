@@ -174,6 +174,13 @@ enum Nov14EveningChecks {
         let bad = TreeShapes.catalogueProblems()
         check(bad.isEmpty && TreeShapes.catalogue.count == 100,
               "Nov 15 trees: the catalogue holds \(TreeShapes.catalogue.count) designs (want 100) in \(TreeShapes.all.count) species, \(bad.count) problems\(bad.isEmpty ? "" : ": " + bad.prefix(4).joined(separator: "; "))")
+        // Litter beside the 100: every shrub, stump and fallen oak kind grows from designs; the ice spike stays as it was.
+        let kinds: [TreeKind] = [.shrubOak, .shrubSpruce, .shrubAcacia, .stumpOak, .stumpSpruce, .stumpBirch, .fallenOak]
+        let open = kinds.filter { TreeShapes.designs($0) == nil && TreeShapes.litter($0) == nil }
+        let litter = TreeShapes.shrubs + TreeShapes.stumps + TreeShapes.fallenOaks
+        let joined = litter.allSatisfy { s in s.logs.contains(IVec3(0, 0, 0)) && s.logs.allSatisfy { $0.y == 0 || s.logs.contains(IVec3($0.x, $0.y - 1, $0.z)) } }
+        check(TreeShapes.oldLitter || (open.isEmpty && joined && TreeShapes.litter(.iceSpike) == nil && Set(litter.map { $0.id }).isDisjoint(with: TreeShapes.catalogue.map { $0.id })),
+              "Nov 15 trees: shrubs, stumps and fallen oaks grow from \(litter.count) litter designs beside the 100 (\(open.count) kinds still placed by hand)")
     }
 
     // 21:17, Elk Hollow's sheriff's office: "This chair's not facing the right way". Every town seat asked for with its

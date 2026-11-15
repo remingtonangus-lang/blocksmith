@@ -619,6 +619,85 @@ enum TreeShapes {
         return bad
     }
 
+    // MARK: Litter (Nov 15, Fable's list: the kinds that still fell through to the old placer)
+
+    // Woodland litter as designs, beside the catalogue of 100 (not counted in it): shrubs, stumps and fallen oaks. Each
+    // pastes whole like a tree. A shrub is a leaf mound on the ground round one hidden log; a stump is a log, now and then
+    // with a root flare and moss (its "leaves": moss carpet); a fallen oak is its stump and, two blocks off, a trunk
+    // of bark-all-round wood lying along the ground (its "roots": oak wood), laid only where the ground under it holds
+    // (buildLitter). BS_OLDLITTER=1: the old placer.
+    static let oldLitter = ProcessInfo.processInfo.environment["BS_OLDLITTER"] == "1"
+    static let shrubs: [TreeShape] = [
+        make("knee shrub", 401, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.3, 0.4, 0, 1.5, 1.1) },
+        make("spreading shrub", 402, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.5, 0.3, 0.3, 2.2, 1.0) },
+        make("round shrub", 403, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0, 0.6, 0, 1.6, 1.3) },
+    ]
+    static let stumps: [TreeShape] = [
+        make("stump", 411, bole: 1, stretch: 0) { d in d.log(0, 0, 0) },
+        make("mossy stump", 412, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.leaf(0, 1, 0) },
+        make("rooted stump", 413, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.log(1, 0, 0); d.log(0, 0, -1) },
+        make("old stump", 414, bole: 2, stretch: 0) { d in d.log(0, 0, 0); d.log(0, 1, 0); d.log(-1, 0, 0); d.leaf(0, 2, 0) },
+    ]
+    static let fallenOaks: [TreeShape] = [4, 5, 6].map { len in
+        make("fallen oak \(len)", UInt32(420 + len), bole: 1, stretch: 0) { d in
+            d.log(0, 0, 0)
+            for i in 2..<(2 + len) { d.roots.insert(IVec3(i, 0, 0)) }
+            for i in 2..<(2 + len) where hashf(i, len, 0, 0xFA11) < 0.3 { d.leaf(i, 1, 0) }
+        }
+    }
+    static func litter(_ kind: TreeKind) -> [TreeShape]? {
+        if oldLitter { return nil }
+        switch kind {
+        case .shrubOak, .shrubSpruce, .shrubAcacia: return shrubs
+        case .stumpOak, .stumpSpruce, .stumpBirch: return stumps
+        case .fallenOak: return fallenOaks
+        default: return nil
+        }
+    }
+    // A piece of litter at (x, y, z): its design, turn and mirror from the tree's rng. A fallen trunk's lengths are laid
+    // only on held ground (solid, not leaves) and into air or plants, decided per block, so every chunk agrees; the moss
+    // over a length only where that length lies.
+    static func buildLitter(_ w: TreeWriter, _ kind: TreeKind, _ set: [TreeShape], _ x: Int, _ y: Int, _ z: Int, _ rng: inout SRng) {
+        let s = set[rng.int(set.count)]
+        let turn = rng.int(4), mirror = rng.chance(0.5)
+        let g = Blocks.id
+        let log: BlockID, leaf: BlockID
+        switch kind {
+        case .shrubSpruce: (log, leaf) = (SPRUCE_LOG, SPRUCE_LEAVES)
+        case .shrubAcacia: (log, leaf) = (g("acacia_log"), g("acacia_leaves"))
+        case .stumpSpruce: (log, leaf) = (SPRUCE_LOG, g("moss_carpet"))
+        case .stumpBirch: (log, leaf) = (BIRCH_LOG, g("moss_carpet"))
+        case .stumpOak, .fallenOak: (log, leaf) = (LOG, g("moss_carpet"))
+        default: (log, leaf) = (LOG, LEAVES)
+        }
+        guard kind == .fallenOak else {
+            paste(w, s, x, y, z, turn: turn, mirror: mirror, grow: 0, log: log, leaf: leaf, root: log)
+            return
+        }
+        func at(_ p: IVec3) -> IVec3 {
+            var u = p.x, v = p.z
+            if mirror { u = -u }
+            for _ in 0..<(turn & 3) { (u, v) = (-v, u) }
+            return IVec3(x + u, y + p.y, z + v)
+        }
+        let wood = g("oak_wood")
+        for p in s.logs { let q = at(p); w.log(q.x, q.y, q.z, log) }
+        var laid = Set<IVec3>()
+        for p in s.roots {
+            let q = at(p)
+            guard w.inside(q.x, q.y, q.z) else { continue }
+            let under = w.get(q.x, q.y - 1, q.z), here = w.get(q.x, q.y, q.z)
+            if Blocks.opaque[Int(under)] && !Mesher.leafT[Int(under)] && (here == AIR || Blocks.replaceable[Int(here)] && !Blocks.isLiquid(here)) {
+                w.force(q.x, q.y, q.z, wood)
+                laid.insert(IVec3(p.x, 0, p.z))
+            }
+        }
+        for p in s.leaves where laid.contains(IVec3(p.x, 0, p.z)) {
+            let q = at(p)
+            if w.get(q.x, q.y, q.z) == AIR { w.leaf(q.x, q.y, q.z, leaf) }
+        }
+    }
+
     // The designs a kind grows as (nil: not a designed tree: shrubs, stumps, fallen trunks, ice spikes).
     static func designs(_ kind: TreeKind) -> [TreeShape]? {
         switch kind {
