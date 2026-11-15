@@ -299,7 +299,7 @@ enum Railways {
     // standing more than 28 off the land, or by the search's way crossing itself at its goal.
     // Where the link as before can't be laid, the end still runs on to the start the old rules gave it (the next line
     // east in its row, else one in the row south that nothing in its own row runs into), now over the sea on a bridge
-    // however wide and up to 64 off the land (a viaduct or a tunnel); and an end with no such start runs on to one in
+    // however wide and up to 128 off the land (a viaduct or a tunnel), clear of every other line's track; and an end with no such start runs on to one in
     // the row north that neither its own row nor the row north of it runs into. So a start is still run into by one
     // end at most, and no two links cross. Only in field worlds, only on ground no save had before
     // (structure-guard-l135.txt). BS_OLDRUNON=1: as before.
@@ -349,9 +349,24 @@ enum Railways {
             tally?("run-on: no start to run on to"); return nil
         }
         guard pb.x - pa.x >= 5 * routeCell else { tally?("run-on: lines overlap"); return nil }
+        // The 16-block squares other lines' tracks lie in (and these two lines' own): the link keeps out of them, so no
+        // track is laid across another (the first count: 748 link cells lay on another track).
+        var shut = Set<Int64>()
+        let (brow, bs) = rowStretch(bKey)
+        for r in (min(row, brow) - 1)...(max(row, brow) + 1) { for t in (s - 1)...(bs + 1) where hasLine(gen, r, t) {
+            guard let o = line(gen, row: r, stretch: t) else { continue }
+            for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
+        } }
+        func crosses(_ run: [(Int, Int)]) -> Bool {
+            guard run.count > 80 else { return false }
+            for i in 40..<(run.count - 40) where shut.contains(colKey(floorDiv(run[i].0, routeCell), floorDiv(run[i].1, routeCell))) { return true }
+            return false
+        }
         var way = smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
-        if way == nil { way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true) }
+        if let w = way, crosses(w) { way = nil }
+        if way == nil { way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut) }
         guard let run = way, run.count > 8 else { tally?("run-on: no way"); return nil }
+        if crosses(run) { tally?("run-on: way over another track"); return nil }
         for (i, q) in run.enumerated() where i % 8 == 0 || i == run.count - 1 {
             let cx = floorDiv(q.0, CS), cz = floorDiv(q.1, CS)
             for g in [sc.legacyC1, sc.legacyP510, sc.legacyL135] where !g.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: g) {
@@ -360,7 +375,7 @@ enum Railways {
         }
         let flat = run.map { IVec3($0.0, 0, $0.1) }
         let h0 = a.heights?.last ?? Float(pa.y), h1 = b.heights?.first ?? Float(pb.y)
-        guard let h = gentleProfile(gen, flat, [], ends: (h0, h1), diagonal: true, maxOff: 64) else { tally?("run-on: grade"); return nil }
+        guard let h = gentleProfile(gen, flat, [], ends: (h0, h1), diagonal: true, maxOff: 128) else { tally?("run-on: grade"); return nil }
         let cells = flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }
         let lk = Line(id: linkKey(row, s), name: a.name, cells: cells, stations: [], heights: h)
         lk.target = bKey
@@ -462,7 +477,8 @@ enum Railways {
     // ground saved before run-on links is shut, and the way never comes back through its first square or into its
     // last square but heading east (the search's "over itself": it came at the goal from the side and went round).
     static let seaRunOn = 160, deepCost: Int32 = 9
-    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false, runOn: Bool = false) -> [(Int, Int)]? {
+    static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false, runOn: Bool = false,
+                      shut: Set<Int64> = []) -> [(Int, Int)]? {
         let G = routeCell
         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
         let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
@@ -488,6 +504,11 @@ enum Railways {
                     for z in az...cz { for x in ax...cx { blocked[(z - gz0) * nx + (x - gx0)] = true; blockedBy[(z - gz0) * nx + (x - gx0)] = UInt8(min(255, ti + 1)) } }
                 }
             } }
+        }
+        // (ledger 135: squares another line's track lies in)
+        for k in shut {
+            let qx = Int(k >> 32) - gx0, qz = Int(Int32(truncatingIfNeeded: k)) - gz0
+            if qx >= 0 && qx < nx && qz >= 0 && qz < nz { blocked[qz * nx + qx] = true }
         }
         // Old ground and the sea, looked at as the search reaches each square (0 not yet, 1 clear, 2 old ground, 3 sea:
         // crossed on a trestle at a cost).
@@ -1322,12 +1343,12 @@ enum Railways {
                     }
                     w.set(x, y - 1, z, deck)                                       // trestle deck
                     let edge = l.diagonal ? abs(x - c.x) + abs(z - c.z) >= 2 : (alongX && z != c.z) || (!alongX && x != c.x)
-                    if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - (l.runOn ? 96 : 48)) }
+                    if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - (l.runOn ? 136 : 48)) }
                 }
             }
             // Over water the deck's centre gets a leg too (a bridge pier).
             if i % 8 == 4, w.inside(c.x, y - 2, c.z), w.get(c.x, y - 2, c.z) == water || w.get(c.x, y - 2, c.z) == AIR {
-                if !(Blocks.opaque[Int(w.get(c.x, y - 1, c.z))]) || w.get(c.x, y - 1, c.z) == deck { w.groundDown(c.x, y - 2, c.z, leg, minY: y - (l.runOn ? 96 : 48)) }
+                if !(Blocks.opaque[Int(w.get(c.x, y - 1, c.z))]) || w.get(c.x, y - 1, c.z) == deck { w.groundDown(c.x, y - 2, c.z, leg, minY: y - (l.runOn ? 136 : 48)) }
             }
         }
         // Buffer stops past both ends (P337 (a): the line ended at a single block): the bed runs on two cells past
