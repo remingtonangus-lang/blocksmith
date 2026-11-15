@@ -287,13 +287,38 @@ final class BuilderBot: AgentBot {
     }
 
     // A tree cell in the way: dug first (a job of its own, moved up if it is one already).
-    private func cut(_ q: IVec3) -> Bool {
+    private func cut(_ w: World, _ q: IVec3) -> Bool {
         guard cuts < 600, !cutCells.contains(q) else { return false }      // (a cell cut once and missed is not cut again)
         cuts += 1; cutCells.insert(q)
-        if let k = jobs[i...].firstIndex(where: { $0.cell == q && $0.want == AIR }) { jobs.remove(at: k) }
-        jobs.insert(BuildersGrounds.Job(cell: q, want: AIR), at: i)
+        // A log with more of the trunk over it: the tree would come down whole (Felling) and lie across the site as a
+        // body of its own, in the way of the aim and the flights (the cottage: every aim taken by a Felled Tree). The
+        // logs over it come off first, from the top, as a woodsman takes a tree down where it stands.
+        var cells = [q]
+        if isLog(w, q) { cells = logsOver(w, q) + [q] }
+        for c in cells {
+            cutCells.insert(c)
+            if let k = jobs[i...].firstIndex(where: { $0.cell == c && $0.want == AIR }) { jobs.remove(at: k) }
+        }
+        jobs.insert(contentsOf: cells.map { BuildersGrounds.Job(cell: $0, want: AIR) }, at: i)
         phase = 0; ticks = 0; spots = []; path = []
         return true
+    }
+    private func isLog(_ w: World, _ q: IVec3) -> Bool {
+        let k = Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))])
+        return k.hasSuffix("_log") || k.hasSuffix("_wood")
+    }
+    // The logs joined to q above it (branches too), highest first.
+    private func logsOver(_ w: World, _ q: IVec3) -> [IVec3] {
+        var seen: Set<IVec3> = [q], todo = [q], out: [IVec3] = []
+        while let c = todo.popLast(), out.count < 260 {
+            for dy in 0...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 {
+                let n = c + IVec3(dx, dy, dz)
+                guard n.y > q.y, n.y < q.y + 40, !seen.contains(n) else { continue }
+                seen.insert(n)
+                if isLog(w, n) && !planned.contains(n) { out.append(n); todo.append(n) }
+            } } }
+        }
+        return out.sorted { $0.y != $1.y ? $0.y > $1.y : ($0.x, $0.z) < ($1.x, $1.z) }
     }
     // Once the digging is done: the ground the digging took from under the floor (a creative break takes a ball, not a
     // cell) filled again with the footing, bottom up, before the floor goes down, as he would.
@@ -411,7 +436,7 @@ final class BuilderBot: AgentBot {
                 // A crown over a dig, or leaves between the spots and the face: cleared first, as he would.
                 let up = j.cell + IVec3(0, 1, 0)
                 let clear: IVec3? = (j.want == AIR && noFaces && tree(w, up)) ? up : blocker
-                if let q = clear, cut(q) { return act }
+                if let q = clear, cut(w, q) { return act }
                 // Nothing to place it against (the first block of a ceiling, a top slab over a wall): a plank put down
                 // beside it first and broken after, as he would.
                 if j.want != AIR && noFaces && scaffolds < 120 && scaffoldFor[j.cell] == nil {
@@ -441,7 +466,7 @@ final class BuilderBot: AgentBot {
                 return act
             }
             if let r = route(w, from: p.pos, to: spots, not: j.cell, through: true),
-               let q = r.path.lazy.flatMap({ [$0, $0 + IVec3(0, 1, 0)] }).first(where: { self.tree(w, $0) }), cut(q) { return act }
+               let q = r.path.lazy.flatMap({ [$0, $0 + IVec3(0, 1, 0)] }).first(where: { self.tree(w, $0) }), cut(w, q) { return act }
             later(s, "no way to any of \(spots.count) spots (\(why))\(lastDrop.isEmpty ? "" : "; last: " + lastDrop)")
             return act
         case 1, 2:
@@ -533,7 +558,7 @@ final class BuilderBot: AgentBot {
                         let at = j.want == AIR ? t.hit : g.placeCell(t, for: Blocks.groupBase[Int(j.want)])
                         print("  trace t\(s.tick) job \(i) aim on \(t.hit.x - j.cell.x),\(t.hit.y - j.cell.y),\(t.hit.z - j.cell.z) n \(t.normal.x),\(t.normal.y),\(t.normal.z) \(Blocks.key(w.block(t.hit.x, t.hit.y, t.hit.z))) -> cell \(at.x - j.cell.x),\(at.y - j.cell.y),\(at.z - j.cell.z)")
                     }
-                    if let t = g.target, t.hit != j.cell, tree(w, t.hit), cut(t.hit) { return act }    // (leaves in the way: cut)
+                    if let t = g.target, t.hit != j.cell, tree(w, t.hit), cut(w, t.hit) { return act }    // (leaves in the way: cut)
                     // (a little to one side of the face: the drawn ground and the game's own choice of cell can differ a
                     // fraction off the middle)
                     if aimK < 2, let q = solveAim(g, j, c.aim) { aimK += 1; aimAt = q; aimTicks = 0; return act }
