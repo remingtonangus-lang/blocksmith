@@ -548,6 +548,7 @@ enum Railways {
     // ground saved before run-on links is shut, and the way never comes back through its first square or into its
     // last square but heading east (the search's "over itself": it came at the goal from the side and went round).
     static let seaRunOn = 160, deepCost: Int32 = 9
+    static let oldRouteWeight = ProcessInfo.processInfo.environment["BS_OLDROUTEWEIGHT"] == "1"
     static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false, runOn: Bool = false,
                       shut: Set<Int64> = []) -> [(Int, Int)]? {
         let G = routeCell
@@ -607,7 +608,11 @@ enum Railways {
         var cost = [Int32](repeating: .max, count: nx * nz * 4)
         var from = [Int32](repeating: -1, count: nx * nz * 4)
         let gxg = goal % nx, gzg = goal / nx
-        func h(_ i: Int) -> Int32 { Int32(abs(i % nx - gxg) + abs(i / nx - gzg)) }
+        // (a run-on way weighs the distance left four times over: the search over open sea, where every square costs
+        // ten, looked at up to 600,000 squares' ground for one link, and land beside a link took 42 s to appear on the
+        // host against 12 before; the way found is a little straighter, with a little more bridge)
+        let hw: Int32 = runOn && !oldRouteWeight ? 4 : 1
+        func h(_ i: Int) -> Int32 { hw * Int32(abs(i % nx - gxg) + abs(i / nx - gzg)) }
         var heap: [(Int32, Int32)] = []                    // (f, state)
         func push(_ f: Int32, _ st: Int32) {
             heap.append((f, st)); var c = heap.count - 1

@@ -637,6 +637,10 @@ final class World: LifeLinked {
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
         // Ledger 136 (placeCube, set by Game's place for the write): rock he places is a built cube, not a lump of ground.
         let cube = placeCube && fieldTerrain && FieldMat.index[Int(id)] != 0
+        // (only this write: what the placement sets off, a piston's push, is the world's own)
+        let placing = placeCube
+        placeCube = false
+        defer { placeCube = placing }
         if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0 && !cube) && !World.keepsGround(wasGround, id) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
         if cube { c.blocks.setBuilt(Chunk.index(lx, y, lz), id) } else { c.blocks[Chunk.index(lx, y, lz)] = id }
         var fbox: (lo: IVec3, hi: IVec3)? = nil
