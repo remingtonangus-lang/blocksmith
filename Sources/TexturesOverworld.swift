@@ -102,6 +102,11 @@ extension TextureGen {
             let crack = (x * 3 + y * 7) % 13 == 0
             return V4(0.62, 0.78, 1.0, crack ? 0.8 : 0.32 + 0.08 * r(x, y, 373))      // (P94: clear enough to see through)
         }
+        p["sea_ice"] = { x, y in                       // (sheet ice: clear, one long fracture, a little frost)
+            let crack = abs(Float(x) - Float(y) * 0.45 - 5 + sinf(Float(y) * 0.7)) < 0.5
+            let frost = r(x / 3, y / 3, 380) > 0.8
+            return V4(0.6, 0.78, 0.9, crack ? 0.62 : (frost ? 0.42 : 0.2 + 0.06 * r(x, y, 381)))
+        }
         // Packed / blue ice: frosty mottling, pale fracture lines and a few bright crystal glints.
         func iceP(_ c: UInt32, _ salt: Int) -> Painter {
             { x, y in

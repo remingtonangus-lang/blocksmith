@@ -62,7 +62,7 @@ enum Mesher {
     // P239: ice block states (their top faces carry the overlay bit, which the Quest's water.frag mirrors the sky on).
     static let iceTable: [Bool] = (0..<Blocks.opaque.count).map { i in
         let k = Blocks.key(Blocks.groupBase[i])
-        return k == "ice" || k.hasPrefix("frosted_ice")
+        return k == "ice" || k == "sea_ice" || k.hasPrefix("frosted_ice")
     }
     // Water top faces carry the water depth in their AO bits (Quest only: its water shader reads it; the Mac's water
     // shaders shade water by AO-free rules and the Fancy path measures depth from the scene).
@@ -1372,6 +1372,8 @@ enum Mesher {
                             if kind == 1 {
                                 let s = f0 > 0 ? p : q
                                 if Mesher.iceT[Int(R[(s.x + C0) + (s.z + C0) * RW + (s.y + C0 + 1) * RL])] { continue }
+                                // (Nov 14 evening: sheet ice is the water's own frozen top: no surface in its cell either.)
+                                if f0 > 0 && q.y > p.y && Mesher.sheetT[Int(R[(s.x + C0) + (s.z + C0) * RW + (s.y + C0) * RL])] { continue }
                             }
                             var cells = [SIMD3<Int>](repeating: p, count: 4)
                             cells[0][b] -= 1; cells[0][c] -= 1
@@ -1588,6 +1590,7 @@ enum Mesher {
                     if fkT[bi] == 1 && rt != rLiquid {
                         let waterTop = fkT[Int(R[i + RL])] != 1
                         for f in 0..<6 {
+                            if f == 2 && Mesher.sheetT[bi] { continue }     // (sheet ice: its sheet is the water's top)
                             let nb = Int(R[i + offs[f]])
                             if fkT[nb] == 1 || opaqueT[nb] { continue }
                             if collideT[nb] && layerT[nb] != translucent { continue }
@@ -1927,7 +1930,7 @@ enum Mesher {
                                     let (u, v) = slant ? faceUV(f, px + 7 - mn[0], py, pz + 7 - mn[2]) : faceUV(f, px, py, pz)
                                     let top = py == mx[1]
                                     let lx = top ? Int(box.leanX) : 0, lz = top ? Int(box.leanZ) : 0
-                                    vert(isTrans, bx16 + px + lx, by16 + py + seatDy, bz16 + pz + lz, f, tintV, u, v, layer, 3, l, false)
+                                    vert(isTrans, bx16 + px + lx, by16 + py + seatDy, bz16 + pz + lz, f, tintV, u, v, layer, 3, l, f == 2 && isTrans && iceT[bi])
                                 }
                             }
                         }
@@ -2634,6 +2637,7 @@ enum Mesher {
     static var farDarkCull = true
     static let pointedDrip: BlockID = Blocks.has("pointed_dripstone") ? Blocks.id("pointed_dripstone") : 0
     static let iceT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "ice" }
+    static let sheetT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "sea_ice" && !Game.oldIce }
     static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
 
     // Which section faces see each other through non-opaque cells (flood fill per open region).

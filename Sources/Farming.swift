@@ -194,7 +194,7 @@ extension Game {
         case "vine":
             // Vines hang lower over time: 1 in 4 random ticks into the air below (reference downward growth).
             if Rand.int(in: 0..<4) == 0 && world.materialAt(p.x, p.y - 1, p.z) == AIR { world.setBlockAsync(p.x, p.y - 1, p.z, b) }
-        case "ice":
+        case "ice", "sea_ice":
             // Melts in block light above 11 less its opacity (reference): water, or nothing in the Emberdeep.
             if world.lightAt(p.x, p.y, p.z).block > 10 { world.setBlock(p.x, p.y, p.z, world.dim.ultrawarm ? AIR : WATER); world.scheduleFluid(around: p) }
         case "snow":

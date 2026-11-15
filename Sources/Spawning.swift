@@ -311,13 +311,27 @@ extension MobManager {
         return true
     }
 
+    static let oldHorsePacks = ProcessInfo.processInfo.environment["BS_OLDHORSEPACKS"] == "1"
     static var packLog: [(why: String, kind: MobKind, n: Int, x: Int, z: Int)]? = nil     // (--spawncensus: every pack put down)
     func spawnAnimalPack(_ w: World, _ kind: MobKind, _ x: Int, _ z: Int, _ n: Int, chunk: ChunkKey? = nil, why: String = "other") {
         let biome = w.gen.column(x, z).biome
         if kind == .turtle && !MobManager.turtleShore(w, x, z) { return }
+        // (Nov 14 evening: a chunk's horses came down beside a herd already there. A chunk's horse or donkey pack waits
+        // out any wild herd within 96 blocks of it.)
+        if !MobManager.oldHorsePacks && why != "herd" && (kind == .horse || kind == .donkey)
+            && mobs.contains(where: { ($0.kind == .horse || $0.kind == .donkey) && $0.health > 0 && !$0.tamed
+                                      && simd_length_squared(V2($0.pos.x - Float(x), $0.pos.z - Float(z))) < 96 * 96 }) { return }
         var placed = 0
+        // (Nov 14 evening: "Things are being spawned in clumps": every member stood within 4 blocks of one spot. Now each
+        // one wanders a few blocks on from the one before, kept inside the pack's chunk, so a pack covers its chunk's
+        // ground the way a grazing group does. BS_OLDHORSEPACKS=1: the old 9 by 9 square.)
+        var wx = x, wz = z
         for _ in 0..<(n * 4) where placed < n {
             var sx = x + Rand.int(in: -4...4), sz = z + Rand.int(in: -4...4)
+            if !MobManager.oldHorsePacks {
+                sx = wx + Rand.int(in: -5...5); sz = wz + Rand.int(in: -5...5)
+                if let k = chunk { sx = min(max(sx, k.x * CS), k.x * CS + CS - 1); sz = min(max(sz, k.z * CS), k.z * CS + CS - 1) }
+            }
             if let k = chunk { sx = k.x * CS + mod(sx, CS); sz = k.z * CS + mod(sz, CS) }
             if kind == .turtle && w.gen.column(sx, sz).biome != .beach { continue }
             guard let y = animalSurface(w, sx, sz, kind), w.lightAt(sx, y, sz).sky > 8 || w.lightAt(sx, y, sz).block > 8 else { continue }
@@ -330,6 +344,7 @@ extension MobManager {
             if placed > 0 && Rand.float(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
             mobs.append(m)
             placed += 1
+            wx = sx; wz = sz
         }
         if kind == .horse && placed > 0 { HorseHerds.spawned(Array(mobs.suffix(placed))) }     // D2 (HorseHerds.swift)
         if placed > 0 { MobManager.packLog?.append((why, kind, placed, x, z)) }
@@ -349,8 +364,14 @@ extension MobManager {
         var open = 0
         for (dx, dz) in [(0, 0), (48, 0), (-48, 0), (0, 48), (0, -48)] where MobManager.herdBiomes.contains(w.gen.column(px + dx, pz + dz).biome) { open += 1 }
         guard open >= 2 else { return }
+        // (Nov 14 evening, Elk Hollow: a chunk's 7-horse pack 106 blocks off and this herd of 6 put down 48 blocks off
+        // within 30 s, 13 horses in his view. Any wild horse or donkey within 176 blocks, past what he can see at render
+        // distance 8, or a horse pack waiting to be put down, keeps it from coming. BS_OLDHORSEPACKS=1: 96 blocks.)
+        let reach: Float = MobManager.oldHorsePacks ? 96 : 176
         guard !mobs.contains(where: { ($0.kind == .horse || $0.kind == .donkey) && $0.health > 0 && !$0.tamed
-                                      && simd_length_squared($0.pos - p) < 96 * 96 }) else { return }
+                                      && simd_length_squared(V2($0.pos.x - p.x, $0.pos.z - p.z)) < reach * reach }) else { return }
+        guard MobManager.oldHorsePacks || !packsLater.values.contains(where: { ($0.kind == .horse || $0.kind == .donkey)
+                                      && simd_length_squared(V2(Float($0.x) - p.x, Float($0.z) - p.z)) < reach * reach }) else { return }
         for _ in 0..<8 {
             let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 40...72)
             let dir = V3(cosf(a), 0, sinf(a))

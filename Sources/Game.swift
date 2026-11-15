@@ -2526,6 +2526,11 @@ final class Game: LifeLinked {
     }
 
     static let iceID: BlockID = Blocks.has("ice") ? Blocks.id("ice") : AIR
+    // Sheet ice (BlocksOverworld): the ice that freezes on open water. BS_OLDICE=1: the full ice block, as before.
+    static let oldIce = ProcessInfo.processInfo.environment["BS_OLDICE"] == "1"
+    static let seaIceID: BlockID = Blocks.has("sea_ice") ? Blocks.id("sea_ice") : AIR
+    static let waterIceID: BlockID = oldIce || seaIceID == AIR ? iceID : seaIceID
+    static func isIce(_ b: BlockID) -> Bool { b == iceID || (b == seaIceID && b != AIR) }
 
     // Q2c-console-39: a placement that can't happen (callers: fresh presses only) gives the soft refusal click and a
     // light tick in the hands, each reason at most every 4 s. P328 (NO TEXT): the reason is never said; `why` keys the
@@ -2617,6 +2622,8 @@ final class Game: LifeLinked {
             let under = world.block(p.x, p.y - 1, p.z)
             if Blocks.collide[Int(under)] || Blocks.isLiquid(under) { world.setBlock(p.x, p.y, p.z, WATER); world.scheduleFluid(around: p) }
         }
+        // Sheet ice lies on water that goes on under it: broken, the water stays (in the Emberdeep it is gone).
+        if b == Game.seaIceID && b != AIR && !world.dim.ultrawarm { world.setBlock(p.x, p.y, p.z, WATER); world.scheduleFluid(around: p) }
         world.redstone.vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), freq: 12)     // W9: block broken
         // Wall torches hanging on this block fall off.
         for (f, d) in [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)].enumerated() {

@@ -206,7 +206,7 @@ enum Mining {
         case "cave_vines": return shears && stage == 1 ? one("glow_berries") : []          // lanternvine (P125; P484: shears only)
         case "budding_amethyst", "reinforced_deepslate", "sculk_shrieker": return []
         case "amethyst_cluster": return one("amethyst_shard", 4)
-        case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
+        case "ice", "sea_ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
         case "snow": return []
         case "brown_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("brown_mushroom", n) : []     // reference: 0-2, 1/9 each
         case "red_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("red_mushroom", n) : []

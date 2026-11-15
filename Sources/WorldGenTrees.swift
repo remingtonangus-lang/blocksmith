@@ -437,7 +437,7 @@ extension WorldGen {
             let h2 = hashf(wx, 9, wz, s32 ^ 0x3C3D)
             guard y + 3 < CH else { continue }
             // Water columns: plants on the floor, lily pads on the surface.
-            if ground == WATER || ground == iceID {
+            if ground == WATER || ground == iceID || ground == Game.seaIceID {
                 var fy = y
                 while fy > 1 && (b[Chunk.index(lx, fy, lz)] == WATER) { fy -= 1 }
                 let depth = y - fy

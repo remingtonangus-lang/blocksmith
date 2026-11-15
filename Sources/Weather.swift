@@ -171,7 +171,7 @@ extension Game {
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
         let r = min(6, world.activeDistance, world.renderDistance)
         let snowId: BlockID? = Blocks.has("snow") ? Blocks.id("snow") : nil
-        let iceId: BlockID? = Blocks.has("ice") ? Blocks.id("ice") : nil
+        let iceId: BlockID? = Blocks.has("ice") ? Game.waterIceID : nil
         for dz in -r...r { for dx in -r...r where Rand.int(in: 0..<16) == 0 {
             guard let c = world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
             let lx = Rand.int(in: 0..<16), lz = Rand.int(in: 0..<16)

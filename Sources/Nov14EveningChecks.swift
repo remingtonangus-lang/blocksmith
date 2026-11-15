@@ -10,9 +10,31 @@ enum Nov14EveningChecks {
         sprayedWall(g, check)
         treeCatalogue(check)
         hullChip(g, check)
+        seaIce(g, check)
+        var horses = 0, packs = 0
+        for _ in 0..<4000 { if let (k, _, _) = MobManager.pickAnimal(.plains) { packs += 1; if k == .horse { horses += 1 } } }
+        check(MobManager.oldHorsePacks || (packs > 0 && Float(horses) / Float(packs) < 0.06),
+              "Nov 14 horses: a plains pack is horses about one time in 25 (\(horses) of \(packs)), not one in ten")
         check(Game.travelNews("Fort Red Station marked on the map") && Game.travelNews("You found the Fort & Ash Rail Road: 2 stations, marked on your map")
               && Game.travelNews("Entering Savenonia") && !Game.travelNews("Engines hit: going down") && !Game.travelNews("Intel: this base is a Radar Station"),
               "Nov 14 HUD: at the helm the map's and the borders' news waits in the journal; hits, orders and intel still show")
+    }
+
+    // Nov 14 (a cold sea: "Make it like ice panes except they're flat, not vertical"): open water freezes to a sheet two
+    // sixteenths thick that is water underneath; broken, the water stays.
+    static func seaIce(_ g: Game, _ check: (Bool, String) -> Void) {
+        let s = Game.seaIceID, w = g.world
+        guard s != AIR else { check(false, "Nov 14 ice: no sheet ice block"); return }
+        let bx = Blocks.boxes[Int(s)]
+        let p = IVec3(Int(floor(g.player.pos.x)) + 3, 320, Int(floor(g.player.pos.z)) + 3)
+        let old = (0..<3).map { w.block(p.x, p.y - $0, p.z) }
+        defer { for k in 0..<3 { w.setBlock(p.x, p.y - k, p.z, old[k]) } }
+        w.setBlock(p.x, p.y - 2, p.z, STONE); w.setBlock(p.x, p.y - 1, p.z, WATER); w.setBlock(p.x, p.y, p.z, s)
+        g.breakBlock(p, s, drop: true)
+        let after = w.block(p.x, p.y, p.z)
+        check(Game.oldIce || (Game.waterIceID == s && bx.count == 1 && bx[0].y0 == 14 && bx[0].y1 == 16 && Blocks.fluidKind[Int(s)] == 1
+                              && !Blocks.opaque[Int(s)] && after == WATER),
+              "Nov 14 ice: open water freezes to a flat sheet 2/16 thick over water (box y \(bx.first.map { "\($0.y0)-\($0.y1)" } ?? "none")), broken it leaves water (\(Blocks.key(after)))")
     }
 
     // Nov 14 ("Bullets should be doing micro damage to the hulls"): forty rifle rounds into a Salvaged Fighter's hull
