@@ -351,7 +351,9 @@ enum MainGunTests {
         // time: there the bowl gets the frames it needs after the timed window; the count below is of the finished bowl)
         if _isDebugAssertConfiguration() && impactFrame >= 0 {
             var extra = 0
-            while MainGun.lastCrater == 0 && extra < 72 * 60 { g.tick(1.0 / 72); extra += 1 }
+            // (and the support checks the late bowl queued get their frames too: run alone, the unoptimized build
+            // finished the bowl 141 frames late with 10455 checks still queued)
+            while (MainGun.lastCrater == 0 || w.gravityQueue.count >= Game.gravityChecksPerTick * 4) && extra < 72 * 60 { g.tick(1.0 / 72); extra += 1 }
             if extra > 0 { print("maingun: (unoptimized build) the bowl took \(extra) frames past the window") }
         }
         let openInWindow = MainGun.lastOpenFrames            // (-1: still opening when the timed window closed)

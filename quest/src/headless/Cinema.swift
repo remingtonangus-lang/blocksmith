@@ -577,13 +577,15 @@ enum Cinema {
         // name a thing a shot shows.
         if let r = Int(ProcessInfo.processInfo.environment["BS_CINEDUMP"] ?? "") {
             let ox = Int(floor(origin.x)), oy = Int(floor(origin.y)), oz = Int(floor(origin.z))
-            for y in (oy - r)...(oy + r) { for z in (oz - r)...(oz + r) { for x in (ox - r)...(ox + r) {
+            print("cine: \(s.name): ground \(w.gen.column(ox, oz).height - YOFF) at \(ox) \(oz)")
+            for y in (oy - 16)...(oy + 16) { for z in (oz - r)...(oz + r) { for x in (ox - r)...(ox + r) {
                 let b = w.builtBlock(x, y, z)
                 guard b != AIR, !Blocks.isLiquid(b), !SmoothTerrain.natural[Int(b)] else { continue }
                 let k = Blocks.key(b)
                 if k == "snow" || k.contains("grass") || k.contains("leaves") || k.contains("fern") { continue }
                 print("cine: \(s.name): block \(x) \(y - YOFF) \(z) \(k)")
             } } }
+            for (q, be) in w.blockEntities where abs(q.x - ox) <= r && abs(q.z - oz) <= r { print("cine: \(s.name): entity \(q.x) \(q.y - YOFF) \(q.z) \(be.lines.joined(separator: "/"))") }
             for m in g.mobs.mobs where simd_length(m.pos - origin) < Float(r) * 2 { print("cine: \(s.name): mob \(m.kind.key) at \(Int(m.pos.x)) \(Int(m.pos.y) - YOFF) \(Int(m.pos.z))") }
             for sh in w.ships.list where simd_length(sh.pos - origin) < Float(r) * 4 { print("cine: \(s.name): ship \(sh.name) (\(sh.role)) \(sh.blockCount) blocks") }
         }

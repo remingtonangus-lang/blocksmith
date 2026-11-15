@@ -54,15 +54,14 @@ enum AshArms {
                   b(-0.32, 0.72, -4.6, 0.64, 0.42, 3.6, steel, pMetal),             // trigger lever housing
                   b(-0.2, 1.14, -1.9, 0.4, 0.35, 0.7, steel * 1.15, pMetal)]        // the lever's press
             let m = p.count
-            p += round(0, 0, -14.2, -11.8, r: 0.42, steel)                        // tail boom into the tube
-            p += round(0, 0, -15.6, -14.2, r: 1.3, drab * 0.9)                    // skirt
-            p += round(0, 0, -16.6, -15.6, r: 1.95, drab)
+            // (14 parts: the warhead is the magazine, and an extended-magazine upgrade draws each of its parts again, so
+            // with every upgrade the held gun stays inside the 2048 vertices the frame's scratch ring holds, P499)
+            p.append(b(-0.42, -0.42, -14.2, 0.84, 0.84, 2.4, steel, pMetal))        // tail boom into the tube
+            p += round(0, 0, -16.6, -14.2, r: 1.6, drab * 0.9)                    // tapered skirt
             p += round(0, 0, -21.2, -16.6, r: 2.4, drab)                          // body
-            p += round(0, 0, -22.3, -21.2, r: 2.1, drab)                          // ogive
-            p += round(0, 0, -23.2, -22.3, r: 1.6, drab)
-            p += round(0, 0, -23.9, -23.2, r: 1.05, drab * 1.05)
-            p += round(0, 0, -24.4, -23.9, r: 0.55, steel)                        // nose and fuze
-            p += round(0, 0, -24.8, -24.4, r: 0.28, steel * 1.2)
+            p += round(0, 0, -22.6, -21.2, r: 1.95, drab)                         // ogive
+            p += round(0, 0, -23.9, -22.6, r: 1.15, drab * 1.05)
+            p.append(b(-0.4, -0.4, -24.8, 0.8, 0.8, 0.9, steel * 1.2, pMetal))     // nose and fuze
             return GunModel(parts: p, mag: Array(m..<p.count), grip: V3(0, -1.0, -2.0), fore: V3(0, -1.0, -9.5), butt: V3(0, 0, 10),
                             muzzle: V3(0, 0, -25.0), magAt: V3(0, 0, -18), bolt: V3(0, 1.4, -2.6), scale: 0.56)
         case Guns.faust:

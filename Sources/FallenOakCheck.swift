@@ -13,8 +13,10 @@ enum FallenOakCheck {
         defer { FieldTerrain.newWorlds = field0 }
         let wood = Blocks.has("oak_wood") ? Blocks.groupBase[Int(Blocks.id("oak_wood"))] : AIR
         let logG = Blocks.groupBase[Int(LOG)]
-        var trunks = 0, cellsAll = 0, airUnder = 0, upright = 0, changed = 0, bodies = 0, short = 0
-        var notes: [String] = []
+        var trunks = 0, cellsAll = 0, airUnder = 0, upright = 0, changed = 0, bodies = 0, short = 0, mossy = 0
+        let moss = Blocks.has("moss_carpet") ? Blocks.id("moss_carpet") : AIR
+        var notes: [String] = [], uprightNotes: [String] = []
+        var tested = 0
         let seeds: [UInt64] = [530054557992772521, 12345, 4242, 7639458412018979794, 99173]
         for seed in seeds {
             let w = World(seed: seed, device: g0.world.device, save: nil)
@@ -24,8 +26,10 @@ enum FallenOakCheck {
             g.paused = false; g.survival = false
             var cells: [IVec3: BlockID] = [:]
             var found = 0
-            // Spots spiralling out from spawn until this seed has given 40 trunks (or 6 spots).
-            let spots: [(Int, Int)] = [(0, 0), (160, 0), (0, 160), (-160, 0), (0, -160), (160, 160)]
+            // Spots in the woods (fallen oaks lie only there, one oak in fifty), spiralling out from spawn in 112-block
+            // steps, until this seed has given 40 trunks or 20 spots. (Walking spots round spawn found 12 trunks in two
+            // seeds' 12 spots, most of them in plains.)
+            let spots = woods(w.gen, 20)
             for (sx, sz) in spots where found < 40 {
                 let at = V3(Float(sx) + 0.5, 200, Float(sz) + 0.5)
                 g.player.pos = at; g.player.flying = true; w.activeCenter = at
@@ -55,6 +59,10 @@ enum FallenOakCheck {
                         }
                         for q in run { seen.insert(q) }
                         guard run.count >= 2 || gb == wood else { continue }
+                        // A fallen oak lies bare on the floor; wood with leaves round it is a standing tree's bough.
+                        let leafy = run.contains { q in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)].contains { d in
+                            Mesher.leafT[Int(w.builtBlock(q.x + d.0, q.y + d.1, q.z + d.2))] } }
+                        guard !leafy else { continue }
                         found += 1; trunks += 1
                         if run.count < 3 { short += 1 }
                         for q in run {
@@ -64,7 +72,13 @@ enum FallenOakCheck {
                                 airUnder += 1
                                 if notes.count < 6 { notes.append("air under \(q.x) \(q.y - YOFF) \(q.z) (seed \(seed))") }
                             }
-                            if ShapeTrunks.axisOf[Int(qb)] == 1 { upright += 1 }
+                            if ShapeTrunks.axisOf[Int(qb)] == 1 {
+                                upright += 1
+                                if uprightNotes.count < 6 {
+                                    uprightNotes.append("upright \(Blocks.key(qb)) at \(q.x) \(q.y - YOFF) \(q.z), run \(run.count) (seed \(seed))")
+                                }
+                            }
+                            if moss != AIR && w.builtBlock(q.x, q.y + 1, q.z) == moss { mossy += 1 }
                         }
                     }
                 } }
@@ -75,16 +89,35 @@ enum FallenOakCheck {
             var debrisPeak = 0
             for _ in 0..<720 { g.tick(1.0 / 72); debrisPeak = max(debrisPeak, g.debris.count) }
             bodies += Felling.felled - felled0 + Felling.toppled - toppled0 + debrisPeak + Felling.falls.count
-            for (q, b) in cells where w.builtBlock(q.x, q.y, q.z) != b {
+            // Only cells still loaded: the spots before the last were let go as the camera moved on (an unloaded cell reads
+            // as air, which counted 466 of them as "changed").
+            for (q, b) in cells where w.isLoaded(q.x, q.z) {
+                tested += 1
+                guard w.builtBlock(q.x, q.y, q.z) != b else { continue }
                 changed += 1
                 if notes.count < 10 { notes.append("changed \(q.x) \(q.y - YOFF) \(q.z) (seed \(seed))") }
             }
-            print("fallenoaks: seed \(seed): \(found) trunks, \(cells.count) cells")
+            print("fallenoaks: seed \(seed): \(found) trunks, \(cells.count) cells, \(spots.count) spots in the woods")
         }
-        for n in notes { print("fallenoaks:   \(n)") }
-        check(trunks >= 200 && airUnder == 0 && changed == 0 && bodies == 0,
-              "Nov 15 fallen oaks: \(trunks) over 5 field seeds (\(cellsAll) lengths): \(airUnder) with air under, \(changed) changed and \(bodies) bodies in the first 10 s")
+        for n in notes + uprightNotes { print("fallenoaks:   \(n)") }
+        check(trunks >= 200 && airUnder == 0 && tested >= 20 && changed == 0 && bodies == 0,
+              "Nov 15 fallen oaks: \(trunks) over 5 field seeds (\(cellsAll) lengths): \(airUnder) with air under, \(changed) of \(tested) still loaded changed and \(bodies) bodies in the first 10 s")
         check(TreeShapes.oldLitterLie || (upright == 0 && short == 0),
               "Nov 15 fallen oaks: every length a lying log along its trunk (\(upright) upright), no trunk shorter than 3 (\(short))")
+        check(TreeShapes.oldLitterMoss || mossy == 0, "Nov 15 fallen oaks: no moss carpet on them (\(mossy) lengths)")
+    }
+
+    // Up to n spots whose column and four points 40 out are oak woods (forest, flower forest, dark forest).
+    static func woods(_ gen: TerrainGenerator, _ n: Int) -> [(Int, Int)] {
+        let oaks: Set<Biome> = [.forest, .flowerForest, .darkForest]
+        var out: [(Int, Int)] = []
+        var x = 0, z = 0, dx = 0, dz = -1
+        for _ in 0..<4000 where out.count < n {
+            let wx = x * 112 + 8, wz = z * 112 + 8
+            if [(0, 0), (40, 0), (-40, 0), (0, 40), (0, -40)].allSatisfy({ oaks.contains(gen.column(wx + $0.0, wz + $0.1).biome) }) { out.append((wx, wz)) }
+            if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
+            x += dx; z += dz
+        }
+        return out
     }
 }

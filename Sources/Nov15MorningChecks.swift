@@ -11,6 +11,7 @@ enum Nov15MorningChecks {
         escort(g, check)
         sheetIce(g, check)
         customs(g, check)
+        doorIcon(check)
         check(HeavyTurret.oldStationReach || HeavyTurret.drawnReach(g) >= Float(max(8, g.world.renderDistance) * CS),
               "Nov 15 Boreal Station: its guns lay on a vehicle he drives out to his view (\(Int(HeavyTurret.drawnReach(g))) blocks, was 110 / 220)")
     }
@@ -126,5 +127,20 @@ enum Nov15MorningChecks {
         let talked = off.map { Countries.talk(g, $0) } ?? false
         check(sign?.lines.first == "CUSTOMS" && (sign?.lines[2].contains("ore") ?? false) && off != nil && talked,
               "Nov 15 customs: the post's sign reads \"\(sign?.lines.joined(separator: " / ") ?? "none")\", an officer stands in its booth (\(off != nil)) and answers him (\(talked))")
+    }
+
+    // 08:45:15 ("Yours don't look right in inventory"): a door's item shows the whole door, its top half over its bottom.
+    static func doorIcon(_ check: (Bool, String) -> Void) {
+        guard !Renderer.oldDoorIcon, Blocks.has("oak_door") else { return }
+        let id = Blocks.id("oak_door")
+        let base = Int(Blocks.groupBase[Int(id)])
+        var quads: [(lo: Float, hi: Float, layer: Float)] = []
+        let drew = Renderer.doorIcon(id, center: V2(100, 100), size: 32, tint: V4(1, 1, 1, 1)) { pts, _, _, layer in
+            quads.append((pts.map { $0.y }.min() ?? 0, pts.map { $0.y }.max() ?? 0, layer))
+        }
+        let top = Float(Blocks.tex[(base + 8) * 6 + 4]), bottom = Float(Blocks.tex[base * 6 + 4])
+        let ok = drew && quads.count == 2 && quads[0].layer == top && quads[1].layer == bottom && quads[0].hi <= quads[1].lo
+            && quads[1].hi - quads[0].lo >= 32 && top != bottom
+        check(ok, "Nov 15 door icon: an oak door in the pack is drawn whole, its top half over its bottom (\(quads.count) quads, \(Int((quads.last?.hi ?? 0) - (quads.first?.lo ?? 0))) px tall in a 32 px slot)")
     }
 }
