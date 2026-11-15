@@ -542,15 +542,26 @@ enum TreeProbeCheck {
             let postKinds = post.map { Int(pr[$0]?.kind ?? 99) }
             let besideKind = Int(pr[beside]?.kind ?? 99), besideSteps = Int(pr[beside]?.dist ?? 99)
             if cutUp == 0 {
-                check(trunkKinds.allSatisfy { $0 == 1 } && postKinds.allSatisfy { $0 == 2 } && (besideKind == 0 || besideKind == 2) && besideSteps < 0,
+                // (timber is a cube since Nov 15 morning, no shape of ShapeTrunks at all: kind 0; round timber: a post, 2)
+                check(trunkKinds.allSatisfy { $0 == 1 } && postKinds.allSatisfy { $0 == 2 || TreeWood.cubeTimber && $0 == 0 } && (besideKind == 0 || besideKind == 2) && besideSteps < 0,
                       "fellwhole: the spruce's wood is drawn as a living trunk (kinds \(trunkKinds)), a log post beside it as a post (kinds \(postKinds), 2 = post, never a stump), a log set against the trunk as timber, no limb of it (kind \(besideKind), steps \(besideSteps))")
             }
             let cutAt: IVec3
             if cutUp >= 0 { cutAt = IVec3(foot.x, foot.y + cutUp, foot.z) }
             else { cutAt = cells.max(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) ?? foot }
             let cut = w.builtBlock(cutAt.x, cutAt.y, cutAt.z), n0 = Felling.felled, ships0 = w.ships.list.count
+            let made0 = Felling.shapesMade
             w.setBlock(cutAt.x, cutAt.y, cutAt.z, AIR)
             g.fellCheck(cutAt, cut)
+            // (Nov 15 morning, "tree falls just like before": the falling body wears the round shape the tree stood with)
+            if cutUp == 0 {
+                var waited = 0
+                while Felling.shapesMade == made0 && waited < 400 { usleep(10_000); Felling.shapeCollect(w); waited += 1 }
+                let sh = w.ships.list.last(where: { Felling.isFelled($0) }).flatMap { Felling.shapes[$0.id] }
+                let logsIn = w.ships.list.last(where: { Felling.isFelled($0) }).map { $0.grid.blocks.filter { treeT[Int($0)] }.count } ?? 0
+                check(Felling.oldFellShape ? true : (logsIn > 0 && (sh?.quads.count ?? 0) >= logsIn * 4 && (sh?.cells.count ?? 0) >= logsIn * 3 / 4),
+                      "fellwhole: the falling tree is drawn with its own round shape (\(sh?.quads.count ?? 0) quads over \(sh?.cells.count ?? 0) of its \(logsIn) logs, after \(waited * 10) ms)")
+            }
             let left = cells.filter { treeT[Int(w.builtBlock($0.x, $0.y, $0.z))] }.count
             let bodies = w.ships.list.count - ships0
             var bodyLogs = 0

@@ -3148,11 +3148,13 @@ if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled
     TreeProbeCheck.fell(game, check)
     TreeProbeCheck.fellReal(game, check)
     // (the rules before TreeWood: a trunk on three feet of four, a stump left under a cut, its ghosts)
-    TreeWood.asBefore {
+    // (they stand on trees of plain logs drawn round: with timber a cube, only under BS_ROUNDTIMBER=1)
+    if TreeWood.cubeTimber { print("fellcheck: the checks of the rules before tree wood are left out (BS_ROUNDTIMBER=1 runs them)") }
+    else { TreeWood.asBefore {
         TreeProbeCheck.fellHalf(game, check)
         TreeProbeCheck.fellNov13(game, check)
         TreeProbeCheck.fellGhosts(game, check)
-    }
+    } }
     TreeProbeCheck.fellWhole(game, check)
     Felling.keep = Felling.oldKeep
     TreeProbeCheck.fellGather(game, check)
