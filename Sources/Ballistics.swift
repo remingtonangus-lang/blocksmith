@@ -339,7 +339,7 @@ final class Armory {
         // P305 (a): rounds wear what they strike by calibre and shoot it out once worn through (BlockWear.swift).
         if s.kind == .bullet {
             let left = g.wearBlock(b, damage: s.damage, at: at, fromPlayer: s.fromPlayer)
-            if s.fromPlayer && !BlockWear.oldSplash { g.splashWear(b, normal: n, damage: s.damage, at: at) }
+            if s.fromPlayer && BlockWear.splash { g.splashWear(b, normal: n, damage: s.damage, at: at) }
             if w.materialAt(b.x, b.y, b.z) != id { return left }
         }
         // Realistic world: a round leaves its hole (a small bite, kept until the block changes) and knocks chips off.

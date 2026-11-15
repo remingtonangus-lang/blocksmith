@@ -23,6 +23,7 @@ enum BlockWear {
     static var frameAt: Double = -1, brokeThisFrame = 0
     static var shotOut = 0, throughShots = 0     // (counters)
     static let oldSplash = ProcessInfo.processInfo.environment["BS_OLDWEARSPLASH"] == "1"
+    static var splash = !oldSplash                // (checks compare the two ways)
     static let splashShare: Float = 0.25          // (Game.splashWear: of a round's damage, to each open neighbour on the face)
 
     // Rounds it takes to wear the block away (as damage points); .infinity: rounds never break it.

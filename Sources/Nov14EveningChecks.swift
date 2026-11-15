@@ -89,26 +89,31 @@ enum Nov14EveningChecks {
     // Station Concrete (each round somewhere in its 3x3 middle) breaks through it; before, the wear spread over the
     // cells broke few or none.
     static func sprayedWall(_ g: Game, _ check: (Bool, String) -> Void) {
-        let w = g.world
-        let p0 = g.player.pos
-        let c = IVec3(Int(floor(p0.x)) + 20, 300, Int(floor(p0.z)) + 20)
-        let con = Blocks.id("bunker_concrete_dark")
-        var cells: [IVec3] = []
-        for dy in -2...2 { for dx in -2...2 { let q = IVec3(c.x + dx, c.y + dy, c.z); w.setBlock(q.x, q.y, q.z, con); cells.append(q) } }
-        defer { for q in cells { w.setBlock(q.x, q.y, q.z, AIR) }; BlockWear.marks = [:] }
-        BlockWear.marks = [:]
-        let from = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 6.5)
-        var rng = SRng(77)
-        for k in 0..<30 {
-            let tx = Float(c.x) + 0.5 + Float(rng.int(3) - 1) + Float(rng.int(100)) / 100 - 0.5
-            let ty = Float(c.y) + 0.5 + Float(rng.int(3) - 1) + Float(rng.int(100)) / 100 - 0.5
-            let d = simd_normalize(V3(tx, ty, Float(c.z) + 1) - from)
-            g.arms.spawn(Slug(pos: from, vel: d * 150, kind: .bullet, damage: 5.5, fromPlayer: true, shooter: nil, by: "Player", life: 0.6, gravity: 0))
-            for _ in 0..<3 { g.arms.update(1.0 / 60, g) }
-            _ = k
+        func spray(splash: Bool) -> Int {
+            let w = g.world
+            let p0 = g.player.pos
+            let c = IVec3(Int(floor(p0.x)) + 20, 300, Int(floor(p0.z)) + 20)
+            let con = Blocks.id("bunker_concrete_dark")
+            var cells: [IVec3] = []
+            for dy in -2...2 { for dx in -2...2 { let q = IVec3(c.x + dx, c.y + dy, c.z); w.setBlock(q.x, q.y, q.z, con); cells.append(q) } }
+            let splash0 = BlockWear.splash
+            BlockWear.splash = splash
+            defer { for q in cells { w.setBlock(q.x, q.y, q.z, AIR) }; BlockWear.marks = [:]; BlockWear.splash = splash0 }
+            BlockWear.marks = [:]
+            let from = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 6.5)
+            var rng = SRng(77)
+            for _ in 0..<30 {
+                let tx = Float(c.x) + 0.5 + Float(rng.int(3) - 1) + Float(rng.int(100)) / 100 - 0.5
+                let ty = Float(c.y) + 0.5 + Float(rng.int(3) - 1) + Float(rng.int(100)) / 100 - 0.5
+                let d = simd_normalize(V3(tx, ty, Float(c.z) + 1) - from)
+                g.arms.spawn(Slug(pos: from, vel: d * 150, kind: .bullet, damage: 5.5, fromPlayer: true, shooter: nil, by: "Player", life: 0.6, gravity: 0))
+                for _ in 0..<3 { g.arms.update(1.0 / 60, g) }
+            }
+            return cells.filter { w.block($0.x, $0.y, $0.z) == AIR }.count
         }
-        let broken = cells.filter { w.block($0.x, $0.y, $0.z) == AIR }.count
-        check(broken >= 3 && broken <= 14, "Nov 14 concrete: 30 carbine rounds sprayed over a concrete wall's middle break \(broken) of its 25 blocks (a hole through it)")
+        let old = spray(splash: false), now = spray(splash: true)
+        check(BlockWear.oldSplash || (now >= 2 && now > old && now <= 14),
+              "Nov 14 concrete: 30 carbine rounds sprayed over a concrete wall's middle break \(now) of its 25 blocks, a hole through it (\(old) with each round's wear on its own cell only)")
     }
 
     // The chair's class: every block with four facings has them in a row (state k = its plain state + k), as placing,
