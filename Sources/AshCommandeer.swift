@@ -66,6 +66,7 @@ enum AshCommandeer {
     // the model's turret and gun follow. Shells and blasts take its plates off block by block; it pivots on its
     // tracks and runs down whoever stands in its way, as before. Role "ashtank" (+ "b" for a Boreal Station's).
     static let tankName = "Cinder Tank"
+    static let oldTankSteer = ProcessInfo.processInfo.environment["BS_OLDTANKSTEER"] == "1"
     static var tankHulls = true                   // (the --ashdrive check's seat leg turns it off)
     static let tankTop: Float = 10.5, tankCruise: Float = 6     // blocks a second sprinting and not, as from its seat (P435)
     static func tankRole(_ m: Mob) -> String { "ashtank" + (m.boreal ? "b" : "") }
@@ -183,6 +184,16 @@ extension Game {
     // AshUnits.ashSeatDrive): it turns toward that way and drives off along it, slowing into a tight turn; a way far
     // round the back reverses toward it instead of turning about. (Throttle, steer: steer +1 turns it right.)
     func ashLookDrive(_ s: Ship, _ mi: MoveInput) -> (Float, Float) {
+        // Ledger 145 (Nov 15 08:19:45, driving the Cinder Tank: "the motion sickness part of driving the tank has not
+        // been fixed because there are redundant controls to turn the thing, making it unpredictable which way it will
+        // turn"): the hull went where the stick pointed FROM HIS VIEW, and his view also aims the tank's gun (and
+        // the half-track's): looking at a target, or turning his view with the other stick, turned the hull under
+        // him, three ways to steer at once. A hull whose gun follows his look now steers by the stick alone, from the
+        // hull: forward and back drive it, left and right turn it (it pivots on its tracks standing still), and his
+        // look is free for the gun. The truck, which has no gun, drives as before. BS_OLDTANKSTEER=1: as before.
+        if !AshCommandeer.oldTankSteer && (s.name == AshCommandeer.tankName || s.name == AshCommandeer.halftrackName) {
+            return (max(-1, min(1, mi.forward)), max(-1, min(1, mi.strafe)))
+        }
         let stick = V2(mi.strafe, mi.forward)
         let push = min(1, simd_length(stick))
         guard push > 0.15 else { return (0, 0) }
@@ -725,8 +736,21 @@ enum AshDriveCheck {
                 let q0 = h.pos
                 run(90, act(forward: 1))
                 let swung = wrap(h0 - heading()), slid = simd_length(V2(h.pos.x - q0.x, h.pos.z - q0.z))
-                check(swung > 0.8 && slid < 1.5, String(format: "Cinder Tank: pushed ahead looking right, it pivots round toward his view (%.0f degrees in 1.5 s, %.1f blocks on)",
-                                                            swung * 180 / .pi, slid))
+                if AshCommandeer.oldTankSteer {
+                    check(swung > 0.8 && slid < 1.5, String(format: "Cinder Tank: pushed ahead looking right, it pivots round toward his view (%.0f degrees in 1.5 s, %.1f blocks on)",
+                                                                swung * 180 / .pi, slid))
+                } else {
+                    // Ledger 145: his look is the gun's; the stick alone steers, from the hull.
+                    check(abs(swung) < 0.15 && slid > 2, String(format: "Cinder Tank: pushed ahead while he looks right, it drives straight on (turned %.0f degrees in 1.5 s, %.1f blocks on)",
+                                                                  abs(swung) * 180 / .pi, slid))
+                    run(120, act())
+                    let h1 = heading(), q1 = h.pos
+                    game.player.yaw = h1 + 1.2                          // (looking left: the stick still turns it right)
+                    run(90, act(strafe: 1))
+                    let right = wrap(h1 - heading()), crept = simd_length(V2(h.pos.x - q1.x, h.pos.z - q1.z))
+                    check(right > 0.8 && crept < 1.5, String(format: "Cinder Tank: stick right, it pivots right on its tracks whatever way he looks (%.0f degrees in 1.5 s, %.1f blocks on)",
+                                                                right * 180 / .pi, crept))
+                }
                 run(120, act())
                 // The turret follows his look, the model's turret follows the turret, and the trigger fires the gun.
                 game.player.yaw = heading() + 0.8
