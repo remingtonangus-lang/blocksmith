@@ -27,7 +27,7 @@ extension ShipManager {
     // Stormwarden 480 long the guns at her bow saw nothing past her own length while enemy frigates circle at 120 and
     // fire from 250-300. From a capital hull it is measured from her sides, and an enemy hull is engaged out to 300.)
     static let crewHullRange: Float = 300
-    static let oldCrewReach = ProcessInfo.processInfo.environment["BS_OLDCREWREACH"] == "1"
+    static let oldCrewReach = Env.all["BS_OLDCREWREACH"] == "1"
     func crewFoe(near p: V3, game g: Game, hull: Ship? = nil) -> V3? {
         let pad: Float = hull.map { $0.kinematic && !ShipManager.oldCrewReach ? simd_length($0.worldMax - $0.worldMin) * 0.5 : 0 } ?? 0
         let hullRange = pad > 0 ? ShipManager.crewHullRange : ShipManager.crewRange

@@ -102,7 +102,7 @@ enum QuestTurretFreeze {
         let slow = slowBy.sorted { $0.value > $1.value }.prefix(4).map { "\($0.key) x\($0.value)" }
         if !slow.isEmpty { print("turretfreeze:   slow frames led by " + slow.joined(separator: ", ")) }
         if seconds >= 45 && CraterJob.outside == outside0 { print("FAIL turretfreeze: no shell burst over the world's top (the freeze's case not met)"); return 1 }
-        let limit = ProcessInfo.processInfo.environment["BS_FREEZE_MS"].flatMap { Double($0) } ?? 250
+        let limit = Env.all["BS_FREEZE_MS"].flatMap { Double($0) } ?? 250
         if worst > limit { print(String(format: "FAIL turretfreeze: a frame took %.1f ms on the gun (limit %.0f)", worst, limit)); return 1 }
         print("turretfreeze: passed")
         return 0

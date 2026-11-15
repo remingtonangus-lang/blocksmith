@@ -75,7 +75,7 @@ final class GridCache<T> {
         return v
     }
 }
-enum GridCacheRule { static let old = ProcessInfo.processInfo.environment["BS_OLDGRIDLOCK"] == "1" }
+enum GridCacheRule { static let old = Env.all["BS_OLDGRIDLOCK"] == "1" }
 
 final class Terrain {
     // Smooth large-scale fields.

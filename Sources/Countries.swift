@@ -641,7 +641,7 @@ enum Countries {
     }
 
     // Nov 15 (BS_OLDCUSTOMS=1 for the post without its officer and with the old sign words).
-    static let oldCustoms = ProcessInfo.processInfo.environment["BS_OLDCUSTOMS"] == "1"
+    static let oldCustoms = Env.all["BS_OLDCUSTOMS"] == "1"
     static var greetedPost: String?
     static let officerRole = "customs"
     static func isOfficer(_ m: Mob) -> Bool { m.kind == .villager && m.villager?.role == officerRole }

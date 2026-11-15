@@ -193,7 +193,7 @@ extension Game {
     // trips did before ledger 40). On the headset (Game.arrivalHold) he now waits there, the view dark, while the
     // ground streams in on the workers, and the landing (his height, the return rift) is done once it is drawn; the
     // host checks load it at once as before. BS_OLDRIFT=1: on the frame on the headset too.
-    static let oldRift = ProcessInfo.processInfo.environment["BS_OLDRIFT"] == "1"
+    static let oldRift = Env.all["BS_OLDRIFT"] == "1"
     func riftArrive(_ at: V3, then: @escaping () -> Void) {
         player.pos = at
         player.vel = .zero

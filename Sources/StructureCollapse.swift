@@ -15,12 +15,12 @@ import simd
 // that fell (such a block would have had a way down itself).
 // BS_COLLAPSE=0: off (before/after). Seeded runs and harnesses do every step on the frame it is asked.
 enum StructureCollapse {
-    static let enabled = ProcessInfo.processInfo.environment["BS_COLLAPSE"] != "0"
+    static let enabled = Env.all["BS_COLLAPSE"] != "0"
     static var settleFrames = 25                      // frames without a structural change before a piece is read (a third of a second)
     static var limit = 250_000                        // blocks read (past it: held, as before)
-    static let bodyBin = Int(ProcessInfo.processInfo.environment["BS_COLLAPSEBIN"] ?? "") ?? 12   // a falling body is at most a cube of this side
+    static let bodyBin = Int(Env.all["BS_COLLAPSEBIN"] ?? "") ?? 12   // a falling body is at most a cube of this side
     static var wantSeconds = 0.0012, maxWait = 3      // (as Structure.tick: a body waits for a frame with room)
-    static let patientPieces = ProcessInfo.processInfo.environment["BS_COLLAPSEPUSH"] != "1"
+    static let patientPieces = Env.all["BS_COLLAPSEPUSH"] != "1"
     static var crumbsAFrame = 32
     static var patienceFrames = 216                   // (3 s: the longest a piece waits for quiet)
     private static var pendingSince = 0
@@ -41,7 +41,7 @@ enum StructureCollapse {
     // (harness and soak)
     static var asked = 0, weighed = 0, collapses = 0, fellBlocks = 0, bodies = 0, restarts = 0, patched = 0
     static var worstSliceMs = 0.0, lastCaptureMs = 0.0, lastSolveMs = 0.0, lastBlocks = 0, worstBodyMs = 0.0
-    static var log = ProcessInfo.processInfo.environment["BS_COLLAPSELOG"] == "1"
+    static var log = Env.all["BS_COLLAPSELOG"] == "1"
 
     // What the worker hands back.
     final class Outcome {
@@ -88,7 +88,7 @@ enum StructureCollapse {
     // is held here until the piece has been weighed (or `holdFrames` at most, so a long barrage still sheds its
     // loose blocks), then run again: what the weigh left standing loses its loose blocks as before.
     // BS_COLLAPSEHOLD=0: dropped at once, as before.
-    static let holding = ProcessInfo.processInfo.environment["BS_COLLAPSEHOLD"] != "0"
+    static let holding = Env.all["BS_COLLAPSEHOLD"] != "0"
     static var holdFrames = 216, clearFrames = 360
     private static var held: [(p: IVec3, at: Int)] = []
     private static var passed: [IVec3: Int] = [:]     // (4-cubes whose check goes ahead, until a frame)
@@ -119,7 +119,7 @@ enum StructureCollapse {
         if passed.count > 256 { passed = passed.filter { $0.value > frameNo } }
     }
     // How many times its own weight a structure must carry to stand (BS_COLLAPSESAFETY).
-    static var safety: Float = Float(ProcessInfo.processInfo.environment["BS_COLLAPSESAFETY"] ?? "") ?? 1
+    static var safety: Float = Float(Env.all["BS_COLLAPSESAFETY"] ?? "") ?? 1
 
     // A change whose check stopped at its bound: the piece at p is weighed whole once things are quiet.
     // (another world, a dimension entered or a save loaded: nothing read from the last one is carried over)

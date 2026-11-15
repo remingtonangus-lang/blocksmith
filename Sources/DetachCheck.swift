@@ -55,4 +55,49 @@ enum DetachCheck {
                      mode, "\(post)", "\(pillar)", middle, left))
         check(ms < 3, String(format: "detach (%@): the hole through the middle (5,760 blocks out, 960 cells round it) took %.2f ms (want under 3)", mode, ms))
     }
+
+    // Nov 15 (the headset's capture of 08:35:47, piloting the Ironback Crawler in a fight at the citadel: a 97 ms tick,
+    // 26.9 ms of it "shells: hull blast"): a warship's shell on another capital hull is the common burst (power 4) and
+    // then ShipManager.blast at one and a half times that. questcheck --hullblast: twelve such hits walked along the
+    // flank of a fresh crawler and a fresh frigate, each part timed, the slowest shown stage by stage.
+    static func hullBlast(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world
+        for kind in ["crawler", "frigate"] {
+            let n1 = w.ships.list.count
+            let home = g.player.pos + V3(0, 0, 140)
+            w.ships.spawnCapital(kind, home: IVec3(Int(home.x), 0, Int(home.z)), yaw: 0, region: nil, sync: true)
+            guard let e = w.ships.list.dropFirst(n1).first(where: { $0.kinematic && $0.parent == nil }) else { check(false, "hullblast: no \(kind)"); continue }
+            defer { w.ships.remove(e); w.ships.capState.removeValue(forKey: e.id); w.ships.shockwaves.removeAll(); g.arms.breaches.removeAll() }
+            _ = w.loadSync(center: e.pos, radius: 3)
+            func hull() -> Int { w.ships.list.filter { $0.root === e.root }.reduce(0) { $0 + $1.blockCount } }
+            var worstA = 0.0, lapsA = "", worstB = 0.0, lapsB = "", sumA = 0.0, sumB = 0.0, torn = 0
+            let ships0 = w.ships.list.count, drops0 = g.drops.items.count
+            for k in 0..<12 {
+                let c = (e.worldMin + e.worldMax) * 0.5
+                let along = (e.worldMax.z - e.worldMin.z) * (Float(k % 6) / 6 - 0.42)
+                // (the flank's skin at mid height: walked in from outside until a hull cell is met)
+                var p = V3(e.worldMax.x + 1, c.y + Float(k / 6) * 3 - 1, c.z + along)
+                var steps = 0
+                while steps < 80 && !w.ships.shipBlock(at: p, except: -1) { p.x -= 0.5; steps += 1 }
+                let before = hull()
+                Explosion.worstMs = 0; Explosion.worstLaps = ""
+                Explosion.explode(at: p, power: 4, game: g, breakBlocks: true)
+                let a = Explosion.worstMs, la = Explosion.worstLaps
+                Explosion.worstMs = 0; Explosion.worstLaps = ""
+                Explosion.lapStart()
+                w.ships.blast(at: p, power: 6, game: g)
+                Explosion.lapEnd("end")
+                let b = Explosion.worstMs, lb = Explosion.worstLaps
+                sumA += a; sumB += b
+                if a > worstA { worstA = a; lapsA = la }
+                if b > worstB { worstB = b; lapsB = lb }
+                torn += before - hull()
+            }
+            print(String(format: "hullblast: %@ (%d blocks, grid %dx%dx%d): 12 hits tore %d blocks, %d new bodies, %d drops", kind, hull(), e.grid.sx, e.grid.sy, e.grid.sz,
+                         torn, w.ships.list.count - ships0, g.drops.items.count - drops0))
+            print(String(format: "hullblast:   the burst: average %.2f ms, slowest %.2f ms (%@)", sumA / 12, worstA, lapsA))
+            print(String(format: "hullblast:   the hull blast: average %.2f ms, slowest %.2f ms (%@)", sumB / 12, worstB, lapsB))
+            check(worstA + worstB < 6, String(format: "hullblast: a warship's shell on a %@'s hull takes %.1f ms at worst on this machine (burst %.1f + hull blast %.1f; want under 6: the headset is several times slower)", kind, worstA + worstB, worstA, worstB))
+        }
+    }
 }

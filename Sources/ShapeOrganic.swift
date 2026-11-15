@@ -12,7 +12,7 @@ import simd
 // stripes, wrapped round the curve.
 enum ShapeOrganic {
     static let isOrganic: [Bool] = ShapeClass.kind.map { $0 == .organic }
-    static let oldOrganic = ProcessInfo.processInfo.environment["BS_OLDORGANIC"] == "1"
+    static let oldOrganic = Env.all["BS_OLDORGANIC"] == "1"
 
     struct Form {
         var r: [Float]          // rounding radius per side (+X -X +Y -Y +Z -Z), 0 where it continues

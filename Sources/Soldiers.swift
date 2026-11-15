@@ -1485,7 +1485,7 @@ enum HeavyTurret {
     // an issue, but still"): a Boreal Station's guns lay on a vehicle he drives from as far as its ground is drawn (his
     // view distance), and the station's alarm goes up as soon as its mast can see the vehicle (borealAlarmTick); the
     // garrison turns out to meet it. BS_OLDSTATIONREACH=1: the guard range (110, 220 provoked) as before.
-    static let oldStationReach = ProcessInfo.processInfo.environment["BS_OLDSTATIONREACH"] == "1"
+    static let oldStationReach = Env.all["BS_OLDSTATIONREACH"] == "1"
     static func drawnReach(_ g: Game) -> Float { min(900, Float(max(8, g.world.renderDistance) * CS)) }
     static func stationWatch(_ g: Game, _ m: Mob) -> Bool {
         guard !oldStationReach, g.world.ships.pilot != nil, m.deck == nil else { return false }
@@ -1496,7 +1496,7 @@ enum HeavyTurret {
     // citadel tower): a far bigger burst that bites through armoured stone (blocks count at most `mannedBreach` blast
     // resistance: Capital stone is 9), and a ship hull hit tears like a power-11 charge.
     static let mannedPower: Float = 5, mannedBreach: Float = 3, mannedShipPower: Float = 11
-    static let oldUnarmed = ProcessInfo.processInfo.environment["BS_OLDUNARMED"] == "1"
+    static let oldUnarmed = Env.all["BS_OLDUNARMED"] == "1"
 
     // Two calibres (T6, Greywall's shore bases): the heavy gun, and a light quick-firer (deck_gun variant 9) built at
     // 0.4 scale that fires small shells four times as often and turns four times as fast.

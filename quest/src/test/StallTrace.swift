@@ -13,7 +13,7 @@ import Glibc
 // BS_STALLTRACE=FILE writes the kept stacks as offsets into the executable; quest/tools/stalltrace.py names them
 // (llvm-symbolizer + swift-demangle) and adds them up by function. Off unless the variable is set.
 enum StallTrace {
-    static let path = ProcessInfo.processInfo.environment["BS_STALLTRACE"]
+    static let path = Env.all["BS_STALLTRACE"]
     static var on: Bool { armedOK }
     private static var armedOK = false
 
@@ -44,7 +44,7 @@ enum StallTrace {
         buf = .allocate(capacity: depth * cap); buf.initialize(repeating: nil, count: depth * cap)
         lens = .allocate(capacity: cap); lens.initialize(repeating: 0, count: cap)
         frameOf = .allocate(capacity: cap); frameOf.initialize(repeating: 0, count: cap)
-        if let a = ProcessInfo.processInfo.environment["BS_STALLTRACE_AFTER"], let ms = Double(a) { after = UInt64(ms * 1e6) }
+        if let a = Env.all["BS_STALLTRACE_AFTER"], let ms = Double(a) { after = UInt64(ms * 1e6) }
         // The executable's load address (the first mapping of /proc/self/exe), so the offsets symbolize offline.
         if let maps = try? String(contentsOfFile: "/proc/self/maps", encoding: .utf8),
            let exe = try? FileManager.default.destinationOfSymbolicLink(atPath: "/proc/self/exe") {

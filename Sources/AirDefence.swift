@@ -23,7 +23,7 @@ enum AirDefence {
     static let flakBite: Float = 3.2              // ... and its bite on a hull beside it (P504)
     static let rangingShots = 2
     static let warnDelay: Float = 1.5
-    static let oldFuse = ProcessInfo.processInfo.environment["BS_OLDAIRFUSE"] == "1"
+    static let oldFuse = Env.all["BS_OLDAIRFUSE"] == "1"
 
     // Whether the player is flying: in a craft clear of the ground, under a jetpack's thrust or glider wings, or off
     // the ground well above it.

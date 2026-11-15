@@ -13,7 +13,7 @@ import simd
 // own models take the hits as before). The engine answers the use press with a gun out. The coaches carry townsfolk.
 // BS_TRAINHULLS=0: the old way.
 enum TrainHulls {
-    static let on = ProcessInfo.processInfo.environment["BS_TRAINHULLS"] != "0"
+    static let on = Env.all["BS_TRAINHULLS"] != "0"
     static let role = "traincar"
     static var hullOf: [ObjectIdentifier: Ship] = [:]
     static var built = 0                                     // (checks)
@@ -44,7 +44,7 @@ enum TrainHulls {
     static let variants = [Trains.loco, Trains.tender, Trains.coach, Trains.express, Trains.boxcar, Trains.tankWagon, Trains.flatcar,
                            Trains.troopCar, Trains.armouredLoco, Trains.gunCar]
 
-    static let oldGangway = ProcessInfo.processInfo.environment["BS_OLDGANGWAY"] == "1"
+    static let oldGangway = Env.all["BS_OLDGANGWAY"] == "1"
     // The gangway cells past each end of a walk-in car's body (ledger 141).
     static func ends(_ v: Int) -> Int { !oldGangway && (v == Trains.coach || v == Trains.troopCar) ? 1 : 0 }
 

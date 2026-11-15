@@ -32,6 +32,7 @@ final class WorldRenderer {
     func takeStages() -> String {
         let n = Double(max(1, stageFrames))
         let parts = zip(WorldRenderer.stageNames, stageSums).map { "\($0) " + String(format: "%.2f", $1 * 1000 / n) }
+        let ents = takeEntities(frames: stageFrames)
         let extra = String(format: " | table re-read %.1f columns a frame, occluder raster %.2f ms a frame; taken back from the workers: mobs %d, raster %d of %d frames; landmark builds: %d full, %d mid, %d smoke, %.0f vertices, %.2f ms a frame",
                            Double(tableReads) / n, rasterSum / n, mobWork.takeTookBack(), scene.occWork.takeTookBack(), stageFrames,
                            lmTally[0], lmTally[1], lmTally[2], Double(lmVertSum) / Double(max(1, lmTally[0] + lmTally[1] + lmTally[2])),
@@ -39,13 +40,13 @@ final class WorldRenderer {
         for i in stageSums.indices { stageSums[i] = 0; stagePrev[i] = 0 }
         stageFrames = 0; stageWorst = 0; tableReads = 0; rasterSum = 0
         lmTally = [0, 0, 0]; lmVertSum = 0; lmBuildMs = 0
-        return parts.joined(separator: ", ") + extra
+        return parts.joined(separator: ", ") + " (entities: " + ents + ")" + extra
     }
     // P385 step 3: the mobs' vertices are written on a worker while the frame thread culls and draws the terrain (they read the
     // mobs, the light and the model tables, none of which the cull touches), into a vertex buffer of the slot's own,
     // and drawn when the frame reaches them (FrameWork: taken back by the frame thread if the worker hasn't begun).
     // BS_MOBTHREAD=0: written in place, as before.
-    static var mobThread = ProcessInfo.processInfo.environment["BS_MOBTHREAD"] != "0"
+    static var mobThread = Env.all["BS_MOBTHREAD"] != "0"
     static let mobBufBytes = 10 << 20
     private let mobWork = FrameWork(label: "mobverts")
     private var mobBufs: [ObjectIdentifier: VkBuf] = [:]
@@ -77,12 +78,12 @@ final class WorldRenderer {
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
     // FAILURES 4 (questcheck --view ... --voidcount, tools/voidsweep.sh): the frame cleared to pure magenta with no sky
     // drawn over it (QUEST_SKIP=sky), so every gap in what is drawn shows as magenta.
-    static var voidProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
+    static var voidProbe = Env.all["QUEST_VOIDPROBE"] == "1"
     // Nov 11: BS_OLDCLOUDS=1 has clouds.frag hash its noise lattice as before (shader FX bit 1024) instead of reading the table.
-    static let oldCloudNoise = ProcessInfo.processInfo.environment["BS_OLDCLOUDS"] == "1"
-    static var debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
+    static let oldCloudNoise = Env.all["BS_OLDCLOUDS"] == "1"
+    static var debugSkip = Set((Env.all["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
     // (and within the entities pass, QUEST_SKIPENT=drops,debris,particles,shadows,halos,weather,... leaves those writers out)
-    static let entitySkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIPENT"] ?? "").split(separator: ",").map(String.init))
+    static let entitySkip = Set((Env.all["QUEST_SKIPENT"] ?? "").split(separator: ",").map(String.init))
 
     let ships: ShipDraw
     // Volcano and Ancient Spire impostors past the render distance (Sources/LandmarkRender.swift on the HUD host).
@@ -111,13 +112,13 @@ final class WorldRenderer {
     private var gapVerts: [SimpleVert] = []
     private(set) var gapChunks = 0               // chunks covered last frame (perf lines, questcheck --streamtest)
     private(set) var gapMissing = 0              // of the chunks not drawn, those the ring had no ground for (harness)
-    static var gapTint = ProcessInfo.processInfo.environment["BS_GAPTINT"] == "1"     // (harness: the cover in magenta)
+    static var gapTint = Env.all["BS_GAPTINT"] == "1"     // (harness: the cover in magenta)
 
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
         self.game = game
         ships = ShipDraw(scene: scene)
-        Renderer.shellOnGPU = ProcessInfo.processInfo.environment["BS_OLDSHELL"] != "1"     // (simple.vert puts them on it)
+        Renderer.shellOnGPU = Env.all["BS_OLDSHELL"] != "1"     // (simple.vert puts them on it)
     }
 
     // Skylight around the eye, smoothed (Renderer.updateCave): fog and sky darken underground, and the eye darkness
@@ -376,6 +377,17 @@ final class WorldRenderer {
         stage(17)
     }
     private var particleSec = 0.0
+    static let entityNames = ["drops, projectiles", "tnt, end, fangs, beams", "falling", "shells", "decor", "bobber, leads, banners, rockets",
+                              "arms", "books, shelves", "felled", "debris", "shadows", "halos", "weather"]
+    private var entitySums = [Double](repeating: 0, count: 13)
+    // The three dearest entity writers since the last take, ms a frame.
+    func takeEntities(frames: Int) -> String {
+        let n = Double(max(1, frames))
+        let order = entitySums.indices.sorted { entitySums[$0] > entitySums[$1] }.prefix(3)
+        let out = order.map { "\(WorldRenderer.entityNames[$0]) " + String(format: "%.2f", entitySums[$0] * 1000 / n) }.joined(separator: ", ")
+        for i in entitySums.indices { entitySums[i] = 0 }
+        return out
+    }
 
     // F4: the middle ring after the opaque terrain (the loaded chunks win the depth test; far.vert sinks the ring under
     // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
@@ -489,7 +501,7 @@ final class WorldRenderer {
     // (not leaves). The ring's height is the land before structures and before fine shape: under a citadel's yard or a
     // cut bank the cover lay blocks under the drawn ground beside it, and the sky showed through the step between them
     // (the rock under a drawn chunk's edge isn't meshed while he flies). BS_GAPLIFT=0: the ring's heights.
-    static var gapLift = ProcessInfo.processInfo.environment["BS_GAPLIFT"] != "0"
+    static var gapLift = Env.all["BS_GAPLIFT"] != "0"
     private func liftGaps(_ w: World, ox: Int, oz: Int) {
         let opaqueT = Blocks.opaque, leafT = Mesher.leafT, fluidT = Blocks.fluidKind
         var lastKey = ChunkKey(x: Int.min, z: 0)
@@ -653,12 +665,12 @@ final class WorldRenderer {
     private var lmSmokeEye = V3(1e9, 0, 0), lmHadSmoke = false
     private var lmTally = [0, 0, 0], lmVertSum = 0, lmBuildMs = 0.0   // builds (full, landmarks + smoke, smoke) for the soak
     private var lmFull = -100, lmHorizon: [SimpleVert] = [], lmMid: [SimpleVert] = [], lmMidValid = false
-    static var lmSplit = ProcessInfo.processInfo.environment["BS_LMSPLIT"] != "0"
+    static var lmSplit = Env.all["BS_LMSPLIT"] != "0"
     private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
     private var lmSmokeVerts: [SimpleVert] = [], lmSmokeOwn = false
     private var lmSmokeBufs: [VkBuf?] = [nil, nil, nil], lmSmokeUsed = [-10, -10, -10], lmSmokeLive = -1
-    static let smokeApart = ProcessInfo.processInfo.environment["BS_OLDLMSMOKE"] != "1"
-    static let smokeVerify = ProcessInfo.processInfo.environment["BS_LMSMOKEVERIFY"] == "1"
+    static let smokeApart = Env.all["BS_OLDLMSMOKE"] != "1"
+    static let smokeVerify = Env.all["BS_LMSMOKEVERIFY"] == "1"
     static var smokeChecked = 0, smokeDiffs = 0             // (BS_LMSMOKEVERIFY: smoke beats whose kept opaque part differed)
     // The smoke alone into a buffer of its own (as lmStore), or -1 (pushed to the scratch ring each frame).
     private func lmStoreSmoke(_ verts: [SimpleVert]) -> Int {
@@ -802,24 +814,37 @@ final class WorldRenderer {
         let right = V3(cosf(yaw), 0, -sinf(yaw))
         let up = simd_normalize(simd_cross(right, look))
         let w = game.world, daylight = game.daylight, es = WorldRenderer.entitySkip
+        // (Nov 15: the fight's "entities 1.04 ms" by writer, for the perf line)
+        var te = CFAbsoluteTimeGetCurrent()
+        func lapE(_ i: Int) { let n = CFAbsoluteTimeGetCurrent(); entitySums[i] += n - te; te = n }
         if !es.contains("drops") { game.drops.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, time: Float(game.clock)) }
         if !es.contains("projectiles") { game.projectiles.write(&wr, eye: eye, world: w, daylight: daylight) }
+        lapE(0)
         if !es.contains("tnts") { game.tnts.write(&wr, eye: eye, world: w, daylight: daylight) }
         game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
         game.writeFangs(&wr, eye: eye)
         game.writeBeams(&wr, eye: eye)
+        lapE(1)
         if !es.contains("falling") { game.writeFalling(&wr, eye: eye) }
+        lapE(2)
         if !es.contains("shells") { w.ships.writeShells(&wr, eye: eye) }
+        lapE(3)
         if !es.contains("decor") { game.writeDecor(&wr, eye: eye) }
+        lapE(4)
         game.writeBobber(&wr, eye: eye, right: right, up: -up)
         game.writeLeads(&wr, eye: eye)
         game.writeBanners(&wr, eye: eye)
         game.writeRockets(&wr, eye: eye)
+        lapE(5)
         if !es.contains("arms") { game.writeArms(&wr, eye: eye) }
+        lapE(6)
         game.writeLecternBooks(&wr, eye: eye)
         game.writeShelves(&wr, eye: eye)
+        lapE(7)
         if !es.contains("felled") { game.writeFelled(&wr, eye: eye) }   // (P297 d: round felled trunks)
+        lapE(8)
         if !es.contains("debris") { game.debris.write(&wr, eye: eye, world: w, daylight: daylight) }   // (R15: ragdolls and debris in every world)
+        lapE(9)
         let tp0 = CFAbsoluteTimeGetCurrent()
         let split = !ParticleManager.oldSmoke                       // (smoke in its own see-through pass: Particles.isSmoke)
         if !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, soft: split ? false : nil) }
@@ -827,9 +852,13 @@ final class WorldRenderer {
         if split && !es.contains("particles") { game.particles.write(&wr, eye: eye, right: right, up: -up, world: w, daylight: daylight, soft: true) }
         particleSec = CFAbsoluteTimeGetCurrent() - tp0
         let nSmoke = wr.n
+        te = CFAbsoluteTimeGetCurrent()
         if !es.contains("shadows") { game.writeShadows(&wr, eye: eye) }
+        lapE(10)
         if !es.contains("halos") { game.writeHalos(&wr, eye: eye, right: right, up: -up) }   // SH1 light halos
+        lapE(11)
         if !es.contains("weather") { game.writeWeather(&wr, eye: eye) }
+        lapE(12)
         if let m = game.mining, game.mineProgress > 0, w.damageLevel(m) == 0, game.targetGround?.cell != m {      // (P297 b: not on polygon ground)
             let layer = HudTex.destroy(Int(game.mineProgress * 10))
             let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye

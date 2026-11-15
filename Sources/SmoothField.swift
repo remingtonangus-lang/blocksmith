@@ -91,7 +91,7 @@ extension World {
     // up to nine steps down read the eight cells round it out of the world, the same few cells over and over (the steps
     // are a tenth of a block apart, the cells a block). The steps now read each level of cells once: the same numbers
     // (BS_SURFOLD=1: as before; questcheck --surfacecheck compares the two).
-    static let surfaceOld = ProcessInfo.processInfo.environment["BS_SURFOLD"] == "1"
+    static let surfaceOld = Env.all["BS_SURFOLD"] == "1"
     func fieldSurfaceOffset(_ pos: V3) -> Float {
         if World.surfaceOld { return fieldSurfaceOffsetOld(pos) }
         let qx = pos.x - 0.5, qz = pos.z - 0.5

@@ -7,8 +7,8 @@ import simd
 // customs post), so the systems they belong to are untouched; the rest are a line where the moment happens.
 // BS_OLDNOV15SOUNDS=1: none of them play, the old sounds do (each call site keeps its old sound).
 enum RecordedNov15 {
-    static let oldDeskDrawer = ProcessInfo.processInfo.environment["BS_OLDDESKDRAWER"] == "1"
-    static let oldWellReach = ProcessInfo.processInfo.environment["BS_OLDWELLREACH"] == "1"
+    static let oldDeskDrawer = Env.all["BS_OLDDESKDRAWER"] == "1"
+    static let oldWellReach = Env.all["BS_OLDWELLREACH"] == "1"
     // A narrow shaft over the water at f: two blocks over it, at least two of its four sides walled (a village well's
     // 2x2 shaft walls two sides of each cell; a cliff over the sea walls none).
     static func shaft(_ w: World, _ f: IVec3) -> Bool {
@@ -17,7 +17,7 @@ enum RecordedNov15 {
         let walls = [(1, 0), (-1, 0), (0, 1), (0, -1)].filter { Blocks.collide[Int(w.block(f.x + $0.0, y, f.z + $0.1))] }.count
         return walls >= 2
     }
-    static let off = ProcessInfo.processInfo.environment["BS_OLDNOV15SOUNDS"] == "1"
+    static let off = Env.all["BS_OLDNOV15SOUNDS"] == "1"
     static func pick(_ new: Snd, _ old: Snd) -> Snd { off ? old : new }
 
     // Per-tick state of the watchers (keys: the train's or ship's id, a fall's body).

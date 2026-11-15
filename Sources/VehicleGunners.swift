@@ -20,7 +20,7 @@ enum VehicleGunners {
     static var seats: [Seat] = []
     static let board: Float = 32
     static let stayNear: Float = 24
-    static let oldNear = ProcessInfo.processInfo.environment["BS_OLDGUNNERNEAR"] == "1"
+    static let oldNear = Env.all["BS_OLDGUNNERNEAR"] == "1"
     static let volunteerReach: Float = 28
     static let sight: Float = 70                 // how far a gunner looks for what's out for him
     static var volunteers = 0                    // (harness)

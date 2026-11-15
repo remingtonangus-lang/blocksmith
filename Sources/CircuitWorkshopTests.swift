@@ -83,7 +83,7 @@ enum CircuitWorkshopTests {
         // 2. Observer clock: each observer is on 2 game ticks of every 4.
         if let b = at["observer_clock"] {
             let obs = b + IVec3(2, 0, 0)
-            if ProcessInfo.processInfo.environment["BS_WSDEBUG"] != nil {
+            if Env.all["BS_WSDEBUG"] != nil {
                 var tr = ""
                 for _ in 0..<24 { tick(); tr += "\(st(obs) >= 6 ? "A" : "a")\(st(b + IVec3(3, 0, 0)) >= 6 ? "B" : "b") " }
                 print("workshop debug: observers \(tr)")

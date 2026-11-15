@@ -64,7 +64,7 @@ enum Explosion {
     // P472: a crash's own blasts spare whoever rides the crashing ship (CapitalShips.hullContact, VehicleDamage).
     static var sparePlayer = false
     // (--turretfreeze: the slowest blast, stage by stage; nested blasts count in the outer one)
-    static let batchShape = ProcessInfo.processInfo.environment["BS_BLASTSHAPE"] != "1"
+    static let batchShape = Env.all["BS_BLASTSHAPE"] != "1"
     static var lapT = 0.0, lapT0 = 0.0, lapDepth = 0, laps = "", worstMs = 0.0, worstLaps = ""
     // (Nov 9: the thread's own CPU time too: a lap whose wall time is well over it was the host's scheduler taking the
     // core, as when a mesh job queued wakes a worker, not the game's work; such laps say "own" and their CPU time)
@@ -483,7 +483,7 @@ final class CraterJob {
     private var leanFetch = true
     // (the soak's count of fine sections a bowl step made beyond its one prefetched section)
     static var finesUnfetched = 0, stepsUnfetched = 0, unfetchedPhases: [String: Int] = [:]
-    static let oldFetch = ProcessInfo.processInfo.environment["BS_OLDBOWLFETCH"] == "1"
+    static let oldFetch = Env.all["BS_OLDBOWLFETCH"] == "1"
     private var scanY = Int.min
     static let scanLayers = 6                // circuit scan: y layers per frame (47 x 47 cells each)
     // (Nov 12, Remington on the trailer's main-gun strike: "the crater took too long to form"): the frames a bowl took to
@@ -894,7 +894,7 @@ final class TNTManager {
         list.removeAll { $0.fuse == -.infinity }
         TNTManager.deferred += boom.count - gone
     }
-    static let oldAll = ProcessInfo.processInfo.environment["BS_OLDTNT"] == "1"
+    static let oldAll = Env.all["BS_OLDTNT"] == "1"
     static var frameMs = 3.0
     static var deferred = 0                                        // (harness: blasts moved to a later frame)
 
@@ -922,7 +922,7 @@ extension Circuit {
 }
 
 extension Explosion {
-    static var circuitCalm = ProcessInfo.processInfo.environment["BS_OLDCIRCUIT"] != "1"
+    static var circuitCalm = Env.all["BS_OLDCIRCUIT"] != "1"
 }
 
 extension World {

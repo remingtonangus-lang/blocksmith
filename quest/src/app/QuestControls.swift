@@ -119,9 +119,9 @@ final class QuestControls {
     private var prevRWorld: V3?
     private var velR = V3(0, 0, 0)
     private var velRHand = V3(0, 0, 0), prevRTrack: V3? = nil
-    static let oldThrow = ProcessInfo.processInfo.environment["BS_OLDTHROW"] == "1"   // (the world-space speed, as before)
-    static let oldScopeEye = ProcessInfo.processInfo.environment["BS_OLDSCOPEEYE"] == "1"
-    static let oldScopeHUD = ProcessInfo.processInfo.environment["BS_OLDSCOPEHUD"] == "1"   // (hotbar, hint and controller card drawn over the scope)
+    static let oldThrow = Env.all["BS_OLDTHROW"] == "1"   // (the world-space speed, as before)
+    static let oldScopeEye = Env.all["BS_OLDSCOPEEYE"] == "1"
+    static let oldScopeHUD = Env.all["BS_OLDSCOPEHUD"] == "1"   // (hotbar, hint and controller card drawn over the scope)
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
     // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
     private var hudSolid: Float = 0
@@ -231,7 +231,7 @@ final class QuestControls {
     private var lastFeet = V3.zero
     private var relocateFade: Float = 0                // Q2c-console-62: 1 right after a sudden jump, fading to 0
     private(set) var relocateCount = 0                 // (harness: jumps that faded the view)
-    static let oldRelocate = ProcessInfo.processInfo.environment["BS_OLDRELOCATE"] == "1"
+    static let oldRelocate = Env.all["BS_OLDRELOCATE"] == "1"
 
     // Aim (world space, this frame)
     private(set) var aimOrigin = V3.zero
@@ -869,7 +869,7 @@ final class QuestControls {
         lastFeet = game.player.pos
     }
 
-    static let oldTorchHeld = ProcessInfo.processInfo.environment["BS_OLDTORCHHELD"] == "1"
+    static let oldTorchHeld = Env.all["BS_OLDTORCHHELD"] == "1"
 
     // The held gun model's offset in the hand's frame (drawHeld): the screen model's sight is at its origin, so the
     // eyepiece of the drawn gun sits at the hand plus this shift.
@@ -1196,7 +1196,7 @@ final class QuestControls {
     static let quadOrder = [0, 1, 2, 0, 2, 3]
     static let faceShades: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     // Controller model boxes (centre, half size): grip, pointer nose, top plate.
-    static let oldHands = ProcessInfo.processInfo.environment["BS_OLDHANDS"] == "1"
+    static let oldHands = Env.all["BS_OLDHANDS"] == "1"
     // The glove in the grip pose (metres; -Z along the pointing direction, +Y up): back of the hand over the grip,
     // knuckles, four curled fingers wrapped under and in front, the thumb (mirrored to the hand's inner side), the cuff.
     static let gloveParts: [(c: V3, half: V3, shade: Float, cuff: Bool, mirror: Bool)] = [
@@ -1252,9 +1252,9 @@ final class QuestControls {
     }
 
     private var lowStill: Float = 0, lastHeadT = V3.zero
-    static let oldYTap = ProcessInfo.processInfo.environment["BS_OLDYTAP"] == "1"
-    static let oldMenuSlide = ProcessInfo.processInfo.environment["BS_OLDMENUSLIDE"] == "1"
-    static let oldSit = ProcessInfo.processInfo.environment["BS_OLDSIT"] == "1"   // (harness: sitting down sneaks, as before)
+    static let oldYTap = Env.all["BS_OLDYTAP"] == "1"
+    static let oldMenuSlide = Env.all["BS_OLDMENUSLIDE"] == "1"
+    static let oldSit = Env.all["BS_OLDSIT"] == "1"   // (harness: sitting down sneaks, as before)
     private func roomScale(dt: Float, stick: Float) {
         let rig = app.rig
         // (code reader Nov 10, batch 2.4: sitting down in standing play left him sneaking, slow and unable to fall off a
@@ -1326,8 +1326,8 @@ final class QuestControls {
     }
 
     // Points the game's look at whatever the hand ray hits (blocks and mobs within reach, else far along the ray).
-    static let debugGrip = ProcessInfo.processInfo.environment["BS_DBGGRIP"] != nil     // (harness: grip trace)
-    static var chaseAim = ProcessInfo.processInfo.environment["BS_CHASEAIM"] != "0"     // (P499; harness: 0 = the old aim)
+    static let debugGrip = Env.all["BS_DBGGRIP"] != nil     // (harness: grip trace)
+    static var chaseAim = Env.all["BS_CHASEAIM"] != "0"     // (P499; harness: 0 = the old aim)
     static private(set) var chaseAimPoint: V3?           // what the laser falls on under a chase view (the VR sim's mark)
     private func aimGame() {
         // Gliding steers with the look: the head, not the hand's laser (pointing at something mid-flight yanked the

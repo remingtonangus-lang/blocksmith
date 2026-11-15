@@ -55,7 +55,7 @@ enum Rout {
     }
 
     // Mob.soldierAI for a routed soldier: away from him at a run, gone once clear (the speed to walk; nil: not routed).
-    static let oldVanish = ProcessInfo.processInfo.environment["BS_OLDROUT"] == "1"
+    static let oldVanish = Env.all["BS_OLDROUT"] == "1"
     static func step(_ m: Mob, _ dt: Float, _ g: Game) -> Float? {
         guard m.routed else { return nil }
         let d = V2(m.pos.x - g.player.pos.x, m.pos.z - g.player.pos.z)

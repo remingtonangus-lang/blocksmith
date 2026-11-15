@@ -244,7 +244,7 @@ enum MiningTowns {
         }
         return mine
     }
-    static let keepOff = ProcessInfo.processInfo.environment["BS_MINEKEEPOFF"] != "0"
+    static let keepOff = Env.all["BS_MINEKEEPOFF"] != "0"
 
     // The expedition stores at the foot of the shaft.
     static let loot: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [

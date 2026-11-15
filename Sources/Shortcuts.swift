@@ -85,7 +85,7 @@ extension Game {
     // the host, 53-68 ms of it the frame's own work. On the headset (arrivalHold) he now waits at the target like any
     // trip (ledger 40: held, the view dark, while the workers load the ground) and the spot is found once it is there.
     // BS_OLDSHORTCUT=1: on the frame as before.
-    static let oldShortcutLand = ProcessInfo.processInfo.environment["BS_OLDSHORTCUT"] == "1"
+    static let oldShortcutLand = Env.all["BS_OLDSHORTCUT"] == "1"
     private func shortcutLand(_ x: Int, _ z: Int, on: V3? = nil) {
         let g = world.gen.column(x, z).0
         let guess = on ?? V3(Float(x) + 0.5, Float(g + 2), Float(z) + 0.5)

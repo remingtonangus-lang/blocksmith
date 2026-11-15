@@ -55,7 +55,7 @@ extension SoldierRig {
     // arrays (the two arm segments per sample, the sides, the torso samples). It now turns the weapon once, keeps the
     // samples on the stack and makes no arrays; the same numbers (questcheck --posecheck compares it with the old
     // measure, BS_CLIPOLD=1 draws with the old one).
-    static let clipOldEnv = ProcessInfo.processInfo.environment["BS_CLIPOLD"] == "1"
+    static let clipOldEnv = Env.all["BS_CLIPOLD"] == "1"
     static var clipCompare = false, clipDiff: Float = 0, clipCompared = 0      // (posecheck)
     static var clipTimes = (fast: 0.0, old: 0.0)
     static func clip(_ p: SoldierPose, _ gm: GunModel, poleL: V3? = nil, poleR: V3? = nil) -> (depth: Float, push: V3, armL: Float, armR: Float, torso: Float) {
@@ -251,8 +251,8 @@ extension SoldierRig {
     // arms and the torso twice) for one arm's depth. A try now measures only that arm, on samples and a shoulder
     // worked out once a side (the pole moves neither): the same numbers, so the same choices (BS_OLDCLEAR=1: as
     // before; BS_CLEARVERIFY=1: every clear run both ways and the poses compared).
-    static let oldClear = ProcessInfo.processInfo.environment["BS_OLDCLEAR"] == "1"
-    static let clearVerify = ProcessInfo.processInfo.environment["BS_CLEARVERIFY"] == "1"
+    static let oldClear = Env.all["BS_OLDCLEAR"] == "1"
+    static let clearVerify = Env.all["BS_CLEARVERIFY"] == "1"
     static var clearVerified = 0, clearVerifyDiffs = 0
     static func clear(_ p: inout SoldierPose, _ gm: GunModel) {
         guard clearVerify else { clearOnce(&p, gm, old: oldClear); return }

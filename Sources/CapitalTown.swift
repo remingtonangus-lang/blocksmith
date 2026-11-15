@@ -13,11 +13,11 @@ import simd
 
 enum CapitalTown {
     static let storeW = 10, storeD = 8
-    static let perFlat = Int(ProcessInfo.processInfo.environment["BS_PERFLAT"] ?? "") ?? 3
+    static let perFlat = Int(Env.all["BS_PERFLAT"] ?? "") ?? 3
     // Residents on each upper floor of a block of flats (CapitalCity.fitFloor; Nov 15, BS_UPPERRES=0: none, as before).
     // 4 a floor: the city soak on the optimized host held its frame (35 townsfolk -> 123; mean 3.8 -> 4.7 ms, p99 8.5 ->
     // 10.4, misses 0.10% -> 0.14%, all inside the soak's limits).
-    static let upperResidents = Int(ProcessInfo.processInfo.environment["BS_UPPERRES"] ?? "") ?? 4
+    static let upperResidents = Int(Env.all["BS_UPPERRES"] ?? "") ?? 4
 
     static let cityNames = ["Brightmoor", "Concord", "Halcyon", "Argent", "Solace", "Lumen", "Belmont", "Highmere", "Vantage",
                             "Clearwater", "Westholm", "Alder Crown", "Fairhaven", "Silverlake", "Calder", "Ostrava Hill"]

@@ -6,7 +6,7 @@ import Foundation
 // drives a locomotive from its cab, whatever VR Comfort's Show My Body says (that stays off for walking, P473: "I
 // don't wanna see myself. Gets in the way"). BS_OLDCABBODY=1: no body in the cab.
 extension Game {
-    static let oldCabBody = ProcessInfo.processInfo.environment["BS_OLDCABBODY"] == "1"
+    static let oldCabBody = Env.all["BS_OLDCABBODY"] == "1"
     // At a big locomotive's regulator (riding the engine is driving it).
     var drivingCab: Bool {
         guard !Game.oldCabBody, let r = riding else { return false }
@@ -27,7 +27,7 @@ extension Game {
 // the shares a hull founders, gives up or limps at (Ship.hullBlocks), and by a capital ship's integrity. Shells,
 // rockets and blasts are as they were. BS_OLDCHIP=1: rounds do nothing to hulls.
 extension ShipManager {
-    static let oldChip = ProcessInfo.processInfo.environment["BS_OLDCHIP"] == "1"
+    static let oldChip = Env.all["BS_OLDCHIP"] == "1"
     static let chipPerDamage: Float = 0.01, chipCap: Float = 0.1
     static var chipHits = 0                                   // (checks)
     func chip(_ part: Ship, _ damage: Float) {
@@ -45,7 +45,7 @@ extension ShipManager {
 // Savenonia"...). At a helm or a regulator (Game.drivingHUD) that news goes to the journal only; what is about the
 // drive, the fight or him (hits, the hull, orders, intel) still shows. BS_OLDDRIVETOASTS=1: all of it shows.
 extension Game {
-    static let oldDriveToasts = ProcessInfo.processInfo.environment["BS_OLDDRIVETOASTS"] == "1"
+    static let oldDriveToasts = Env.all["BS_OLDDRIVETOASTS"] == "1"
     static func travelNews(_ s: String) -> Bool {
         s.hasSuffix(" marked on the map") || s.hasSuffix("marked on your map") || s.hasPrefix("Entering ") || s.hasPrefix("Leaving ")
     }

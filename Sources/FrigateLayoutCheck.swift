@@ -63,7 +63,7 @@ enum FrigateLayoutCheck {
         let reached = Capital.walkable(hb, from: hangar)
         let helm = IVec3(0, 25, 75), engine = IVec3(0, 9, 140), bridgeDeck = IVec3(0, 25, 82)
         let ys = [3, 9, 15, 21, 25]
-        if ProcessInfo.processInfo.environment["FRIGATE_PLANS"] != nil {
+        if Env.all["FRIGATE_PLANS"] != nil {
             for y in ys { print("frigatelayout: walk level y \(y)"); for r in plan(hb, reached, y: y, z0: 0, z1: hb.sz - 1) { print(r) } }
         }
         check(reached.contains(helm) || reached.contains(bridgeDeck), "frigatelayout: from the boarding hangar he walks to the helm (\(reached.contains(helm)))")

@@ -153,7 +153,7 @@ extension Structure {
         let t0 = CFAbsoluteTimeGetCurrent()
         var byKind: [String: (n: Int, pieces: Int, blocks: Int, falls: Int, held: Int, at: [String])] = [:]
         // (Nov 13: each piece of 30 blocks or more is weighed whole as well (StructureFlow, what brings a big structure down in play): none may fail as generated; the weakest of each kind is printed. BS_FLOW=0: without)
-        let flowOn = ProcessInfo.processInfo.environment["BS_FLOW"] != "0"
+        let flowOn = Env.all["BS_FLOW"] != "0"
         var flowFails = 0
         var flowMin: [String: (sf: Float, at: String, pieces: Int, fails: Int, ms: Double, biggest: Int)] = [:]
         for seed in seeds {
@@ -242,7 +242,7 @@ extension Structure {
                             }
                             flowMin[name] = fm
                         }
-                        if !r.falls.isEmpty, ProcessInfo.processInfo.environment["BS_LOAD_DEBUG"] != nil { debugPiece(world, r) }
+                        if !r.falls.isEmpty, Env.all["BS_LOAD_DEBUG"] != nil { debugPiece(world, r) }
                         if let f = r.falls.first, st.at.count < 6 {
                             st.at.append("seed \(seed) \(Blocks.key(world.builtBlock(f.x, f.y, f.z))) at \(f.x) \(f.y - YOFF) \(f.z): \(r.falls.count) of \(r.cells) (reach \(r.reachBreaks), joints \(r.jointBreaks))")
                         }

@@ -19,7 +19,7 @@ enum QuestStreamTest {
     static func run(ctx: VkContext?) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
         QuestApp.headsetWorld()                                                       // (as on the headset)
-        World.handoverSeconds = (Double(ProcessInfo.processInfo.environment["BS_HANDOVERMS"] ?? "") ?? 1.5) / 1000
+        World.handoverSeconds = (Double(Env.all["BS_HANDOVERMS"] ?? "") ?? 1.5) / 1000
         let at = (arg("--at") ?? "0,160,0").split(separator: ",").compactMap { Float($0) }
         let look = (arg("--look") ?? "0,-20").split(separator: ",").compactMap { Float($0) }
         let rd = Int(arg("--rd") ?? "") ?? 10
@@ -88,7 +88,7 @@ enum QuestStreamTest {
             } else { print("streamtest: no crawler could be spawned here") }
         }
         print("streamtest: seed \(w.seed) at \(Int(at[0])) \(Int(at[1]) - YOFF) \(Int(at[2])), view \(rd), \(w.maxJobs) workers, \(secs) s, speed \(speed) b/s; stale meshes \(World.keepStale ? "drawn" : "thrown away (BS_STALEMESH=0)"), edits ahead of the queue \(World.frontAll ? "every change, no cap (BS_FRONTALL=1)" : "edits only, half the workers"), light reach \(World.narrowLight ? "16 blocks unless the top moved" : "up to the top (BS_NARROWLIGHT=0)")")
-        let tally = ProcessInfo.processInfo.environment["BS_EDITTALLY"] == "1"
+        let tally = Env.all["BS_EDITTALLY"] == "1"
         if tally { World.editTally = [:]; World.editCells = [:] }
         var versions: [ChunkKey: [Int]] = [:]
         var stale0 = 0, drawn0 = 0, async0 = World.asyncEdits, sync0 = World.syncEdits

@@ -358,7 +358,8 @@ extension ShipManager {
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).
-                if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
+                // (timed stage by stage like the burst: Explosion.worstLaps, on the headset's perf line)
+                if onHull && from?.root.kinematic == true { Explosion.lapStart(); blast(at: p, power: power * 1.5, game: g); Explosion.lapEnd("hull blast") }
                 TickProf.mark("shells: hull blast")
             } else if !gentle { blast(at: p, power: power, game: nil) }
         }
@@ -447,9 +448,9 @@ extension ShipManager {
     // gun's shell (one whose burst breaks blocks) fired by him stops the drive, and never on a vessel he has taken;
     // flak bursts at its own strength (every base shell was striking as his 42 cm shell and stopping them: a base's
     // guns wear a frigate down block by block now, its drive failing as they shoot its engines away).
-    static let oldWreckGuns = ProcessInfo.processInfo.environment["BS_OLDWRECKGUNS"] == "1"
+    static let oldWreckGuns = Env.all["BS_OLDWRECKGUNS"] == "1"
     static var gunTally: [String: Int]? = nil            // (harness: why each capital gun held its fire, a tick at a time)
-    static let oldCrawlerHit = ProcessInfo.processInfo.environment["BS_OLDCRAWLERHIT"] == "1"
+    static let oldCrawlerHit = Env.all["BS_OLDCRAWLERHIT"] == "1"
     func heavyHit(_ s: Ship, at p: V3, game: Game, power: Float = 6, resistCap: Float = .infinity, stopsEngines: Bool = true) {
         let r = s.root
         blast(at: p, power: power, game: game, resistCap: resistCap)

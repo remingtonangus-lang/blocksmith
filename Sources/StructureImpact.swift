@@ -11,10 +11,10 @@ import simd
 // Natural ground is not built: it takes the blow (his question #716). Felled trees do not break buildings.
 // BS_IMPACT=0: off (before/after).
 enum StructureImpact {
-    static let enabled = ProcessInfo.processInfo.environment["BS_IMPACT"] != "0"
-    static var perStrike = Int(ProcessInfo.processInfo.environment["BS_IMPACTBLOCKS"] ?? "") ?? 40
+    static let enabled = Env.all["BS_IMPACT"] != "0"
+    static var perStrike = Int(Env.all["BS_IMPACTBLOCKS"] ?? "") ?? 40
     static var minSpeed: Float = 4                    // blocks a second: a piece set down gently breaks nothing
-    static var toughness: Float = Float(ProcessInfo.processInfo.environment["BS_IMPACTTOUGH"] ?? "") ?? 1    // a block's bond times this
+    static var toughness: Float = Float(Env.all["BS_IMPACTTOUGH"] ?? "") ?? 1    // a block's bond times this
     static var cooldown: Float = 0.12                 // seconds between one body's blows
     // (harness and soak)
     static var strikes = 0, broken = 0, worstMs = 0.0

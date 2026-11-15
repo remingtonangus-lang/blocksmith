@@ -336,7 +336,7 @@ enum VehicleZoo {
         var mi = MoveInput()
         var worstMs = 0.0
         // (ZOO_TRACE=K: vehicle K's state every quarter second, for a failure that needs following)
-        let trace = ProcessInfo.processInfo.environment["ZOO_TRACE"].flatMap { Int($0) } == i
+        let trace = Env.all["ZOO_TRACE"].flatMap { Int($0) } == i
         var traceT = 0
         func run(_ secs: Float) {
             let dt: Float = 1.0 / 60

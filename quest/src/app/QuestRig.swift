@@ -42,7 +42,7 @@ final class QuestRig {
     private var moveYawSet = false
     private(set) var headPitch: Float = 0
     static let eyeHeight: Float = 1.62
-    static let oldChaseVignette = ProcessInfo.processInfo.environment["BS_OLDCHASEVIG"] == "1"
+    static let oldChaseVignette = Env.all["BS_OLDCHASEVIG"] == "1"
     // Reclined play: the tracking space is also tilted so the gaze at the last recentre becomes the level, forward
     // direction (world, horizon, HUD and panels all follow). Identity when standing or seated upright.
     private(set) var tilt = simd_quatf()

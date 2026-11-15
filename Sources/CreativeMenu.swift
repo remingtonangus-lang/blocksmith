@@ -34,7 +34,7 @@ final class CreativeMenu: Menu {
     // opening sorted every item in the palette into its tabs (category(): up to some 250 name tests an item) to keep
     // its own, and every key typed into Search lowercased every name again. All the tabs are now sorted in one pass and
     // the names lowercased once, both made on a worker as a world loads (warm). BS_OLDCREATIVETABS=1: as before.
-    static let oldTabs = ProcessInfo.processInfo.environment["BS_OLDCREATIVETABS"] == "1"
+    static let oldTabs = Env.all["BS_OLDCREATIVETABS"] == "1"
     static let byTab: [[ItemID]] = {
         var lists = [[ItemID]](repeating: [], count: Tab.allCases.count)
         for id in every { lists[category(id).rawValue].append(id) }

@@ -61,7 +61,7 @@ final class JobPool {
     // leave one waiting for its turn, and the frame thread then did that work itself (44 of 2,376 frames, 4-6 ms each).
     // Linux and Android give each thread its own nice value: the world workers run a few steps nicer, so a woken frame
     // helper (or the frame thread) goes first. The Mac keeps its quality-of-service classes. BS_WORKERNICE=0: as before.
-    static let nice: Int32 = Int32(ProcessInfo.processInfo.environment["BS_WORKERNICE"] ?? "") ?? 5
+    static let nice: Int32 = Int32(Env.all["BS_WORKERNICE"] ?? "") ?? 5
 
     // Ledger 126 (FrameGovernor): after late frames the first `held` workers take no new job (one already under way
     // finishes), so the frame's own threads get the cores; never all of them. Jobs sent ahead of the queue (the ground

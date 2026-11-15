@@ -16,7 +16,7 @@ extension Player {
     // blocks over his feet as they are then (his hands over his head at the top of a jump: a wall three blocks high
     // from the ground), up to 1.2 blocks ahead, toward the stick if it is pushed and the way he faces if not. No
     // ledge there, and in creative the double tap toggles flying as before. BS_OLDCLAMBER=1: the held clamber only.
-    static let grabOn = ProcessInfo.processInfo.environment["BS_OLDCLAMBER"] != "1"
+    static let grabOn = Env.all["BS_OLDCLAMBER"] != "1"
     static let grabHigh: Float = 2.2, grabLow: Float = 0.4, grabTotal: Float = 3.75, grabAhead: Float = 1.2
     static var grabs = 0                                      // (checks)
 

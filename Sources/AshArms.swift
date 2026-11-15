@@ -21,7 +21,7 @@ enum AshArms {
     }
 
     static let olive = V3(0.27, 0.29, 0.18), drab = V3(0.33, 0.31, 0.17), warn = V3(0.62, 0.14, 0.1)
-    static let oldFaust = ProcessInfo.processInfo.environment["BS_OLDFAUST"] == "1"
+    static let oldFaust = Env.all["BS_OLDFAUST"] == "1"
 
     // A round bar along z from z0 to z1 (z0 < z1) about (x, y): an eight-sided prism of three boxes (the wide one, the
     // tall one and the square that fills the corners between them).

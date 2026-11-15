@@ -11,7 +11,7 @@ import Foundation
 //    with (Game.fellWhole), stump and all.
 // BS_OLDTREEWOOD=1: before (trees of plain logs, told from timber by what stood round them).
 enum TreeWood {
-    static var on = ProcessInfo.processInfo.environment["BS_OLDTREEWOOD"] != "1"
+    static var on = Env.all["BS_OLDTREEWOOD"] != "1"
     static let prefix = "tree_"
     // (checks of the rules before: trees of plain logs for as long as `body` runs, worlds made in it included)
     static func asBefore(_ body: () -> Void) { let o = on; on = false; body(); on = o }
@@ -21,7 +21,7 @@ enum TreeWood {
     // it: never a post, a stump, a limb, a bedded trunk or a log turned to lie along its neighbour (ShapeTrunks.plainLog).
     // It is met as a whole block. Only a tree's own wood takes a tree's shapes. BS_OLDTIMBER=1: timber drawn by what
     // stands round it, as before.
-    static let plainTimber = on && ProcessInfo.processInfo.environment["BS_OLDTIMBER"] != "1"
+    static let plainTimber = on && Env.all["BS_OLDTIMBER"] != "1"
     // Timber under that rule: every plain log state (not tree wood, not roots).
     static let timber: [Bool] = (0..<Blocks.count).map { i in
         plainTimber && ShapeClass.kind[i] == .trunk && Blocks.opaque[i] && !Blocks.key(Blocks.groupBase[i]).hasPrefix(prefix)

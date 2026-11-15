@@ -9,8 +9,8 @@ import simd
 // its drawing lies on the surface.
 final class GroundDrape {
     // BS_DRAPE=0: things drawn on their cell floors as before (before/after checks).
-    static let enabled = ProcessInfo.processInfo.environment["BS_DRAPE"] != "0"
-    static let debug = ProcessInfo.processInfo.environment["BS_DRAPE_DEBUG"] != nil
+    static let enabled = Env.all["BS_DRAPE"] != "0"
+    static let debug = Env.all["BS_DRAPE_DEBUG"] != nil
     static let lift: Float = 1.0 / 16                // how far a draped strip floats over the ground (never under it)
     static let step = 4                               // a draped strip is split every 4/16 block to follow the ground
 
@@ -128,7 +128,7 @@ final class GroundDrape {
     // two sixteenths thick or less: carpets, pressure plates). Built pieces (slabs, stairs, doors, fences, chests...)
     // stay on the grid the player builds on.
     // P387 (4): BS_LOWROW=0 leaves a section's first-row things to that section (as before, for before/after checks).
-    static let lowRowOn = ProcessInfo.processInfo.environment["BS_LOWROW"] != "0"
+    static let lowRowOn = Env.all["BS_LOWROW"] != "0"
 
     static let seat: [UInt8] = {
         let floorThings: Set<String> = ["torch", "sign", "lantern", "candle", "repeater", "comparator", "daylight", "skull",

@@ -157,7 +157,7 @@ extension AdaptiveGround {
                 let adW = ad.opaque.prefix(ad.groundQuads * 8)
                 let tf = quadTris(fullW), ta = quadTris(adW)
                 guard !tf.isEmpty else { continue }
-                if let dir = ProcessInfo.processInfo.environment["BS_ADAPTIVE_DUMP"] {      // (the full ground, for tuning offline)
+                if let dir = Env.all["BS_ADAPTIVE_DUMP"] {      // (the full ground, for tuning offline)
                     let words = Array(fullW)
                     let data = words.withUnsafeBufferPointer { Data(buffer: $0) }
                     try? data.write(to: URL(fileURLWithPath: "\(dir)/s\(sections).bin"))
@@ -324,7 +324,7 @@ extension AdaptiveGround {
         let start = g.player.pos
         var gaps: [[Float]] = [[], []]
         // BS_FEET_DEBUG: each sample over 0.05: where, what is under it, what the bodies' lookup says there.
-        let debug = ProcessInfo.processInfo.environment["BS_FEET_DEBUG"] != nil
+        let debug = Env.all["BS_FEET_DEBUG"] != nil
         // (a body standing on something built (a log, a crate, a step) is on that, not on the ground: not counted)
         var onBuilt = 0
         func builtUnder(_ p: V3, _ hw: Float) -> Bool {

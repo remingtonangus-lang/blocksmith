@@ -9,7 +9,7 @@ enum TextureImport {
     static let dirs: [String] = {
         if CommandLine.arguments.contains("--procedural") { return [] }
         var d: [String] = []
-        if let t = arg("--texdir") ?? ProcessInfo.processInfo.environment["BLOCKSMITH_TEXDIR"] { d.append(t) }
+        if let t = arg("--texdir") ?? Env.all["BLOCKSMITH_TEXDIR"] { d.append(t) }
         if let r = Bundle.main.resourcePath { d.append(r + "/Textures") }
         d.append("Resources/Textures")
         return d

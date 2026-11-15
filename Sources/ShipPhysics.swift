@@ -422,15 +422,15 @@ extension ShipManager {
         return nil
     }
 
-    static let fallenGunsFall = ProcessInfo.processInfo.environment["BS_OLDFALLENGUN"] != "1"
-    static let gunsDie = ProcessInfo.processInfo.environment["BS_OLDGUNSDIE"] != "1"       // (ledger 119: ShipCombat, MainGun)
+    static let fallenGunsFall = Env.all["BS_OLDFALLENGUN"] != "1"
+    static let gunsDie = Env.all["BS_OLDGUNSDIE"] != "1"       // (ledger 119: ShipCombat, MainGun)
     // Nov 13 (the physics revamp: a citadel's top comes down as some fifty bodies, and each one lying in the rubble
     // went on costing its ground contacts and a look at every other body, every step, for good). A fallen piece
     // (toppled structure, felled tree) that has lain still on something for 1.5 s lies: no forces, no ground contacts,
     // no contacts with others lying. It is up again when something moves it (a body landing on it, a blast, a hand),
     // when a block changes beside it (World.queueLoadCheck), with the bodies touching one that got up, and for a
     // moment every few seconds. BS_LYING=0: simulated for good, as before.
-    static let lieDown = ProcessInfo.processInfo.environment["BS_LYING"] != "0"
+    static let lieDown = Env.all["BS_LYING"] != "0"
     static var lieProbe: Float = 3
     // (its own blocks changed, a neighbour gone, a hull it lay on under way: up, with what lies against it)
     func stir(_ s: Ship) {

@@ -92,7 +92,7 @@ enum BalanceTests {
             g.player.yaw = atan2f(-d.x, -d.z)
             g.player.pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
         }
-        let trace = ProcessInfo.processInfo.environment["BALANCE_TRACE"]
+        let trace = Env.all["BALANCE_TRACE"]
         // The mob on the player.
         func toKill(_ k: MobKind, _ t: Int, limit: Float = 60) -> Float? {
             gear(t)
@@ -152,7 +152,7 @@ enum BalanceTests {
         let roster: [MobKind] = [.zombie, .husk, .drowned, .skeleton, .stray, .spider, .caveSpider, .witch, .enderman,
                                  .vindicator, .pillager, .soldierRecruit]
         var rows: [Row] = []
-        let only = ProcessInfo.processInfo.environment["BALANCE_KINDS"].map { Set($0.split(separator: ",").map(String.init)) }
+        let only = Env.all["BALANCE_KINDS"].map { Set($0.split(separator: ",").map(String.init)) }
         for k in roster where only?.contains(k.key) ?? true {
             var r = Row(name: k.spec.name, toKill: [], kills: [])
             for t in 0..<tiers.count {

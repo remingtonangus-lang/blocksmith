@@ -176,14 +176,14 @@ final class SceneRenderer {
     private(set) var cullMs = 0.0
     var caveCulling = true
     // P339: sections hidden behind nearer hills are left out (horizonCull). BS_HORIZON=0 turns it off.
-    var horizonCulling = ProcessInfo.processInfo.environment["BS_HORIZON"] != "0"
+    var horizonCulling = Env.all["BS_HORIZON"] != "0"
     private(set) var horizonSkipped = 0
     private static let hBins = 1024
     private var hTop = [Float](repeating: 0, count: SceneRenderer.hBins), hBot = [Float](repeating: 0, count: SceneRenderer.hBins)
     private var occluders: [(dmax: Float, b0: Int, b1: Int, top: Float, bot: Float)] = []
     // P376 step 5: occlusion culling (occlusionCull) of section boxes against nearer solid sections, on top of the
     // horizon culling. BS_OCCLUSION=0 turns it off. occlusionVP: world to clip of the frustum enclosing both eyes.
-    var occlusionCulling = ProcessInfo.processInfo.environment["BS_OCCLUSION"] != "0"
+    var occlusionCulling = Env.all["BS_OCCLUSION"] != "0"
     var occlusionVP: float4x4? = nil
     private(set) var occlusionSkipped = 0, occluderBoxes = 0, occlusionMs = 0.0
     static let oW = 192, oH = 112, oT = 8                    // the buffer, and its 8 x 8 tiles' nearest and farthest depth
@@ -236,7 +236,7 @@ final class SceneRenderer {
         // GPU timestamps (frame GPU time in the perf log). Not on llvmpipe: its timestamp queries crash the queue thread
         // after a few frames (CI run 1; reproduced locally with alternating targets and validation clean).
         let soft = ctx.deviceName.contains("llvmpipe")
-        if ctx.props.limits.timestampComputeAndGraphics != 0 && !soft && ProcessInfo.processInfo.environment["QUEST_NO_QUERIES"] == nil {
+        if ctx.props.limits.timestampComputeAndGraphics != 0 && !soft && Env.all["QUEST_NO_QUERIES"] == nil {
             var qi = VkQueryPoolCreateInfo()
             qi.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO
             qi.queryType = VK_QUERY_TYPE_TIMESTAMP
@@ -413,7 +413,7 @@ final class SceneRenderer {
         // P498 harness: BS_SPVDIR=DIR loads DIR/<name>.spv over the built-in module (shader experiments on lavapipe
         // without a rebuild).
         var words = QuestSPIRV.words(name)
-        if let d = ProcessInfo.processInfo.environment["BS_SPVDIR"], let data = FileManager.default.contents(atPath: d + "/" + name + ".spv") {
+        if let d = Env.all["BS_SPVDIR"], let data = FileManager.default.contents(atPath: d + "/" + name + ".spv") {
             words = data.withUnsafeBytes { Array($0.bindMemory(to: UInt32.self)) }
         }
         let m = try ctx.shaderModule(words)
@@ -425,7 +425,7 @@ final class SceneRenderer {
     // (quest/tools/overdraw.py) makes every colour pipeline additive and clears to black, so a --view render counts the
     // fragments each pixel shaded, split by pass into the channels (questcheck can't time the headset's GPU; the
     // fragments it shades are most of what it spends in a forest).
-    static let overdraw = ProcessInfo.processInfo.environment["BS_OVERDRAW"] == "1"
+    static let overdraw = Env.all["BS_OVERDRAW"] == "1"
 
     func makePipeline(_ p: PipeDesc, renderPass rp: VkRenderPass? = nil) throws -> VkPipeline {
         let a = PtrArena()
@@ -551,7 +551,7 @@ final class SceneRenderer {
 
     // QUEST_LAYERPROBE=1 (headless debugging aid, trailer item 5): solid world faces show their texture layer as a
     // colour (chunk_probe.frag), which --pick names.
-    static let layerProbe = ProcessInfo.processInfo.environment["QUEST_LAYERPROBE"] == "1"
+    static let layerProbe = Env.all["QUEST_LAYERPROBE"] == "1"
     private func makePipelines() throws {
         let none = VK_CULL_MODE_NONE
         let le = VK_COMPARE_OP_LESS_OR_EQUAL
@@ -839,7 +839,7 @@ final class SceneRenderer {
         let depth = try VkImg(ctx, width: width, height: height, layers: views, format: depthFormat,
                               usage: VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT.rawValue | (spaceWarp ? VK_IMAGE_USAGE_SAMPLED_BIT.rawValue : 0),
                               aspect: VK_IMAGE_ASPECT_DEPTH_BIT.rawValue,
-                              transient: !spaceWarp && ProcessInfo.processInfo.environment["QUEST_NO_TRANSIENT"] == nil)
+                              transient: !spaceWarp && Env.all["QUEST_NO_TRANSIENT"] == nil)
         let a = PtrArena()
         var ci = VkFramebufferCreateInfo()
         ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
@@ -1074,7 +1074,7 @@ final class SceneRenderer {
     // the frame's cull. A column is re-read only when its chunk changed (Chunk.cullStamp, its blocks, detail level or
     // shell state), so each section's draw entries (its slab pair, vertex offset and counts) persist between frames.
     // BS_FASTCULL=0: the walk and draws as before.
-    static var fastCull = ProcessInfo.processInfo.environment["BS_FASTCULL"] != "0"
+    static var fastCull = Env.all["BS_FASTCULL"] != "0"
     struct ColKey: Equatable { var stamp = -1, bv = -1, lod = -1, flags = -1 }
     struct ColInfo {
         var cx: Int32 = 0, cz: Int32 = 0, occTop: Int32 = -1, tintOff: UInt32 = 0
@@ -1120,7 +1120,7 @@ final class SceneRenderer {
     private var tabFl: [UInt8] = []
     // Columns held, for the frames where nothing was loaded or dropped and the eye stayed in its chunk: then only
     // their keys are compared (no lookups). BS_TABLEEPOCH=0: every column looked up every frame.
-    static var epochTable = ProcessInfo.processInfo.environment["BS_TABLEEPOCH"] != "0"
+    static var epochTable = Env.all["BS_TABLEEPOCH"] != "0"
     private struct LiveCol { var slot: Int; unowned(unsafe) var c: Chunk }
     private var tabLive: [LiveCol] = []
     private var tabEpoch = -1, tabPCX = Int.min, tabPCZ = Int.min, tabWorld: ObjectIdentifier?
@@ -1136,7 +1136,7 @@ final class SceneRenderer {
     private var fpV: [SIMD4<Float>] = []
     // The occluder boxes are drawn into the depth buffer on a worker while the walk runs (they need only the table).
     // BS_OCCPAR=0: drawn on the main thread after the horizon cull, as before.
-    static var occParallel = ProcessInfo.processInfo.environment["BS_OCCPAR"] != "0"
+    static var occParallel = Env.all["BS_OCCPAR"] != "0"
     let occWork = FrameWork(label: "occlusion-raster")
     private(set) var occRasterMs = 0.0
 
@@ -1539,7 +1539,7 @@ final class SceneRenderer {
     // near ring, so its seabed (the bumpy, unmergeable part of far ocean) is neither drawn nor walked through, and the
     // walk stops at the first all-water section instead of descending through every one to the bed. A meshed section
     // with no faces and water in it is all water (any other block next to water has a face). BS_DEEPSEA=0 turns it off.
-    static var deepSeaCull = ProcessInfo.processInfo.environment["BS_DEEPSEA"] != "0"
+    static var deepSeaCull = Env.all["BS_DEEPSEA"] != "0"
     private(set) var deepSeaSkipped = 0
     // P392 (view 24: cull the buried far caves): a section is sky-open when open air comes down to it from the sky
     // through the sections above it (each one's top face open and, for the ones it passes through, its top face joined
@@ -1553,7 +1553,7 @@ final class SceneRenderer {
     // only leaves them off its list): which sections it reaches, and by which faces, is exactly as before, so nothing
     // past a sealed section drops out with it (skipping the walk there left a patch of a far riverbed out).
     // BS_SEALCULL=0: off.
-    static var sealedCulling = ProcessInfo.processInfo.environment["BS_SEALCULL"] != "0"
+    static var sealedCulling = Env.all["BS_SEALCULL"] != "0"
     var sealCull = false
     private(set) var sealedSkipped = 0
     private lazy var fluidKindT: [UInt8] = Blocks.fluidKind     // (the block registry is complete by the first cull)
@@ -1591,26 +1591,26 @@ final class SceneRenderer {
     private(set) var mergedSections = 0
     // P453: how far out the trees switch to their far shell (blocks; the ground's switch, GroundMerge.farDistance,
     // when it is that or more). BS_BLOBFAR=N sets it (BS_BLOBFAR=999: as before).
-    static var blobFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBFAR"] ?? "") ?? 64
+    static var blobFarFrom: Float = Float(Env.all["BS_BLOBFAR"] ?? "") ?? 64
     // Nov 5 (P453, "simplify trees"): how far out the detail stream (trunks, limbs, round shapes) switches to its far
     // copy, the trunks at the mid sides (Mesher.trunkFar); the ground's switch when that is nearer. At 64 it cut 1-2% of
     // the quads drawn at his jungle and birch spots (nearly every trunk drawn is nearer), at 32 4-10%, and the same
     // views render alike. BS_TRUNKFROM=N sets it; BS_TRUNKFAR=0 meshes the old copy, drawn past the ground's switch.
-    static var trunkCutFrom: Float = Float(ProcessInfo.processInfo.environment["BS_TRUNKCUT"] ?? "") ?? 1e9
+    static var trunkCutFrom: Float = Float(Env.all["BS_TRUNKCUT"] ?? "") ?? 1e9
     private(set) var skippedTrunks = 0
     // Nov 11 (far canopy tier, his say pending): BS_CANOPY=N meshes the canopy (Mesher.canopy) and draws it from N blocks
     // (no nearer than GroundMerge.farDistance, the far copy's own switch) in place of the leaf blobs' far shells.
-    static var canopyFrom: Float = Float(ProcessInfo.processInfo.environment["BS_CANOPY"] ?? "") ?? 1e9
+    static var canopyFrom: Float = Float(Env.all["BS_CANOPY"] ?? "") ?? 1e9
     private(set) var drawnCanopy = 0
     private var canopyOn: [Bool] = []          // (this frame: the far canopy drawn for list entry i)
-    static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(ProcessInfo.processInfo.environment["BS_TRUNKFROM"] ?? "") ?? 32) : 1e9
+    static var trunkFarFrom: Float = Mesher.trunkFar ? (Float(Env.all["BS_TRUNKFROM"] ?? "") ?? 32) : 1e9
     // Nov 5 (P453 again): from this far out to blobFarFrom the leaf blobs draw their outer cutout shell alone, not the
     // darker one inside it (the Mesher puts the outer shells first). BS_BLOBMID=999: both shells to blobFarFrom.
-    static var blobMidFrom: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBMID"] ?? "") ?? 24
+    static var blobMidFrom: Float = Float(Env.all["BS_BLOBMID"] ?? "") ?? 24
     // Nov 6 (frame rate): from this far out the small ground plants (Mesher.farPlantT: grass tufts, ferns, flowers), the
     // last of a section's cutout quads before its far tail, are left out: at 64 blocks a tuft is about a pixel and a half
     // at headset resolution. BS_PLANTFAR=N sets it (BS_FARPLANTS=0 meshes them in place, as before).
-    static var plantFarFrom: Float = Float(ProcessInfo.processInfo.environment["BS_PLANTFAR"] ?? "") ?? 64
+    static var plantFarFrom: Float = Float(Env.all["BS_PLANTFAR"] ?? "") ?? 64
     static var drawMerged = true                  // (questcheck --view --pixelpair: the full grid everywhere for the left shot)
     func writeRecords(_ s: Slot, eye: V3) {
         recEye = eye
@@ -1816,7 +1816,7 @@ final class SceneRenderer {
     // (LOD 1) sections' translucent faces now go out as indirect batches first (grouped by vertex and tint slab, far to
     // near within each group; far water is merged flat sea surface, which never overlaps itself, so the order between
     // groups does not show), then the near ones one by one, far to near, as before. `batchFarWater` off: all per section.
-    static var batchFarWater = ProcessInfo.processInfo.environment["BS_WATERBATCH"] != "0"
+    static var batchFarWater = Env.all["BS_WATERBATCH"] != "0"
     private var indirectUsed = 0
     private(set) var batchedWater = 0
     func drawTranslucent(_ s: Slot, underwater: Bool = false) {

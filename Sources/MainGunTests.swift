@@ -262,7 +262,7 @@ enum MainGunTests {
         // The shot as a sequence of frames (EF5, "the shot recorded as a video-like screenshot sequence"): with
         // --render and BLOCKSMITH_SHOT_SEQUENCE set, twelve stereo frames maingun_seq_NN_<when>.png from the charge to the
         // smoke clearing; tools/shot_sheet.py lays them out as one sheet (docs/qa/tidebreaker_sequence.jpg).
-        let seq = ProcessInfo.processInfo.environment["BLOCKSMITH_SHOT_SEQUENCE"] != nil ? render : nil
+        let seq = Env.all["BLOCKSMITH_SHOT_SEQUENCE"] != nil ? render : nil
         var seqN = 0
         func seqFrame(_ when: String, look: V3, from: V3? = nil) {
             guard let seq else { return }

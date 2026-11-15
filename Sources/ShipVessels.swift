@@ -149,7 +149,7 @@ enum Vessels {
 
     // MARK: Ironstride Siege Carriage (bow toward -Z)
 
-    static let oldCarriageLadder = ProcessInfo.processInfo.environment["BS_OLDCARRIAGELADDER"] == "1"
+    static let oldCarriageLadder = Env.all["BS_OLDCARRIAGELADDER"] == "1"
     static let carriageLadderZ = 8
     static func carriage() -> Blueprint {
         let b = Blueprint()

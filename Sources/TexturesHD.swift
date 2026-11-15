@@ -4328,7 +4328,7 @@ enum HDTex {
     // horizontal lenses (lapis), upright prisms (emerald, quartz). OreTests measures them.
     enum OreShape { case lump, streak, nugget, lens, prism }
     // BS_ORE_LUMPS=1: every ore in round lumps as before L3 (before/after captures).
-    static let oreLumps = ProcessInfo.processInfo.environment["BS_ORE_LUMPS"] == "1"
+    static let oreLumps = Env.all["BS_ORE_LUMPS"] == "1"
     static func ore(_ base: @escaping Gen, _ c0: UInt32, _ c1: UInt32, clusters: Int = 6, faint: Bool = false, shape shape0: OreShape = .lump) -> Gen {
         let shape = oreLumps ? .lump : shape0
         return { n, s in

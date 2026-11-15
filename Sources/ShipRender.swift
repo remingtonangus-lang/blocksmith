@@ -165,13 +165,13 @@ final class ShipMesh {
     static let outerMinCells = 20_000
     // (P510: nor down a ladder's well: from the crawler's command deck, seen through its windows and open hatches, the
     // ladder down let the outside into every room of both decks below)
-    private static let outerPass: [Bool] = (0..<Blocks.count).map { i in
+    static let outerPass: [Bool] = (0..<Blocks.count).map { i in
         let sh = Blocks.shape[i]
         return !Blocks.opaque[i] && sh != "door" && sh != "trapdoor" && sh != "gate" && sh != "ladder"
     }
     // (P510: and a window is seen but not seen through: the crawler's command deck windows let the outside into every
     // room behind them, 16,410 of its 16,548 quads still drawn from outside. A window keeps its glass; past it is plate.)
-    private static let outerStop: [Bool] = (0..<Blocks.count).map { i in
+    static let outerStop: [Bool] = (0..<Blocks.count).map { i in
         let k = Blocks.key(Blocks.groupBase[i])
         return !Blocks.opaque[i] && (k.contains("glass") || k.contains("window"))
     }

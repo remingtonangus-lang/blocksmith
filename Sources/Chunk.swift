@@ -156,7 +156,7 @@ struct BlockStore {
     // FineField.index), in fd's units. A section without one is fd alone (untouched land is unchanged). FineField.swift.
     var fine: [Int: [Int8]] = [:]
     static let section = CSQ * 16
-    static let oldFieldTop = ProcessInfo.processInfo.environment["BS_OLDFIELDTOP"] == "1"
+    static let oldFieldTop = Env.all["BS_OLDFIELDTOP"] == "1"
     // P338 step 2: reads of a field world's ground as a cell of its material (the block grid), counted while the debug
     // overlay shows them (PerfOverlay). Must read 0 where only the field's surface should be met.
     static var countReads = false

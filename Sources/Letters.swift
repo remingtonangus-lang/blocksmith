@@ -7,7 +7,7 @@ import Foundation
 // each). The facts a paper carries (the place, its grid, what the map table and the war rooms hold) stay on its pages.
 // LetterCheck reads thousands and counts them. BS_OLDLETTERS=1: the fixed texts, as before.
 enum Letters {
-    static let old = ProcessInfo.processInfo.environment["BS_OLDLETTERS"] == "1"
+    static let old = Env.all["BS_OLDLETTERS"] == "1"
     static var read = 0                      // papers read this session (the next one reads differently)
 
     struct Pick {

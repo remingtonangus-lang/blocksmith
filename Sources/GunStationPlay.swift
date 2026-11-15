@@ -9,8 +9,8 @@ import simd
 // and fires on the trigger from the hull's magazine, the hull disabled or not; sneak leaves, standing at the chair.
 // BS_OLDGUNSTATION=1: the console does nothing, as before.
 enum GunStationPlay {
-    static let old = ProcessInfo.processInfo.environment["BS_OLDGUNSTATION"] == "1"
-    static let oldView = ProcessInfo.processInfo.environment["BS_OLDGUNVIEW"] == "1"
+    static let old = Env.all["BS_OLDGUNSTATION"] == "1"
+    static let oldView = Env.all["BS_OLDGUNVIEW"] == "1"
     struct Seat {
         @WeakLink var hull: Ship?
         @WeakLink var turret: Ship?
