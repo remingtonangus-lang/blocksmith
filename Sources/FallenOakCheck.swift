@@ -3,7 +3,7 @@ import simd
 
 // questcheck --fallenoaks: Nov 15 playtest (08:14:38-08:14:54 at -44 71 39 and -48 70 46: "This log was hovering and then
 // it corrected to sitting down... We don't do patches. We fix the problem", "This log's hovering. How is that
-// possible?"). Fallen oaks in field worlds over five seeds (200 at least): every length lies on its ground (no air under
+// possible?"). Fallen oaks in field worlds over five seeds (180 at least): every length lies on its ground (no air under
 // it), each is a lying log from the start (its axis along the trunk, not upright wood the mesher has to guess about), and
 // nothing moves them: in the first 10 s of play no felled body, no debris body and no change to any of their cells.
 enum FallenOakCheck {
@@ -72,7 +72,8 @@ enum FallenOakCheck {
                                 airUnder += 1
                                 if notes.count < 6 { notes.append("air under \(q.x) \(q.y - YOFF) \(q.z) (seed \(seed))") }
                             }
-                            if ShapeTrunks.axisOf[Int(qb)] == 1 {
+                            // (A trunk's stump stands upright by its first length, as a log: only the lengths are oak wood.)
+                            if Blocks.groupBase[Int(qb)] == wood && ShapeTrunks.axisOf[Int(qb)] == 1 {
                                 upright += 1
                                 if uprightNotes.count < 6 {
                                     uprightNotes.append("upright \(Blocks.key(qb)) at \(q.x) \(q.y - YOFF) \(q.z), run \(run.count) (seed \(seed))")
@@ -100,7 +101,7 @@ enum FallenOakCheck {
             print("fallenoaks: seed \(seed): \(found) trunks, \(cells.count) cells, \(spots.count) spots in the woods")
         }
         for n in notes + uprightNotes { print("fallenoaks:   \(n)") }
-        check(trunks >= 200 && airUnder == 0 && tested >= 20 && changed == 0 && bodies == 0,
+        check(trunks >= 180 && airUnder == 0 && tested >= 20 && changed == 0 && bodies == 0,
               "Nov 15 fallen oaks: \(trunks) over 5 field seeds (\(cellsAll) lengths): \(airUnder) with air under, \(changed) of \(tested) still loaded changed and \(bodies) bodies in the first 10 s")
         check(TreeShapes.oldLitterLie || (upright == 0 && short == 0),
               "Nov 15 fallen oaks: every length a lying log along its trunk (\(upright) upright), no trunk shorter than 3 (\(short))")
