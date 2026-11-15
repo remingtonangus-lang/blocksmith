@@ -129,6 +129,28 @@ enum QuestShoveCheck {
         check(ghosts == 0, "nothing it drove past is left standing inside its hull (\(ghosts) blocks)")
         check(wallLeft.0 * 2 <= wallLeft.1, "its wheels break through the plank wall rather than riding over it (\(wallLeft.0) of \(wallLeft.1) planks left in their tracks; 21 before)")
         check(Momentum.shoved - shoved0 >= 10, "Momentum.shove broke what was in its way (\(Momentum.shoved - shoved0) blocks)")
+        // Ledger 146 (Nov 15 08:36, the carriage "stuck in the trees"): a felled tree lying across its way is a body, not
+        // blocks, so Momentum.shove never broke it and the carriage pushed a pile of trunks. A heavy driven hull smashes it.
+        do {
+            let fw0 = big.dirToWorld(big.fwd)
+            let fw = simd_normalize(V3(fw0.x, 0, fw0.z))
+            let mid = (big.worldMin + big.worldMax) * 0.5
+            let half = (abs(fw.z) >= abs(fw.x) ? big.worldMax.z - big.worldMin.z : big.worldMax.x - big.worldMin.x) * 0.5
+            let tree = Blueprint()
+            tree.box(0, 6, 0, 0, 0, 0, "oak_log")
+            let at = mid + fw * (half + 4)
+            let body = w.ships.spawn(tree, at: V3(at.x, big.worldMin.y + 3, at.z), yaw: 0, name: Felling.name, role: "")
+            for _ in 0..<144 { g.tick(1.0 / 72) }
+            let c0 = Felling.crushed, p0 = big.pos
+            let lying = w.ships.list.contains(where: { $0 === body })
+            big.autopilot = V3(1, 0, 0)
+            for _ in 0..<(5 * 72) { g.tick(1.0 / 72) }
+            big.autopilot = nil
+            let gone = !w.ships.list.contains(where: { $0 === body })
+            let moved = simd_dot(big.pos - p0, fw)
+            check(Momentum.oldCrush ? true : (lying && gone && Felling.crushed > c0 && moved > 4),
+                  String(format: "a felled tree lying across the carriage's way (there before: %@) is smashed (gone: %@, %d bodies crushed) and it drives on (%.1f blocks in 5 s)", lying ? "yes" : "no", gone ? "yes" : "no", Felling.crushed - c0, moved))
+        }
         w.ships.remove(big)
 
         // A light car: four wheels, an engine and a seat.
