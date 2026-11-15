@@ -293,13 +293,20 @@ enum Railways {
     }
 
     static func planLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
-        if let l = gated(gen, old: { planLink(gen, row: row, stretch: s, diagonal: false) }, new: { planLink(gen, row: row, stretch: s, diagonal: true) }) {
+        oldLink(gen, row: row, stretch: s) ?? planRunOn(gen, row: row, stretch: s)
+    }
+    // The link as laid before the run-on rule, if one can be (kept on its own, so a run-on link can ask for any row's
+    // without that row asking back: build 93's count found the last 2 crossings were run-on links over such a link
+    // of a row that outranked them).
+    static func oldLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        cached(gen, linkKey(row, s) ^ (Int64(1) << 62), wait: true) {
+            guard let l = gated(gen, old: { planLink(gen, row: row, stretch: s, diagonal: false) }, new: { planLink(gen, row: row, stretch: s, diagonal: true) }) else { return nil }
             // (ledger 135: a link as before that lies across another line's track, on ground no save had: the run-on
             // rule lays it clear of every track instead; the count found one such crossing in 267 lines)
             if !(runOn && gen.fieldWorld && overLine(gen, l, row: row, s: s)) { return l }
             tally?("link: over another line")
+            return nil
         }
-        return planRunOn(gen, row: row, stretch: s)
     }
 
     // Ledger 135 (Nov 14 12:04:52 at Toriwick, of its terminus loop: "another example of the rails getting fucked up.
@@ -415,9 +422,10 @@ enum Railways {
         // rank: four deep at most.)
         let far = isFar(gen, row, s)
         let rank = mod(row, 4)
-        for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) && !isFar(gen, r, t) {
-            guard far || (r != row && mod(r, 4) < rank) else { continue }
-            guard let o = link(gen, row: r, stretch: t) else { continue }
+        for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) {
+            if isFar(gen, r, t) { if let o = oldLink(gen, row: r, stretch: t) { for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) } }; continue }
+            let lower = far || (r != row && mod(r, 4) < rank)
+            guard let o = lower ? link(gen, row: r, stretch: t) : oldLink(gen, row: r, stretch: t) else { continue }
             for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
         } }
         func crosses(_ run: [(Int, Int)]) -> Bool {
