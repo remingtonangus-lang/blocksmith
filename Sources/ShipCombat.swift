@@ -358,7 +358,8 @@ extension ShipManager {
                 g.bases.quiet = false; g.blastSpares = .none
                 // War vessels' guns bite much deeper into another hull than the plain burst (crawler duels barely
                 // scratched paint, Quest round 4).
-                if onHull && from?.root.kinematic == true { blast(at: p, power: power * 1.5, game: g) }
+                // (timed stage by stage like the burst: Explosion.worstLaps, on the headset's perf line)
+                if onHull && from?.root.kinematic == true { Explosion.lapStart(); blast(at: p, power: power * 1.5, game: g); Explosion.lapEnd("hull blast") }
                 TickProf.mark("shells: hull blast")
             } else if !gentle { blast(at: p, power: power, game: nil) }
         }

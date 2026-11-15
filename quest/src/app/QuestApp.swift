@@ -860,6 +860,8 @@ final class FrameStats {
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
         // (Nov 15: that tick's five slowest stages, and where the window's ordinary ticks went, average ms a tick)
         lastLine += " (\(tickStages)) | tick stages avg ms: \(TickProf.windowTop(8))"
+        if Explosion.worstMs > 2 { lastLine += String(format: " | slowest blast %.1f ms (", Explosion.worstMs) + Explosion.worstLaps + ")" }
+        Explosion.worstMs = 0; Explosion.worstLaps = ""
         lastLine += " | far ticking \(FarTicks.lastSecond)"                  // P376: things ticking past the active distance (0)
         lastLine += " | eye resolution \(Int((scene.viewScale * 100).rounded()))%"                        // P403 7b (dynamic resolution)
         if let p = dynResProbe?(), p > 0 {                                                                 // P403 step 2: triangles or pixels

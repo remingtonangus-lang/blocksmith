@@ -155,6 +155,7 @@ final class Armory {
         let u0 = CFAbsoluteTimeGetCurrent(), det0 = Armory.detonations, n0 = slugs.count
         if g.coop.current == 0 || !g.coop.active { NavalGuns.stepBreaches(g) }
         let u1 = CFAbsoluteTimeGetCurrent()
+        TickProf.mark("arms: breaches")
         let blast0 = Explosion.totalMs
         defer {
             let ms = (CFAbsoluteTimeGetCurrent() - u0) * 1000
