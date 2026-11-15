@@ -116,8 +116,8 @@ extension Trains {
 
     // MARK: Building a real-size train
 
-    static func buildBig(_ g: Game, _ tr: Train, day: Int) {
-        tr.kind = tr.bullion ? .bullion : (TrainArrivals.kindFor(tr.track.id) ?? kind(tr.track, day: day))
+    static func buildBig(_ g: Game, _ tr: Train, day: Int, keep: Kind? = nil) {
+        tr.kind = keep ?? (tr.bullion ? .bullion : (TrainArrivals.kindFor(tr.track.id) ?? kind(tr.track, day: day)))
         tr.fresh = true
         var cars = consist(tr.kind)
         // A short line: cars come out of the middle until the train fits between the buffers.

@@ -483,11 +483,25 @@ enum Trains {
         splices += 1
     }
 
+    // Ledger 139 (Remington, Nov 14 21:06: "The train transformed into a passenger train. That can't happen. It's
+    // impossible"): a train made again where it stands (a car of it shot away, or gone from the world) was made as
+    // whatever the line runs today, so a troop train that came as an arrival, or a bullion train robbed that day, came
+    // back as coaches in front of him. A train made again in place is the kind it was. BS_OLDREKIND=1 = before.
+    static let oldRekind = ProcessInfo.processInfo.environment["BS_OLDREKIND"] == "1"
+    static var keptKinds = 0                      // (harness)
     static func build(_ g: Game, _ tr: Train) {
+        let inPlace = !tr.cars.isEmpty && !oldRekind && !tr.track.armoured && forceKind == nil && tr.bullion == (tr.kind == .bullion)
+        let wasKind = tr.kind
         remove(g, tr)
         // D47: one day in three the line runs a bullion train (VaultObjectives.swift).
         let day = Int(g.time / DAY_LENGTH)
         let wasBullion = tr.bullion
+        if inPlace {
+            keptKinds += 1
+            tr.layout = []
+            buildBig(g, tr, day: day, keep: wasKind)
+            return
+        }
         tr.bullion = !tr.track.armoured && tr.track.dim == .overworld && VaultObjectives.bullionDay(tr.track.id, day) && tr.robbedDay != day
             && forceKind == nil                // (checks: the kind they ask for, whatever the day)
             && TrainArrivals.kindFor(tr.track.id) == nil          // (P508: an arriving train is the kind that was rolled)

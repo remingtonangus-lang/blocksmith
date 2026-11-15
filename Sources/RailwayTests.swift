@@ -653,6 +653,23 @@ enum RailwayTests {
             } else { check(false, "P508 military arrival: no guard car") }
             TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
         } else { check(false, "P508 military arrival: no train could be put on the line") }
+        // Ledger 139: a troop train that came as an arrival, the arrival over, a car of it gone from the world: the train
+        // is made again where it stands, and it is still a troop train (it came back as the line's train of the day).
+        Trains.trains.removeAll()
+        if let mtr = TrainArrivals.arrive(g, [t], kind: .troop) {
+            let fk = Trains.forceKind
+            Trains.forceKind = nil
+            Trains.build(g, mtr)
+            TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
+            let today = Trains.kind(t, day: Int(g.time / DAY_LENGTH))
+            if let lost = mtr.cars.last { g.mobs.mobs.removeAll { $0 === lost } }
+            Trains.build(g, mtr)
+            let want: Trains.Kind = Trains.oldRekind ? today : .troop
+            check(mtr.kind == want && mtr.cars.contains { $0.variant == Trains.gunCar } == (want == .troop),
+                  "ledger 139: a troop train made again where it stands is still a troop train (kind \(mtr.kind), the line's train today \(today))")
+            Trains.forceKind = fk
+            Trains.remove(g, mtr)
+        } else { check(false, "ledger 139: no train could be put on the line") }
         // P510: a troop train taken from inside: aboard a troop car its soldiers stay in their compartments (none pile
         // out); the engine is refused while one still rides it; with them down he takes the engine, its guard car's gun
         // no longer fires on him, and he works that gun: a shell each time he fires it.
