@@ -742,8 +742,11 @@ enum AshDriveCheck {
                 // Nov 14 (21:15, "what happened to the little machine gun on the tank"): held while the gun reloads, the
                 // trigger works the coaxial MG, its rounds clear of the tank's own plates.
                 let c0 = AshCommandeer.coaxShots, slugs0 = game.arms.slugs.count, hb0 = h.blockCount, tb0 = t.blockCount
-                run(30, act(attack: true)); run(2, act())
-                check(AshCommandeer.oldTankCoax || (AshCommandeer.coaxShots - c0 >= 3 && game.arms.slugs.count > slugs0 && h.blockCount == hb0 && t.blockCount == tb0),
+                // (the most rounds in flight at once: a round that strikes close by is gone by the end, 1 run in 3 on Nov 15)
+                var flying = slugs0
+                for _ in 0..<30 { run(1, act(attack: true)); flying = max(flying, game.arms.slugs.count) }
+                run(2, act())
+                check(AshCommandeer.oldTankCoax || (AshCommandeer.coaxShots - c0 >= 3 && flying > slugs0 && h.blockCount == hb0 && t.blockCount == tb0),
                       "Cinder Tank: held while the gun reloads, the trigger fires the coaxial MG (\(AshCommandeer.coaxShots - c0) rounds in 0.5 s; its own blocks \(hb0 + tb0) -> \(h.blockCount + t.blockCount))")
                 run(260, act())
                 // Nov 14 (21:15, "this tank has aiming problems"): a stone wall well ahead, sighted from his seat; the turret

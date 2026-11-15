@@ -66,6 +66,14 @@ enum CraterPlaceCheck {
             check(cells > 500 && differ == 0, String(format: "craterplace: the bowl's fine ground columns read from each cell's 64 samples match the point-by-point read in %ld of %ld cells (%.1f us a cell, %.1f point by point)",
                                                     cells - differ, cells, tGrid * 1e6 / Double(max(1, cells)), tPoint * 1e6 / Double(max(1, cells))))
         }
+        // (Nov 15: woodland litter, stumps, shrubs and fallen oaks, came to stand round this bowl and hid its faces from the
+        // rim: 1 to 5 aims where there were 6 to 8, "1 of 1 clicks" in one suite of 3. The check is about the bowl's ground,
+        // so what grows on it is cleared first.)
+        var cleared = 0
+        for y in (gy - 10)...(gy + 6) { for z in (cz - 9)...(cz + 12) { for x in (cx - 9)...(cx + 9) where !w.groundAt(x, y, z) {
+            let k = Blocks.key(w.block(x, y, z))
+            if k != "air" && !Blocks.isLiquid(w.block(x, y, z)) { w.setBlock(x, y, z, AIR); cleared += 1 }
+        } } }
         // From the rim: stone in hand, clicks round the bowl's face. Each one aimed at the ground puts a block down.
         let stone = Items.id("stone")
         g.inventory.held = ItemStack(stone, 64)
@@ -134,6 +142,6 @@ enum CraterPlaceCheck {
         }
         g.inventory.held = .empty
         check(aimed >= 3 && placed == aimed,
-              "craterplace: stone clicked at the bowl's face from its rim goes down every time (\(placed) of \(aimed) clicks)" + (missed.isEmpty ? "" : "; ignored: " + missed.prefix(4).joined(separator: "; ")))
+              "craterplace: stone clicked at the bowl's face from its rim goes down every time (\(placed) of \(aimed) clicks, \(cleared) growing blocks cleared off it first)" + (missed.isEmpty ? "" : "; ignored: " + missed.prefix(4).joined(separator: "; ")))
     }
 }
