@@ -169,6 +169,7 @@ enum Contracts {
             let m = Mob(.villager, at: g.world.freeSpawn(g.player.pos + V3(1.5, 0, 1.5)))
             m.persistent = true
             m.customName = c.who                      // (a townsperson of the town they reach, not of the road)
+            m.escort = !oldEscort
             g.mobs.mobs.append(m)
             if let t = c.destAt { c.count = Int(simd_length(V2(Float(t[0]) - g.player.pos.x, Float(t[1]) - g.player.pos.z))) }
             save(board, slot, c)
@@ -281,10 +282,13 @@ enum Contracts {
                 guard let t = c.destAt else { continue }
                 guard let m = g.mobs.mobs.first(where: { $0.kind == .villager && $0.customName == c.who && $0.persistent }) else { continue }
                 if m.health <= 0 { c.failed = true; save(board, slot, c); g.onToast?("\(c.who ?? "The traveller") is dead. The contract's off"); continue }
-                // Follow the player; half way, bandits.
+                // Follow the player; half way, bandits. Nov 15: they keep to him every frame (Mob.escortStep), riding
+                // behind him on his horse; the escort mark is put back on after a load.
                 let d = simd_length(m.pos - pos)
-                if d > 4 { m.wanderGoal = pos; m.moving = true; m.aiTimer = 2; m.panic = 0 }
-                if d > 40 { m.pos = g.world.freeSpawn(pos + V3(1.5, 0, 1.5)) }        // kept up on horseback
+                if oldEscort {
+                    if d > 4 { m.wanderGoal = pos; m.moving = true; m.aiTimer = 2; m.panic = 0 }
+                } else { m.escort = true }
+                if d > 40 && m.mount == nil { m.pos = g.world.freeSpawn(pos + V3(1.5, 0, 1.5)) }        // kept up on horseback
                 let left = simd_length(V2(Float(t[0]) - m.pos.x, Float(t[1]) - m.pos.z))
                 if !c.ambushed, c.count > 0, left < Float(c.count) * 0.55 {
                     c.ambushed = true; save(board, slot, c)
@@ -292,6 +296,8 @@ enum Contracts {
                     g.onToast?("Road agents!")
                 }
                 if left < 40 {
+                    if m.mount != nil { m.pos = g.world.freeSpawn(m.pos + V3(1.2, 0, 0)) }
+                    m.mount = nil; m.mountOffset = nil; m.escort = false
                     m.customName = nil
                     m.home = m.pos
                     var v = m.villager ?? VillagerData()
@@ -327,8 +333,26 @@ enum Contracts {
         }
     }
 
+    // Nov 15 playtest (08:41:05-08:41:12, his escort killed: "That should cause an immediate failure of the... quest,
+    // 'cause I kill them"): the once-a-second check looked for the traveller among the living, found nobody (the dead
+    // leave that list at once) and so never failed it. The death itself fails it now (BS_OLDESCORT=1: as before, and
+    // the old once-a-second follow).
+    static let oldEscort = ProcessInfo.processInfo.environment["BS_OLDESCORT"] == "1"
+    static func escortDied(_ g: Game, _ m: Mob) {
+        guard !oldEscort, m.kind == .villager, m.persistent, let name = m.customName, let st0 = TownLaw.state.contracts else { return }
+        for (key, c0) in st0 where c0.kind == "escort" && c0.taken && !c0.paid && !c0.failed && c0.who == name {
+            guard let (board, slot) = split(key) else { continue }
+            var c = c0
+            c.failed = true
+            save(board, slot, c)
+            g.onToast?("\(name) is dead. The contract's off")
+            return
+        }
+    }
+
     // Honour.mobDied (via TownBoard.mobDied): bandits of a camp.
     static func mobDied(_ g: Game, _ m: Mob) {
+        escortDied(g, m)
         guard m.posse == banditPosse, m.customName == "Bandit", let st0 = TownLaw.state.contracts else { return }
         for (key, c0) in st0 where c0.kind == "camp" && c0.taken && c0.spawned && !c0.done {
             guard let t = c0.target, simd_length(V2(Float(t[0]) - m.pos.x, Float(t[1]) - m.pos.z)) < 64, let (board, slot) = split(key) else { continue }
@@ -373,5 +397,30 @@ final class BaseContractsMenu: ListMenu {
         if i == Contracts.slots { game.closeMenu(); WarFront.openReport(game); return }
         let r = Contracts.use(game, board: board, at: at, i)
         say(r.0, good: r.1)
+    }
+}
+
+// Nov 15 playtest (08:38:36-08:38:51 on an escort: "He needs to follow me"; "You should also be able to ride in the back
+// of my horse if I had one"): the traveller was pointed at him once a second through the stroll (which gave up and
+// stood), so he walked off and left them. Now, every frame, they walk after him (running when more than 8 behind), stop
+// within 3, and while he rides a horse within 10 of them they ride behind him on it, getting down when he does.
+extension Mob {
+    static let escortMounts: Set<MobKind> = [.horse, .donkey, .mule, .camel]
+    func escortStep(_ g: Game) -> Float {
+        if let h = g.riding, Mob.escortMounts.contains(h.kind), h.health > 0, simd_length(h.pos - pos) < 10 {
+            mount = h
+            mountOffset = V3(0, h.height * 0.8 - 0.1, 0.62)
+            moving = false; wanderGoal = nil
+            return 0
+        }
+        let pp = g.player.pos
+        let dp = simd_length(V2(pp.x - pos.x, pp.z - pos.z))
+        wanderGoal = nil
+        panic = 0
+        guard dp > 3 else { moving = false; return 0 }
+        face(pp)
+        moving = true
+        aiTimer = max(aiTimer, 1)
+        return spec.speed * (dp > 8 ? 2.8 : 1.6)
     }
 }

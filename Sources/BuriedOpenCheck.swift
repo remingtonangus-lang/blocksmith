@@ -10,6 +10,14 @@ enum BuriedOpenCheck {
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }
+        // (Nov 15: run to run the same: seeded draws, each frame's carving its block budget rather than the wall clock's
+        // slice (CraterJob.byBlocks). Clocked, how many blocks a frame took, and so how much sand fell back into the bowl
+        // between frames, varied: the check passed 1 run in 4 on the optimized host. Streaming stays on the clock: in
+        // a fixed order (World.deterministic) the run took 18 minutes against 6.)
+        let rdet0 = Rand.deterministic, byBlocks0 = CraterJob.byBlocks
+        Rand.seed(4242)
+        CraterJob.byBlocks = true
+        defer { Rand.deterministic = rdet0; CraterJob.byBlocks = byBlocks0 }
         let w = World(seed: 4242, device: g0.world.device, save: nil)
         w.makeFieldWorld()
         w.renderDistance = 7; w.activeDistance = 7
@@ -42,6 +50,7 @@ enum BuriedOpenCheck {
         let floorSec = below >= 0 ? c.sections[below >> 4] : sec
         check(open && !floorSec.deferred && !sec.deferred,
               "cratermesh: a crater 5 chunks off (its rock unmeshed before: \(before)) lays open y \(floorY - YOFF) (\(open)) over a floor at \(below - YOFF); its sections meshed: \(!sec.deferred), \(!floorSec.deferred)"
-                + " (dug in \(steps) frames, done \(job.done); \(growth) tree blocks within 12 of it; top \(ty - YOFF), ground top after \(top(cx, cz) - YOFF))")
+                + " (dug in \(steps) frames, done \(job.done), \(job.removed) blocks; \(growth) tree blocks within 12 of it; top \(ty - YOFF), ground top after \(top(cx, cz) - YOFF))"
+                + (open ? "" : "; the column now: " + stride(from: ty, through: floorY - 2, by: -1).map { "\($0 - YOFF) \(Blocks.key(w.block(cx, $0, cz)))\(w.groundAt(cx, $0, cz) ? "*" : "")" }.joined(separator: ", ")))
     }
 }

@@ -8,6 +8,7 @@ enum Rand {
     private static var state: UInt64 = 0x9E3779B97F4A7C15
 
     static func seed(_ s: UInt64) { state = s &+ 0x9E3779B97F4A7C15; deterministic = true }
+    static var traceState: UInt64 { state }          // (a check's run-to-run trace: where two runs part)
 
     // Normal play on the main thread: its own SplitMix64 stream, seeded once from the system. The system generator is
     // a getrandom() syscall per draw on Linux and Android: a main gun impact's ~3,000 particle draws cost 10 ms of the

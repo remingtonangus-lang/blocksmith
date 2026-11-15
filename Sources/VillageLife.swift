@@ -217,6 +217,11 @@ extension Mob {
         if villager?.role == "deputy" || villager?.role == "sheriff" { return .patrol }
         if villager?.role == "banker" { return BankMenu.open(f) ? .work : .idle }       // behind the teller's counter
         if villager?.role == "miner" { return .work }                                    // C12: at the face, shifts round the clock
+        if villager?.role == Countries.officerRole { return .work }                     // Nov 15: a customs officer minds the booth
+        // Nov 15: a Capital citizen with no office desk (the upper floors' residents, CapitalCity.fitFloor) keeps house:
+        // about the flat all day and in bed at night. Sent to the bell and the saloon, 54 of them were still in the
+        // street at night, a tower's stairs from their beds (CapitalTownTests). (BS_UPPERRES=0: there are none.)
+        if villager?.role == "citizen" && villager?.jobSite == nil { return .idle }
         let prof = villager?.profession ?? "none"
         if Seasons.festival && villager?.town != nil && t >= 2000 && t < 12000 { return .meet }   // C9: the town festival at the bell
         if t >= 5600 && t < 6600 { return .eat }

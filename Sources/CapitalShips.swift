@@ -2249,6 +2249,18 @@ extension ShipManager {
     // Leaves and plants don't count; resting against the ground without moving into it does nothing.
     private func hullContact(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         st.bumpCD -= dt
+        // (Nov 15, questcheck maingun: the frame after the Tidebreaker's impact took 425-480 ms here; where it went)
+        let tC0 = CFAbsoluteTimeGetCurrent()
+        var tLoop = 0.0, tBreaks = 0.0, nBroke = 0, nHits = 0
+        let crashed0 = Capital.crashes
+        defer {
+            let ms = (CFAbsoluteTimeGetCurrent() - tC0) * 1000
+            if ms > ShipManager.slowContactMs {
+                ShipManager.slowContactMs = ms
+                ShipManager.slowContact = String(format: "%.1f ms: probes %.1f ms (%d probes, %d broken, %.1f ms of it in the %d broken as he would, %d hits), crash %@",
+                                                 ms, tLoop * 1000, st.probes?.count ?? 0, nBroke, tBreaks * 1000, (nBroke + 7) / 8, nHits, Capital.crashes > crashed0 ? "yes: " + (Capital.crashLog.suffix(2).joined(separator: "; ")) : "no")
+            }
+        }
         // Broadphase: the hull's lowest point against the highest ground under its outline.
         var high = -Float.greatestFiniteMagnitude
         for i in 0..<3 { for j in 0..<3 {
@@ -2257,7 +2269,11 @@ extension ShipManager {
             high = max(high, Float(world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height) + 1)
         } }
         guard s.worldMin.y < high + 2 else { return }
-        if st.probes == nil || abs(s.blockCount - st.probeBlocks) > 150 { st.probes = Capital.hullProbes(s.grid); st.probeBlocks = s.blockCount }
+        if st.probes == nil || abs(s.blockCount - st.probeBlocks) > 150 {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            st.probes = Capital.hullProbes(s.grid); st.probeBlocks = s.blockCount
+            ShipManager.probeBuilds += 1; ShipManager.probeMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        }
         let leaf = Mesher.leafT
         var hits: [V3] = []
         // P472 (Oct 26 20:14, "the frigate should also break through trees and break through blocks too, to a degree"):
@@ -2266,8 +2282,17 @@ extension ShipManager {
         // and harder stop her as before. A budget a frame (160 blocks) keeps a forest from stalling it.
         let speed = simd_length(s.vel)
         var broke = 0
+        // (Nov 15, questcheck maingun: the frame after the Tidebreaker's impact, her hull shoved through a stand of trees,
+        // crushed 160 blocks: 340 ms, nearly all in the 20 broken as he would, each remeshing the sections round it
+        // on the frame thread. They are redrawn by the workers with the rest now, a frame or two later.
+        // BS_OLDCRUSHREMESH=1: as before.)
+        let defer0 = world.deferRemesh
+        if !Capital.oldCrushRemesh { world.deferRemesh = true }
+        // (Nov 15, questcheck maingun: 1.1-1.8 ms of every frame a low-flying frigate's tick, 2,700 probes each reading
+        // the world through its chunk table twice; the probes lie next to each other, the reader keeps its chunk.)
+        var rdr = ShipBlockReader(world)
         func breakable(_ q: IVec3) -> Bool {
-            let ab = world.block(q.x, q.y, q.z)
+            let ab = rdr.get(q.x, q.y, q.z)
             guard ab != AIR, !Blocks.isLiquid(ab), world.blockEntities[q] == nil, !world.groundAt(q.x, q.y, q.z) else { return false }
             return Capital.crushable(ab) || (speed >= 8 && !ShipParts.natural[Int(ab)] && Blocks.hardness[Int(ab)] >= 0 && Blocks.hardness[Int(ab)] < 1.5)
         }
@@ -2282,15 +2307,21 @@ extension ShipManager {
                         let q = IVec3(q0.x + dx, q0.y + dy, q0.z + dz)
                         guard dx == 0 && dy == 0 && dz == 0 || breakable(q) else { continue }
                         // A few break as he would (pieces, a drop now and then); the rest go at once, unremeshed here.
-                        if broke % 8 == 0 { g.breakBlock(q, world.block(q.x, q.y, q.z), drop: broke % 16 == 0) } else { world.setBlockAsync(q.x, q.y, q.z, AIR) }
+                        if broke % 8 == 0 {
+                            let tb = CFAbsoluteTimeGetCurrent()
+                            g.breakBlock(q, world.block(q.x, q.y, q.z), drop: broke % 16 == 0)
+                            tBreaks += CFAbsoluteTimeGetCurrent() - tb
+                        } else { world.setBlockAsync(q.x, q.y, q.z, AIR) }
                         broke += 1
                     } } }
                 }
             }
-            let b = world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+            let b = rdr.get(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
             if Blocks.collide[Int(b)] && !leaf[Int(b)] && !(speed > 1.5 && Capital.crushable(b)) { hits.append(p); if hits.count >= 12 { break } }
         }
+        world.deferRemesh = defer0
         ShipManager.crushed += broke
+        tLoop = CFAbsoluteTimeGetCurrent() - tC0; nBroke = broke; nHits = hits.count
         guard !hits.isEmpty else { return }
         var c = V3(0, 0, 0)
         for h in hits { c += h }
@@ -3884,6 +3915,7 @@ extension Capital {
         }
         return n > 0 && have * 2 < n
     }
+    static let oldCrushRemesh = ProcessInfo.processInfo.environment["BS_OLDCRUSHREMESH"] == "1"     // (hullContact)
     static var crashLog: [String] = []         // (FrigateCheck: the hull blocks each part of a crash took)
     static var crashes = 0                     // (FrigateCheck)
     static var darkened = Set<Int>()           // hulls whose lights a crash put out (P357 d; FrigateCheck)

@@ -3130,6 +3130,19 @@ final class Renderer: NSObject, MTKViewDelegate {
     // Isometric block icon (grass/leaves tinted with default biome colours). Model and connecting blocks (stairs,
     // slabs, fences, walls, lanterns, anvils...) draw their real boxes: each box's three visible faces (+Y, +Z on
     // the left, +X on the right) projected with that face's texture sub-rect, back to front.
+    static let oldDoorIcon = ProcessInfo.processInfo.environment["BS_OLDDOORICON"] == "1"
+    static var doorIcons = 0                       // (checks: doors drawn flat)
+    static func doorIcon(_ id: BlockID, center c: V2, size sz: Float, tint full: V4, _ quad: ([V2], [V2], V4, Float) -> Void) -> Bool {
+        guard Blocks.shape[Int(id)] == "door" && !Renderer.oldDoorIcon else { return false }
+        let tex = Blocks.tex, uv = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
+        let base = Int(Blocks.groupBase[Int(id)])
+        let up = base + 8 < Blocks.count && Blocks.groupBase[base + 8] == Blocks.groupBase[base] ? base + 8 : base
+        let H: Float = sz * 0.5, W: Float = sz * 0.25
+        quad([V2(c.x - W, c.y - H), V2(c.x + W, c.y - H), V2(c.x + W, c.y), V2(c.x - W, c.y)], uv, full, Float(tex[up * 6 + 4]))
+        quad([V2(c.x - W, c.y), V2(c.x + W, c.y), V2(c.x + W, c.y + H), V2(c.x - W, c.y + H)], uv, full, Float(tex[base * 6 + 4]))
+        Renderer.doorIcons += 1
+        return true
+    }
     func icon(_ id0: BlockID, center c: V2, size sz: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
         let id = Blocks.iconState(id0)
         let tex = Blocks.tex
@@ -3138,6 +3151,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         let grassC = V4(0.57, 0.74, 0.35, 1), leafC = V4(0.47, 0.67, 0.18, 1)
         let full: V4 = tintMode == 1 ? grassC : (tintMode == 2 ? leafC : V4(1, 1, 1, 1))
         let ck = Blocks.connectKind[Int(id)]
+        // Nov 15 playtest (08:45:15-08:45:19, doors in his pack: "Yours don't look right in inventory"): a door's item drew
+        // its lower half alone, as a block: a thin board seen corner-on. It shows the whole door flat now, the upper half
+        // over the lower, as tall as the slot (BS_OLDDOORICON=1: as before).
+        if Renderer.doorIcon(id, center: c, size: sz, tint: full, quad) { return }
         if Blocks.flatIcon(id) || ck == 2 {
             // Torches fill only a 2-texel strip of their texture: drawn larger, or the hotbar showed just the flame's dot
             // (blind critic, tv_hud).

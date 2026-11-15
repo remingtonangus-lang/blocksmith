@@ -10,6 +10,7 @@ final class BorealAlarmState {
     struct Site { var cx: Int, cz: Int, S: Int; var on = false; var quiet: Float = 0; var blare: Float = 0; var src = V3(0, 0, 0) }
     var sites: [String: Site] = [:]
     var log: [String] = []                       // harness: what happened, in order
+    var vehicleSightings = 0                     // harness: alarms raised by a vehicle he drives (Nov 15)
     var ops: [String: StationOp] = [:]           // infiltration operations (BorealOps.swift), saved
     static let blareEvery: Float = 4
     static let standDown: Float = 45
@@ -24,6 +25,16 @@ extension BorealStation {
 
 extension Game {
     var borealAlarm: BorealAlarmState { bases.boreal }
+
+    // A hostile vehicle he drives, in sight of the station's mast top within the drawn distance.
+    func vehicleSeen(_ site: BorealAlarmState.Site, _ p: V3) -> Bool {
+        guard !HeavyTurret.oldStationReach, world.ships.pilot != nil, !BorealStation.insideSite(site, p) else { return false }
+        let mast = V3(Float(site.cx) + 0.5, Float(site.S + 22), Float(site.cz) + 0.5)
+        guard simd_length(V2(p.x - mast.x, p.z - mast.z)) < HeavyTurret.drawnReach(self),
+              let man = mobs.mobs.first(where: { $0.kind.steelhold && $0.health > 0 && BorealStation.insideSite(site, $0.pos) }),
+              !repAllied(man) else { return false }
+        return world.canSee(mast, player.eye, except: playerCarrier)
+    }
 
     // Called once a second from basesTick, with that second's noises (before they are cleared).
     func borealAlarmTick(_ b: BaseWatch, _ dt: Float) {
@@ -60,6 +71,8 @@ extension Game {
                 if mobs.mobs.contains(where: { $0.kind.steelhold && $0.kind != .deckGun && $0.health > 0 && $0.aggro
                                                && ($0.brain?.sees ?? false) && BorealStation.insideSite(site, $0.pos) }) { trigger = p }
             }
+            // Nov 15: a vehicle he drives, seen from the top of the station's mast while it is drawn (HeavyTurret.drawnReach).
+            if survival, trigger == nil, let p = players.first, vehicleSeen(site, p) { trigger = p; st.vehicleSightings += 1 }
             var fresh = false
             if let t = trigger {
                 site.quiet = 0

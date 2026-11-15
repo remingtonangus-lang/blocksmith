@@ -601,6 +601,22 @@ final class Chunk {
     // shell never asked (World.buriedLow).
     var groundLowKnown: Int? { groundLowCache ?? (hollow ? nil : groundLow) }
 
+    // Nov 15 (Fable's list, the main gun's bowl over 4 s: each cell a crater took rescanned its whole column from the top
+    // of the stored blocks down, 11 us of the 47 a cell cost): the one cell at y changed, the top found from the old
+    // one: a sky-stopping cell set over it is the new top; the top cell itself cleared scans down from there; any other
+    // change leaves it where it was. (World.setBlockAsync; BS_OLDCRATERCELL=1: the full scan.)
+    func updateHeight(_ x: Int, _ z: Int, changed y: Int) {
+        let c = x + z * CS
+        let h = Int(height[c])
+        let skyT = Blocks.sky
+        if y > h {
+            if skyT[Int(blocks.materialCell(c + y * CSQ))] { height[c] = Int16(y) }
+        } else if y == h && !skyT[Int(blocks.materialCell(c + y * CSQ))] {
+            var t = y - 1
+            while t >= 0 && !skyT[Int(blocks.materialCell(c + t * CSQ))] { t -= 1 }
+            height[c] = Int16(t)
+        }
+    }
     func recomputeHeight(_ x: Int, _ z: Int) {
         let skyT = Blocks.sky
         let c = x + z * CS

@@ -3188,6 +3188,14 @@ if CommandLine.arguments.contains("--planeparts") {             // P459: aircraf
     PlanePartsCheck.run(game, check)
     print(failures == 0 ? "planeparts: all checks passed" : "planeparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--fallenoaks") {            // Nov 15: fallen oaks lie on their ground from the start
+    FallenOakCheck.run(game, check)
+    print(failures == 0 ? "fallenoaks: all checks passed" : "fallenoaks: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--nov15") {                 // Nov 15 morning playtest checks alone
+    Nov15MorningChecks.run(game, check)
+    print(failures == 0 ? "nov15: all checks passed" : "nov15: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--planeexit") {             // Nov 13: off a Salvaged Fighter's helm (and the Nov 13 checks)
     PlaneExitCheck.run(game, check)
     Nov13Checks.run(game, check)
@@ -3336,6 +3344,12 @@ if CommandLine.arguments.contains("--lift") {
 if CommandLine.arguments.contains("--cratermesh") {
     BuriedOpenCheck.run(game, check)
     print(failures == 0 ? "cratermesh: all checks passed" : "cratermesh: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+// --floatpieces: his Nov 14 20:58:21 note, a body and a block's pieces fall when what they lie on is carved away
+// (Sources/FloatPiecesCheck.swift).
+if CommandLine.arguments.contains("--floatpieces") {
+    FloatPiecesCheck.run(game, check)
+    print(failures == 0 ? "floatpieces: all checks passed" : "floatpieces: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --tipcheck: P503, a piece shot out from under it tips and falls (Sources/StructureTip.swift).
 if CommandLine.arguments.contains("--tipcheck") {
@@ -3781,6 +3795,7 @@ MobLightCheck.run(game, check)                          // Nov 13: small mobs on
 PlaneExitCheck.run(game, check)                         // Nov 13: off a Salvaged Fighter's helm, out of the plane
 Nov13Checks.run(game, check)                            // Nov 13: the scope's eyepiece, the crawler's helm, the letters
 Nov14EveningChecks.run(game, check)                     // Nov 14 evening: town chairs the right way round
+Nov15MorningChecks.run(game, check)                     // Nov 15 morning: radar, carriage ladder, escort, ice holes, customs
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest
@@ -3971,7 +3986,16 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
             let e = game.player.eye
             let near = wg.terrain.volcanoes(near: e.x, e.z, reach: 8000)
                 .min { simd_length(V2($0.x - e.x, $0.z - e.z)) < simd_length(V2($1.x - e.x, $1.z - e.z)) }
-            if let v = near {
+            // (Nov 15: no far cones are drawn now; the view toward one draws none. BS_OLDFARVOLCANOES=1: the old checks.)
+            if let v = near, !Renderer.oldFarVolcanoes {
+                let saved = game.player.pos
+                let dir = simd_normalize(V2(e.x - v.x, e.z - v.z) + V2(1e-3, 0))
+                game.player.pos = V3(v.x + dir.x * 700, Float(YOFF) + v.base + 40, v.z + dir.y * 700)
+                try RenderTest.render(game: game, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: "_landmark.png"), yaw: atan2f(dir.x, dir.y), pitch: 0.05)
+                check(Renderer.farVolcanoesDrawn == 0, "Nov 15: no volcano drawn 700 blocks away past the loaded ground (\(Renderer.farVolcanoesDrawn) cones)")
+                game.player.pos = saved
+            }
+            if let v = near, Renderer.oldFarVolcanoes {
                 let saved = game.player.pos
                 let dir = simd_normalize(V2(e.x - v.x, e.z - v.z) + V2(1e-3, 0))
                 game.player.pos = V3(v.x + dir.x * 700, Float(YOFF) + v.base + 40, v.z + dir.y * 700)
@@ -4030,7 +4054,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 let d = simd_normalize(V2(x - v.x, z - v.z))
                 let vp = path.replacingOccurrences(of: ".png", with: "_volcano135623.png")
                 try RenderTest.render(game: vg, ctx: ctx, path: vp, yaw: atan2f(d.x, d.y), pitch: 0.02)
-                check(RenderTest.landmarkVerts > 0, "seed 135623 far volcano drawn on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
+                check(Renderer.oldFarVolcanoes ? RenderTest.landmarkVerts > 0 : Renderer.farVolcanoesDrawn == 0, "seed 135623 far volcano \(Renderer.oldFarVolcanoes ? "drawn" : "not drawn (Nov 15)") on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Renderer.farVolcanoesDrawn) cones, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
             } else { check(false, "seed 135623: a volcano within 2600 blocks of x 1334 z 2060") }
         }
         // P8 (Oct 11 AM playtest, 08:47:53 "the volcano in the distance doesn't look great", build 0.129 from before the
@@ -4048,7 +4072,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 .min(by: { simd_length(V2($0.x - x, $0.z - z)) < simd_length(V2($1.x - x, $1.z - z)) }) {
                 let d = simd_normalize(V2(x - v.x, z - v.z))
                 try RenderTest.render(game: vg, ctx: ctx, path: path.replacingOccurrences(of: ".png", with: "_volcanoP8.png"), yaw: atan2f(d.x, d.y), pitch: -0.05)
-                check(RenderTest.landmarkVerts > 0, "P8 playtest far volcano drawn on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
+                check(Renderer.oldFarVolcanoes ? RenderTest.landmarkVerts > 0 : Renderer.farVolcanoesDrawn == 0, "P8 playtest far volcano \(Renderer.oldFarVolcanoes ? "drawn" : "not drawn (Nov 15)") on the Quest renderer (\(RenderTest.landmarkVerts) vertices, \(Renderer.farVolcanoesDrawn) cones, \(Int(simd_length(V2(x - v.x, z - v.z)))) blocks)")
             } else { check(false, "P8: a volcano within 2600 blocks of the playtest note") }
         }
         // Polygon terrain test (docs/status/polygon-test.md): the same seed 12345 views in Blocks and Smooth on the Quest
@@ -4643,6 +4667,7 @@ leaves("troopclasses") { TroopTests.run(game: game, check: check) }
 leaves("lift") { LiftCheck.run(game, check) }
 leaves("tip") { StructureTipCheck.run(game, check) }
 leaves("cratermesh") { BuriedOpenCheck.run(game, check) }
+leaves("floatpieces") { FloatPiecesCheck.run(game, check) }        // (Nov 14 20:58:21: what a battle leaves lying falls when its support goes)
 leaves("navy") { NavyTests.run(game: game, check: check) }
 leaves("skiff") { SkySkiffTests.run(game: game, check: check) }
 leaves("mapfog") { MapFogTests.run(game: game, check: check) }

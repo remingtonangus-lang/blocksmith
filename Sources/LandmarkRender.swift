@@ -8,6 +8,8 @@ import simd
 // wherever the real landmark has been generated, and the impostor fills in where it hasn't.
 extension Renderer {
     static let landmarkRange: Float = 2600
+    static let oldFarVolcanoes = ProcessInfo.processInfo.environment["BS_OLDFARVOLCANOES"] == "1"
+    static var farVolcanoesDrawn = 0               // cones placed by the last build (checks)
     static var plumeRising = false                 // the last build had volcano smoke (camp smoke alone rebuilds slower)
     // Nov 9 (item 7): the opaque impostors and the horizon ground go in world terms, put on the shell by the shader
     // (the headset's simple.vert; WorldRenderer sets it, BS_OLDSHELL=1 projects them on the CPU as before).
@@ -99,7 +101,12 @@ extension Renderer {
                         horizon: Bool = true, landmarks: Bool = true) {
         smokeStart = 0; Renderer.plumeRising = false; Renderer.horizonEnd = out.count
         guard game.dim.dim == .overworld, let wg = game.world.gen as? WorldGen else { return }
-        let vols = wg.terrain.volcanoes(near: eye.x, eye.z, reach: Renderer.landmarkRange)
+        // Nov 15 (08:18:56, flying 1,255 -348: "Still volcanoes in the distance"; Nov 14 12:12:41: "get rid of the volcanoes
+        // in the background... no volcanoes"): no far cones, crater glow or plumes past the loaded ground; a real one in
+        // the middle ring's reach still shows as its ground (FarRing), and the horizon ground keeps its land (HorizonRing).
+        // BS_OLDFARVOLCANOES=1: the impostors as before.
+        Renderer.farVolcanoesDrawn = 0
+        let vols = Renderer.oldFarVolcanoes ? wg.terrain.volcanoes(near: eye.x, eye.z, reach: Renderer.landmarkRange) : []
         let loaded = rd * 16
         let sun = game.sunDir
         let day = game.daylight
@@ -150,6 +157,7 @@ extension Renderer {
             let dist = simd_length(V2(c.x - eye.x, c.z - eye.z))
             // Near: the real terrain shows it (until its centre is past the loaded area). Far: past the landmark range.
             guard dist > loaded + v.r * 0.2, dist < Renderer.landmarkRange else { continue }
+            Renderer.farVolcanoesDrawn += 1
             let haze: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
             // Sun-side shading: the overhead sun alone lit every flank alike (a flat grey cut-out far away, Oct 10
             // playtest); a low key light from the sun's bearing models the cone, warm on the lit side, cool in shadow.

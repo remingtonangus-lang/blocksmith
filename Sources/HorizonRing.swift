@@ -77,7 +77,8 @@ final class HorizonRing {
                 let col = gen.column(x0 + i * s, z0 + j * s)
                 let wet = col.biome.isOcean || col.biome.isRiver
                 let vol = gen.columnData(x0 + i * s, z0 + j * s).vol
-                let vw = vol > 0.05 ? min(1, vol * 3) : 0
+                // (Nov 15: with no far cones drawn, a volcano's cells are land like the rest: not sunk under a cone, not dark rock.)
+                let vw = vol > 0.05 && Renderer.oldFarVolcanoes ? min(1, vol * 3) : 0
                 // A volcano's cells sit up to 30 blocks under the cone and its apron: where its impostor is drawn (LandmarkRender) the
                 // impostor's faces win the depth test instead of z-fighting the coarse ring (the pale, spotted far cone of
                 // the Oct 10 playtest, volcano_far_135623); where it isn't, they still fill in the far side of the cone.

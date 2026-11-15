@@ -141,9 +141,16 @@ enum Townsfolk {
         } else if tag.hasPrefix("citizen") {
             // A Capital citizen (CapitalTown): "citizen@x,y,z" is the office desk they work at.
             v.role = "citizen"; v.locked = true; v.profession = "none"
-            if let at = tag.split(separator: "@").dropFirst().first {
+            // "#x,y,z": the bed that is theirs (an upper floor's resident, Nov 15; claimed at once, so a neighbour's
+            // bed on the floor above or below is never taken first).
+            let parts = tag.split(separator: "#", omittingEmptySubsequences: false)
+            if let at = parts[0].split(separator: "@").dropFirst().first {
                 let c = at.split(separator: ",").compactMap { Int($0) }
                 if c.count == 3 { v.jobSite = c }
+            }
+            if parts.count > 1 {
+                let b = parts[1].split(separator: ",").compactMap { Int($0) }
+                if b.count == 3 { v.bed = b }
             }
         }
         if v.role == nil {
@@ -483,6 +490,7 @@ extension Game {
         if Strangers.talk(self, m) { return true }                       // D20: a stranger's story
         if Saloon.tip(self, m) { return true }                           // D17: the piano player
         if NavalPort.talk(self, m) { return true }                       // D39: the harbourmaster
+        if Countries.talk(self, m) { return true }                       // Nov 15: the customs officer at a border post
         if FrontierSites.talk(self, m) { return true }                   // D48: a homesteader
         if m.town.anger > 0 { TownVoice.speak(self, m, .angry); return true }
         if TownLaw.isHostile(self, m) { TownVoice.speak(self, m, .angry); return true }

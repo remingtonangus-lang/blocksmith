@@ -149,7 +149,7 @@ extension Game {
         if Blocks.has("snow"), world.block(x, y + 1, z) == Blocks.id("snow") { world.setBlockAsync(x, y + 1, z, AIR) }
         else if Blocks.has("snow"), top == Blocks.id("snow") { world.setBlockAsync(x, y, z, AIR) }
         else if Blocks.has("ice"), top == Blocks.id("ice"), world.block(x, y - 1, z) == WATER || isShallowIce(x, y, z) { world.setBlockAsync(x, y, z, WATER) }
-        else if top == Game.seaIceID && top != AIR { world.setBlockAsync(x, y, z, WATER) }
+        else if Game.isSheetIce(top) { world.setBlockAsync(x, y, z, WATER) }
     }
     // Snow or ice on a column whose top is at y that winter put there and spring takes away. The generator's own cover
     // (WorldGen.freeze: wherever the climate is cold enough, biome or not) stays all year: the sweep below melted it
@@ -194,7 +194,7 @@ extension Game {
             let y = Int(c.height[lx + lz * CS])
             guard y > 0 && y < CH - 1 else { continue }
             let top = world.builtBlock(x, y, z)
-            let sheet = top == Game.seaIceID && top != AIR
+            let sheet = Game.isSheetIce(top)
             let capped = top != ice && !sheet && world.builtBlock(x, y + 1, z) == snow
             guard top == ice || sheet || top == snow || capped else { continue }
             let biome = world.gen.column(x, z).biome

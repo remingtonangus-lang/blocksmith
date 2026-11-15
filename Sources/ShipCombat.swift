@@ -368,6 +368,9 @@ extension ShipManager {
     // How far from where a shot strikes its burst can change blocks: a rail slug's bore and its burst, a shell's
     // blast. A Tidebreaker's slug waits only for the ground it strikes (its bowl waits for the rest: CraterJob).
     static let refillWait: Float = 1.5
+    static var blastSpares = -1                           // (a ship's root id its own blast leaves whole: CraterJob, a Tidebreaker's bowl)
+    static var slowContactMs = 0.0, slowContact = ""     // (harness: the slowest hull contact of a commandeered capital)
+    static var probeBuilds = 0, probeMs = 0.0             // (harness: a capital hull's contact probes made again, CapitalShips.hullContact)
     func blastReach(_ sh: Shell) -> Int {
         switch sh.kind {
         case 3: return 8
@@ -483,7 +486,8 @@ extension ShipManager {
     func blast(at c: V3, power: Float, game: Game?, resistCap: Float = .infinity) {
         let reach = power * 2 + 1
         for s in list where c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
-            && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach && s.root.trainCar == nil {
+            && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach && s.root.trainCar == nil
+            && (ShipManager.blastSpares < 0 || s.root.id != ShipManager.blastSpares) {
             let lc = s.toLocal(c)
             defer { if s.kinematic && s.parent == nil { wheelBlast(s, lc, power: power); Explosion.lap("ships: wheels") } }     // P511: big wheels wear (after the blast's own cells)
             let g = s.grid
@@ -502,8 +506,21 @@ extension ShipManager {
                     if p.x < 0 || p.y < 0 || p.z < 0 || p.x >= gxF || p.y >= gyF || p.z >= gzF {
                         if (p.x < 0 && d.x <= 0) || (p.x >= gxF && d.x >= 0) || (p.y < 0 && d.y <= 0) || (p.y >= gyF && d.y >= 0)
                             || (p.z < 0 && d.z <= 0) || (p.z >= gzF && d.z >= 0) { break }
-                        p += d * 0.3
-                        intensity -= 0.225
+                        // (Nov 15, questcheck maingun: a 5 x 5 x 5 turret 20 blocks off took 3.2 ms of the impact frame,
+                        // its 1,352 rays stepping 0.3 at a time through the open round it. Outside the grid a ray goes
+                        // straight to the step that would first be inside it, or stops if its line never enters:
+                        // the same steps, the same cells.)
+                        var tIn: Float = 0, tOut: Float = .greatestFiniteMagnitude
+                        @inline(__always) func slab(_ o: Float, _ v: Float, _ hi: Float) {
+                            if abs(v) < 1e-6 { if o < 0 || o >= hi { tOut = -1 }; return }
+                            let a = (0 - o) / v, b = (hi - o) / v
+                            tIn = max(tIn, min(a, b)); tOut = min(tOut, max(a, b))
+                        }
+                        slab(p.x, d.x, gxF); slab(p.y, d.y, gyF); slab(p.z, d.z, gzF)
+                        if tOut < tIn || tOut <= 0 { break }
+                        let k = max(1, Int((tIn / 0.3).rounded(.up)))
+                        p += d * (0.3 * Float(k))
+                        intensity -= 0.225 * Float(k)
                         continue
                     }
                     let cell = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
