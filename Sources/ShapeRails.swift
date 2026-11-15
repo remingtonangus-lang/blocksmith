@@ -286,7 +286,20 @@ enum ShapeRails {
             SIMD3(Float(c.x) + 0.5, Float(c.y) + (bedTop(ctx, c.x, c.y, c.z) ?? 0), Float(c.z) + 0.5)
         }
         let ci = back.count
-        let sm = smoothed(raw, only: (ci - 1)...(ci + 1))
+        // (ledger 140: a bed column the field did not shape, a deck cell, leaves its rail up to half a block off its
+        // neighbours' grade: a V in the rails. The grade is gentle, so each height is held within an eighth of the
+        // middle of the five round it, then eased once.)
+        var lev = raw
+        if !oldSway && raw.count >= 5 {
+            for i in 2..<(raw.count - 2) {
+                var five = [raw[i - 2].y, raw[i - 1].y, raw[i].y, raw[i + 1].y, raw[i + 2].y]
+                five.sort()
+                lev[i].y = min(max(raw[i].y, five[2] - 0.125), five[2] + 0.125)
+            }
+            let held = lev
+            for i in 1..<(raw.count - 1) { lev[i].y = (held[i - 1].y + 2 * held[i].y + held[i + 1].y) * 0.25 }
+        }
+        let sm = smoothed(lev, only: (ci - 1)...(ci + 1))
         func dir(_ a: Int, _ b: Int) -> SIMD3<Float> {
             let d = sm[b] - sm[a], l = simd_length(d)
             return l > 1e-4 ? d / l : SIMD3(1, 0, 0)
