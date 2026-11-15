@@ -551,7 +551,7 @@ enum TreeProbeCheck {
             var bodyLogs = 0
             if let s = w.ships.list.last(where: { Felling.isFelled($0) }) { bodyLogs = s.grid.blocks.filter { treeT[Int($0)] }.count }
             let timber = post.allSatisfy { w.builtBlock($0.x, $0.y, $0.z) == log } && w.builtBlock(beside.x, beside.y, beside.z) == log
-            let drop = Loot.drops(cut, ItemStack.empty).first.map { Items.key($0.item) } ?? "nothing"
+            let drop = Mining.drops(cut, ItemStack.empty).first.map { Items.key($0.item) } ?? "nothing"
             check(Felling.felled == n0 + 1 && bodies == 1 && left == 0 && bodyLogs == cells.count - 1 && timber && drop == Blocks.key(Blocks.groupBase[Int(log)]),
                   "fellwhole: the spruce struck \(name): the whole tree comes down as one body (\(bodies) body, \(bodyLogs) of its \(cells.count - 1) other logs in it, \(left) left standing, no stump), his timber beside it stays (\(timber ? "yes" : "no")), the struck log drops \(drop)")
         }
