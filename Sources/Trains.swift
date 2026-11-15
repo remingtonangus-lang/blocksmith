@@ -399,6 +399,7 @@ enum Trains {
     // onto a longer track: the lines and links it runs, the next ones added ahead and those well behind dropped. Its
     // timetable is the longer track's, taken up at the place and heading it has, so it runs on without a jolt and stops
     // at the stations ahead; the line it left builds no train of its own while this one is out.
+    static let oldLinkWarm = ProcessInfo.processInfo.environment["BS_OLDLINKWARM"] == "1"
     static var throughOut: [Int64: Int64] = [:]       // a line's id -> the through train out on it
     static var nextThrough: Int64 = 1 << 61
     static var splices = 0                            // (checks)
@@ -409,6 +410,21 @@ enum Trains {
         let s = tr.lastS, d = now(tr).dir
         var parts = t.parts
         var shift = 0                                  // cells the new track starts east (+) or west (-) of the old
+        // Ledger 135: the track on is asked for 1,500 cells before the train needs it (a run-on link takes seconds to
+        // plan, on a worker: asked for at 200 cells, a fast train was at its line's end before the plan was, and turned
+        // back at an end that runs on). BS_OLDLINKWARM=1: asked for at 200 only.
+        if !Trains.oldLinkWarm {
+            if d > 0 && Float(n - 1) - s < 1500 && Float(n - 1) - s >= 200 {
+                let last = parts[parts.count - 1]
+                if Railways.isLink(last.id) { _ = Railways.linkTarget(gen, last, wait: false) } else {
+                    let (row, st) = Railways.rowStretch(last.id)
+                    if let lk = Railways.link(gen, row: row, stretch: st, wait: false) { _ = Railways.linkTarget(gen, lk, wait: false) }
+                }
+            } else if d < 0 && s < 1500 && s >= 200 {
+                let (row, st) = Railways.rowStretch(parts[0].id)
+                if Railways.isLink(parts[0].id) { _ = Railways.line(gen, row: row, stretch: st, wait: false) } else { _ = Railways.incoming(gen, row, st, wait: false) }
+            }
+        }
         if d > 0 && Float(n - 1) - s < 200 {
             let last = parts[parts.count - 1]
             if Railways.isLink(last.id) {
