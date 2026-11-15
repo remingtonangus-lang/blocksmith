@@ -11,7 +11,8 @@ enum BrushCheck {
         let pos0 = p.pos, fly0 = p.flying, yaw0 = p.yaw, my0 = p.moveYaw, ml0 = p.moveLook
         defer { p.pos = pos0; p.flying = fly0; p.yaw = yaw0; p.moveYaw = my0; p.moveLook = ml0; p.vel = .zero }
         guard Blocks.has("jungle_log"), Blocks.has("jungle_leaves") else { check(false, "brush: no jungle log or leaves"); return }
-        let log = Blocks.id("jungle_log"), leaf = Blocks.id("jungle_leaves")
+        // (a tree's own wood: timber he sets down is met as a whole block, TreeWood.plainTimber)
+        let log = TreeWood.of(Blocks.id("jungle_log")), leaf = Blocks.id("jungle_leaves")
         let cx = Int(floor(pos0.x)) / 512 * 512 - 2600, cz = Int(floor(pos0.z)) / 512 * 512 + 2600
         _ = w.loadSync(center: V3(Float(cx), 0, Float(cz)), radius: 2)
         let y = w.topY(cx, cz) + 1

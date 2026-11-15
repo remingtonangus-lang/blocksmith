@@ -88,7 +88,8 @@ enum Mesher {
     #endif
     // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
     static let detailT: [Bool] = (0..<Blocks.count).map { i in
-        ShapeClass.kind[i] == .trunk || ShapeClass.kind[i] == .organic || i != 0 && i == Int(pointedDrip)    // (P338: ShapeSpikes)
+        ShapeClass.kind[i] == .trunk
+            || ShapeClass.kind[i] == .organic || i != 0 && i == Int(pointedDrip)    // (P338: ShapeSpikes)
             || Blocks.has("amethyst_cluster") && i == Int(Blocks.id("amethyst_cluster"))                      // (P436: crystals)
             || ShapeRails.isRail[i]                                                                           // (P337: ShapeRails)
     }
@@ -133,6 +134,7 @@ enum Mesher {
 
     // P508: built cubes on the field's ground get a foot down into it (BS_FEET=0 leaves them off: before/after renders).
     static let blockFeet = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
+    static let oldFootDeep = ProcessInfo.processInfo.environment["BS_OLDFOOTDEEP"] == "1"
     // Ledger 89 (trailer item 5, the snow base gate: "green and black striped band under the deck"): a foot's lower
     // corners carried v = 32 in the vertex's 5-bit v, which carried into the layer field: the foot drew the texture
     // registered after the block's own (snow -> cactus side) wherever the ground beside a built block dips (a blast
@@ -1469,8 +1471,15 @@ enum Mesher {
                 // its fringe again under the block: a turf block's foot is its bottom, the dirt, untinted.)
                 let side0 = Int(texT[ab * 6 + f]), bottom = Int(texT[ab * 6 + 3])
                 let turf = !Mesher.oldFootV && natT[ab] && side0 != bottom && side0 != Int(texT[ab * 6 + 2])
-                let layer = turf ? bottom : side0
-                let tintF = turf ? (tintB == 3 ? 0 : tintB) : tintV, overF = !turf && tintB == 3
+                // Ledger 159 (Nov 15 08:41:36, planks over a corner he had dug: "I place a block there, a block under it
+                // and on top forms at once. When I break it, they both go away"; 08:44:03, "I can't place a block in
+                // this gap without it placing two"): beside a pit (the ground beside under half the cell, or dug away)
+                // the foot is a whole cell of the block's own side, a second block to look at, gone with the first.
+                // There the foot is what stands under the block, the ground of that cell, in its own earth.
+                // BS_OLDFOOTDEEP=1: as before.
+                let deep = gTop < 0.5 && !Mesher.oldFootDeep
+                let layer = deep ? Int(texT[Int(R[i]) * 6 + 3]) : (turf ? bottom : side0)
+                let tintF = deep ? 0 : (turf ? (tintB == 3 ? 0 : tintB) : tintV), overF = !deep && !turf && tintB == 3
                 for k in 0..<4 {
                     let ci = (f * 4 + k) * 3
                     let px = CT[ci] * 16, top = CT[ci + 1] == 1, pz = CT[ci + 2] * 16

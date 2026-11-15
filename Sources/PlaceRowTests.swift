@@ -142,5 +142,128 @@ enum PlaceRowTests {
         let gone = w.builtBlock(rx, H + 1, rz) == AIR && !w.groundAt(rx, H + 1, rz)
         check(Game.oldRockLump ? true : (rockBuilt && dirtGround && kinds && gone),
               "placerow (8): placed stone is a built cube (\(rockBuilt)), placed earth joins the ground (\(dirtGround)); stone and basalt are rock, sand and earth loose (\(kinds)); the cube broken leaves nothing (\(gone))")
+        // (9) ledger 159: a corner cell between two built blocks, its ground dug to a slope
+        notch(g, w, H, planks, check: check)
+        // (11) ledger 159: the target hold (AimAssist.sticky) never keeps a block's top while he aims past its edge
+        hold(g, w, H, planks, check: check)
+        // (10) ledger 160: the bowl a blow leaves closes round a block put back in it; a dug cell beside it stays open
+        back(g, w, H, planks, check: check)
+    }
+    static func notch(_ g: Game, _ w: World, _ H: Int, _ planks: BlockID, check: (Bool, String) -> Void) {
+        let nx = -8, nz = 8                                // the corner cell (nx, H, nz); planks west and north of it
+        func sink(_ x: Int, _ z: Int) {
+            w.editBatch {
+                w.fieldSphere(V3(Float(x) + 0.5, Float(H) + 0.5, Float(z) + 0.5), radius: 0.56, carve: true, material: nil, remesh: false)
+                w.placeCube = true; w.setBlock(x, H, z, planks); w.placeCube = false
+            }
+        }
+        for (x, z) in [(nx - 1, nz - 1), (nx, nz - 1), (nx + 1, nz - 1), (nx - 1, nz), (nx - 1, nz + 1)] { sink(x, z) }
+        // the pit he dug beside them: Creative blows on the cells south-east of the corner, and one on the corner itself
+        g.player.pitch = -Float.pi / 2
+        for (x, y, z) in [(nx + 1, H, nz + 1), (nx + 1, H - 1, nz + 1), (nx, H, nz + 1), (nx + 1, H, nz), (nx, H, nz)] {
+            g.breakAndShape(IVec3(x, y, z), w.block(x, y, z), at: V3(Float(x) + 0.5, Float(y) + 0.8, Float(z) + 0.5), drop: false)
+        }
+        var tally: [String: Int] = [:], n = 0, inCorner = 0, over = 0
+        let p = g.player
+        p.flying = true
+        for (ex, ez) in [(Float(nx) + 2.6, Float(nz) + 2.2), (Float(nx) + 0.5, Float(nz) + 3.0), (Float(nx) + 3.0, Float(nz) + 0.5), (Float(nx) + 1.6, Float(nz) + 1.6)] {
+            for iu in 0..<5 { for iv in 0..<5 { for h in 0..<3 {
+                let q = V3(Float(nx) + 0.1 + Float(iu) * 0.2, Float(H) + 0.1 + Float(h) * 0.35, Float(nz) + 0.1 + Float(iv) * 0.2)
+                p.pos = V3(ex, Float(H) + 1.0, ez)
+                let dv = q - p.eye
+                p.yaw = atan2f(-dv.x, -dv.z); p.pitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
+                guard let t = w.raycast(p.eye, p.look, maxDist: 6) else { continue }
+                g.target = t
+                g.aimGround()
+                guard let tt = g.target, let tg = g.targetGround, tg.cell == tt.hit else { continue }
+                // (aims whose surface point lies in the corner cell's column)
+                guard Int(floor(tg.at.x)) == nx, Int(floor(tg.at.z)) == nz else { continue }
+                let at = g.placeCell(tt, for: planks)
+                n += 1
+                if at == IVec3(nx, H, nz) { inCorner += 1 }
+                if at == IVec3(nx, H + 1, nz) { over += 1 }
+                tally["\(at.x - nx),\(at.y - H),\(at.z - nz)", default: 0] += 1
+                if ProcessInfo.processInfo.environment["BS_NOTCHTRACE"] == "1" {
+                    print(String(format: "  notch: surface %.2f %.2f %.2f n %.2f %.2f %.2f hit %d,%d,%d axis %d,%d,%d -> %d,%d,%d", tg.at.x - Float(nx), tg.at.y - Float(H), tg.at.z - Float(nz), tg.normal.x, tg.normal.y, tg.normal.z, tt.hit.x - nx, tt.hit.y - H, tt.hit.z - nz, tt.normal.x, tt.normal.y, tt.normal.z, at.x - nx, at.y - H, at.z - nz))
+                }
+            } } }
+        }
+        g.target = nil; g.targetGround = nil
+        check(Game.oldNotch ? true : (n >= 20 && inCorner == n),
+              "placerow (9): aimed at the dug ground of a corner cell between two built blocks, the block takes that cell: \(inCorner) of \(n) aims (\(over) went over it; cells from the corner: \(tally.sorted { $0.value > $1.value }.map { "\($0.key) x\($0.value)" }.joined(separator: ", ")))")
+    }
+    static func back(_ g: Game, _ w: World, _ H: Int, _ planks: BlockID, check: (Bool, String) -> Void) {
+        func surf(_ x: Float, _ z: Float) -> Float {
+            let o = V3(x, Float(H) + 3, z)
+            if w.fieldDensity(at: o) > 0 { return o.y }
+            return w.fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 8).map { $0.at.y } ?? -1
+        }
+        // the ring: eight points three quarters of a block from the cell's middle
+        func ring(_ x: Int, _ z: Int, skip: (Int, Int)? = nil) -> [Float] {
+            var out: [Float] = []
+            for sz in -1...1 { for sx in -1...1 where (sx != 0 || sz != 0) && !(skip.map { $0.0 == sx && $0.1 == sz } ?? false) {
+                out.append(surf(Float(x) + 0.5 + Float(sx) * 0.75, Float(z) + 0.5 + Float(sz) * 0.75))
+            } }
+            return out
+        }
+        func blow(_ x: Int, _ z: Int) {
+            g.breakAndShape(IVec3(x, H, z), w.block(x, H, z), at: V3(Float(x) + 0.5, Float(H) + 0.9, Float(z) + 0.5), drop: false)
+        }
+        func put(_ x: Int, _ z: Int) -> Int {
+            var n = 0
+            w.editBatch {
+                if w.groundAt(x, H, z) { w.fieldSphere(V3(Float(x) + 0.5, Float(H) + 0.5, Float(z) + 0.5), radius: 0.56, carve: true, material: nil, remesh: false) }
+                w.placeCube = true; w.setBlock(x, H, z, planks); w.placeCube = false
+                n = w.groundBack(x, H, z, planks)
+            }
+            return n
+        }
+        g.player.pitch = -Float.pi / 2
+        // (a) one blow, the block put back
+        let ax = 8, az = -6
+        let a0 = ring(ax, az)
+        blow(ax, az)
+        let a1 = ring(ax, az)
+        let an = put(ax, az)
+        let a2 = ring(ax, az)
+        let dug = zip(a0, a1).map { $0 - $1 }.max() ?? 0, left = zip(a0, a2).map { $0 - $1 }.max() ?? 0, over = zip(a0, a2).map { $1 - $0 }.max() ?? 0
+        check(World.oldBack ? true : (dug > 0.2 && left < 0.15 && over < 0.15),
+              String(format: "placerow (10a): a blow rounds the ground beside its cell down by up to %.2f; a block put back in the cell has the ground stand up to it again (now %.2f under where it was at worst, %.2f over; %d samples raised)", dug, left, over, an))
+        // (b) two cells dug side by side (a trench), the block put in one: the other stays open
+        let bx = 8, bz = 0
+        blow(bx, bz); blow(bx + 1, bz)
+        let open0 = surf(Float(bx) + 1.5, Float(bz) + 0.5)
+        _ = put(bx, bz)
+        let open1 = surf(Float(bx) + 1.5, Float(bz) + 0.5)
+        let far = ring(bx, bz, skip: nil)
+        check(World.oldBack ? true : (open1 - open0 < 0.1 && open1 < Float(H) + 0.45),
+              String(format: "placerow (10b): the cell he dug beside it stays open (its middle %.2f under the level before the block, %.2f after; the ground on the block's other sides %.2f under at worst)", Float(H) + 1 - open0, Float(H) + 1 - open1, Float(H) + 1 - (far.min() ?? 0)))
+    }
+    static func hold(_ g: Game, _ w: World, _ H: Int, _ planks: BlockID, check: (Bool, String) -> Void) {
+        // a plank at (hx, H + 1, hz), a second one two cells on and one down (the far wall of a gap); the aim passes a
+        // twelfth of a block past the first one's edge, down into the gap, onto the second
+        let hx = -10, hz = -2
+        w.setBlock(hx, H + 1, hz, planks); w.setBlock(hx + 2, H + 1, hz, planks)
+        let p = g.player
+        p.flying = true
+        p.pos = V3(Float(hx) - 1.0, Float(H) + 1.6, Float(hz) + 0.5)
+        p.pos.y += Float(H) + 3.24 - p.eye.y                                    // (the eye at H + 3.24: 0.08 over the first plank's far edge)
+        let q = V3(Float(hx) + 2.0, Float(H) + 1.5, Float(hz) + 0.5)           // on the far plank's near side
+        let dv = q - p.eye
+        p.yaw = atan2f(-dv.x, -dv.z); p.pitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
+        let ray = w.raycast(p.eye, p.look, maxDist: 6)
+        let first = (hit: IVec3(hx, H + 1, hz), normal: IVec3(0, 1, 0))
+        let pass = World.rayBox(p.eye, p.look, V3(Float(hx) - 0.12, Float(H + 1) - 0.12, Float(hz) - 0.12), V3(Float(hx) + 1.12, Float(H + 2) + 0.12, Float(hz) + 1.12)) != nil
+        let mining0 = g.mining
+        g.mining = nil
+        AimAssist.last = first
+        let free = AimAssist.sticky(g, ray, reach: 6)
+        g.mining = first.hit
+        AimAssist.last = first
+        let held = AimAssist.sticky(g, ray, reach: 6)
+        g.mining = mining0; AimAssist.last = nil
+        let on = Settings.shared.aimAssist && PadManager.shared.usingPad
+        check(AimAssist.oldSticky || !on ? true : (ray?.hit == IVec3(hx + 2, H + 1, hz) && pass && free?.hit == ray?.hit && held?.hit == first.hit),
+              "placerow (11): aimed past a block's edge into a gap (within an eighth of a block of it: \(pass)), the target is what the aim meets (\(free.map { "\($0.hit.x - hx),\($0.hit.y - H - 1),\($0.hit.z - hz)" } ?? "nil"), wanted 2,0,0), not the block before; while that block is being mined the hold keeps it (\(held.map { "\($0.hit.x - hx),\($0.hit.y - H - 1),\($0.hit.z - hz)" } ?? "nil"), wanted 0,0,0); assist on: \(on)")
     }
 }

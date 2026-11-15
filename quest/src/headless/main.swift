@@ -3147,9 +3147,15 @@ if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled
     Felling.keep = true                                        // (these look at the lying body: Nov 15's gathering off)
     TreeProbeCheck.fell(game, check)
     TreeProbeCheck.fellReal(game, check)
-    TreeProbeCheck.fellHalf(game, check)
-    TreeProbeCheck.fellNov13(game, check)
-    TreeProbeCheck.fellGhosts(game, check)
+    // (the rules before TreeWood: a trunk on three feet of four, a stump left under a cut, its ghosts)
+    // (they stand on trees of plain logs drawn round: with timber one plain log, only under BS_OLDTIMBER=1)
+    if TreeWood.plainTimber { print("fellcheck: the checks of the rules before tree wood are left out (BS_OLDTIMBER=1 runs them)") }
+    else { TreeWood.asBefore {
+        TreeProbeCheck.fellHalf(game, check)
+        TreeProbeCheck.fellNov13(game, check)
+        TreeProbeCheck.fellGhosts(game, check)
+    } }
+    TreeProbeCheck.fellWhole(game, check)
     Felling.keep = Felling.oldKeep
     TreeProbeCheck.fellGather(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
