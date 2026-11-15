@@ -689,6 +689,11 @@ extension Game {
         let centre = s.toWorld(V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5)
 
         // Breaking.
+        if breakHeld && !Felling.keep && Felling.isFelled(s) {
+            // Nov 15: a lying felled tree isn't chopped log by log: struck, it is gathered whole (Felling.swift).
+            if breakNow && !Felling.falls.contains(where: { $0.ship === s.root }) { gatherFelled(s.root); swing = 1 }
+            return true
+        }
         if breakHeld {
             // P268 (c): the parts that hold a craft up (helm, engines, balloons, rotors, propellers) can't be broken off
             // while it is in the air with you: it would come down. On the ground or afloat every block comes off.

@@ -6,6 +6,7 @@ enum Nov14EveningChecks {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         townSeats(check)
         facingStates(check)
+        furniture(check)
         treeCatalogue(check)
         hullChip(g, check)
         check(Game.travelNews("Fort Red Station marked on the map") && Game.travelNews("You found the Fort & Ash Rail Road: 2 stations, marked on your map")
@@ -35,6 +36,30 @@ enum Nov14EveningChecks {
         w.ships.chip(fp, 1e7)
         check(fp.hullBlocks >= fp.initialBlocks * 9 / 10 - 1 && fp.blockCount == blocks0,
               "Nov 14 hulls: small arms alone take at most a tenth of a hull (\(fp.hullBlocks) of \(fp.initialBlocks) left after a flood of rounds)")
+    }
+
+    // 21:17 ("we should add desks to the game", "Different types of tables"): every wood with seats has a table, a round
+    // table, a side table and a desk, each with a recipe; a town's desk has its knee space toward the chair (its back
+    // panel away from it) for every lot facing.
+    static func furniture(_ check: (Bool, String) -> Void) {
+        var missing: [String] = [], woods = 0
+        let made = Set(Recipes.all.map { Items.key($0.result.item) })
+        for w in BlockRegistry.doorWoods where Blocks.has("\(w)_chair") {
+            woods += 1
+            for k in ["table", "round_table", "side_table", "desk"] where !Blocks.has("\(w)_\(k)") || !made.contains("\(w)_\(k)") { missing.append("\(w)_\(k)") }
+        }
+        var wrong = 0
+        let worldDir = [V2(0, -1), V2(0, 1), V2(-1, 0), V2(1, 0)]
+        for face in 0..<4 {
+            let l = Village.Lot(kind: .office, ax: 0, az: 0, face: face, w: 7, d: 6, y: 0, seed: 1, job: "")
+            guard let d = Village.LB(l: l).desk(Village.mats(.plains), front: 0) else { wrong += 1; continue }
+            let panel = Blocks.boxes[Int(d)].filter { $0.y0 == 5 }
+            guard let p = panel.first else { wrong += 1; continue }
+            let c = V2(Float(Int(p.x0) + Int(p.x1)) / 2 - 8, Float(Int(p.z0) + Int(p.z1)) / 2 - 8)
+            if simd_dot(simd_normalize(c), worldDir[Village.dir(l, 0)]) > -0.9 { wrong += 1 }
+        }
+        check(missing.isEmpty && woods > 5 && wrong == 0,
+              "Nov 14 furniture: \(woods) woods each have a table, round table, side table and desk with recipes (\(missing.count) missing\(missing.isEmpty ? "" : ": " + missing.prefix(4).joined(separator: ", "))); a town desk faces its chair for every lot facing (\(wrong) wrong)")
     }
 
     // The chair's class: every block with four facings has them in a row (state k = its plain state + k), as placing,

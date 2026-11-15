@@ -493,7 +493,8 @@ extension Village {
         sign(&w, b, u: du, dy: 2, v: -1, lines: ["", "JAIL", "Sheriff's Office", ""])
         sign(&w, b, u: l.w - 2, dy: 1, v: -1, lines: ["NOTICE", "No guns drawn", "in town", "- The Law"])
         // The front room: the sheriff's desk with a lamp and his chair, a light, the WANTED board, the strongbox.
-        let desk = blk("stripped_\(Blocks.key(m.log).replacingOccurrences(of: "stripped_", with: ""))", m.planks)
+        // (Nov 14 evening: a real desk, its knee space toward his chair; was a stripped log)
+        let desk = b.desk(m, front: 0) ?? blk("stripped_\(Blocks.key(m.log).replacingOccurrences(of: "stripped_", with: ""))", m.planks)
         b.set(&w, 1, 0, 1, desk)
         if du > 2 { b.set(&w, 2, 0, 1, desk) }
         b.set(&w, 1, 1, 1, blk("lantern", AIR))

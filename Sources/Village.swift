@@ -636,6 +636,18 @@ enum Village {
             let s = k == 0 ? n : "\(n)[\(["north", "south", "west", "east"][k])]"
             return Blocks.has(s) ? Blocks.id(s) : Blocks.id(n)
         }
+        // Nov 14 evening: a table, round table or side table in the town's wood (nil: none, as before); a desk with its
+        // knee space toward a local direction.
+        func furniture(_ m: Mats, _ kind: String) -> BlockID? {
+            let fk = Blocks.key(Blocks.groupBase[Int(m.fence)])
+            let w = fk.hasSuffix("_fence") ? String(fk.dropLast(6)) : "spruce"
+            let n = Blocks.has("\(w)_\(kind)") ? "\(w)_\(kind)" : "spruce_\(kind)"
+            return Blocks.has(n) ? Blocks.id(n) : nil
+        }
+        func desk(_ m: Mats, front local: Int) -> BlockID? {
+            guard let d = furniture(m, "desk") else { return nil }
+            return d + BlockID(Village.dir(l, local))                 // (its facings in a row: Seats.swift)
+        }
     }
 
     static func foundation(_ w: inout StructWriter, _ b: LB, _ m: Mats) {

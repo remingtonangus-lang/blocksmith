@@ -3089,11 +3089,14 @@ if CommandLine.arguments.contains("--treeprobe") {             // P478: logs han
     print(failures == 0 ? "treeprobe: all checks passed" : "treeprobe: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled tree into its neighbour; standing on it
+    Felling.keep = true                                        // (these look at the lying body: Nov 15's gathering off)
     TreeProbeCheck.fell(game, check)
     TreeProbeCheck.fellReal(game, check)
     TreeProbeCheck.fellHalf(game, check)
     TreeProbeCheck.fellNov13(game, check)
     TreeProbeCheck.fellGhosts(game, check)
+    Felling.keep = Felling.oldKeep
+    TreeProbeCheck.fellGather(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--jetplate") {             // P478: a jetpack strapped onto a chest piece
