@@ -129,7 +129,9 @@ extension World {
             let mo = V3(mx, top + 0.6, mz)
             var mid: Float = -1
             if fieldDensity(at: mo) > 0 { mid = top + 0.6 } else if let hit = fieldRaySegment(mo, V3(0, -1, 0), from: 0, to: 2.2) { mid = hit.at.y }
-            guard mid >= min(top, hh) - 0.5 else { continue }
+            // (the level further out can itself be rounded down by the blow that dug the cell, so it alone cannot tell a
+            // dug cell: a cell with no ground left over a fifth of its height is open, whatever stands beyond it)
+            guard mid >= min(top, hh) - 0.5, mid >= fy + 0.2 else { continue }
             ref[(sx + 1) + (sz + 1) * 3] = hh; any = true
         } }
         guard any else { return 0 }
