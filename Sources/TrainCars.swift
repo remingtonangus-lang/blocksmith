@@ -338,6 +338,12 @@ extension Trains {
                 p.append(box(-6, 5, e, 4.5, 10.6, 0.5, lower, 7)); p.append(box(1.5, 5, e, 4.5, 10.6, 0.5, lower, 7))
                 p.append(box(-1.5, 13, e, 3, 2.6, 0.5, lower, 7))
             }
+            if !TrainHulls.oldGangway {                                             // ledger 141: the gangway plates and their rails
+                for (z0, z1) in [(-29.6, -28), (28, 29.6)] as [(Float, Float)] {
+                    p.append(box(-2, 4.6, z0, 4, 0.4, z1 - z0, iron, 8))
+                    for x: Float in [-2, 1.7] { p.append(box(x, 5, z0, 0.3, 3.6, z1 - z0, iron, 8)) }
+                }
+            }
             p.append(box(-6.3, 15.6, -28.2, 12.6, 0.8, 56.4, roof, 7))
             p.append(box(-3, 16.4, -27, 6, 0.8, 54, roof, 7))                      // the clerestory
             for z in stride(from: Float(-24), through: 20, by: 7) {               // the seats, an aisle between

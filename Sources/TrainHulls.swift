@@ -44,6 +44,10 @@ enum TrainHulls {
     static let variants = [Trains.loco, Trains.tender, Trains.coach, Trains.express, Trains.boxcar, Trains.tankWagon, Trains.flatcar,
                            Trains.troopCar, Trains.armouredLoco, Trains.gunCar]
 
+    static let oldGangway = ProcessInfo.processInfo.environment["BS_OLDGANGWAY"] == "1"
+    // The gangway cells past each end of a walk-in car's body (ledger 141).
+    static func ends(_ v: Int) -> Int { !oldGangway && (v == Trains.coach || v == Trains.troopCar) ? 1 : 0 }
+
     // A car's cells: 3 across (x, the model's -1.5 ... 1.5), its length (z, the model's front at 0), rows up from the
     // rail's top. Index x + z * 3 + y * 3 * sz.
     static func cells(_ v: Int) -> (sz: Int, sy: Int, codes: [UInt16]) {
@@ -65,19 +69,27 @@ enum TrainHulls {
         case Trains.coach, Trains.troopCar:
             // Floor 1.25 over the underframe, sides the full height, an end at each end with its doorway in the middle,
             // the roof over it all (the coach's on top of the fourth row, the troop car's in it).
-            solidTo(1, z: 0...(sz - 1))
+            // Ledger 141 (Remington, Nov 14 20:52, in a coach: "No, I can't move from here into the next section"):
+            // past each end's doorway the floor runs on one cell as a gangway plate (the middle third, at the floor's
+            // height), over the coupling: the 0.8 of a block between two cars was open down to the track, and he
+            // dropped into it at the door. BS_OLDGANGWAY=1 = before.
+            let e = ends(v), n = sz + 2 * e, rows = v == Trains.coach ? 5 : 4
+            var cc = [UInt16](repeating: 0, count: 3 * n * rows)
+            func put(_ x: Int, _ y: Int, _ z: Int, _ code: UInt16) { cc[x + (z + e) * 3 + y * 3 * n] = code }
             for z in 0..<sz {
+                for x in 0...2 { put(x, 0, z, slab | 16) }
                 let end: UInt16 = z == 0 ? N : (z == sz - 1 ? S : 0), lintel: UInt16 = z == 0 ? LN : (z == sz - 1 ? LS : 0)
                 let roof: UInt16 = v == Trains.troopCar ? R : 0
                 for y in 1...3 {
                     let fl: UInt16 = y == 1 ? F : 0, rf: UInt16 = y == 3 ? roof : 0
-                    set(0, y, z, fl | W | end | rf)
-                    set(2, y, z, fl | E | end | rf)
-                    set(1, y, z, fl | (y == 3 ? lintel : 0) | rf)
+                    put(0, y, z, fl | W | end | rf)
+                    put(2, y, z, fl | E | end | rf)
+                    put(1, y, z, fl | (y == 3 ? lintel : 0) | rf)
                 }
-                if v == Trains.coach { for x in 0...2 { set(x, 4, z, slab | 2) } }
+                if v == Trains.coach { for x in 0...2 { put(x, 4, z, slab | 2) } }
             }
-            return (sz, v == Trains.coach ? 5 : 4, Array(c[0..<(3 * sz * (v == Trains.coach ? 5 : 4))]))
+            if e > 0 { put(1, 1, -1, F); put(1, 1, sz, F) }
+            return (n, rows, cc)
         case Trains.loco:
             // The boiler down the middle to 3.9 with the running boards each side of it (1.95); the cab (the model's
             // 2 ... 5 blocks back of the middle) on its footplate, sides and roof, open behind onto the tender.
@@ -241,7 +253,8 @@ enum TrainHulls {
     static func roofPoint(_ m: Mob, near p: V3) -> V3? {
         guard let s = hull(m) else { return nil }
         let l = s.toLocal(p)
-        let z = max(0, min(s.grid.sz - 1, Int(floor(l.z))))
+        let e = ends(m.variant)                                   // (not onto a gangway plate)
+        let z = max(e, min(s.grid.sz - 1 - e, Int(floor(l.z))))
         for y in stride(from: s.grid.sy - 1, through: 0, by: -1) {
             let b = s.grid.get(1, y, z)
             guard Blocks.collide[Int(b)] else { continue }
@@ -398,6 +411,28 @@ enum TrainHullCheck {
         frames(2, MoveInput())
         let off = simd_length(p.pos - seatNow)
         check(free && off.isFinite && off < 60, String(format: "ledger 138: last whole off the train, non-finite as he boards: he is %.1f blocks from the coach (at %.0f %.0f %.0f)", off, p.pos.x, p.pos.y, p.pos.z))
+        // Ledger 141: from one coach's aisle, through its end door, over the coupling and into the next coach, walking.
+        let coaches = tr.cars.filter { $0.variant == Trains.coach }
+        if coaches.count >= 2, let sa = TrainHulls.hull(coaches[0]), let sb = TrainHulls.hull(coaches[1]) {
+            w.ships.aboard = nil
+            p.flying = false
+            p.pos = Trains.seat(coaches[0]) + V3(0, 0.05, 0); p.vel = .zero
+            frames(6, MoveInput())
+            var go = MoveInput(); go.forward = 1
+            var crossed = false, took = 0, lowest: Float = 9
+            for k in 0..<(30 * 12) {
+                let d = coaches[1].pos - p.pos
+                p.yaw = atan2f(-d.x, -d.z)
+                frames(1, go)
+                let lb = sb.toLocal(p.pos)
+                lowest = min(lowest, min(lb.y, sa.toLocal(p.pos).y))
+                if lb.x > 0.2 && lb.x < 2.8 && lb.z > 2 && lb.z < Float(sb.grid.sz) - 2 && lb.y > 1.15 && lb.y < 1.6 { crossed = true; took = k + 1; break }
+            }
+            let la = sa.toLocal(p.pos)
+            let what = String(format: "ledger 141: he walks from one coach through the end doors into the next (%@ in %.1f s, never lower than %.2f over the rail; ends in the first at %.2f %.2f %.2f)",
+                              crossed ? "there" : "not there", Float(took) / 30, lowest, la.x, la.y, la.z)
+            if TrainHulls.oldGangway { print("rail: (before) " + what) } else { check(crossed && lowest > 1.1, what) }
+        }
         // Down from the engine: free in its cab.
         if let eng = tr.cars.first(where: { Trains.isEngine($0) && $0.variant == Trains.loco }), let es = TrainHulls.hull(eng) {
             _ = Trains.use(g, eng)
