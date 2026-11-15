@@ -55,7 +55,38 @@ enum RailwayTests {
     // its diagonal when drawn and run); the plans keep their rules; a line whose old way lies on ground saved before
     // N12 keeps that way exactly (the gate); a train's heading turns at most a few tens of degrees a block (it was 90
     // in one cell at every dog-leg) and it runs the timetable's pace along the smoothed line, diagonal or straight.
+    // Ledger 140: straight legs at five angles, rastered as the plans raster them: the smoothed centres keep within a
+    // quarter of a block of the true line and the heading swings under 3 degrees a cell (four plain passes swung it
+    // 8.6 degrees a cell: the sway); a right-angle turn eased at radius 5 keeps within a block of its cells.
+    static func sway(_ check: (Bool, String) -> Void) {
+        var worstOff: Float = 0, worstTurn: Float = 0, worstAt = ""
+        for (dx, dz) in [(60, 12), (60, 7), (55, 31), (9, 60), (60, 5)] as [(Float, Float)] {
+            let cells = Railways.rasterPolyline([(0, 0), (dx, dz)])
+            let raw = cells.map { SIMD3<Float>(Float($0.0), 0, Float($0.1)) }
+            let sm = ShapeRails.smoothed(raw)
+            let len = hypotf(dx, dz), nx = -dz / len, nz = dx / len
+            // (the ends are held on their cells: the first and last 14 cells ease onto the line and are left out)
+            guard sm.count > 40 else { continue }
+            var last: Float? = nil
+            for i in 14..<(sm.count - 14) {
+                let off = abs(sm[i].x * nx + sm[i].z * nz)
+                let h = atan2f(sm[i + 1].z - sm[i].z, sm[i + 1].x - sm[i].x) * 180 / .pi
+                if let l = last { let t = abs(h - l); if t > worstTurn { worstTurn = t; worstAt = "\(Int(dx)):\(Int(dz))" } }
+                last = h
+                worstOff = max(worstOff, off)
+            }
+        }
+        let turn = Railways.rasterPolyline(Railways.roundPolyline([(0, 0), (40, 0), (40, 40)], radius: 5))
+        let rawT = turn.map { SIMD3<Float>(Float($0.0), 0, Float($0.1)) }
+        let smT = ShapeRails.smoothed(rawT)
+        var far: Float = 0
+        for i in rawT.indices { far = max(far, hypotf(smT[i].x - rawT[i].x, smT[i].z - rawT[i].z)) }
+        let ok = ShapeRails.oldSway ? worstTurn > 5 : (worstOff < 0.25 && worstTurn < 3 && far < 1.1)
+        check(ok, String(format: "ledger 140: a straight leg at any angle is drawn and run straight (off the line by at most %.2f of a block, heading swings %.1f deg a cell; a turn keeps within %.2f of its cells)", worstOff, worstTurn, far) + ", worst leg \(worstAt)")
+    }
+
     static func diagonals(_ check: (Bool, String) -> Void) {
+        sway(check)
         guard !Railways.oldRails else { print("rail: N12 diagonals skipped (BS_OLDRAILS=1)"); return }
         var lines = 0, diag = 0, legs = 0, bad: [String] = [], gateOK = 0, gateTried = 0
         var worstTurn: Float = 0, worstOldTurn: Float = 0, worstPace: Float = 0, longest = 0

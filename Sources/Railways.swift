@@ -1354,7 +1354,13 @@ enum Railways {
                 }
                 // R22: gravel only on firm ground; over a cave or a ravine's lip the bed is stone (gravel fell out at the
                 // first block update and left the rail over the hole).
-                if Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)] { w.set(x, y - 1, z, w.firmUnder(x, y - 1, z) ? ballast : plat) }
+                // (ledger 140: on a field line the cube of stone brick stood out of the smooth bed, 20:52 "Bad for the
+                // rails": there the ballast gets stone under it to lie on, and the bed is ballast all the way)
+                if Blocks.opaque[Int(ground)] && Blocks.collide[Int(ground)] {
+                    if w.firmUnder(x, y - 1, z) { w.set(x, y - 1, z, ballast) }
+                    else if l.heights != nil && !ShapeRails.oldSway && w.inside(x, y - 2, z) { w.set(x, y - 2, z, STONE); w.set(x, y - 1, z, ballast) }
+                    else { w.set(x, y - 1, z, plat) }
+                }
                 else if bank > 0 {
                     for d in 2..<bank { w.set(x, y - d, z, fill) }
                     w.set(x, y - 1, z, ballast)
