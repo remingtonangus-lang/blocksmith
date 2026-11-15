@@ -846,7 +846,9 @@ extension Game {
                 let wc = IVec3(Int(floor(wp.x)), Int(floor(wp.y)), Int(floor(wp.z)))
                 if ShapeTrunks.isLog[Int(b)] || CapitalBase.isLog(b) {
                     logCount += 1
-                    let key = Blocks.key(Blocks.groupBase[Int(b)])
+                    // (Fable's tree wood, `tree_<wood>_log`, gives the plain log)
+                    var key = Blocks.key(Blocks.groupBase[Int(b)])
+                    if key.hasPrefix("tree_") && Items.has(String(key.dropFirst(5))) { key = String(key.dropFirst(5)) }
                     if Items.has(key) { byKind[Items.id(key), default: 0] += 1 }
                     if bits.count - leafBits < 6 { bits.append((wc, b)) }
                 } else {
