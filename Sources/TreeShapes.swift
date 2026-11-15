@@ -9,6 +9,7 @@ import Foundation
 // `questcheck --render X --tree-shots DIR` draws every design (the contact sheet).
 struct TreeShape {
     let name: String
+    let id: UInt32              // (Nov 15: unique in the catalogue; it also seeds the crown's rough edge)
     let logs: [IVec3]           // trunk and limbs, from the foot (0, 0, 0) up
     let leaves: [IVec3]
     let roots: [IVec3]          // (mangrove roots: drawn in the root block)
@@ -84,7 +85,7 @@ enum TreeShapes {
         var d = TreeDraft(id: id)
         f(&d)
         func order(_ s: Set<IVec3>) -> [IVec3] { s.sorted { ($0.y, $0.z, $0.x) < ($1.y, $1.z, $1.x) } }
-        return TreeShape(name: name, logs: order(d.logs), leaves: order(d.leaves.subtracting(d.logs).subtracting(d.roots)),
+        return TreeShape(name: name, id: id, logs: order(d.logs), leaves: order(d.leaves.subtracting(d.logs).subtracting(d.roots)),
                          roots: order(d.roots.subtracting(d.logs)), rootTips: d.tips, bole: bole, stretch: stretch, wide: wide,
                          top: d.logs.map { $0.y }.max() ?? 0)
     }
@@ -123,6 +124,56 @@ enum TreeShapes {
             d.trunk(5)
             d.crown(0, 4.5, 0, 2.0, 2.0)
         },
+        // Nov 15 (the catalogue of 100): more oaks, every one a single trunk with its limbs at or above the bole.
+        make("round oak", 201, bole: 3) { d in
+            d.trunk(6)
+            do { let t = d.limb(0, 3, 0, 1, 0.5, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.0, 1.4) }
+            do { let t = d.limb(0, 3, 0, -1, -0.5, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.0, 1.4) }
+            d.crown(0, 6, 0, 2.9, 2.2)
+        },
+        make("tall oak", 202, bole: 5) { d in
+            d.trunk(10)
+            do { let t = d.limb(0, 6, 0, 1, 0, 2, rise: 2); d.crown(t + IVec3(0, 1, 0), 1.8, 1.3) }
+            do { let t = d.limb(0, 7, 0, -0.6, -0.8, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 1.8, 1.3) }
+            d.crown(0, 10, 0, 2.4, 2.4)
+        },
+        make("wide oak", 203, bole: 3) { d in
+            d.trunk(5)
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] as [(Float, Float)] {
+                let t = d.limb(0, 3, 0, dx, dz, 4, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.2, 1.4)
+            }
+            d.crown(0, 5.5, 0, 2.4, 1.6)
+        },
+        make("oak with a high limb", 204, bole: 4) { d in
+            d.trunk(8)
+            do { let t = d.limb(0, 5, 0, 1, 0.3, 3, rise: 3); d.crown(t + IVec3(0, 1, 0), 2.0, 1.5) }
+            d.crown(0, 8, 0, 2.5, 2.0)
+        },
+        make("parkland oak", 205, bole: 3) { d in
+            d.trunk(7)
+            do { let t = d.limb(0, 3, 0, 0.7, 0.7, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.2, 1.5) }
+            do { let t = d.limb(0, 4, 0, -0.7, 0.7, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.2, 1.5) }
+            do { let t = d.limb(0, 4, 0, 0, -1, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.2, 1.5) }
+            d.crown(0, 7, 0, 2.7, 2.0)
+        },
+        make("hedgerow oak", 206, bole: 2) { d in
+            d.trunk(5)
+            do { let t = d.limb(0, 2, 0, 1, 0, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 1.8, 1.4) }
+            do { let t = d.limb(0, 3, 0, -1, 0, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 1.8, 1.4) }
+            d.crown(0, 5, 0, 2.2, 1.8)
+        },
+        make("oak sapling", 207, bole: 2) { d in
+            d.trunk(4)
+            d.crown(0, 4, 0, 1.6, 1.6)
+        },
+        make("broad old oak", 208, bole: 3) { d in
+            d.trunk(7)
+            do { let t = d.limb(0, 3, 0, 1, 0, 4, rise: 3); d.crown(t + IVec3(0, 1, 0), 2.4, 1.6) }
+            do { let t = d.limb(0, 3, 0, -1, 0.3, 4, rise: 3); d.crown(t + IVec3(0, 1, 0), 2.4, 1.6) }
+            do { let t = d.limb(0, 4, 0, 0.3, 1, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.4, 1.6) }
+            do { let t = d.limb(0, 4, 0, -0.3, -1, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.4, 1.6) }
+            d.crown(0, 7.5, 0, 3.0, 2.2)
+        },
     ]
     // Birches: slender, the crown high and narrow; one with a side limb.
     static let birches: [TreeShape] = [
@@ -134,6 +185,24 @@ enum TreeShapes {
             d.trunk(9)
             do { let t = d.limb(0, 5, 0, 1, 0, 1, rise: 1); d.crown(t + IVec3(1, 1, 0), 1.4, 1.4) }
             d.crown(0, 8, 0, 1.7, 2.8)
+        },
+        make("paper birch", 211, bole: 5) { d in
+            d.trunk(9)
+            d.crown(0, 8, 0, 1.6, 3.0)
+        },
+        make("birch with two limbs", 212, bole: 4) { d in
+            d.trunk(9)
+            do { let t = d.limb(0, 5, 0, 1, 0, 1, rise: 1); d.crown(t + IVec3(1, 1, 0), 1.3, 1.3) }
+            do { let t = d.limb(0, 6, 0, -1, 0, 1, rise: 1); d.crown(t + IVec3(-1, 1, 0), 1.3, 1.3) }
+            d.crown(0, 8, 0, 1.7, 2.6)
+        },
+        make("young birch", 213, bole: 3) { d in
+            d.trunk(6)
+            d.crown(0, 5.5, 0, 1.5, 2.0)
+        },
+        make("broad birch", 214, bole: 4) { d in
+            d.trunk(8)
+            d.crown(0, 7, 0, 2.2, 2.4)
         },
     ]
     static let tallBirches: [TreeShape] = [
@@ -147,6 +216,15 @@ enum TreeShapes {
             do { let t = d.limb(0, 10, 0, -1, 0, 1, rise: 1); d.crown(t + IVec3(-1, 1, 0), 1.4, 1.5) }
             d.crown(0, 13, 0, 1.7, 3.0)
         },
+        make("very tall birch", 216, bole: 9) { d in
+            d.trunk(15)
+            d.crown(0, 13.5, 0, 1.7, 3.6)
+        },
+        make("tall birch, broad crown", 217, bole: 8) { d in
+            d.trunk(13)
+            do { let t = d.limb(0, 9, 0, 0, 1, 1, rise: 1); d.crown(t + IVec3(0, 1, 1), 1.4, 1.4) }
+            d.crown(0, 12, 0, 2.1, 3.0)
+        },
     ]
     // Spruces: tiered cones (radii from the tip down), a narrow alpine one, a broad one and an old one bare below.
     static func cone(_ d: inout TreeDraft, _ h: Int, _ radii: [Int]) {
@@ -159,12 +237,25 @@ enum TreeShapes {
         make("alpine spruce", 22, bole: 2) { d in cone(&d, 10, [1, 1, 1, 2, 1, 2, 2, 2]) },
         make("broad spruce", 23, bole: 1) { d in cone(&d, 7, [1, 2, 2, 3, 2, 3]) },
         make("old spruce", 24, bole: 5) { d in cone(&d, 11, [1, 2, 1, 2, 2, 3]) },
+        make("young spruce", 221, bole: 1) { d in cone(&d, 5, [1, 1, 2, 2]) },
+        make("slender spruce", 222, bole: 3) { d in cone(&d, 11, [1, 1, 2, 1, 2, 2, 2, 1]) },
+        make("full spruce", 223, bole: 1) { d in cone(&d, 9, [1, 2, 2, 3, 2, 3, 3, 2]) },
+        make("tall spruce", 224, bole: 4) { d in cone(&d, 13, [1, 1, 2, 1, 2, 2, 3, 2, 3]) },
+        make("stout spruce", 225, bole: 1) { d in cone(&d, 6, [1, 2, 3, 2, 3]) },
     ]
     // Pines: long bare trunks, the crown in a few tufts at the top.
     static let pines: [TreeShape] = [
         make("Scots pine", 31, bole: 5) { d in cone(&d, 10, [1, 2, 1, 2, 1]) },
         make("tall pine", 32, bole: 6) { d in cone(&d, 12, [1, 1, 2, 1, 2, 1, 2]) },
         make("lodgepole pine", 33, bole: 7) { d in cone(&d, 11, [1, 2, 2, 1]) },
+        make("red pine", 231, bole: 6) { d in cone(&d, 11, [1, 2, 2, 1, 2]) },
+        make("young pine", 232, bole: 3) { d in cone(&d, 7, [1, 2, 1, 2]) },
+        make("stone pine", 233, bole: 6) { d in
+            d.trunk(9)
+            d.leaf(0, 9, 0)
+            d.tier(8, 2); d.tier(7, 3); d.tier(6, 2)
+        },
+        make("black pine", 234, bole: 5) { d in cone(&d, 10, [1, 2, 2, 2, 1]) },
     ]
     // The giant conifers on 2x2 trunks: a long cone, or a crown only at the top.
     static func megaCone(_ d: inout TreeDraft, _ h: Int, from start: Int) {
@@ -177,10 +268,12 @@ enum TreeShapes {
     static let megaSpruces: [TreeShape] = [
         make("giant spruce", 41, bole: 6, stretch: 2, wide: true) { d in megaCone(&d, 18, from: 6) },
         make("giant spruce, tall", 42, bole: 8, stretch: 2, wide: true) { d in megaCone(&d, 22, from: 8) },
+        make("giant spruce, broad", 241, bole: 5, stretch: 2, wide: true) { d in megaCone(&d, 16, from: 5) },
     ]
     static let megaPines: [TreeShape] = [
         make("giant pine", 43, bole: 13, stretch: 2, wide: true) { d in megaCone(&d, 18, from: 13) },
         make("giant pine, tall", 44, bole: 16, stretch: 2, wide: true) { d in megaCone(&d, 22, from: 16) },
+        make("giant pine, short", 243, bole: 11, stretch: 2, wide: true) { d in megaCone(&d, 16, from: 11) },
     ]
     // Jungle trees: a straight trunk under a wide crown, one with a limb, a short one; the giants on 2x2 trunks with
     // limbs up the trunk each holding its own crown.
@@ -198,6 +291,20 @@ enum TreeShapes {
             d.trunk(6)
             d.crown(0, 6, 0, 2.2, 1.6)
         },
+        make("tall jungle tree", 251, bole: 6) { d in
+            d.trunk(12)
+            d.crown(0, 12, 0, 2.6, 2.0)
+        },
+        make("jungle tree with two limbs", 252, bole: 5) { d in
+            d.trunk(11)
+            do { let t = d.limb(0, 6, 0, 1, 0, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 1.8, 1.2) }
+            do { let t = d.limb(0, 8, 0, -1, 0, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 1.8, 1.2) }
+            d.crown(0, 11, 0, 2.4, 1.8)
+        },
+        make("broad jungle tree", 253, bole: 4) { d in
+            d.trunk(9)
+            d.crown(0, 9, 0, 3.0, 1.8)
+        },
     ]
     static let megaJungles: [TreeShape] = [
         make("giant jungle tree", 54, bole: 7, stretch: 2, wide: true) { d in
@@ -213,10 +320,17 @@ enum TreeShapes {
             do { let t = d.limb(1, 9, 0, 0.5, -1, 3, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.3, 1.2) }
             d.crown(0.5, 22, 0.5, 4.3, 2.0)
         },
+        make("giant jungle tree, spreading", 255, bole: 7, stretch: 2, wide: true) { d in
+            d.trunk(18, wide: true)
+            do { let t = d.limb(1, 13, 1, 1, 1, 3, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.4, 1.2) }
+            do { let t = d.limb(0, 10, 0, -1, -1, 3, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.4, 1.2) }
+            d.crown(0.5, 18, 0.5, 4.6, 2.0)
+        },
     ]
     static let jungleBushes: [TreeShape] = [
         make("jungle bush", 56, bole: 0, stretch: 0) { d in d.trunk(1); d.crown(0, 1, 0, 2.4, 1.3) },
         make("low jungle bush", 57, bole: 0, stretch: 0) { d in d.trunk(1); d.crown(0.5, 1, 0, 2.0, 1.1) },
+        make("wide jungle bush", 256, bole: 0, stretch: 0) { d in d.trunk(1); d.crown(0, 1, 0, 2.8, 1.2) },
     ]
     // Acacias: trunks that bend out under flat umbrella crowns.
     static let acacias: [TreeShape] = [
@@ -241,6 +355,32 @@ enum TreeShapes {
             let b = d.limb(0, 1, 0, 0, -1, 2, rise: 2)
             d.disk(b.y + 1, b.x, b.z, 2)
         },
+        make("acacia, wide", 261, bole: 2) { d in
+            d.trunk(3)
+            let a = d.limb(0, 2, 0, 0, 1, 2, rise: 2)
+            d.log(a.x, a.y + 1, a.z)
+            d.disk(a.y + 2, a.x, a.z, 3); d.disk(a.y + 3, a.x, a.z, 2)
+        },
+        make("acacia, three crowns", 262, bole: 2) { d in
+            d.trunk(3)
+            let a = d.limb(0, 2, 0, 1, 0, 2, rise: 2)
+            d.disk(a.y + 1, a.x, a.z, 2)
+            let b = d.limb(0, 2, 0, -1, 0.5, 2, rise: 1)
+            d.disk(b.y + 1, b.x, b.z, 2)
+            let c = d.limb(0, 2, 0, 0, -1, 2, rise: 2)
+            d.disk(c.y + 1, c.x, c.z, 2)
+        },
+        make("acacia, tall", 263, bole: 4) { d in
+            d.trunk(5)
+            let a = d.limb(0, 4, 0, 0.7, -0.7, 2, rise: 2)
+            d.log(a.x, a.y + 1, a.z)
+            d.disk(a.y + 2, a.x, a.z, 3); d.disk(a.y + 3, a.x, a.z, 1)
+        },
+        make("acacia, low", 264, bole: 1) { d in
+            d.trunk(2)
+            let a = d.limb(0, 1, 0, -1, 0, 2, rise: 1)
+            d.disk(a.y + 1, a.x, a.z, 3); d.disk(a.y + 2, a.x, a.z, 1)
+        },
     ]
     // Dark oaks: 2x2 trunks under broad, flat, heavy crowns.
     static func flatCrown(_ d: inout TreeDraft, _ top: Int, _ radii: [Int]) {
@@ -255,6 +395,14 @@ enum TreeShapes {
             flatCrown(&d, 6, [3, 3, 2])
         },
         make("tall dark oak", 73, bole: 5, wide: true) { d in d.trunk(8, wide: true); flatCrown(&d, 8, [3, 3, 2]) },
+        make("low dark oak", 271, bole: 3, wide: true) { d in d.trunk(6, wide: true); flatCrown(&d, 6, [3, 4, 3, 1]) },
+        make("dark oak with broad limbs", 272, bole: 4, wide: true) { d in
+            d.trunk(7, wide: true)
+            do { let t = d.limb(1, 5, 0, 1, 0, 3, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.3, 1.2) }
+            do { let t = d.limb(0, 5, 1, -1, 0, 3, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.3, 1.2) }
+            flatCrown(&d, 7, [3, 4, 2])
+        },
+        make("dark oak, tall crown", 273, bole: 5, wide: true) { d in d.trunk(9, wide: true); flatCrown(&d, 9, [3, 3, 3, 2]) },
     ]
     static let paleOaks: [TreeShape] = [
         make("ashbark", 74, bole: 4, wide: true) { d in d.trunk(7, wide: true); flatCrown(&d, 7, [3, 3, 2]) },
@@ -263,12 +411,33 @@ enum TreeShapes {
             do { let t = d.limb(1, 5, 1, 1, 1, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.2, 1.2) }
             flatCrown(&d, 8, [3, 3, 2])
         },
+        make("low ashbark", 274, bole: 3, wide: true) { d in d.trunk(6, wide: true); flatCrown(&d, 6, [3, 4, 2]) },
+        make("ashbark with two limbs", 275, bole: 4, wide: true) { d in
+            d.trunk(8, wide: true)
+            do { let t = d.limb(1, 5, 1, 1, 1, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.2, 1.2) }
+            do { let t = d.limb(0, 6, 0, -1, -1, 2, rise: 1); d.crown(t + IVec3(0, 1, 0), 2.2, 1.2) }
+            flatCrown(&d, 8, [3, 3, 2])
+        },
     ]
     // Swamp oaks: short trunks under wide, low crowns (vines hung after).
     static let swampOaks: [TreeShape] = [
         make("swamp oak", 81, bole: 2) { d in
             d.trunk(5)
             for (k, r) in [3, 3, 2, 2].enumerated() { d.disk(2 + k, 0, 0, r) }
+        },
+        make("broad swamp oak", 281, bole: 2) { d in
+            d.trunk(5)
+            for (k, r) in [3, 4, 3, 2].enumerated() { d.disk(2 + k, 0, 0, r) }
+        },
+        make("tall swamp oak", 282, bole: 3) { d in
+            d.trunk(6)
+            for (k, r) in [3, 3, 2, 2].enumerated() { d.disk(3 + k, 0, 0, r) }
+        },
+        make("swamp oak with a limb", 283, bole: 3) { d in
+            d.trunk(6)
+            let t = d.limb(0, 3, 0, 1, 0, 2, rise: 1)
+            d.disk(t.y + 1, t.x, t.z, 2)
+            for (k, r) in [3, 3, 2, 1].enumerated() { d.disk(3 + k, 0, 0, r) }
         },
     ]
     // Mangroves. P499 (Oct 30 19:58 in a mangrove swamp: "all these trees have got to go... looks like a bunch of spider
@@ -284,6 +453,16 @@ enum TreeShapes {
             d.trunk(9)
             d.tips.append(IVec3(0, 0, 0))
             d.crown(0, 9, 0, 2.6, 1.8)
+        },
+        make("mangrove, broad", 291, bole: 3) { d in
+            d.trunk(7)
+            d.tips.append(IVec3(0, 0, 0))
+            d.crown(0, 7, 0, 3.3, 1.8)
+        },
+        make("mangrove, short", 292, bole: 2) { d in
+            d.trunk(6)
+            d.tips.append(IVec3(0, 0, 0))
+            d.crown(0, 6, 0, 2.6, 1.7)
         },
     ]
     // Cherries: a short trunk splitting into arching limbs under wide pink crowns.
@@ -302,6 +481,17 @@ enum TreeShapes {
             d.trunk(5)
             do { let t = d.limb(0, 3, 0, 1, 0, 2, rise: 1); d.crown(t + IVec3(0, 0, 0), 2.6, 1.6) }
             d.crown(0, 5.5, 0, 2.6, 1.6)
+        },
+        make("cherry, three limbs", 301, bole: 3) { d in
+            d.trunk(4)
+            do { let t = d.limb(0, 3, 0, 1, 0, 3, rise: 3); d.crown(t + IVec3(0, 1, 0), 2.6, 1.6) }
+            do { let t = d.limb(0, 3, 0, -0.5, 0.9, 2, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.4, 1.5) }
+            do { let t = d.limb(0, 3, 0, -0.5, -0.9, 2, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.4, 1.5) }
+        },
+        make("cherry, tall", 302, bole: 4) { d in
+            d.trunk(6)
+            do { let t = d.limb(0, 4, 0, 1, 0.3, 2, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.4, 1.5) }
+            d.crown(0, 6.5, 0, 2.6, 1.7)
         },
     ]
     // Palms: a slim straight trunk and a star of fronds drooping at their tips. (P433: the one-block kink is gone.)
@@ -322,6 +512,8 @@ enum TreeShapes {
         make("saltpalm", 111, bole: 3) { d in palm(&d, 7, bend: 3) },
         make("saltpalm, tall", 112, bole: 4) { d in palm(&d, 9, bend: 5) },
         make("saltpalm, short", 113, bole: 2) { d in palm(&d, 6, bend: 2) },
+        make("saltpalm, slender", 311, bole: 3) { d in palm(&d, 8, bend: 0) },
+        make("saltpalm, very tall", 312, bole: 5) { d in palm(&d, 10, bend: 0) },
     ]
     // The rare old giants: a 2x2 trunk, heavy limbs all round, a broad crown.
     static let ancientOaks: [TreeShape] = [
@@ -342,6 +534,13 @@ enum TreeShapes {
             do { let t = d.limb(1, 7, 0, 1, 0, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.3, 1.6) }
             d.crown(0.5, 10, 0.5, 3.0, 2.0)
         },
+        make("ancient oak, tall", 321, bole: 7, wide: true) { d in
+            d.trunk(12, wide: true)
+            do { let t = d.limb(1, 8, 0, 1, -0.4, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.4, 1.7) }
+            do { let t = d.limb(0, 9, 1, -1, 0.4, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.4, 1.7) }
+            do { let t = d.limb(1, 10, 1, 0.4, 1, 3, rise: 2); d.crown(t + IVec3(0, 1, 0), 2.4, 1.7) }
+            d.crown(0.5, 13, 0.5, 3.0, 2.4)
+        },
     ]
     // Dead snags: a broken trunk, at most one whole bare limb that turns up at its end (no stubs).
     static let deadOaks: [TreeShape] = [
@@ -351,10 +550,16 @@ enum TreeShapes {
             d.log(a.x, a.y + 1, a.z)
         },
         make("dead oak, broken", 132, bole: 2) { d in d.trunk(4) },
+        make("dead oak, tall", 331, bole: 3) { d in
+            d.trunk(7)
+            let a = d.limb(0, 4, 0, -1, 0, 2, rise: 1)
+            d.log(a.x, a.y + 1, a.z)
+        },
     ]
     static let deadSpruces: [TreeShape] = [
         make("dead spruce", 133, bole: 3) { d in d.trunk(6) },
         make("dead spruce, broken", 134, bole: 2) { d in d.trunk(4) },
+        make("dead spruce, tall", 333, bole: 4) { d in d.trunk(8) },
     ]
 
     // Every design (the contact sheet).
@@ -366,6 +571,141 @@ enum TreeShapes {
          ("swamp oak", .swampOak, swampOaks), ("mangrove", .mangrove, mangroves), ("cherry", .cherry, cherries),
          ("saltpalm", .saltpalm, palms), ("ancient oak", .ancientOak, ancientOaks), ("dead oak", .deadOak, deadOaks),
          ("dead spruce", .deadSpruce, deadSpruces)]
+    }
+
+    // Nov 15 (Fable, the catalogue of 100): every design in a fixed order (the species in `all`'s order, each list's
+    // designs in theirs). New designs go at the end of a species' list, so the ones a kind already picks keep their place.
+    static let catalogue: [TreeShape] = all.flatMap { $0.2 }
+
+    // What is wrong with the catalogue (empty: nothing): 100 designs, names and ids unique; every log joined to the foot
+    // through logs (26 neighbours); every limb or trunk tip (a log with one log beside it, above the foot) touching
+    // leaves, bare snags aside; nothing off the trunk under the bole (no low fork or second stem: placement lengthens
+    // the bole, and a limb under it would be left behind); everything within the 7-block placement margin.
+    static func catalogueProblems() -> [String] {
+        var bad: [String] = []
+        let cat = catalogue
+        if cat.count != 100 { bad.append("\(cat.count) designs, not 100") }
+        var names = Set<String>(), ids = Set<UInt32>()
+        let dead: Set<String> = Set((deadOaks + deadSpruces).map { $0.name })
+        for s in cat {
+            if !names.insert(s.name).inserted { bad.append("\(s.name): name twice") }
+            if !ids.insert(s.id).inserted { bad.append("\(s.name): id \(s.id) twice") }
+            let logs = Set(s.logs), leaves = Set(s.leaves)
+            func near(_ p: IVec3, _ set: Set<IVec3>) -> Int {
+                var n = 0
+                for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 {
+                    if set.contains(IVec3(p.x + dx, p.y + dy, p.z + dz)) { n += 1 }
+                } } }
+                return n
+            }
+            var seen = Set(s.logs.filter { $0.y == 0 }), stack = Array(seen)
+            while let p = stack.popLast() {
+                for dy in -1...1 { for dz in -1...1 { for dx in -1...1 {
+                    let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
+                    if logs.contains(q) && seen.insert(q).inserted { stack.append(q) }
+                } } }
+            }
+            if seen.count != logs.count { bad.append("\(s.name): \(logs.count - seen.count) logs not joined to the foot") }
+            if !dead.contains(s.name) {
+                let bare = s.logs.filter { $0.y > 0 && near($0, logs) == 1 && near($0, leaves) == 0 }
+                if !bare.isEmpty { bad.append("\(s.name): \(bare.count) bare tips (\(bare[0].x) \(bare[0].y) \(bare[0].z))") }
+            }
+            let c = s.wide ? 1 : 0
+            let low = s.logs.filter { $0.y < s.bole && !((0...c).contains($0.x) && (0...c).contains($0.z)) }
+            if !low.isEmpty { bad.append("\(s.name): \(low.count) logs off the trunk under the bole") }
+            let far = (s.logs + s.leaves).filter { max(abs(2 * $0.x - c), abs(2 * $0.z - c)) > 14 + c }
+            if !far.isEmpty { bad.append("\(s.name): \(far.count) blocks past the 7-block margin") }
+        }
+        return bad
+    }
+
+    // MARK: Litter (Nov 15, Fable's list: the kinds that still fell through to the old placer)
+
+    // Woodland litter as designs, beside the catalogue of 100 (not counted in it): shrubs, stumps and fallen oaks. Each
+    // pastes whole like a tree. A shrub is a leaf mound on the ground round one hidden log; a stump is a log, now and then
+    // with a root flare and moss (its "leaves": moss carpet); a fallen oak is its stump and, two blocks off, a trunk
+    // of bark-all-round wood lying along the ground (its "roots": oak wood), laid only where the ground under it holds
+    // (buildLitter). BS_OLDLITTER=1: the old placer.
+    static let oldLitter = ProcessInfo.processInfo.environment["BS_OLDLITTER"] == "1"
+    static let shrubs: [TreeShape] = [
+        make("knee shrub", 401, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.3, 0.4, 0, 1.5, 1.1) },
+        make("spreading shrub", 402, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.5, 0.3, 0.3, 2.2, 1.0) },
+        make("round shrub", 403, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0, 0.6, 0, 1.6, 1.3) },
+    ]
+    static let stumps: [TreeShape] = [
+        make("stump", 411, bole: 1, stretch: 0) { d in d.log(0, 0, 0) },
+        make("mossy stump", 412, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.leaf(0, 1, 0) },
+        make("rooted stump", 413, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.log(1, 0, 0); d.log(0, 0, -1) },
+        make("old stump", 414, bole: 2, stretch: 0) { d in d.log(0, 0, 0); d.log(0, 1, 0); d.log(-1, 0, 0); d.leaf(0, 2, 0) },
+    ]
+    static let fallenOaks: [TreeShape] = [4, 5, 6].map { len in
+        make("fallen oak \(len)", UInt32(420 + len), bole: 1, stretch: 0) { d in
+            d.log(0, 0, 0)
+            for i in 2..<(2 + len) { d.roots.insert(IVec3(i, 0, 0)) }
+            for i in 2..<(2 + len) where hashf(i, len, 0, 0xFA11) < 0.3 { d.leaf(i, 1, 0) }
+        }
+    }
+    static func litter(_ kind: TreeKind) -> [TreeShape]? {
+        if oldLitter { return nil }
+        switch kind {
+        case .shrubOak, .shrubSpruce, .shrubAcacia: return shrubs
+        case .stumpOak, .stumpSpruce, .stumpBirch: return stumps
+        case .fallenOak: return fallenOaks
+        default: return nil
+        }
+    }
+    // A piece of litter at (x, y, z): its design, turn and mirror from the tree's rng. A fallen trunk's lengths are laid
+    // only on held ground (solid, not leaves) and into air or plants, decided per block, so every chunk agrees; the moss
+    // over a length only where that length lies.
+    static func buildLitter(_ w: TreeWriter, _ kind: TreeKind, _ set: [TreeShape], _ x: Int, _ y: Int, _ z: Int, _ rng: inout SRng) {
+        let s = set[rng.int(set.count)]
+        let turn = rng.int(4), mirror = rng.chance(0.5)
+        let g = Blocks.id
+        let log: BlockID, leaf: BlockID
+        switch kind {
+        case .shrubSpruce: (log, leaf) = (SPRUCE_LOG, SPRUCE_LEAVES)
+        case .shrubAcacia: (log, leaf) = (g("acacia_log"), g("acacia_leaves"))
+        case .stumpSpruce: (log, leaf) = (SPRUCE_LOG, g("moss_carpet"))
+        case .stumpBirch: (log, leaf) = (BIRCH_LOG, g("moss_carpet"))
+        case .stumpOak, .fallenOak: (log, leaf) = (LOG, g("moss_carpet"))
+        default: (log, leaf) = (LOG, LEAVES)
+        }
+        guard kind == .fallenOak else {
+            paste(w, s, x, y, z, turn: turn, mirror: mirror, grow: 0, log: log, leaf: leaf, root: log)
+            return
+        }
+        func at(_ p: IVec3) -> IVec3 {
+            var u = p.x, v = p.z
+            if mirror { u = -u }
+            for _ in 0..<(turn & 3) { (u, v) = (-v, u) }
+            return IVec3(x + u, y + p.y, z + v)
+        }
+        let wood = g("oak_wood")
+        for p in s.logs { let q = at(p); w.log(q.x, q.y, q.z, log) }
+        var laid = Set<IVec3>()
+        for p in s.roots {
+            let q = at(p)
+            guard w.inside(q.x, q.y, q.z) else { continue }
+            let under = w.get(q.x, q.y - 1, q.z), here = w.get(q.x, q.y, q.z)
+            if Blocks.opaque[Int(under)] && !Mesher.leafT[Int(under)] && (here == AIR || Blocks.replaceable[Int(here)] && !Blocks.isLiquid(here)) {
+                w.force(q.x, q.y, q.z, wood)
+                laid.insert(IVec3(p.x, 0, p.z))
+            }
+        }
+        for p in s.leaves where laid.contains(IVec3(p.x, 0, p.z)) {
+            let q = at(p)
+            if w.get(q.x, q.y, q.z) == AIR { w.leaf(q.x, q.y, q.z, leaf) }
+        }
+    }
+
+    // The designs the world grows a kind as. BS_OLDCATALOGUE=1: only the 49 designs from before the catalogue of 100
+    // (ids under 200), so every tree stands where and as it stood before Nov 15 (checks that fell a tree of his compare).
+    static var oldCatalogue = ProcessInfo.processInfo.environment["BS_OLDCATALOGUE"] == "1"     // (var: checks of his trees as they stood)
+    static func planted(_ kind: TreeKind) -> [TreeShape]? {
+        guard let set = designs(kind) else { return nil }
+        guard oldCatalogue else { return set }
+        let old = set.filter { $0.id < 200 }
+        return old.isEmpty ? set : old
     }
 
     // The designs a kind grows as (nil: not a designed tree: shrubs, stumps, fallen trunks, ice spikes).

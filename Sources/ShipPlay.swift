@@ -257,7 +257,7 @@ extension Game {
                 // Capital vehicles: a machine, not a health pool: the label lists its components and crew.
                 if world.ships.boundsDistance(s, player.pos) < 300 { out.append((world.ships.capitalStatus(s), world.ships.capitalIntegrity(s))) }
             } else if simd_length(s.pos - player.pos) < 96 {
-                out.append((s.name, Float(s.blockCount) / Float(s.initialBlocks)))
+                out.append((s.name, Float(s.hullBlocks) / Float(s.initialBlocks)))
             }
         }
         return out
@@ -312,6 +312,7 @@ extension Game {
         s.climb = c.climb
         if ashHull { (s.throttle, s.steer) = ashLookDrive(s, mi) }        // P449: the way he looks, as before
         if s.name == AshCommandeer.halftrackName { ashHalftrackGun(s, dt) }   // P449: its pintle gun on his look
+        if s.name == AshCommandeer.tankName && !AshCommandeer.oldTankCoax { ashTankCoax(s, dt) }   // Nov 14: its coaxial MG again
         if let fm = s.flight { fm.playerInput(self, s, mi, dt) }          // helicopter controls (FlightModel.swift)
         VehicleDepot.burn(self, s, dt)                                    // D44, P507: every vehicle of his burns fuel (after the flight input: dry, it holds)
         // Turrets follow the view; barrels rise with it.
@@ -688,6 +689,11 @@ extension Game {
         let centre = s.toWorld(V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5)
 
         // Breaking.
+        if breakHeld && !Felling.keep && Felling.isFelled(s) {
+            // Nov 15: a lying felled tree isn't chopped log by log: struck, it is gathered whole (Felling.swift).
+            if breakNow && !Felling.falls.contains(where: { $0.ship === s.root }) { gatherFelled(s.root); swing = 1 }
+            return true
+        }
         if breakHeld {
             // P268 (c): the parts that hold a craft up (helm, engines, balloons, rotors, propellers) can't be broken off
             // while it is in the air with you: it would come down. On the ground or afloat every block comes off.

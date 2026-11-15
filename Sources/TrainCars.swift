@@ -22,6 +22,7 @@ extension Trains {
     static let bigScale: Float = 4
     static let tender = 15, boxcar = 16, tankWagon = 17, flatcar = 18, troopCar = 19
     static let coupler: Float = 0.8                    // blocks between two cars' ends
+    static let oldCouplers = ProcessInfo.processInfo.environment["BS_OLDCOUPLERS"] == "1"
     enum Kind: Int { case passenger, cargo, troop, bullion }
     static var forceKind: Kind?                        // (checks)
 
@@ -432,6 +433,20 @@ extension Trains {
             p.append(Part(mn: V3(-0.6, 13.2, -16), mx: V3(0.6, 14.4, -4.5), pivot: V3(0, 11.6, 0), color: dark, pattern: 8, rotY: ty))
             p.append(Part(mn: V3(-2.2, 12.6, -5.2), mx: V3(2.2, 15, -4.2), pivot: V3(0, 11.6, 0), color: dark, pattern: 8, rotY: ty))
         default: break
+        }
+        // Nov 14 playtest (12:07:30, a cargo train on the Toriwick loop: "Nothing's connecting these trains"): the cars ran
+        // nose to tail with the 0.8 block between their ends empty. Each end now carries its drawbar and coupler knuckle
+        // out to the middle of that gap, where the next car's meets it (a locomotive's front has its cowcatcher instead).
+        // BS_OLDCOUPLERS=1: none.
+        if !Trains.oldCouplers {
+            let h = halfUnits(m.variant), reach = Trains.coupler * 16 / Trains.bigScale / 2 + 0.25     // (model units)
+            let bar = V3(0.12, 0.12, 0.13), knuckle = V3(0.2, 0.19, 0.18)
+            let front = !(m.variant == loco || m.variant == armouredLoco)
+            for e: Float in front ? [-1, 1] : [1] {
+                let z0 = e > 0 ? h - 1 : -h - reach, len = reach + 1
+                p.append(box(-0.8, 3.5, z0, 1.6, 1.2, len, bar, 8))                                 // the drawbar
+                p.append(box(-1.3, 3.2, e > 0 ? h + reach - 1.3 : -h - reach + 0.1, 2.6, 1.8, 1.2, knuckle, 8))   // the knuckle
+            }
         }
         return p
     }

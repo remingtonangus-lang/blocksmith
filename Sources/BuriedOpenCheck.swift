@@ -22,6 +22,11 @@ enum BuriedOpenCheck {
         let cx = 5 * CS + 8, cz = 8
         let ty = top(cx, cz)
         let floorY = ty - 20
+        var growth = 0
+        for y in ty...(ty + 30) { for z in (cz - 12)...(cz + 12) { for x in (cx - 12)...(cx + 12) {
+            let b = w.block(x, y, z)
+            if ShapeTrunks.isLog[Int(b)] || Mesher.leafT[Int(b)] { growth += 1 }
+        } } }
         guard let c = w.chunkAt(cx, cz) else { check(false, "cratermesh: no chunk at the crater"); return }
         let sec = c.sections[floorY >> 4]
         let before = sec.deferred
@@ -36,6 +41,7 @@ enum BuriedOpenCheck {
         let below = (0..<12).first { w.groundAt(cx, floorY - $0, cz) }.map { floorY - $0 } ?? -1
         let floorSec = below >= 0 ? c.sections[below >> 4] : sec
         check(open && !floorSec.deferred && !sec.deferred,
-              "cratermesh: a crater 5 chunks off (its rock unmeshed before: \(before)) lays open y \(floorY - YOFF) (\(open)) over a floor at \(below - YOFF); its sections meshed: \(!sec.deferred), \(!floorSec.deferred)")
+              "cratermesh: a crater 5 chunks off (its rock unmeshed before: \(before)) lays open y \(floorY - YOFF) (\(open)) over a floor at \(below - YOFF); its sections meshed: \(!sec.deferred), \(!floorSec.deferred)"
+                + " (dug in \(steps) frames, done \(job.done); \(growth) tree blocks within 12 of it; top \(ty - YOFF), ground top after \(top(cx, cz) - YOFF))")
     }
 }

@@ -267,6 +267,8 @@ extension ShipManager {
                 // A Tidebreaker slug past the loaded world lands on the generator's ground (it flew on through it,
                 // unseen: the far end of a long shot from the helm).
                 if sh.kind == 3 && !reader.loaded(bx, bz) && p.y <= Float(world.gen.column(bx, bz).height) + 1 { hit = p; break }
+                // (Nov 14 evening: or on a far citadel drawn there, FarCitadel.solid)
+                if sh.kind == 3 && !reader.loaded(bx, bz), let g = game, FarCitadel.solid(p, g) { hit = p; break }
                 if shipBlock(at: p, except: sh.owner) { hit = p; onHull = true; break }
                 if let g = game, sh.age > 0.25 {                   // (clear of the gun crew first)
                     // (P512: never the gun's own crew. A ship's shells fly through its own hull, and a hand at a gun station
@@ -593,9 +595,18 @@ extension ShipManager {
     // What a Tidebreaker slug does to vessels (Oct 11 playtest, G13: "against a crawler it should tear off a huge chunk
     // or destroy it outright"). Into a hull: a hole MainGun.hullTear blocks across torn through it and the drive
     // knocked out (a Capital vessel goes down, a crawler is wrecked). A near miss on the ground beside a vessel still
-    // tears the side nearest the blast, smaller with distance, and one within MainGun.disableMiss blocks wrecks it too.
+    // tears the side nearest the blast, smaller with distance, and one within MainGun.disableMiss blocks knocks out a
+    // flying vessel's drive too (a crawler stops only on what the tear takes: see disable below).
     func mainGunHullDamage(at p: V3, owner: Int, direct: Ship?, game g: Game) {
-        func disable(_ r: Ship) { if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0; MainGun.disabled += 1 } }
+        // Nov 14 evening (21:04:32-21:04:55 by a stopped Ironback Crawler: "How did it get disabled?... I don't think this
+        // thing had enough damage to its engines to stop like that... the tractor's intact"): a Tidebreaker hit on a
+        // crawler, or a miss within 5 blocks of it, set its engines to none, so it stopped "engines destroyed" with its
+        // engine room standing. A crawler stops on what the tear takes (engines, wheels, hull: Nov 12's rule for every
+        // shell); the flying vessels still go down. BS_OLDCRAWLERHIT=1: as before.
+        func disable(_ r: Ship) {
+            if r.role == "crawler" && !ShipManager.oldCrawlerHit { return }
+            if r.kinematic && r.parent == nil && r.role != nil { r.engines = 0; MainGun.disabled += 1 }
+        }
         if let hit = direct {
             MainGun.lastTorn = tear(at: p, radius: MainGun.hullTear, except: owner, game: g)
             disable(hit.root)

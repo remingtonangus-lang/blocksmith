@@ -331,6 +331,10 @@ final class Ship: LifeLinked {
     var wrecked = false              // lost its helm or most of its hull: no orders, lift bleeds away
     var fireTimer: Float = 0
     var initialBlocks = 0            // block count when it appeared (hull bar)
+    // Nov 14 playtest ("Bullets should be doing micro damage to the hulls"): small-arms hits on this hull, as blocks'
+    // worth (ShipManager.chip); no block goes. `hullBlocks` is what the hull bar and the founder / give-up shares read.
+    var chip: Float = 0
+    var hullBlocks: Int { max(0, blockCount - Int(chip)) }
     var soundTimer: Float = 0
 
     // Capital ships and factions (CapitalShips.swift).

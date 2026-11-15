@@ -16,6 +16,8 @@ extension BlockRegistry {
         return Box(min(a.0, c.0), Int(bx.y0), min(a.1, c.1), max(a.0, c.0), Int(bx.y1), max(a.1, c.1), tex: bx.tex)
     }
 
+    static let oldFurniture = ProcessInfo.processInfo.environment["BS_OLDFURNITURE"] == "1"
+    static let oldSeatOrder = ProcessInfo.processInfo.environment["BS_OLDSEATORDER"] == "1"
     func registerSeats() {
         let dirs = ["north", "south", "west", "east"]
         for w in BlockRegistry.doorWoods where has("\(w)_planks") {
@@ -32,15 +34,53 @@ extension BlockRegistry {
                          Box(3, 14, 11, 13, 16, 13), Box(5, 11, 12, 11, 13, 13)]
             // Bench: a long plank seat at 8/16 on two trestles, open front and back.
             let bench = [Box(0, 6, 3, 16, 8, 13), Box(1, 0, 4, 3, 6, 12), Box(13, 0, 4, 15, 6, 12), Box(3, 2, 7, 13, 3, 9)]
-            for (k, dir) in dirs.enumerated() {
-                let cn = "\(w)_chair", bn = "\(w)_bench"
-                add(def(k == 0 ? cn : "\(cn)[\(dir)]", "\(wood) Chair", chair.map { BlockRegistry.turnBox($0, k) }, group: cn, hidden: k != 0))
-                add(def(k == 0 ? bn : "\(bn)[\(dir)]", "\(wood) Bench", bench.map { BlockRegistry.turnBox($0, k) }, group: bn, hidden: k != 0))
+            // Nov 14 evening (21:17, "This chair's not facing the right way"): each seat's four facings in a row, so its
+            // state k is its plain state + k as every four-facing block's is (placing one, sitting on one and the towns'
+            // seats count on it). They were registered chair, bench, chair[south], bench[south]...: a chair placed or
+            // built facing south came out a bench facing north, one facing west a chair facing south, and so on.
+            // BS_OLDSEATORDER=1: interleaved, as before.
+            let cn = "\(w)_chair", bn = "\(w)_bench"
+            if BlockRegistry.oldSeatOrder {
+                for (k, dir) in dirs.enumerated() {
+                    add(def(k == 0 ? cn : "\(cn)[\(dir)]", "\(wood) Chair", chair.map { BlockRegistry.turnBox($0, k) }, group: cn, hidden: k != 0))
+                    add(def(k == 0 ? bn : "\(bn)[\(dir)]", "\(wood) Bench", bench.map { BlockRegistry.turnBox($0, k) }, group: bn, hidden: k != 0))
+                }
+            } else {
+                for (k, dir) in dirs.enumerated() {
+                    add(def(k == 0 ? cn : "\(cn)[\(dir)]", "\(wood) Chair", chair.map { BlockRegistry.turnBox($0, k) }, group: cn, hidden: k != 0))
+                }
+                for (k, dir) in dirs.enumerated() {
+                    add(def(k == 0 ? bn : "\(bn)[\(dir)]", "\(wood) Bench", bench.map { BlockRegistry.turnBox($0, k) }, group: bn, hidden: k != 0))
+                }
             }
             // Stool: three splayed legs and a round-ish top at 10/16.
             let stool = [Box(4, 8, 4, 12, 10, 12), Box(3, 8, 5, 13, 10, 11), Box(5, 8, 3, 11, 10, 13),
                          Box(4, 0, 4, 6, 8, 6), Box(10, 0, 4, 12, 8, 6), Box(7, 0, 10, 9, 8, 12), Box(5, 3, 5, 11, 4, 11)]
             add(def("\(w)_stool", "\(wood) Stool", stool, group: "\(w)_stool", hidden: false))
+            // Nov 14 evening (21:17: "we should add desks to the game", "or tables, I guess. Different types of tables"):
+            // a table (four legs under a thick top), a round table on a pedestal, a low side table with a shelf, and a
+            // desk (a top over a drawer pedestal on one side and a panel at the back, the knee space in front; it turns
+            // its front toward whoever places it, its four facings in a row). Towns set them where a fence post under a
+            // pressure plate stood in for a table and a log for the sheriff's desk.
+            if !BlockRegistry.oldFurniture {
+                var table = [Box(0, 13, 0, 16, 16, 16)]
+                for (x, z) in [(1, 1), (13, 1), (1, 13), (13, 13)] { table.append(Box(x, 0, z, x + 2, 13, z + 2)) }
+                add(def("\(w)_table", "\(wood) Table", table, group: "\(w)_table", hidden: false))
+                let round = [Box(2, 14, 1, 14, 16, 15), Box(1, 14, 2, 15, 16, 14), Box(7, 2, 7, 9, 14, 9),
+                             Box(4, 0, 7, 12, 2, 9), Box(7, 0, 4, 9, 2, 12)]
+                add(def("\(w)_round_table", "\(wood) Round Table", round, group: "\(w)_round_table", hidden: false))
+                var side = [Box(2, 10, 2, 14, 12, 14), Box(3, 4, 3, 13, 5, 13)]
+                for (x, z) in [(3, 3), (11, 3), (3, 11), (11, 11)] { side.append(Box(x, 0, z, x + 2, 10, z + 2)) }
+                add(def("\(w)_side_table", "\(wood) Side Table", side, group: "\(w)_side_table", hidden: false))
+                // Desk, front (knee space) toward -Z: the top, a drawer pedestal on the east, a leg at the front west, a
+                // back panel, and the drawers' fronts proud of the pedestal.
+                let desk = [Box(0, 13, 0, 16, 16, 16), Box(10, 0, 1, 15, 13, 15), Box(1, 0, 1, 3, 13, 3), Box(1, 0, 13, 3, 13, 15),
+                            Box(3, 5, 13, 10, 13, 15), Box(11, 8, 0, 14, 12, 1), Box(11, 3, 0, 14, 7, 1)]
+                for (k, dir) in dirs.enumerated() {
+                    let dn = "\(w)_desk"
+                    add(def(k == 0 ? dn : "\(dn)[\(dir)]", "\(wood) Desk", desk.map { BlockRegistry.turnBox($0, k) }, group: dn, hidden: k != 0))
+                }
+            }
         }
     }
 }

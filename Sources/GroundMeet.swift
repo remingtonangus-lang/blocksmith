@@ -56,6 +56,21 @@ extension World {
         // most; the caller says whether it was placed on ground), and its skirt is at most a block wide.
         // BS_OLDMEET=1: as before.
         if !World.oldMeet && gap > 0.8 { return 0 }
+        // Builders' Grounds (Nov 14): over a drop, not on the ground. A lintel over an arch, a bridge deck, an eave, a
+        // block put against a wall's side found no ground a block and a half under its floor and the fill still ran, a
+        // plug of earth three cells deep hung under it in the air (ten cells grew in a stone gate's opening as the agent
+        // laid its lintel; 63 round it). The ground meets a block only where it lies under the block: under its middle
+        // and most of its footprint. BS_OLDMEET=1: as before.
+        if !World.oldMeet {
+            var none = 0, middle = false
+            for k in 0..<9 {
+                let px = Float(x) + 0.02 + Float(k % 3) * 0.48, pz = Float(z) + 0.02 + Float(k / 3) * 0.48
+                let o = V3(px, Float(y) + 0.02, pz)
+                if fieldDensity(at: o) > 0 { continue }
+                if fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5) == nil { none += 1; if k == 4 { middle = true } }
+            }
+            if middle || none >= 3 { return 0 }
+        }
         // The shape: solid up to the floor over the footprint, falling away at 45 degrees round it.
         let fy = Float(y), x0 = Float(x), x1 = Float(x + 1), z0 = Float(z), z1 = Float(z + 1)
         // (a flat apron a third of a block wide round the foot first: the drawn ground interpolates between half-block

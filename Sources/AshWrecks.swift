@@ -175,7 +175,7 @@ enum AshWrecks {
                 m.scale = bike ? 1 : skinScale
                 skins[s.id] = m
             }
-            m.hulk = s.blockCount * 6 < s.initialBlocks * 5
+            m.hulk = s.hullBlocks * 6 < s.initialBlocks * 5
             // The hull's turn as yaw, then roll, then pitch (the mob writer turns a part by Rz * Rx about its pivot,
             // the body by its yaw): the yaw that leaves the right wing level in the body's own frame.
             let r = s.dirToWorld(V3(1, 0, 0)), u = s.dirToWorld(V3(0, 1, 0)), b = s.dirToWorld(V3(0, 0, 1))

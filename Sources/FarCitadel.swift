@@ -237,6 +237,28 @@ enum FarCitadel {
     // MARK: Strike dust
 
     // A slug's impact (MainGun.mainGunImpact), kept 30 s: a column of dust and smoke over it past the loaded land.
+    // Nov 14 evening (21:02:44, at the Meridian Frigate's helm 330 blocks from a Capital citadel: "the shot went through
+    // the Capitol Tower"): past the loaded land a Tidebreaker slug met only the generator's ground (ShipCombat), so it
+    // flew on through the citadel he saw drawn there. Whether a point is inside a far citadel's drawn cells (not in a
+    // blast hole it holds). BS_OLDFARSHOT=1: the ground only, as before.
+    static let oldFarShot = ProcessInfo.processInfo.environment["BS_OLDFARSHOT"] == "1"
+    static func solid(_ p: V3, _ g: Game) -> Bool {
+        if oldFarShot { return false }
+        let F = cell
+        let x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))
+        var key: String? = nil
+        lock.lock()
+        for m in models.values {
+            let dx = x - m.origin.x, dy = y - m.origin.y, dz = z - m.origin.z
+            guard dx >= 0, dy >= 0, dz >= 0, dx / F < m.nx, dy / F < m.ny, dz / F < m.nz else { continue }
+            if m.grid[(dy / F * m.nz + dz / F) * m.nx + dx / F] != 0 { key = m.key; break }
+        }
+        lock.unlock()
+        guard let k = key else { return false }
+        for s in damage(g, key: k) where s.count >= 4 && simd_length(p - V3(s[0], s[1], s[2])) < s[3] { return false }
+        return true
+    }
+
     static var hits: [(V3, Double)] = []
     static let hitLife = 30.0
     static func noteHit(_ p: V3, clock: Double) {

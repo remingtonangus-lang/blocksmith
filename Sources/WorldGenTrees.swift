@@ -297,7 +297,8 @@ enum TreePlacer {
             }
         }
         // P406: living trees are designs pasted whole (TreeShapes.swift); what's left here is woodland litter and ice.
-        if let set = TreeShapes.designs(kind) { TreeShapes.build(w, kind, set, x, y, z, &rng); return }
+        if let set = TreeShapes.planted(kind) { TreeShapes.build(w, kind, set, x, y, z, &rng); return }
+        if let set = TreeShapes.litter(kind) { TreeShapes.buildLitter(w, kind, set, x, y, z, &rng); return }      // (Nov 15: litter designs)
         switch kind {
         case .shrubOak, .shrubSpruce, .shrubAcacia:
             // A knee-high woody shrub: a low, lopsided leaf mound on the ground round one hidden log. P499 (Oct 30 20:16,
@@ -437,7 +438,7 @@ extension WorldGen {
             let h2 = hashf(wx, 9, wz, s32 ^ 0x3C3D)
             guard y + 3 < CH else { continue }
             // Water columns: plants on the floor, lily pads on the surface.
-            if ground == WATER || ground == iceID {
+            if ground == WATER || ground == iceID || ground == Game.seaIceID {
                 var fy = y
                 while fy > 1 && (b[Chunk.index(lx, fy, lz)] == WATER) { fy -= 1 }
                 let depth = y - fy

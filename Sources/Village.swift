@@ -105,6 +105,7 @@ enum Village {
         guard TownSizes.size(cx * CS + 8, cz * CS + 8, seed: gen.seed, ratio: TownSizes.newRatio).rawValue <= TownSize.town.rawValue else { return false }
         return sc.clear(cx: cx, cz: cz, reach: 14, guardSet: sc.legacyP499)
     }
+    static let oldSeats = ProcessInfo.processInfo.environment["BS_OLDSEATS"] == "1"   // (the wrong-way chairs, for checks)
     static let extraTries = 3
 
     static func place(_ gen: WorldGen, _ seed: UInt64, _ cx: Int, _ cz: Int) -> StructureStart? {
@@ -626,7 +627,26 @@ enum Village {
             let w = fk.hasSuffix("_fence") ? String(fk.dropLast(6)) : "spruce"
             let n = Blocks.has("\(w)_\(kind)") ? "\(w)_\(kind)" : "spruce_\(kind)"
             guard Blocks.has(n) else { return stair(m.stairs, high: local) }
-            return kind == "stool" ? Blocks.id(n) : Blocks.id(n) + BlockID(Village.dir(l, local) ^ 1)
+            guard kind != "stool" else { return Blocks.id(n) }
+            // Nov 14 playtest (21:17, Elk Hollow's sheriff: "This chair's not facing the right way"): a wood's chair and
+            // bench states are registered in turn (chair north, bench north, chair south...), so the old `id + facing`
+            // gave a chair turned the wrong way or a bench. Each facing by its own name.
+            let k = Village.dir(l, local) ^ 1
+            if Village.oldSeats { return Blocks.id(n) + BlockID(k) }
+            let s = k == 0 ? n : "\(n)[\(["north", "south", "west", "east"][k])]"
+            return Blocks.has(s) ? Blocks.id(s) : Blocks.id(n)
+        }
+        // Nov 14 evening: a table, round table or side table in the town's wood (nil: none, as before); a desk with its
+        // knee space toward a local direction.
+        func furniture(_ m: Mats, _ kind: String) -> BlockID? {
+            let fk = Blocks.key(Blocks.groupBase[Int(m.fence)])
+            let w = fk.hasSuffix("_fence") ? String(fk.dropLast(6)) : "spruce"
+            let n = Blocks.has("\(w)_\(kind)") ? "\(w)_\(kind)" : "spruce_\(kind)"
+            return Blocks.has(n) ? Blocks.id(n) : nil
+        }
+        func desk(_ m: Mats, front local: Int) -> BlockID? {
+            guard let d = furniture(m, "desk") else { return nil }
+            return d + BlockID(Village.dir(l, local))                 // (its facings in a row: Seats.swift)
         }
     }
 

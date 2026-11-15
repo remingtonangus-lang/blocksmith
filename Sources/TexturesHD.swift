@@ -943,6 +943,32 @@ enum HDTex {
         return img
     }
 
+    // Nov 14 evening (sheet ice on a cold sea: "This ice just doesn't look realistic"): a sheet of clear sea ice seen from
+    // above. Mostly glass with a slow blue-green depth, a few long thin fractures (not a grid of tiles: only the strongest
+    // cell edges, where a broad mask allows), soft white frost in drifts and a scatter of trapped bubbles.
+    static func seaIceHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n)
+        let drift = fbm(n, n / 2, 4, s &+ 21)
+        let cells = voronoi(n, 3, s &+ 23)
+        let mask = fbm(n, n / 2, 3, s &+ 27)
+        let depth = fbm(n, n, 2, s &+ 29)
+        let fine = vnoise(n, max(1, n / 48), s &+ 31)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let crackK: Float = cl((mask[i] - 0.55) * 6)
+            let edge: Float = cl(1 - (cells.f2[i] - cells.f1[i]) / (fn / 160)) * crackK
+            let frost: Float = cl((drift[i] - 0.6) * 3) * 0.8
+            let tone: Float = 0.86 + (depth[i] - 0.5) * 0.18 + fine[i] * 0.04
+            var c: V3 = V3(0.55, 0.74, 0.86) * tone
+            c += (V3(0.93, 0.97, 1.0) - c) * max(frost * 0.7, edge * 0.85)
+            let bubble = h2(x / max(1, n / 40), y / max(1, n / 40), s &+ 33) > 0.992
+            let a: Float = 0.2 + frost * 0.3 + edge * 0.4 + (bubble ? 0.25 : 0)
+            img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), min(1, a))
+        } }
+        return img
+    }
+
     // Gourds and cactus.
     // Ribbed side (pumpkin): `ribs` rounded lobes across the face, dark grooves between them, faint vertical streaks.
     static func ribbedSide(_ pal: [(Float, UInt32)], ribs: Int) -> Gen {
@@ -6057,6 +6083,7 @@ enum HDTex {
         "soul_sand": soil([(0, 0x3A2A20), (0.5, 0x52402E), (1, 0x6A5440)], pebble: 0x2A1E16, pebbles: 10, clods: 8),
         "soul_soil": soil([(0, 0x3E3024), (0.5, 0x54442F), (1, 0x6A5840)], pebble: 0x4A3A2A, pebbles: 4, clods: 7),
         "ice": iceHD,
+        "sea_ice": seaIceHD,
         "pumpkin_side": ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4)
     ]
     static let tablePart2: [String: Gen] = [

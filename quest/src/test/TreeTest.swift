@@ -38,6 +38,7 @@ enum TreeTest {
 
     static func run(check: (Bool, String) -> Void) {
         let leafT = Mesher.leafT
+        Nov14EveningChecks.treeCatalogue(check)
         // Per kind: how many distinct silhouettes 40 seeds give, every log joined to the ground through logs, every
         // leaf within 5 of a log, nothing clipped at the buffer's edge (the 7-block placement margin holds).
         let kinds: [(TreeKind, String, Int)] = [(.oak, "oak", 4), (.birch, "birch", 4), (.spruce, "spruce", 4), (.pine, "pine", 2),

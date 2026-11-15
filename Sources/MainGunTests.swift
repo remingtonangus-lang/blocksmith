@@ -465,8 +465,13 @@ enum MainGunTests {
             }
             w.ships.capitalTick(1.0 / 72, game: g)                // (the wreck is declared on its next tick)
             let torn = blocks0 - hull()
-            check(MainGun.shipHits == hits0 + 1 && e.wrecked && torn >= (near ? 150 : 400),
-                  "maingun: a \(near ? "near miss 3 blocks off" : "direct hit on") an Ironback Crawler wrecks it (\(est.disabledWhy)) and tears out \(torn) of its \(blocks0) blocks")
+            // (Nov 14 evening, "How did it get disabled?... the tractor's intact": a near miss no longer stops a crawler by
+            // itself; it tears its side and the crawler runs on unless the tear took its engines or wheels. BS_OLDCRAWLERHIT=1:
+            // a miss within MainGun.disableMiss wrecks it, as before.)
+            let runsOn = near && !ShipManager.oldCrawlerHit
+            check(MainGun.shipHits == hits0 + 1 && (runsOn ? !e.wrecked && est.disabledWhy.isEmpty : e.wrecked) && torn >= (near ? 150 : 400),
+                  "maingun: a \(near ? "near miss 3 blocks off" : "direct hit on") an Ironback Crawler " + (runsOn ? "tears its side and leaves it running" : "wrecks it")
+                    + " (\(est.disabledWhy)) and tears out \(torn) of its \(blocks0) blocks")
             // T9: with its driver dead the wreck can be taken; ingots rebuild its lost wheels and it drives again.
             if near {
                 est.crewDone = Set(est.crewRoles.indices)

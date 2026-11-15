@@ -22,6 +22,9 @@ enum BlockWear {
     static let playerShare: Float = 2, enemyShare: Float = 0.6, arcShare: Float = 3
     static var frameAt: Double = -1, brokeThisFrame = 0
     static var shotOut = 0, throughShots = 0     // (counters)
+    static let oldSplash = ProcessInfo.processInfo.environment["BS_OLDWEARSPLASH"] == "1"
+    static var splash = !oldSplash                // (checks compare the two ways)
+    static let splashShare: Float = 0.25          // (Game.splashWear: of a round's damage, to each open neighbour on the face)
 
     // Rounds it takes to wear the block away (as damage points); .infinity: rounds never break it.
     static func hp(_ id: BlockID) -> Float {
@@ -108,8 +111,32 @@ extension Game {
 
     // A round of `damage` struck block b: wears it, and shoots it out once worn through. Returns what the round has left
     // when it broke the block (0 when it stopped in it).
+    // Nov 14 evening (20:49:21, a Greywall Outpost's wall of Dark Station Concrete, the Slatefall Carbine in hand: "I
+    // can't break through that? That's weird. Should be able to break through that block"): wear was the struck cell's
+    // alone, so a burst that wandered over a wall's face (his hand on the headset, the carbine's bloom) wore a dozen
+    // cells a little and broke none; held on one cell in his world the carbine takes 8 rounds (and 20 for the vault's
+    // armoured wall beside it). A round of his now wears the cells beside the struck one on the same face too (a
+    // quarter of its damage each, where that face is open), so a sprayed burst adds up to a hole where it lands.
+    // BS_OLDWEARSPLASH=1: the struck cell alone.
+    func splashWear(_ b: IVec3, normal n: IVec3, damage: Float, at: V3) {
+        let w = world
+        let along: [IVec3] = n.x != 0 ? [IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+            : (n.y != 0 ? [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+               : [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0)])
+        for d in along {
+            let c = IVec3(b.x + d.x, b.y + d.y, b.z + d.z)
+            let open = IVec3(c.x + n.x, c.y + n.y, c.z + n.z)
+            let o = w.materialAt(open.x, open.y, open.z)
+            guard !Blocks.collide[Int(o)] || Blocks.fluidKind[Int(o)] != 0 else { continue }     // (its face toward him is open)
+            let id = w.materialAt(c.x, c.y, c.z)
+            guard id != AIR, Blocks.collide[Int(id)] else { continue }
+            wearBlock(c, damage: damage * BlockWear.splashShare, at: V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5) + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.5,
+                      fromPlayer: true, quiet: true)
+        }
+    }
+
     @discardableResult
-    func wearBlock(_ b: IVec3, damage: Float, at: V3, fromPlayer: Bool, arc: Bool = false) -> Float {
+    func wearBlock(_ b: IVec3, damage: Float, at: V3, fromPlayer: Bool, arc: Bool = false, quiet: Bool = false) -> Float {
         let w = world
         let id = w.materialAt(b.x, b.y, b.z)                // (what it's made of: ground wears as its rock)
         if fromPlayer && BlockWear.tankPlate(id) && ruptureTank(b, at: at) { return 0 }        // P507
@@ -127,7 +154,7 @@ extension Game {
             BlockWear.marks[b] = m
             if BlockWear.marks.count > BlockWear.maxMarks { BlockWear.heals(now: clock) }
             // Worn past half: more grit comes off it.
-            if m.dealt > hp * 0.5 { particles.dust(id, at: at, count: 4, spread: 0.12) }
+            if m.dealt > hp * 0.5 && !quiet { particles.dust(id, at: at, count: 4, spread: 0.12) }
             return 0
         }
         guard BlockWear.brokeThisFrame < BlockWear.perFrame else {

@@ -3067,7 +3067,9 @@ final class MobManager {
         let std: [(MobKind, Int, Int, Int)] = [(.sheep, 12, 4, 4), (.pig, 10, 4, 4), (.chicken, 10, 4, 4), (.cow, 8, 4, 4)]
         var t: [(MobKind, Int, Int, Int)]
         switch b {
-        case .plains, .sunflowerPlains: t = std + [(.horse, 5, 3, 7), (.donkey, 1, 1, 3), (.bison, 3, 4, 8), (.deer, 2, 2, 3)]      // D2: herds of 3-7; D45
+        case .plains, .sunflowerPlains: t = std + [(.horse, MobManager.oldHorsePacks ? 5 : 2, 3, MobManager.oldHorsePacks ? 7 : 6), (.donkey, 1, 1, 3), (.bison, 3, 4, 8), (.deer, 2, 2, 3)]      // D2: herds of 3-7; D45
+            // (Nov 14 evening, Elk Hollow: "Why are there so many horses spawning here?": a 7-horse pack at weight 5 of 51
+            // was a third of the plains' animals; now weight 2, herds of 3-6, the steady herd below fills the rest.)
         case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest: t = std + (b == .forest ? [(.wolf, 5, 4, 4)] : []) + (b == .flowerForest ? [(.rabbit, 4, 2, 3)] : [])
             + [(.deer, 6, 2, 4)] + (b == .forest || b == .darkForest ? [(.boar, 3, 2, 3)] : [])                // D45
         case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: t = std + [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4), (.cougar, 1, 1, 1), (.elk, 4, 2, 4), (.deer, 4, 2, 3)]
@@ -3104,7 +3106,7 @@ final class MobManager {
         switch k {
         case .turtle: ok = g == "sand"
         case .mooshroom: ok = ["grass_block", "moss_block", "sand", "mycelium"].contains(g)     // P280: Shellback (mycelium: old islands)
-        case .rabbit, .polarBear, .goat, .fox, .wolf, .armadillo, .camel, .cougar, .rattlesnake, .deer, .elk, .bison, .boar: ok = ["grass_block", "snowy_grass_block", "sand", "red_sand", "snow_block", "snow", "stone", "podzol", "coarse_dirt", "terracotta", "packed_ice", "ice", "powder_snow"].contains(g) || g.hasSuffix("_terracotta")
+        case .rabbit, .polarBear, .goat, .fox, .wolf, .armadillo, .camel, .cougar, .rattlesnake, .deer, .elk, .bison, .boar: ok = ["grass_block", "snowy_grass_block", "sand", "red_sand", "snow_block", "snow", "stone", "podzol", "coarse_dirt", "terracotta", "packed_ice", "ice", "sea_ice", "powder_snow"].contains(g) || g.hasSuffix("_terracotta")
         case .frog, .alligator: ok = ["grass_block", "mud", "mangrove_roots", "muddy_mangrove_roots"].contains(g)
         case .parrot, .panda, .ocelot: ok = ["grass_block", "podzol"].contains(g) || g.hasSuffix("_leaves")
         default: ok = g == "grass_block" || g == "snowy_grass_block"

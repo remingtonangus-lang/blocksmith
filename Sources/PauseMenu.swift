@@ -241,6 +241,7 @@ final class PauseMenu: Menu {
         "newworld": "Start a new world with a random seed straight away.",
         "workshop": "A creative test world with the standard circuits built and signed: clocks, a toggle, a piston door, a sorter.",
         "proving": "A creative world with a hundred vehicles, a hundred copper circuits and ten built guns laid out to try.",
+        "builders": "A creative Polygons world where six builds go up block by block on six kinds of natural ground.",
         "w_play": "Load this world.",
         "w_rename": "Give this world a new name.",
         "w_copy": "Make a copy of this world (a backup before big changes).",
@@ -428,7 +429,8 @@ final class PauseMenu: Menu {
             worlds = WorldStore.list()
             rows = [("Create New World...", "create"), ("Quick New World (random seed)", "newworld"),
                     ("Sparkstone Workshop (circuits)", "workshop"),
-                    ("Proving Grounds (vehicles, circuits, guns)", "proving")].filter { ($0.1 != "workshop" && $0.1 != "proving") || st.devTools }   // Q2c-console-25, P512
+                    ("Proving Grounds (vehicles, circuits, guns)", "proving"),
+                    ("Builders' Grounds (agent builds)", "builders")].filter { ($0.1 != "workshop" && $0.1 != "proving" && $0.1 != "builders") || st.devTools }   // Q2c-console-25, P512
                 + worlds.map { (WorldStore.rowLabel($0, open: $0.name == currentWorld), "world:" + $0.name) }   // Q2c-console-8
                 + [("Back", "back")]
         case .world:
@@ -512,7 +514,7 @@ final class PauseMenu: Menu {
         case .worlds:
             // New-world buttons side by side on top, then one wide button per world, Back apart at the end.
             return Style(width: 320, btnH: 24, gapX: 10, gapY: 5, groupGap: 10, cols: 3, lines: 7, groups: [
-                (["create", "newworld", "workshop", "proving"], 0),
+                (["create", "newworld", "workshop", "proving", "builders"], 0),
                 (rows.map { $0.1 }.filter { $0.hasPrefix("world:") }, 1),
                 (["back"], 0)])
         case .confirm:
@@ -787,6 +789,7 @@ final class PauseMenu: Menu {
         case "newworld": g.appAction?("newworld")
         case "workshop": g.appAction?("workshop")
         case "proving": g.appAction?("proving")                                      // P512 (ProvingGrounds.swift)
+        case "builders": g.appAction?("builders")                                    // (BuildersWorld.swift)
         case "edit_name", "edit_seed", "edit_rename":
             editing = id == "edit_name" ? 0 : (id == "edit_seed" ? 1 : 2)
             if Prompt.pad || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }
