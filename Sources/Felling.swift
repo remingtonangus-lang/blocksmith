@@ -19,6 +19,7 @@ enum Felling {
         var age: Float = 0
         var still: Float = 0
         var landed = false
+        var landedAge: Float = -1                // (Nov 15: when it first struck the ground)
         var lastVel = V3(0, 0, 0)
         // P441 (Oct 24 20:51: "the old version of it kind of hovers there for a second"): the body stays hidden and still
         // until the world has redrawn the sections it left (and its own mesh is in), then is let go as it was thrown.
@@ -659,7 +660,7 @@ extension Game {
             }
             f.lastVel = s.vel
             if !f.landed && f.age > 0.4 && s.contacts > 0 && dv > 2.5 {
-                f.landed = true
+                f.landed = true; f.landedAge = f.age
                 sfx(.shipCollideHard, min(2, 0.8 + dv / 6), at: s.pos)
                 sfx(.plantBrush, 1.4, at: s.pos)
                 let d = simd_length(player.pos - s.pos)
@@ -667,8 +668,11 @@ extension Game {
             }
             let resting = simd_length(s.vel) < 0.4 && simd_length(s.angVel) < 0.25
             f.still = resting ? f.still + dt : 0
-            // Nov 15 (Fable's list, 5): landed and lain still half a second, a felled tree goes into his pack.
-            if !Felling.keep && Felling.isFelled(s) && ((f.landed || f.age > 1.5) && f.still >= 0.5 || f.age > 9) {
+            // Nov 15 (Fable's list, 5): landed and lain still a moment, a felled tree goes into his pack; one still rolling
+            // or settling goes 1.5 s after it first struck the ground (in his world at 3961 74 -1737 a spruce took 5.4 s
+            // to lie still after its crown struck).
+            let settled = f.landed && (f.still >= 0.3 || f.age - f.landedAge >= 1.5)
+            if !Felling.keep && Felling.isFelled(s) && (settled || !f.landed && f.age > 2.5 && f.still >= 0.3 || f.age > 9) {
                 gatherFelled(s); f.age = -1; continue
             }
             // P478 (Oct 27 18:47: "I don't want the branches and shit to disappear after the log falls"): the crown stays
