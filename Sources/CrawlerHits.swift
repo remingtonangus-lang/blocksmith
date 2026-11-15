@@ -71,5 +71,21 @@ enum CrawlerHits {
         func close(_ x: Row, _ y: Row) -> Bool { (x.stopAt < 0) == (y.stopAt < 0) && abs(x.stopAt - y.stopAt) <= 1 }
         check(close(a, b) && close(c, d) && close(a, c), "crawlerhits: the same heavy shell stops a crawler after as many hits whoever fires it (\(a.stopAt), \(b.stopAt), \(c.stopAt), \(d.stopAt); -1 still running after 8)")
         check([a, b, c, d].allSatisfy { $0.stopAt < 0 || $0.stopAt >= 3 }, "crawlerhits: a crawler takes three heavy shells or more before it stops (\(a.stopAt), \(b.stopAt), \(c.stopAt), \(d.stopAt))")
+        // Nov 14 evening: a Tidebreaker strike on its bow (far from its engine room) tears the bow; it doesn't stop it.
+        let w = g.world, n1 = w.ships.list.count
+        let home = g.player.pos + V3(0, 0, 140)
+        w.ships.spawnCapital("crawler", home: IVec3(Int(home.x), 0, Int(home.z)), yaw: 0, region: nil, sync: true)
+        if let e = w.ships.list.dropFirst(n1).first(where: { $0.role == "crawler" }), let st = w.ships.capState[e.id] {
+            defer { w.ships.remove(e); w.ships.capState.removeValue(forKey: e.id); w.ships.shockwaves.removeAll() }
+            _ = w.loadSync(center: e.pos, radius: 3)
+            let eng0 = e.engines, blocks0 = e.blockCount
+            let bow = e.dirToWorld(V3(0, 0, -1)), c = (e.worldMin + e.worldMax) * 0.5
+            var at = c + bow * 40
+            for _ in 0..<80 where !w.ships.shipBlock(in: e, at: at) { at -= bow * 0.5 }
+            w.ships.mainGunHullDamage(at: at, owner: -1, direct: e, game: g)
+            w.ships.capitalTick(1.0 / 72, game: g)
+            check(ShipManager.oldCrawlerHit || (e.blockCount < blocks0 && e.engines == eng0 && !e.wrecked && st.disabledWhy.isEmpty),
+                  "crawlerhits: a Tidebreaker strike on a crawler's bow tears \(blocks0 - e.blockCount) blocks and leaves it running (engines \(e.engines)/\(eng0)\(st.disabledWhy.isEmpty ? "" : ", " + st.disabledWhy))")
+        } else { check(false, "crawlerhits: a crawler spawns for the Tidebreaker leg") }
     }
 }
