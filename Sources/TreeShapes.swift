@@ -700,7 +700,7 @@ enum TreeShapes {
 
     // The designs the world grows a kind as. BS_OLDCATALOGUE=1: only the 49 designs from before the catalogue of 100
     // (ids under 200), so every tree stands where and as it stood before Nov 15 (checks that fell a tree of his compare).
-    static let oldCatalogue = ProcessInfo.processInfo.environment["BS_OLDCATALOGUE"] == "1"
+    static var oldCatalogue = ProcessInfo.processInfo.environment["BS_OLDCATALOGUE"] == "1"     // (var: checks of his trees as they stood)
     static func planted(_ kind: TreeKind) -> [TreeShape]? {
         guard let set = designs(kind) else { return nil }
         guard oldCatalogue else { return set }

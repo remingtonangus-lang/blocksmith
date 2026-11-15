@@ -414,6 +414,11 @@ enum TreeProbeCheck {
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }
         do {
+            // (his spruce as it stood on Nov 13: the catalogue of 100 (Nov 15) grows a limbed spruce there now, whose
+            // limb logs lie 1.5 over the ground on its trunk)
+            let cat0 = TreeShapes.oldCatalogue
+            TreeShapes.oldCatalogue = true
+            defer { TreeShapes.oldCatalogue = cat0 }
             let w = World(seed: 2117423538372845574, device: g0.world.device, save: nil)
             w.makeFieldWorld()
             w.renderDistance = 3; w.activeDistance = 3
