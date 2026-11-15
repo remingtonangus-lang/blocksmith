@@ -112,7 +112,7 @@ final class Player {
         }
     }()
     static let headNudges: [Float] = [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6]
-    static let oldHeadNudge = ProcessInfo.processInfo.environment["BS_OLDHEADNUDGE"] == "1"
+    static let oldHeadNudge = Env.all["BS_OLDHEADNUDGE"] == "1"
     static let fieldNudgeRadii: [Float] = [0.06, 0.12, 0.2, 0.3, 0.45, 0.6, 0.75]
     // (Up first: feet a hair into the floor; down: a head into a rounded ceiling's corners; then sideways and slanting.)
     static let fieldNudgeDirs: [V3] = {
