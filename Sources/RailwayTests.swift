@@ -793,6 +793,7 @@ enum RailwayTests {
         Railways.tally = { k in whyLock.lock(); why[k, default: 0] += 1; whyLock.unlock() }
         defer { Railways.tally = tally0 }
         var crossings = 0, onLinks = 0, ranOn = 0, seaCells = 0, longest = 0, fedTwice = 0
+        var seenPairs = Set<String>()
         for k in 0..<12 {
             let seed = UInt64(1000 + k * 7919)
             let gen = WorldGen(seed: seed)
@@ -824,6 +825,12 @@ enum RailwayTests {
                         crossings += 1
                         if Railways.isLink(o) { onLinks += 1 }
                         if crossings <= 4 { bad.append("seed \(seed) \(lk.name): \(lk.runOn ? "run-on " : "")link cell \(c) on another \(Railways.isLink(o) ? "link" : "line")") }
+                        // (which two: their rows and stretches, far or near, once a pair)
+                        let pair = "\(lk.id) \(o)"
+                        if seenPairs.insert(pair).inserted, seenPairs.count <= 12 {
+                            let (r2, t2) = Railways.rowStretch(o)
+                            print("rail links: seed \(seed) overlap: link of row \(row) stretch \(st) (\(Railways.isFar(gen, row, st) ? "far" : "near"), run-on \(lk.runOn), \(lk.cells.count) cells, to \(Railways.rowStretch(lk.target))) on \(Railways.isLink(o) ? "the link" : "the line") of row \(r2) stretch \(t2) (\(Railways.isFar(gen, r2, t2) ? "far" : "near")) at \(c)")
+                        }
                     }
                     owner[ck] = lk.id
                 }

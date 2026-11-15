@@ -293,7 +293,12 @@ enum Railways {
     }
 
     static func planLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
-        if let l = gated(gen, old: { planLink(gen, row: row, stretch: s, diagonal: false) }, new: { planLink(gen, row: row, stretch: s, diagonal: true) }) { return l }
+        if let l = gated(gen, old: { planLink(gen, row: row, stretch: s, diagonal: false) }, new: { planLink(gen, row: row, stretch: s, diagonal: true) }) {
+            // (ledger 135: a link as before that lies across another line's track, on ground no save had: the run-on
+            // rule lays it clear of every track instead; the count found one such crossing in 267 lines)
+            if !(runOn && gen.fieldWorld && overLine(gen, l, row: row, s: s)) { return l }
+            tally?("link: over another line")
+        }
         return planRunOn(gen, row: row, stretch: s)
     }
 
@@ -366,6 +371,27 @@ enum Railways {
         }
         return nil
     }
+    // Whether link l (row, s's) lies on a cell of a line other than the two it joins, clear of ground saved before.
+    static func overLine(_ gen: WorldGen, _ l: Line, row: Int, s: Int) -> Bool {
+        guard let sc = gen.structures else { return false }
+        let (brow, bs) = l.target != 0 ? rowStretch(l.target) : (row, s + linkReach)
+        var cells = Set<Int64>()
+        for r in (min(row, brow) - 1)...(max(row, brow) + 1) { for t in (s - 1)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) && !(r == brow && t == bs && l.target != 0) {
+            guard let o = line(gen, row: r, stretch: t) else { continue }
+            if l.target == 0, let f = o.cells.first, let e = l.cells.last, abs(f.x - e.x) + abs(f.z - e.z) <= 1 { continue }     // (the line it joins)
+            for c in o.cells { cells.insert(colKey(c.x, c.z)) }
+        } }
+        guard l.cells.contains(where: { cells.contains(colKey($0.x, $0.z)) }) else { return false }
+        for (i, q) in l.cells.enumerated() where i % 8 == 0 || i == l.cells.count - 1 {
+            let cx = floorDiv(q.x, CS), cz = floorDiv(q.z, CS)
+            for g in [sc.legacyC1, sc.legacyP510, sc.legacyL135] where !g.isEmpty && !sc.clear(cx: cx, cz: cz, reach: 3, guardSet: g) { return false }
+        }
+        return true
+    }
+    // Whether (row, s)'s line has only a far line to run on to (or none).
+    static func isFar(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
+        eastIn(gen, row, s) == nil && southOf(gen, row, s) == nil && northOf(gen, row, s) == nil
+    }
     static func planRunOn(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         guard runOn, gen.fieldWorld, hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures,
               let pa = a.cells.last else { return nil }
@@ -381,6 +407,14 @@ enum Railways {
             guard let o = line(gen, row: r, stretch: t) else { continue }
             for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
         } }
+        // (a far link, the lowest in rank, also keeps off the nearer links laid between its ends: the count on build 91
+        // found 9,216 link cells lying on another link; a nearer link never asks for a far one, so this ends)
+        if isFar(gen, row, s) {
+            for r in (min(row, brow) - 1)...(max(row, brow) + 1) { for t in (s - 1)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) && !isFar(gen, r, t) {
+                guard let o = link(gen, row: r, stretch: t) else { continue }
+                for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
+            } }
+        }
         func crosses(_ run: [(Int, Int)]) -> Bool {
             guard run.count > 80 else { return false }
             for i in 40..<(run.count - 40) where shut.contains(colKey(floorDiv(run[i].0, routeCell), floorDiv(run[i].1, routeCell))) { return true }
