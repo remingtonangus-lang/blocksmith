@@ -653,6 +653,9 @@ if let out = arg("--view"), let ctx = vkctx {
     // --put "KEY@DX,DY,DZ;...": blocks set round the eye's cell before the frame (block looks, e.g. P463's observers).
     if let put = arg("--put") {
         let e = vg.player.pos
+        // (--putbuilt: set as he places them, ledger 136: rock stays a built cube)
+        vw.placeCube = CommandLine.arguments.contains("--putbuilt") && !Game.oldRockLump
+        defer { vw.placeCube = false }
         for item in put.split(separator: ";") {
             let kv = item.split(separator: "@")
             let o = kv.count == 2 ? kv[1].split(separator: ",").compactMap { Int($0) } : []
