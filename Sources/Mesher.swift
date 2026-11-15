@@ -2637,7 +2637,7 @@ enum Mesher {
     static var farDarkCull = true
     static let pointedDrip: BlockID = Blocks.has("pointed_dripstone") ? Blocks.id("pointed_dripstone") : 0
     static let iceT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "ice" }
-    static let sheetT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "sea_ice" && !Game.oldIce }
+    static let sheetT: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]) == "sea_ice" && !Game.oldIce }
     static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
 
     // Which section faces see each other through non-opaque cells (flood fill per open region).

@@ -668,12 +668,20 @@ enum CapitalCity {
             if f % 2 == 1 { w.chest(bx0 + 1, Y + 1, bz1 - 1, loot: "capital_city", seed: UInt64(bitPattern: Int64(bx0 &* 31 &+ bz0 &* 17 &+ Y)), facing: 0) }
         } else {
             let colors = ["white_bed", "light_blue_bed", "light_gray_bed", "cyan_bed"]
+            var housed = 0
             for x in stride(from: bx0 + 3, through: bx1 - 3, by: 4) {
                 let c = colors[((x + Y) % 4 + 4) % 4]
                 guard let bed = g(c), let head = g(c + "_head"), !core(x, bz1 - 2),
                       w.get(x, Y + 1, bz1 - 2) == AIR, w.get(x, Y + 1, bz1 - 1) == AIR else { continue }
                 w.set(x, Y + 1, bz1 - 2, bed); w.set(x, Y + 1, bz1 - 1, head)
                 put(x + 1, Y + 1, bz1 - 1, g("birch_planks")); put(x + 1, Y + 2, bz1 - 1, g("lantern"))
+                // Nov 15 (08:23:36-08:23:40, the Capital at 2820 -437: "increase the amount of civilians in here to... maybe
+                // like 300"): the upper floors' beds have their residents too, `CapitalTown.upperResidents` a floor.
+                let mz = bz1 - 4
+                if housed < CapitalTown.upperResidents, !core(x, mz), w.inside(x, Y + 1, mz), w.get(x, Y + 1, mz) == AIR {
+                    w.mob("villager:citizen", V3(Float(x) + 0.5, Float(Y + 1), Float(mz) + 0.5))
+                    housed += 1
+                }
             }
             let tx = bx0 + 4, tz = (bz0 + bz1) / 2
             put(tx, Y + 1, tz, g("birch_planks")); put(tx + 1, Y + 1, tz, g("birch_planks")); put(tx, Y + 2, tz, g("flower_pot"))

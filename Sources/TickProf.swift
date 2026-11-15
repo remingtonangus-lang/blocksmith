@@ -41,6 +41,12 @@ enum TickProf {
         return bi < 0 ? ("-", 0) : (names[bi], bt * 1000)
     }
 
+    // The n slowest stages, "name 12.3 + name 4.5 + ..." (the harness: where a whole tick went).
+    static func top(_ n: Int) -> String {
+        let order = (0..<count).sorted { times[$0] > times[$1] }.prefix(n)
+        return order.map { "\(names[$0].description) \(String(format: "%.1f", times[$0] * 1000))" }.joined(separator: " + ")
+    }
+
     // The two slowest stages, "name 12.3 + name 4.5" (for logs).
     static func summary() -> String {
         var a = -1, b = -1

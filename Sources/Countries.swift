@@ -588,22 +588,38 @@ enum Countries {
                 state.posts.append(k)
                 MapCache.shared.discover(g, kind: "border_post", x: s.0, z: s.1, name: "\(here.name) - \(n.name) border post")
             }
-            if d < 40 { near = (k, s, here, n) }
+            if d < 40 { near = (k, s, here, n); if !oldCustoms { officer(g, at: s, into: n) } }
         }
         guard let (k, s, _, target) = near, g.survival else {
-            if near == nil { paidPost = nil; owed = 0; owedTo = nil; owedPost = nil }
+            if near == nil { paidPost = nil; owed = 0; owedTo = nil; owedPost = nil; greetedPost = nil }
             return
         }
         // The duty is owed to the country across the post from you; paid, you're clear until you leave the post.
         if paidPost == k { return }
         let due = duty(g, into: target)
-        if due == 0 { owed = 0; owedTo = nil; return }
+        let off = oldCustoms ? nil : officerAt(g, s)
+        let d = simd_length(V2(Float(s.0) + 0.5 - p.x, Float(s.1) + 0.5 - p.z))
+        if due == 0 {
+            owed = 0; owedTo = nil
+            // Nov 15 (08:15:45-08:16:02, "I don't think I can actually pay anything here... Customs. Pay here. I don't
+            // even know what that means... What happens if I don't?"): the officer waves you through with nothing on you.
+            if let o = off, d < 12, greetedPost != k {
+                greetedPost = k; o.face(p)
+                Townsfolk.say(g, o, "Nothing to declare? Go on through.")
+            }
+            return
+        }
         if owedPost != k || owedTo != target.key {
             owedPost = k; owedTo = target.key; owed = due; lastPostDistance = .infinity
-            g.onToast?("\(target.name) customs: \(Money.format(due)) duty on your minerals")
+            if let o = off {
+                // The officer says what the duty is and on what, where you can see the booth.
+                o.face(p)
+                Townsfolk.say(g, o, "\(target.name) customs. \(dutyPct) percent on ore, gems and ingots: \(Money.format(due)). Pay at the booth.")
+            } else {
+                g.onToast?("\(target.name) customs: \(Money.format(due)) duty on your minerals")
+            }
         }
         owed = due
-        let d = simd_length(V2(Float(s.0) + 0.5 - p.x, Float(s.1) + 0.5 - p.z))
         lastPostDistance = min(lastPostDistance, d)
         if d < payRadius {
             if g.money >= due {
@@ -611,11 +627,70 @@ enum Countries {
                 paidPost = k; owed = 0; owedTo = nil
                 g.sfx(.villagerTrade, 0.6)
                 g.onToast?("Paid \(Money.format(due)) duty to \(target.name)")
+                if let o = off { o.face(p); Townsfolk.say(g, o, "That's paid. Go on through.") }
             } else if g.clock - postPause > 10 {
                 postPause = g.clock
-                g.onToast?("You can't pay the \(Money.format(due)) duty")
+                if let o = off {
+                    o.face(p)
+                    Townsfolk.say(g, o, "You're short of the \(Money.format(due)). Take that ore through and we'll remember you.")
+                } else {
+                    g.onToast?("You can't pay the \(Money.format(due)) duty")
+                }
             }
         }
+    }
+
+    // Nov 15 (BS_OLDCUSTOMS=1 for the post without its officer and with the old sign words).
+    static let oldCustoms = ProcessInfo.processInfo.environment["BS_OLDCUSTOMS"] == "1"
+    static var greetedPost: String?
+    static let officerRole = "customs"
+    static func isOfficer(_ m: Mob) -> Bool { m.kind == .villager && m.villager?.role == officerRole }
+    static func signWords(into: Country) -> [String] {
+        oldCustoms ? ["BORDER POST", "Entering \(into.name)", "", "Customs: pay here"]
+                   : ["CUSTOMS", "Entering \(into.name)", "Duty \(dutyPct)% on ore,", "gems & ingots"]
+    }
+    static func officerAt(_ g: Game, _ s: (Int, Int)) -> Mob? {
+        let c = V2(Float(s.0) + 0.5, Float(s.1) + 0.5)
+        return g.mobs.mobs.first { isOfficer($0) && $0.health > 0 && simd_length(V2($0.pos.x, $0.pos.z) - c) < 12 }
+    }
+    // A built post (its sign stands at the booth's end) has a customs officer standing in the booth; an old save's sign
+    // gets the new words.
+    static func officer(_ g: Game, at s: (Int, Int), into: Country) {
+        let gy = g.world.gen.column(s.0, s.1).height
+        guard let be = g.world.blockEntities[IVec3(s.0, gy + 1, s.1 - 2)] ?? g.world.blockEntities[IVec3(s.0, gy + 1, s.1 + 2)],
+              be.kind == .sign, let top = be.lines.first, top == "BORDER POST" || top == "CUSTOMS" else { return }
+        for z in [s.1 - 2, s.1 + 2] {
+            if let b = g.world.blockEntities[IVec3(s.0, gy + 1, z)], b.kind == .sign, b.lines.first == "BORDER POST", b.lines.count > 1 {
+                let name = b.lines[1].replacingOccurrences(of: "Entering ", with: "")
+                b.lines = ["CUSTOMS", "Entering \(name)", "Duty \(dutyPct)% on ore,", "gems & ingots"]
+            }
+        }
+        guard officerAt(g, s) == nil, g.world.isLoaded(s.0, s.1) else { return }
+        let m = Mob(.villager, at: V3(Float(s.0) + 0.5, Float(gy + 1), Float(s.1) + 0.5))
+        Townsfolk.setup(m, tag: "camper", game: g)
+        if var v = m.villager { v.role = officerRole; m.villager = v }
+        m.persistent = true
+        m.home = m.pos
+        g.mobs.mobs.append(m)
+    }
+    // talkToTownsperson: the customs officer takes the duty owed here, or waves you through.
+    static func talk(_ g: Game, _ m: Mob) -> Bool {
+        guard isOfficer(m) else { return false }
+        m.face(g.player.pos)
+        if g.survival, owed > 0, let to = owedTo, let c = byKey(g, to) {
+            if g.money >= owed {
+                g.money -= owed
+                g.sfx(.villagerTrade, 0.6)
+                g.onToast?("Paid \(Money.format(owed)) duty to \(c.name)")
+                paidPost = owedPost; owed = 0; owedTo = nil
+                Townsfolk.say(g, m, "That's paid. Go on through.")
+            } else {
+                Townsfolk.say(g, m, "You're short of the \(Money.format(owed)). Take that ore through and we'll remember you.")
+            }
+            return true
+        }
+        Townsfolk.say(g, m, "Nothing to declare? Go on through.")
+        return true
     }
 
     // P507: the post's sign used (Decor.openSignEditor): the duty owed here paid at the desk, or nothing to declare.
@@ -686,7 +761,8 @@ enum Countries {
             for (z, facing, into, from) in [(z0, BlockID(0), b, a), (z0 + 4, BlockID(1), a, b)] {
                 w.setBlock(x0 + 2, gy + 1, z, sign + facing)
                 let be = BlockEntity(.sign)
-                be.lines = ["BORDER POST", "Entering \(into.name)", "from \(from.name)", "Customs: pay here"]
+                be.lines = oldCustoms ? ["BORDER POST", "Entering \(into.name)", "from \(from.name)", "Customs: pay here"]
+                                      : signWords(into: into)
                 w.blockEntities[IVec3(x0 + 2, gy + 1, z)] = be
             }
         }

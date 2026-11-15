@@ -56,6 +56,7 @@ enum MainGun {
 
     static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0; lastScorched = 0; lastOpen = ""; lastOpenFrames = -1 }
     static var lastOpen = "", lastOpenFrames = -1       // the last bowl: frames from the impact until it was open, by phase
+    static let oldOwnBlast = ProcessInfo.processInfo.environment["BS_OLDOWNBLAST"] == "1"     // (CraterJob: her own slug's bowl blasts her hull)
     static let oldWarm = ProcessInfo.processInfo.environment["BS_OLDCRATERWARM"] == "1"   // (ShipManager.warmBowl)
     static var warmed = 0                               // sections given their fine samples during a charge (MainGunTests)
     static func noteCrater(_ n: Int, scorched: Int = 0) { lastCrater = n; lastScorched = scorched }
@@ -302,7 +303,7 @@ extension ShipManager {
         g.baseNoise(at: p, kind: .explosion, power: 16)      // citadels and Boreal Station hear the blast (lockdown, alarms)
         lap("noise")
         if craterGroundLoaded(p) {
-            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, depth: MainGun.craterDepth, along: along)
+            wave.crater = CraterJob(at: p, radius: MainGun.craterRadius, cap: MainGun.craterCap, game: g, depth: MainGun.craterDepth, along: along, owner: owner)
         } else if pendingCraters.count < MainGun.pendingCap {
             pendingCraters.append(p)                         // dug when the player comes near enough to load it
             pendingAlong.append(along)

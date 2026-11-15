@@ -91,7 +91,7 @@ enum VillagerMinds {
     }
     static func keepsSchedule(_ m: Mob) -> Bool {
         let v = m.villager
-        return v?.shopKind != nil || v?.role == "deputy" || v?.role == "sheriff" || v?.role == "banker"
+        return v?.shopKind != nil || v?.role == "deputy" || v?.role == "sheriff" || v?.role == "banker" || v?.role == Countries.officerRole
     }
 }
 

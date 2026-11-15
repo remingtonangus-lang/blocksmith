@@ -441,6 +441,7 @@ final class CraterJob {
     private var rim: [IVec3] = []
     private(set) var done = false
     static let blocksPerFrame = 250
+    static var byBlocks = false                // (a check: each frame's carving its block budget, not the clock's slice)
     static var frameSeconds = 0.0016           // (about 2.7 ms of the headset's frame; see step)
     // Store review (citadel soak, build 94): each bowl and each naval breach opening took its own `frameSeconds` a
     // frame (the breaches in the arms stage, the bowls in the shockwaves: up to 9.8 ms of one tick), on top of 3-5 ms
@@ -491,6 +492,7 @@ final class CraterJob {
     private(set) var phaseFrames: [String: Int] = [:]
     private(set) var frames = 0
     private(set) var takenAt = -1            // the frame its last block went
+    private(set) var setSeconds = 0.0, carveSeconds = 0.0     // (the carving's time, and of it in setBlockAsync: openSummary)
     func tally(_ p: String) {
         let k = p.hasPrefix("field ball: fine") ? "ball prefetch" : p.hasPrefix("field ball") ? "field ball" : p.hasSuffix("scorch") ? "scorch"
             : p.hasPrefix("carving") ? "carving" : p
@@ -502,11 +504,13 @@ final class CraterJob {
         let parts = order.compactMap { k in phaseFrames[k].map { "\(k) \($0)" } }
         let carve = phaseFrames["carving"] ?? 0
         return String(format: "%ld frames (%.2f s at 72 Hz): ", frames, Double(frames) / 72) + parts.joined(separator: ", ")
-            + String(format: "; %ld blocks, %.0f a carving frame, all taken by frame %ld", removed, carve > 0 ? Double(removed) / Double(carve) : 0, takenAt)
+            + String(format: "; %ld blocks, %.0f a carving frame, all taken by frame %ld; %.1f us a block carving, %.1f of it taking the cell (setBlockAsync)",
+                     removed, carve > 0 ? Double(removed) / Double(carve) : 0, takenAt,
+                     removed > 0 ? carveSeconds * 1e6 / Double(removed) : 0, removed > 0 ? setSeconds * 1e6 / Double(removed) : 0)
     }
 
     // `quiet`: only the carving (a crater dug when its ground loads, long after the blast: MainGun pending craters).
-    init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false, depth: Int? = nil, along: V3? = nil) {
+    init(at c: V3, radius r: Float, cap: Int, game g: Game, quiet: Bool = false, depth: Int? = nil, along: V3? = nil, owner: Int = -1) {
         center = c; self.r = r; self.cap = cap
         // P357 (e): the bowl's depth leans along the shot (each layer down shifted on along its level heading, up to
         // 1.2 blocks a layer for a flat shot); a shot straight down digs straight down as before.
@@ -529,11 +533,22 @@ final class CraterJob {
         offsets = axes == nil ? Explosion.craterOffsets(ri, depth: self.depth) : Explosion.craterOffsets(reach, depth: reach)
         if quiet { return }
         let t0 = CFAbsoluteTimeGetCurrent()
+        // (Nov 15, questcheck maingun: "the impact itself is cheap" at 20.8-23.5 ms against 12, 4.8 on Oct 13. A shot
+        // 16 blocks off the Meridian's bow put her own hull (27 x 40 x 160 cells), her turrets and 8 of her blocks in
+        // both blasts: rays through her 6.2 ms, the search for pieces torn loose 5.8, her turrets 2.9, the explosion's
+        // own pass through her again. Her shockwave already spares her deck; her own slug's bowl spares her hull now.
+        // BS_OLDOWNBLAST=1: as before.)
+        let spare0 = ShipManager.blastSpares
+        if !MainGun.oldOwnBlast { ShipManager.blastSpares = owner }
+        defer { ShipManager.blastSpares = spare0 }
+        Explosion.lapStart()
         g.world.ships.blast(at: c, power: 14, game: g, resistCap: Armour.heavyCap)
+        Explosion.lapEnd("ships: rest")
+        let shipLaps = Explosion.laps
         let t1 = CFAbsoluteTimeGetCurrent()
         Explosion.explode(at: c, power: 8, game: g, breakBlocks: false)
         let t2 = CFAbsoluteTimeGetCurrent()
-        CraterJob.initCost = String(format: "ship blast %.1f, explosion %.1f", (t1 - t0) * 1000, (t2 - t1) * 1000)
+        CraterJob.initCost = String(format: "ship blast %.1f, explosion %.1f", (t1 - t0) * 1000, (t2 - t1) * 1000) + " [ship blast: " + shipLaps + "]"
         g.particles.explosion(at: c + V3(0, 2, 0), power: 8)
         g.sfx(.debrisRain, 1, at: c + V3(0, 2, 0))
         g.addFlash(at: c + V3(0, 1, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.6)
@@ -549,7 +564,12 @@ final class CraterJob {
         guard World.reachesWorld(center, max(r * 1.5, Float(depth)) + 4) else { done = true; CraterJob.outside &+= 1; return true }
         // (the frame's shared carving: none left, it waits a frame; the harness's whole-crater calls are untimed)
         let timed = blocks != .max
-        if timed && CraterJob.allowance() <= 0 { return false }
+        // (Nov 15, questcheck cratermesh passing some runs and failing others on the optimized host: the frame's slice of
+        // carving is cut by the wall clock, so how many blocks each frame took, and what fell or flowed into the bowl
+        // between frames, changed run to run. A deterministic run (World.deterministic: replays) or a check that asks
+        // for it (CraterJob.byBlocks) carves its block budget a frame instead.)
+        let clocked = timed && !(World.deterministic || CraterJob.byBlocks)
+        if clocked && CraterJob.allowance() <= 0 { return false }
         let began = CFAbsoluteTimeGetCurrent()
         var phase = "wait", removed0 = removed
         let refills0 = World.refilledAtOnce          // (Nov 4: a shell chunk refilled on the frame thread by an edit)
@@ -645,10 +665,16 @@ final class CraterJob {
         // was built on it): a frame's carving also stops at `frameSeconds` of work (checked every 2 blocks), so the
         // bowl opens over more frames instead of the frame rate falling under the dust. (The harness's whole-crater
         // calls, blocks .max, are untimed.)
-        let deadline = blocks == .max ? Double.infinity : CFAbsoluteTimeGetCurrent() + max(0, CraterJob.allowance() - (CFAbsoluteTimeGetCurrent() - began))
+        let deadline = !clocked ? Double.infinity : CFAbsoluteTimeGetCurrent() + max(0, CraterJob.allowance() - (CFAbsoluteTimeGetCurrent() - began))
         var sinceCheck = 0
         carveAt = CFAbsoluteTimeGetCurrent()
         var lastLook = carveAt, spanA = AIR, spanB = AIR
+        // Nov 15 (Fable's list: the bowl opened over 6.2 s, 47 us a cell): a frame's cells mark their sections once
+        // (World.bumpSection), and a cell well inside the bowl leaves its hollow to the bowl's field balls below (as a
+        // blast's cells do: Explosion.explode's batchShape). BS_OLDCRATERCELL=1: each cell its own.
+        w.beginBumps()
+        let innerR2: Float = World.oldCraterCell || !w.fieldTerrain ? -1 : 0.42 * r * r
+        defer { w.flushBumps(); w.batchShape = false }
         while next < offsets.count && budget > 0 && removed < cap {
             sinceCheck += 1
             if sinceCheck >= 2 {
@@ -688,12 +714,18 @@ final class CraterJob {
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)
             }
             for s in Explosion.blastDrops(id) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }      // (P452)
+            let ts = CFAbsoluteTimeGetCurrent()
+            w.batchShape = d2 <= innerR2
             w.setBlockAsync(x, y, z, AIR)
+            setSeconds += CFAbsoluteTimeGetCurrent() - ts
             if spanA == AIR { spanA = id } else { spanB = id }
             removed += 1
             budget -= 1
             if d2 > (edge - 1.5) * (edge - 1.5) { rim.append(b) }
         }
+        w.batchShape = false
+        w.flushBumps()
+        carveSeconds += CFAbsoluteTimeGetCurrent() - carveAt
         if (next >= offsets.count || removed >= cap) && !carved {
             carved = true
             phase = "carving, then the tip check and rim fluids"

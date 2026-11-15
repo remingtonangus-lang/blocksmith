@@ -21,9 +21,50 @@ enum AshArms {
     }
 
     static let olive = V3(0.27, 0.29, 0.18), drab = V3(0.33, 0.31, 0.17), warn = V3(0.62, 0.14, 0.1)
+    static let oldFaust = ProcessInfo.processInfo.environment["BS_OLDFAUST"] == "1"
+
+    // A round bar along z from z0 to z1 (z0 < z1) about (x, y): an eight-sided prism of three boxes (the wide one, the
+    // tall one and the square that fills the corners between them).
+    static func round(_ x: Float, _ y: Float, _ z0: Float, _ z1: Float, r: Float, _ c: V3) -> [Part] {
+        let a: Float = r, s: Float = r * 0.42, q: Float = r * 0.74, d: Float = z1 - z0
+        return [b(x - a, y - s, z0, 2 * a, 2 * s, d, c, pMetal), b(x - s, y - a, z0, 2 * s, 2 * a, d, c, pMetal),
+                b(x - q, y - q, z0, 2 * q, 2 * q, d, c * 0.96, pMetal)]
+    }
 
     static func model(_ i: Int) -> GunModel {
         switch i {
+        case Guns.faust where !AshArms.oldFaust:
+            // Nov 15 playtest (08:19:02-08:19:07, flying with it: "Faustrohr, I have to say it looks like shit... in hand"):
+            // it was a square olive beam with a square drab box on its end, a flat plate for a sight and a red frame round
+            // it, every face one flat colour (BS_OLDFAUST=1 for that). Rebuilt round: an eight-sided launch tube with a
+            // flared, open back end and a darker grip band where the hand goes, the warhead a proper fat, pointed head
+            // (a short tail into the tube, a tapered skirt, the wide body, the ogive and the fuze), the fold-up sight a
+            // frame with an aperture and the trigger lever in its housing on top, the warning band a narrow ring.
+            var p: [Part] = []
+            p += round(0, 0, -12, 17.6, r: 0.82, olive)                            // launch tube
+            p += round(0, 0, -3.4, -0.6, r: 0.9, olive * 0.72)                    // grip band (the hand)
+            p += round(0, 0, 4.0, 4.5, r: 0.9, warn * 0.85)                       // warning ring
+            p += round(0, 0, 17.6, 18.8, r: 1.05, olive * 0.85)                   // flared back end
+            p.append(b(-0.6, -0.6, 18.8, 1.2, 1.2, 0.1, bore, 0))                 // ... open
+            p += [b(-0.5, 0.72, -6.6, 1.0, 0.3, 0.6, steel, pMetal),                // sight hinge
+                  b(-0.5, 1.0, -6.45, 0.22, 1.9, 0.3, olive * 0.9, pMetal),         // sight frame: posts and top bar
+                  b(0.28, 1.0, -6.45, 0.22, 1.9, 0.3, olive * 0.9, pMetal),
+                  b(-0.5, 2.7, -6.45, 1.0, 0.25, 0.3, olive * 0.9, pMetal),
+                  b(-0.5, 1.0, -6.45, 1.0, 0.25, 0.3, olive * 0.9, pMetal),
+                  b(-0.32, 0.72, -4.6, 0.64, 0.42, 3.6, steel, pMetal),             // trigger lever housing
+                  b(-0.2, 1.14, -1.9, 0.4, 0.35, 0.7, steel * 1.15, pMetal)]        // the lever's press
+            let m = p.count
+            p += round(0, 0, -14.2, -11.8, r: 0.42, steel)                        // tail boom into the tube
+            p += round(0, 0, -15.6, -14.2, r: 1.3, drab * 0.9)                    // skirt
+            p += round(0, 0, -16.6, -15.6, r: 1.95, drab)
+            p += round(0, 0, -21.2, -16.6, r: 2.4, drab)                          // body
+            p += round(0, 0, -22.3, -21.2, r: 2.1, drab)                          // ogive
+            p += round(0, 0, -23.2, -22.3, r: 1.6, drab)
+            p += round(0, 0, -23.9, -23.2, r: 1.05, drab * 1.05)
+            p += round(0, 0, -24.4, -23.9, r: 0.55, steel)                        // nose and fuze
+            p += round(0, 0, -24.8, -24.4, r: 0.28, steel * 1.2)
+            return GunModel(parts: p, mag: Array(m..<p.count), grip: V3(0, -1.0, -2.0), fore: V3(0, -1.0, -9.5), butt: V3(0, 0, 10),
+                            muzzle: V3(0, 0, -25.0), magAt: V3(0, 0, -18), bolt: V3(0, 1.4, -2.6), scale: 0.56)
         case Guns.faust:
             // P320: the Faustrohr: a thin olive tube with the fat drab warhead on its muzzle (the magazine: it leaves
             // with a reload), the leaf sight folded up, the trigger lever on top, a red warning band and the open

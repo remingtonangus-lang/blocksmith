@@ -67,6 +67,7 @@ enum GunActions {
         }
         if pressed {
             g.sfx(.gun(7), 0.5)              // P300 (b): the dead click is the cue; no how-to toast
+            if !oldChargeLook { dryAt = g.clock }       // (Nov 15: felt in the gun hand too)
         }
         return false
     }
@@ -94,7 +95,14 @@ enum GunActions {
     static let grabLocked: Float = 0.13, grabHome: Float = 0.08     // m from the drawn serrations
 
     // How far back the slide is drawn (0 home, 1 back): locked back, or where the hand has it.
+    // Nov 15 playtest (08:22:13-08:22:17, a Slate Repeater just loaded from the hip: "Why isn't this thing firing?... I
+    // don't know why it wasn't firing"): a magazine put in by hand leaves a charging-handle gun uncharged (P475), and
+    // nothing on the gun said so; the trigger's click was lost in the fight. The handle now stands back, drawn, until
+    // the off hand works it (as the pistol's slide stands back locked), and the dead click ticks in the gun hand
+    // (BS_OLDCHARGELOOK=1: the handle stays home).
+    static let oldChargeLook = ProcessInfo.processInfo.environment["BS_OLDCHARGELOOK"] == "1"
     static func slideDrawn(_ gi: Int) -> Float {
+        if action(gi) == .charge && !oldChargeLook { return manual && !cocked ? 1 : 0 }
         guard action(gi) == .slide else { return 0 }
         if manual && !cocked { return 1 }
         return slideHeld ? slidePull : 0

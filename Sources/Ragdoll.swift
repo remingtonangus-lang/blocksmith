@@ -307,15 +307,18 @@ final class RagdollWorld {
     func removeAll() { for s in 0..<capacity { used[s] = false; awake[s] = false } }
     func wake(_ id: Int) { if let s = slot(id) { rouse(s) } }
     // Wake every sleeping ragdoll with a bone centre within radius of p (the ground under it was dug, a blast).
-    func wake(near p: SIMD3<Float>, radius: Float) {
+    @discardableResult
+    func wake(near p: SIMD3<Float>, radius: Float) -> Int {
         let r2 = radius * radius
+        var n = 0
         for s in 0..<capacity where used[s] && !awake[s] {
             let base = s * RagdollWorld.maxBones
             for b in 0..<count[s] {
                 let d = x[base + b] - p
-                if RagdollMath.dot(d, d) <= r2 { rouse(s); break }
+                if RagdollMath.dot(d, d) <= r2 { rouse(s); n += 1; break }
             }
         }
+        return n
     }
     private func rouse(_ s: Int) {
         if !awake[s] {                              // the ground may have changed: friction holds start afresh

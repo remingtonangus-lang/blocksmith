@@ -156,6 +156,7 @@ extension MobManager {
 
     // Called every tick from update: spawning on timers, chunk population once a second.
     func spawnTick(_ dt: Float, _ game: Game) {
+        if MobManager.noSpawns { return }
         let w = game.world
         let p = game.player.pos
         passiveTimer -= dt

@@ -308,6 +308,9 @@ enum MainGunTests {
         var tickMs: [Double] = []
         var detail: [String] = []
         let blasts0 = MainGun.impacts
+        let ownBlocks0 = s.blockCount, probes0 = ShipManager.probeBuilds
+        World.asyncProf = [Double](repeating: 0, count: World.asyncProf.count); World.asyncProfOn = true
+        let asyncEdits0 = World.asyncEdits
         for i in 0..<(72 * 6) {
             let a = CFAbsoluteTimeGetCurrent()
             let gq = w.gravityQueue.count, fl = w.fluidPending.count, falls = g.falling.count
@@ -321,7 +324,7 @@ enum MainGunTests {
                 seqFrame(String(format: "impact+%.2fs", Float(i - impactFrame) / 72), look: MainGun.lastImpact + V3(0, 6, 0), from: MainGun.lastImpact + V3(-36, 14, 34))
             }
             if impactFrame >= 0 { detail.append(String(format: "tick %.1f [%@] (crater slice %.1f ms, gravity queue %d, fluid %d, falling %d, particles %d)",
-                                                        ms, TickProf.summary(), MainGun.craterStepMs, gq, fl, falls, g.particles.list.count)) }
+                                                        ms, TickProf.top(7), MainGun.craterStepMs, gq, fl, falls, g.particles.list.count)) }
             MainGun.craterStepMs = 0
             if impactFrame < 0 && ms < 1000.0 / 72 { usleep(useconds_t((1000.0 / 72 - ms) * 1000)) }   // the slug's flight, paced too
             if impactFrame >= 0 {
@@ -340,6 +343,10 @@ enum MainGunTests {
             }
         }
         MainGunPerf.finish(budget: 1000.0 / 72)
+        World.asyncProfOn = false
+        let nEdits = max(1, World.asyncEdits &- asyncEdits0)
+        print("maingun: \(nEdits) cells taken in the window; us a cell by part: " + zip(World.asyncProfNames, World.asyncProf).map { String(format: "%@ %.1f", $0.0, $0.1 * 1e6 / Double(nEdits)) }.joined(separator: ", "))
+        print("maingun: the frigate's own blocks \(ownBlocks0) -> \(s.blockCount) over the impact; hull probes rebuilt \(ShipManager.probeBuilds - probes0) times (\(String(format: "%.1f", ShipManager.probeMs)) ms the last); slowest hull contact " + ShipManager.slowContact)
         let openInWindow = MainGun.lastOpenFrames            // (-1: still opening when the timed window closed)
         check(w.gravityQueue.count < Game.gravityChecksPerTick * 4,
               "maingun: the crater's support checks drain within the window (\(w.gravityQueue.count) cells left; \(Game.gravityChecksPerTick) a tick)")
@@ -378,6 +385,9 @@ enum MainGunTests {
             let slowest = tickMs.indices.sorted { tickMs[$0] > tickMs[$1] }.prefix(5)
             print("maingun: slowest frames after the impact: " + slowest.map { String(format: "#%d %.1f ms", $0, tickMs[$0]) }.joined(separator: ", "))
             for k in slowest where k < detail.count { print("maingun:   #\(k): " + detail[k]) }
+            // (Nov 15: and frames at the median, where the bowl's carving gets its slice: what the rest of such a tick is)
+            let byMs = tickMs.indices.sorted { tickMs[$0] < tickMs[$1] }
+            for k in [byMs[byMs.count / 2], byMs[byMs.count / 2 + 1], byMs[byMs.count / 4], byMs[byMs.count * 3 / 4]] where k < detail.count { print("maingun:   median-ish #\(k): " + detail[k]) }
             print("maingun: " + MainGunPerf.lastReport)
             print("maingun: the impact's own work (ms): " + MainGun.impactCost)
             print("maingun: the firing's own work: " + MainGun.fireCost)

@@ -627,6 +627,8 @@ enum TreeShapes {
     // of bark-all-round wood lying along the ground (its "roots": oak wood), laid only where the ground under it holds
     // (buildLitter). BS_OLDLITTER=1: the old placer.
     static let oldLitter = ProcessInfo.processInfo.environment["BS_OLDLITTER"] == "1"
+    static let oldLitterMoss = ProcessInfo.processInfo.environment["BS_OLDLITTERMOSS"] == "1"
+    static let oldLitterLie = ProcessInfo.processInfo.environment["BS_OLDLITTERLIE"] == "1"
     static let shrubs: [TreeShape] = [
         make("knee shrub", 401, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.3, 0.4, 0, 1.5, 1.1) },
         make("spreading shrub", 402, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.5, 0.3, 0.3, 2.2, 1.0) },
@@ -670,7 +672,16 @@ enum TreeShapes {
         case .stumpOak, .fallenOak: (log, leaf) = (LOG, g("moss_carpet"))
         default: (log, leaf) = (LOG, LEAVES)
         }
+        // Nov 15 playtest (08:14:57-08:15:16 in a forest: "Why moss carpet... this looks like shit. No moss. You can just
+        // delete the moss"): stumps and fallen trunks carried a moss carpet on top; they go bare (BS_OLDLITTERMOSS=1).
+        let mossy = leaf == g("moss_carpet")
         guard kind == .fallenOak else {
+            if mossy && !TreeShapes.oldLitterMoss {
+                let bare = TreeShape(name: s.name, id: s.id, logs: s.logs, leaves: [], roots: s.roots, rootTips: s.rootTips, bole: s.bole,
+                                     stretch: s.stretch, wide: s.wide, top: s.top)
+                paste(w, bare, x, y, z, turn: turn, mirror: mirror, grow: 0, log: log, leaf: leaf, root: log)
+                return
+            }
             paste(w, s, x, y, z, turn: turn, mirror: mirror, grow: 0, log: log, leaf: leaf, root: log)
             return
         }
@@ -683,6 +694,29 @@ enum TreeShapes {
         let wood = g("oak_wood")
         for p in s.logs { let q = at(p); w.log(q.x, q.y, q.z, log) }
         var laid = Set<IVec3>()
+        // Nov 15 playtest (08:14:38-08:14:54: "This log was hovering and then it corrected to sitting down. That shows that
+        // patch was used to make it lie down... We don't do patches. We fix the problem"): the trunk was upright wood laid
+        // length by length wherever ground held it, so a dip left one or two lengths apart, drawn as blocks over the
+        // ground, and a whole trunk was a lying log only once the mesher had guessed its run from its neighbours. Now
+        // it is laid as a lying log along its own axis, and only whole: from the stump out, each length on held ground
+        // into open air, three lengths at least, and all of it inside the chunk being written (a trunk across a chunk's
+        // edge is not laid by either side, so both agree). BS_OLDLITTERLIE=1: as before.
+        if !TreeShapes.oldLitterLie {
+            let run = s.roots.sorted { $0.x < $1.x }.map { at($0) }
+            guard let first = run.first, run.count >= 2 else { return }
+            let alongX = run[1].x != first.x
+            let lying = Blocks.has("oak_wood[x]") ? g(alongX ? "oak_wood[x]" : "oak_wood[z]") : wood
+            var n = 0
+            for q in run {
+                guard w.inside(q.x, q.y, q.z), w.inside(q.x, q.y - 1, q.z) else { n = 0; break }
+                let under = w.get(q.x, q.y - 1, q.z), here = w.get(q.x, q.y, q.z)
+                guard Blocks.opaque[Int(under)] && !Mesher.leafT[Int(under)] && (here == AIR || Blocks.replaceable[Int(here)] && !Blocks.isLiquid(here)) else { break }
+                n += 1
+            }
+            guard n >= 3, run.allSatisfy({ w.inside($0.x, $0.y, $0.z) }) else { return }
+            for q in run.prefix(n) { w.force(q.x, q.y, q.z, lying) }
+            return
+        }
         for p in s.roots {
             let q = at(p)
             guard w.inside(q.x, q.y, q.z) else { continue }
@@ -692,7 +726,7 @@ enum TreeShapes {
                 laid.insert(IVec3(p.x, 0, p.z))
             }
         }
-        for p in s.leaves where laid.contains(IVec3(p.x, 0, p.z)) {
+        for p in s.leaves where laid.contains(IVec3(p.x, 0, p.z)) && (!mossy || TreeShapes.oldLitterMoss) {
             let q = at(p)
             if w.get(q.x, q.y, q.z) == AIR { w.leaf(q.x, q.y, q.z, leaf) }
         }

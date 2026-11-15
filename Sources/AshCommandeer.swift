@@ -233,7 +233,10 @@ extension Game {
     func ashTankCoax(_ s: Ship, _ dt: Float) {
         AshCommandeer.coaxCool -= dt
         let held = input.leftDown || (seatPad?.rt ?? 0) > 0.5
-        guard held, AshCommandeer.coaxCool <= 0, let t = world.ships.turrets(of: s).first, t.reload > 0.3 else { return }
+        // Nov 15 playtest (08:20:29, at the Cinder Tank's helm: "For some reason, the machine gun only fires in bursts"):
+        // it fired only while the main gun reloaded, so a held trigger gave a burst, the cannon, a burst. Held, it fires
+        // steadily now, the main gun going off as it loads (BS_OLDCOAXBURSTS=1: only while it reloads).
+        guard held, AshCommandeer.coaxCool <= 0, let t = world.ships.turrets(of: s).first, !AshCommandeer.oldCoaxBursts || t.reload > 0.3 else { return }
         AshCommandeer.coaxCool = 0.11
         let flat = t.dirToWorld(V3(0, 0, -1))
         let yaw = atan2f(-flat.x, -flat.z), pitch = s.gunPitch
@@ -246,6 +249,7 @@ extension Game {
         sfx(.gun(Guns.rifle), 0.9, at: from)
         AshSeat.shots += 1
         AshCommandeer.coaxShots += 1
+        if AshCommandeer.coaxAt.count < 512 { AshCommandeer.coaxAt.append(clock) }
     }
 
     // P464 (Oct 25 19:33, "should be able to run people over with it"): the vehicle he drives runs down whoever stands
@@ -469,6 +473,8 @@ extension AshCommandeer {
     static let oldTankCoax = ProcessInfo.processInfo.environment["BS_OLDTANKCOAX"] == "1"
     static var coaxCool: Float = 0
     static var coaxShots = 0                // (checks)
+    static var coaxAt: [Double] = []        // (checks: when each round left)
+    static let oldCoaxBursts = ProcessInfo.processInfo.environment["BS_OLDCOAXBURSTS"] == "1"
 }
 
 enum AshDriveCheck {
@@ -485,7 +491,15 @@ enum AshDriveCheck {
         PrefsSandbox.begin()
         defer { PrefsSandbox.end() }
         let (world, game) = Agent.makeWorld(device: device, seed: 12345, botSeed: 1, rd: 6)
-        World.deterministic = false
+        // (Nov 15: the Army Truck's legs came out differently run to run (it ran a soldier down or not, came round to his
+        // view or not) while World.deterministic was off here: chunks streamed in on the workers' clock under the vehicles.
+        // BS_ASHDRIVECLOCK=1: streaming on the clock, as before. That alone left the runs parting at tick 30 (BS_ASHTRACE
+        // diffs): one run's spawner put a mob down that tick, the other's didn't, and the seeded draws went separate ways
+        // from there. The spawners read ground the workers still light and populate on their own clock, so the yard has
+        // no natural spawns (MobManager.noSpawns; BS_ASHDRIVESPAWNS=1 lets them run).)
+        World.deterministic = ProcessInfo.processInfo.environment["BS_ASHDRIVECLOCK"] != "1"
+        MobManager.noSpawns = ProcessInfo.processInfo.environment["BS_ASHDRIVESPAWNS"] != "1"
+        defer { MobManager.noSpawns = false }
         world.ships.encounters = false
         game.difficulty = 0
         let agent = Agent(game: game, world: world)
@@ -508,7 +522,22 @@ enum AshDriveCheck {
         var fails = 0
         func check(_ ok: Bool, _ what: String) { print("ashdrive: \(ok ? "ok  " : "FAIL") \(what)"); if !ok { fails += 1 } }
         let bot = Drive()
-        func run(_ ticks: Int, _ a: AgentAction) { bot.next = a; for _ in 0..<ticks { agent.step(bot) } }
+        // (BS_ASHTRACE=1: each tick's seeded draws so far, and every hull's and mob's pose, as one line: two runs
+        // diffed show the tick they part at and what parted first)
+        let trace = ProcessInfo.processInfo.environment["BS_ASHTRACE"] == "1"
+        var traceTick = 0
+        func digest() -> String {
+            var hs: UInt64 = 1469598103934665603, hm: UInt64 = 1469598103934665603
+            func mix(_ h: inout UInt64, _ f: Float) { h = (h ^ UInt64(f.bitPattern)) &* 1099511628211 }
+            for s in world.ships.list { mix(&hs, s.pos.x); mix(&hs, s.pos.y); mix(&hs, s.pos.z); mix(&hs, s.vel.x); mix(&hs, s.vel.z) }
+            for m in game.mobs.mobs { mix(&hm, m.pos.x); mix(&hm, m.pos.y); mix(&hm, m.pos.z) }
+            return String(format: "rand %016llx ships %d %016llx mobs %d %016llx chunks %d hollow %d", Rand.traceState, world.ships.list.count, hs,
+                          game.mobs.mobs.count, hm, world.chunks.count, world.chunks.values.filter { $0.hollow }.count)
+        }
+        func run(_ ticks: Int, _ a: AgentAction) {
+            bot.next = a
+            for _ in 0..<ticks { agent.step(bot); if trace { traceTick += 1; print("ashtrace \(traceTick) " + digest()) } }
+        }
         func crew() -> Int { game.mobs.mobs.filter { $0.faction == Faction.ashguard.rawValue && !$0.kind.ashVehicle }.count }
         func act(forward: Float = 0, strafe: Float = 0, jump: Bool = false, sneak: Bool = false, attack: Bool = false, sprint: Bool = false) -> AgentAction {
             var a = AgentAction(); a.forward = forward; a.strafe = strafe; a.jump = jump; a.sneak = sneak; a.attack = attack; a.sprint = sprint; return a
@@ -748,6 +777,15 @@ enum AshDriveCheck {
                 run(2, act())
                 check(AshCommandeer.oldTankCoax || (AshCommandeer.coaxShots - c0 >= 3 && flying > slugs0 && h.blockCount == hb0 && t.blockCount == tb0),
                       "Cinder Tank: held while the gun reloads, the trigger fires the coaxial MG (\(AshCommandeer.coaxShots - c0) rounds in 0.5 s; its own blocks \(hb0 + tb0) -> \(h.blockCount + t.blockCount))")
+                // Nov 15 (08:20:29, "the machine gun only fires in bursts"): held 6 s, through the main gun loading and
+                // going off, the MG fires steadily (BS_OLDCOAXBURSTS=1: only while the main gun reloads, in bursts).
+                AshCommandeer.coaxAt.removeAll()
+                run(432, act(attack: true)); run(2, act())
+                let ca = AshCommandeer.coaxAt
+                var gap = ca.isEmpty ? 6.0 : 0.0
+                for i in ca.indices.dropFirst() { gap = max(gap, ca[i] - ca[i - 1]) }
+                check(ca.count >= 40 && gap < 0.3, String(format: "Cinder Tank: the trigger held 6 s fires the MG steadily (%d rounds, the longest pause %.2f s; BS_OLDCOAXBURSTS=%d)",
+                                                          ca.count, gap, AshCommandeer.oldCoaxBursts ? 1 : 0))
                 run(260, act())
                 // Nov 14 (21:15, "this tank has aiming problems"): a stone wall well ahead, sighted from his seat; the turret
                 // comes round and lays on it, and the shell it fires bursts on the sighted point.

@@ -12,7 +12,10 @@ import simd
 // at the fountain), and its people say they are from it.
 
 enum CapitalTown {
-    static let storeW = 10, storeD = 8, perFlat = 3
+    static let storeW = 10, storeD = 8
+    static let perFlat = Int(ProcessInfo.processInfo.environment["BS_PERFLAT"] ?? "") ?? 3
+    // Residents on each upper floor of a block of flats (CapitalCity.fitFloor; Nov 15, BS_UPPERRES=0: none, as before).
+    static let upperResidents = Int(ProcessInfo.processInfo.environment["BS_UPPERRES"] ?? "") ?? 0
 
     static let cityNames = ["Brightmoor", "Concord", "Halcyon", "Argent", "Solace", "Lumen", "Belmont", "Highmere", "Vantage",
                             "Clearwater", "Westholm", "Alder Crown", "Fairhaven", "Silverlake", "Calder", "Ostrava Hill"]

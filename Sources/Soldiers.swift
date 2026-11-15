@@ -1086,6 +1086,7 @@ extension Mob {
         let air = AirDefence.airborne(g)
         var engage: Float = aggro ? HeavyTurret.range : HeavyTurret.guardRange
         if air { engage = max(engage, flak ? AirDefence.flakRange : AirDefence.navalAirRange) }
+        if HeavyTurret.stationWatch(g, self) { engage = max(engage, HeavyTurret.drawnReach(g)) }    // Nov 15: a vehicle he drives
         // P501 (Oct 31 09:48, "If I go into the little town beside one of these capital citadels, they shouldn't be
         // automatically hostile to me unless I have a gun in my hand"): the guns keep the row's peace as its troopers do.
         // P508 (Nov 1 15:43:34-15:43:48 and 15:53:45-15:54:03, at a Greywall garrison and a Boreal Station: "The naval guns
@@ -1479,6 +1480,17 @@ enum HeavyTurret {
     // capital, I should get obliterated by a naval gun as soon as I come on the radar... I'm about like 60, 70 blocks
     // from it... And yet nobody, nothing's firing at me"): 110 (was 72). The garrison row's peace still holds there.
     static let guardRange: Float = 110
+    // Nov 15 playtest (08:34:07-08:34:28, driving a taken Ironback Crawler past a Boreal Station: "Not mad at me just yet?
+    // Why not? You should be mad... They should have shot me as soon as they saw me coming... I understand rendering is
+    // an issue, but still"): a Boreal Station's guns lay on a vehicle he drives from as far as its ground is drawn (his
+    // view distance), and the station's alarm goes up as soon as its mast can see the vehicle (borealAlarmTick); the
+    // garrison turns out to meet it. BS_OLDSTATIONREACH=1: the guard range (110, 220 provoked) as before.
+    static let oldStationReach = ProcessInfo.processInfo.environment["BS_OLDSTATIONREACH"] == "1"
+    static func drawnReach(_ g: Game) -> Float { min(900, Float(max(8, g.world.renderDistance) * CS)) }
+    static func stationWatch(_ g: Game, _ m: Mob) -> Bool {
+        guard !oldStationReach, g.world.ships.pilot != nil, m.deck == nil else { return false }
+        return g.bases.boreal.sites.values.contains { BorealStation.insideSite($0, m.pos) }
+    }
     static let power: Float = 2.4                   // TNT-like burst, about a 3-block crater
     // Manned by the player (P70, playtest 09:19: "this naval gun needs to do way more damage", on a crawler and a
     // citadel tower): a far bigger burst that bites through armoured stone (blocks count at most `mannedBreach` blast
