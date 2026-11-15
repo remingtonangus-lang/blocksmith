@@ -966,7 +966,15 @@ struct Synth {
         case .voice(let i): out = TownVoice.render(i)
         case .tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .rotorLoop, .jetpackLoop, .frigateInsideLoop,
              .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop, .planeFlyby, .sonarPing, .shipHorn, .airRaidSiren,
-             .tankCannon, .flakFire, .dartTrap, .ladderClimb, .armourHit, .packRustle:
+             .tankCannon, .flakFire, .dartTrap, .ladderClimb, .armourHit, .packRustle,
+             // Nov 15 recordings (SoundBank.recordedNov15): their own takes, the stand-in only if a take is missing.
+             .trainCoachLoop, .trainPassLoop, .trainIdleLoop, .trainBrakes, .trainDepart, .trainCoupler, .trainWhistleShort,
+             .stationBell, .coachDoor, .treeCrack, .treeLand, .treeFallSmall, .treeLandSnow, .logRoll, .elevatorLoop,
+             .elevatorArrive, .elevatorDoors, .garageDoor, .radarLoop, .radarContact, .radarWarning, .crawlerLoop, .crawlerStop,
+             .carriageTrees, .vehicleHatch, .tankMGLoop, .tankMGTail, .casingsSteel, .chuteOpen, .chuteLoop, .chuteLand,
+             .wallCollapse, .concreteBreak, .bulletIce, .sealBoom, .cityCrowdLoop, .marketLoop, .crowdPanicLoop, .cityFightLoop,
+             .questAccept, .questDone, .questFail, .convoyCartLoop, .customsGate, .wellBucket, .houseBought, .volcanoLoop,
+             .sheetIceStep, .snowyBush, .chairSit, .drawerOpen, .faustShoulder:
             out = render(s.synthStandIn ?? .click, pitch: p)            // P457: recorded only (SoundBank.render maps them first)
         }
         if !s.isLoop { out = Synth.trimTail(out) }

@@ -141,7 +141,7 @@ enum SixIron {
         m.attackCooldown = cooldown / max(0.4, lv.pace)
         m.town.swing = 0.3                                                   // the recoil kick (TownsfolkModel)
         m.town.fired += 1
-        if m.town.fired >= rounds { m.town.reload = reloadTime; g.sfx(.gunReload(WeaponAudio.sidearmSlot), 0.7, at: m.eye) }
+        if m.town.fired >= rounds { m.town.reload = reloadTime; g.sfx(Guns.reloadSound(Guns.revolver), 0.7, at: m.eye) }
         let o = muzzle(m)
         g.sfx(.gun(WeaponAudio.sidearmSlot), 1, at: o)
         g.particles.smoke(at: o)

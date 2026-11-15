@@ -2833,6 +2833,7 @@ extension ShipManager {
                         TickProf.mark("cap: drive sweep")
                         let t0 = CFAbsoluteTimeGetCurrent()
                         g.topple(trunk, away: out)
+                        RecordedNov15.treePush(g, at: V3(Float(x), Float(y), Float(z)))
                         CraterJob.spend(CFAbsoluteTimeGetCurrent() - t0)
                         TickProf.mark("cap: drive topple")
                         felled += 1; ShipManager.crawlerFelled += 1

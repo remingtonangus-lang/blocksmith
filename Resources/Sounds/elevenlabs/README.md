@@ -13,6 +13,10 @@ and motorbike engines, the helicopter rotor, the jetpack, sonar, the ship's horn
 forest ambience, the saloon piano, metal ladders, armour hits, the pack rustle, the frigate's interior, dart traps,
 flak, the tank gun, the plane passing) got their own sound and the code that plays it.
 
+Round 2, Nov 15, 2026 (Remington's 78-sound list, wired by `tools/elevenlabs_nov15.py` under the same rules): one take
+per sound went straight into `Resources/Sounds/real/` as a trimmed, levelled mono 16-bit WAV; the takes, their numbers
+and where each one plays are in `docs/status/elevenlabs-takes.md` (77 of 78 wired; the pistol reload had no usable take).
+
 "Loop" means the prompt asked for a seamless loop; ElevenLabs does not guarantee the seam.
 
 | file | length | loop | plays as | prompt |

@@ -247,7 +247,7 @@ extension Game {
         if sealShafts.count > 16 { sealShafts.removeFirst() }
         sfx(.explodeLarge, 1.7, at: c)
         sfx(.debrisRain, 1.3, at: c)
-        sfx(.mainGunRumble, 0.8, at: c)
+        sfx(RecordedNov15.pick(.sealBoom, .mainGunRumble), RecordedNov15.off ? 0.8 : 1.2, at: c)
         for k in 0..<6 { addFlash(at: c + V3(0, Float(k * 6) - 12, 0), color: V3(7, 3.2, 1.4), radius: 40, life: 1.6) }
         addShake(simd_length(player.pos - c) < 24 ? 1 : 0.5)
         for _ in 0..<160 {
