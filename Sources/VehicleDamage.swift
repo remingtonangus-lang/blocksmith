@@ -27,7 +27,7 @@ extension ShipManager {
             if Felling.isFelled(s) { continue }
             let held = Momentum.held(s, dt)
             if (s.pushing || held || Momentum.underWay(s)) && !s.kinematic { Momentum.shove(s, dt, g); Momentum.crush(s, g) } else { s.shoveStore = 0 }
-            s.pushing = false; s.pushInto = 0
+            s.pushing = false; s.pushInto = 0; s.bellyOn = false
             // P262: a heavy, fast hull breaks through what it hits in the world (any physics hull, AI or yours).
             var gave = false
             if v > Momentum.minSpeed && s.crashWorld && !s.kinematic && s.crashCD <= 0 { gave = Momentum.ram(s, v, g) }
@@ -130,7 +130,9 @@ enum Momentum {
     // felled was a new bar across its way. A hull heavy enough to snap a trunk (200 t and more) driven onto a felled
     // tree that has landed (or one down for a second and a half) smashes it: wood and leaf bits, the body gone,
     // nothing left to pick up (P452). BS_OLDCRUSH=1: as before.
+    static var bellyBroke = 0
     static var traceRest = false, rest = (0, 0, 0, 0, V3(0, 0, 0))     // (checks: contacts, up, belly, on other hulls, a belly point)
+    static let oldBelly = ProcessInfo.processInfo.environment["BS_OLDBELLY"] == "1"
     static let oldCrush = ProcessInfo.processInfo.environment["BS_OLDCRUSH"] == "1"
     static func crush(_ s: Ship, _ g: Game) {
         guard !oldCrush, s.mass >= 200, s.engines > 0, s.parent == nil else { return }
@@ -204,6 +206,24 @@ enum Momentum {
                w.blockEntities[c] == nil, hard >= 0, hard <= min(heft, 3), !w.groundAt(c.x, c.y, c.z),
                !SmoothTerrain.natural[Int(b)] || CapitalBase.isLog(b) || CapitalBase.isLeaf(b) {
                 cand.append((c, -1, b))
+            }
+        }
+        // What it rests on under its belly while it stands held (ledger 146): the block under that contact, and the ones
+        // beside it across its way (the rest of the wall or the stump's neighbours it would sit on next).
+        if s.bellyOn && simd_length(V2(s.vel.x, s.vel.z)) < 1.5 {
+            let q = s.bellyAt - V3(0, 0.3, 0)
+            let cross = V3(-dir.z, 0, dir.x)
+            for k in -1...1 {
+                let qq = q + cross * Float(k)
+                let c = IVec3(Int(floor(qq.x)), Int(floor(qq.y)), Int(floor(qq.z)))
+                guard c.y >= 1, c.y < CH - 1, !seen.contains(c) else { continue }
+                let b = w.block(c.x, c.y, c.z)
+                let hard = Blocks.hardness[Int(b)]
+                if b != AIR, Blocks.collide[Int(b)], !Blocks.isLiquid(b), w.blockEntities[c] == nil, hard >= 0, hard <= min(heft, 3), !w.groundAt(c.x, c.y, c.z),
+                   !SmoothTerrain.natural[Int(b)] || CapitalBase.isLog(b) || CapitalBase.isLeaf(b) {
+                    seen.insert(c)
+                    cand.append((c, -2 + Float(abs(k)) * 0.1, b)); bellyBroke += 1
+                }
             }
         }
         guard !cand.isEmpty else { return }

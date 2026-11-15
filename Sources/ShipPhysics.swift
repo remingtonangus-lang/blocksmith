@@ -1066,16 +1066,21 @@ extension ShipManager {
                 tyre[i] = wp.contains { simd_length(V2($0.x - c.p.x, $0.z - c.p.z)) < 0.75 && abs($0.y - c.p.y) < 0.9 }
             }
         }
-        // (checks: what a driven wheeled hull rests on, --shovecheck)
-        if Momentum.traceRest && s.piloted && !s.wheels.isEmpty {
-            let wp = s.wheels.map { s.toWorld($0) }
-            var up = 0, belly = 0, other = 0, lowBelly = V3(0, 0, 0)
-            for c in cs where c.n.y > 0.5 {
-                if c.other != nil { other += 1; continue }
+        // Nov 15 (ledger 146, the siege carriage "stuck in the trees"): a driven wheeled hull resting on something under
+        // its belly, between its wheels (a stump, the middle of a wall its wheels broke through): Momentum.shove breaks
+        // what it sits on as it breaks what stands ahead of its bow.
+        if s.piloted && s.throttleEase != 0 && !s.wheels.isEmpty && s.blockCount >= 40 && !Momentum.oldBelly {
+            var wp: [V3]? = nil
+            var up = 0, belly = 0
+            for c in cs where c.other == nil && c.n.y > 0.55 {
                 up += 1
-                if !wp.contains(where: { simd_length(V2($0.x - c.p.x, $0.z - c.p.z)) < 0.75 && abs($0.y - c.p.y) < 0.9 }) { belly += 1; lowBelly = c.p }
+                if wp == nil { wp = s.wheels.map { s.toWorld($0) } }
+                if !wp!.contains(where: { simd_length(V2($0.x - c.p.x, $0.z - c.p.z)) < 0.75 && abs($0.y - c.p.y) < 0.9 }) {
+                    belly += 1
+                    if !s.bellyOn || c.p.y > s.bellyAt.y { s.bellyOn = true; s.bellyAt = c.p }
+                }
             }
-            Momentum.rest = (cs.count, up, belly, other, lowBelly)
+            if Momentum.traceRest { Momentum.rest = (cs.count, up, belly, 0, s.bellyAt) }
         }
         // H11: the hardest closing speed this step, for crash damage (VehicleDamage.swift).
         for c in cs {
