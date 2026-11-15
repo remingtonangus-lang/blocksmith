@@ -174,7 +174,7 @@ enum Railways {
         var mine = false
         if !oldWait {
             if plans[ck]!.planning.contains(k) {
-                let until = Date(timeIntervalSinceNow: 5)
+                let until = Date(timeIntervalSinceNow: oldLinkBox ? 5 : 20)       // (a link's plan can take 5 s: four threads planned the same one)
                 railPlansWaited += 1
                 while plans[ck]?.planning.contains(k) == true, plans[ck]?.lines[k] == nil, lock.wait(until: until) {}
                 if let c = plans[ck]?.lines[k] { lock.unlock(); return c }
@@ -454,6 +454,13 @@ enum Railways {
         let far = isFar(gen, row, s)
         let rank = mod(row, 4)
         let mb = (x0: pa.x - 5 * routeCell, x1: pb.x + 5 * routeCell, z0: min(pa.z, pb.z) - routeWander - 2 * routeCell, z1: max(pa.z, pb.z) + routeWander + 2 * routeCell)
+        // (build 97's timers: the lines round a link, 0.35 s each, were planned one after another on this thread, 4 to
+        // 8 s a link; they are planned side by side first)
+        if !oldLinkBox {
+            var cand: [(Int, Int)] = []
+            for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) { cand.append((r, t)) } }
+            DispatchQueue.concurrentPerform(iterations: cand.count) { i in _ = linkBox(gen, cand[i].0, cand[i].1) }
+        }
         func apart(_ r: Int, _ t: Int) -> Bool {
             guard let b = linkBox(gen, r, t) else { return false }
             return b.x1 < mb.x0 || b.x0 > mb.x1 || b.z1 < mb.z0 || b.z0 > mb.z1
@@ -471,7 +478,8 @@ enum Railways {
             return false
         }
         tShut = CFAbsoluteTimeGetCurrent()
-        var way = smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
+        // (a dog-leg over a long way is nearly always blocked somewhere, after up to 42 tries of 2 to 3 s in all)
+        var way = pb.x - pa.x > 1200 && !oldLinkBox ? nil : smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
         if let w = way, crosses(w) { way = nil }
         tLeg = CFAbsoluteTimeGetCurrent()
         if way == nil { way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut) }
