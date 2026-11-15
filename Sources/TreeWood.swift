@@ -15,11 +15,17 @@ enum TreeWood {
     static let prefix = "tree_"
     // (checks of the rules before: trees of plain logs for as long as `body` runs, worlds made in it included)
     static func asBefore(_ body: () -> Void) { let o = on; on = false; body(); on = o }
-    // Nov 15 morning (Remington, a Birch Log he had just set down, drawn as a round post: "We still got the procedural
-    // log generation going"): a log he builds with is a block, the block he holds: a plain cube with bark sides and
-    // ringed ends, whatever stands round it. Only a tree's own wood is drawn round (a standing tree, a felled one, the
-    // fallen trunks the generator lays). BS_ROUNDTIMBER=1: timber drawn as round posts and beams, as before.
-    static let cubeTimber = on && ProcessInfo.processInfo.environment["BS_ROUNDTIMBER"] != "1"
+    // Nov 15 morning (Remington, a Birch Log he had just set down: "We still got the procedural log generation going";
+    // 17:17 on question 743: "Cubed logs probably shouldn't exist because they don't exist in reality"): a log he builds
+    // with is one plain round log, the length of its block along the axis he set it on, the same whatever stands round
+    // it: never a post, a stump, a limb, a bedded trunk or a log turned to lie along its neighbour (ShapeTrunks.plainLog).
+    // It is met as a whole block. Only a tree's own wood takes a tree's shapes. BS_OLDTIMBER=1: timber drawn by what
+    // stands round it, as before.
+    static let plainTimber = on && ProcessInfo.processInfo.environment["BS_OLDTIMBER"] != "1"
+    // Timber under that rule: every plain log state (not tree wood, not roots).
+    static let timber: [Bool] = (0..<Blocks.count).map { i in
+        plainTimber && ShapeClass.kind[i] == .trunk && Blocks.opaque[i] && !Blocks.key(Blocks.groupBase[i]).hasPrefix(prefix)
+    }
     // The woods that grow as trees (Woods.all's "log" ones).
     static var woods: [String] { Woods.all.filter { $0.2 == "log" }.map { $0.0 } }
     // A log state -> its tree twin (the same axis); anything else -> itself.

@@ -116,7 +116,7 @@ enum ShapeTrunks {
         // a living trunk, a stump, a root or a limb, and timber is a post or a beam whatever stands round it.
         let woodOn = TreeWood.on
         let treeT = TreeWood.isTree
-        let drawn = Mesher.detailT
+        let plainT = TreeWood.timber
         // P433: root cells are limb cells of the tree (col 3): the walk below grows them out of the trunk's foot.
         for y in -M..<(16 + M) { for z in -M..<(16 + M) { for x in -M..<(16 + M) where isRoot[Int(g.block(x, y, z))] { s.col[wi(x, y, z)] = 3 } } }
 
@@ -286,8 +286,13 @@ enum ShapeTrunks {
         let limbSides = ctx.lod == 0 ? 6 : (ctx.lod == 3 ? ShapeTrunks.farLimbSides : (ctx.lod == 2 ? 5 : 4))
         for y in 0..<16 { for z in 0..<16 { for x in 0..<16 {
             let b = ctx.R[ctx.ri(x, y, z)]
-            guard isTrunk[Int(b)], drawn[Int(b)] else { continue }     // (timber is the mesher's cube: TreeWood.cubeTimber)
+            guard isTrunk[Int(b)] else { continue }
             if ctx.skipDraw && ctx.skipped(x, y, z) { continue }       // (ledger 134: another tree's log, the stump)
+            if plainT[Int(b)] {                                        // (timber: one plain log, whatever stands round it)
+                let pb = Int(Blocks.groupBase[Int(b)])
+                plainLog(ctx, x, y, z, axis: Int(axisOf[Int(b)]), bark: Int(Blocks.tex[pb * 6]), rings: Int(Blocks.tex[pb * 6 + 2]), sides: sides)
+                continue
+            }
             let i = wi(x, y, z)
             // (P433: a root block wears its tree's bark, not its own see-through root texture)
             let base = Int(Blocks.groupBase[Int(isRoot[Int(b)] ? treeOf(g, s, i) : b)])
@@ -868,6 +873,26 @@ enum ShapeTrunks {
         return n >= 3
     }
 
+    // Nov 15 (TreeWood.plainTimber): a log he set down. A straight round log the length of its block along its own
+    // axis, an end with rings wherever the next block along it is not a log of the same wood on the same axis. Nothing
+    // about it comes from what stands round it.
+    static func plainLog(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, axis: Int, bark: Int, rings: Int, sides: Int) {
+        let o = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+        var d = SIMD3<Float>(0, 0, 0); d[axis] = 1
+        var step = SIMD3<Int>(0, 0, 0); step[axis] = 1
+        let me = ctx.block(x, y, z)
+        let next = ctx.block(x + step.x, y + step.y, z + step.z), prev = ctx.block(x - step.x, y - step.y, z - step.z)
+        let r: Float = 0.48
+        let a = o - d * 0.5, b = o + d * 0.5
+        tube(ctx, a, b, r, r, bark: bark, sides: sides, salt: 0)
+        let e1v: SIMD3<Float> = axis == 1 ? SIMD3(1, 0, 0) : SIMD3(0, 1, 0)
+        let e2v = simd_cross(d, e1v)
+        func ring(_ c: SIMD3<Float>) -> [SIMD3<Float>] {
+            (0...sides).map { k in let t = Float(k % sides) / Float(sides) * 2 * .pi; return c + (e1v * cosf(t) + e2v * sinf(t)) * r }
+        }
+        if next != me { cap(ctx, center: b, pts: ring(b).reversed(), normal: d, layer: rings) }
+        if prev != me { cap(ctx, center: a, pts: ring(a), normal: -d, layer: rings) }
+    }
     static func timber(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, axis: Int, bark: Int, rings: Int, sides: Int) {
         let o = SIMD3<Float>(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
         var d = SIMD3<Float>(0, 0, 0); d[axis] = 1

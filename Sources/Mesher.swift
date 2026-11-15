@@ -88,8 +88,7 @@ enum Mesher {
     #endif
     // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
     static let detailT: [Bool] = (0..<Blocks.count).map { i in
-        // (Nov 15: timber is a cube, TreeWood.cubeTimber; a tree's wood and roots are the round ones)
-        ShapeClass.kind[i] == .trunk && !(TreeWood.cubeTimber && Blocks.opaque[i] && !TreeWood.isTree[i])
+        ShapeClass.kind[i] == .trunk
             || ShapeClass.kind[i] == .organic || i != 0 && i == Int(pointedDrip)    // (P338: ShapeSpikes)
             || Blocks.has("amethyst_cluster") && i == Int(Blocks.id("amethyst_cluster"))                      // (P436: crystals)
             || ShapeRails.isRail[i]                                                                           // (P337: ShapeRails)

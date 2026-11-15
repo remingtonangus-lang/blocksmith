@@ -543,7 +543,7 @@ enum TreeProbeCheck {
             let besideKind = Int(pr[beside]?.kind ?? 99), besideSteps = Int(pr[beside]?.dist ?? 99)
             if cutUp == 0 {
                 // (timber is a cube since Nov 15 morning, no shape of ShapeTrunks at all: kind 0; round timber: a post, 2)
-                check(trunkKinds.allSatisfy { $0 == 1 } && postKinds.allSatisfy { $0 == 2 || TreeWood.cubeTimber && $0 == 0 } && (besideKind == 0 || besideKind == 2) && besideSteps < 0,
+                check(trunkKinds.allSatisfy { $0 == 1 } && postKinds.allSatisfy { $0 == 2 || TreeWood.plainTimber } && (besideKind == 0 || besideKind == 2) && besideSteps < 0,
                       "fellwhole: the spruce's wood is drawn as a living trunk (kinds \(trunkKinds)), a log post beside it as a post (kinds \(postKinds), 2 = post, never a stump), a log set against the trunk as timber, no limb of it (kind \(besideKind), steps \(besideSteps))")
             }
             let cutAt: IVec3
