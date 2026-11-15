@@ -892,7 +892,7 @@ enum BorealStation {
             for (k, dx, dz) in BorealStation.vehicles { w.mob(k, V3(Float(X(dx)) + 0.5, Float(S + 1), Float(Z(dz)) + 0.5)) }
         }
     }
-    static let oldRoofGun = ProcessInfo.processInfo.environment["BS_OLDBOREALGUN"] == "1"
+    static let oldRoofGun = Env.all["BS_OLDBOREALGUN"] == "1"
     // (mob key, dx, dz) on the surface row.
     static let vehicles: [(String, Int, Int)] = [("ash_truck@boreal^270", 19, 9), ("ash_truck:fuel@boreal^0", -15, -9), ("ash_tank@boreal^180", 18, 22)]
 }

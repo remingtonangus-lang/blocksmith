@@ -33,9 +33,9 @@ protocol CollapseGuard {
 }
 
 enum AdaptiveGround {
-    static var enabled = ProcessInfo.processInfo.environment["BS_ADAPTIVE"] != "0"
+    static var enabled = Env.all["BS_ADAPTIVE"] != "0"
     // Error bound in blocks (P381 step 2: at most 0.05 block inside the active distance).
-    static var tolerance: Float = Float(ProcessInfo.processInfo.environment["BS_ADAPTIVE_TOL"] ?? "") ?? 0.05
+    static var tolerance: Float = Float(Env.all["BS_ADAPTIVE_TOL"] ?? "") ?? 0.05
     // Harness tallies (triangles in and out, all sections; a lock per section).
     static var trisIn = 0, trisOut = 0
     static let tally = NSLock()
@@ -82,7 +82,7 @@ enum AdaptiveGround {
         return simd_length(ap - ab * (vb * den) - ac * (vc * den))
     }
     // A vertex stands for at most this many collapsed ones (bounds the checks' cost on wide flat ground).
-    static var maxAbsorbed = Int(ProcessInfo.processInfo.environment["BS_ADAPTIVE_MAXABS"] ?? "") ?? 96
+    static var maxAbsorbed = Int(Env.all["BS_ADAPTIVE_MAXABS"] ?? "") ?? 96
 
     // Past the active distance (P381 step 2: about one Quest 3 pixel there): a second, coarser copy drawn only for
     // sections at least GroundMerge.farDistance (~180 blocks) from the eye, where 1/8 block is under a pixel at the
@@ -92,12 +92,12 @@ enum AdaptiveGround {
     // The leaf blobs' far shells (drawn past SceneRenderer.blobFarFrom, 64 blocks) take three times the ground's far bound
     // (Nov 6: 0.375 block is under a pixel's change at the headset's ~20 px a degree from 64 blocks; jungle 289k to 266k
     // quads, birch -9%, forest -8%; 0.5 and 0.75 gained 2% and 1% more). BS_BLOBTOL to try another.
-    static var blobFarTolerance: Float = Float(ProcessInfo.processInfo.environment["BS_BLOBTOL"] ?? "") ?? farTolerance * 3
+    static var blobFarTolerance: Float = Float(Env.all["BS_BLOBTOL"] ?? "") ?? farTolerance * 3
     // (Nov 6: corner shading on those shells may interpolate 3 levels off, i.e. it doesn't hold a collapse back: taiga
     // 189k to 172k quads, jungle 239k to 221k, snowy 190k to 178k; 0.10% of the jungle's pixels change at headset
     // resolution, 0.04% snowy, none in the taiga. BS_BLOBAO=0.5 for before.)
-    static var blobFarAO: Double = Double(ProcessInfo.processInfo.environment["BS_BLOBAO"] ?? "") ?? 3
-    static var farEnabled = ProcessInfo.processInfo.environment["BS_ADAPTIVE_FAR"] != "0"
+    static var blobFarAO: Double = Double(Env.all["BS_BLOBAO"] ?? "") ?? 3
+    static var farEnabled = Env.all["BS_ADAPTIVE_FAR"] != "0"
 
     // The section's ground (buf[from...], led by nothing else when from == 0) simplified to the near bound in place,
     // and, when it leads the buffer, a far copy (the renderer's far switch: the first farSkip quads give way to the
@@ -134,14 +134,14 @@ enum AdaptiveGround {
         return removed
     }
     static var farIn = 0, farOut = 0
-    static var farChain = ProcessInfo.processInfo.environment["BS_FARCHAIN"] != "0"
-    static var chainTol: Float = Float(ProcessInfo.processInfo.environment["BS_FARCHAINTOL"] ?? "") ?? farTolerance
+    static var farChain = Env.all["BS_FARCHAIN"] != "0"
+    static var chainTol: Float = Float(Env.all["BS_FARCHAINTOL"] ?? "") ?? farTolerance
     // P383 step 3: how far what a vertex shades by may drift where a collapse joins different ones (see the header).
-    static var lightTol: Double = Double(ProcessInfo.processInfo.environment["BS_ADAPTIVE_LIGHT"] ?? "") ?? 1.0
-    static var aoTol: Double = Double(ProcessInfo.processInfo.environment["BS_ADAPTIVE_AO"] ?? "") ?? 0.5
-    static var matTol: Double = Double(ProcessInfo.processInfo.environment["BS_ADAPTIVE_MAT"] ?? "") ?? 0.6
+    static var lightTol: Double = Double(Env.all["BS_ADAPTIVE_LIGHT"] ?? "") ?? 1.0
+    static var aoTol: Double = Double(Env.all["BS_ADAPTIVE_AO"] ?? "") ?? 0.5
+    static var matTol: Double = Double(Env.all["BS_ADAPTIVE_MAT"] ?? "") ?? 0.6
     // BS_ADAPTIVE_SEAMS=0: collapse only between equal attributes (P381's rule, before/after numbers).
-    static var joinSeams = ProcessInfo.processInfo.environment["BS_ADAPTIVE_SEAMS"] != "0"
+    static var joinSeams = Env.all["BS_ADAPTIVE_SEAMS"] != "0"
     // P383 step 2 tallies (near pass): ground positions, and those drawn with two or more different vertices.
     static var positions = 0, splitPositions = 0
     // questcheck --adaptivecheck: the main thread's last near and far results at their exact positions (3 points a triangle).
@@ -203,7 +203,7 @@ enum AdaptiveGround {
 
     // The collapse (P381; see the header) on any triangle mesh: exact positions, positions as drawn (`grid`), triangles.
     // Returns the triangles left.
-    static let retriesNear = ProcessInfo.processInfo.environment["BS_AGRETRY"] != "0"
+    static let retriesNear = Env.all["BS_AGRETRY"] != "0"
     static func collapse<G: CollapseGuard>(pos: [SIMD3<Double>], grid: [SIMD3<Double>], tris: [SIMD3<Int32>], tol: Float, guard g: G) -> [SIMD3<Int32>] {
         let nv = pos.count, nt0 = tris.count
         var tris = tris

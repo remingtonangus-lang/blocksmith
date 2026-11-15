@@ -22,9 +22,9 @@ enum BlockWear {
     static let playerShare: Float = 2, enemyShare: Float = 0.6, arcShare: Float = 3
     static var frameAt: Double = -1, brokeThisFrame = 0
     static var shotOut = 0, throughShots = 0     // (counters)
-    static let oldSplash = ProcessInfo.processInfo.environment["BS_OLDWEARSPLASH"] == "1"
+    static let oldSplash = Env.all["BS_OLDWEARSPLASH"] == "1"
     static var splash = !oldSplash                // (checks compare the two ways)
-    static let oldIceHoles = ProcessInfo.processInfo.environment["BS_OLDICEHOLES"] == "1"
+    static let oldIceHoles = Env.all["BS_OLDICEHOLES"] == "1"
     static let iceHP: Float = 40, iceHoled2: Float = 0.45           // (a pistol round wears 8: holed at 1, through at 5)
     static var iceHoled = 0, iceShot = 0                              // (counters)
     // Where a holed sheet's holes are, in pixels of a 16 grid: (x, y, rim radius). Level 2 has level 1's and more.

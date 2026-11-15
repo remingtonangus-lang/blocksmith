@@ -217,5 +217,5 @@ extension Renderer {
             } }
         }
     }
-    static var backstopProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
+    static var backstopProbe = Env.all["QUEST_VOIDPROBE"] == "1"
 }

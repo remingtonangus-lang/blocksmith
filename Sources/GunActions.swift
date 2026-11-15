@@ -100,7 +100,7 @@ enum GunActions {
     // nothing on the gun said so; the trigger's click was lost in the fight. The handle now stands back, drawn, until
     // the off hand works it (as the pistol's slide stands back locked), and the dead click ticks in the gun hand
     // (BS_OLDCHARGELOOK=1: the handle stays home).
-    static let oldChargeLook = ProcessInfo.processInfo.environment["BS_OLDCHARGELOOK"] == "1"
+    static let oldChargeLook = Env.all["BS_OLDCHARGELOOK"] == "1"
     static func slideDrawn(_ gi: Int) -> Float {
         if action(gi) == .charge && !oldChargeLook { return manual && !cocked ? 1 : 0 }
         guard action(gi) == .slide else { return 0 }

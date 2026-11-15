@@ -40,21 +40,21 @@ enum ShapeTrunks {
     // Window: section-local -M ... 15 + M on each axis (inside the mesher's 48^3 region).
     static let M = 10
     // Nov 6: the far copy's merged trunk runs (BS_TRUNKMERGE=0: a band a block, as before).
-    static let mergeFar = ProcessInfo.processInfo.environment["BS_TRUNKMERGE"] != "0"
+    static let mergeFar = Env.all["BS_TRUNKMERGE"] != "0"
     // (and its root flare one band round the trunk's sides, its tip one cone, its limbs 4 sides: BS_FARFOOT=0, BS_FARTIP=0,
     // BS_FARLIMB=5 for each as before)
-    static let farFoot = ProcessInfo.processInfo.environment["BS_FARFOOT"] != "0"
-    static let farTip = ProcessInfo.processInfo.environment["BS_FARTIP"] != "0"
-    static let farLimbSides = ProcessInfo.processInfo.environment["BS_FARLIMB"].flatMap { Int($0) } ?? 4
+    static let farFoot = Env.all["BS_FARFOOT"] != "0"
+    static let farTip = Env.all["BS_FARTIP"] != "0"
+    static let farLimbSides = Env.all["BS_FARLIMB"].flatMap { Int($0) } ?? 4
     // Nov 12: the foot ring's in-between points on the trunk's edge (BS_OLDFOOTSEAM=1: the lip and its crack, as before).
-    static let footSeam = ProcessInfo.processInfo.environment["BS_OLDFOOTSEAM"] != "1"
-    static let farSides = ProcessInfo.processInfo.environment["BS_FARSIDES"].flatMap { Int($0) } ?? 6     // (a trunk's sides there)
+    static let footSeam = Env.all["BS_OLDFOOTSEAM"] != "1"
+    static let farSides = Env.all["BS_FARSIDES"].flatMap { Int($0) } ?? 6     // (a trunk's sides there)
     static let W = 16 + 2 * M
     // Nov 13 (ledger 111, 112, 115), each =1 for the code before: BS_OLDHANGTRUNK (a trunk whose foot log is gone, in
     // the moment before it falls, drawn as cut timber), BS_OLDWIDECUT (a four-log trunk with one log struck out drawn as
     // three trunks at that level). BS_OLDSTUMPGIRTH: Felling.stumpGirth.
-    static let hangTrunk = ProcessInfo.processInfo.environment["BS_OLDHANGTRUNK"] != "1"
-    static let wideCut = ProcessInfo.processInfo.environment["BS_OLDWIDECUT"] != "1"
+    static let hangTrunk = Env.all["BS_OLDHANGTRUNK"] != "1"
+    static let wideCut = Env.all["BS_OLDWIDECUT"] != "1"
     // (the soil the generator leaves under a tree's foot, WorldGenTrees: grass turned to dirt)
     static let footSoil: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "dirt" }
 
@@ -848,7 +848,7 @@ enum ShapeTrunks {
     // is bark-all-round wood in the upright state (WorldGenTrees.fallenOak), so it was never a fallen run: it lay a
     // block thick on top of the drawn ground. Such wood with no log over or under it runs the way its neighbours do
     // (timberAxis). BS_OLDFALLENWOOD=1: by its state only.
-    static let fallenWood = ProcessInfo.processInfo.environment["BS_OLDFALLENWOOD"] != "1"
+    static let fallenWood = Env.all["BS_OLDFALLENWOOD"] != "1"
     static let barkWood: [Bool] = (0..<Blocks.count).map { isTrunk[$0] && Blocks.key(BlockID($0)).hasSuffix("_wood") }
     @inline(__always) static func lieAxis(_ ctx: DetailContext, _ b: BlockID, _ x: Int, _ y: Int, _ z: Int) -> Int {
         let a = Int(axisOf[Int(b)])

@@ -105,7 +105,7 @@ extension PadLook {
 // slightly moving stick. A block that comes clearly closer (a mob-placed block, a new wall) still wins.
 extension AimAssist {
     static var last: (hit: IVec3, normal: IVec3)?
-    static let oldSticky = ProcessInfo.processInfo.environment["BS_OLDSTICKY"] == "1"
+    static let oldSticky = Env.all["BS_OLDSTICKY"] == "1"
 
     static func sticky(_ g: Game, _ t: (hit: IVec3, normal: IVec3)?, reach: Float) -> (hit: IVec3, normal: IVec3)? {
         guard Settings.shared.aimAssist, PadManager.shared.usingPad || Coop.secondSeat, let prev = last else { last = t; return t }

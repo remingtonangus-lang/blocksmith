@@ -40,7 +40,7 @@ enum TextureCache {
 
     // P401: written straight from the levels to a temporary file, then renamed (the levels were first copied into one
     // 166 MB Data, which sat beside them while the launch went on: the first launch of a build's memory peak).
-    static let lean = ProcessInfo.processInfo.environment["BS_P401"] != "0"     // (BS_P401=0: as before, for the numbers)
+    static let lean = Env.all["BS_P401"] != "0"     // (BS_P401=0: as before, for the numbers)
     static func store(_ levels: [[UInt8]], _ url: URL) {
         if !lean {
             var d = Data()
@@ -67,7 +67,7 @@ enum TextureCache {
         if !ok || rename(tmp, url.path) != 0 { unlink(tmp); print("textures: cache not written (\(url.lastPathComponent))") }
     }
 
-    static var backgroundStore = ProcessInfo.processInfo.environment["BS_TEXCACHEBG"] != "0"
+    static var backgroundStore = Env.all["BS_TEXCACHEBG"] != "0"
     // Cached levels, or freshly painted ones (then cached). The imported pack's pixels are released afterwards.
     static func mipChain(dir: String) -> [[UInt8]] {
         defer { TextureImport.release() }

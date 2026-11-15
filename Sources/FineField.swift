@@ -12,9 +12,9 @@ import simd
 // rays and every World.fieldDensity(at:) query. The cells (BlockStore.fd) stay what they were (cell solidity, drops,
 // light and the game's block queries are unchanged).
 enum FineField {
-    static var gridColumns = ProcessInfo.processInfo.environment["BS_OLDFINECOLS"] != "1"   // (World.fineColumns)
+    static var gridColumns = Env.all["BS_OLDFINECOLS"] != "1"   // (World.fineColumns)
     static let n = 32, count = 32 * 32 * 32
-    static var enabled = ProcessInfo.processInfo.environment["BS_FINE"] != "0"
+    static var enabled = Env.all["BS_FINE"] != "0"
     @inline(__always) static func index(_ fx: Int, _ fy: Int, _ fz: Int) -> Int { fx + fz * 32 + fy * 1024 }
 
     // A cell's eight samples follow a write to the cell (BlockStore.setDensity): moved by as much as the cell, or set to
@@ -348,8 +348,8 @@ extension Mesher {
     // (meshbench only: where the half-block ground's time goes; main thread)
     static var fineTiming = false
     static var fineT = (pre: 0.0, fill: 0.0, quads: 0.0, subs: 0, empty: 0, adaptive: 0.0)
-    static var oldFineFill = ProcessInfo.processInfo.environment["BS_OLDFINEFILL"] == "1"
-    static var oldFineLookup = ProcessInfo.processInfo.environment["BS_OLDFINELOOKUP"] == "1"
+    static var oldFineFill = Env.all["BS_OLDFINEFILL"] == "1"
+    static var oldFineLookup = Env.all["BS_OLDFINELOOKUP"] == "1"
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
                            exact: GrowBuf<Float>? = nil, fineBeyond: [UInt32] = [], _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let vs = sc.fineScratch
@@ -875,7 +875,7 @@ extension World {
     static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
     static var fineMade = 0                              // (sections given their fine samples: the soak's slowest bowl step)
     // (BS_FINEWHY=1, the soak: which sections a bowl step made past its prefetch, printed by CraterJob)
-    static let fineWhy = ProcessInfo.processInfo.environment["BS_FINEWHY"] == "1"
+    static let fineWhy = Env.all["BS_FINEWHY"] == "1"
     static var fineLog: [SIMD3<Int32>] = []
     static var prefetchMarks = 0                         // (main thread)
     static func notePrefetched(_ c: Chunk, _ sy: Int) {

@@ -8,7 +8,7 @@ import simd
 // canopy is drawn over him in the entity pass (Gadgets.writeLeads), seen looking up in the headset or in the chase view.
 // BS_OLDPARACHUTE=1: no parachute from a bail-out (the slow fall, as before).
 enum Parachute {
-    static let old = ProcessInfo.processInfo.environment["BS_OLDPARACHUTE"] == "1"
+    static let old = Env.all["BS_OLDPARACHUTE"] == "1"
     static let sink: Float = 4                   // blocks a second, falling under the canopy
     static let drift: Float = 3                  // blocks a second, the way he faces
     static var openedAt: Double = -100           // Game.clock when the last one opened (it blossoms over 0.5 s)

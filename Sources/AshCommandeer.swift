@@ -66,7 +66,7 @@ enum AshCommandeer {
     // the model's turret and gun follow. Shells and blasts take its plates off block by block; it pivots on its
     // tracks and runs down whoever stands in its way, as before. Role "ashtank" (+ "b" for a Boreal Station's).
     static let tankName = "Cinder Tank"
-    static let oldTankSteer = ProcessInfo.processInfo.environment["BS_OLDTANKSTEER"] == "1"
+    static let oldTankSteer = Env.all["BS_OLDTANKSTEER"] == "1"
     static var tankHulls = true                   // (the --ashdrive check's seat leg turns it off)
     static let tankTop: Float = 10.5, tankCruise: Float = 6     // blocks a second sprinting and not, as from its seat (P435)
     static func tankRole(_ m: Mob) -> String { "ashtank" + (m.boreal ? "b" : "") }
@@ -481,11 +481,11 @@ final class AshSeat {
 // rear gun (jump to its seat) and the field gun fire, and sneaking out leaves the vehicle parked. A half-track knocked
 // under a third bails out and stands empty; trucks round a yard park sidecars beside some of them.
 extension AshCommandeer {
-    static let oldTankCoax = ProcessInfo.processInfo.environment["BS_OLDTANKCOAX"] == "1"
+    static let oldTankCoax = Env.all["BS_OLDTANKCOAX"] == "1"
     static var coaxCool: Float = 0
     static var coaxShots = 0                // (checks)
     static var coaxAt: [Double] = []        // (checks: when each round left)
-    static let oldCoaxBursts = ProcessInfo.processInfo.environment["BS_OLDCOAXBURSTS"] == "1"
+    static let oldCoaxBursts = Env.all["BS_OLDCOAXBURSTS"] == "1"
 }
 
 enum AshDriveCheck {
@@ -508,8 +508,8 @@ enum AshDriveCheck {
         // diffs): one run's spawner put a mob down that tick, the other's didn't, and the seeded draws went separate ways
         // from there. The spawners read ground the workers still light and populate on their own clock, so the yard has
         // no natural spawns (MobManager.noSpawns; BS_ASHDRIVESPAWNS=1 lets them run).)
-        World.deterministic = ProcessInfo.processInfo.environment["BS_ASHDRIVECLOCK"] != "1"
-        MobManager.noSpawns = ProcessInfo.processInfo.environment["BS_ASHDRIVESPAWNS"] != "1"
+        World.deterministic = Env.all["BS_ASHDRIVECLOCK"] != "1"
+        MobManager.noSpawns = Env.all["BS_ASHDRIVESPAWNS"] != "1"
         defer { MobManager.noSpawns = false }
         world.ships.encounters = false
         game.difficulty = 0
@@ -535,7 +535,7 @@ enum AshDriveCheck {
         let bot = Drive()
         // (BS_ASHTRACE=1: each tick's seeded draws so far, and every hull's and mob's pose, as one line: two runs
         // diffed show the tick they part at and what parted first)
-        let trace = ProcessInfo.processInfo.environment["BS_ASHTRACE"] == "1"
+        let trace = Env.all["BS_ASHTRACE"] == "1"
         var traceTick = 0
         func digest() -> String {
             var hs: UInt64 = 1469598103934665603, hm: UInt64 = 1469598103934665603

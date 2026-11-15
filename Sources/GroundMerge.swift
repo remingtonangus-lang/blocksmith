@@ -14,7 +14,7 @@ import simd
 // Layout in the section's opaque buffer: [replaced quads][the rest of the solid quads][cutout quads][merged quads];
 // near draws the solid range as before, far draws [replaced count ..< solid] plus the merged quads.
 final class GroundMerge {
-    static var enabled = ProcessInfo.processInfo.environment["BS_PIXELMERGE"] != "0"
+    static var enabled = Env.all["BS_PIXELMERGE"] != "0"
     // Quest 3: 2064 x 2208 per eye, about 25 pixels a degree at the centre of the lens (its sharpest).
     static let pixelRadians: Float = (1 / 25.5) * .pi / 180
     static let tol16: Float = 2                                  // 1/8 block

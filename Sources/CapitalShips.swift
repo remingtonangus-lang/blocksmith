@@ -53,7 +53,7 @@ enum DropLift {
 }
 
 final class CapitalState {
-    static let oldCrewAim = ProcessInfo.processInfo.environment["BS_OLDCREWAIM"] == "1"   // (harness: cleared as before)
+    static let oldCrewAim = Env.all["BS_OLDCREWAIM"] == "1"   // (harness: cleared as before)
     // P476 (Oct 27, "these four giant things are engines... thruster blocks back here. The engines connect to the
     // thruster blocks and somehow are what drives the frigate... if it doesn't have enough thrust, it doesn't get off
     // the ground"): the stern's thruster cores as built (the cells by the exhaust mouths), how many still burn, and
@@ -804,7 +804,7 @@ enum Capital {
     // generators along the sides, the engineer's panel, a gantry along each side at the upper deck's height. The
     // command deck gets its chart table, signal consoles and cabinets. Only air inside the hull is filled, the
     // centreline aisle, the ramp's way round the engines, the hatches, ladders and crew posts are left clear.
-    static let oldCrawlerDeck = ProcessInfo.processInfo.environment["BS_OLDCRAWLERDECK"] == "1"
+    static let oldCrawlerDeck = Env.all["BS_OLDCRAWLERDECK"] == "1"
     static func crawlerRooms(_ hb: HullBuilder, chassis: (Int, Int, Int) -> Bool) {
         func g(_ n: String, _ f: BlockID) -> BlockID { id(n, f) }
         let panel = id("warship_panel"), grating = id("steel_grating"), light = id("light_panel"), iron = id("iron_block")
@@ -1122,8 +1122,8 @@ extension Ship {
 }
 
 extension Capital {
-    static let oldCrawlerGround = ProcessInfo.processInfo.environment["BS_OLDCRAWLERGROUND"] == "1"
-    static let oldPlans = ProcessInfo.processInfo.environment["BS_OLDPLANS"] == "1"     // (harness: batch 3.9/3.10 as before)
+    static let oldCrawlerGround = Env.all["BS_OLDCRAWLERGROUND"] == "1"
+    static let oldPlans = Env.all["BS_OLDPLANS"] == "1"     // (harness: batch 3.9/3.10 as before)
 }
 
 extension Mob {
@@ -1945,7 +1945,7 @@ extension ShipManager {
     // driver lived anywhere, off fighting at the far end of the hull too. The driver holds it while at it: his post not
     // yet manned (the crew appear as he comes near), or the driver within 4 blocks of the helm (BS_OLDHELMHOLD=1: as
     // before, while the driver lives anywhere).
-    static let oldHelmHold = ProcessInfo.processInfo.environment["BS_OLDHELMHOLD"] == "1"
+    static let oldHelmHold = Env.all["BS_OLDHELMHOLD"] == "1"
     func helmHeld(_ s: Ship, _ st: CapitalState) -> Bool {
         guard st.driverAlive else { return false }
         if ShipManager.oldHelmHold || st.crewless { return true }
@@ -2717,7 +2717,7 @@ extension ShipManager {
     // Trees, plants, fences, glass and timber under the crawler's front give way (no drops); driving on, so does
     // masonry (P65).
     static var rutCells = 0, rutDug = 0, crawlerFelled = 0     // (checks)
-    static let oldRuts = ProcessInfo.processInfo.environment["BS_OLDRUTS"] == "1"
+    static let oldRuts = Env.all["BS_OLDRUTS"] == "1"
     // Nov 14 (Remington: "Maybe make it consistent with our physics engine yes? Just like a frigate crashing into a small
     // building obliterated the building and damages the frigate a little"; ledger 124): masonry the crawler's bow
     // broke cost it nothing: it drove through a town at full speed unmarked. What its bow breaks now costs it by
@@ -2725,8 +2725,8 @@ extension ShipManager {
     // moment (up to 60%, easing back in a second), and every `ramPlate` of hardness broken tears a plate off its bow
     // where it struck, with the crash and the dust of it. A hut goes down for a plate or two; a stone keep costs it
     // a row of them and most of its speed. BS_OLDCRAWLERRAM=1: free, as before.
-    static let oldCrawlerRam = ProcessInfo.processInfo.environment["BS_OLDCRAWLERRAM"] == "1"
-    static let ramPlate: Float = Float(ProcessInfo.processInfo.environment["BS_RAMPLATE"] ?? "") ?? 20      // (a hut of 36 bricks met: two or three plates)
+    static let oldCrawlerRam = Env.all["BS_OLDCRAWLERRAM"] == "1"
+    static let ramPlate: Float = Float(Env.all["BS_RAMPLATE"] ?? "") ?? 20      // (a hut of 36 bricks met: two or three plates)
     static var crawlerRammed = 0, crawlerTorn = 0               // (checks: masonry blocks its bow broke, plates that cost it)
     static let crawlerDraft: Float = 6                          // P510: its wheels and lower hull under the water when it swims
     static var crawlerWaded = 0                                 // (checks: steps it moved with water under its wheels)
@@ -3730,8 +3730,8 @@ extension ShipManager {
 // MARK: Breakaway pieces (block-based damage on capital hulls)
 
 enum DetachLooseTiming {
-    static let oldSearch = ProcessInfo.processInfo.environment["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
-    static let oldTable = ProcessInfo.processInfo.environment["BS_DETACHTABLE"] == "1"     // (--hullblast: the table cleared on the frame)
+    static let oldSearch = Env.all["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
+    static let oldTable = Env.all["BS_DETACHTABLE"] == "1"     // (--hullblast: the table cleared on the frame)
     // detachLoose's cell table (the main thread's blasts only), grown to the largest hull blasted; `base` moves past
     // each blast's searches, so the table is never cleared (but when it would run past the top).
     private static var buf: UnsafeMutablePointer<UInt32>? = nil
@@ -3915,7 +3915,7 @@ extension Capital {
         }
         return n > 0 && have * 2 < n
     }
-    static let oldCrushRemesh = ProcessInfo.processInfo.environment["BS_OLDCRUSHREMESH"] == "1"     // (hullContact)
+    static let oldCrushRemesh = Env.all["BS_OLDCRUSHREMESH"] == "1"     // (hullContact)
     static var crashLog: [String] = []         // (FrigateCheck: the hull blocks each part of a crash took)
     static var crashes = 0                     // (FrigateCheck)
     static var darkened = Set<Int>()           // hulls whose lights a crash put out (P357 d; FrigateCheck)
@@ -3931,7 +3931,7 @@ extension Capital {
     static let restartTime: Float = 12     // P464: seconds till stopped engines (blocks in place) catch again
     // P483: rounds aboard for the guns he fires from the helm: a dropship's autocannon 600 (four minutes held), a
     // frigate's 40 a gun (each salvo spends one a barrel), a crawler's 30 a gun.
-    static let oldCreativeAmmo = ProcessInfo.processInfo.environment["BS_OLDCREATIVEAMMO"] == "1"
+    static let oldCreativeAmmo = Env.all["BS_OLDCREATIVEAMMO"] == "1"
     static func magazine(_ s: Ship, barrels: Int) -> Int {
         if s.role == "dropship" { return 600 }
         // P507 (Nov 1 12:10:30 at a crawler's helm: "The magazine should hold more"): two and a half times what it was

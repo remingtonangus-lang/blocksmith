@@ -28,7 +28,7 @@ final class QuestApp {
     static func headsetWorld() {
         World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
         World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
-        DebrisWorld.budget = (Double(ProcessInfo.processInfo.environment["BS_DEBRISMS"] ?? "") ?? 1.5) / 1000   // a frame's debris sub-steps stop past 1.5 ms
+        DebrisWorld.budget = (Double(Env.all["BS_DEBRISMS"] ?? "") ?? 1.5) / 1000   // a frame's debris sub-steps stop past 1.5 ms
         // P339 (Remington, Oct 18 20:10: "everything out to the 24-chunk view looks exactly like the land near him... no
         // coarse 2-block-lattice LOD, no blur or compression"): every chunk in view is meshed at full detail (no far
         // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
@@ -43,9 +43,9 @@ final class QuestApp {
         StructureCache.plansOffThread = true
         // Ledger 40: a trip to another dimension holds him in black while the ground streams in, instead of loading it
         // on the frame (BS_OLDTRIP=1 for before).
-        Game.arrivalHold = ProcessInfo.processInfo.environment["BS_OLDTRIP"] != "1"
+        Game.arrivalHold = Env.all["BS_OLDTRIP"] != "1"
         // Ledger 42: a blast's crater is shaped over the next frames within the carving allowance (BS_OLDBLAST=1: at once).
-        BlastShape.deferred = ProcessInfo.processInfo.environment["BS_OLDBLAST"] != "1"
+        BlastShape.deferred = Env.all["BS_OLDBLAST"] != "1"
     }
 
     private(set) var dynRes = DynamicResolution()       // P403 7b
@@ -63,7 +63,7 @@ final class QuestApp {
     // F3: a world being saved behind the loading scene ("Saving the world"), and a quit waiting for that save.
     private var savingGame: Game?
     private var exitWhenSaved = false
-    static let oldExitSave = ProcessInfo.processInfo.environment["BS_OLDEXITSAVE"] == "1"
+    static let oldExitSave = Env.all["BS_OLDEXITSAVE"] == "1"
     private var saveDone = false
     private var loadStatus = "Starting"
     private var loadProgress: Float = 0
@@ -71,7 +71,7 @@ final class QuestApp {
     private var loadStart = CFAbsoluteTimeGetCurrent()
     let stats = FrameStats()
     var platformName = "Quest"
-    static var debugClearOnly = ProcessInfo.processInfo.environment["QUEST_CLEAR_ONLY"] != nil
+    static var debugClearOnly = Env.all["QUEST_CLEAR_ONLY"] != nil
 
     init(xr: XRSession) throws {
         self.xr = xr

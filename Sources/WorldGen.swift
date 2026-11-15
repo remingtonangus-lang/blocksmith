@@ -670,7 +670,7 @@ final class WorldGen: TerrainGenerator {
     // under water turns to dirt here, as its first random tick would have made it (Farming.grassTick). By his citadel,
     // about 40 such cells a second died to dirt on new land, and each one re-meshed the ground's section round it (about
     // 24 ms a time on the cloud host): three quarters of the meshing while flying in (questcheck --streamtest).
-    static var settlesGrass = ProcessInfo.processInfo.environment["BS_SETTLEGRASS"] != "0"     // (0: the old way)
+    static var settlesGrass = Env.all["BS_SETTLEGRASS"] != "0"     // (0: the old way)
     static func settleGrass(_ b: inout [BlockID]) {
         guard settlesGrass else { return }
         let op = Blocks.opaque, fk = Blocks.fluidKind
@@ -1116,9 +1116,9 @@ final class WorldGen: TerrainGenerator {
     }
 
     // Nov 12 (A/B switches for the generator fixes of the Nov 12 playtest; each "1" gives the old result)
-    static let oldPools = ProcessInfo.processInfo.environment["BS_OLDPOOLS"] == "1"
-    static let oldRavineEnds = ProcessInfo.processInfo.environment["BS_OLDRAVINEENDS"] == "1"
-    static let oldWideFeet = ProcessInfo.processInfo.environment["BS_OLDWIDEFEET"] == "1"
+    static let oldPools = Env.all["BS_OLDPOOLS"] == "1"
+    static let oldRavineEnds = Env.all["BS_OLDRAVINEENDS"] == "1"
+    static let oldWideFeet = Env.all["BS_OLDWIDEFEET"] == "1"
 
     // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
     // Each 112-block region may hold one; its path depends only on the region, so chunks agree.

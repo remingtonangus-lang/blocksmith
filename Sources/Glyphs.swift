@@ -203,7 +203,7 @@ enum Prompt {
         case reload, wheel, map
     }
 
-    static let oldLegend = ProcessInfo.processInfo.environment["BS_OLDLEGEND"] == "1"     // (Renderer: the menu legend)
+    static let oldLegend = Env.all["BS_OLDLEGEND"] == "1"     // (Renderer: the menu legend)
     static var pad: Bool {
         switch Settings.shared.glyphStyle {
         case 1: return true

@@ -77,7 +77,7 @@ extension TownTests {
             else if ShopKind.allCases.contains(where: { be.lines.contains($0.name) }) { print("  sign entity without a sign block at \(q.x) \(q.y) \(q.z): \(Blocks.key(w.materialAt(q.x, q.y, q.z)))") }
             if be.lines.first == "Welcome to" { welcome = be.lines[1] }
         }
-        if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil, let (_, kp) = w.pendingMobs.first(where: { $0.0 == "villager:shop_general" }) {
+        if Env.all["CAPITAL_DEBUG"] != nil, let (_, kp) = w.pendingMobs.first(where: { $0.0 == "villager:shop_general" }) {
             // The general store's front, rows from the roof down (v -1 then v 0), u across.
             let sx = Int(floor(kp.x)) - CapitalTown.storeW / 2, sz = Int(floor(kp.z)) - (CapitalTown.storeD - 3), y0 = Int(floor(kp.y))
             for v in [-1, 0] { for dy in stride(from: 6, through: 0, by: -1) {
@@ -185,7 +185,7 @@ extension TownTests {
                 keeperSamples += 1
                 if m.pos.y > Float(j[1]) + 0.7 {
                     onCounter += 1
-                    if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil && onCounter % 7 == 1 {
+                    if Env.all["CAPITAL_DEBUG"] != nil && onCounter % 7 == 1 {
                         print("  up: \(m.villager?.shop ?? "") at \(m.pos) spot \(j) on \(Blocks.key(w.materialAt(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.6)), Int(floor(m.pos.z))))) ground \(m.onGround) t \(Int(g.dayFraction * 24000)) goal \(m.path.goal) nodes \(m.path.nodes.dropFirst(m.path.index).prefix(4).map { "\($0.x),\($0.y),\($0.z)" }) partial \(m.path.partial) near \(g.mobs.mobs.filter { $0 !== m && simd_length($0.pos - m.pos) < 1.5 }.map { "\($0.villager?.role ?? "?")@\($0.pos)" })")
                         for y in j[1] - 1...j[1] + 1 { for z in j[2] - 3...j[2] + 3 {
                             print("   y\(y) z\(z): " + (j[0] - 3...j[0] + 3).map { String(Blocks.key(w.materialAt($0, y, z)).prefix(6)).padding(toLength: 7, withPad: " ", startingAt: 0) }.joined()) } }
@@ -209,7 +209,7 @@ extension TownTests {
               "capitals: lunch guests stay out from behind the bar (\(behindBar) of \(lunchSamples) samples beside the barkeep)")
         check(keeperSamples > 0 && onCounter * 50 <= keeperSamples,
               "capitals: keepers stay off their counters in shop hours (\(onCounter) of \(keeperSamples) samples up on something)")
-        if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil {
+        if Env.all["CAPITAL_DEBUG"] != nil {
             for (i, m) in workers.enumerated() where bestDesk[i] >= 3 {
                 print("  late \(m.villager?.person ?? "?") at \(m.pos) home \(m.home ?? .zero) desk \(m.villager?.jobSite ?? []) path \(m.path.nodes.count) idx \(m.path.index) partial \(m.path.partial) goal \(m.path.goal) gaveUp \(m.unreachableTimer) act \(m.activity(g.dayFraction))")
             }
@@ -227,7 +227,7 @@ extension TownTests {
         let sleepers = people.filter { ["citizen", "shopkeeper"].contains($0.villager?.role ?? "") && $0.villager?.shop != ShopKind.saloon.rawValue }
         var slept = Set<ObjectIdentifier>()
         // CAPITAL_DEBUG: each sleeper's way to bed, a line a second (printed for those who never lie down).
-        let traceNight = ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil
+        let traceNight = Env.all["CAPITAL_DEBUG"] != nil
         var nightLog: [ObjectIdentifier: [String]] = [:]
         var stuckDump: [ObjectIdentifier: String] = [:]
         var second = 0
@@ -275,7 +275,7 @@ extension TownTests {
             let b = m.villager?.bed.map { String(format: "%.0f", simd_length(V3(Float($0[0]) + 0.5, Float($0[1]), Float($0[2]) + 0.5) - m.pos)) } ?? "no"
             return "\(m.villager?.person ?? "?") (\(m.villager?.role ?? "?"), \(b) bed)"
         }
-        if ProcessInfo.processInfo.environment["CAPITAL_DEBUG"] != nil {
+        if Env.all["CAPITAL_DEBUG"] != nil {
             for m in sleepers where !slept.contains(ObjectIdentifier(m)) {
                 let cx = Int(floor(m.pos.x)), cy = Int(floor(m.pos.y)), cz = Int(floor(m.pos.z))
                 for dy in -1...2 {

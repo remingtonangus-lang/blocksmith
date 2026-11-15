@@ -28,7 +28,7 @@ import Foundation
 // Not armed (the host checks, the Mac, a deterministic run): every grant is the job's usual slice, as before.
 // BS_GOVERNOR=0: never armed.
 enum FrameGovernor {
-    static let enabled = ProcessInfo.processInfo.environment["BS_GOVERNOR"] != "0"
+    static let enabled = Env.all["BS_GOVERNOR"] != "0"
     private(set) static var armed = false
 
     // The frame under way.

@@ -145,7 +145,7 @@ enum GunParts {
     // Nov 12 playtest (06:20:26, at a Capital light gun: "this back bar thing is also disconnected"): the bar stood
     // on its thin post half a block behind the gunhouse with nothing between; on a gun with a gunhouse (`tied`) an arm
     // at the bar's height now runs from the gunhouse's back to the post (BS_OLDHANDLES=1: without it).
-    static let oldHandles = ProcessInfo.processInfo.environment["BS_OLDHANDLES"] == "1"
+    static let oldHandles = Env.all["BS_OLDHANDLES"] == "1"
     static func handles(_ p: [Part], tied: Bool = false) -> [Part] {
         let back = p.map { $0.mx.z }.max() ?? 0
         let rear = back + 3

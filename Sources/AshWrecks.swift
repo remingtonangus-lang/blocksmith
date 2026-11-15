@@ -115,7 +115,7 @@ enum AshWrecks {
     static let skinScale: Float = 1.45                  // the model's 10-block fuselage over the 16-block hull
     private static var skins: [Int: Mob] = [:]
     private static var skinOrigin: [Int: V3] = [:]      // ship space of the model's origin (hull centre line, wheels)
-    static var skinsOff = ProcessInfo.processInfo.environment["BS_FIGHTERBLOCKS"] != nil     // (looks work: the blocks)
+    static var skinsOff = Env.all["BS_FIGHTERBLOCKS"] != nil     // (looks work: the blocks)
     static var skinMobs: [Mob] = []
     static func skin(_ s: Ship) -> Mob? { skins[s.id] }
     // A hull drawn as a model (its blocks hidden): its broken-off pieces are debris, not hulls (P473).

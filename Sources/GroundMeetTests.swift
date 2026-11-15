@@ -71,13 +71,13 @@ extension World {
                 let px = Float(c.x) + (side == 0 ? -o : side == 1 ? 1 + o : t), pz = Float(c.z) + (side == 2 ? -o : side == 3 ? 1 + o : t)
                 if let h = w.drawnGround(px, pz, lo: fy - 2, hi: fy + 1) {
                     gap = max(gap, fy - h)
-                    if fy - h > 0.05, ProcessInfo.processInfo.environment["BS_MEET_DEBUG"] != nil {
+                    if fy - h > 0.05, Env.all["BS_MEET_DEBUG"] != nil {
                         print(String(format: "    gap %.3f at %.2f %.2f: drawn %.3f, field %@", fy - h, px, pz, h,
                                      w.fieldRaySegment(V3(px, fy + 1, pz), V3(0, -1, 0), from: 0, to: 4).map { String(format: "%.3f", $0.at.y) } ?? "nil"))
                     }
                 } else {
                     gap = max(gap, 2)
-                    if ProcessInfo.processInfo.environment["BS_MEET_DEBUG"] != nil {
+                    if Env.all["BS_MEET_DEBUG"] != nil {
                         let raw = w.drawnGround(px, pz, lo: fy - 4, hi: fy + 3, check: false)
                         let q = w.chunkAt(Int(floor(px)), Int(floor(pz)))?.sections[c.y >> 4].ground?.quads ?? -1
                         print(String(format: "    no ground at %.2f %.2f: raw %@ (density %.2f %.2f), section ground quads %d, field ray %@", px, pz,

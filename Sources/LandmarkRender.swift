@@ -8,7 +8,7 @@ import simd
 // wherever the real landmark has been generated, and the impostor fills in where it hasn't.
 extension Renderer {
     static let landmarkRange: Float = 2600
-    static let oldFarVolcanoes = ProcessInfo.processInfo.environment["BS_OLDFARVOLCANOES"] == "1"
+    static let oldFarVolcanoes = Env.all["BS_OLDFARVOLCANOES"] == "1"
     static var farVolcanoesDrawn = 0               // cones placed by the last build (checks)
     static var plumeRising = false                 // the last build had volcano smoke (camp smoke alone rebuilds slower)
     // Nov 9 (item 7): the opaque impostors and the horizon ground go in world terms, put on the shell by the shader

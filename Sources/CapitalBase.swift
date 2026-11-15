@@ -59,7 +59,7 @@ extension TextureGen {
 }
 
 enum CapitalBase {
-    static let oldCommandant = ProcessInfo.processInfo.environment["BS_OLDCOMMANDANT"] == "1"
+    static let oldCommandant = Env.all["BS_OLDCOMMANDANT"] == "1"
     static let A = 56                      // half-size of the whole site
     // Leaf and log states (tree clean-up round the site), built once.
     static let leafTable: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_leaves") }

@@ -1583,7 +1583,7 @@ if let out = arg("--view"), let ctx = vkctx {
             }
             // BS_FLOWSWEEP="shear/slender/crush;...": the same piece under other strengths (how many times its weight
             // it carries under each, and what gives first).
-            for e in (ProcessInfo.processInfo.environment["BS_FLOWSWEEP"] ?? "").split(separator: ";") {
+            for e in (Env.all["BS_FLOWSWEEP"] ?? "").split(separator: ";") {
                 let v = e.split(separator: "/").compactMap { Float($0) }
                 guard v.count == 3 else { continue }
                 let was = (StructureFlow.shear, StructureFlow.slenderShare, Structure.crushScale)
@@ -2251,8 +2251,8 @@ if let out = arg("--view"), let ctx = vkctx {
             func ord(_ a: P, _ b: P) -> E { (a.x, a.y, a.z) < (b.x, b.y, b.z) ? E(a: a, b: b) : E(a: b, b: a) }
             var count: [E: Int32] = [:]
             var seenQ = Set<[P]>()
-            let wtRad = Float(ProcessInfo.processInfo.environment["BS_WTRADIUS"] ?? "") ?? 0.26
-            let wtPoint: V3? = ProcessInfo.processInfo.environment["BS_WTPOINT"].flatMap { t in
+            let wtRad = Float(Env.all["BS_WTRADIUS"] ?? "") ?? 0.26
+            let wtPoint: V3? = Env.all["BS_WTPOINT"].flatMap { t in
                 let f = t.split(separator: ",").compactMap { Float($0) }
                 return f.count == 3 ? V3(f[0], f[1], f[2]) : nil
             }
@@ -4330,7 +4330,7 @@ if let out = arg("--questsim"), let ctx = vkctx {
     let vrStatic0 = (GunActions.manual, VRReload.reclined)      // (swing play's hand-worked bolts: the deep balance duels fired once)
     do { try QuestSim.run(game: game, ctx: ctx, out: out, check: check) } catch { check(false, "questsim: \(error)") }
     // Monkey input through the VR layer (QuestFuzz): BLOCKSMITH_FUZZ_SECONDS / --fuzz-seed to run longer or another seed.
-    let fuzzSeconds = Int(ProcessInfo.processInfo.environment["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
+    let fuzzSeconds = Int(Env.all["BLOCKSMITH_FUZZ_SECONDS"] ?? "") ?? 60
     let fuzzSeed = UInt64(arg("--fuzz-seed") ?? "") ?? 1
     // (Nov 11: run last, after the shared checks. A minute of monkey input in both modes leaves him starving, on fire,
     // outlawed, at war with the Meridian Navy and somewhere else, and the walk, the hunters and the roads checks after it

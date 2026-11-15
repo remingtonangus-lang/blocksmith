@@ -25,7 +25,7 @@ enum SaveSoakTests {
     }
 
     static func run(device: MTLDevice, cycles n: Int = 100, check: (Bool, String) -> Void) {
-        let cycles = Int(ProcessInfo.processInfo.environment["SOAK_CYCLES"] ?? "") ?? n
+        let cycles = Int(Env.all["SOAK_CYCLES"] ?? "") ?? n
         let fm = FileManager.default
         let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("savesoak-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
         try? fm.removeItem(at: tmp)

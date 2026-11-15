@@ -22,7 +22,7 @@ enum MainGun {
     static let playerReload: Float = 22
     static let aiReload: Float = 30
     static let slugSpeed: Float = 700
-    static let oldWake = ProcessInfo.processInfo.environment["BS_OLDWAKE"] == "1"
+    static let oldWake = Env.all["BS_OLDWAKE"] == "1"
     static let craterRadius: Float = 13
     // P99 (Remington, Oct 12: "a crater at least 20 blocks deep"): the bowl reaches 26 down at its deepest (the
     // ragged edge takes up to a fifth off, so never less than 20 under the impact); it was two thirds of the radius.
@@ -56,8 +56,8 @@ enum MainGun {
 
     static func noteImpact(at p: V3) { impacts += 1; lastImpact = p; lastCrater = 0; lastScorched = 0; lastOpen = ""; lastOpenFrames = -1 }
     static var lastOpen = "", lastOpenFrames = -1       // the last bowl: frames from the impact until it was open, by phase
-    static let oldOwnBlast = ProcessInfo.processInfo.environment["BS_OLDOWNBLAST"] == "1"     // (CraterJob: her own slug's bowl blasts her hull)
-    static let oldWarm = ProcessInfo.processInfo.environment["BS_OLDCRATERWARM"] == "1"   // (ShipManager.warmBowl)
+    static let oldOwnBlast = Env.all["BS_OLDOWNBLAST"] == "1"     // (CraterJob: her own slug's bowl blasts her hull)
+    static let oldWarm = Env.all["BS_OLDCRATERWARM"] == "1"   // (ShipManager.warmBowl)
     static var warmed = 0                               // sections given their fine samples during a charge (MainGunTests)
     static func noteCrater(_ n: Int, scorched: Int = 0) { lastCrater = n; lastScorched = scorched }
     static var craterStepMs: Double = 0                 // the crater's slice this frame, ms (MainGunTests)

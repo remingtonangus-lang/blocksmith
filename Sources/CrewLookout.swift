@@ -13,7 +13,7 @@ enum CrewLookout {
     static var lastMiss = ""                    // (ridecheck: the last search that found nothing, where it looked)
     static var ready: Bool { CFAbsoluteTimeGetCurrent() >= nextSearch }
     private static let reach = 22               // how far along the deck a spot is looked for (blocks, each way)
-    static let oldRanges = ProcessInfo.processInfo.environment["BS_OLDLOOKOUT"] == "1"
+    static let oldRanges = Env.all["BS_OLDLOOKOUT"] == "1"
 
     // The code reader's Nov 10 batch, 1 (questcheck --lookout, and the full suite): a crewman standing on a hull's top
     // layer, one on a torn-off piece two blocks high, and one 30 blocks off the grid each search and come back.

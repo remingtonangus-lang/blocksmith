@@ -627,7 +627,7 @@ enum QuestFrameSoak {
             if submerged { water += c.holes } else { holes += c.holes }
             below += c.below; backstop += c.backstop
             // (BS_VOIDSHOTS=DIR: every shot saved there, each hole ringed in green)
-            if let dir = ProcessInfo.processInfo.environment["BS_VOIDSHOTS"] {
+            if let dir = Env.all["BS_VOIDSHOTS"] {
                 var m = img
                 for (mx, my) in c.marks { for dy in -3...3 { for dx in -3...3 where abs(dx) == 3 || abs(dy) == 3 {
                     let x = mx + dx, y = my + dy
@@ -719,7 +719,7 @@ enum QuestFrameSoak {
         var stages: [String: (Double, Double)] = [:]
         // (SOAK_MOBPROF=1: the slowest single mob update and where it went; off by default, its clock reads and strings
         // weigh on the mob tick being measured)
-        let mobProf = ProcessInfo.processInfo.environment["SOAK_MOBPROF"] == "1"
+        let mobProf = Env.all["SOAK_MOBPROF"] == "1"
         TroopVanish.on = true; TroopVanish.reset()                  // (item 27: soldiers gone without dying)
         MobDrawStats.dropped = 0; MobManager.heldInSight = 0          // (item 27: mobs left undrawn, despawns held in sight)
         MobManager.profileOn = mobProf
@@ -805,7 +805,7 @@ enum QuestFrameSoak {
             .map { "\($0.key) \(String(format: "%.2f/%.1f", $0.value.0 / n, $0.value.1))" }.joined(separator: ", "))
         print("    tick stages by worst (ms): " + stages.sorted { $0.value.1 > $1.value.1 }.prefix(8)
             .map { "\($0.key) \(String(format: "%.1f", $0.value.1))" }.joined(separator: ", "))
-        if ProcessInfo.processInfo.environment["BS_RCPROBE"] == "1" { print("    side tables: " + RefcountProbe.census(g)) }
+        if Env.all["BS_RCPROBE"] == "1" { print("    side tables: " + RefcountProbe.census(g)) }
         if Explosion.worstMs > 0 { print(String(format: "    slowest blast: %.1f ms (%@)", Explosion.worstMs, Explosion.worstLaps)) }
         if StructureTip.worstMs > 0 { print(String(format: "    slowest collapse check: %.1f ms (%@)", StructureTip.worstMs, StructureTip.worstSplit)) }
         if GroundCollapse.worstMs > 0 { print(String(format: "    slowest loose-ground check: %.1f ms (%@)", GroundCollapse.worstMs, GroundCollapse.worstWhat)) }

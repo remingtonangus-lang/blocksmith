@@ -87,7 +87,7 @@ enum WorldRules {
     static let capitalKinds: Set<String> = ["military_base", "capital_city"]
     // Ledger 26 (Nov 5): citadels keep off other starts' footprints, not only their anchors (MilitaryBase.crowded; on
     // ground no save has seen, as the rest of crowded). BS_CITADELFOOT=0: anchors only, as before (the audit's numbers).
-    static let citadelFootprints = ProcessInfo.processInfo.environment["BS_CITADELFOOT"] != "0"
+    static let citadelFootprints = Env.all["BS_CITADELFOOT"] != "0"
     static let capitalApartP69 = 480
     static func p69(_ gen: WorldGen, _ cx: Int, _ cz: Int, reach: Int) -> Bool {
         guard p44, let sc = gen.structures else { return false }

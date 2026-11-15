@@ -15,7 +15,7 @@ import Foundation
 // (its other half is in the next chunk). The current designs have neither (questcheck --treerepair checks every one).
 // Not saved back: the same tidy runs every time the chunk loads, and finds nothing the second time once he builds there.
 enum TreeRepair {
-    static var enabled = ProcessInfo.processInfo.environment["BS_TREEREPAIR"] != "0"
+    static var enabled = Env.all["BS_TREEREPAIR"] != "0"
     static var stems = 0, kinks = 0                  // (checks: taken out since start)
     private static let lock = NSLock()
 

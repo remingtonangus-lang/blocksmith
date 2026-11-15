@@ -67,7 +67,7 @@ final class MeshArena {
     // free runs by start and by end, so a freed slice joins the free runs on both sides of it; a run at the end of
     // the slab being carved goes back to it; the class lists only point at runs (an entry whose run has since been
     // joined or used is stale and skipped). BS_OLDARENA=1: as before (no joining).
-    static var joins = ProcessInfo.processInfo.environment["BS_OLDARENA"] != "1"
+    static var joins = Env.all["BS_OLDARENA"] != "1"
     fileprivate final class Slab {
         let buf: MTLBuffer
         var live = 0                                   // bytes in live slices
@@ -84,7 +84,7 @@ final class MeshArena {
     // meshes on the host (--triptest, the Emberdeep's ground coming in), the Vulkan allocation plus the first write
     // into each of its fresh pages. The next slab is now made on a worker, its pages touched there, once the one in
     // use is three quarters carved (BS_SLABAHEAD=0: as before).
-    static var ahead = ProcessInfo.processInfo.environment["BS_SLABAHEAD"] != "0"
+    static var ahead = Env.all["BS_SLABAHEAD"] != "0"
     private var spare: MTLBuffer?
     private var spareAsked = false
     private(set) var spareUsed = 0

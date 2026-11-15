@@ -133,7 +133,7 @@ extension Game {
     // 0.93 and 0.82 of a block (the boards are 1 and 0.875 wide).
     static let signBoardPx: (standing: Float, hanging: Float) = (84, 94)
     // The shrink a line of `wpx` font pixels gets so it fits its board.
-    static let oldSignText = ProcessInfo.processInfo.environment["BS_OLDSIGNTEXT"] == "1"
+    static let oldSignText = Env.all["BS_OLDSIGNTEXT"] == "1"
     static func signLineFit(_ wpx: Float, hanging: Bool) -> Float {
         min(1, (hanging ? signBoardPx.hanging : signBoardPx.standing) / max(1, wpx))
     }

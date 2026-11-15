@@ -575,7 +575,7 @@ enum Cinema {
         }
         // BS_CINEDUMP=R: what stands round the subject (built blocks that are no ground, plants or snow; mobs, ships), to
         // name a thing a shot shows.
-        if let r = Int(ProcessInfo.processInfo.environment["BS_CINEDUMP"] ?? "") {
+        if let r = Int(Env.all["BS_CINEDUMP"] ?? "") {
             let ox = Int(floor(origin.x)), oy = Int(floor(origin.y)), oz = Int(floor(origin.z))
             print("cine: \(s.name): ground \(w.gen.column(ox, oz).height - YOFF) at \(ox) \(oz)")
             for y in (oy - 16)...(oy + 16) { for z in (oz - r)...(oz + r) { for x in (ox - r)...(ox + r) {

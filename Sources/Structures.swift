@@ -259,7 +259,7 @@ final class StructureCache {
     // making a start waits (a start's own checks look up other starts: those make theirs as before), so a waiter never
     // holds a start another thread waits for. BS_OLDSTARTWAIT=1: every caller makes it, as before. startsMade /
     // startsWaited / startsTwice count them (the launch harness prints them).
-    static let oldWait = ProcessInfo.processInfo.environment["BS_OLDSTARTWAIT"] == "1"
+    static let oldWait = Env.all["BS_OLDSTARTWAIT"] == "1"
     private(set) static var startsMade = 0, startsWaited = 0, startsTwice = 0
     private var making = Set<StartKey>()
     private static let depthKey = "bs.structureStartDepth"
@@ -592,7 +592,7 @@ final class StructureCache {
     // made when asked on the frame thread, and have the missing regions made on a worker; they ask again a second
     // later. Off the frame thread, or with the host checks' planning on the frame, the same as startsNear.
     // BS_OLDNEARMADE=1: planned on the frame as before.
-    static let oldNearMade = ProcessInfo.processInfo.environment["BS_OLDNEARMADE"] == "1"
+    static let oldNearMade = Env.all["BS_OLDNEARMADE"] == "1"
     func startsNearMade(cx: Int, cz: Int, _ t: StructureType) -> [StructureStart] {
         guard StructureCache.plansOffThread && StructureCache.onFrameThread && !StructureCache.oldNearMade else {
             return startsNear(cx: cx, cz: cz, t)

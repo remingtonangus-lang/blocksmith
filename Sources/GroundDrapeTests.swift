@@ -4,7 +4,7 @@ import simd
 // P382 check (questcheck --view OUT --field --scene groundthings [--groundcheck]): things laid on the field's ground in
 // front of the eye, and how far each one's drawing is off the drawn ground under it (BS_DRAPE=0: as before P382).
 extension GroundDrape {
-    static let gridPlace = ProcessInfo.processInfo.environment["BS_GRIDPLACE"] == "1"
+    static let gridPlace = Env.all["BS_GRIDPLACE"] == "1"
     static let sceneThings: [String] = ["powered_rail", "powered_rail", "detector_rail", "white_carpet", "stone_pressure_plate", "torch",
                                         "oak_sign", "repeater", "lantern", "candle", "short_grass", "poppy"]
 
@@ -108,7 +108,7 @@ extension GroundDrape {
                 }
             }
             if !found { t.lost += 1 } else if lowest < -0.01 { t.buried += 1 } else if lowest > 0.13 { t.floating += 1 }
-            if ProcessInfo.processInfo.environment["BS_DRAPE_DEBUG"] != nil {
+            if Env.all["BS_DRAPE_DEBUG"] != nil {
                 print(String(format: "  %@ at %d %d %d (section-local %.0f %.0f %.0f): lowest %.3f (vertex %.3f %.3f %.3f, ground %.3f), rise %.2f, below %@", key, c.x, c.y, c.z, lx, ly, lz,
                              lowest, lowP.x, lowP.y, lowP.z, lowG, gh - gl, Blocks.key(w.block(c.x, c.y - 1, c.z))))
             }

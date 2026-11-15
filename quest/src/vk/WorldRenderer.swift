@@ -46,7 +46,7 @@ final class WorldRenderer {
     // mobs, the light and the model tables, none of which the cull touches), into a vertex buffer of the slot's own,
     // and drawn when the frame reaches them (FrameWork: taken back by the frame thread if the worker hasn't begun).
     // BS_MOBTHREAD=0: written in place, as before.
-    static var mobThread = ProcessInfo.processInfo.environment["BS_MOBTHREAD"] != "0"
+    static var mobThread = Env.all["BS_MOBTHREAD"] != "0"
     static let mobBufBytes = 10 << 20
     private let mobWork = FrameWork(label: "mobverts")
     private var mobBufs: [ObjectIdentifier: VkBuf] = [:]
@@ -78,12 +78,12 @@ final class WorldRenderer {
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
     // FAILURES 4 (questcheck --view ... --voidcount, tools/voidsweep.sh): the frame cleared to pure magenta with no sky
     // drawn over it (QUEST_SKIP=sky), so every gap in what is drawn shows as magenta.
-    static var voidProbe = ProcessInfo.processInfo.environment["QUEST_VOIDPROBE"] == "1"
+    static var voidProbe = Env.all["QUEST_VOIDPROBE"] == "1"
     // Nov 11: BS_OLDCLOUDS=1 has clouds.frag hash its noise lattice as before (shader FX bit 1024) instead of reading the table.
-    static let oldCloudNoise = ProcessInfo.processInfo.environment["BS_OLDCLOUDS"] == "1"
-    static var debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
+    static let oldCloudNoise = Env.all["BS_OLDCLOUDS"] == "1"
+    static var debugSkip = Set((Env.all["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
     // (and within the entities pass, QUEST_SKIPENT=drops,debris,particles,shadows,halos,weather,... leaves those writers out)
-    static let entitySkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIPENT"] ?? "").split(separator: ",").map(String.init))
+    static let entitySkip = Set((Env.all["QUEST_SKIPENT"] ?? "").split(separator: ",").map(String.init))
 
     let ships: ShipDraw
     // Volcano and Ancient Spire impostors past the render distance (Sources/LandmarkRender.swift on the HUD host).
@@ -112,13 +112,13 @@ final class WorldRenderer {
     private var gapVerts: [SimpleVert] = []
     private(set) var gapChunks = 0               // chunks covered last frame (perf lines, questcheck --streamtest)
     private(set) var gapMissing = 0              // of the chunks not drawn, those the ring had no ground for (harness)
-    static var gapTint = ProcessInfo.processInfo.environment["BS_GAPTINT"] == "1"     // (harness: the cover in magenta)
+    static var gapTint = Env.all["BS_GAPTINT"] == "1"     // (harness: the cover in magenta)
 
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
         self.game = game
         ships = ShipDraw(scene: scene)
-        Renderer.shellOnGPU = ProcessInfo.processInfo.environment["BS_OLDSHELL"] != "1"     // (simple.vert puts them on it)
+        Renderer.shellOnGPU = Env.all["BS_OLDSHELL"] != "1"     // (simple.vert puts them on it)
     }
 
     // Skylight around the eye, smoothed (Renderer.updateCave): fog and sky darken underground, and the eye darkness
@@ -501,7 +501,7 @@ final class WorldRenderer {
     // (not leaves). The ring's height is the land before structures and before fine shape: under a citadel's yard or a
     // cut bank the cover lay blocks under the drawn ground beside it, and the sky showed through the step between them
     // (the rock under a drawn chunk's edge isn't meshed while he flies). BS_GAPLIFT=0: the ring's heights.
-    static var gapLift = ProcessInfo.processInfo.environment["BS_GAPLIFT"] != "0"
+    static var gapLift = Env.all["BS_GAPLIFT"] != "0"
     private func liftGaps(_ w: World, ox: Int, oz: Int) {
         let opaqueT = Blocks.opaque, leafT = Mesher.leafT, fluidT = Blocks.fluidKind
         var lastKey = ChunkKey(x: Int.min, z: 0)
@@ -665,12 +665,12 @@ final class WorldRenderer {
     private var lmSmokeEye = V3(1e9, 0, 0), lmHadSmoke = false
     private var lmTally = [0, 0, 0], lmVertSum = 0, lmBuildMs = 0.0   // builds (full, landmarks + smoke, smoke) for the soak
     private var lmFull = -100, lmHorizon: [SimpleVert] = [], lmMid: [SimpleVert] = [], lmMidValid = false
-    static var lmSplit = ProcessInfo.processInfo.environment["BS_LMSPLIT"] != "0"
+    static var lmSplit = Env.all["BS_LMSPLIT"] != "0"
     private var lmBufs: [VkBuf?] = [nil, nil, nil], lmUsed = [-10, -10, -10], lmLive = -1
     private var lmSmokeVerts: [SimpleVert] = [], lmSmokeOwn = false
     private var lmSmokeBufs: [VkBuf?] = [nil, nil, nil], lmSmokeUsed = [-10, -10, -10], lmSmokeLive = -1
-    static let smokeApart = ProcessInfo.processInfo.environment["BS_OLDLMSMOKE"] != "1"
-    static let smokeVerify = ProcessInfo.processInfo.environment["BS_LMSMOKEVERIFY"] == "1"
+    static let smokeApart = Env.all["BS_OLDLMSMOKE"] != "1"
+    static let smokeVerify = Env.all["BS_LMSMOKEVERIFY"] == "1"
     static var smokeChecked = 0, smokeDiffs = 0             // (BS_LMSMOKEVERIFY: smoke beats whose kept opaque part differed)
     // The smoke alone into a buffer of its own (as lmStore), or -1 (pushed to the scratch ring each frame).
     private func lmStoreSmoke(_ verts: [SimpleVert]) -> Int {

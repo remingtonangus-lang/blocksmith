@@ -37,7 +37,7 @@ enum FieldMat {
 
 enum FieldTerrain {
     static let scale: Float = 32                         // density units per block
-    static let oldBaseBank = ProcessInfo.processInfo.environment["BS_OLDBASEBANK"] == "1"
+    static let oldBaseBank = Env.all["BS_OLDBASEBANK"] == "1"
     static let outside: Int8 = -127                      // far outside the ground (and above the stored part)
     static let inside: Int8 = 127                        // far inside
     static let cellIn: Int8 = 16                         // a cell's centre half a block inside (a filled cell)
@@ -548,7 +548,7 @@ extension World {
     // Subtracts (carve) or adds a sphere to the field: d = min(d, |p - c| - r) or max(d, r - |p - c|). Cells whose
     // solidity flips are written through the block layer (so the game sees them open or filled); a fill takes
     // `material` (or the commonest ground round it). Sections touched are remeshed by the caller's setBlock or here.
-    static let oldSphere = ProcessInfo.processInfo.environment["BS_OLDSPHERE"] == "1"       // ledger 164
+    static let oldSphere = Env.all["BS_OLDSPHERE"] == "1"       // ledger 164
     @discardableResult
     // `keepSolid`: only the surface moves (a blast's bowl walls, a bullet's dent): no cell turns from ground to open or
     // back, so nothing is removed without its drop.
@@ -827,7 +827,7 @@ extension World {
             let e = ItemEntity(ItemStack(Items.id("cobblestone"), 1), at: V3(x + 0.6, s + 1.2, z - 0.6), vel: .zero, delay: 999)
             g.drops.items.append(e); items.append(e)
         }
-        let verbose = ProcessInfo.processInfo.environment["FIELDBODIES_VERBOSE"] != nil
+        let verbose = Env.all["FIELDBODIES_VERBOSE"] != nil
         let spawnY = mobs.map { $0.pos.y }
         var hist = [[String]](repeating: [], count: mobs.count), told = [Bool](repeating: false, count: mobs.count)
         for t in 0..<150 {

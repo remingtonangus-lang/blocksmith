@@ -333,7 +333,7 @@ enum Trains {
     // Week item 71 (no pop-in): how far off a train is made and taken away: past the fog's end at his view (render
     // distance x 16 less 12), 128 at least. At 128 a train came into being in plain sight at any view past 8 (the
     // headset's auto view runs 8 to 16: the fog ends 148 to 244 out).
-    static let fogReach = ProcessInfo.processInfo.environment["BS_TRAINREACH"] != "0"      // (the check's before: =0)
+    static let fogReach = Env.all["BS_TRAINREACH"] != "0"      // (the check's before: =0)
     static func reach(_ g: Game) -> Float { fogReach ? max(128, Float(g.world.renderDistance * CS) + 4) : 128 }
     static func tick(_ g: Game) {
         let p = g.player.pos
@@ -399,7 +399,7 @@ enum Trains {
     // onto a longer track: the lines and links it runs, the next ones added ahead and those well behind dropped. Its
     // timetable is the longer track's, taken up at the place and heading it has, so it runs on without a jolt and stops
     // at the stations ahead; the line it left builds no train of its own while this one is out.
-    static let oldLinkWarm = ProcessInfo.processInfo.environment["BS_OLDLINKWARM"] == "1"
+    static let oldLinkWarm = Env.all["BS_OLDLINKWARM"] == "1"
     static var throughOut: [Int64: Int64] = [:]       // a line's id -> the through train out on it
     static var nextThrough: Int64 = 1 << 61
     static var splices = 0                            // (checks)
@@ -503,7 +503,7 @@ enum Trains {
     // impossible"): a train made again where it stands (a car of it shot away, or gone from the world) was made as
     // whatever the line runs today, so a troop train that came as an arrival, or a bullion train robbed that day, came
     // back as coaches in front of him. A train made again in place is the kind it was. BS_OLDREKIND=1 = before.
-    static let oldRekind = ProcessInfo.processInfo.environment["BS_OLDREKIND"] == "1"
+    static let oldRekind = Env.all["BS_OLDREKIND"] == "1"
     static var keptKinds = 0                      // (harness)
     static func build(_ g: Game, _ tr: Train) {
         let inPlace = !tr.cars.isEmpty && !oldRekind && !tr.track.armoured && forceKind == nil && tr.bullion == (tr.kind == .bullion)
@@ -720,7 +720,7 @@ enum Trains {
     // the regulator (a lump every 20 s at full, 80 s at the timetable's pace; creative burns none); coal used on the
     // engine from the cab tops it up; with none the fire dies and the train rolls to a stand. When he leaves the cab the
     // timetable takes the train up where it is. BS_OLDCAB=1: the old regulator over the timetable.
-    static let oldCab = ProcessInfo.processInfo.environment["BS_OLDCAB"] == "1"
+    static let oldCab = Env.all["BS_OLDCAB"] == "1"
     static var watch: IVec3?                                     // (RailwayTests: each frame of a driven train's nose near this cell)
     static let topSpeed: Float = 28, backSpeed: Float = 7       // blocks a second at full regulator, ahead and backing
     static let tractive: Float = 2.2, coast: Float = 0.35, brakeRate: Float = 5      // blocks a second, each second
@@ -833,7 +833,7 @@ enum Trains {
     // Ledger 137 (Nov 14 12:07:30 at Toriwick, the game's own sound record: a whistle every frame for two seconds,
     // 144 of them at once): the whistle that marks a train about to leave a stop was asked on every frame of the last
     // two seconds of its stand. One whistle a train in any three seconds. BS_OLDWHISTLE=1: every ask sounds.
-    static let oldWhistle = ProcessInfo.processInfo.environment["BS_OLDWHISTLE"] == "1"
+    static let oldWhistle = Env.all["BS_OLDWHISTLE"] == "1"
     static var whistles = 0                                 // (checks: whistles sounded)
     static func whistle(_ g: Game, _ tr: Train) {
         guard let lead = lead(tr) else { return }
@@ -1054,7 +1054,7 @@ enum Trains {
 
     // A round wheel turning about the axle (x across, at height cy, place z along the car): the regular octagon of
     // radius r across its flats is the union of four slabs 2r long and 2r tan(22.5 deg) wide, an eighth of a turn apart.
-    static let squareWheels = ProcessInfo.processInfo.environment["BS_SQUAREWHEELS"] == "1"
+    static let squareWheels = Env.all["BS_SQUAREWHEELS"] == "1"
     static func roundWheel(_ p: inout [Part], x: Float, w: Float, cy: Float, z: Float, r: Float, spin: Float, color: V3) {
         if squareWheels {
             p.append(Part(mn: V3(x, cy - r, z - r), mx: V3(x + w, cy + r, z + r), pivot: V3(x, cy, z), rotX: spin, color: color, pattern: 8))

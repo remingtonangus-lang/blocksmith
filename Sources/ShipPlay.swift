@@ -423,7 +423,7 @@ extension Game {
         guard let stand = helmStand(s) else { return true }
         return simd_length(s.toWorld(stand) - player.pos) > 2
     }
-    static let oldCrawlerUse = ProcessInfo.processInfo.environment["BS_OLDCRAWLERUSE"] == "1"
+    static let oldCrawlerUse = Env.all["BS_OLDCRAWLERUSE"] == "1"
     func takeCommand(_ s: Ship) {
         let first = s.kinematic && !s.captured
         world.ships.aboard = s
@@ -518,7 +518,7 @@ extension Game {
             ships.riderShip = nil
         }
     }
-    static let oldPlaneExit = ProcessInfo.processInfo.environment["BS_OLDPLANEEXIT"] == "1"
+    static let oldPlaneExit = Env.all["BS_OLDPLANEEXIT"] == "1"
 
     // Standing room on the ground beside a small vehicle: off its left side first (a sidecar's car is on the right),
     // then behind it, then off the car's side; a block and a half to four out from its middle, with the ground found

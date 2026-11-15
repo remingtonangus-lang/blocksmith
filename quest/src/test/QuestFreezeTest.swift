@@ -104,7 +104,7 @@ enum QuestFreezeTest {
         }
         // (the target is 20 ms on the headset's optimized build; this host build is unoptimized (-Onone), several times
         // slower, so it fails only past 100 ms: a freeze, not a slow frame)
-        let limit = ProcessInfo.processInfo.environment["BS_FREEZE_MS"].flatMap { Double($0) } ?? 100
+        let limit = Env.all["BS_FREEZE_MS"].flatMap { Double($0) } ?? 100
         if worst > limit { print(String(format: "FAIL freezetest: a frame took %.1f ms after a door or a break (limit %.0f)", worst, limit)); return 1 }
         return 0
     }

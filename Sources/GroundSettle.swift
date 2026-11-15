@@ -267,8 +267,8 @@ enum GroundSettle {
         for dz in -1...1 { for dx in -1...1 { borderCheckNow(w, ChunkKey(x: k.x + dx, z: k.z + dz)) } }
     }
     private static let borderDone = CellSet(capacity: 8192), borderSeen = CellSet(capacity: 1024)
-    static let oldBorderFill = ProcessInfo.processInfo.environment["BS_OLDBORDERFILL"] == "1"
-    static let borderVerify = ProcessInfo.processInfo.environment["BS_BORDERVERIFY"] == "1"
+    static let oldBorderFill = Env.all["BS_OLDBORDERFILL"] == "1"
+    static let borderVerify = Env.all["BS_BORDERVERIFY"] == "1"
     static var borderVerified = 0, borderDiffs = 0
     static var borderSeconds = 0.0, borderSeedsRun = 0          // (the soak's tally: time in the checks, seeds)
     // One chunk's waiting seeds, if all eight neighbours are in.

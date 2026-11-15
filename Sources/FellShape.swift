@@ -17,7 +17,7 @@ import simd
 // logs beside it show a ring; a piece split off takes its part of the shape along. A body with no shape (the snapshot
 // could not be made, or a tree saved before this) is drawn as before. BS_OLDFELLSHAPE=1: as before.
 extension Felling {
-    static let oldFellShape = ProcessInfo.processInfo.environment["BS_OLDFELLSHAPE"] == "1"
+    static let oldFellShape = Env.all["BS_OLDFELLSHAPE"] == "1"
 
     struct ShapeQuad {
         var p0: V3, p1: V3, p2: V3, p3: V3           // ship grid coordinates

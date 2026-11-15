@@ -241,7 +241,7 @@ enum FarCitadel {
     // the Capitol Tower"): past the loaded land a Tidebreaker slug met only the generator's ground (ShipCombat), so it
     // flew on through the citadel he saw drawn there. Whether a point is inside a far citadel's drawn cells (not in a
     // blast hole it holds). BS_OLDFARSHOT=1: the ground only, as before.
-    static let oldFarShot = ProcessInfo.processInfo.environment["BS_OLDFARSHOT"] == "1"
+    static let oldFarShot = Env.all["BS_OLDFARSHOT"] == "1"
     static func solid(_ p: V3, _ g: Game) -> Bool {
         if oldFarShot { return false }
         let F = cell

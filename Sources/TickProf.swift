@@ -11,7 +11,7 @@ enum TickProf {
     private static var last = 0.0
     // P283: the frame savings that change how often something runs (far calm mobs on a slower beat, the far horizon
     // rebuilt every few frames). BS_P283=0 turns them off, so questcheck --perfscenes can measure what they save.
-    static let lighter = ProcessInfo.processInfo.environment["BS_P283"] != "0"
+    static let lighter = Env.all["BS_P283"] != "0"
 
     private static var start = 0.0
     private(set) static var tick = 0             // ticks begun (a frame's shared budgets reset on a new one)

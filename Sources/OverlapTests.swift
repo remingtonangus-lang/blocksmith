@@ -13,7 +13,7 @@ enum OverlapTests {
     }
 
     static func run(check: (Bool, String) -> Void) {
-        let n = Int(ProcessInfo.processInfo.environment["OVERLAP_SEEDS"] ?? "") ?? 12
+        let n = Int(Env.all["OVERLAP_SEEDS"] ?? "") ?? 12
         var pairs: [String: Int] = [:], yielding: [String] = [], total = 0, starts = 0
         var gaveWay: (UInt64, StructureType, Int, Int)?
         for i in 0..<n {

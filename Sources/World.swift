@@ -98,7 +98,7 @@ final class World: LifeLinked {
     private var jobs = 0
     var jobsOut: Int { jobs }                 // (harness: generation and mesh jobs not yet installed)
     private var frontOut = Set<ChunkKey>()     // P446: chunks with an edit's mesh job ahead of the queue
-    static var frontAll = ProcessInfo.processInfo.environment["BS_FRONTALL"] == "1"     // (P446 before: every change, no cap)
+    static var frontAll = Env.all["BS_FRONTALL"] == "1"     // (P446 before: every change, no cap)
     let maxJobs: Int
     private var lastCenter: ChunkKey?
     // P440 (Oct 24 evening, "performance, performance, performance"; "why is it rendering the caves underneath? As I'm
@@ -108,25 +108,25 @@ final class World: LifeLinked {
     // seed about 70 % of the sections meshed and drawn were buried (questcheck --perfscenes taiga24/forest24/snowy24,
     // "under the lowest surface"), and meshing is most of the land's cost (297 chunks: gen 21 s, mesh 91 s on the
     // harness). BS_BURIED=0: off.
-    static var deferBuried = ProcessInfo.processInfo.environment["BS_BURIED"] != "0"
+    static var deferBuried = Env.all["BS_BURIED"] != "0"
     static var buriedNear = 3, buriedNearUnder = 8
     // P484: ground over his head 3 blocks off on two sides counts as under the ground (a shaft). BS_SHAFTUNDER=0: off.
-    static var shaftUnder = ProcessInfo.processInfo.environment["BS_SHAFTUNDER"] != "0"
+    static var shaftUnder = Env.all["BS_SHAFTUNDER"] != "0"
     // P446 (Oct 25, "in creative, I can't really travel anywhere"): flying well over the ground (more than 24 blocks over
     // it, back under 12), the rock under him is meshed only in his own chunk and the eight round it: the 49 chunks of the
     // usual ring each meshed their caves and rock as he flew over them, about a third of the meshing at view 10. They
     // mesh when he comes down. BS_HIGHRING=0: off.
-    static var buriedNearHigh = ProcessInfo.processInfo.environment["BS_HIGHRING"] == "0" ? 3 : 1
+    static var buriedNearHigh = Env.all["BS_HIGHRING"] == "0" ? 3 : 1
     private(set) var flyingHigh = false
     // P487: flying high and fast (over settleFast), the chunks under him pass in a fraction of a second: none of their
     // buried rock is meshed (the nine round him each meshed their caves as they came under him, about a third of all
     // meshing at the dropship's 60 b/s at view 16); it meshes when he slows or comes down. BS_HIGHFAST=0: off.
-    static var highFastNone = ProcessInfo.processInfo.environment["BS_HIGHFAST"] != "0"
+    static var highFastNone = Env.all["BS_HIGHFAST"] != "0"
     private(set) var flyingFast = false
     private(set) var groundFast = false
-    static let oldGroundFast = ProcessInfo.processInfo.environment["BS_OLDGROUNDFAST"] == "1"
-    static var groundFastSpeed: Float = Float(ProcessInfo.processInfo.environment["BS_GROUNDFAST"] ?? "") ?? 12
-    static var buriedNearFast = Int(ProcessInfo.processInfo.environment["BS_FASTRING"] ?? "") ?? 0
+    static let oldGroundFast = Env.all["BS_OLDGROUNDFAST"] == "1"
+    static var groundFastSpeed: Float = Float(Env.all["BS_GROUNDFAST"] ?? "") ?? 12
+    static var buriedNearFast = Int(Env.all["BS_FASTRING"] ?? "") ?? 0
     private(set) var underground = false
     private var eyeSection = 0                      // the section his eye is in (World.update), P404 (3)
     private var buriedCentre: ChunkKey?
@@ -137,7 +137,7 @@ final class World: LifeLinked {
     // shell holes) was meshed and never seen: four times the surface's meshing for the same ground (questcheck --view
     // at his 08:07 spot, 193 chunks: 6.9 s against 1.6 s). Past the chunk he is in and the eight round it, the layer
     // he isn't in is left unmeshed; crossing over hands it back. BS_DEEPLAYER=0: off.
-    static var deepLayerCut = ProcessInfo.processInfo.environment["BS_DEEPLAYER"] != "0"
+    static var deepLayerCut = Env.all["BS_DEEPLAYER"] != "0"
     private var deepInHell: Bool?
     private var deepCentre: ChunkKey?
     private(set) var deferredTotal = 0          // (harness: sections deferred so far)
@@ -190,9 +190,9 @@ final class World: LifeLinked {
     }
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
-        ChunkKey.oldHash = ProcessInfo.processInfo.environment["BS_OLDHASH"] == "1"
-        IVec3.oldHash = ProcessInfo.processInfo.environment["BS_OLDCELLHASH"] == "1"
-        World.oldLookups = ProcessInfo.processInfo.environment["BS_OLDLOOKUPS"] == "1"
+        ChunkKey.oldHash = Env.all["BS_OLDHASH"] == "1"
+        IVec3.oldHash = Env.all["BS_OLDCELLHASH"] == "1"
+        World.oldLookups = Env.all["BS_OLDLOOKUPS"] == "1"
         World.aliveLock.lock(); World.alive += 1; World.aliveLock.unlock()
         self.seed = seed
         self.dim = dim
@@ -281,7 +281,7 @@ final class World: LifeLinked {
     // chunks in this order: nearest first, those outside the 120 degree cone round his heading as if half as far again
     // (the headset shows about 100 degrees across), rebuilt when his heading turns into another eighth. It walked every
     // side alike, so what was in front of him waited on the land behind him. BS_FACINGFIRST=0: off.
-    static var facingFirst = ProcessInfo.processInfo.environment["BS_FACINGFIRST"] != "0"
+    static var facingFirst = Env.all["BS_FACINGFIRST"] != "0"
     var facing: Float? = nil                       // (Game.tickSeat: the player's heading, his head's on the headset)
     private var scanOrder: [(Int, Int, Int)] = []
     private var scanHeading = -1
@@ -579,16 +579,16 @@ final class World: LifeLinked {
     // above that, as the debris pieces already did. (Light only, no look at what the cell is: block() in a field world
     // works the ground out from the field, and asking it for every particle every frame took the worst scene's particle
     // drawing from 0.12 to 0.63 ms.) BS_OLDOPENLIGHT=1: the cell's own light, as before.
-    static let oldOpenLight = ProcessInfo.processInfo.environment["BS_OLDOPENLIGHT"] == "1"
+    static let oldOpenLight = Env.all["BS_OLDOPENLIGHT"] == "1"
     func lightOpen(_ x: Int, _ y: Int, _ z: Int) -> (sky: Int, block: Int) {
         let l = lightAt(x, y, z)
         if World.oldOpenLight || l.sky > 0 || l.block > 0 { return l }
         let a = lightAt(x, y + 1, z)
         return a.sky > 0 || a.block > 0 ? a : lightAt(x, y + 2, z)
     }
-    static let oldUnlit = ProcessInfo.processInfo.environment["BS_OLDUNLIT"] == "1"
-    static let oldStaleSky = ProcessInfo.processInfo.environment["BS_OLDSTALESKY"] == "1"
-    static let oldStep = ProcessInfo.processInfo.environment["BS_OLDSTEP"] == "1"      // (the full lift only, as before Nov 5)
+    static let oldUnlit = Env.all["BS_OLDUNLIT"] == "1"
+    static let oldStaleSky = Env.all["BS_OLDSTALESKY"] == "1"
+    static let oldStep = Env.all["BS_OLDSTEP"] == "1"      // (the full lift only, as before Nov 5)
     // (the world audit: whether the mesher has lit the cell's section yet)
     func litByMesher(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard y >= 0, y < CH, let c = chunkAt(x, z) else { return false }
@@ -626,7 +626,7 @@ final class World: LifeLinked {
     // up (a solid block gone, ground carved: FieldTerrain.fieldSphere) is noted in one box a frame here; the debris
     // tick wakes what sleeps over it (DebrisField.tick). A box over two far changes wakes more than it must, never
     // less. BS_OLDDEBRISWAKE=1: as before.
-    static let oldDebrisWake = ProcessInfo.processInfo.environment["BS_OLDDEBRISWAKE"] == "1"
+    static let oldDebrisWake = Env.all["BS_OLDDEBRISWAKE"] == "1"
     var goneLo = IVec3(Int.max, Int.max, Int.max), goneHi = IVec3(Int.min, Int.min, Int.min)
     @inline(__always) func supportGone(_ x: Int, _ y: Int, _ z: Int) {
         if x < goneLo.x { goneLo.x = x }; if y < goneLo.y { goneLo.y = y }; if z < goneLo.z { goneLo.z = z }
@@ -729,7 +729,7 @@ final class World: LifeLinked {
         let a = oldH == newH && World.narrowLight ? y : min(y, oldH, newH), b = oldH == newH && World.narrowLight ? y : max(y, oldH, newH)
         return (max(0, (a - 16) >> 4), min(NSEC - 1, (b + 16) >> 4))
     }
-    static var narrowLight = ProcessInfo.processInfo.environment["BS_NARROWLIGHT"] != "0"
+    static var narrowLight = Env.all["BS_NARROWLIGHT"] != "0"
 
     // Waterlogging rules for every write: a full cube (double slab) holds no water, and a waterlogged block that is
     // removed (broken, blown up, pushed away) leaves its water behind (reference).
@@ -832,7 +832,7 @@ final class World: LifeLinked {
     // the cells of one frame's carving mark nearly the same sections. While `bumpBatch` is on (CraterJob's carving), a
     // section is marked once a batch, at `flushBumps`. BS_OLDCRATERCELL=1: every cell its own marks, and the full
     // height scan (Chunk.updateHeight).
-    static let oldCraterCell = ProcessInfo.processInfo.environment["BS_OLDCRATERCELL"] == "1"
+    static let oldCraterCell = Env.all["BS_OLDCRATERCELL"] == "1"
     private(set) var bumpBatch = false
     private var bumps: [Int: Chunk] = [:]
     @inline(__always) func bumpSection(_ n: Chunk, _ sy: Int) {
@@ -1527,7 +1527,7 @@ final class World: LifeLinked {
     // thrown away and the section waited for its next turn. New land's surface changes all the time while it comes in
     // and the caves under it don't, so the surface was thrown away again and again while the rock under it showed. Now a
     // mesh newer than the one drawn is drawn, and the section stays out of date (it meshes again). BS_STALEMESH=0: old way.
-    static var keepStale = ProcessInfo.processInfo.environment["BS_STALEMESH"] != "0"
+    static var keepStale = Env.all["BS_STALEMESH"] != "0"
     // P446: set while water and lava settle and random ticks run: the sections they change mesh in the queue's order,
     // not ahead of it (World.update's edited-chunk pass is for edits: a blast, a dug block, a door).
     static var backgroundEdits = false
@@ -1540,7 +1540,7 @@ final class World: LifeLinked {
     static var vehicleEdits = false
     static var frameNow: Double = 0                 // (P511: this frame's clock, World.update)
     static var ramEdits = false                     // (P511: what its bow rams that stands up in the way: at once)
-    static let ramGap: Double = Double(ProcessInfo.processInfo.environment["BS_RAMGAP"] ?? "") ?? 1.0
+    static let ramGap: Double = Double(Env.all["BS_RAMGAP"] ?? "") ?? 1.0
     // P511 (build 82 at his spot: still 232 edit jobs in 16 s at one and two chunks off, 22.7 s of meshing): the edits
     // settling after a pass (light, loose ground, the field's carve) reached chunks the footprint stamp missed and made
     // them edits again. Every chunk within two of a wearing vehicle's footprint is a wear zone for two wear gaps after its
@@ -1553,7 +1553,7 @@ final class World: LifeLinked {
     // anything: a quarter of clearing a block. The latest zone's end is kept beside the list, so with none live the
     // answer needs no lock (BS_OLDWEAR=1: as before).
     private static var zonesUntil = -Double.infinity
-    static let oldWear = ProcessInfo.processInfo.environment["BS_OLDWEAR"] == "1"
+    static let oldWear = Env.all["BS_OLDWEAR"] == "1"
     static let wearOn = vehicleWear != "0"
     static func wearZone(_ id: Int, cx0: Int, cz0: Int, cx1: Int, cz1: Int) {
         zoneLock.lock()
@@ -1575,9 +1575,9 @@ final class World: LifeLinked {
     // mean and 150 worst; with no wear all 349 by 8 s, 1.5 ms and 8): a worn chunk still went to the front of the queue
     // whenever it was within two chunks of him (the P458 front jobs), every settleGap. It now waits wearGap seconds
     // between meshes and never goes to the front: the ruts behind him catch up while the land ahead comes in.
-    static var wearGap: Double = Double(ProcessInfo.processInfo.environment["BS_WEARGAP"] ?? "") ?? 3
-    static let vehicleWear = ProcessInfo.processInfo.environment["BS_VEHICLEWEAR"] ?? "1"
-    static var meshLog = ProcessInfo.processInfo.environment["BS_MESHLOG"] == "1"
+    static var wearGap: Double = Double(Env.all["BS_WEARGAP"] ?? "") ?? 3
+    static let vehicleWear = Env.all["BS_VEHICLEWEAR"] ?? "1"
+    static var meshLog = Env.all["BS_MESHLOG"] == "1"
     // P474 (Oct 26 19:28-20:14: "land doesn't like generating unless it's really forced to"; "I had to literally fly
     // into the void in order to get things to generate"): water and lava settling in the caves of new land (and random
     // ticks) changed the chunks round him every few frames, and each such chunk meshed again as soon as its last job was
@@ -1586,15 +1586,15 @@ final class World: LifeLinked {
     // at most every settleGap seconds (lava moves a block in 1.5 s); an edit (a blast, a dug block, a door) still goes at
     // once. Within two chunks of him the gap is settleNear (water moves a block every quarter second), so what flows
     // in front of him still moves block by block. BS_SETTLEMESH=0: the old way.
-    static var settleGap: Double = ProcessInfo.processInfo.environment["BS_SETTLEMESH"] == "0" ? 0 : 0.75
-    static var settleNear: Double = Double(ProcessInfo.processInfo.environment["BS_SETTLENEAR"] ?? "") ?? 0.25
+    static var settleGap: Double = Env.all["BS_SETTLEMESH"] == "0" ? 0 : 0.75
+    static var settleNear: Double = Double(Env.all["BS_SETTLENEAR"] ?? "") ?? 0.25
     private var held: [Chunk] = []
     private var heldCheck: Double = 0
     // P487: flying faster than settleFast (blocks a second), the chunks round him pass under him in a second or two
     // and he isn't watching their water flow block by block: they settle on the far gap too, and their workers' time
     // goes to the land coming up ahead (at the dropship's 60 b/s, re-meshing the settling caves of the chunks within
     // two of him was over two fifths of all meshing). BS_SETTLEFAST=0: the old way.
-    static var settleFast: Float = ProcessInfo.processInfo.environment["BS_SETTLEFAST"] == "0" ? .infinity : 20
+    static var settleFast: Float = Env.all["BS_SETTLEFAST"] == "0" ? .infinity : 20
     @inline(__always) private var settleNearGap: Double {
         simd_length_squared(V2(lead.x, lead.z)) > World.settleFast * World.settleFast ? World.settleGap : World.settleNear
     }
@@ -1617,8 +1617,8 @@ final class World: LifeLinked {
     // itself (MeshArena.alloc takes its lock only to find the room; the copy is outside it) and lets go of the word
     // arrays there; apply only hangs the slices on the section. A mesh thrown away later gives its slices back as
     // before. BS_OLDUPLOAD=1: copied in apply; BS_UPLOADVERIFY=1: both, the slices' bytes compared (the soak prints it).
-    static let oldUpload = ProcessInfo.processInfo.environment["BS_OLDUPLOAD"] == "1"
-    static let uploadVerify = ProcessInfo.processInfo.environment["BS_UPLOADVERIFY"] == "1"
+    static let oldUpload = Env.all["BS_OLDUPLOAD"] == "1"
+    static let uploadVerify = Env.all["BS_UPLOADVERIFY"] == "1"
     static var uploadVerified = 0, uploadVerifyDiffs = 0
     static var uploadVerifyLine: String { "upload verify: \(uploadVerified) section meshes copied both ways, \(uploadVerifyDiffs) differ" }
     // (a mesh worker, on a mesh it just made)
@@ -1730,7 +1730,7 @@ final class World: LifeLinked {
     static var handoverSeconds = 0.004
 
     var lead = V3.zero          // P414: the player's horizontal velocity (Game.tickSeat), for the ground made first
-    static let oldUnload = ProcessInfo.processInfo.environment["BS_OLDUNLOAD"] == "1"     // (ledger 83)
+    static let oldUnload = Env.all["BS_OLDUNLOAD"] == "1"     // (ledger 83)
     func update(center pos: V3) {
         let tUpdate = CFAbsoluteTimeGetCurrent()
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
@@ -2018,7 +2018,7 @@ final class World: LifeLinked {
     // (the dual cells straddling the chunk line): with the neighbour left out it counted as buried, and each time he
     // crossed a chunk line the pass that gives buried meshes back emptied it in the chunks at the edge of the land that
     // keeps its blocks and at the edge of the view, where neighbours are shells or still to come. BS_OLDBURIEDLOW=1.
-    static let oldBuriedLow = ProcessInfo.processInfo.environment["BS_OLDBURIEDLOW"] == "1"
+    static let oldBuriedLow = Env.all["BS_OLDBURIEDLOW"] == "1"
     private func buriedLow(_ c: Chunk) -> Int? {
         var low = c.groundLow
         for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
@@ -2284,8 +2284,8 @@ final class World: LifeLinked {
     // flight. The worker that made the chunk makes its store now, and lets go of the full arrays there (freeing them
     // was the frame's too). BS_OLDSTORE=1: made in install, as before; BS_STOREVERIFY=1: both, compared (the soak prints
     // the tally).
-    static let oldStore = ProcessInfo.processInfo.environment["BS_OLDSTORE"] == "1"
-    static let storeVerify = ProcessInfo.processInfo.environment["BS_STOREVERIFY"] == "1"
+    static let oldStore = Env.all["BS_OLDSTORE"] == "1"
+    static let storeVerify = Env.all["BS_STOREVERIFY"] == "1"
     static var storeVerified = 0, storeVerifyDiffs = 0
     private static func withStore(_ r: Produced) -> Produced {
         guard !oldStore, r.cached == nil else { return r }
@@ -2356,7 +2356,7 @@ final class World: LifeLinked {
     // be spilling into me, but isn't"). Checked as each chunk joins its loaded neighbours, up to the taller column + 2.
     // Nov 9: a pair of cells where neither is a fluid does nothing, so sections where neither chunk has a fluid on the
     // facing side (BlockStore.fluidEdges) are passed over: most sides of most chunks. BS_OLDSPRINGS=1: every cell.
-    static let oldSprings = ProcessInfo.processInfo.environment["BS_OLDSPRINGS"] == "1"
+    static let oldSprings = Env.all["BS_OLDSPRINGS"] == "1"
     func borderSprings(_ c: Chunk) {
         let fk = Blocks.fluidKind
         for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
@@ -2953,8 +2953,8 @@ final class World: LifeLinked {
     // copper wire, repeaters and comparators, tripwire and cobwebs (a flow stopped at them as at a wall: a flooded
     // field's wheat stood in the water's edge, dry).
     // (BS_OLDTORCHES=1: as before, the standing torch only, and torches go into pools: the check's before.)
-    static let oldTorches = ProcessInfo.processInfo.environment["BS_OLDTORCHES"] == "1"
-    static let oldSections = ProcessInfo.processInfo.environment["BS_OLDSECTIONS"] == "1"
+    static let oldTorches = Env.all["BS_OLDTORCHES"] == "1"
+    static let oldSections = Env.all["BS_OLDSECTIONS"] == "1"
     static var oldLookups = false             // (set in init from BS_OLDLOOKUPS: no swift_once check on each read)
     static let washedAway: [Bool] = (0..<Blocks.count).map { i in
         if oldTorches { return BlockID(i) == TORCH }

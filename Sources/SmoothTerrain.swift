@@ -59,8 +59,8 @@ enum SmoothTerrain {
         return natural[i] && !n.hasSuffix("_ore") && !["magma_block", "amethyst_block", "budding_amethyst", "sculk"].contains(n)
     }
     static let snowLayer = Int(Blocks.id("snow"))
-    static let oldBuiltPin = ProcessInfo.processInfo.environment["BS_OLDBUILTPIN"] == "1"
-    static let oldWetTurf = ProcessInfo.processInfo.environment["BS_OLDWETTURF"] == "1"
+    static let oldBuiltPin = Env.all["BS_OLDBUILTPIN"] == "1"
+    static let oldWetTurf = Env.all["BS_OLDWETTURF"] == "1"
     // The blocks a rock face polls: the 3x3x3 round it.
     static let voteProbe: [(Int, Int, Int)] = {
         var r: [(Int, Int, Int)] = []
@@ -75,15 +75,15 @@ enum SmoothTerrain {
     static let tiltLevels: [Float] = [-1, -0.5, -0.2, 0, 0.2, 0.5, 1]
     // P106 surface relaxation (Mesher.smoothQuads): passes and how far each moves a vertex to its neighbours' mean.
     // BLOCKSMITH_RELAX=0 meshes the round-1 surface (side by side shots, cost).
-    static var relax: Int = max(0, min(maxRelax, Int(ProcessInfo.processInfo.environment["BLOCKSMITH_RELAX"] ?? "") ?? 4))
+    static var relax: Int = max(0, min(maxRelax, Int(Env.all["BLOCKSMITH_RELAX"] ?? "") ?? 4))
     static let maxRelax = 4
     // P142: overworld sections mesh the generator's continuous fields (SmoothField); BLOCKSMITH_FIELD=0 meshes round
     // the blocks as round 2 did (side by side shots).
-    static var fromField = ProcessInfo.processInfo.environment["BLOCKSMITH_FIELD"] != "0"
+    static var fromField = Env.all["BLOCKSMITH_FIELD"] != "0"
     static let relaxRate: Float = 0.8
     // T17: in field worlds leaf canopies mesh as rounded blobs (Mesher.smoothQuads leaves pass) instead of leaf cubes;
     // BLOCKSMITH_LEAFBLOB=0 keeps the cubes (side by side shots).
-    static var leafBlobs = ProcessInfo.processInfo.environment["BLOCKSMITH_LEAFBLOB"] != "0"
+    static var leafBlobs = Env.all["BLOCKSMITH_LEAFBLOB"] != "0"
     static var vertexHook: ((Int, Int, Int, SIMD3<Float>) -> Void)?   // tests: every owned dual vertex after relaxing
     static func normalCode(_ n: SIMD3<Float>, face f: Int) -> Int {
         let a = f / 2, sgn: Float = f & 1 == 0 ? 1 : -1
@@ -105,7 +105,7 @@ enum SmoothTerrain {
     #if os(macOS)
     static var triGround = false
     #else
-    static var triGround = ProcessInfo.processInfo.environment["BS_TRIGROUND"] != "0"
+    static var triGround = Env.all["BS_TRIGROUND"] != "0"
     #endif
     static let triN = 22
     // The 9-bit code of a unit normal (0..<484): its octahedral map's cell.

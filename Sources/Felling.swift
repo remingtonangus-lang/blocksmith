@@ -37,7 +37,7 @@ enum Felling {
     static var felled = 0                        // (counter)
     static var toppled = 0                       // (counter: P407's whole pieces)
     static var letLate = 0                       // (counter: bodies let go at the 4 s limit with the world not yet redrawn)
-    static let oldPush = ProcessInfo.processInfo.environment["BS_OLDFELLPUSH"] == "1"
+    static let oldPush = Env.all["BS_OLDFELLPUSH"] == "1"
     static var pushWorstMs = 0.0, pushWorstSections = 0      // (harness: the most a frame's pushed remeshes took, and how many)
     static var worstMs = 0.0, worstSplit = ""   // (the soak: the slowest topple and its parts)
 
@@ -94,9 +94,9 @@ enum Felling {
     //   BS_OLDSTUMPGIRTH   a stump left by a felled tree drawn by its own height (a post 0.9 across when no root shows)
     //   BS_OLDFELLSEED     the body is the logs above the cut only (limbs at the cut's height abort the fall)
     //   BS_OLDLEAFREST     a felled tree rests on its crown's leaves, and hangs in the trunks beside it for good
-    static let stumpGirth = ProcessInfo.processInfo.environment["BS_OLDSTUMPGIRTH"] != "1"
-    static let newSeed = ProcessInfo.processInfo.environment["BS_OLDFELLSEED"] != "1"
-    static let woodRests = ProcessInfo.processInfo.environment["BS_OLDLEAFREST"] != "1"
+    static let stumpGirth = Env.all["BS_OLDSTUMPGIRTH"] != "1"
+    static let newSeed = Env.all["BS_OLDFELLSEED"] != "1"
+    static let woodRests = Env.all["BS_OLDLEAFREST"] != "1"
     static var slipped = 0                       // (counter: bodies let through the trunks they hung in)
 
     // The stump a felled tree leaves keeps the girth it stood with: by column, the standing trunk's foot, height and
@@ -550,7 +550,7 @@ extension Game {
     static let toppledName = "Toppled"
     static let toppledWreck = "Toppled wreck"
     static var ridersTaken = 0                                // (checks)
-    static let ridersOn = ProcessInfo.processInfo.environment["BS_OLDRIDERS"] != "1"
+    static let ridersOn = Env.all["BS_OLDRIDERS"] != "1"
     static let rides: [Bool] = (0..<Blocks.count).map { i in
         let b = BlockID(i)
         guard b != AIR, !Blocks.collide[i], !Blocks.isLiquid(b), !CapitalBase.isLeaf(b), Blocks.hardness[i] >= 0 else { return false }
@@ -912,9 +912,9 @@ extension ShipManager {
 // collapse pieces (Fall.patient) or anything but a felled tree. Creative gathers the logs too. BS_OLDFELLKEEP=1: the
 // body stays, chopped or carried as before.
 extension Felling {
-    static let oldKeep = ProcessInfo.processInfo.environment["BS_OLDFELLKEEP"] == "1"
+    static let oldKeep = Env.all["BS_OLDFELLKEEP"] == "1"
     static var keep = oldKeep                    // (the checks that look at a lying body set it)
-    static let autoGather = ProcessInfo.processInfo.environment["BS_AUTOGATHER"] == "1"
+    static let autoGather = Env.all["BS_AUTOGATHER"] == "1"
     static var gathered = 0, gatheredLogs = 0, crushed = 0    // (counters)
     static let gatherReach: Float = 32           // (farther off, a tree something else brought down drops its logs there)
 }

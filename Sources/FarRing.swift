@@ -20,9 +20,9 @@ import simd
 final class FarRing {
     static let shared = FarRing()
     // BS_FARRING=0 turns the ring off (before/after measurements).
-    static var enabled = ProcessInfo.processInfo.environment["BS_FARRING"] != "0"
+    static var enabled = Env.all["BS_FARRING"] != "0"
     // P484: the ring's ground drawn over chunks inside the loaded disc that are not drawn yet (BS_GAPCOVER=0: off).
-    static var gapCover = ProcessInfo.processInfo.environment["BS_GAPCOVER"] != "0"
+    static var gapCover = Env.all["BS_GAPCOVER"] != "0"
     static let outer: Float = 1024                 // blocks: the rim (64 chunks)
     static let cell = 128                          // rebuild cell
     static let spacings = [8, 16, 32]

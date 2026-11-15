@@ -54,7 +54,7 @@ enum SaveAcross {
 
     static func write(_ device: MTLDevice, _ dir: URL) -> Expect {
         var e = Expect()
-        e.build = ProcessInfo.processInfo.environment["SAVEACROSS_BUILD"] ?? ""
+        e.build = Env.all["SAVEACROSS_BUILD"] ?? ""
         var g: Game! = open(device, dir)
         let w = g.world
         e.field = w.fieldTerrain

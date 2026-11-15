@@ -784,7 +784,7 @@ final class Game: LifeLinked {
     // syncRadius: chunks loaded before play goes on (P291: a drop into hell loads only the nearest, no loading pause).
     // (--triptest: where the last dimension change's time went, and the sync radius to try; BS_TRIPSYNC)
     static var tripLaps = ""
-    static var tripSync = Int(ProcessInfo.processInfo.environment["BS_TRIPSYNC"] ?? "") ?? 4
+    static var tripSync = Int(Env.all["BS_TRIPSYNC"] ?? "") ?? 4
     // Ledger 40 (Nov 6): a trip to another dimension loaded the chunks within 4 of the arrival on the frame: about a
     // second on the host every time (a portal, the Deep's seam, its gates and lift, the Hollow), more with a portal,
     // which loaded 2 round the portal it found or built after that. The headset froze for it. There (arrivalHold, set
@@ -2277,8 +2277,8 @@ final class Game: LifeLinked {
     // goes into the row whose floor is nearest the drawn surface at the aim (the cell the surface cuts when the ground
     // fills less than half of it there, else the one over it); when just one of those two rows has a built block beside
     // the cell, that row. `sunk`: the cell holds ground, which the placing clears (Game.place). BS_OLDPLACEROW=1: before.
-    static let oldPlaceRow = ProcessInfo.processInfo.environment["BS_OLDPLACEROW"] == "1"
-    static let oldNotch = ProcessInfo.processInfo.environment["BS_OLDNOTCH"] == "1"
+    static let oldPlaceRow = Env.all["BS_OLDPLACEROW"] == "1"
+    static let oldNotch = Env.all["BS_OLDNOTCH"] == "1"
     func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
         guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
               let g = targetGround, g.cell == t.hit, g.normal.y >= 0.5 else { return nil }
@@ -2550,7 +2550,7 @@ final class Game: LifeLinked {
 
     static let iceID: BlockID = Blocks.has("ice") ? Blocks.id("ice") : AIR
     // Sheet ice (BlocksOverworld): the ice that freezes on open water. BS_OLDICE=1: the full ice block, as before.
-    static let oldIce = ProcessInfo.processInfo.environment["BS_OLDICE"] == "1"
+    static let oldIce = Env.all["BS_OLDICE"] == "1"
     static let seaIceID: BlockID = Blocks.has("sea_ice") ? Blocks.id("sea_ice") : AIR
     static let waterIceID: BlockID = oldIce || seaIceID == AIR ? iceID : seaIceID
     static func isIce(_ b: BlockID) -> Bool { b == iceID || isSheetIce(b) }
@@ -2604,8 +2604,8 @@ final class Game: LifeLinked {
     // has gone to the edit lane since P440/P446. The break and its shaping are one edit now: on the headset its sections
     // mesh together on the edit lane and go in a frame or two later (the old meshes stay up until then); elsewhere they
     // mesh once on the frame, not once a step. BS_OLDDIGMESH=1: as before.
-    static let oldRockLump = ProcessInfo.processInfo.environment["BS_OLDROCKLUMP"] == "1"
-    static let oldDigMesh = ProcessInfo.processInfo.environment["BS_OLDDIGMESH"] == "1"
+    static let oldRockLump = Env.all["BS_OLDROCKLUMP"] == "1"
+    static let oldDigMesh = Env.all["BS_OLDDIGMESH"] == "1"
     func breakAndShape(_ p: IVec3, _ b: BlockID, at ball: V3, drop: Bool, toPack: Bool = false) {
         let natural = SmoothTerrain.natural[Int(b)]
         func go() {
@@ -2620,7 +2620,7 @@ final class Game: LifeLinked {
     // one, on a wall's top) could be aimed at and never broken: the aim names the cell, the cell is air, and breaking
     // air did nothing. A blow on such a sliver now takes the ball of ground round the point (no cell goes, nothing
     // drops). BS_OLDSLIVER=1: as before.
-    static let oldSliver = ProcessInfo.processInfo.environment["BS_OLDSLIVER"] == "1"
+    static let oldSliver = Env.all["BS_OLDSLIVER"] == "1"
     func clearSliver(at p: V3) {
         world.editBatch { world.carve(at: p + player.look * 0.2, radius: 0.72, mode: .shape, remesh: true) }
         particles.dust(DIRT, at: p, count: 3, spread: 0.3)

@@ -24,7 +24,25 @@ enum FactionArmour {
     static func setKey(_ k: Kit) -> String { "\(k.key)_armour_kit" }
 
     // The kit the player wears in full, if any.
+    // (Ledger 167, a profile of the garrison's tick: every deck gun and soldier asks this each tick through
+    // Disguise.covers, and each answer built and compared twelve key strings, a fifth of a deck gun's whole update.
+    // The answer is kept while the four pieces worn are the same items. BS_OLDWORN=1: worked out each time.)
+    static let oldWorn = Env.all["BS_OLDWORN"] == "1"
+    private static var wornItems: [ItemID] = [], wornKit: Int = -1
     static func worn(_ g: Game) -> Kit? {
+        if oldWorn { return wornNow(g) }
+        let a = g.inventory.armor
+        if wornItems.count == 4 {
+            var same = true
+            for i in 0..<4 where a[slots[i].0.rawValue].item != wornItems[i] { same = false; break }
+            if same { return wornKit < 0 ? nil : kits[wornKit] }
+        }
+        wornItems = (0..<4).map { a[slots[$0].0.rawValue].item }
+        let k = wornNow(g)
+        wornKit = k.flatMap { kk in kits.firstIndex { $0.key == kk.key } } ?? -1
+        return k
+    }
+    static func wornNow(_ g: Game) -> Kit? {
         kits.first { k in (0..<4).allSatisfy { i in Items.key(g.inventory.armor[slots[i].0.rawValue].item) == pieceKey(k, i) } }
     }
 

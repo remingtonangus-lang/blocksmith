@@ -106,7 +106,7 @@ enum ObjectBreakTests {
         var lines = ["objects (P389): the ten kinds struck where they stand (\(w.objectsOn ? "objects on" : "OBJECTS OFF: this world draws no detail stream"))"]
         // BS_OBJCENSUS=1: the ten kinds taken from this run's census (the most groups at the three sites) instead of
         // WorldObjects.kinds (to check the list it holds).
-        if ProcessInfo.processInfo.environment["BS_OBJCENSUS"] == "1" {
+        if Env.all["BS_OBJCENSUS"] == "1" {
             var n: [WorldObjects.Kind: Int] = [:]
             for site in World.objectSites(w) {
                 World.scanObjects(w, lo: site.lo, hi: site.hi) { _, k in

@@ -15,7 +15,7 @@ import simd
 // Chunks hold no entity lists here: block entities live in one world table (saved as one file) and mobs in one list,
 // frozen past the active distance and drawn in their last pose (P339).
 extension World {
-    static var shells = ProcessInfo.processInfo.environment["BS_SHELLS"] != "0"
+    static var shells = Env.all["BS_SHELLS"] != "0"
     static var hollowed = 0, refilled = 0, fromCache = 0          // (harness tallies)
     static var refilledAtOnce = 0                                 // (of them on the frame thread: refillNow)
     static var sphereCalls = 0                                    // (P502: fieldSphere calls, the turret freeze check)
@@ -183,7 +183,7 @@ extension World {
     // distance) straight from the disk, with no generation or meshing; the near chunks still come from the save or
     // the seed, since play needs their blocks. An edit drops its chunk's file at once (World.editing), so a launch
     // never draws a stale edit. BS_SAVEMESHES=0: as before (only unloading chunks write theirs).
-    static var cacheOnSave = ProcessInfo.processInfo.environment["BS_SAVEMESHES"] != "0"
+    static var cacheOnSave = Env.all["BS_SAVEMESHES"] != "0"
     @discardableResult
     func saveMeshCache() -> Int {
         guard World.cacheOnSave, World.shells, meshCache != nil else { return 0 }

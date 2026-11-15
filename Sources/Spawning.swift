@@ -196,7 +196,7 @@ extension MobManager {
     // walking off across open ground went out like a light. Every despawn now waits until he can't see the mob (out of a
     // 63 degree cone round his look, past the view, or nothing of it in line of sight from his eye); it goes the moment he
     // looks away. BS_OLDDESPAWN=1 takes it in plain sight as before.
-    static let oldDespawn = ProcessInfo.processInfo.environment["BS_OLDDESPAWN"] == "1"
+    static let oldDespawn = Env.all["BS_OLDDESPAWN"] == "1"
     static var heldInSight = 0             // despawns put off because he could see it (the soak prints them)
     static func inPlainSight(_ m: Mob, _ game: Game) -> Bool {
         let eye = game.player.eye
@@ -312,7 +312,7 @@ extension MobManager {
         return true
     }
 
-    static let oldHorsePacks = ProcessInfo.processInfo.environment["BS_OLDHORSEPACKS"] == "1"
+    static let oldHorsePacks = Env.all["BS_OLDHORSEPACKS"] == "1"
     static var packLog: [(why: String, kind: MobKind, n: Int, x: Int, z: Int)]? = nil     // (--spawncensus: every pack put down)
     func spawnAnimalPack(_ w: World, _ kind: MobKind, _ x: Int, _ z: Int, _ n: Int, chunk: ChunkKey? = nil, why: String = "other") {
         let biome = w.gen.column(x, z).biome
@@ -752,7 +752,7 @@ extension Game {
     // asks it, so enemies walk in from out of view instead of appearing in it.
     // Item 71: `clear` was 96 blocks, but mobs are drawn out to the view (152-408 blocks), so a spawn 96-136 blocks off
     // came in in front of him; left out, it is the drawn distance (WorldRenderer.mobMaxDist). BS_OLDSPAWNSIGHT=1: 96.
-    static let oldSpawnSight = ProcessInfo.processInfo.environment["BS_OLDSPAWNSIGHT"] == "1"
+    static let oldSpawnSight = Env.all["BS_OLDSPAWNSIGHT"] == "1"
     func spawnHidden(_ at: V3, min: Float, near: Float = 40, clear: Float? = nil) -> Bool {
         let clear = clear ?? (Game.oldSpawnSight ? 96 : Float(world.renderDistance * CS + 24))
         let body = at + V3(0, 1.2, 0)

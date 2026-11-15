@@ -442,7 +442,7 @@ enum SaveIO {
     // objects, falling blocks and three of the ships' files right on the frame, each flushed to the storage (2-5 ms for
     // the portals alone on the cloud host, every minute). They go on the save queue now, like the chunks and the meta.
     // BS_OLDSAVESYNC=1: written on the frame as before.
-    static let oldSync = ProcessInfo.processInfo.environment["BS_OLDSAVESYNC"] == "1"
+    static let oldSync = Env.all["BS_OLDSAVESYNC"] == "1"
     @inline(__always) static func queued(_ background: Bool) -> Bool { background && !oldSync }
     // A value snapshot written as JSON: on the save queue (the autosave) or right here (quit, pause, world switch).
     static func write<T: Encodable>(_ value: T, to url: URL, background: Bool) {
