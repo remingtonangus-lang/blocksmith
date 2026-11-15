@@ -410,7 +410,12 @@ enum Railways {
         func take(_ l: Line?) { if let f = l?.cells.first { x1 = max(x1, f.x); z0 = min(z0, f.z); z1 = max(z1, f.z); any = true } }
         if let e = eastIn(gen, row, s) { take(e.0) } else {
             for r in [row - 1, row + 1] { for k in 0...linkReach where hasLine(gen, r, s + k) { take(line(gen, row: r, stretch: s + k)) } }
-            take(farEastIn(gen, row, s)?.0)
+            // (the far start by the row alone: the first line on, whether or not something else runs into it. The
+            // rule itself asks for the lines of two more rows each side and three more stretches on, for a box that
+            // only prunes: build 98's timers, 131 line plans round one view where 80 were made before.)
+            if exactFarBox { take(farEastIn(gen, row, s)?.0) } else {
+                for k in (linkReach + 1)...farReach where hasLine(gen, row, s + k) { if let l = line(gen, row: row, stretch: s + k) { take(l); break } }
+            }
         }
         guard any else { return (0, -1, 0, -1) }
         let m = routeWander + 2 * routeCell
@@ -430,27 +435,33 @@ enum Railways {
             while i < cand.count { _ = line(gen, row: cand[i].0, stretch: cand[i].1); i += n }
         }
     }
+    static let railWarm = ProcessInfo.processInfo.environment["BS_RAILWARM"] == "1"
+    static let exactFarBox = ProcessInfo.processInfo.environment["BS_FARBOX"] == "1"
     static let railTime = ProcessInfo.processInfo.environment["BS_RAILTIME"] == "1"
     static func planRunOn(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         let t0 = CFAbsoluteTimeGetCurrent()
-        var tShut = t0, tLeg = t0, tWay = t0
+        var tShut = t0, tLeg = t0, tWay = t0, tRules = t0, tLines = t0, tBoxes = t0
+        let made0 = railPlansMade
+        var madeRules = 0, madeLines = 0, madeBoxes = 0
         defer {
             if railTime {
                 let t4 = CFAbsoluteTimeGetCurrent()
                 print(String(format: "railtime: run-on %d %d: %.0f ms (lines and other links %.0f, dog-leg %.0f, search %.0f, grade and rest %.0f)", row, s,
                              (t4 - t0) * 1000, (tShut - t0) * 1000, (tLeg - tShut) * 1000, (tWay - tLeg) * 1000, (t4 - tWay) * 1000))
+                print(String(format: "railtime:   rules %.0f ms (%d plans), beside lines %.0f (%d), boxes %.0f (%d), other links %.0f (%d)", (tRules - t0) * 1000, madeRules - made0,
+                             (tLines - tRules) * 1000, madeLines - madeRules, (tBoxes - tLines) * 1000, madeBoxes - madeLines, (tShut - tBoxes) * 1000, railPlansMade - madeBoxes))
             }
         }
         guard runOn, gen.fieldWorld, hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures,
               let pa = a.cells.last else { return nil }
-        // (build 98's timers: with no line next east in its row, the rules below ask for up to 65 lines of five rows,
-        // 0.16 s each, one after another on this thread: 9 of a link's 10 s. They are planned side by side first, on
-        // three threads at most.)
-        if !oldLinkBox, eastIn(gen, row, s) == nil { warm(gen, rows: (row - 2)...(row + 2), stretches: (s - linkReach)...(s + farReach + linkReach)) }
+        // (build 99 tried planning the block of lines these rules may ask for side by side first: 42 s against 29 s,
+        // the rules stop at the first start found and most of the block is never asked for. BS_RAILWARM=1: that.)
+        if railWarm, eastIn(gen, row, s) == nil { warm(gen, rows: (row - 2)...(row + 2), stretches: (s - linkReach)...(s + farReach + linkReach)) }
         guard let (b, bKey) = eastIn(gen, row, s) ?? southOf(gen, row, s) ?? northOf(gen, row, s) ?? farEastIn(gen, row, s), let pb = b.cells.first else {
             tally?("run-on: no start to run on to"); return nil
         }
         guard pb.x - pa.x >= 5 * routeCell else { tally?("run-on: lines overlap"); return nil }
+        tRules = CFAbsoluteTimeGetCurrent(); madeRules = railPlansMade
         // The 16-block squares other lines' tracks lie in (and these two lines' own): the link keeps out of them, so no
         // track is laid across another (the first count: 748 link cells lay on another track).
         var shut = Set<Int64>()
@@ -471,6 +482,7 @@ enum Railways {
         // found 12 pairs of nearer links, a row's on the row north's, crossing. A row's rank is its number mod 4, so of
         // any two rows within three of each other one outranks the other, and a link only ever asks for links of a lower
         // rank: four deep at most.)
+        tLines = CFAbsoluteTimeGetCurrent(); madeLines = railPlansMade
         let far = isFar(gen, row, s)
         let rank = mod(row, 4)
         let mb = (x0: pa.x - 5 * routeCell, x1: pb.x + 5 * routeCell, z0: min(pa.z, pb.z) - routeWander - 2 * routeCell, z1: max(pa.z, pb.z) + routeWander + 2 * routeCell)
@@ -482,6 +494,7 @@ enum Railways {
             let cand = all
             DispatchQueue.concurrentPerform(iterations: cand.count) { i in _ = linkBox(gen, cand[i].0, cand[i].1) }
         }
+        tBoxes = CFAbsoluteTimeGetCurrent(); madeBoxes = railPlansMade
         func apart(_ r: Int, _ t: Int) -> Bool {
             guard let b = linkBox(gen, r, t) else { return false }
             return b.x1 < mb.x0 || b.x0 > mb.x1 || b.z1 < mb.z0 || b.z0 > mb.z1
