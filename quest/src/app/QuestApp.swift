@@ -782,6 +782,7 @@ final class FrameStats {
     // The worst frame's own split (where a hitch went): cpu, game tick, world streaming within it, record, gpu.
     private var worstCPU = 0.0, worstTick = 0.0, worstWorld = 0.0, worstRecord = 0.0, worstGPU = 0.0
     private var tickStage: StaticString = "-", tickStageMs = 0.0, worstTickAny = 0.0
+    private var tickStages = ""                    // (Nov 15: the slowest tick's five slowest stages)
     private var since = CFAbsoluteTimeGetCurrent()
     private var loggedRD = -1
     // Auto Render Distance inputs besides the timings: a menu or pause in the window, a save, a dimension change,
@@ -840,6 +841,7 @@ final class FrameStats {
         }
         // The slowest tick of the window and its slowest stage (TickProf), whether or not it made the worst frame.
         if tick > worstTickAny { worstTickAny = tick; (tickStage, tickStageMs) = TickProf.top() }
+        if tick >= worstTickAny { tickStages = TickProf.topStages(5) }
         if target > 0 && frame > target * 1.5 { missed += 1 }
         if let g = game, g.menu != nil || g.paused { busyFrames += 1 }
         let now = CFAbsoluteTimeGetCurrent()
@@ -856,6 +858,8 @@ final class FrameStats {
                           FrameStats.residentMB())
         // The window's slowest game tick and its slowest stage (TickProf): what a tick hitch was.
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
+        // (Nov 15: that tick's five slowest stages, and where the window's ordinary ticks went, average ms a tick)
+        lastLine += " (\(tickStages)) | tick stages avg ms: \(TickProf.windowTop(8))"
         lastLine += " | far ticking \(FarTicks.lastSecond)"                  // P376: things ticking past the active distance (0)
         lastLine += " | eye resolution \(Int((scene.viewScale * 100).rounded()))%"                        // P403 7b (dynamic resolution)
         if let p = dynResProbe?(), p > 0 {                                                                 // P403 step 2: triangles or pixels

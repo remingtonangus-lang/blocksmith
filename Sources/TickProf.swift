@@ -16,8 +16,50 @@ enum TickProf {
     private static var start = 0.0
     private(set) static var tick = 0             // ticks begun (a frame's shared budgets reset on a new one)
     private(set) static var prevTotal = 0.0      // seconds from the last tick's begin to its last mark
+    // Nov 15: every stage's time summed over a window of ticks (the headset's 5 s perf line), so the line says where
+    // an ordinary tick's time goes, not only what the one slowest tick did. A flat table by first-seen order; a stage
+    // is found again at the slot it had last tick (the marks come in the same order nearly every tick).
+    private static var accNames = [StaticString](repeating: "", count: cap)
+    private static var accKey = [UnsafeRawPointer?](repeating: nil, count: cap)
+    private static var accTime = [Double](repeating: 0, count: cap)
+    private static var accCount = 0
+    private(set) static var accTicks = 0
+    private static func fold() {
+        var hint = 0
+        for i in 0..<count {
+            let key = UnsafeRawPointer(names[i].utf8Start)
+            var j = -1
+            if hint < accCount && accKey[hint] == key { j = hint }
+            else { for k in 0..<accCount where accKey[k] == key { j = k; break } }
+            if j < 0 {
+                guard accCount < cap else { continue }
+                j = accCount; accCount += 1
+                accKey[j] = key; accNames[j] = names[i]; accTime[j] = 0
+            }
+            accTime[j] += times[i]
+            hint = j + 1
+        }
+        accTicks += 1
+    }
+    // The window's `n` costliest stages as average ms a tick, "mobs 2.10, arms 1.40, ..."; starts a new window.
+    static func windowTop(_ n: Int) -> String {
+        guard accTicks > 0 else { return "-" }
+        var order = Array(0..<accCount)
+        order.sort { accTime[$0] > accTime[$1] }
+        let parts = order.prefix(n).map { "\(accNames[$0].description) \(String(format: "%.2f", accTime[$0] * 1000 / Double(accTicks)))" }
+        for k in 0..<accCount { accTime[k] = 0 }
+        accTicks = 0
+        return parts.joined(separator: ", ")
+    }
+    // The `n` slowest stages of the tick just run, "name 12.3 + name 4.5 + ...".
+    static func topStages(_ n: Int) -> String {
+        var order = Array(0..<count)
+        order.sort { times[$0] > times[$1] }
+        return order.prefix(n).map { "\(names[$0].description) \(String(format: "%.1f", times[$0] * 1000))" }.joined(separator: " + ")
+    }
+
     @inline(__always) static func begin() {
-        if start > 0 { prevTotal = last - start }
+        if start > 0 { prevTotal = last - start; fold() }
         count = 0; last = CFAbsoluteTimeGetCurrent(); start = last; tick &+= 1
     }
 

@@ -3269,6 +3269,10 @@ if CommandLine.arguments.contains("--huntcrawler") {          // P460: the Recko
     HuntCrawlerCheck.run(game, check)
     print(failures == 0 ? "huntcrawler: all checks passed" : "huntcrawler: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--hullblast") {           // Nov 15: a warship's shell on a capital hull, stage by stage
+    DetachCheck.hullBlast(game, check)
+    print(failures == 0 ? "hullblast: all checks passed" : "hullblast: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--detachcheck") {         // Nov 4: the loose-piece search after a blast on a capital hull
     DetachCheck.run(game, check)
     print(failures == 0 ? "detachcheck: all checks passed" : "detachcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
