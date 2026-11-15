@@ -135,7 +135,7 @@ enum BuildersGrounds {
             ring(1.4, 2.4) { x, z in for y in 17...18 { d.put(x, y, z, "glass") } }
             ring(0, 1.4) { x, z in d.put(x, 19, z, "stone_bricks") }
             ring(1.4, 2.4) { x, z in d.put(x, 19, z, "stone_brick_slab") }
-            d.put(c, 19, c, "stone_bricks"); d.put(c, 20, c, "lightning_rod", or: "spruce_fence")
+            d.put(c, 19, c, "stone_bricks"); d.put(c, 20, c, "lantern")
             ring(0, 3.5) { x, z in d.footprint.append((x, z)) }
             out.append(Blueprint(key: "lighthouse", title: ["Beach Lighthouse", "on the sand"], ground: "beach", footing: .terrace, draft: d))
         }
@@ -417,10 +417,22 @@ enum BuildersGrounds {
         func course(_ p: (IVec3, BlockID)) -> Int {
             Blocks.shape[Int(p.1)] == "lantern" && p.1 != Blocks.groupBase[Int(p.1)] ? p.0.y * 2 + 3 : p.0.y * 2
         }
+        // (in a course, what stands on something first: walls before their eaves; then what spans open air from the
+        // outside in, each piece reaching out from the last, never a floor's middle first over a hollow)
+        let below = Set(places.map { $0.0 }), digSet = Set(digs)
+        func held(_ p: IVec3) -> Bool {
+            let q = p - IVec3(0, 1, 0)
+            return below.contains(q) || (w.solidAt(q.x, q.y, q.z) && !digSet.contains(q))
+        }
+        var standing: [IVec3: Bool] = [:]
+        for (p, _) in places { standing[p] = held(p) }
         places.sort { a, b in
             if course(a) != course(b) { return course(a) < course(b) }
+            let sa = standing[a.0] ?? true, sb = standing[b.0] ?? true
+            if sa != sb { return sa }
             let da = (Float(a.0.x) - mx) * (Float(a.0.x) - mx) + (Float(a.0.z) - mz) * (Float(a.0.z) - mz)
             let db = (Float(b.0.x) - mx) * (Float(b.0.x) - mx) + (Float(b.0.z) - mz) * (Float(b.0.z) - mz)
+            if !sa { return da != db ? da > db : (a.0.x, a.0.z) < (b.0.x, b.0.z) }
             return da != db ? da < db : (a.0.x, a.0.z) < (b.0.x, b.0.z)
         }
         // (a door is placed once, from its lower half: the game sets both)

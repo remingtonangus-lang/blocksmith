@@ -124,7 +124,8 @@ final class BuilderBot: AgentBot {
         let k = Blocks.key(Blocks.groupBase[Int(b)])
         return k.hasSuffix("_leaves") || k.hasSuffix("_log") || k.hasSuffix("_wood") || Blocks.render[Int(b)] == RenderType.cross.rawValue || k.contains("vine")
     }
-    private func candidates(_ w: World, _ j: BuildersGrounds.Job, from: V3) -> [(feet: V3, aim: V3)] {
+    private func candidates(_ g: Game, _ j: BuildersGrounds.Job, from: V3) -> [(feet: V3, aim: V3)] {
+        let w = g.world
         let c = j.cell
         var nBody = 0, nState = 0, nRay = 0, nWay = 0, rayAt: [String: Int] = [:], blockers: [IVec3: Int] = [:]
         blocker = nil
@@ -175,7 +176,7 @@ final class BuilderBot: AgentBot {
         var spots: [(V3, V3, Float)] = []
         for f in faces {
             for look in BuilderBot.looks where simd_dot(look, fv(f.n)) >= 0.3 {
-                for dist in [2.2, 3.0, 3.9] as [Float] {
+                for dist in [2.2, 3.0, 3.9, 5.2] as [Float] {           // (5.2: down through water to a post's foot)
                     let eye = f.aim + look * dist
                     let feet = eye - V3(0, 1.62, 0)
                     guard feet.y > 1, bodyFree(w, feet, not: c) else { nBody += 1; continue }
@@ -188,9 +189,11 @@ final class BuilderBot: AgentBot {
                     // (Natural ground is met where the drawn surface is, which can name the next cell over: near enough
                     // here; the game's own aim decides at the spot.)
                     let fGround = w.fieldTerrain && w.groundAt(f.hit.x, f.hit.y, f.hit.z)
+                    // (the game's own choice from that eye: what the press would really do there)
                     guard let h = w.raycast(eye, simd_normalize(dv), maxDist: simd_length(dv) + 0.4),
                           h.hit == f.hit || (fGround && w.groundAt(h.hit.x, h.hit.y, h.hit.z) && h.hit != c
-                                              && abs(h.hit.x - f.hit.x) <= 1 && abs(h.hit.y - f.hit.y) <= 1 && abs(h.hit.z - f.hit.z) <= 1) else {
+                                              && abs(h.hit.x - f.hit.x) <= 1 && abs(h.hit.y - f.hit.y) <= 1 && abs(h.hit.z - f.hit.z) <= 1),
+                          tries(g, j, eye: eye, at: f.aim) else {
                         nRay += 1
                         if let h = w.raycast(eye, simd_normalize(dv), maxDist: simd_length(dv) + 0.4) {
                             let k = "\(h.hit.x - c.x),\(h.hit.y - c.y),\(h.hit.z - c.z) \(Blocks.key(w.block(h.hit.x, h.hit.y, h.hit.z)))"
@@ -313,7 +316,8 @@ final class BuilderBot: AgentBot {
         while let c = todo.popLast(), out.count < 260 {
             for dy in 0...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 {
                 let n = c + IVec3(dx, dy, dz)
-                guard n.y > q.y, n.y < q.y + 40, !seen.contains(n) else { continue }
+                // (a branch level with the cut comes off too)
+                guard n.y >= q.y, n != q, n.y < q.y + 40, !seen.contains(n) else { continue }
                 seen.insert(n)
                 if isLog(w, n) && !planned.contains(n) { out.append(n); todo.append(n) }
             } } }
@@ -358,6 +362,7 @@ final class BuilderBot: AgentBot {
     }
     private var cutCells = Set<IVec3>()
     private var refootRuns = 0
+    private var bestGap: Float = .greatestFiniteMagnitude, gainWp = -1, noGain = 0
     private var aimK = 0
     private var aimAt = V3.zero
     // Would the game's aim on t do the job: break that cell, or put the block in it the right way round?
@@ -374,24 +379,36 @@ final class BuilderBot: AgentBot {
         let fy = g.hitPoint(t).y - Float(t.hit.y)
         return at == j.cell && BuilderBot.wouldPlace(j.want, normal: t.normal, fracY: fy, yaw: g.player.yaw)
     }
-    // Where the body stopped (never quite the spot): of the points round the planned aim, the nearest one that the
-    // game's aim, looked at from this eye, turns into the job. He'd nudge the crosshair the same way. (The look is tried
-    // and put back; the game sets its own aim from the real look every tick.)
-    private func solveAim(_ g: Game, _ j: BuildersGrounds.Job, _ a: V3) -> V3? {
+    // Would the game, with the eye at `eye` looking at `q`, aim at something that does the job? The game's own aim is
+    // worked out as its tick does (the ray, then the drawn ground's choice of cell: Game.aimGround, the placing row),
+    // with the body put there and the look turned for the try, and everything put back after.
+    private func tries(_ g: Game, _ j: BuildersGrounds.Job, eye: V3, at q: V3) -> Bool {
         let w = g.world, p = g.player
-        let y0 = p.yaw, p0 = p.pitch
-        defer { p.yaw = y0; p.pitch = p0; _ = w.raycast(p.eye, p.look, maxDist: 6) }
+        let pos0 = p.pos, y0 = p.yaw, p0 = p.pitch, t0 = g.target, tg0 = g.targetGround, dd0 = g.digDownCell
+        defer {
+            p.pos = pos0; p.yaw = y0; p.pitch = p0; g.target = t0; g.targetGround = tg0; g.digDownCell = dd0
+            _ = w.raycast(p.eye, p.look, maxDist: 6)
+        }
+        p.pos = pos0 + (eye - p.eye)
+        let dv = q - eye
+        p.yaw = atan2f(-dv.x, -dv.z); p.pitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
+        guard let t = w.raycast(p.eye, p.look, maxDist: 6) else { return false }
+        g.target = t
+        g.aimGround()
+        guard let tt = g.target else { return false }
+        return onJob(g, j, tt)
+    }
+    // Where the body stopped (never quite the spot): of the points round the planned aim, the nearest one that the
+    // game's aim, looked at from this eye, turns into the job. He'd nudge the crosshair the same way.
+    private func solveAim(_ g: Game, _ j: BuildersGrounds.Job, _ a: V3) -> V3? {
         var pts: [V3] = []
         let st: [Float] = [-0.36, -0.24, -0.12, 0, 0.12, 0.24, 0.36]
         for u in st { for v in st {
             pts.append(a + V3(u, v, 0)); if u != 0 || v != 0 { pts.append(a + V3(u, 0, v)); pts.append(a + V3(0, u, v)) }
         } }
         pts.sort { simd_length_squared($0 - a) < simd_length_squared($1 - a) }
-        for q in pts {
-            let dv = q - p.eye
-            p.yaw = atan2f(-dv.x, -dv.z); p.pitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
-            if let t = w.raycast(p.eye, p.look, maxDist: 6), onJob(g, j, t) { return q }
-        }
+        let eye = g.player.eye
+        for q in pts where tries(g, j, eye: eye, at: q) { return q }
         return nil
     }
     private var stuck = 0, inRow = 0, lastDeferSuccess = -1
@@ -414,6 +431,19 @@ final class BuilderBot: AgentBot {
         if !refooted && jobs[i].want != AIR { refoot(w) }
         let j = jobs[i]
         if phase != 3 && BuildersGrounds.holds(w, j) { next(s, ok: true); return act }
+        // A log to dig with trunk still over it (a planned dig through a tree): the logs over it first, from the top,
+        // so the tree never comes down whole across the site.
+        if phase == 0 && j.want == AIR && isLog(w, j.cell) && cuts < 600 {
+            let over = logsOver(w, j.cell).filter { !cutCells.contains($0) }
+            if !over.isEmpty {
+                for c in over {
+                    cutCells.insert(c); cuts += 1
+                    if let k = jobs[(i + 1)...].firstIndex(where: { $0.cell == c && $0.want == AIR }) { jobs.remove(at: k) }
+                }
+                jobs.insert(contentsOf: over.map { BuildersGrounds.Job(cell: $0, want: AIR) }, at: i)
+                return act
+            }
+        }
         ticks += 1
         if ticks > 1200 { next(s, ok: false, why: "out of time"); return act }
         // The block in hand.
@@ -430,7 +460,7 @@ final class BuilderBot: AgentBot {
         }
         switch phase {
         case 0:
-            spots = candidates(w, j, from: p.pos)
+            spots = candidates(g, j, from: p.pos)
             ci = 0
             if spots.isEmpty {
                 // A crown over a dig, or leaves between the spots and the face: cleared first, as he would.
@@ -462,7 +492,7 @@ final class BuilderBot: AgentBot {
                 routed += 1
                 ci = r.spot
                 path = r.path.dropFirst().map { V3(Float($0.x) + 0.5, Float($0.y) + 0.15, Float($0.z) + 0.5) } + [spots[ci].feet]
-                wp = 0; phase = 1; moveTicks = 0
+                wp = 0; phase = 1; moveTicks = 0; gainWp = -1
                 return act
             }
             if let r = route(w, from: p.pos, to: spots, not: j.cell, through: true),
@@ -524,6 +554,11 @@ final class BuilderBot: AgentBot {
                 // (held against a lip of ground: up over it)
                 if (act.forward != 0 || act.strafe != 0) && simd_length(V2(p.vel.x, p.vel.z)) < 0.15 { stuck += 1 } else { stuck = 0 }
                 if stuck > 10 { act.jump = true; act.sneak = false }
+                // (no nearer the waypoint for half a second, whatever the keys did: a lip of drawn ground the cells don't
+                // show; up a little over it)
+                let gap = simd_length(go)
+                if wp != gainWp || gap < bestGap - 0.05 { bestGap = gap; gainWp = wp; noGain = 0 } else { noGain += 1 }
+                if noGain > 30 { act.jump = true; act.sneak = false; if noGain > 40 { noGain = 20; bestGap += 0.3 } }
                 if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 {
                     // (the spot's own eye is a little off where the body stops: the point on the face seen from here)
                     phase = 2; aimTicks = 0; aimK = 0
