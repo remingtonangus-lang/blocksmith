@@ -106,6 +106,8 @@ enum GangLeaders {
         guard let s = ready ? sc.nearestIfReady("wild_camp", x: a.x, z: a.z, maxRegions: 3, accept: ok)
                             : sc.nearest("wild_camp", x: a.x, z: a.z, maxRegions: 3, accept: ok) else { return nil }
         let dx = Float(s.anchor.x - a.x), dz = Float(s.anchor.z - a.z)
+        lastHideout = s.anchor
         return (gang(at: s.anchor), Int(hypotf(dx, dz)), TownBoard.direction(dx, dz))
     }
+    static var lastHideout: IVec3?                 // (the camp the last `wanted` named: the notice board marks it)
 }

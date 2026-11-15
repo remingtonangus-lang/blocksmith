@@ -28,7 +28,7 @@ enum Boats {
     }
     static func slipperiness(_ b: BlockID) -> Float {
         switch Blocks.key(Blocks.groupBase[Int(b)]) {
-        case "ice", "packed_ice", "frosted_ice": return 0.98
+        case "ice", "sea_ice", "packed_ice", "frosted_ice": return 0.98
         case "blue_ice": return 0.989
         default: return 0.6
         }

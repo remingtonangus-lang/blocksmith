@@ -73,7 +73,7 @@ struct Livery {
             }
             // Nov 13 (store trailer review): black with red trim, peaked caps and armbands read as one real regime's
             // uniform. The Ashguard wear their own colour now: ash grey, charcoal plate, ember-orange trim and amber
-            // lenses (BS_OLDASHLOOK=1: the black livery).
+            // lenses (only with BS_NEWASHLOOK=1 since Nov 14: SoldierRig.oldAshLook).
             if !SoldierRig.oldAshLook {
                 l.cloth = V3(0.3, 0.31, 0.34); l.legs = V3(0.22, 0.22, 0.24); l.plate = V3(0.2, 0.2, 0.22)
                 l.trim = V3(0.8, 0.36, 0.1); l.accent = V3(0.86, 0.45, 0.12); l.metal = V3(0.34, 0.34, 0.36)
@@ -114,8 +114,9 @@ struct Livery {
             l.trim = V3(0.58, 0.1, 0.08); l.metal = V3(0.44, 0.42, 0.38); l.accent = V3(0.66, 0.52, 0.28)
             l.glove = V3(0.3, 0.22, 0.14); l.boots = V3(0.17, 0.12, 0.08); l.glow = V3(1.5, 1.0, 0.5)
             // Nov 14 (trailer review: "a black uniform with a red armband and an angular gold emblem"): the leader wears a
-            // dark brown duster, the shoulder cords in plain leather.
-            if r == 4 { l.cloth = V3(0.26, 0.18, 0.12); l.plate = V3(0.18, 0.13, 0.09); l.accent = V3(0.3, 0.22, 0.14) }
+            // dark brown duster, the shoulder cords in plain leather (only with BS_NEWASHLOOK=1 since Nov 14).
+            if r == 4 && SoldierRig.oldAshLook { l.cloth = V3(0.13, 0.12, 0.11); l.plate = V3(0.1, 0.09, 0.08) }      // the leader in black
+            else if r == 4 { l.cloth = V3(0.26, 0.18, 0.12); l.plate = V3(0.18, 0.13, 0.09); l.accent = V3(0.3, 0.22, 0.14) }
         }
         // P326 (b): the Ash Vault's fallen Allied soldiers: olive-drab wool, khaki trousers, a dull olive helmet and webbing,
         // brown boots, the lenses dark.
@@ -176,7 +177,11 @@ struct SoldierRigOut {
 }
 
 enum SoldierRig {
-    static let oldAshLook = ProcessInfo.processInfo.environment["BS_OLDASHLOOK"] == "1"
+    // Remington, Nov 14 19:51 AST (on the trailer review's notes about the soldiers' looks): "No remodeling uniforms, if
+    // anything bring back the old ones." The dress from before the trailer work is the game's again: the Ashguard in
+    // black with red trim, flared helmets, caps, armbands and collar tabs; the marauder leader in black. The trailer's
+    // remodel (ash grey, visor helmets, the leader's brown duster) stays only behind BS_NEWASHLOOK=1.
+    static let oldAshLook = ProcessInfo.processInfo.environment["BS_NEWASHLOOK"] != "1"
 
     static let hipX: Float = 2.0, thighLen: Float = 6.0, shinLen: Float = 6.0
     static let shoulderX: Float = 5.7, shoulderY: Float = 22.3

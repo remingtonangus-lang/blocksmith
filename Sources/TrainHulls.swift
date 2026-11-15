@@ -437,6 +437,13 @@ enum TrainHullCheck {
         if let eng = tr.cars.first(where: { Trains.isEngine($0) && $0.variant == Trains.loco }), let es = TrainHulls.hull(eng) {
             _ = Trains.use(g, eng)
             let rode = g.riding === eng
+            // Nov 14 (21:07:33, "Should be able to see myself driving the train"): at the regulator his body shows under
+            // the view though Show My Body is off (it stays off on foot).
+            let shows = g.bodyUnderView(showBody: false)
+            g.dismount()
+            let walking = g.bodyUnderView(showBody: false)
+            _ = Trains.use(g, eng)
+            check(rode && shows && !walking, "Nov 14 train: driving the engine he sees his own body on the footplate (\(shows ? "shown" : "hidden")), on foot it stays hidden with Show My Body off (\(walking ? "shown" : "hidden"))")
             g.dismount()
             let ep = p.pos
             w.frame = es

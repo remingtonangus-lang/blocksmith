@@ -170,6 +170,58 @@ enum TreeProbeCheck {
         }
     }
 
+    // Nov 15 (Fable's list, 5): his trees felled in survival with an empty pack: each lands, the body is gone within 2 s
+    // of landing, his pack holds exactly the body's logs, and no Felled Tree is left.
+    static func fellGather(_ g0: Game, _ check: (Bool, String) -> Void) {
+        let keep0 = Felling.keep
+        Felling.keep = false
+        defer { Felling.keep = keep0 }
+        let seed: UInt64 = 7639458412018979794
+        let at = V3(3946.5, 76 + 64, -1730.5)
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0 }
+        let w = World(seed: seed, device: g0.world.device, save: nil)
+        w.makeFieldWorld()
+        w.renderDistance = 3; w.activeDistance = 3
+        let g = Game(world: w, save: nil, persistent: false)
+        g.paused = false; g.survival = true
+        g.player.pos = at
+        _ = w.loadSync(center: at, radius: 3)
+        func isLog(_ b: BlockID) -> Bool { ShapeTrunks.isLog[Int(b)] }
+        var feet: [IVec3] = []
+        let cx = Int(floor(at.x)), cz = Int(floor(at.z))
+        for z in stride(from: cz - 24, through: cz + 24, by: 3) { for x in stride(from: cx - 24, through: cx + 24, by: 3) {
+            for y in 100..<260 where isLog(w.builtBlock(x, y, z)) && !isLog(w.builtBlock(x, y - 1, z)) && w.groundAt(x, y - 1, z)
+                && (1...4).allSatisfy({ isLog(w.builtBlock(x, y + $0, z)) }) { feet.append(IVec3(x, y, z)); break }
+            if feet.count >= 3 { break }
+        } ; if feet.count >= 3 { break } }
+        var lines: [String] = [], bad = 0
+        for a in feet {
+            for i in g.inventory.main.slots.indices { g.inventory.main[i] = .empty }
+            g.player.pos = V3(Float(a.x) + 2.5, Float(a.y), Float(a.z) + 0.5)
+            let cut = w.builtBlock(a.x, a.y, a.z), n0 = Felling.felled
+            w.setBlock(a.x, a.y, a.z, AIR)
+            g.fellCheck(a, cut)
+            guard Felling.felled > n0, let s = w.ships.list.last(where: { Felling.isFelled($0) }) else { lines.append("\(a.x) \(a.y - 64) \(a.z) did not fall"); bad += 1; continue }
+            let logs = s.grid.blocks.filter { isLog($0) || CapitalBase.isLog($0) }.count
+            var t: Float = 0, landedAt: Float = -1, goneAt: Float = -1
+            while t < 14 {
+                w.ships.update(1.0 / 60, game: g); g.fellingTick(1.0 / 60); t += 1.0 / 60
+                if landedAt < 0, Felling.falls.first(where: { $0.ship === s })?.landed == true { landedAt = t }
+                if !w.ships.list.contains(where: { $0 === s }) { goneAt = t; break }
+            }
+            let inPack = g.inventory.main.slots.filter { !$0.isEmpty && Items.key($0.item).hasSuffix("_log") }.reduce(0) { $0 + $1.count }
+            let left = w.ships.list.filter { Felling.isFelled($0) }.count
+            let ok = landedAt > 0 && goneAt > 0 && goneAt - landedAt <= 2 && inPack == logs && left == 0
+            if !ok { bad += 1 }
+            lines.append(String(format: "%d %d %d: landed %.1f s, gone %.1f s, %d logs in the body, %d in his pack, %d felled bodies left", a.x, a.y - 64, a.z, landedAt, goneAt, logs, inPack, left))
+            for s2 in w.ships.list where Felling.isFelled(s2) { w.ships.remove(s2) }
+        }
+        print("fellgather: " + lines.joined(separator: "; "))
+        check(!feet.isEmpty && bad == 0, "Nov 15 fell: \(feet.count) of his trees felled land and go into his pack whole within 2 s (\(bad) wrong: \(lines.joined(separator: "; ")))")
+    }
+
     // How far over a felled trunk lies, in degrees from upright: its lowest log to its highest as it stood.
     static func lean(_ s: Ship) -> Float {
         var lo: IVec3?, hi: IVec3?
@@ -362,6 +414,11 @@ enum TreeProbeCheck {
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }
         do {
+            // (his spruce as it stood on Nov 13: the catalogue of 100 (Nov 15) grows a limbed spruce there now, whose
+            // limb logs lie 1.5 over the ground on its trunk)
+            let cat0 = TreeShapes.oldCatalogue
+            TreeShapes.oldCatalogue = true
+            defer { TreeShapes.oldCatalogue = cat0 }
             let w = World(seed: 2117423538372845574, device: g0.world.device, save: nil)
             w.makeFieldWorld()
             w.renderDistance = 3; w.activeDistance = 3

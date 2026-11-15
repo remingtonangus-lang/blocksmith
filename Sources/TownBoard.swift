@@ -289,6 +289,7 @@ final class NoticeBoardMenu: ListMenu {
     enum Item { case poster(String, Int), job(Int), contract(Int), gang, deed(Int), donate, emeralds, name, log(Int) }
     var items: [Item] = []
     var gangWanted: (GangLeaders.Gang, Int, String)?
+    var hideout: IVec3?
 
     init(game: Game, town: String, anchor: IVec3) {
         self.town = town
@@ -309,6 +310,7 @@ final class NoticeBoardMenu: ListMenu {
         for i in 0..<2 { items.append(.job(i)) }
         for i in 0..<Contracts.slots { items.append(.contract(i)) }      // C11
         gangWanted = GangLeaders.wanted(g, from: anchor)                  // D26
+        hideout = gangWanted == nil ? nil : GangLeaders.lastHideout
         if gangWanted != nil { items.append(.gang) }
         items.append(.deed(0)); items.append(.deed(1))                     // D28: the land office
         items.append(.donate)
@@ -324,8 +326,10 @@ final class NoticeBoardMenu: ListMenu {
         return items.map { it in
             switch it {
             case .poster(let t, let c):
-                if t.isEmpty { return Row(name: "WANTED: \(TownBoard.playerName), outlaw", detail: "Surrender to any sheriff to pay your fine", value: Money.format(Honour.outlawFine), enabled: false, good: false) }
-                return Row(name: "WANTED: \(TownBoard.playerName) in \(t)", detail: "Pay the sheriff or a deputy there", value: Money.format(c), enabled: false, good: false)
+                // (Nov 14 playtest, 12:07: "I don't know why it's red", "It's almost like I can't afford something":
+                // a poster is a notice, not a purchase. It reads as one: no price in red, the sum in the words.)
+                if t.isEmpty { return Row(name: "WANTED: \(TownBoard.playerName), outlaw", detail: "Fine \(Money.format(Honour.outlawFine)). Surrender to any sheriff to pay it", enabled: false) }
+                return Row(name: "WANTED: \(TownBoard.playerName) in \(t)", detail: "Bounty \(Money.format(c)). Pay the sheriff or a deputy there", enabled: false)
             case .job(let i):
                 let j = jobs[i]
                 let (name, detail) = TownBoard.describe(j, g)
@@ -340,7 +344,8 @@ final class NoticeBoardMenu: ListMenu {
             case .gang:
                 guard let (gg, d, dir) = gangWanted else { return Row(name: "", enabled: false) }
                 return Row(icon: ItemStack(Items.id(Guns.revolverKey), 1), name: "WANTED: \(gg.leader), boss of \(gg.gang)",
-                           detail: "Hides out \(d) blocks \(dir) of here. Double if brought in alive", value: Money.format(gg.bounty), enabled: false, good: false)
+                           detail: "Hides out \(d) blocks \(dir). Double if alive. Press to mark it",
+                           value: Money.format(gg.bounty))        // (the reward is his to earn: green, and the row is a choice)
             case .deed(let i):
                 let key = i == 0 ? Property.townKey : Property.homeKey, price = i == 0 ? Property.townPrice : Property.homePrice
                 return Row(icon: Items.has(key) ? ItemStack(Items.id(key), 1) : .empty, name: i == 0 ? "Land office: a town house" : "Land office: a homestead",
@@ -386,6 +391,14 @@ final class NoticeBoardMenu: ListMenu {
             Honour.earn(g, 2, source: "donation", "a donation to \(town)")
             g.sfx(.villagerTrade, 0.6)
             say("\(town) thanks you for your kindness.", good: true)
+        case .gang:
+            // The hideout on the map and the compass following the boss (Waymarks' bounty target).
+            guard let (gg, d, dir) = gangWanted else { break }
+            if let h = hideout { MapCache.shared.pinNamed(g, x: h.x, z: h.z, name: "Hideout of \(gg.gang)") }
+            let follow = Waymarks.candidates(g).first { $0.kind == "bounty" && $0.key == gg.leader }
+            if let t = follow { Waymarks.track(g, t) }
+            g.sfx(.pageTurn, 0.5)
+            say("\(gg.leader)'s hideout is marked on your map, \(d) blocks \(dir)" + (follow != nil ? ". The compass follows the bounty." : "."), good: true)
         case .name:
             let n = TownBoard.names
             let i = n.firstIndex(of: TownBoard.playerName) ?? 0

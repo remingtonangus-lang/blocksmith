@@ -373,7 +373,7 @@ extension ShipManager {
             if s.captured { s.autopilot = nil; continue }
             if lashedTick(s, dt, game: g) { continue }               // D41: grappled alongside
             // Lose the helm or most of the hull and the vessel founders: the crew gives up, guns fall silent.
-            if !s.wrecked && (s.helm == nil || s.blockCount * 100 < s.initialBlocks * 45) {
+            if !s.wrecked && (s.helm == nil || s.hullBlocks * 100 < s.initialBlocks * 45) {
                 s.wrecked = true
                 if simd_length(s.pos - g.player.pos) < 160 {
                     g.onToast?("The \(s.name) is going down!")

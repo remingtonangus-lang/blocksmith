@@ -23,8 +23,9 @@ extension Village {
 
     private static func table(_ w: inout StructWriter, _ b: LB, _ m: Mats, _ u0: Int, _ u1: Int, v: Int, chairs: Bool = true) {
         let top = blk("oak_pressure_plate", AIR)
+        let real = b.furniture(m, "table")                    // (Nov 14 evening: a real table; was a post and a plate)
         for u in u0...u1 {
-            b.set(&w, u, 0, v, m.fence); b.set(&w, u, 1, v, top)
+            if let t = real { b.set(&w, u, 0, v, t) } else { b.set(&w, u, 0, v, m.fence); b.set(&w, u, 1, v, top) }
             if chairs { b.set(&w, u, 0, v + 1, b.seat(m, "chair", back: 0)) }
         }
     }

@@ -226,6 +226,28 @@ extension Game {
         AshSeat.shots += 1
     }
 
+    // Nov 14 playtest (21:15, in a Cinder Tank he spawned: "Wonder what happened to the little machine gun on the tank"):
+    // P344's seat fired the coaxial MG while the main gun reloaded; P449's hull of blocks kept only the cannon. Again:
+    // with the turret's gun reloading, the trigger held fires the coaxial gun beside it, along the turret's lay (its
+    // rounds pass the tank's own plates, as the half-track's do).
+    func ashTankCoax(_ s: Ship, _ dt: Float) {
+        AshCommandeer.coaxCool -= dt
+        let held = input.leftDown || (seatPad?.rt ?? 0) > 0.5
+        guard held, AshCommandeer.coaxCool <= 0, let t = world.ships.turrets(of: s).first, t.reload > 0.3 else { return }
+        AshCommandeer.coaxCool = 0.11
+        let flat = t.dirToWorld(V3(0, 0, -1))
+        let yaw = atan2f(-flat.x, -flat.z), pitch = s.gunPitch
+        let cp = cosf(pitch)
+        let fwd = V3(-sinf(yaw) * cp, sinf(pitch), -cosf(yaw) * cp)
+        let right = V3(cosf(yaw), 0, -sinf(yaw))
+        let from: V3 = t.toWorld(t.com) + V3(0, 0.1, 0) + fwd * 2.4 + right * 0.4
+        arms.spawn(Slug(pos: from, vel: Guns.scatter(fwd, 0.01) * 150, kind: .bullet, damage: 5, fromPlayer: true,
+                        shooter: ObjectIdentifier(s), by: "Player", life: 0.6, gravity: 1.5))
+        sfx(.gun(Guns.rifle), 0.9, at: from)
+        AshSeat.shots += 1
+        AshCommandeer.coaxShots += 1
+    }
+
     // P464 (Oct 25 19:33, "should be able to run people over with it"): the vehicle he drives runs down whoever stands
     // in front of it (behind, backing up) at more than a walking pace: a blow growing with the speed (a truck at full
     // throttle kills a soldier outright; a tank kills anything on foot) and a shove off to the side. Other vehicles and
@@ -443,6 +465,12 @@ final class AshSeat {
 // itself, his at its controls): the tank, half-track and truck drive and turn, the tank's main gun, the half-track's
 // rear gun (jump to its seat) and the field gun fire, and sneaking out leaves the vehicle parked. A half-track knocked
 // under a third bails out and stands empty; trucks round a yard park sidecars beside some of them.
+extension AshCommandeer {
+    static let oldTankCoax = ProcessInfo.processInfo.environment["BS_OLDTANKCOAX"] == "1"
+    static var coaxCool: Float = 0
+    static var coaxShots = 0                // (checks)
+}
+
 enum AshDriveCheck {
     final class Drive: AgentBot {
         let name = "ashdrive"
@@ -666,6 +694,15 @@ enum AshDriveCheck {
             let tur = hull.map { game.world.ships.turrets(of: $0) } ?? []
             check(took && hull?.name == AshCommandeer.tankName && !game.mobs.mobs.contains { $0 === v } && tur.count == 1 && !(tur.first?.cannons.isEmpty ?? true),
                   "Cinder Tank: taken, it is a hull of \(hull?.blockCount ?? 0) blocks and a turret of \(tur.first?.blockCount ?? 0) with its gun, at his helm")
+            do {                                          // (Nov 14 evening: shot through the tank's armour)
+                let surv0 = game.survival
+                game.survival = true
+                defer { game.survival = surv0 }
+                let mid = game.player.pos + V3(0, 1.2, 0)
+                let shots = [V3(6, 0, 0), V3(-6, 0.3, 0), V3(0, 0.5, 6), V3(3, 2, -4)].map { Armory.playerHit(game, mid + $0, simd_normalize(-$0), 12) }
+                check(Armory.oldTankHatch || shots.allSatisfy { $0 == nil },
+                      "Cinder Tank: at its helm he is buttoned up, no round from the sides, behind or above finds him in the hatch (\(shots.filter { $0 != nil }.count) of 4 would)")
+            }
             game.mobs.mobs.removeAll { $0.faction == Faction.ashguard.rawValue && !$0.kind.ashVehicle }
             for o in game.world.ships.list where o.root !== hull && o.parent == nil && hull.map({ simd_length(o.pos - $0.pos) < 24 }) == true { game.world.ships.remove(o) }
             run(10, act())
@@ -702,7 +739,44 @@ enum AshDriveCheck {
                 let r0 = t.reload
                 run(2, act()); run(20, act(attack: true)); run(2, act())
                 check(r0 <= 0 && t.reload > 0, String(format: "Cinder Tank: the trigger fires its gun (reload %.1f s)", t.reload))
+                // Nov 14 (21:15, "what happened to the little machine gun on the tank"): held while the gun reloads, the
+                // trigger works the coaxial MG, its rounds clear of the tank's own plates.
+                let c0 = AshCommandeer.coaxShots, slugs0 = game.arms.slugs.count, hb0 = h.blockCount, tb0 = t.blockCount
+                // (the most rounds in flight at once: a round that strikes close by is gone by the end, 1 run in 3 on Nov 15)
+                var flying = slugs0
+                for _ in 0..<30 { run(1, act(attack: true)); flying = max(flying, game.arms.slugs.count) }
+                run(2, act())
+                check(AshCommandeer.oldTankCoax || (AshCommandeer.coaxShots - c0 >= 3 && flying > slugs0 && h.blockCount == hb0 && t.blockCount == tb0),
+                      "Cinder Tank: held while the gun reloads, the trigger fires the coaxial MG (\(AshCommandeer.coaxShots - c0) rounds in 0.5 s; its own blocks \(hb0 + tb0) -> \(h.blockCount + t.blockCount))")
                 run(260, act())
+                // Nov 14 (21:15, "this tank has aiming problems"): a stone wall well ahead, sighted from his seat; the turret
+                // comes round and lays on it, and the shell it fires bursts on the sighted point.
+                do {
+                    let wx = x, wz = z - 40
+                    for dx in -2...2 { for dy in 1...5 { world.setBlock(wx + dx, yardTop + dy, wz, STONE) } }
+                    let aimPt = V3(Float(wx) + 0.5, Float(yardTop) + 3.5, Float(wz) + 1.0)
+                    func look() {
+                        let v = aimPt - game.player.eye
+                        game.player.yaw = atan2f(-v.x, -v.z)
+                        game.player.pitch = atan2f(v.y, simd_length(V2(v.x, v.z)))
+                    }
+                    for _ in 0..<12 { look(); run(15, act()) }
+                    let laidOn = TankSight.laid, sightErr = TankSight.aim.map { simd_length($0 - aimPt) } ?? 99
+                    let before = Set(game.world.ships.shells.map { ObjectIdentifier($0) })
+                    look(); run(2, act(attack: true)); run(1, act())
+                    var last: V3? = nil, flying = true, ticks = 0
+                    while flying && ticks < 200 {
+                        let mine = game.world.ships.shells.filter { !before.contains(ObjectIdentifier($0)) }
+                        if let sh = mine.first { last = sh.pos } else if last != nil { flying = false }
+                        look(); run(1, act()); ticks += 1
+                    }
+                    let miss = last.map { simd_length($0 - aimPt) } ?? 99
+                    check(laidOn && sightErr < 1.5 && miss < 3,
+                          String(format: "Cinder Tank: sighted on a wall %.0f blocks off the gun lays (%@, sight %.1f off) and its shell bursts %.1f blocks from the sighted point",
+                                 simd_length(aimPt - h.pos), laidOn ? "laid" : "still traversing", sightErr, miss))
+                    for dx in -2...2 { for dy in 1...5 { world.setBlock(wx + dx, yardTop + dy, wz, AIR) } }
+                    run(260, act())
+                }
                 // A shell bursting on its flank (a medium gun's: power 6) takes plates off.
                 let b0 = h.blockCount
                 game.world.ships.heavyHit(h, at: h.toWorld(h.com + V3(1.8, 0, 0)), game: game, power: 6)

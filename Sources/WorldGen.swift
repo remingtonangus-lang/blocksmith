@@ -880,7 +880,7 @@ final class WorldGen: TerrainGenerator {
     // (ground, leaves) and ice on still water where it is cold enough.
     // Snow follows the surface temperature (altitude lapse included), so snowlines climb in warm regions.
     private func freeze(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ cols: [Terrain.Column], _ tops: [Int]) {
-        let snowLayer = Blocks.id("snow"), ice = Blocks.id("ice")
+        let snowLayer = Blocks.id("snow"), ice = Blocks.id("ice"), waterIce = Game.waterIceID
         for lz in 0..<CS { for lx in 0..<CS {
             let biome = biomes[lx + lz * CS]
             var y = CH - 2
@@ -905,10 +905,10 @@ final class WorldGen: TerrainGenerator {
             if rocky && rise >= 4 { continue }
             let i = Chunk.index(lx, y, lz)
             let top = b[i]
-            if top == WATER { b[i] = ice; continue }
+            if top == WATER { b[i] = waterIce; continue }
             if top == GRASS { b[i] = SNOWY_GRASS }
             let solidTop = Blocks.opaque[Int(top)] || Blocks.key(top).hasSuffix("_leaves")
-            if solidTop && top != SNOW && top != ice && Blocks.key(top) != "packed_ice" && Blocks.key(top) != "powder_snow" {
+            if solidTop && top != SNOW && top != ice && top != waterIce && Blocks.key(top) != "packed_ice" && Blocks.key(top) != "powder_snow" {
                 b[i + CSQ] = snowLayer
             }
         } }

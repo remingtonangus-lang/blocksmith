@@ -19,6 +19,7 @@ enum Felling {
         var age: Float = 0
         var still: Float = 0
         var landed = false
+        var landedAge: Float = -1                // (Nov 15: when it first struck the ground)
         var lastVel = V3(0, 0, 0)
         // P441 (Oct 24 20:51: "the old version of it kind of hovers there for a second"): the body stays hidden and still
         // until the world has redrawn the sections it left (and its own mesh is in), then is let go as it was thrown.
@@ -659,7 +660,7 @@ extension Game {
             }
             f.lastVel = s.vel
             if !f.landed && f.age > 0.4 && s.contacts > 0 && dv > 2.5 {
-                f.landed = true
+                f.landed = true; f.landedAge = f.age
                 sfx(.shipCollideHard, min(2, 0.8 + dv / 6), at: s.pos)
                 sfx(.plantBrush, 1.4, at: s.pos)
                 let d = simd_length(player.pos - s.pos)
@@ -667,6 +668,13 @@ extension Game {
             }
             let resting = simd_length(s.vel) < 0.4 && simd_length(s.angVel) < 0.25
             f.still = resting ? f.still + dt : 0
+            // Nov 15 (Fable's list, 5): landed and lain still a moment, a felled tree goes into his pack; one still rolling
+            // or settling goes 1.5 s after it first struck the ground (in his world at 3961 74 -1737 a spruce took 5.4 s
+            // to lie still after its crown struck).
+            let settled = f.landed && (f.still >= 0.3 || f.age - f.landedAge >= 1.5)
+            if !Felling.keep && Felling.isFelled(s) && (settled || !f.landed && f.age > 2.5 && f.still >= 0.3 || f.age > 9) {
+                gatherFelled(s); f.age = -1; continue
+            }
             // P478 (Oct 27 18:47: "I don't want the branches and shit to disappear after the log falls"): the crown stays
             // on the fallen tree; it used to drop away once the tree lay still, leaving the bare trunk.
             if (f.still > 1.5 && f.age > 2) || f.age > 9 { f.age = -1 }
@@ -690,6 +698,11 @@ extension Game {
     // Ship interaction (use) on a felled trunk: pick it up (empty hand or a non-block item), or set the carried one down.
     func fellUse(_ s: Ship, sneak: Bool) -> Bool {
         if let c = Felling.carried, c === s.root { dropCarried(throwing: true); return true }
+        // (Nov 15: no carrying it; used, a lying tree is gathered as when it settles)
+        if !Felling.keep && Felling.isFelled(s) && !sneak {
+            if !Felling.falls.contains(where: { $0.ship === s.root }) { gatherFelled(s.root) }
+            return true
+        }
         guard Felling.isFelled(s), !sneak, held.def.block == nil, Felling.carried == nil else { return false }
         let r = s.root
         guard !Felling.falls.contains(where: { $0.ship === r }) else { return false }      // (still falling)
@@ -803,4 +816,70 @@ extension Felling {
 extension ShipManager {
     // Ships nothing collides with (a trunk being carried).
     static var ghosts = Set<Int>()
+}
+
+// Nov 15 (Fable, after Remington: "I break a stump, that tree model falls over ... It doesn't break pieces off it. I get
+// the logs in inventory"): once a felled tree's body has landed and lain still for half a second (or 9 s on), every log
+// in it goes into his pack as its species' log (what doesn't fit drops at the body), each leaf rolls its leaf loot once
+// (saplings, sticks, apples) dropped at the body, a burst of wood and leaf bits with the crash, and the body is gone. A
+// lying tree is no longer chopped log by log or carried (hit or used, it is gathered the same way). Not for a building's
+// collapse pieces (Fall.patient) or anything but a felled tree. Creative gathers the logs too. BS_OLDFELLKEEP=1: the
+// body stays, chopped or carried as before.
+extension Felling {
+    static let oldKeep = ProcessInfo.processInfo.environment["BS_OLDFELLKEEP"] == "1"
+    static var keep = oldKeep                    // (the checks that look at a lying body set it)
+    static var gathered = 0, gatheredLogs = 0    // (counters)
+    static let gatherReach: Float = 32           // (farther off, a tree something else brought down drops its logs there)
+}
+
+extension Game {
+    func gatherFelled(_ s0: Ship) {
+        let s = s0.root
+        guard Felling.isFelled(s), world.ships.list.contains(where: { $0 === s }) else { return }
+        if Felling.carried === s { Felling.carried = nil; ShipManager.ghosts.remove(s.id) }
+        var byKind: [ItemID: Int] = [:], loot: [ItemStack] = []
+        var bits: [(IVec3, BlockID)] = []
+        var logCount = 0, leafBits = 0
+        for part in world.ships.list where part.root === s {
+            let g = part.grid
+            for i in 0..<g.blocks.count {
+                let b = g.blocks[i]
+                guard b != AIR else { continue }
+                let c = IVec3(i % g.sx, i / (g.sx * g.sz), (i / g.sx) % g.sz)
+                let wp = part.toWorld(V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5)
+                let wc = IVec3(Int(floor(wp.x)), Int(floor(wp.y)), Int(floor(wp.z)))
+                if ShapeTrunks.isLog[Int(b)] || CapitalBase.isLog(b) {
+                    logCount += 1
+                    // (Fable's tree wood, `tree_<wood>_log`, gives the plain log)
+                    var key = Blocks.key(Blocks.groupBase[Int(b)])
+                    if key.hasPrefix("tree_") && Items.has(String(key.dropFirst(5))) { key = String(key.dropFirst(5)) }
+                    if Items.has(key) { byKind[Items.id(key), default: 0] += 1 }
+                    if bits.count - leafBits < 6 { bits.append((wc, b)) }
+                } else {
+                    loot += Mining.drops(b, .empty)
+                    if leafBits < 6 && i % 7 == 0 { bits.append((wc, b)); leafBits += 1 }
+                }
+            }
+        }
+        let at = s.pos + V3(0, 0.6, 0)
+        let near = alive && simd_length(player.pos - s.pos) < Felling.gatherReach
+        // Logs: into the pack by kind; what doesn't fit drops at the body.
+        for (item, n0) in byKind {
+            var n = n0
+            let max = Swift.max(1, ItemStack(item, 1).def.maxStack)
+            while n > 0 {
+                let k = Swift.min(n, max)
+                // (a tree a blast or a tank brought down far from him drops its logs where it lies)
+                let left = near ? inventory.add(ItemStack(item, k)) : ItemStack(item, k)
+                if !left.isEmpty { drops.spawn(left, at: at) }
+                n -= k
+            }
+        }
+        for st in loot where !st.isEmpty { drops.spawn(st, at: at) }
+        for (c, b) in bits { particles.blockBreak(b, at: c) }
+        sfx(.breakBlock(.wood), 1, at: s.pos)
+        sfx(.plantBrush, 1.2, at: s.pos)
+        Felling.gathered += 1; Felling.gatheredLogs += logCount
+        world.ships.remove(s)
+    }
 }

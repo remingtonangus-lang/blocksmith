@@ -66,6 +66,16 @@ extension BlockRegistry {
         ice.tex = ["ice"]; ice.opaque = false; ice.layer = .translucent; ice.hardness = 0.5; ice.tool = .pickaxe; ice.sound = .glass
         ice.cullSame = true; ice.skyStop = true; ice.randomTicks = true          // melts by torchlight (Farming.randomTick)
         add(ice)
+        // Nov 14 evening (a cold sea at -12458 114 -1525: "This ice just doesn't look realistic... Make it like ice panes
+        // except they're flat, not vertical"): the sea's and lakes' own ice is a clear sheet two sixteenths thick lying on
+        // the water's surface, the water going on under it (the cell is water, like seagrass). The freeze (WorldGen,
+        // winter in Weather) lays it; it melts back to water; it drops nothing. Placed ice stays the full block.
+        var sheet = BlockDef("sea_ice", "Sheet Ice")
+        sheet.tex = ["sea_ice"]; sheet.render = .model; sheet.boxes = [Box(0, 14, 0, 16, 16, 16)]
+        sheet.opaque = false; sheet.layer = .translucent; sheet.hardness = 0.5; sheet.tool = .pickaxe; sheet.sound = .glass
+        sheet.cullSame = true; sheet.skyStop = true; sheet.randomTicks = true; sheet.hidden = true
+        sheet.fluid = 0; sheet.fluidKind = 1
+        add(sheet)
         cube("packed_ice", "Packed Ice", h: 0.5, snd: .glass)
         cube("blue_ice", "Blue Ice", h: 2.8, snd: .glass)
         var layer = BlockDef("snow", "Snow")

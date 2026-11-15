@@ -269,6 +269,20 @@ if let out = arg("--view"), let ctx = vkctx {
         let h = vw.gen.column(Int(floor(vg.player.pos.x)), Int(floor(vg.player.pos.z))).height
         vg.player.pos.y = Float(max(h, SEA) + 1) + up
     }
+    // --builders KEY (Builders' Grounds, Nov 14): that blueprint put up on its kind of ground nearest --at (BuildersGrounds
+    // .findSites; run with --field and the Builders' Grounds --seed), every job applied as the world applies it, and the
+    // eye --off (24) off its middle to the south-east, looking at it.
+    if let key = arg("--builders"), let bp = BuildersGrounds.blueprints().first(where: { $0.key == key }) {
+        if let site = BuildersGrounds.findSites(vw, centre: vg.player.pos, kinds: [bp.ground])[bp.ground] {
+            let pl = BuildersGrounds.place(bp, on: vw, at: site)
+            for j in pl.jobs { BuildersGrounds.apply(vg, j) }
+            let mid = V3(Float(pl.lo.x + pl.hi.x) / 2, Float(pl.lo.y + pl.hi.y) / 2, Float(pl.lo.z + pl.hi.z) / 2)
+            let off = Float(arg("--off") ?? "") ?? 24
+            vg.player.pos = V3(mid.x + off * 0.7, mid.y + off * 0.25, mid.z + off * 0.7)
+            nearYaw = .pi / 4
+            print("view: builders \(key) at \(site.x) \(site.y) \(site.z), \(pl.jobs.count) jobs")
+        } else { print("view: builders \(key): no site") }
+    }
     let lt = vw.loadSync(center: vg.player.pos, radius: vw.renderDistance)
     print(String(format: "view: %d chunks: gen %.0f ms, mesh %.0f ms (wall, all cores)", vw.chunks.count, lt.gen * 1000, lt.mesh * 1000))
     // --finechunks "DX,DZ;..." (Nov 12, FAILURES 4): those chunks (offsets from the eye's chunk) get half-block samples
@@ -314,6 +328,18 @@ if let out = arg("--view"), let ctx = vkctx {
             for _ in 0..<3 { Trains.place(vg, tr, dt: 1.0 / 72) }
             print("view: train: \(tr.kind) of \(tr.cars.count) cars, \(String(format: "%.1f", tr.length)) blocks, middle at cell \(String(format: "%.1f", tr.lastS)) of \(l.cells.count), \(tr.troops.count) soldiers aboard; cars " +
                   tr.cars.map { "\($0.customName ?? "?") at \(Int($0.pos.x)) \(Int($0.pos.y)) \(Int($0.pos.z)) yaw \(Int($0.yaw * 180 / .pi)) pitch \(String(format: "%.1f", $0.trainPitch * 180 / .pi))" }.joined(separator: "; "))
+            // --trainjoin K (Nov 14, couplings): the eye 4 blocks to the side of the join between car K and the next, at
+            // the couplers' height and a little over, looking at it.
+            if let k = Int(arg("--trainjoin") ?? ""), k + 1 < tr.cars.count {
+                let a = tr.cars[k], b = tr.cars[k + 1]
+                let d = simd_normalize(V3(b.pos.x - a.pos.x, 0, b.pos.z - a.pos.z))
+                let j = a.pos + d * (Trains.halfLength(a) + Trains.coupler / 2) + V3(0, 1, 0)
+                let side = V3(-d.z, 0, d.x)
+                vg.player.pos = j + side * 4 + V3(0, 0.6 - vg.player.eyeHeight, 0)
+                let v = j - (vg.player.pos + V3(0, vg.player.eyeHeight, 0))
+                nearYaw = atan2f(-v.x, -v.z)
+                print("view: trainjoin \(k): \(a.customName ?? "?") to \(b.customName ?? "?") at \(j)")
+            }
         } else { print("view: train: none built (\(Trains.trains.count) trains)") }
     }
     // P437 (h): --edittime: place a block in the first air cell beside a solid one near the eye, then break it, and
@@ -2605,9 +2631,17 @@ do {
     lw.renderDistance = 2
     let at = V3(spawn.x - 40, spawn.y, spawn.z)
     _ = lw.loadSync(center: at, radius: 2)
-    let x = Int(floor(at.x)), z = Int(floor(at.z))
+    var x = Int(floor(at.x)), z = Int(floor(at.z))
     var gy = CH - 2
-    while gy > 8 && !Blocks.opaque[Int(lw.block(x, gy, z))] { gy -= 1 }
+    // (a column open to the sky: Nov 15, the tree catalogue's new designs put a crown over the first spot, and a column
+    // dug under leaves rightly stays dark)
+    for k in 0..<24 {
+        let cx = Int(floor(at.x)) + k % 6 * 3, cz = Int(floor(at.z)) + k / 6 * 3
+        var cy = CH - 2
+        while cy > 8 && lw.block(cx, cy, cz) == AIR { cy -= 1 }
+        if Blocks.opaque[Int(lw.block(cx, cy, cz))] && Blocks.fluidKind[Int(lw.block(cx, cy, cz))] == 0 { x = cx; z = cz; gy = cy; break }
+    }
+    if gy == CH - 2 { while gy > 8 && !Blocks.opaque[Int(lw.block(x, gy, z))] { gy -= 1 } }
     let lit0 = lw.litByMesher(x, gy - 3, z), before = lw.lightAt(x, gy - 3, z).sky
     for y in (gy - 3)...gy { lw.setBlockAsync(x, y, z, AIR) }
     let after = lw.lightAt(x, gy - 3, z).sky
@@ -3068,6 +3102,12 @@ if CommandLine.arguments.contains("--elevator") {              // FAILURES.md 2:
     ElevatorCheck.run(game, check)
     print(failures == 0 ? "elevator: all checks passed" : "elevator: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--spawncensus") { exit(SpawnCensus.run(game)) }   // Nov 14 evening: animals in clumps (Sources/SpawnCensus.swift)
+if CommandLine.arguments.contains("--wearprobe") { exit(WearProbe.run(game)) }   // Nov 14 evening: the concrete he could not shoot through (Sources/SpawnCensus.swift)
+if CommandLine.arguments.contains("--builds") {                // Builders' Grounds: an agent builds on natural ground
+    BuildersCheck.run(game, check)
+    print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--craterplace") {           // P507: blocks go down in a rocket's bowl
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -3104,11 +3144,14 @@ if CommandLine.arguments.contains("--treeprobe") {             // P478: logs han
     print(failures == 0 ? "treeprobe: all checks passed" : "treeprobe: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--fellcheck") {             // P478: a felled tree into its neighbour; standing on it
+    Felling.keep = true                                        // (these look at the lying body: Nov 15's gathering off)
     TreeProbeCheck.fell(game, check)
     TreeProbeCheck.fellReal(game, check)
     TreeProbeCheck.fellHalf(game, check)
     TreeProbeCheck.fellNov13(game, check)
     TreeProbeCheck.fellGhosts(game, check)
+    Felling.keep = Felling.oldKeep
+    TreeProbeCheck.fellGather(game, check)
     print(failures == 0 ? "fellcheck: all checks passed" : "fellcheck: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--jetplate") {             // P478: a jetpack strapped onto a chest piece
@@ -3142,6 +3185,7 @@ if CommandLine.arguments.contains("--planeparts") {             // P459: aircraf
 if CommandLine.arguments.contains("--planeexit") {             // Nov 13: off a Salvaged Fighter's helm (and the Nov 13 checks)
     PlaneExitCheck.run(game, check)
     Nov13Checks.run(game, check)
+    Nov14EveningChecks.run(game, check)
     print(failures == 0 ? "planeexit: all checks passed" : "planeexit: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--gunwreck") {               // P459: a gun mount destroyed comes apart
@@ -3726,6 +3770,7 @@ CrawlerInteriorCheck.run(check)                         // P511: the crawler's i
 MobLightCheck.run(game, check)                          // Nov 13: small mobs on smooth ground never drawn black
 PlaneExitCheck.run(game, check)                         // Nov 13: off a Salvaged Fighter's helm, out of the plane
 Nov13Checks.run(game, check)                            // Nov 13: the scope's eyepiece, the crawler's helm, the letters
+Nov14EveningChecks.run(game, check)                     // Nov 14 evening: town chairs the right way round
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest

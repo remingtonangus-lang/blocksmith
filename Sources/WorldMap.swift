@@ -296,6 +296,7 @@ final class MapCache {
         case "vessel_crawler": return ("I", V4(0.75, 0.45, 0.25, 1), "Ironback crawler patrol")
         case "vessel_carriage": return ("C", V4(0.95, 0.5, 0.15, 1), "Siege Carriage patrol")
         case "pin": return ("+", V4(0.2, 0.8, 0.85, 1), "Waypoint")
+        case "agent_build": return ("H", V4(0.95, 0.85, 0.55, 1), "Agent build")
         case "legend": return ("L", V4(0.95, 0.5, 0.2, 1), "Legendary animal's den")
         case "border_post": return ("P", V4(0.75, 0.2, 0.2, 1), "Border post")
         case "station": return ("R", V4(0.85, 0.55, 0.3, 1), "Railway station")

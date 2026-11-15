@@ -283,6 +283,7 @@ extension Game {
             if ship { markRadarSites(Game.radarCache.list) }
         }
         let s = L.s
+        if ship && !Game.oldRadarList { return radarScope(L) }
         let rows = Game.radarCache.list.map { "\($0.name)  \(radarBearing($0))" }
         let head = ship ? "Frigate radar (1,500 m)" : console ? (BaseConsoles.camerasAt != nil ? "Security cameras" : "Citadel console") : (fleetSails ? "Radar" : "Radar (the fleet sails once a Greywall Fortress falls)")
         let w = Float(([head] + rows).map { Font.width($0) }.max() ?? 40) * s + 8 * s
@@ -299,4 +300,79 @@ extension Game {
         return out
     }
     static var radarCache: (time: Double, world: World?, list: [RadarContact]) = (-1, nil, [])
+
+    // Nov 14 playtest (21:00-21:02 at the Meridian Frigate's helm: "The UI's a little too noisy", "UI is getting in my
+    // way. I can't see shit... it's way too complex in the frigate", "There should be a better radar"): the frigate's
+    // radar was a box of text lines (every base and warship within 1,500 m, bearing and distance in words) across the
+    // middle of the view, over the ship ahead. Now a small round scope beside the driving panel, heading up: the ship
+    // in the middle, a ring at 750 m and the rim at 1,500 m, a blip for each contact in its colour (the Capital red,
+    // Greywall blue-grey, the rest green; past the rim, on the rim), a tick for north, and under it one short line for
+    // the nearest contact. BS_OLDRADARLIST=1: the list.
+    static let oldRadarList = ProcessInfo.processInfo.environment["BS_OLDRADARLIST"] == "1"
+    static var scopeBlips = 0                     // (checks: blips drawn last frame)
+    func radarScope(_ L: HudLayout) -> [HudLine] {
+        let s = L.s
+        let D: Float = 60 * s, R = D / 2
+        // Beside the driving panel (right of it), its bottom on the panel's bottom; else bottom right.
+        let rows = CombatHUD.panelRows(self)
+        let (px, py0, pw) = CombatHUD.panelOrigin(self, L, rows: rows)
+        var x0 = px + pw + 10 * s, y0 = py0 - 4 * s + rows * s - D
+        if x0 + D > L.W - L.insetX { x0 = L.W - L.insetX - D - 4 * s; y0 = L.H - L.insetY - D - 14 * s }
+        x0 = floor(x0); y0 = floor(y0)
+        let cx = x0 + R, cy = y0 + R
+        var out: [HudLine] = []
+        // The disc: one strip a row, as wide as the circle there.
+        let step = 2 * s
+        var yy: Float = 0
+        while yy < D {
+            let dy = yy + step / 2 - R
+            let half = (max(0, R * R - dy * dy)).squareRoot()
+            if half > 0 { out.append(HudLine(text: "", x: floor(cx - half), y: y0 + yy, scale: s, bg: V4(0.02, 0.09, 0.05, 0.62), box: V2(floor(2 * half), step))) }
+            yy += step
+        }
+        // The rim and the half-range ring as dots.
+        let ring = V4(0.35, 0.85, 0.45, 0.75), faint = V4(0.35, 0.85, 0.45, 0.35)
+        for k in 0..<36 {
+            let a = Float(k) * .pi / 18
+            out.append(HudLine(text: "", x: cx + sinf(a) * (R - s) - s / 2, y: cy - cosf(a) * (R - s) - s / 2, scale: s, bg: ring, box: V2(s, s)))
+            if k % 2 == 0 { out.append(HudLine(text: "", x: cx + sinf(a) * R / 2 - s / 2, y: cy - cosf(a) * R / 2 - s / 2, scale: s, bg: faint, box: V2(s, s))) }
+        }
+        // North: a tick and an N on the rim, turning as the ship turns (heading up).
+        let yaw = player.yaw
+        let north = yaw                                           // (bearing of -z from ahead, clockwise)
+        out.append(HudLine(text: "", x: cx + sinf(north) * (R - 4 * s) - s, y: cy - cosf(north) * (R - 4 * s) - s, scale: s, bg: V4(0.9, 1, 0.9, 0.9), box: V2(2 * s, 2 * s)))
+        out.append(HudLine(text: "N", x: cx + sinf(north) * (R + 5 * s) - 2.5 * s, y: cy - cosf(north) * (R + 5 * s) - 3.5 * s, scale: s, color: V4(0.75, 1, 0.8, 0.9)))
+        // The ship: a white mark pointing up.
+        out.append(HudLine(text: "", x: cx - 1.5 * s, y: cy - 1 * s, scale: s, bg: V4(1, 1, 1, 0.95), box: V2(3 * s, 3 * s)))
+        out.append(HudLine(text: "", x: cx - 0.5 * s, y: cy - 3 * s, scale: s, bg: V4(1, 1, 1, 0.95), box: V2(s, 2 * s)))
+        // Contacts.
+        let range = Navy.radarRange
+        var nearest: (RadarContact, Float)? = nil
+        var blips = 0
+        for c in Game.radarCache.list {
+            let dx = Float(c.x) - player.pos.x, dz = Float(c.z) - player.pos.z
+            let d = (dx * dx + dz * dz).squareRoot()
+            if nearest == nil || d < nearest!.1 { nearest = (c, d) }
+            let rel = atan2f(dx, -dz) + yaw                      // 0 = ahead, clockwise
+            let r = min(1, d / range) * (R - 3 * s)
+            let col = radarColour(c.kind)
+            let bx = cx + sinf(rel) * r, by = cy - cosf(rel) * r
+            out.append(HudLine(text: "", x: bx - 2 * s, y: by - 2 * s, scale: s, bg: V4(0, 0, 0, 0.6), box: V2(4 * s, 4 * s)))
+            out.append(HudLine(text: "", x: bx - 1.5 * s, y: by - 1.5 * s, scale: s, bg: col, box: V2(3 * s, 3 * s)))
+            blips += 1
+        }
+        Game.scopeBlips = blips
+        // One line under it: the nearest contact, short.
+        if let (c, d) = nearest {
+            let km = d >= 1000 ? String(format: "%.1f km", d / 1000) : "\(Int(d.rounded())) m"
+            let name = c.name.count > 18 ? String(c.name.prefix(17)) + "." : c.name
+            let t = "\(name) \(km)"
+            let tw = Float(Font.width(t)) * s
+            out.append(HudLine(text: t, x: floor(cx - tw / 2), y: y0 + D + 3 * s, scale: s, color: radarColour(c.kind), bg: V4(0, 0, 0, 0.45)))
+        }
+        return out
+    }
+    func radarColour(_ k: String) -> V4 {
+        k == "military_base" || k == "capital_city" ? V4(1, 0.45, 0.38, 1) : k == Greywall.kind ? V4(0.7, 0.8, 0.98, 1) : V4(0.6, 1, 0.65, 1)
+    }
 }

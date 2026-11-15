@@ -369,6 +369,12 @@ enum Recipes {
             r.append(shaped(["P  ", "PPP", "S S"], ["P": "\(w)_planks", "S": "stick"], "\(w)_chair", 2))
             r.append(shaped(["PPP", "S S"], ["P": "\(w)_slab", "S": "stick"], "\(w)_bench", 2))
             r.append(shaped(["PP", "SS"], ["P": "\(w)_planks", "S": "stick"], "\(w)_stool", 2))
+            // Nov 14 evening: tables and a desk (Seats.swift).
+            guard Items.has("\(w)_table") else { continue }
+            r.append(shaped(["PPP", "S S", "S S"], ["P": "\(w)_planks", "S": "stick"], "\(w)_table"))
+            r.append(shaped(["LLL", " S ", " L "], ["L": "\(w)_slab", "S": "stick"], "\(w)_round_table"))
+            r.append(shaped(["LL", "SS"], ["L": "\(w)_slab", "S": "stick"], "\(w)_side_table"))
+            r.append(shaped(["PPP", "P S", "P S"], ["P": "\(w)_planks", "S": "stick"], "\(w)_desk"))
         }
         // P366 (e): slime without slimes. Kelp boiled down with bone meal sets into a sticky ball; honey and kelp too.
         r.append(shapeless(["kelp", "kelp", "kelp", "bone_meal"], "slime_ball"))

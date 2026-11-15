@@ -260,6 +260,8 @@ final class Game: LifeLinked {
     var workshopChecked = false                 // the Sparkstone Workshop deck check has run (CircuitWorkshop.swift)
     var provingChecked = false                  // P512: the Proving Grounds check has run (ProvingGrounds.swift)
     var provingBuild: ProvingGrounds.Build?     // ... and the grounds still going down, a few steps a tick
+    var buildersChecked = false                 // the Builders' Grounds check has run (BuildersWorld.swift)
+    var buildersRun: BuildersGrounds.Run?       // ... and the agent builds still going up, a few jobs a tick
     var shieldCooldown: Float = 0
     var shieldRaise: Float = 0
     var crossbowCharge: Float = 0
@@ -511,6 +513,7 @@ final class Game: LifeLinked {
         onToast = { [me = weakLink] s in              // (item 8: a link, not a weak reference: WeakLink.swift)
             guard let self = me.wrappedValue else { return }
             self.logMessage(s)                                         // (the journal gets every one at once, in order)
+            if self.quietWhileDriving(s) { return }                    // (Nov 14: travel news waits in the journal)
             // Q2c-console-12: the message showing keeps the HUD until it has been readable (Game.readFor); newer ones
             // wait their turn (toastQueueTick). A line that extends the one showing (the journal's note) replaces it.
             let shown = self.clock - self.toastTime
@@ -2544,6 +2547,11 @@ final class Game: LifeLinked {
     }
 
     static let iceID: BlockID = Blocks.has("ice") ? Blocks.id("ice") : AIR
+    // Sheet ice (BlocksOverworld): the ice that freezes on open water. BS_OLDICE=1: the full ice block, as before.
+    static let oldIce = ProcessInfo.processInfo.environment["BS_OLDICE"] == "1"
+    static let seaIceID: BlockID = Blocks.has("sea_ice") ? Blocks.id("sea_ice") : AIR
+    static let waterIceID: BlockID = oldIce || seaIceID == AIR ? iceID : seaIceID
+    static func isIce(_ b: BlockID) -> Bool { b == iceID || (b == seaIceID && b != AIR) }
 
     // Q2c-console-39: a placement that can't happen (callers: fresh presses only) gives the soft refusal click and a
     // light tick in the hands, each reason at most every 4 s. P328 (NO TEXT): the reason is never said; `why` keys the
@@ -2636,6 +2644,8 @@ final class Game: LifeLinked {
             let under = world.block(p.x, p.y - 1, p.z)
             if Blocks.collide[Int(under)] || Blocks.isLiquid(under) { world.setBlock(p.x, p.y, p.z, WATER); world.scheduleFluid(around: p) }
         }
+        // Sheet ice lies on water that goes on under it: broken, the water stays (in the Emberdeep it is gone).
+        if b == Game.seaIceID && b != AIR && !world.dim.ultrawarm { world.setBlock(p.x, p.y, p.z, WATER); world.scheduleFluid(around: p) }
         world.redstone.vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), freq: 12)     // W9: block broken
         // Wall torches hanging on this block fall off.
         for (f, d) in [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)].enumerated() {
@@ -3818,6 +3828,7 @@ final class Game: LifeLinked {
         world.redstone.tick()
         if !workshopChecked { workshopTick() }                // the Sparkstone Workshop world builds its deck once (CircuitWorkshop.swift)
         if !provingChecked || provingBuild != nil { provingTick() }   // P512: the Proving Grounds build once, a few steps a tick
+        if !buildersChecked || buildersRun != nil { buildersTick() }  // the Builders' Grounds' agent builds (BuildersWorld.swift)
         TickProf.mark("circuits")
         // (No minecart: an empty list, without building two arrays 20 times a second.)
         let carts: [V3] = mobs.mobs.contains { $0.kind == .minecart } ? mobs.mobs.filter { $0.kind == .minecart }.map { $0.pos } : []
