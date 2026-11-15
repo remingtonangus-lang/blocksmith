@@ -409,12 +409,17 @@ enum Railways {
         } }
         // (a far link, the lowest in rank, also keeps off the nearer links laid between its ends: the count on build 91
         // found 9,216 link cells lying on another link; a nearer link never asks for a far one, so this ends)
-        if isFar(gen, row, s) {
-            for r in (min(row, brow) - 1)...(max(row, brow) + 1) { for t in (s - 1)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) && !isFar(gen, r, t) {
-                guard let o = link(gen, row: r, stretch: t) else { continue }
-                for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
-            } }
-        }
+        // (and a nearer link keeps off the nearer links of the rows beside it that rank below it: build 92's count still
+        // found 12 pairs of nearer links, a row's on the row north's, crossing. A row's rank is its number mod 4, so of
+        // any two rows within three of each other one outranks the other, and a link only ever asks for links of a lower
+        // rank: four deep at most.)
+        let far = isFar(gen, row, s)
+        let rank = mod(row, 4)
+        for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) && !isFar(gen, r, t) {
+            guard far || (r != row && mod(r, 4) < rank) else { continue }
+            guard let o = link(gen, row: r, stretch: t) else { continue }
+            for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
+        } }
         func crosses(_ run: [(Int, Int)]) -> Bool {
             guard run.count > 80 else { return false }
             for i in 40..<(run.count - 40) where shut.contains(colKey(floorDiv(run[i].0, routeCell), floorDiv(run[i].1, routeCell))) { return true }
