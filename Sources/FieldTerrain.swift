@@ -23,7 +23,7 @@ struct FieldData {
 enum FieldMat {
     static let blocks: [BlockID] = table.0
     static let index: [UInt8] = table.1
-    private static let table: ([BlockID], [UInt8]) = {
+    static let table: ([BlockID], [UInt8]) = {
         var list: [BlockID] = [AIR]
         var idx = [UInt8](repeating: 0, count: Blocks.count)
         for i in 0..<Blocks.count where SmoothTerrain.natural[i] && Blocks.opaque[i] {

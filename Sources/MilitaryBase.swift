@@ -83,7 +83,7 @@ enum Armour {
         if twinned.contains(k), Blocks.has(k + twinSuffix) { return Blocks.id(k + twinSuffix) }
         return Blocks.has("bunker_concrete" + twinSuffix) ? Blocks.id("bunker_concrete" + twinSuffix) : id
     }
-    private static let grade: [Bool] = (0..<Blocks.count).map { skins.contains(Blocks.key(Blocks.groupBase[$0])) }
+    static let grade: [Bool] = (0..<Blocks.count).map { skins.contains(Blocks.key(Blocks.groupBase[$0])) }
     @inline(__always) static func isGrade(_ id: BlockID) -> Bool { Int(id) < grade.count && grade[Int(id)] }
 }
 

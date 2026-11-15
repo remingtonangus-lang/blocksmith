@@ -317,7 +317,7 @@ enum StructureTip {
     // new mark each side, so it's never cleared), and keeps each block's material with it. (BS_HANGOLD=1: as before.)
     static let hangOld = Env.all["BS_HANGOLD"] == "1"
     private static let hangR = hangOut + 1, hangW = 2 * hangR + 1
-    private static let hangGrid: UnsafeMutablePointer<UInt32> = {
+    static let hangGrid: UnsafeMutablePointer<UInt32> = {
         let n = hangW * hangW * hangW
         let b = UnsafeMutablePointer<UInt32>.allocate(capacity: n)
         b.initialize(repeating: 0, count: n)
