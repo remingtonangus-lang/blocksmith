@@ -340,6 +340,13 @@ enum MainGunTests {
             }
         }
         MainGunPerf.finish(budget: 1000.0 / 72)
+        // (check fix 42: the cloud's unoptimized build digs the bowl some 25 times slower, in slices held to the frame's
+        // time: there the bowl gets the frames it needs after the timed window; the count below is of the finished bowl)
+        if _isDebugAssertConfiguration() && impactFrame >= 0 {
+            var extra = 0
+            while MainGun.lastCrater == 0 && extra < 72 * 60 { g.tick(1.0 / 72); extra += 1 }
+            if extra > 0 { print("maingun: (unoptimized build) the bowl took \(extra) frames past the window") }
+        }
         let openInWindow = MainGun.lastOpenFrames            // (-1: still opening when the timed window closed)
         check(w.gravityQueue.count < Game.gravityChecksPerTick * 4,
               "maingun: the crater's support checks drain within the window (\(w.gravityQueue.count) cells left; \(Game.gravityChecksPerTick) a tick)")
@@ -383,7 +390,7 @@ enum MainGunTests {
             print("maingun: the firing's own work: " + MainGun.fireCost)
             // The impact frame (the crater's first slice comes the frame after): the structure lookup that planned
             // a region here was a 76-125 ms hitch on the host at the gun's biggest moment.
-            check(MainGun.impactMs < 12, String(format: "maingun: the impact itself is cheap on the frame thread (%.1f ms: %@)", MainGun.impactMs, MainGun.impactCost))
+            check(MainGun.impactMs < (_isDebugAssertConfiguration() ? 45 : 12), String(format: "maingun: the impact itself is cheap on the frame thread (%.1f ms: %@)", MainGun.impactMs, MainGun.impactCost))
         }
         if let render, impactFrame >= 0 {
             // The crater once the world has remeshed it and the smoke has cleared, from above its rim.
