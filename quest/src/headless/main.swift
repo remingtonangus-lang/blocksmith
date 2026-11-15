@@ -3336,6 +3336,11 @@ if CommandLine.arguments.contains("--lift") {
     LiftCheck.run(game, check)
     print(failures == 0 ? "lift: all checks passed" : "lift: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --nov15sounds: the Nov 15 recordings resolve and the well bucket and desk drawer play theirs (Sources/RecordedNov15Check.swift).
+if CommandLine.arguments.contains("--nov15sounds") {
+    RecordedNov15Check.run(game, check)
+    print(failures == 0 ? "nov15sounds: all checks passed" : "nov15sounds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --cratermesh: a far crater's laid-open rock meshes (Sources/BuriedOpenCheck.swift).
 if CommandLine.arguments.contains("--cratermesh") {
     BuriedOpenCheck.run(game, check)
@@ -4664,6 +4669,7 @@ leaves("lift") { LiftCheck.run(game, check) }
 leaves("tip") { StructureTipCheck.run(game, check) }
 leaves("cratermesh") { BuriedOpenCheck.run(game, check) }
 leaves("floatpieces") { FloatPiecesCheck.run(game, check) }        // (Nov 14 20:58:21: what a battle leaves lying falls when its support goes)
+leaves("nov15sounds") { RecordedNov15Check.run(game, check) }
 leaves("navy") { NavyTests.run(game: game, check: check) }
 leaves("skiff") { SkySkiffTests.run(game: game, check: check) }
 leaves("mapfog") { MapFogTests.run(game: game, check: check) }

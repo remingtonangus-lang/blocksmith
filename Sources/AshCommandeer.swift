@@ -233,7 +233,7 @@ extension Game {
         let from = pivot + fwd * 1.3
         arms.spawn(Slug(pos: from, vel: Guns.scatter(fwd, 0.012) * 150, kind: .bullet, damage: 5, fromPlayer: true,
                         shooter: ObjectIdentifier(m), by: "Player", life: 0.6, gravity: 1.5))
-        sfx(.gun(Guns.rifle), 0.9, at: from)
+        if !RecordedNov15.coaxRound(self, at: from) { sfx(.gun(Guns.rifle), 0.9, at: from) }     // (Nov 15: the recorded stream, RecordedAudio)
         AshSeat.shots += 1
     }
 

@@ -358,6 +358,58 @@ extension Snd {
         case .ladderClimb: return positional ? "Ladder clanks" : nil
         case .armourHit: return "Blade strikes armour"
         case .packRustle: return nil
+        // Nov 15 recordings.
+        case .trainCoachLoop: return nil
+        case .trainPassLoop: return "Train rumbles past"
+        case .trainIdleLoop: return "Train idles"
+        case .trainBrakes: return "Train brakes squeal"
+        case .trainDepart: return "Train pulls away"
+        case .trainCoupler: return "Couplings clunk"
+        case .trainWhistleShort: return "Train whistles"
+        case .stationBell: return "Station bell rings"
+        case .coachDoor: return "Coach door slams"
+        case .treeCrack: return "Tree cracks"
+        case .treeLand, .treeFallSmall: return "Tree falls"
+        case .treeLandSnow: return "Tree falls into snow"
+        case .logRoll: return "Log rolls"
+        case .elevatorLoop: return nil
+        case .elevatorArrive: return "Lift arrives"
+        case .elevatorDoors: return "Lift doors slide"
+        case .garageDoor: return "Shutter door rolls"
+        case .radarLoop: return nil
+        case .radarContact: return "Radar contact"
+        case .radarWarning: return "Radar warning"
+        case .crawlerLoop: return "Crawler engine roars"
+        case .crawlerStop: return "Crawler grinds to a halt"
+        case .carriageTrees: return "Trees crash down"
+        case .vehicleHatch: return "Hatch clangs"
+        case .tankMGLoop: return "Machine gun fires"
+        case .tankMGTail: return nil
+        case .casingsSteel: return positional ? "Casings rattle" : nil
+        case .chuteOpen: return "Parachute opens"
+        case .chuteLoop: return nil
+        case .chuteLand: return "Parachute lands"
+        case .wallCollapse: return "Wall collapses"
+        case .concreteBreak: return "Concrete breaks"
+        case .bulletIce: return "Bullet hits ice"
+        case .sealBoom: return "Deep boom"
+        case .cityCrowdLoop: return "Crowd murmurs"
+        case .marketLoop: return "Market bustles"
+        case .crowdPanicLoop: return "Crowd screams"
+        case .cityFightLoop: return "Fighting in the streets"
+        case .questAccept: return "Contract taken"
+        case .questDone: return "Contract done"
+        case .questFail: return "Contract failed"
+        case .convoyCartLoop: return "Cart rattles"
+        case .customsGate: return "Customs gate"
+        case .wellBucket: return "Bucket drawn up"
+        case .houseBought: return "House bought"
+        case .volcanoLoop: return "Volcano rumbles"
+        case .sheetIceStep: return positional ? "Ice creaks underfoot" : nil
+        case .snowyBush: return nil
+        case .chairSit: return nil
+        case .drawerOpen: return "Drawer slides"
+        case .faustShoulder: return nil
         case .bulletFlesh: return "Bullet hits flesh"
         case .grenadeBounce: return "Grenade bounces"
         case .soldier(_, let b):

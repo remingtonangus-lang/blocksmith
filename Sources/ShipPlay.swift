@@ -467,7 +467,7 @@ extension Game {
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
-        sfx(.helmTake, 0.8, at: player.pos)
+        sfx(s.name == AshCommandeer.tankName ? RecordedNov15.pick(.vehicleHatch, .helmTake) : .helmTake, 0.8, at: player.pos)
         // Controls show as prompts (VehicleControls.prompts); ships and aircraft hold their throttle.
         onToast?("Steering \(s.name)")
     }

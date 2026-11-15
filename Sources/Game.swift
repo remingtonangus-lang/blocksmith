@@ -2361,6 +2361,7 @@ final class Game: LifeLinked {
             || (k == "cave_vines" && b != Blocks.groupBase[Int(b)])          // a podded lanternvine is picked (P125)
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
             || k == BaseSafes.block || k == BaseMaterials.crate || ChairSeat.seatTop(k) != nil || k == Depots.shutter || Elevators.usable(k)
+            || (k.hasSuffix("_desk") && !RecordedNov15.oldDeskDrawer)
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -2438,6 +2439,12 @@ final class Game: LifeLinked {
             let be = world.entity(p, .chest)
             world.blockEntities[p] = be
             openMenu(ChestMenu(game: self, container: be.container, title: "Barrel"))
+        case _ where k.hasSuffix("_desk") && !RecordedNov15.oldDeskDrawer:
+            // Nov 15: a desk's drawer pedestal holds things (a chest's room, kept as a block entity and spilled when the
+            // desk is broken, like a barrel's); it opens with the drawer sound. BS_OLDDESKDRAWER=1: a desk is only a block.
+            let be = world.entity(p, .chest)
+            world.blockEntities[p] = be
+            openMenu(ChestMenu(game: self, container: be.container, title: "Desk Drawer"))
         case BaseMaterials.crate:                                        // P254 (BaseMaterials.swift)
             openMenu(ChestMenu(game: self, container: crateEntity(p).container, title: "Supply Crate"))
         case "bell":
@@ -2813,7 +2820,10 @@ final class Game: LifeLinked {
         var fluidHit: IVec3?
         let dir = player.look
         var t: Float = 0
-        while t < 5 {
+        // Nov 15 (a well's bucket on its rope): looking straight down a shaft, an empty bucket reaches water 12 blocks
+        // below (a village well's water lies 9 under its rim); anywhere else it reaches 5 as before. BS_OLDWELLREACH=1: 5.
+        let reach: Float = k == "bucket" && dir.y < -0.8 && !RecordedNov15.oldWellReach ? 12 : 5
+        while t < reach {
             let q = player.eye + dir * t
             let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
             let b = world.block(c.x, c.y, c.z)
@@ -2825,7 +2835,11 @@ final class Game: LifeLinked {
             let cur = world.block(f.x, f.y, f.z)
             let lava = Blocks.fluidKind[Int(cur)] == 2, fuel = Blocks.fluidKind[Int(cur)] == 3
             world.setBlock(f.x, f.y, f.z, Blocks.isWaterlogged(cur) ? Blocks.dry[Int(cur)] : AIR)      // drains a waterlogged block
-            sfx(lava ? .fizz : .splash, 0.4)
+            // Past arm's length it was drawn up a shaft: only a narrow one (walls on two sides over the water) counts.
+            let drawn = t > 5 && RecordedNov15.shaft(world, f)
+            if t > 5 && !drawn { return false }
+            sfx(lava ? .fizz : (drawn ? RecordedNov15.pick(.wellBucket, .splash) : .splash), drawn ? 0.8 : 0.4)
+            if drawn { RecordedNov15.note(.wellBucket) }
             if survival {
                 consumeHeld()
                 let rest = inventory.add(ItemStack(Items.id(lava ? "lava_bucket" : (fuel ? VehicleDepot.bucketKey : "water_bucket")), 1))
@@ -3473,7 +3487,12 @@ final class Game: LifeLinked {
             || ShapeClass.kind[Int(world.builtBlock(px, py + 1, pz))] == .foliage      // P417 (a): crushing through leaves
         if plant && moved > 0.01 && !p.flying && !p.inWater && riding == nil {     // on foot, not swimming or riding
             plantBrushDist += moved
-            if plantBrushDist > (p.sneaking ? 2.4 : 1.2) { plantBrushDist = 0; plantBrushes += 1; sfx(.plantBrush, p.sneaking ? 0.25 : (p.sprinting ? 0.75 : 0.55), at: p.pos + V3(0, 0.4, 0)) }
+            if plantBrushDist > (p.sneaking ? 2.4 : 1.2) {
+                plantBrushDist = 0; plantBrushes += 1
+                // (Nov 15: through a bush in snow country, the snow slides off it)
+                let snowy = !RecordedNov15.off && ShapeClass.kind[Int(world.builtBlock(px, py + 1, pz))] == .foliage && AmbientBiomes.snowy.contains(world.gen.column(px, pz).biome)
+                sfx(snowy ? .snowyBush : .plantBrush, p.sneaking ? 0.25 : (p.sprinting ? 0.75 : 0.55), at: p.pos + V3(0, 0.4, 0))
+            }
         } else if !plant { plantBrushDist = 0.9 }
         // P457: climbing a ladder: a rung every block climbed; clanking where it is bolted to metal, wooden steps otherwise.
         if !p.onGround && !p.flying && !p.inWater && abs(p.pos.y - before.y) > 0.001 {
@@ -3493,7 +3512,8 @@ final class Game: LifeLinked {
         if stepDist > (p.sprinting ? 2.1 : 1.7) {
             stepDist = 0
             let under = world.materialAt(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
-            if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.22 : 0.9) }      // P367: crouched steps are hushed
+            let sheet = !RecordedNov15.off && Game.seaIceID != AIR && Blocks.groupBase[Int(under)] == Blocks.groupBase[Int(Game.seaIceID)]
+            if under != AIR { sfx(sheet ? .sheetIceStep : .step(soundMat(under)), p.sneaking ? 0.22 : 0.9) }      // P367: crouched steps are hushed (Nov 15: sheet ice rings)
             else if clock - Trains.roofAt < 0.3 { sfx(.step(.wood), p.sneaking ? 0.22 : 0.9) }   // Q2: a car's roof boards
         }
     }

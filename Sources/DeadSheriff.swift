@@ -52,7 +52,7 @@ enum DeadSheriff {
         m.town.think = cooldown * Rand.float(in: 0.8...1.3)
         m.town.swing = 0.3
         m.town.fired += 1
-        if m.town.fired >= SixIron.rounds { m.town.reload = reloadTime; g.sfx(.gunReload(WeaponAudio.sidearmSlot), 0.6, at: m.eye) }
+        if m.town.fired >= SixIron.rounds { m.town.reload = reloadTime; g.sfx(Guns.reloadSound(Guns.revolver), 0.6, at: m.eye) }
         let o = muzzle(m)
         g.sfx(.gun(WeaponAudio.sidearmSlot), 1, at: o)
         g.particles.smoke(at: o)

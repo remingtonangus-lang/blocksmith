@@ -108,6 +108,15 @@ enum Snd: Hashable {
     case tankEngineLoop, tankTracksLoop, truckEngineLoop, motorbikeLoop, rotorLoop, jetpackLoop, frigateInsideLoop
     case battleLoop, forestDayLoop, townLoop, saloonPianoLoop
     case planeFlyby, sonarPing, shipHorn, airRaidSiren, tankCannon, flakFire, dartTrap, ladderClimb, armourHit, packRustle
+    // Nov 15 recordings (tools/elevenlabs_nov15.py, docs/status/elevenlabs-takes.md). Recording only, as P457's: with no
+    // file each plays its synthStandIn, which also sets the loudness the recording is matched to.
+    case trainCoachLoop, trainPassLoop, trainIdleLoop, trainBrakes, trainDepart, trainCoupler, trainWhistleShort, stationBell, coachDoor
+    case treeCrack, treeLand, treeFallSmall, treeLandSnow, logRoll
+    case elevatorLoop, elevatorArrive, elevatorDoors, garageDoor
+    case radarLoop, radarContact, radarWarning, crawlerLoop, crawlerStop, carriageTrees, vehicleHatch
+    case tankMGLoop, tankMGTail, casingsSteel, chuteOpen, chuteLoop, chuteLand, wallCollapse, concreteBreak, bulletIce, sealBoom
+    case cityCrowdLoop, marketLoop, crowdPanicLoop, cityFightLoop, questAccept, questDone, questFail, convoyCartLoop
+    case customsGate, wellBucket, houseBought, volcanoLoop, sheetIceStep, snowyBush, chairSit, drawerOpen, faustShoulder
 
     var synthStandIn: Snd? {
         switch self {
@@ -130,6 +139,52 @@ enum Snd: Hashable {
         case .ladderClimb: return .step(.metal)
         case .armourHit: return .parryClang
         case .packRustle: return .bundleInsert
+        case .trainCoachLoop, .trainPassLoop, .convoyCartLoop: return .wheelRollLoop
+        case .trainIdleLoop: return .engineIdleLoop
+        case .trainBrakes: return .scrape
+        case .trainDepart: return .steamChuff
+        case .trainCoupler: return .anvilLand
+        case .trainWhistleShort: return .trainWhistle
+        case .stationBell: return .bell
+        case .coachDoor, .houseBought: return .doorOpen
+        case .treeCrack: return .hullCreak
+        case .treeLand: return .shipCollideHard
+        case .treeFallSmall, .snowyBush: return .plantBrush
+        case .treeLandSnow: return .fall(.snow)
+        case .logRoll: return .hit(.wood)
+        case .elevatorLoop: return .turretTraverseLoop
+        case .elevatorArrive: return .ironDoorClose
+        case .elevatorDoors: return .ironDoorOpen
+        case .garageDoor: return .ironTrapdoorOpen
+        case .radarLoop: return .stationHumLoop
+        case .radarContact: return .amethystChime
+        case .radarWarning, .questAccept: return .toast
+        case .crawlerLoop: return .carriageTreadLoop
+        case .crawlerStop: return .hullCreak
+        case .carriageTrees: return .breakBlock(.wood)
+        case .vehicleHatch: return .ironTrapdoorClose
+        case .tankMGLoop: return .turretTraverseLoop
+        case .tankMGTail: return .gun(1)
+        case .casingsSteel: return .step(.metal)
+        case .chuteOpen: return .windGust
+        case .chuteLoop: return .elytraLoop
+        case .chuteLand: return .land
+        case .wallCollapse: return .rockfall
+        case .concreteBreak: return .breakBlock(.stone)
+        case .bulletIce: return .bulletImpact(.glass)
+        case .sealBoom: return .mainGunRumble
+        case .cityCrowdLoop, .marketLoop, .crowdPanicLoop: return .townLoop
+        case .cityFightLoop: return .battleLoop
+        case .questDone: return .levelUp
+        case .questFail: return .uiBack
+        case .customsGate: return .gateOpen
+        case .wellBucket: return .bucketFill
+        case .volcanoLoop: return .lavaLoop
+        case .sheetIceStep: return .step(.glass)
+        case .chairSit: return .place(.wood)
+        case .drawerOpen: return .barrelOpen
+        case .faustShoulder: return .gunReload(4)
+        case .gunReload(WeaponAudio.revolverReloadSlot): return .gunReload(WeaponAudio.sidearmSlot)
         default: return nil
         }
     }
@@ -178,6 +233,10 @@ enum Snd: Hashable {
         case .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop: return .ambient
         case .jetpackLoop, .tankCannon, .flakFire, .ladderClimb, .armourHit, .packRustle: return .players
         case .airRaidSiren: return .hostile
+        case .tankMGLoop, .tankMGTail, .casingsSteel, .bulletIce, .faustShoulder, .chuteOpen, .chuteLoop, .chuteLand, .sheetIceStep, .snowyBush, .chairSit:
+            return .players
+        case .cityCrowdLoop, .marketLoop, .crowdPanicLoop, .cityFightLoop, .convoyCartLoop, .volcanoLoop: return .ambient
+        case .questAccept, .questDone, .questFail, .houseBought: return .ui
         default: return .blocks
         }
     }
@@ -208,6 +267,11 @@ enum Snd: Hashable {
         case .rotorLoop, .planeFlyby: return 128
         case .tankCannon, .flakFire: return 128
         case .sonarPing: return 64
+        case .trainCoachLoop, .trainIdleLoop, .stationBell, .treeCrack, .treeLand, .treeLandSnow, .wallCollapse: return 48
+        case .trainPassLoop, .trainDepart, .trainBrakes, .carriageTrees: return 96
+        case .trainWhistleShort, .sealBoom: return 160
+        case .crawlerLoop, .crawlerStop, .tankMGLoop, .tankMGTail: return 128
+        case .trainCoupler, .garageDoor, .elevatorLoop, .elevatorArrive, .elevatorDoors, .convoyCartLoop: return 32
         case .shipHorn, .airRaidSiren: return 400
         case .waterfallLoop: return 32
         case .raidHorn, .goatHorn, .bellResonate: return 96
@@ -232,7 +296,9 @@ enum Snd: Hashable {
              .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
              .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop, .fallRushLoop, .ashSiren, .ashMarchSong,
              .tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .rotorLoop, .jetpackLoop, .frigateInsideLoop,
-             .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop:
+             .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop,
+             .trainCoachLoop, .trainPassLoop, .trainIdleLoop, .elevatorLoop, .radarLoop, .crawlerLoop, .tankMGLoop, .chuteLoop,
+             .cityCrowdLoop, .marketLoop, .crowdPanicLoop, .cityFightLoop, .convoyCartLoop, .volcanoLoop:
             return true
         default: return false
         }
@@ -265,6 +331,7 @@ enum Snd: Hashable {
 
     // Expected clip length (seconds) for the offline check.
     var expectedSeconds: ClosedRange<Float> {
+        if let st = synthStandIn, SoundBank.recordedNov15.contains(self) { return st.expectedSeconds }
         switch self {
         case .step, .hit: return 0.02...0.7
         case .gun(let k): return k == 9 ? 1.0...6 : (k == 7 ? 0.03...0.4 : 0.1...3)
@@ -371,7 +438,7 @@ final class SoundBank {
         s += [.shellIncoming, .ashSiren, .ashMarchSong, .depthBoom]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         for k in 0...5 { s.append(.hoof(k)) }
-        s += approvedSounds
+        s += approvedSounds + recordedNov15
         return s
     }
 
@@ -391,6 +458,14 @@ final class SoundBank {
     static let approvedSounds: [Snd] = [.tankEngineLoop, .tankTracksLoop, .truckEngineLoop, .motorbikeLoop, .rotorLoop, .jetpackLoop,
         .frigateInsideLoop, .battleLoop, .forestDayLoop, .townLoop, .saloonPianoLoop, .planeFlyby, .sonarPing, .shipHorn, .airRaidSiren,
         .tankCannon, .flakFire, .dartTrap, .ladderClimb, .armourHit, .packRustle]
+    // Nov 15: the 77 recorded sounds' new events (the rest drop into slots that were already there).
+    static let recordedNov15: [Snd] = [.trainCoachLoop, .trainPassLoop, .trainIdleLoop, .trainBrakes, .trainDepart, .trainCoupler,
+        .trainWhistleShort, .stationBell, .coachDoor, .treeCrack, .treeLand, .treeFallSmall, .treeLandSnow, .logRoll,
+        .elevatorLoop, .elevatorArrive, .elevatorDoors, .garageDoor, .radarLoop, .radarContact, .radarWarning, .crawlerLoop, .crawlerStop,
+        .carriageTrees, .vehicleHatch, .tankMGLoop, .tankMGTail, .casingsSteel, .chuteOpen, .chuteLoop, .chuteLand, .wallCollapse,
+        .concreteBreak, .bulletIce, .sealBoom, .cityCrowdLoop, .marketLoop, .crowdPanicLoop, .cityFightLoop, .questAccept, .questDone,
+        .questFail, .convoyCartLoop, .customsGate, .wellBucket, .houseBought, .volcanoLoop, .sheetIceStep, .snowyBush, .chairSit,
+        .drawerOpen, .faustShoulder, .gunReload(WeaponAudio.revolverReloadSlot)]
     static var vehicleSounds: [Snd] {
         [.mainGunCharge, .mainGunFire, .mainGunRumble,            // first: long renders, wanted the moment a frigate fires
          .engineStart, .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,

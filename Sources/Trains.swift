@@ -693,7 +693,7 @@ enum Trains {
             if steam { g.particles.smoke(at: top, dark: true); g.particles.smoke(at: top + V3(0, 0.4, 0), dark: false) }
             if sp > 0.3 || stop != nil { g.sfx(.steamChuff, steam ? 0.7 : 0.5, at: top) }
         }
-        if let st = stop, t.at(tr.time + 2).stop == nil, t.at(tr.time - Double(dt)).stop == st, tr.brake < 0.1 { whistle(g, tr) }
+        if let st = stop, t.at(tr.time + 2).stop == nil, t.at(tr.time - Double(dt)).stop == st, tr.brake < 0.1 { whistle(g, tr, short: true) }   // (Nov 15: two short toots leaving)
         if t.armoured || tr.bullion || tr.kind == .troop { gunCar(g, tr, dt) }
     }
 
@@ -835,14 +835,14 @@ enum Trains {
     // two seconds of its stand. One whistle a train in any three seconds. BS_OLDWHISTLE=1: every ask sounds.
     static let oldWhistle = ProcessInfo.processInfo.environment["BS_OLDWHISTLE"] == "1"
     static var whistles = 0                                 // (checks: whistles sounded)
-    static func whistle(_ g: Game, _ tr: Train) {
+    static func whistle(_ g: Game, _ tr: Train, short: Bool = false) {
         guard let lead = lead(tr) else { return }
         if !oldWhistle {
             guard g.clock - tr.whistledAt > 3 || g.clock < tr.whistledAt else { return }
             tr.whistledAt = g.clock
         }
         whistles += 1
-        g.sfx(.trainWhistle, tr.track.armoured ? 0.7 : 1, at: chimney(lead))
+        g.sfx(short ? RecordedNov15.pick(.trainWhistleShort, .trainWhistle) : .trainWhistle, tr.track.armoured ? 0.7 : 1, at: chimney(lead))
     }
 
     // MARK: Hold-ups and robbery
@@ -874,7 +874,7 @@ enum Trains {
             if g.riding != nil { g.dismount() }
             g.riding = m
             g.player.pos = seat(m)
-            g.sfx(.armorEquip(0), 0.5, at: m.pos)
+            g.sfx(m.variant == coach ? RecordedNov15.pick(.coachDoor, .armorEquip(0)) : .armorEquip(0), 0.5, at: m.pos)
             g.onToast?("Riding the \(tr.track.name)")         // P300 (b)
             return true
         case express:

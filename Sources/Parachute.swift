@@ -36,7 +36,8 @@ extension Game {
         player.parachute = true
         player.airPeak = player.pos.y
         Parachute.openedAt = clock
-        sfx(.armorEquip(0), 1.2, at: player.eye)
+        sfx(RecordedNov15.pick(.chuteOpen, .armorEquip(0)), 1.2, at: player.eye)
+        RecordedNov15.chute = true
     }
 
     // His canopy, and the soldiers' within 96 blocks.
