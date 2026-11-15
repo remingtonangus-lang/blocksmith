@@ -55,7 +55,38 @@ enum RailwayTests {
     // its diagonal when drawn and run); the plans keep their rules; a line whose old way lies on ground saved before
     // N12 keeps that way exactly (the gate); a train's heading turns at most a few tens of degrees a block (it was 90
     // in one cell at every dog-leg) and it runs the timetable's pace along the smoothed line, diagonal or straight.
+    // Ledger 140: straight legs at five angles, rastered as the plans raster them: the smoothed centres keep within a
+    // quarter of a block of the true line and the heading swings under 3 degrees a cell (four plain passes swung it
+    // 8.6 degrees a cell: the sway); a right-angle turn eased at radius 5 keeps within a block of its cells.
+    static func sway(_ check: (Bool, String) -> Void) {
+        var worstOff: Float = 0, worstTurn: Float = 0, worstAt = ""
+        for (dx, dz) in [(60, 12), (60, 7), (55, 31), (9, 60), (60, 5)] as [(Float, Float)] {
+            let cells = Railways.rasterPolyline([(0, 0), (dx, dz)])
+            let raw = cells.map { SIMD3<Float>(Float($0.0), 0, Float($0.1)) }
+            let sm = ShapeRails.smoothed(raw)
+            let len = hypotf(dx, dz), nx = -dz / len, nz = dx / len
+            // (the ends are held on their cells: the first and last 14 cells ease onto the line and are left out)
+            guard sm.count > 40 else { continue }
+            var last: Float? = nil
+            for i in 14..<(sm.count - 14) {
+                let off = abs(sm[i].x * nx + sm[i].z * nz)
+                let h = atan2f(sm[i + 1].z - sm[i].z, sm[i + 1].x - sm[i].x) * 180 / .pi
+                if let l = last { let t = abs(h - l); if t > worstTurn { worstTurn = t; worstAt = "\(Int(dx)):\(Int(dz))" } }
+                last = h
+                worstOff = max(worstOff, off)
+            }
+        }
+        let turn = Railways.rasterPolyline(Railways.roundPolyline([(0, 0), (40, 0), (40, 40)], radius: 5))
+        let rawT = turn.map { SIMD3<Float>(Float($0.0), 0, Float($0.1)) }
+        let smT = ShapeRails.smoothed(rawT)
+        var far: Float = 0
+        for i in rawT.indices { far = max(far, hypotf(smT[i].x - rawT[i].x, smT[i].z - rawT[i].z)) }
+        let ok = ShapeRails.oldSway ? worstTurn > 5 : (worstOff < 0.25 && worstTurn < 3 && far < 1.1)
+        check(ok, String(format: "ledger 140: a straight leg at any angle is drawn and run straight (off the line by at most %.2f of a block, heading swings %.1f deg a cell; a turn keeps within %.2f of its cells)", worstOff, worstTurn, far) + ", worst leg \(worstAt)")
+    }
+
     static func diagonals(_ check: (Bool, String) -> Void) {
+        sway(check)
         guard !Railways.oldRails else { print("rail: N12 diagonals skipped (BS_OLDRAILS=1)"); return }
         var lines = 0, diag = 0, legs = 0, bad: [String] = [], gateOK = 0, gateTried = 0
         var worstTurn: Float = 0, worstOldTurn: Float = 0, worstPace: Float = 0, longest = 0
@@ -653,6 +684,23 @@ enum RailwayTests {
             } else { check(false, "P508 military arrival: no guard car") }
             TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
         } else { check(false, "P508 military arrival: no train could be put on the line") }
+        // Ledger 139: a troop train that came as an arrival, the arrival over, a car of it gone from the world: the train
+        // is made again where it stands, and it is still a troop train (it came back as the line's train of the day).
+        Trains.trains.removeAll()
+        if let mtr = TrainArrivals.arrive(g, [t], kind: .troop) {
+            let fk = Trains.forceKind
+            Trains.forceKind = nil
+            Trains.build(g, mtr)
+            TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
+            let today = Trains.kind(t, day: Int(g.time / DAY_LENGTH))
+            if let lost = mtr.cars.last { g.mobs.mobs.removeAll { $0 === lost } }
+            Trains.build(g, mtr)
+            let want: Trains.Kind = Trains.oldRekind ? today : .troop
+            check(mtr.kind == want && mtr.cars.contains { $0.variant == Trains.gunCar } == (want == .troop),
+                  "ledger 139: a troop train made again where it stands is still a troop train (kind \(mtr.kind), the line's train today \(today))")
+            Trains.forceKind = fk
+            Trains.remove(g, mtr)
+        } else { check(false, "ledger 139: no train could be put on the line") }
         // P510: a troop train taken from inside: aboard a troop car its soldiers stay in their compartments (none pile
         // out); the engine is refused while one still rides it; with them down he takes the engine, its guard car's gun
         // no longer fires on him, and he works that gun: a shell each time he fires it.
@@ -690,6 +738,37 @@ enum RailwayTests {
                       + "with them down he takes it (\(took)), its guard car's gun goes quiet on him (\(quiet)) and he works it (\(manned)), a shell a shot (\(fired))")
             } else { check(false, "P510 military train: no troop car, engine or guard car (\(mtr.cars.map { $0.variant }))") }
         } else { check(false, "P510 military train: no train could be put on the line") }
+        // Ledger 137: a train leaving a stop whistles once (it whistled on every frame of the stand's last two seconds).
+        for old in Trains.trains.values where !old.cars.isEmpty { Trains.remove(g, old) }
+        Trains.trains.removeAll()
+        TrainGun.shared.leave(g)
+        if g.riding != nil { g.dismount() }
+        g.player.pos = V3(Float(sc.x) + 0.5, Float(sc.y), Float(sc.z - 2) + 0.5)
+        _ = world.loadSync(center: g.player.pos, radius: 4)
+        for k in 0..<Int(t.period) + 1 where t.at(g.time + Double(k)).stop == si { g.time += Double(k) + 2; break }
+        Trains.forceKind = .passenger
+        Trains.tick(g)
+        if let tr2 = Trains.trains[t.id], !tr2.cars.isEmpty {
+            // (its own track's timetable: the line's circuit once its loops are planned) to two seconds into its next stand
+            let tk = tr2.track
+            for k in 0..<Int(tk.period) + 1 where tk.at(g.time - tr2.delay + Double(k)).stop != nil { g.time += Double(k) + 2; break }
+            tr2.time = g.time - tr2.delay
+            Trains.place(g, tr2, dt: 0)
+            if let lead = tr2.cars.first { g.player.pos = lead.pos + V3(4, 0, 0) }
+            let stood = tk.at(tr2.time).stop != nil
+            let w0 = Trains.whistles
+            var left = false, frames = 0
+            while frames < Int((Trains.dwell + 6) * 72) && !(left && frames % 72 == 0) {
+                g.time += 1.0 / 72; g.clock += 1.0 / 72
+                tr2.time = g.time - tr2.delay
+                Trains.place(g, tr2, dt: 1.0 / 72)
+                if tk.at(tr2.time).stop == nil { left = true }
+                frames += 1
+            }
+            let n = Trains.whistles - w0
+            check(stood && left && n == 1, "ledger 137: a train leaving a station whistles once (\(n) whistles in the \(frames) frames to its leaving\(stood ? "" : "; it was not at a stop")\(left ? "" : "; it never left"))")
+            Trains.remove(g, tr2)
+        } else { check(false, "ledger 137: no train stands at \(st.name) Station") }
         Trains.trains.removeAll()
     }
 
@@ -713,15 +792,48 @@ enum RailwayTests {
         let tally0 = Railways.tally
         Railways.tally = { k in whyLock.lock(); why[k, default: 0] += 1; whyLock.unlock() }
         defer { Railways.tally = tally0 }
+        var crossings = 0, onLinks = 0, ranOn = 0, seaCells = 0, longest = 0, fedTwice = 0
+        var seenPairs = Set<String>()
         for k in 0..<12 {
             let seed = UInt64(1000 + k * 7919)
             let gen = WorldGen(seed: seed)
             gen.fieldWorld = true
-            for l in Railways.near(gen, x0: -6000, z0: -6000, x1: 6000, z1: 6000, pad: 0) {
+            // (ledger 135: no link's track over another track's cells, no start run into by two links)
+            var owner: [Int64: Int64] = [:], fed: [Int64: Int] = [:]
+            let all = Railways.near(gen, x0: -6000, z0: -6000, x1: 6000, z1: 6000, pad: 0)
+            for l in all { for c in l.cells { owner[Railways.colKey(c.x, c.z)] = l.id } }
+            for l in all {
                 lines += 1
                 let (row, st) = Railways.rowStretch(l.id)
                 guard let lk = Railways.link(gen, row: row, stretch: st), let b = Railways.linkTarget(gen, lk) else { continue }
                 linked += 1
+                fed[b.id, default: 0] += 1
+                if fed[b.id]! == 2 { fedTwice += 1 }
+                if lk.runOn {
+                    ranOn += 1; longest = max(longest, lk.cells.count)
+                    // (where to look at one: its first cell over the sea, its highest over the land, its middle)
+                    if ranOn <= 6 {
+                        let sea = lk.cells.first { gen.column($0.x, $0.z).biome.isOcean }
+                        let mid = lk.cells[lk.cells.count / 2]
+                        print("rail links: seed \(seed) run-on link of \(lk.cells.count) cells from \(lk.cells[0]) to \(lk.cells[lk.cells.count - 1]), middle \(mid), first sea cell \(sea.map { "\($0)" } ?? "none")")
+                    }
+                }
+                for (i, c) in lk.cells.enumerated() {
+                    if lk.runOn && i % 4 == 0 && gen.column(c.x, c.z).biome.isOcean { seaCells += 4 }
+                    let ck = Railways.colKey(c.x, c.z)
+                    if let o = owner[ck], o != lk.id {
+                        crossings += 1
+                        if Railways.isLink(o) { onLinks += 1 }
+                        if crossings <= 4 { bad.append("seed \(seed) \(lk.name): \(lk.runOn ? "run-on " : "")link cell \(c) on another \(Railways.isLink(o) ? "link" : "line")") }
+                        // (which two: their rows and stretches, far or near, once a pair)
+                        let pair = "\(lk.id) \(o)"
+                        if seenPairs.insert(pair).inserted, seenPairs.count <= 12 {
+                            let (r2, t2) = Railways.rowStretch(o)
+                            print("rail links: seed \(seed) overlap: link of row \(row) stretch \(st) (\(Railways.isFar(gen, row, st) ? "far" : "near"), run-on \(lk.runOn), \(lk.cells.count) cells, to \(Railways.rowStretch(lk.target))) on \(Railways.isLink(o) ? "the link" : "the line") of row \(r2) stretch \(t2) (\(Railways.isFar(gen, r2, t2) ? "far" : "near")) at \(c)")
+                        }
+                    }
+                    owner[ck] = lk.id
+                }
                 // Joined end to end: a's last cell, the link's cells, b's first, each a step on from the one before, the
                 // planned heights within a grade's step across both joins.
                 let chain = [l.cells.last!] + lk.cells + [b.cells.first!]
@@ -742,7 +854,8 @@ enum RailwayTests {
             }
         }
         whyLock.lock()
-        let whyText = why.filter { $0.key.hasPrefix("link") && !$0.key.hasPrefix("link route detail") }.sorted { $0.value > $1.value }.prefix(12).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        let whyText = why.filter { !$0.key.hasPrefix("link route detail") && !$0.key.hasPrefix("fewer") && !$0.key.hasPrefix("no run") }.sorted { $0.value > $1.value }.prefix(24).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        print("rail links: \(ranOn) of the \(linked) by the run-on rule (ledger 135), the longest \(longest) cells, about \(seaCells) cells over the sea; \(crossings) cells on another track (\(onLinks) of them on another link), \(fedTwice) starts run into twice")
         for d in why.keys.filter({ $0.hasPrefix("link route detail") }).sorted().prefix(16) { print("rail links: " + d) }
         whyLock.unlock()
         print(String(format: "rail links: %d of %d lines run on to the next (%.1f s); no link: ", linked, lines, CFAbsoluteTimeGetCurrent() - t0) + whyText)

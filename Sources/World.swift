@@ -639,6 +639,7 @@ final class World: LifeLinked {
         return b
     }
 
+    var placeCube = false                    // (ledger 136: the main thread, round one write)
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return }
         // P389: a struck object's cell changed by anything but the object itself (a blast, a bucket): the object is
@@ -655,8 +656,14 @@ final class World: LifeLinked {
         if World.editTally != nil { World.editTally![UInt64(old) << 16 | UInt64(id), default: 0] += 1 }
         if TreeGhosts.on && old != id { treeGhosts.blockChanging(self, x, y, z, old, id) }      // (ledger 123, before the write)
         let wasGround = fieldTerrain && c.blocks.ground(Chunk.index(lx, y, lz))
-        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0) && !World.keepsGround(wasGround, id) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
-        c.blocks[Chunk.index(lx, y, lz)] = id
+        // Ledger 136 (placeCube, set by Game's place for the write): rock he places is a built cube, not a lump of ground.
+        let cube = placeCube && fieldTerrain && FieldMat.index[Int(id)] != 0
+        // (only this write: what the placement sets off, a piston's push, is the world's own)
+        let placing = placeCube
+        placeCube = false
+        defer { placeCube = placing }
+        if wasGround != (fieldTerrain && FieldMat.index[Int(id)] != 0 && !cube) && !World.keepsGround(wasGround, id) { ensureFine(c, y >> 4) }     // P377 step 1 (before the write)
+        if cube { c.blocks.setBuilt(Chunk.index(lx, y, lz), id) } else { c.blocks[Chunk.index(lx, y, lz)] = id }
         var fbox: (lo: IVec3, hi: IVec3)? = nil
         if old != id { fbox = measureChanges { fieldBlockChanged(x, y, z, old, id, wasGround: wasGround) } }      // PG1 (TerrainField.swift)
         if !redstone.isBusy && !circuitQuiet && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }

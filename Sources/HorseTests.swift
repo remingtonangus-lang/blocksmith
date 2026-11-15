@@ -424,8 +424,14 @@ enum HorseTests {
             // (A fright during the gallop above can leave a level-1 rear pending with its throw already rolled: settle it.)
             h.hs.bondXP = HorseFeel.levelXP[3]; h.hs.rear = 0; h.hs.rearThrow = false; h.hs.spookCool = 0; mount(h)
             defer { g.mobs.mobs.removeAll { $0 === h }; g.paused = wasPaused }
+            // (check fix 41, Nov 14: one full run in many still lost the rider here, "ridden false, thrown 1", and no
+            // run alone does. No fright may start during the presses, and the note says when the saddle was lost.)
+            let thrown0 = h.hs.thrown
+            var lost = ""
             func press(_ pitch: Float) -> Float {
                 for i in 0..<60 {
+                    h.hs.spookCool = 99
+                    if g.riding !== h && lost.isEmpty { lost = "saddle lost before tick \(i) of the press at pitch \(pitch), thrown \(thrown0) before the presses, horse health \(h.health), rear \(h.hs.rear)" }
                     var p = PadSnapshot()
                     if i == 50 || i == 51 { p.lt = 1 }
                     pm.simulated = p
@@ -442,7 +448,7 @@ enum HorseTests {
             g.inventory.held = held
             g.eatProgress = 0
             check(ahead < 30 && down >= 40, String(format: "horse treats only when aimed at the horse: stamina 20 -> %.0f aimed ahead, -> %.0f aimed down at it", ahead, down)
-                  + (down >= 40 ? "" : " (" + treatWhy + ")"))
+                  + (down >= 40 ? "" : " (" + treatWhy + "; " + lost + ")"))
             g.riding = nil
         }
         // The gap pass (HorseGapTests.swift): breeds, names, taming, fear, injury, the stable, calling, comfort, hooves.

@@ -267,7 +267,9 @@ extension ShipManager {
         TickProf.mark("ships.shells")
         // Carry riders with their ship.
         for (m, s) in mobRiders where s.pos != s.prevPos || s.rot != s.prevRot {
-            m.pos = s.toWorld(s.prevToLocal(m.pos))
+            let mp = s.toWorld(s.prevToLocal(m.pos))
+            if !Player.oldGoodPos && !(simd_length(mp - m.pos) < 64) { continue }       // (ledger 138: as for him below)
+            m.pos = mp
             m.yaw += angleDelta(s.yaw, s.prevYaw)
             // Carried into the ground beside the hull (a crawler easing down onto its buried ramp foot): up to a block
             // up to free space, as Mob.update does for a rider that starts its step inside a block.
@@ -277,7 +279,9 @@ extension ShipManager {
             world.frame = nil
         }
         for (it, s) in itemRiders where s.pos != s.prevPos || s.rot != s.prevRot {
-            it.pos = s.toWorld(s.prevToLocal(it.pos))
+            let ip = s.toWorld(s.prevToLocal(it.pos))
+            if !Player.oldGoodPos && !(simd_length(ip - it.pos) < 64) { continue }
+            it.pos = ip
         }
         // Mobs a moving hull ran into are shoved aside (or lifted onto it when they are near its top).
         if let game {
@@ -323,7 +327,15 @@ extension ShipManager {
                 for s in self.list where (s === self.aboard || s === self.pilot) && (s.pos != s.prevPos || s.rot != s.prevRot) {
                     let p = game.player
                     let old = p.pos
-                    p.pos = s.toWorld(s.prevToLocal(p.pos))
+                    let np = s.toWorld(s.prevToLocal(p.pos))
+                    // (ledger 138: a hull whose place is not finite for a frame carries no one)
+                    // (and none is carried 64 blocks in a tick: he is left where he stands, off the deck)
+                    if !Player.oldGoodPos && !(simd_length(np - old) < 64) {
+                        Game.wildCarries += 1
+                        if self.aboard === s && self.pilot !== s { self.aboard = nil }
+                        continue
+                    }
+                    p.pos = np
                     p.yaw += self.angleDelta(s.yaw, s.prevYaw)
                     // Carried, not fallen: the fall height and the teleport check move with the deck (a frigate settling
                     // to the ground carries its riders down without fall damage; falls inside the hull still count).

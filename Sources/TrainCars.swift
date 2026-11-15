@@ -117,8 +117,8 @@ extension Trains {
 
     // MARK: Building a real-size train
 
-    static func buildBig(_ g: Game, _ tr: Train, day: Int) {
-        tr.kind = tr.bullion ? .bullion : (TrainArrivals.kindFor(tr.track.id) ?? kind(tr.track, day: day))
+    static func buildBig(_ g: Game, _ tr: Train, day: Int, keep: Kind? = nil) {
+        tr.kind = keep ?? (tr.bullion ? .bullion : (TrainArrivals.kindFor(tr.track.id) ?? kind(tr.track, day: day)))
         tr.fresh = true
         var cars = consist(tr.kind)
         // A short line: cars come out of the middle until the train fits between the buffers.
@@ -187,7 +187,9 @@ extension Trains {
             if back { d = -d }
             let p = t.point(sk)
             let along = simd_length(V2(d.x, d.z))
-            m.vel = dt > 0 ? simd_normalize(t.point(t.advance(sk, by: dir * 0.7)) - t.point(t.advance(sk, by: -dir * 0.7))) * (moving / max(dt, 1e-4)) : .zero
+            // (ledger 138: where the track gives no heading, at its very end, the car has no speed: it was 0/0)
+            let tan = t.point(t.advance(sk, by: dir * 0.7)) - t.point(t.advance(sk, by: -dir * 0.7))
+            m.vel = dt > 0 && (simd_length(tan) > 1e-5 || Player.oldGoodPos) ? simd_normalize(tan) * (moving / max(dt, 1e-4)) : .zero
             m.pos = p
             if along > 0.01 { m.yaw = atan2f(-d.x, -d.z); m.trainPitch = atan2f(d.y, along) }
             m.walkPhase += moving * dir * (back ? -1 : 1)           // (blocks run forward: the wheels turn by it)
@@ -336,6 +338,12 @@ extension Trains {
             for e: Float in [-28, 27.5] {                                          // the ends, a door in each
                 p.append(box(-6, 5, e, 4.5, 10.6, 0.5, lower, 7)); p.append(box(1.5, 5, e, 4.5, 10.6, 0.5, lower, 7))
                 p.append(box(-1.5, 13, e, 3, 2.6, 0.5, lower, 7))
+            }
+            if !TrainHulls.oldGangway {                                             // ledger 141: the gangway plates and their rails
+                for (z0, z1) in [(-29.6, -28), (28, 29.6)] as [(Float, Float)] {
+                    p.append(box(-2, 4.6, z0, 4, 0.4, z1 - z0, iron, 8))
+                    for x: Float in [-2, 1.7] { p.append(box(x, 5, z0, 0.3, 3.6, z1 - z0, iron, 8)) }
+                }
             }
             p.append(box(-6.3, 15.6, -28.2, 12.6, 0.8, 56.4, roof, 7))
             p.append(box(-3, 16.4, -27, 6, 0.8, 54, roof, 7))                      // the clerestory
