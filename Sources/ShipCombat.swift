@@ -595,7 +595,8 @@ extension ShipManager {
     // What a Tidebreaker slug does to vessels (Oct 11 playtest, G13: "against a crawler it should tear off a huge chunk
     // or destroy it outright"). Into a hull: a hole MainGun.hullTear blocks across torn through it and the drive
     // knocked out (a Capital vessel goes down, a crawler is wrecked). A near miss on the ground beside a vessel still
-    // tears the side nearest the blast, smaller with distance, and one within MainGun.disableMiss blocks wrecks it too.
+    // tears the side nearest the blast, smaller with distance, and one within MainGun.disableMiss blocks knocks out a
+    // flying vessel's drive too (a crawler stops only on what the tear takes: see disable below).
     func mainGunHullDamage(at p: V3, owner: Int, direct: Ship?, game g: Game) {
         // Nov 14 evening (21:04:32-21:04:55 by a stopped Ironback Crawler: "How did it get disabled?... I don't think this
         // thing had enough damage to its engines to stop like that... the tractor's intact"): a Tidebreaker hit on a
