@@ -131,8 +131,17 @@ final class Armory {
         return nil
     }
 
+    // Nov 14 evening (-10993 139 -2873, "they shot me through the tank armor"): driving a Cinder Tank he stood in its
+    // open hatch (AshCommandeer.tankHull: the hatch cell behind the helm, the deck one plate high), his body from the
+    // deck up in the open, and the crew that bailed out of it shot him dead there ("You were shot by Ashguard
+    // Driver"). At its helm he is buttoned up: rounds and bolts don't find him; they ring off the hull. Blasts still
+    // reach him by what they can see. BS_OLDTANKHATCH=1: as before.
+    static let oldTankHatch = ProcessInfo.processInfo.environment["BS_OLDTANKHATCH"] == "1"
+    static func buttonedUp(_ g: Game) -> Bool {
+        !oldTankHatch && g.world.ships.pilot?.root.name == AshCommandeer.tankName
+    }
     static func playerHit(_ g: Game, _ o: V3, _ d: V3, _ len: Float, pad: Float = 0) -> Float? {
-        guard g.survival && g.alive else { return nil }
+        guard g.survival && g.alive, !buttonedUp(g) else { return nil }
         let pp = g.player.pos
         let h = g.player.eye.y - pp.y + 0.2
         guard let r = World.rayBox(o, d, V3(pp.x - 0.3 - pad, pp.y - pad, pp.z - 0.3 - pad), V3(pp.x + 0.3 + pad, pp.y + h + pad, pp.z + 0.3 + pad)), r.0 <= len else { return nil }

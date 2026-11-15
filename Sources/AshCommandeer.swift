@@ -694,6 +694,15 @@ enum AshDriveCheck {
             let tur = hull.map { game.world.ships.turrets(of: $0) } ?? []
             check(took && hull?.name == AshCommandeer.tankName && !game.mobs.mobs.contains { $0 === v } && tur.count == 1 && !(tur.first?.cannons.isEmpty ?? true),
                   "Cinder Tank: taken, it is a hull of \(hull?.blockCount ?? 0) blocks and a turret of \(tur.first?.blockCount ?? 0) with its gun, at his helm")
+            do {                                          // (Nov 14 evening: shot through the tank's armour)
+                let surv0 = game.survival
+                game.survival = true
+                defer { game.survival = surv0 }
+                let mid = game.player.pos + V3(0, 1.2, 0)
+                let shots = [V3(6, 0, 0), V3(-6, 0.3, 0), V3(0, 0.5, 6), V3(3, 2, -4)].map { Armory.playerHit(game, mid + $0, simd_normalize(-$0), 12) }
+                check(Armory.oldTankHatch || shots.allSatisfy { $0 == nil },
+                      "Cinder Tank: at its helm he is buttoned up, no round from the sides, behind or above finds him in the hatch (\(shots.filter { $0 != nil }.count) of 4 would)")
+            }
             game.mobs.mobs.removeAll { $0.faction == Faction.ashguard.rawValue && !$0.kind.ashVehicle }
             for o in game.world.ships.list where o.root !== hull && o.parent == nil && hull.map({ simd_length(o.pos - $0.pos) < 24 }) == true { game.world.ships.remove(o) }
             run(10, act())
