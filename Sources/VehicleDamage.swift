@@ -123,7 +123,7 @@ enum Momentum {
         s.piloted && abs(s.throttleEase) > 0.25 && s.mass >= 300 && s.engines > 0
     }
 
-    // Ledger 146 (Nov 15 08:27:40-08:28:34, the Ironstride Siege Carriage in a forest at -6532 82 8952: "siege carriage
+    // Ledger 163 (Nov 15 08:27:40-08:28:34, the Ironstride Siege Carriage in a forest at -6532 82 8952: "siege carriage
     // is stuck", "this thing might need a little more torque", "It's not able to show these trees who's boss", "It's
     // stuck in the trees"): its push snaps the trunk ahead (shove, below) and the tree comes down as a body, a
     // physics hull of its own lying across the bow, and nothing a hull does shifts another hull's body: every tree it
@@ -208,7 +208,7 @@ enum Momentum {
                 cand.append((c, -1, b))
             }
         }
-        // What it rests on under its belly while it stands held (ledger 146): the block under that contact, and the ones
+        // What it rests on under its belly while it stands held (ledger 163): the block under that contact, and the ones
         // beside it across its way (the rest of the wall or the stump's neighbours it would sit on next).
         if s.bellyOn && simd_length(V2(s.vel.x, s.vel.z)) < 1.5 {
             let q = s.bellyAt - V3(0, 0.3, 0)

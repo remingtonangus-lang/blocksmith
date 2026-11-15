@@ -92,7 +92,7 @@ extension World {
         return fieldFill(lo, hi, inside, keep: IVec3(x, y, z))
     }
 
-    // Ledger 143 (Nov 15 08:45:01, bricks put into a hollow he had dug beside a floor: "Can't place blocks in here. And
+    // Ledger 160 (Nov 15 08:45:01, bricks put into a hollow he had dug beside a floor: "Can't place blocks in here. And
     // look, the ground doesn't come back to it"; "Still pretty unsatisfying, building"; 08:46:27 "Nearly unplayable").
     // A blow on the ground takes a cell and rounds the ground of the cells beside it down into a bowl; a block put back
     // in that cell is a cube, so the bowl stayed open all round it. The ground of the cells round a full block he

@@ -110,7 +110,7 @@ extension AimAssist {
     static func sticky(_ g: Game, _ t: (hit: IVec3, normal: IVec3)?, reach: Float) -> (hit: IVec3, normal: IVec3)? {
         guard Settings.shared.aimAssist, PadManager.shared.usingPad || Coop.secondSeat, let prev = last else { last = t; return t }
         if let t = t, t.hit == prev.hit { last = t; return t }
-        // Ledger 142 (Nov 15 08:42:10, a one-block hole in a plank floor: "Block there. See there's nothing inside. Place
+        // Ledger 159 (Nov 15 08:42:10, a one-block hole in a plank floor: "Block there. See there's nothing inside. Place
         // a block. It's over top"; 08:44:03 "I can't place a block in this gap without it placing two"; 08:44:58
         // "Can't place blocks in here"): the hold kept the last block AND the face it was aimed at for as long as
         // the aim passed within an eighth of a block of it, and a target further off never won. Aimed into a hole

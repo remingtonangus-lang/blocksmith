@@ -156,7 +156,7 @@ enum QuestShoveCheck {
         check(ghosts == 0, "nothing it drove past is left standing inside its hull (\(ghosts) blocks)")
         check(wallLeft.0 * 2 <= wallLeft.1, "its wheels break through the plank wall rather than riding over it (\(wallLeft.0) of \(wallLeft.1) planks left in their tracks; 21 before)")
         check(Momentum.shoved - shoved0 >= 10, "Momentum.shove broke what was in its way (\(Momentum.shoved - shoved0) blocks)")
-        // Ledger 146 (Nov 15 08:36, the carriage "stuck in the trees"): a felled tree lying across its way is a body, not
+        // Ledger 163 (Nov 15 08:36, the carriage "stuck in the trees"): a felled tree lying across its way is a body, not
         // blocks, so Momentum.shove never broke it and the carriage pushed a pile of trunks. A heavy driven hull smashes it.
         do {
             let fw0 = big.dirToWorld(big.fwd)

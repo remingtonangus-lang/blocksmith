@@ -2129,7 +2129,7 @@ final class Game: LifeLinked {
                     // the ground itself, not one built out from another block over it.)
                     let onBuilt = Blocks.collide[Int(world.builtBlock(t.hit.x, t.hit.y, t.hit.z))]
                     if World.oldMeet || (!onBuilt && (t.normal.y == 1 || rowCell?.cell == at)) { world.meetGround(at.x, at.y, at.z, id) }
-                    world.groundBack(at.x, at.y, at.z, id)      // (ledger 143: the bowl of a dig closes round the block)
+                    world.groundBack(at.x, at.y, at.z, id)      // (ledger 160: the bowl of a dig closes round the block)
                 }
             }
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }

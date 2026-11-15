@@ -184,7 +184,7 @@ extension Game {
     // AshUnits.ashSeatDrive): it turns toward that way and drives off along it, slowing into a tight turn; a way far
     // round the back reverses toward it instead of turning about. (Throttle, steer: steer +1 turns it right.)
     func ashLookDrive(_ s: Ship, _ mi: MoveInput) -> (Float, Float) {
-        // Ledger 145 (Nov 15 08:19:45, driving the Cinder Tank: "the motion sickness part of driving the tank has not
+        // Ledger 162 (Nov 15 08:19:45, driving the Cinder Tank: "the motion sickness part of driving the tank has not
         // been fixed because there are redundant controls to turn the thing, making it unpredictable which way it will
         // turn"): the hull went where the stick pointed FROM HIS VIEW, and his view also aims the tank's gun (and
         // the half-track's): looking at a target, or turning his view with the other stick, turned the hull under
@@ -740,7 +740,7 @@ enum AshDriveCheck {
                     check(swung > 0.8 && slid < 1.5, String(format: "Cinder Tank: pushed ahead looking right, it pivots round toward his view (%.0f degrees in 1.5 s, %.1f blocks on)",
                                                                 swung * 180 / .pi, slid))
                 } else {
-                    // Ledger 145: his look is the gun's; the stick alone steers, from the hull.
+                    // Ledger 162: his look is the gun's; the stick alone steers, from the hull.
                     check(abs(swung) < 0.15 && slid > 2, String(format: "Cinder Tank: pushed ahead while he looks right, it drives straight on (turned %.0f degrees in 1.5 s, %.1f blocks on)",
                                                                   abs(swung) * 180 / .pi, slid))
                     run(120, act())

@@ -1472,7 +1472,7 @@ enum Mesher {
                 // its fringe again under the block: a turf block's foot is its bottom, the dirt, untinted.)
                 let side0 = Int(texT[ab * 6 + f]), bottom = Int(texT[ab * 6 + 3])
                 let turf = !Mesher.oldFootV && natT[ab] && side0 != bottom && side0 != Int(texT[ab * 6 + 2])
-                // Ledger 142 (Nov 15 08:41:36, planks over a corner he had dug: "I place a block there, a block under it
+                // Ledger 159 (Nov 15 08:41:36, planks over a corner he had dug: "I place a block there, a block under it
                 // and on top forms at once. When I break it, they both go away"; 08:44:03, "I can't place a block in
                 // this gap without it placing two"): beside a pit (the ground beside under half the cell, or dug away)
                 // the foot is a whole cell of the block's own side, a second block to look at, gone with the first.

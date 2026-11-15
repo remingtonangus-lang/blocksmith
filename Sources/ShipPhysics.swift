@@ -1066,7 +1066,7 @@ extension ShipManager {
                 tyre[i] = wp.contains { simd_length(V2($0.x - c.p.x, $0.z - c.p.z)) < 0.75 && abs($0.y - c.p.y) < 0.9 }
             }
         }
-        // Nov 15 (ledger 146, the siege carriage "stuck in the trees"): a driven wheeled hull resting on something under
+        // Nov 15 (ledger 163, the siege carriage "stuck in the trees"): a driven wheeled hull resting on something under
         // its belly, between its wheels (a stump, the middle of a wall its wheels broke through): Momentum.shove breaks
         // what it sits on as it breaks what stands ahead of its bow.
         if s.piloted && s.throttleEase != 0 && !s.wheels.isEmpty && s.blockCount >= 40 && !Momentum.oldBelly {

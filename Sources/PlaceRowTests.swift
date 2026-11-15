@@ -142,11 +142,11 @@ enum PlaceRowTests {
         let gone = w.builtBlock(rx, H + 1, rz) == AIR && !w.groundAt(rx, H + 1, rz)
         check(Game.oldRockLump ? true : (rockBuilt && dirtGround && kinds && gone),
               "placerow (8): placed stone is a built cube (\(rockBuilt)), placed earth joins the ground (\(dirtGround)); stone and basalt are rock, sand and earth loose (\(kinds)); the cube broken leaves nothing (\(gone))")
-        // (9) ledger 142: a corner cell between two built blocks, its ground dug to a slope
+        // (9) ledger 159: a corner cell between two built blocks, its ground dug to a slope
         notch(g, w, H, planks, check: check)
-        // (11) ledger 142: the target hold (AimAssist.sticky) never keeps a block's top while he aims past its edge
+        // (11) ledger 159: the target hold (AimAssist.sticky) never keeps a block's top while he aims past its edge
         hold(g, w, H, planks, check: check)
-        // (10) ledger 143: the bowl a blow leaves closes round a block put back in it; a dug cell beside it stays open
+        // (10) ledger 160: the bowl a blow leaves closes round a block put back in it; a dug cell beside it stays open
         back(g, w, H, planks, check: check)
     }
     static func notch(_ g: Game, _ w: World, _ H: Int, _ planks: BlockID, check: (Bool, String) -> Void) {

@@ -920,7 +920,7 @@ extension Felling {
 }
 
 extension Game {
-    // `crushed` (ledger 146): a heavy hull driven over it: the tree is smashed, nothing goes to the pack or drops.
+    // `crushed` (ledger 163): a heavy hull driven over it: the tree is smashed, nothing goes to the pack or drops.
     func gatherFelled(_ s0: Ship, crushed: Bool = false) {
         let s = s0.root
         guard Felling.isFelled(s), world.ships.list.contains(where: { $0 === s }) else { return }
