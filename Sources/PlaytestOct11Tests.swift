@@ -786,8 +786,13 @@ enum PlaytestOct11Tests {
         let inn = Reckoning.members(g)
         let capped = !inn.isEmpty && inn.count <= Reckoning.liveCap
         let hidden = inn.allSatisfy { simd_length(V2($0.pos.x, $0.pos.z) - p) > 30 } && inn.allSatisfy { $0.aggro }
-        // Underground (in the rock below the surface): the trail is lost, the units stand down.
-        g.player.pos.y = Float(w.topY(px, pz) - 12)
+        // Underground (in the rock below the surface): the trail is lost, the units stand down. (Check fix 46: the first
+        // depth from 12 down where no sky reaches, not 12 below the top whatever is there: where the suite's walk ended
+        // depends on what met him on it (Meridian Marines' fire cut it to 41 blocks in one run, 56 in the other), and
+        // 12 down there the sky still reached (a cave, ravine or water open above: the only way isUnderground says no).)
+        let top = w.topY(px, pz)
+        let deep = (12...40).first { top - $0 > 8 && w.lightAt(px, top - $0 + 1, pz).sky == 0 && w.lightAt(px, top - $0 + 2, pz).sky == 0 } ?? 12
+        g.player.pos.y = Float(top - deep)
         Reckoning.tick(g, 1)
         let lostTrail = Reckoning.underground && Reckoning.hunts.allSatisfy { $0.trail != nil } && Reckoning.members(g).allSatisfy { !$0.aggro }
         g.player.pos.y = Float(w.topY(px, pz) + 1)
