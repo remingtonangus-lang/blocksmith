@@ -389,7 +389,7 @@ enum CapitalCity {
     static func planterTree(_ w: inout StructWriter, _ x: Int, _ y: Int, _ z: Int, _ rng: inout SRng, planter: Bool = true) {
         let white = Blocks.has("capital_stone") ? Blocks.id("capital_stone") : STONE
         let birch = rng.chance(0.5)
-        let log = birch ? BIRCH_LOG : LOG, leaves = birch ? BIRCH_LEAVES : LEAVES
+        let log = TreeWood.of(birch ? BIRCH_LOG : LOG), leaves = birch ? BIRCH_LEAVES : LEAVES
         if planter {
             for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 { w.set(x + dx, y + 1, z + dz, white) } }
         }

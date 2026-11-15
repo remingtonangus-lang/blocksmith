@@ -25,6 +25,8 @@ enum TreeWood {
         guard k.hasSuffix("_log"), !k.hasPrefix(prefix), !k.hasPrefix("stripped_"), Blocks.has(prefix + k) else { return b }
         return Blocks.id(prefix + k) + (b - base)
     }
+    // The wood a planted tree is made of (a structure's own trees: a town planter, an isle's oaks).
+    static func of(_ log: BlockID) -> BlockID { on ? twin[Int(log)] : log }
     // Tree wood (every axis state).
     static let isTree: [Bool] = (0..<Blocks.count).map { i in
         let k = Blocks.key(Blocks.groupBase[i])
