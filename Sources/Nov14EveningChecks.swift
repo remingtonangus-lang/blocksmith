@@ -11,6 +11,7 @@ enum Nov14EveningChecks {
         treeCatalogue(check)
         hullChip(g, check)
         seaIce(g, check)
+        farTower(g, check)
         var horses = 0, packs = 0
         for _ in 0..<4000 { if let (k, _, _) = MobManager.pickAnimal(.plains) { packs += 1; if k == .horse { horses += 1 } } }
         check(MobManager.oldHorsePacks || (packs > 0 && Float(horses) / Float(packs) < 0.06),
@@ -18,6 +19,42 @@ enum Nov14EveningChecks {
         check(Game.travelNews("Fort Red Station marked on the map") && Game.travelNews("You found the Fort & Ash Rail Road: 2 stations, marked on your map")
               && Game.travelNews("Entering Savenonia") && !Game.travelNews("Engines hit: going down") && !Game.travelNews("Intel: this base is a Radar Station"),
               "Nov 14 HUD: at the helm the map's and the borders' news waits in the journal; hits, orders and intel still show")
+    }
+
+    // Nov 14 (21:02:44, "the shot went through the Capitol Tower"): past the loaded land a Tidebreaker slug strikes the
+    // far citadel drawn there (FarCitadel.solid), its tower's cells solid, the air over it and a blast hole it holds not.
+    static func farTower(_ g: Game, _ check: (Bool, String) -> Void) {
+        guard let st = g.world.gen.structures?.nearest("military_base", x: Int(g.player.pos.x), z: Int(g.player.pos.z), maxRegions: 16) else {
+            check(false, "Nov 14 far tower: no citadel near the suite's spot"); return
+        }
+        let cx = (st.min.x + st.max.x) / 2, cz = (st.min.z + st.max.z) / 2, key = "citadel:\(cx),\(cz)"
+        let sync0 = FarCitadel.sync
+        FarCitadel.sync = true
+        let m = FarCitadel.model(st, key: key, damage: [])
+        FarCitadel.sync = sync0
+        guard let model = m else { check(false, "Nov 14 far tower: the far citadel model was not made"); return }
+        // The tallest solid column of the model (its great tower).
+        var best = (n: -1, x: 0, z: 0)
+        for z in 0..<model.nz { for x in 0..<model.nx {
+            var top = -1
+            for y in 0..<model.ny where model.grid[(y * model.nz + z) * model.nx + x] != 0 { top = y }
+            if top > best.n { best = (top, x, z) }
+        } }
+        let F = FarCitadel.cell
+        let wx = Float(model.origin.x + best.x * F) + 1, wz = Float(model.origin.z + best.z * F) + 1
+        let top = Float(model.origin.y + best.n * F)
+        var y = top
+        while y > Float(model.origin.y) && !FarCitadel.solid(V3(wx, y, wz), g) { y -= 1 }
+        let inTower = FarCitadel.solid(V3(wx, y, wz), g), overIt = FarCitadel.solid(V3(wx, top + 12, wz), g)
+        let r0 = g.bases.records[key]
+        var r = r0 ?? BaseRecord(key: key, cx: cx, cz: cz, y0: st.min.y + 20, lastTick: g.clock)
+        r.damage.append([wx, y, wz, 6])
+        g.bases.records[key] = r
+        let holed = FarCitadel.solid(V3(wx, y, wz), g)
+        g.bases.records[key] = r0
+        check(FarCitadel.oldFarShot || (inTower && !overIt && !holed),
+              String(format: "Nov 14 far tower: a far shot meets the citadel's tower at %.0f %.0f %.0f (%@), not the air 12 over it (%@), nor a blast hole there (%@)",
+                     wx, y - Float(YOFF), wz, inTower ? "yes" : "no", overIt ? "solid" : "clear", holed ? "solid" : "clear"))
     }
 
     // Nov 14 (a cold sea: "Make it like ice panes except they're flat, not vertical"): open water freezes to a sheet two

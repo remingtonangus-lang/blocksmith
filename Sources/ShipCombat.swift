@@ -267,6 +267,8 @@ extension ShipManager {
                 // A Tidebreaker slug past the loaded world lands on the generator's ground (it flew on through it,
                 // unseen: the far end of a long shot from the helm).
                 if sh.kind == 3 && !reader.loaded(bx, bz) && p.y <= Float(world.gen.column(bx, bz).height) + 1 { hit = p; break }
+                // (Nov 14 evening: or on a far citadel drawn there, FarCitadel.solid)
+                if sh.kind == 3 && !reader.loaded(bx, bz), let g = game, FarCitadel.solid(p, g) { hit = p; break }
                 if shipBlock(at: p, except: sh.owner) { hit = p; onHull = true; break }
                 if let g = game, sh.age > 0.25 {                   // (clear of the gun crew first)
                     // (P512: never the gun's own crew. A ship's shells fly through its own hull, and a hand at a gun station
