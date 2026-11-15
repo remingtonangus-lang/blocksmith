@@ -420,6 +420,16 @@ enum Railways {
     static func isFar(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
         eastIn(gen, row, s) == nil && southOf(gen, row, s) == nil && northOf(gen, row, s) == nil
     }
+    // Plans the lines of a block of rows and stretches side by side (each is cached; one already planned costs a lock).
+    static func warm(_ gen: WorldGen, rows: ClosedRange<Int>, stretches: ClosedRange<Int>) {
+        var all: [(Int, Int)] = []
+        for r in rows { for t in stretches where hasLine(gen, r, t) { all.append((r, t)) } }
+        let cand = all, n = 3
+        DispatchQueue.concurrentPerform(iterations: n) { j in
+            var i = j
+            while i < cand.count { _ = line(gen, row: cand[i].0, stretch: cand[i].1); i += n }
+        }
+    }
     static let railTime = ProcessInfo.processInfo.environment["BS_RAILTIME"] == "1"
     static func planRunOn(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -433,6 +443,10 @@ enum Railways {
         }
         guard runOn, gen.fieldWorld, hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures,
               let pa = a.cells.last else { return nil }
+        // (build 98's timers: with no line next east in its row, the rules below ask for up to 65 lines of five rows,
+        // 0.16 s each, one after another on this thread: 9 of a link's 10 s. They are planned side by side first, on
+        // three threads at most.)
+        if !oldLinkBox, eastIn(gen, row, s) == nil { warm(gen, rows: (row - 2)...(row + 2), stretches: (s - linkReach)...(s + farReach + linkReach)) }
         guard let (b, bKey) = eastIn(gen, row, s) ?? southOf(gen, row, s) ?? northOf(gen, row, s) ?? farEastIn(gen, row, s), let pb = b.cells.first else {
             tally?("run-on: no start to run on to"); return nil
         }
