@@ -128,5 +128,19 @@ enum PlaceRowTests {
         while let p = s1.at, sBlows < 4 { g.clearSliver(at: p); sBlows += 1; s1 = sliver() }
         check(s0.n > 0 && s0.cells == 0 && s1.n == 0,
               "placerow (7): a sliver of ground between cell middles (\(s0.n) sample points, \(s0.cells) of the 8 cells round it hold ground) is cleared by \(sBlows) blows (\(s1.n) points left)")
+        // (8) ledger 136: rock he places is a built cube, loose ground still joins the ground
+        let rx = 10, rz = -10
+        w.placeCube = !Game.oldRockLump
+        w.setBlock(rx, H + 1, rz, STONE)
+        w.placeCube = false
+        w.setBlock(rx + 2, H + 1, rz, DIRT)
+        let rockBuilt = w.builtBlock(rx, H + 1, rz) == STONE && !w.groundAt(rx, H + 1, rz)
+        let dirtGround = w.builtBlock(rx + 2, H + 1, rz) == AIR && w.groundAt(rx + 2, H + 1, rz)
+        let basalt = Blocks.has("basalt") ? Blocks.id("basalt") : STONE, sand = Blocks.has("sand") ? Blocks.id("sand") : DIRT
+        let kinds = !FieldTerrain.loose[Int(STONE)] && !FieldTerrain.loose[Int(basalt)] && FieldTerrain.loose[Int(sand)] && FieldTerrain.loose[Int(DIRT)]
+        w.setBlock(rx, H + 1, rz, AIR)
+        let gone = w.builtBlock(rx, H + 1, rz) == AIR && !w.groundAt(rx, H + 1, rz)
+        check(Game.oldRockLump ? true : (rockBuilt && dirtGround && kinds && gone),
+              "placerow (8): placed stone is a built cube (\(rockBuilt)), placed earth joins the ground (\(dirtGround)); stone and basalt are rock, sand and earth loose (\(kinds)); the cube broken leaves nothing (\(gone))")
     }
 }

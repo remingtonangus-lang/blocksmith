@@ -1200,6 +1200,49 @@ if let out = arg("--view"), let ctx = vkctx {
                      secs, vg.particles.list.count, worst, worstWhy, smokes.count, shown.count, ys.min() ?? 0, ys.max() ?? 0, aim.y))
         if Felling.worstMs > 0 { print(String(format: "view: navalburst: slowest piece brought down whole: %.1f ms (%@)", Felling.worstMs, Felling.worstSplit)) }
     }
+    // --trainboard S (Nov 14 12:07:54, by a cargo train on Toriwick's loop: "I tried to get into the train, and then I just
+    // ended up free falling from the sky in a totally different area of the world"): the game runs S seconds where he
+    // stood, then he uses every train car in reach as the use press does (Game.useItemOnMob), 5 s each, and the
+    // farthest he is moved in one tick is printed.
+    if let secs = Double(arg("--trainboard") ?? "") {
+        vg.paused = false
+        vg.survival = true
+        for _ in 0..<Int(secs * 72) { vg.tick(1.0 / 72) }
+        let home = vg.player.pos
+        let cars = vg.mobs.mobs.filter { Trains.isCar($0) }.sorted { simd_length($0.pos - home) < simd_length($1.pos - home) }
+        print("trainboard: \(cars.count) train cars loaded, \(vw.ships.list.count) hulls and vessels; he stands at \(home)")
+        for m in cars.prefix(16) {
+            let tr = Trains.carOf[ObjectIdentifier(m)]?.0
+            vg.player.pos = m.pos + V3(0, 1.2, 0) - m.forward * 0.2
+            vg.player.vel = .zero
+            let before = vg.player.pos
+            let used = vg.useItemOnMob(m)
+            var worst: Float = 0, worstAt = 0, last = vg.player.pos
+            let jump0 = simd_length(last - before)
+            var far = V3(0, 0, 0)
+            for t in 0..<360 {
+                vg.tick(1.0 / 72)
+                let d = simd_length(vg.player.pos - last)
+                if d > worst { worst = d; worstAt = t; far = vg.player.pos }
+                last = vg.player.pos
+            }
+            let rode = vg.riding === m
+            let menu = vg.menu.map { "\(type(of: $0))" } ?? "none"
+            if vg.menu != nil { vg.closeMenu() }
+            if vg.riding != nil { vg.dismount() }
+            let off = vg.player.pos
+            var worst2: Float = 0
+            for _ in 0..<72 { vg.tick(1.0 / 72); worst2 = max(worst2, simd_length(vg.player.pos - last)); last = vg.player.pos }
+            print(String(format: "trainboard: %@ (variant %d, %@%@) at %.0f %.0f %.0f: used %@, on use moved %.1f, riding %@, menu %@, worst move in a tick %.1f at tick %d (to %.0f %.0f %.0f), got down at %.0f %.0f %.0f, worst after %.1f, pilot %@, aboard %@",
+                         m.customName ?? "car", m.variant, tr?.track.name ?? "no train", tr?.track.cyclic == true ? ", a loop circuit" : "",
+                         m.pos.x, m.pos.y, m.pos.z, used ? "yes" : "no", jump0, rode ? "yes" : "no", menu, worst, worstAt, far.x, far.y, far.z,
+                         off.x, off.y, off.z, worst2, vw.ships.pilot?.name ?? "none", vw.ships.aboard?.name ?? "none"))
+            if vw.ships.pilot != nil { vg.leaveHelm() }
+            vw.ships.aboard = nil
+            vg.player.pos = home; vg.player.vel = .zero
+            for _ in 0..<36 { vg.tick(1.0 / 72) }
+        }
+    }
     // --fell S (P441): the foot log of the nearest living trunk is cut as the game cuts it (Game.breakBlock: what stood
     // on it comes loose and topples away from the eye), then the game runs S seconds before the render.
     if let secs = Double(arg("--fell") ?? "") {
