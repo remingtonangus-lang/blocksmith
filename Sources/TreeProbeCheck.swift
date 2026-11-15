@@ -479,6 +479,84 @@ enum TreeProbeCheck {
     // grown (trunk or limb, girth, steps out from the trunk) before a cut, and the logs left after it. His Taiga spruce
     // felled two logs up: the stump's two logs as they were. His Ash Vault dark oak (four logs wide) with one foot
     // struck out, then felled: the logs left as they were each time. The ghosts are saved, and go with the last log.
+    // Nov 15 (TreeWood): a tree is its own wood, whole or gone; timber is timber.
+    static func fellWhole(_ g0: Game, _ check: (Bool, String) -> Void) {
+        guard TreeWood.on else { print("fellwhole: (before: trees of plain logs)"); return }
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0; ShapeTrunks.probing = false; ShapeTrunks.probeOut = [:] }
+        let treeT = TreeWood.isTree
+        func probes(_ w: World, _ cells: [IVec3]) -> [IVec3: ShapeTrunks.Probe] {
+            ShapeTrunks.probeLock.lock(); ShapeTrunks.probeOut = [:]; ShapeTrunks.probeLock.unlock()
+            ShapeTrunks.probing = true
+            var done = Set<IVec3>()
+            for c in cells {
+                let k = IVec3(floorDiv(c.x, CS), c.y >> 4, floorDiv(c.z, CS))
+                guard done.insert(k).inserted, let ch = w.chunkAt(c.x, c.z), let nb = w.neighbourhood(ch) else { continue }
+                _ = Mesher.buildSection(nb.0, nb.1, sy: k.y, lod: 0, ghosts: w.treeGhosts.near(ch.cx, ch.cz), chunk: (ch.cx, ch.cz))
+            }
+            ShapeTrunks.probing = false
+            var out: [IVec3: ShapeTrunks.Probe] = [:]
+            for c in cells { if let p = ShapeTrunks.probeOut[c] { out[c] = p } }
+            return out
+        }
+        func wood(_ w: World, _ from: IVec3) -> [IVec3] {
+            var seen: Set<IVec3> = [from], q = [from], head = 0
+            while head < q.count && q.count < 400 {
+                let p = q[head]; head += 1
+                for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 {
+                    let n = IVec3(p.x + dx, p.y + dy, p.z + dz)
+                    if !seen.contains(n) && treeT[Int(w.builtBlock(n.x, n.y, n.z))] { seen.insert(n); q.append(n) }
+                } } }
+            }
+            return q
+        }
+        for (name, cutUp) in [("at its foot", 0), ("two logs up", 2), ("on a bough or its top log", -1)] {
+            let w = World(seed: 2117423538372845574, device: g0.world.device, save: nil)
+            w.makeFieldWorld()
+            w.renderDistance = 3; w.activeDistance = 3
+            let g = Game(world: w, save: nil, persistent: false)
+            g.paused = false; g.survival = false
+            g.player.pos = V3(5663.0, 132.3, -3887.9)
+            _ = w.loadSync(center: g.player.pos, radius: 3)
+            var foot = IVec3(5665, 132, -3887)
+            while foot.y > 100 && CapitalBase.isLog(w.builtBlock(foot.x, foot.y - 1, foot.z)) { foot.y -= 1 }
+            let footB = w.builtBlock(foot.x, foot.y, foot.z)
+            guard treeT[Int(footB)] else { check(false, "fellwhole: the generator's spruce at 5665 -3887 is tree wood (\(Blocks.key(footB)))"); return }
+            let cells = wood(w, foot)
+            // A post he sets down two blocks from the trunk, and a log against it: timber.
+            let log = TreeWood.plain[Int(footB)]
+            var postAt = IVec3(foot.x + 3, foot.y + 6, foot.z)
+            while postAt.y > foot.y - 6 && !w.groundAt(postAt.x, postAt.y - 1, postAt.z) && w.builtBlock(postAt.x, postAt.y - 1, postAt.z) == AIR { postAt.y -= 1 }
+            let post = (0..<3).map { IVec3(postAt.x, postAt.y + $0, postAt.z) }
+            for c in post { w.setBlock(c.x, c.y, c.z, log) }
+            let beside = IVec3(foot.x + 1, foot.y + 1, foot.z)
+            w.setBlock(beside.x, beside.y, beside.z, log)
+            let pr = probes(w, cells + post + [beside])
+            let trunkKinds = (0..<3).map { Int(pr[IVec3(foot.x, foot.y + $0, foot.z)]?.kind ?? 99) }
+            let postKinds = post.map { Int(pr[$0]?.kind ?? 99) }
+            let besideKind = Int(pr[beside]?.kind ?? 99), besideSteps = Int(pr[beside]?.dist ?? 99)
+            if cutUp == 0 {
+                check(trunkKinds.allSatisfy { $0 == 1 } && postKinds.allSatisfy { $0 == 2 } && (besideKind == 0 || besideKind == 2) && besideSteps < 0,
+                      "fellwhole: the spruce's wood is drawn as a living trunk (kinds \(trunkKinds)), a log post beside it as a post (kinds \(postKinds), 2 = post, never a stump), a log set against the trunk as timber, no limb of it (kind \(besideKind), steps \(besideSteps))")
+            }
+            let cutAt: IVec3
+            if cutUp >= 0 { cutAt = IVec3(foot.x, foot.y + cutUp, foot.z) }
+            else { cutAt = cells.max(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) ?? foot }
+            let cut = w.builtBlock(cutAt.x, cutAt.y, cutAt.z), n0 = Felling.felled, ships0 = w.ships.list.count
+            w.setBlock(cutAt.x, cutAt.y, cutAt.z, AIR)
+            g.fellCheck(cutAt, cut)
+            let left = cells.filter { treeT[Int(w.builtBlock($0.x, $0.y, $0.z))] }.count
+            let bodies = w.ships.list.count - ships0
+            var bodyLogs = 0
+            if let s = w.ships.list.last(where: { Felling.isFelled($0) }) { bodyLogs = s.grid.blocks.filter { treeT[Int($0)] }.count }
+            let timber = post.allSatisfy { w.builtBlock($0.x, $0.y, $0.z) == log } && w.builtBlock(beside.x, beside.y, beside.z) == log
+            let drop = Loot.drops(cut, ItemStack.empty).first.map { Items.key($0.item) } ?? "nothing"
+            check(Felling.felled == n0 + 1 && bodies == 1 && left == 0 && bodyLogs == cells.count - 1 && timber && drop == Blocks.key(Blocks.groupBase[Int(log)]),
+                  "fellwhole: the spruce struck \(name): the whole tree comes down as one body (\(bodies) body, \(bodyLogs) of its \(cells.count - 1) other logs in it, \(left) left standing, no stump), his timber beside it stays (\(timber ? "yes" : "no")), the struck log drops \(drop)")
+        }
+    }
+
     static func fellGhosts(_ g0: Game, _ check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true

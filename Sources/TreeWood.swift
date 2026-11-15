@@ -13,6 +13,8 @@ import Foundation
 enum TreeWood {
     static var on = ProcessInfo.processInfo.environment["BS_OLDTREEWOOD"] != "1"
     static let prefix = "tree_"
+    // (checks of the rules before: trees of plain logs for as long as `body` runs, worlds made in it included)
+    static func asBefore(_ body: () -> Void) { let o = on; on = false; body(); on = o }
     // The woods that grow as trees (Woods.all's "log" ones).
     static var woods: [String] { Woods.all.filter { $0.2 == "log" }.map { $0.0 } }
     // A log state -> its tree twin (the same axis); anything else -> itself.
