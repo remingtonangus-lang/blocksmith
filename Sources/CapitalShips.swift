@@ -3700,6 +3700,7 @@ extension ShipManager {
 
 enum DetachLooseTiming {
     static let oldSearch = ProcessInfo.processInfo.environment["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
+    static let oldTable = ProcessInfo.processInfo.environment["BS_DETACHTABLE"] == "1"     // (--hullblast: the table cleared on the frame)
     // detachLoose's cell table (the main thread's blasts only), grown to the largest hull blasted; `base` moves past
     // each blast's searches, so the table is never cleared (but when it would run past the top).
     private static var buf: UnsafeMutablePointer<UInt32>? = nil
@@ -3707,10 +3708,16 @@ enum DetachLooseTiming {
     static var base: UInt32 = 1
     static func table(_ n: Int) -> UnsafeMutablePointer<UInt32> {
         if n > cap || buf == nil {
-            buf?.deallocate()
+            // (Nov 15, --hullblast: the first blast on a frigate, 5 million cells, took 9 ms here clearing 20 MB on the
+            // frame; calloc hands back zero pages untouched, and only the pages a search walks are ever faulted in)
+            if oldTable { buf?.deallocate() } else { free(buf) }
             cap = max(n, 1 << 16)
-            buf = UnsafeMutablePointer<UInt32>.allocate(capacity: cap)
-            buf!.initialize(repeating: 0, count: cap)
+            if oldTable {
+                buf = UnsafeMutablePointer<UInt32>.allocate(capacity: cap)
+                buf!.initialize(repeating: 0, count: cap)
+            } else {
+                buf = calloc(cap, MemoryLayout<UInt32>.stride)!.bindMemory(to: UInt32.self, capacity: cap)
+            }
             base = 1
         } else if base > UInt32.max - 1024 {
             buf!.update(repeating: 0, count: cap)
@@ -3802,7 +3809,9 @@ extension ShipManager {
                 if open { pieces.append(comp) }
             }
         }
+        Explosion.lap("ships: detach search")
         guard !pieces.isEmpty else { return }
+        defer { Explosion.lap("ships: detach pieces") }
         let kinds = ShipParts.kinds
         var changed: [IVec3] = []
         for cells in pieces {
