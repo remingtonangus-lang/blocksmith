@@ -33,6 +33,7 @@ enum QuestFrameSoak {
         var at: V3                       // (internal y)
         var prepare: (Game) -> Void      // after the first load, before the frames
         var step: (Game, Int) -> Void    // every frame, before the tick
+        var rd: Int? = nil               // its own view distance (the siege: his 8), else --rd
     }
 
     static let crawlerSeed: UInt64 = 7653607216494784574
@@ -445,6 +446,94 @@ enum QuestFrameSoak {
         return sc
     }
 
+    // Nov 15 08:35-08:36 (his morning playtest, seed 530054557992772521 by the citadel at 434 6421: "had a bit of a frame
+    // rate drop there", 62 fps, then 36 and 45 as a craft went down; the in-game tick near 10 ms where the citadel scene
+    // shows 2.3): the whole fight at once. On foot by an Ironback Crawler parked off the citadel's wall, its main gun
+    // fired every 5 s, every other shot at a live turret of the citadel (the wall when none is left); the citadel on
+    // lockdown, its garrison awake and firing at him (survival, his health held: in creative they hold fire); its
+    // patrol set out; a hostile Meridian frigate over him brought down by flak bursts inside the first 15 s. View 8.
+    static let siegeSeed: UInt64 = 530054557992772521
+    static var siegeLog: [String] = []
+    static func siegeScene() -> Setup {
+        var crawler: Ship?
+        var frigate: Ship?
+        var wall = V3(0, 0, 0), downAt = -1, shots = 0, turretShots = 0
+        var key = ""
+        return Setup(name: "siege", what: "his Nov 15 08:35 fight: by a crawler shelling a citadel on lockdown every 5 s (turrets first), the garrison firing at him, a frigate over him shot down",
+                     seed: siegeSeed, at: V3(434.5, 231, 6421.5), prepare: { g in
+            let w = g.world
+            w.ships.encounters = false
+            siegeLog = []
+            let prevToast = g.onToast
+            g.onToast = { siegeLog.append(String(format: "%.1f s %@", g.clock, $0)); prevToast?($0) }
+            // (on the ground at his spot)
+            let px = 434, pz = 6421
+            var y = CH - 2
+            while y > 1 && !w.solidAt(px, y - 1, pz) { y -= 1 }
+            var home = V3(Float(px) + 0.5, Float(y) + 0.01, Float(pz) + 0.5)
+            guard let st = w.gen.structures?.nearest("military_base", x: px, z: pz, maxRegions: 24) else { print("framesoak: siege: no citadel near"); return }
+            let cx = Float(st.min.x + st.max.x) / 2, cz = Float(st.min.z + st.max.z) / 2
+            key = "citadel:\(Int(floor(cx))),\(Int(floor(cz)))"
+            wall = V3(cx, Float(st.pieces[0].min.y + 12), cz)
+            g.player.pos = home
+            _ = w.loadSync(center: home, radius: w.renderDistance)
+            for (name, p) in w.pendingMobs { if let m = Mob.structureMob(name, at: p) { g.mobs.mobs.append(m) } }
+            w.pendingMobs.removeAll()
+            let to = V2(cx - home.x, cz - home.z), dist = simd_length(to)
+            let yaw = atan2f(-to.x, -to.y)
+            // (the crawler 12 blocks to his right, both facing the citadel)
+            let right = V2(cosf(yaw), -sinf(yaw))
+            let ch = home + V3(right.x * 12, 0, right.y * 12)
+            w.ships.spawnCapital("crawler", home: IVec3(Int(floor(ch.x)), 0, Int(floor(ch.z))), yaw: yaw, region: nil, sync: true)
+            if let c = w.ships.capitals.first(where: { $0.role == "crawler" }), let cs = w.ships.capState[c.id] {
+                cs.crewDone = Set(0..<cs.crew.count); cs.crewless = true
+                cs.testTurn = 0; cs.testSpeed = 0
+                crawler = c
+            } else { print("framesoak: siege: no crawler could be spawned") }
+            // (a hostile frigate over him)
+            w.ships.spawnCapital("capfrigate", home: IVec3(px - 10, 0, pz + 10), yaw: yaw + .pi / 2, region: nil, sync: true)
+            frigate = w.ships.capitals.first { $0.role == "capfrigate" }
+            g.player.flying = false
+            g.survival = true; g.difficulty = 2
+            home = g.player.pos
+            g.player.yaw = yaw; g.player.pitch = -0.05
+            let folk = g.mobs.mobs.filter { $0.kind.steelhold }.count, guns = g.mobs.mobs.filter { $0.kind == .deckGun }.count
+            print(String(format: "framesoak: siege: he stands at %.0f %.0f %.0f (displayed y %.0f), the citadel %.0f blocks off at %.0f %.0f (%d of its garrison, %d turrets); crawler %@, frigate %@",
+                         home.x, home.y, home.z, home.y - Float(YOFF), dist, cx, cz, folk, guns,
+                         crawler.map { String(format: "at %.0f %.0f", $0.pos.x, $0.pos.z) } ?? "none",
+                         frigate.map { String(format: "at %.0f %.0f %.0f", $0.pos.x, $0.pos.y, $0.pos.z) } ?? "none"))
+        }, step: { g, f in
+            g.survival = true; g.health = 20; g.alive = true
+            g.player.vel.x = 0; g.player.vel.z = 0                                       // (he stands and fights)
+            // (the frigate: a flak burst by its hull every second from 3 s until its engines are out)
+            if let s = frigate, downAt < 0, f >= 3 * 72, f % 72 == 0 {
+                let c = s.toWorld(s.com)
+                AirDefence.burst(at: c + V3(0, -(c.y - s.worldMin.y) - 1.5, 0), g)
+                if s.flakHits >= 1 { downAt = f; print(String(format: "framesoak: siege: the frigate's engines are out at %.1f s (flak %.2f)", Double(f) / 72, s.flakHits)) }
+            }
+            guard let c = crawler, let st = g.world.ships.capState[c.id] else { return }
+            if f % 360 == 180 {
+                let mw = c.toWorld(st.mainGunMuzzle)
+                var aim = wall
+                if shots % 2 == 0, let t = g.mobs.mobs.filter({ $0.kind == .deckGun && $0.health > 0 && simd_length($0.pos - wall) < 120 })
+                    .min(by: { simd_length($0.pos - mw) < simd_length($1.pos - mw) }) {
+                    aim = t.pos + V3(0, 2, 0); turretShots += 1
+                }
+                shots += 1
+                g.world.ships.fireMainGun(c, st, dir: simd_normalize(aim - mw + V3(1e-5, 0, 0)), game: g)
+            }
+            if f % (10 * 72) == 10 * 72 - 1 {
+                let r = g.bases.records[key]
+                let gunners = g.mobs.mobs.filter { $0.brain?.station == .gunner && $0.health > 0 }.count
+                print(String(format: "framesoak: siege at %.0f s: citadel %@, patrol %@, %d gunners at turrets, %d turrets standing; %d main gun shots (%d at turrets); frigate %@; %d mobs, %d shells in flight",
+                             Double(f + 1) / 72, r?.alert.name ?? "unwatched", (g.bases.patrols[key]?.isEmpty == false || r?.patrol != nil) ? "out" : "none", gunners,
+                             g.mobs.mobs.filter { $0.kind == .deckGun && $0.health > 0 }.count, shots, turretShots,
+                             frigate.map { $0.flakHits >= 1 ? String(format: "down (%.0f up)", $0.worldMin.y - g.player.pos.y) : String(format: "flak %.2f", $0.flakHits) } ?? "none",
+                             g.mobs.mobs.count, g.world.ships.shells.count))
+            }
+        }, rd: 8)
+    }
+
     // Item 61 and item 8 (his Oct 31 16:21 note, a turret's shells through a building: "I literally saw the building in
     // half and it was all trying to fall", and the game crashed): five three-storey stone houses on corner pillars in a
     // row 26 blocks in front of him on the plains, one blown out from under every 7 s (two pillars, then its wall high
@@ -533,12 +622,14 @@ enum QuestFrameSoak {
          trainScene(.cargo, name: "freight"), trainScene(.troop, name: "troops"),
          seaHuntScene(), worstScene(), collapseScene(),
          emberForest("gloamwood", biome: "warped_forest", at: V3(-520, 226 + 64, 700)),
-         emberForest("charwood", biome: "crimson_forest", at: V3(-650, 226 + 64, 780)), strikeScene()]
+         emberForest("charwood", biome: "crimson_forest", at: V3(-650, 226 + 64, 780)), strikeScene(), siegeScene()]
     }
 
     static var scenes: [Setup] { ordinary + [crawlerScene(parkedBy: false), crawlerScene(parkedBy: true), navalScene(), trainScene(), hellScene(), battleScene()] + more }
 
     struct Slow { var cpu: Double; var tick: Double; var record: Double; var why: String }
+    // Per scene: the governor's mean must (ms), peak mobs, peak shells in flight, mean tick (ms).
+    static var sceneStats: [String: (must: Double, mobs: Int, shells: Int, tick: Double)] = [:]
 
     static func run(ctx: VkContext) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
@@ -564,6 +655,16 @@ enum QuestFrameSoak {
         for sc in scenes where only == nil || only!.contains(sc.name) {
             do { let (ok, line) = try scene(sc, rd: rd, secs: secs, ctx: ctx); table.append(line); if !ok { bad += 1 } }
             catch { print("framesoak: \(sc.name): \(error)"); return 1 }
+        }
+        // The siege must be the fight he played (Fable, Nov 15): at least 60 mobs and a shell in flight at its peak, and the
+        // governor's must at least twice the citadel scene's (run with --only citadel,siege).
+        if let s = sceneStats["siege"] {
+            let c = sceneStats["citadel"]
+            let heavy = s.mobs >= 60 && s.shells >= 1 && (c == nil || s.must >= 2 * c!.must)
+            print(String(format: "framesoak siege check: %@ peak %d mobs (60 wanted), %d shells in flight (1 wanted); must %.2f ms against the citadel's %@; tick mean %.2f ms against %@",
+                         heavy ? "ok  " : "FAIL", s.mobs, s.shells, s.must, c.map { String(format: "%.2f (x%.1f, 2 wanted)", $0.must, s.must / max(0.001, $0.must)) } ?? "(not run)",
+                         s.tick, c.map { String(format: "%.2f", $0.tick) } ?? "(not run)"))
+            if !heavy { bad += 1 }
         }
         print("framesoak summary (headset estimate; a miss = a frame thread over \(String(format: "%.1f", budgetMs)) ms there):")
         for l in table { print("  " + l) }
@@ -652,7 +753,7 @@ enum QuestFrameSoak {
         let w = World(seed: sc.seed, device: device, save: nil, dim: sc.dim)
         let field = sc.dim == .overworld
         if field { FieldTerrain.newWorlds = true; w.makeFieldWorld() }
-        w.renderDistance = rd
+        w.renderDistance = sc.rd ?? rd
         let g = Game(world: w, save: nil, persistent: false)
         g.smoothTerrain = field
         SmoothTerrain.use(world: field, world: w)
@@ -715,7 +816,7 @@ enum QuestFrameSoak {
         World.resultsWorstMs = 0; World.resultsWorst = ""; Explosion.worstMs = 0; Explosion.worstLaps = ""; StructureTip.worstMs = 0; StructureTip.worstSplit = ""; Felling.worstMs = 0; Felling.worstSplit = ""; Structure.dropWorstMs = 0; Structure.dropWorst = ""; Structure.crumbMs = 0; Structure.crumbN = 0; CraterJob.worstStepMs = 0; CraterJob.worstStep = ""; CraterJob.finesUnfetched = 0; CraterJob.stepsUnfetched = 0; CraterJob.unfetchedPhases = [:]; StructureCache.framePlans = []; Structure.tally = [:]; let checks0 = Structure.checks, loadMs0 = Structure.totalMs; Structure.worstMs = 0
         var handed0 = World.handedOver
         let t0 = CFAbsoluteTimeGetCurrent()
-        var mobsPeak = 0, shellsPeak = 0
+        var mobsPeak = 0, shellsPeak = 0, mustSum = 0.0, mustPeak = 0.0
         var stages: [String: (Double, Double)] = [:]
         // (SOAK_MOBPROF=1: the slowest single mob update and where it went; off by default, its clock reads and strings
         // weigh on the mob tick being measured)
@@ -769,6 +870,7 @@ enum QuestFrameSoak {
                 cpu.append(c); ticks.append(tk); recs.append(rc)
                 quads.append(Double(scene.drawnQuads)); draws.append(Double(scene.drawCalls))
                 mobsPeak = max(mobsPeak, g.mobs.mobs.count); shellsPeak = max(shellsPeak, g.world.ships.shells.count)
+                mustSum += FrameGovernor.mustEMA; mustPeak = max(mustPeak, FrameGovernor.mustEMA)
                 if c * questFactor > budgetMs {
                     misses += 1; run += 1; longest = max(longest, run)
                     if slow.count < 400 {
@@ -841,6 +943,9 @@ enum QuestFrameSoak {
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
         print("    " + govLine)
+        print(String(format: "    governor's must over the scene (ms): mean %.2f, highest %.2f", mustSum * 1000 / n, mustPeak * 1000))
+        sceneStats[sc.name] = (mustSum * 1000 / n, mobsPeak, shellsPeak, ticks.reduce(0, +) / n)
+        if sc.name == "siege" { for l in siegeLog { print("    siege message: " + l) } }
         print("    work that can wait (ms a frame): " + govTook + String(format: "; results handed over %d", World.handedOver - handed0))
         print("    came in after the first 3 s: " + PopIn.line)
         print("    soldiers gone without dying: " + TroopVanish.line + "; despawns held while he could see the mob: \(MobManager.heldInSight); mobs left undrawn with the buffer full: \(MobDrawStats.dropped)")

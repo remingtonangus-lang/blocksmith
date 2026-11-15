@@ -3098,6 +3098,10 @@ if CommandLine.arguments.contains("--garagedoor") {            // FAILURES.md 1:
     GarageDoorCheck.run(game, check)
     print(failures == 0 ? "garagedoor: all checks passed" : "garagedoor: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--capitallift") {           // FAILURES.md 2 on a citadel's own lift, five rides up and down
+    CapitalElevatorCheck.run(game, check)
+    print(failures == 0 ? "capitallift: all checks passed" : "capitallift: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--elevator") {              // FAILURES.md 2: a lift car riding its shaft
     ElevatorCheck.run(game, check)
     print(failures == 0 ? "elevator: all checks passed" : "elevator: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -3786,6 +3790,7 @@ if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
 CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft
+leaves("capitallift") { CapitalElevatorCheck.run(game, check) }   // (and a citadel's own, up and down five times with him in it)
 RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
 CrewLookout.check(game, check)                         // the code reader's Nov 10 batch, 1: no endless deck range
 BrushCheck.run(game, check)                            // P511: through bushes and limbs at his full pace
@@ -4892,6 +4897,14 @@ HorseTests.run(game: game, check: check)
 // The pose oracle (Sources/PoseCheck.swift; the Mac fast lane runs it too): limbs, soldiers' hands, heads and weapons in
 // every stance.
 check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
+
+// P455 and ledger 163 (Fable, Nov 15: it passes now): a heavy hull drives through trees and a timber wall, a felled
+// tree across its way is smashed, a light car is stopped (quest/src/test/QuestShoveCheck.swift), on its own world.
+do {
+    let smooth0 = SmoothTerrain.enabled, field0 = SmoothTerrain.fromField
+    leaves("shovecheck") { _ = QuestShoveCheck.run(into: check) }
+    SmoothTerrain.set(smooth0, world: nil); SmoothTerrain.fromField = field0
+}
 
 // The VR monkey input (--questsim), last: what it leaves behind meets no check after it.
 if let f = fuzzLast { f() }
