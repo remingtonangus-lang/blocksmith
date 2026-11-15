@@ -312,6 +312,7 @@ extension Game {
         s.climb = c.climb
         if ashHull { (s.throttle, s.steer) = ashLookDrive(s, mi) }        // P449: the way he looks, as before
         if s.name == AshCommandeer.halftrackName { ashHalftrackGun(s, dt) }   // P449: its pintle gun on his look
+        if s.name == AshCommandeer.tankName && !AshCommandeer.oldTankCoax { ashTankCoax(s, dt) }   // Nov 14: its coaxial MG again
         if let fm = s.flight { fm.playerInput(self, s, mi, dt) }          // helicopter controls (FlightModel.swift)
         VehicleDepot.burn(self, s, dt)                                    // D44, P507: every vehicle of his burns fuel (after the flight input: dry, it holds)
         // Turrets follow the view; barrels rise with it.

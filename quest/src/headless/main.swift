@@ -3125,6 +3125,7 @@ if CommandLine.arguments.contains("--planeparts") {             // P459: aircraf
 if CommandLine.arguments.contains("--planeexit") {             // Nov 13: off a Salvaged Fighter's helm (and the Nov 13 checks)
     PlaneExitCheck.run(game, check)
     Nov13Checks.run(game, check)
+    Nov14EveningChecks.run(game, check)
     print(failures == 0 ? "planeexit: all checks passed" : "planeexit: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--gunwreck") {               // P459: a gun mount destroyed comes apart
@@ -3709,6 +3710,7 @@ CrawlerInteriorCheck.run(check)                         // P511: the crawler's i
 MobLightCheck.run(game, check)                          // Nov 13: small mobs on smooth ground never drawn black
 PlaneExitCheck.run(game, check)                         // Nov 13: off a Salvaged Fighter's helm, out of the plane
 Nov13Checks.run(game, check)                            // Nov 13: the scope's eyepiece, the crawler's helm, the letters
+Nov14EveningChecks.run(game, check)                     // Nov 14 evening: town chairs the right way round
 // The last war below the Ash Vault (Sources/LastWarTests.swift); --lastwar-only stops after it.
 if CommandLine.arguments.contains("--lastwar-only") || !CommandLine.arguments.contains("--hell-only") { LastWarTests.run(game, check: check) }
 // With --render: the citadel's south gate, the army drawn up, an Ember Line bunker and the Chancellor's study (Quest

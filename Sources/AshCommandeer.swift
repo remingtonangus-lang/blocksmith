@@ -226,6 +226,31 @@ extension Game {
         AshSeat.shots += 1
     }
 
+    // Nov 14 playtest (21:15, in a Cinder Tank he spawned: "Wonder what happened to the little machine gun on the tank"):
+    // P344's seat fired the coaxial MG while the main gun reloaded; P449's hull of blocks kept only the cannon. Again:
+    // with the turret's gun reloading, the trigger held fires the coaxial gun beside it, along the turret's lay (its
+    // rounds pass the tank's own plates, as the half-track's do).
+    static let oldTankCoax = ProcessInfo.processInfo.environment["BS_OLDTANKCOAX"] == "1"
+    static var coaxCool: Float = 0
+    func ashTankCoax(_ s: Ship, _ dt: Float) {
+        AshCommandeer.coaxCool -= dt
+        let held = input.leftDown || (seatPad?.rt ?? 0) > 0.5
+        guard held, AshCommandeer.coaxCool <= 0, let t = ships.turrets(of: s).first, t.reload > 0.3 else { return }
+        AshCommandeer.coaxCool = 0.11
+        let flat = t.dirToWorld(V3(0, 0, -1))
+        let yaw = atan2f(-flat.x, -flat.z), pitch = s.gunPitch
+        let cp = cosf(pitch)
+        let fwd = V3(-sinf(yaw) * cp, sinf(pitch), -cosf(yaw) * cp)
+        let right = V3(cosf(yaw), 0, -sinf(yaw))
+        let from: V3 = t.toWorld(t.com) + V3(0, 0.1, 0) + fwd * 2.4 + right * 0.4
+        arms.spawn(Slug(pos: from, vel: Guns.scatter(fwd, 0.01) * 150, kind: .bullet, damage: 5, fromPlayer: true,
+                        shooter: ObjectIdentifier(s), by: "Player", life: 0.6, gravity: 1.5))
+        sfx(.gun(Guns.rifle), 0.9, at: from)
+        AshSeat.shots += 1
+        AshCommandeer.coaxShots += 1
+    }
+    static var coaxShots = 0                // (checks)
+
     // P464 (Oct 25 19:33, "should be able to run people over with it"): the vehicle he drives runs down whoever stands
     // in front of it (behind, backing up) at more than a walking pace: a blow growing with the speed (a truck at full
     // throttle kills a soldier outright; a tank kills anything on foot) and a shove off to the side. Other vehicles and
@@ -702,6 +727,12 @@ enum AshDriveCheck {
                 let r0 = t.reload
                 run(2, act()); run(20, act(attack: true)); run(2, act())
                 check(r0 <= 0 && t.reload > 0, String(format: "Cinder Tank: the trigger fires its gun (reload %.1f s)", t.reload))
+                // Nov 14 (21:15, "what happened to the little machine gun on the tank"): held while the gun reloads, the
+                // trigger works the coaxial MG, its rounds clear of the tank's own plates.
+                let c0 = AshCommandeer.coaxShots, slugs0 = game.arms.slugs.count, hb0 = h.blockCount, tb0 = t.blockCount
+                run(30, act(attack: true)); run(2, act())
+                check(AshCommandeer.oldTankCoax || (AshCommandeer.coaxShots - c0 >= 3 && game.arms.slugs.count > slugs0 && h.blockCount == hb0 && t.blockCount == tb0),
+                      "Cinder Tank: held while the gun reloads, the trigger fires the coaxial MG (\(AshCommandeer.coaxShots - c0) rounds in 0.5 s; its own blocks \(hb0 + tb0) -> \(h.blockCount + t.blockCount))")
                 run(260, act())
                 // A shell bursting on its flank (a medium gun's: power 6) takes plates off.
                 let b0 = h.blockCount
