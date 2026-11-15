@@ -5,6 +5,15 @@ import simd
 enum Nov14EveningChecks {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         townSeats(check)
+        treeCatalogue(check)
+    }
+
+    // Nov 15 (Fable's list, 1): the tree catalogue holds exactly 100 designs, names and ids unique, every log joined to
+    // the foot, every limb tip in leaves, nothing low off the trunk or past the placement margin.
+    static func treeCatalogue(_ check: (Bool, String) -> Void) {
+        let bad = TreeShapes.catalogueProblems()
+        check(bad.isEmpty && TreeShapes.catalogue.count == 100,
+              "Nov 15 trees: the catalogue holds \(TreeShapes.catalogue.count) designs (want 100) in \(TreeShapes.all.count) species, \(bad.count) problems\(bad.isEmpty ? "" : ": " + bad.prefix(4).joined(separator: "; "))")
     }
 
     // 21:17, Elk Hollow's sheriff's office: "This chair's not facing the right way". Every town seat asked for with its
