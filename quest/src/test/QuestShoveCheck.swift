@@ -87,12 +87,16 @@ enum QuestShoveCheck {
                 return n
             }
             let n0 = count(), p0 = s.pos, calls0 = Momentum.shoveCalls
+            Momentum.traceRest = true
             s.autopilot = V3(1, 0, 0)
             for i in 0..<Int(seconds * 72) {
                 g.tick(1.0 / 72)
                 if i % 144 == 143 {
                     print(String(format: "shovecheck:   %.0f s: %.1f along, speed %.2f, ease %.2f, grounded %@, pushes %d, side contacts %d", Float(i + 1) / 72,
                                  simd_dot(s.pos - p0, ahead), simd_length(s.vel), s.throttleEase, s.grounded ? "yes" : "no", Momentum.shoveCalls - calls0, Momentum.sideContacts))
+                    let rs = Momentum.rest
+                    print(String(format: "shovecheck:     asleep %@, contacts %d (up %d, of them not at a wheel %d, on other hulls %d; one at %.1f %.1f %.1f), hull bottom %.2f, vel %.2f %.2f %.2f, pushing %@, store %.1f",
+                                 s.asleep ? "yes" : "no", rs.0, rs.1, rs.2, rs.3, rs.4.x, rs.4.y, rs.4.z, s.worldMin.y, s.vel.x, s.vel.y, s.vel.z, s.pushing ? "yes" : "no", s.shoveStore))
                     let (cp, cn, into) = Momentum.lastSide
                     let inb = cp - cn * 0.3
                     print(String(format: "shovecheck:     last side contact at %.1f %.1f %.1f normal %.2f %.2f %.2f into %.2f, block there %@, bow %.1f", cp.x, cp.y, cp.z, cn.x, cn.y, cn.z, into,

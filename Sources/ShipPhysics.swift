@@ -1066,6 +1066,17 @@ extension ShipManager {
                 tyre[i] = wp.contains { simd_length(V2($0.x - c.p.x, $0.z - c.p.z)) < 0.75 && abs($0.y - c.p.y) < 0.9 }
             }
         }
+        // (checks: what a driven wheeled hull rests on, --shovecheck)
+        if Momentum.traceRest && s.piloted && !s.wheels.isEmpty {
+            let wp = s.wheels.map { s.toWorld($0) }
+            var up = 0, belly = 0, other = 0, lowBelly = V3(0, 0, 0)
+            for c in cs where c.n.y > 0.5 {
+                if c.other != nil { other += 1; continue }
+                up += 1
+                if !wp.contains(where: { simd_length(V2($0.x - c.p.x, $0.z - c.p.z)) < 0.75 && abs($0.y - c.p.y) < 0.9 }) { belly += 1; lowBelly = c.p }
+            }
+            Momentum.rest = (cs.count, up, belly, other, lowBelly)
+        }
         // H11: the hardest closing speed this step, for crash damage (VehicleDamage.swift).
         for c in cs {
             let r = c.p - s.pos

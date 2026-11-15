@@ -130,6 +130,7 @@ enum Momentum {
     // felled was a new bar across its way. A hull heavy enough to snap a trunk (200 t and more) driven onto a felled
     // tree that has landed (or one down for a second and a half) smashes it: wood and leaf bits, the body gone,
     // nothing left to pick up (P452). BS_OLDCRUSH=1: as before.
+    static var traceRest = false, rest = (0, 0, 0, 0, V3(0, 0, 0))     // (checks: contacts, up, belly, on other hulls, a belly point)
     static let oldCrush = ProcessInfo.processInfo.environment["BS_OLDCRUSH"] == "1"
     static func crush(_ s: Ship, _ g: Game) {
         guard !oldCrush, s.mass >= 200, s.engines > 0, s.parent == nil else { return }
