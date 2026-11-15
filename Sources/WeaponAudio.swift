@@ -15,6 +15,7 @@ enum WeaponAudio {
     static let fireSlots = 0...5
     static let heavySlot = 9
     static let sidearmSlot = 13      // the Capital Sidearm (Guns.pistol)
+    static let revolverReloadSlot = 23   // Nov 15: the Sechser Revolver's own reload (it fires as the sidearm, slot 13)
     static let ashSlots = 16...19     // the Ashguard's arms: Kessel bolt rifle, Hagel machine pistol, Sturmwind carbine, Ashsaw
     static let rotarySlot = 20       // P391: the Mahlwerk rotary gun's shot; 21 its spin-up whine, 22 its run-down
     static let rotarySlots = 20...22

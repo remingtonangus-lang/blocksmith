@@ -231,6 +231,7 @@ extension Game {
         }
         if let s = shell { ask("shellflight", .shellFlightLoop, 1.0 * (1 - s.1 / 32), at: s.0) }
         vehicleAudioTick(dt, ask: ask)
+        recordedTick(dt, ask: ask)                                   // Nov 15 recordings (RecordedAudio.swift)
         // Player state loops.
         if player.headInWater { ask("underwater", .underwaterLoop, 0.9) }
         if player.jetThrust { ask("jetpack", .jetpackLoop, 0.85) }

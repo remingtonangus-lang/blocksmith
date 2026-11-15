@@ -118,7 +118,7 @@ final class ChairSeat {
         ready = false
         g.player.yaw = ChairSeat.facingYaw(g.world, p, else: g.player.yaw)
         g.player.vel = .zero
-        g.sfx(.place(.wood), 0.5, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+        g.sfx(RecordedNov15.pick(.chairSit, .place(.wood)), 0.6, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
         ChairSeat.sat += 1
     }
 

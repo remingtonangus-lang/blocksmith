@@ -244,7 +244,7 @@ extension Game {
                 let c = simd_clamp(eye, s.worldMin, s.worldMax)
                 let dc = simd_length(c - eye)
                 if s.isFlyingCapital && dc < 400 { ask("vessel\(s.id)", .frigateDroneLoop, 1.0, c) }
-                if s.role == "crawler" && dc < 220 { ask("vessel\(s.id)", .carriageTreadLoop, 1.0, c) }
+                if s.role == "crawler" && dc < 220 { ask("vessel\(s.id)", RecordedNov15.pick(.crawlerLoop, .carriageTreadLoop), 1.0, c) }
                 // P228 (Oct 13 21:44): a strike team's dropship roars from far off, the warning that it is coming.
                 if s.role == "dropship" && dc < 380 { ask("vessel\(s.id)", .strikeRoarLoop, simd_length(s.vel) > 0.5 ? 1.0 : 0.5, c) }
                 // P457: a strike dropship coming at a town sets off its air raid siren.

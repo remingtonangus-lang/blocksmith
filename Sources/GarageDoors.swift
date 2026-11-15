@@ -230,8 +230,10 @@ enum GarageDoors {
         m.wait = sections(w, taken)
         m.write = opening ? d.stow.map { ($0, stowed(d.n)) } : d.plane.map { ($0, upright(d.n)) }
         moves.append(m)
-        g.sfx(.ironDoorOpen, 1.1, at: p0)
-        g.sfx(opening ? .pistonExtend : .pistonContract, 0.8, at: p0)
+        if RecordedNov15.off {
+            g.sfx(.ironDoorOpen, 1.1, at: p0)
+            g.sfx(opening ? .pistonExtend : .pistonContract, 0.8, at: p0)
+        } else { g.sfx(.garageDoor, 1.1, at: p0) }     // (Nov 15: the recorded roller door, slats, chain motor and its stop)
         if opening { opened += 1 } else { closed += 1 }
     }
 

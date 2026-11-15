@@ -288,7 +288,7 @@ enum Elevators {
                 let st = doorsAt(w, r.shaft, r.from)
                 if st > 0 {
                     setDoors(w, r.shaft, r.from, stage: st - 1)
-                    if st == 2 { g.sfx(.pistonContract, 0.45, at: center(r.shaft, r.from)) }
+                    if st == 2 { g.sfx(RecordedNov15.pick(.elevatorDoors, .pistonContract), 0.45, at: center(r.shaft, r.from)) }
                     continue
                 }
                 lift(g, r)
@@ -319,7 +319,7 @@ enum Elevators {
                     r.shaft.car = r.to
                     r.phase = 4; r.timer = 0
                     rides += 1
-                    g.sfx(.ironDoorClose, 0.5, at: want)
+                    g.sfx(RecordedNov15.pick(.elevatorArrive, .ironDoorClose), 0.5, at: want)
                     continue
                 }
                 let h = max(dt, 1.0 / 120)
@@ -335,7 +335,8 @@ enum Elevators {
                 r.timer = 0
                 let st = doorsAt(w, r.shaft, F)
                 if st < 2 {
-                    if st == 0 { g.sfx(.bell, 0.12, at: center(r.shaft, F)); g.sfx(.pistonExtend, 0.4, at: center(r.shaft, F)) }
+                    if st == 0 && !RecordedNov15.off { g.sfx(.elevatorDoors, 0.5, at: center(r.shaft, F)) }
+                    else if st == 0 { g.sfx(.bell, 0.12, at: center(r.shaft, F)); g.sfx(.pistonExtend, 0.4, at: center(r.shaft, F)) }
                     setDoors(w, r.shaft, F, stage: st + 1)
                     continue
                 }

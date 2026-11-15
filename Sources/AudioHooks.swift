@@ -58,6 +58,7 @@ extension Game {
         if m is ShellBoxMenu { sfx(.shulkerOpen, 0.7) }
         else if m is ChestMenu || m is DoubleChestMenu {
             if t == "Barrel" { sfx(.barrelOpen, 0.7) }
+            else if t == "Desk Drawer" { sfx(RecordedNov15.pick(.drawerOpen, .barrelOpen), 0.7); RecordedNov15.note(.drawerOpen) }
             else if t == "Void Chest" { sfx(.enderChestOpen, 0.7) }
             else { sfx(.chestOpen, 0.7) }
         } else { sfx(.open, 0.6) }
@@ -67,6 +68,7 @@ extension Game {
         if m is ShellBoxMenu { sfx(.shulkerClose, 0.7) }
         else if m is ChestMenu || m is DoubleChestMenu {
             if t == "Barrel" { sfx(.barrelClose, 0.7) }
+            else if t == "Desk Drawer" { sfx(RecordedNov15.pick(.drawerOpen, .barrelClose), 0.55) }
             else if t == "Void Chest" { sfx(.enderChestClose, 0.7) }
             else { sfx(.chestClose, 0.7) }
         } else if m is PauseMenu || m is DeathMenu {
@@ -80,6 +82,7 @@ extension Game {
         if k == "painting" { return .paintingBreak }
         if k == "decorated_pot" { return .potBreak }
         if k.hasSuffix("ice") && k != "blue_ice" { return .glassBreak }
+        if RecordedNov15.isConcrete(k) && !RecordedNov15.off { return .concreteBreak }      // Nov 15 recording
         return .breakBlock(soundMat(b))
     }
 

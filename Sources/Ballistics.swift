@@ -270,7 +270,7 @@ final class Armory {
                 if s.kind == .bullet, ["door", "trapdoor"].contains(Blocks.shape[Int(did)]) {
                     let metal = soundMat(did) == .metal
                     g.particles.dust(did, at: at, count: 3, spread: 0.05)
-                    g.sfx(.bulletImpact(soundMat(did)), 0.55, at: at)
+                    g.sfx(RecordedNov15.bulletImpact(did), 0.55, at: at)
                     s.damage *= metal ? 0.5 : 0.75
                     s.pos = at + dir * 0.4
                     s.traveled += b.0
@@ -374,7 +374,7 @@ final class Armory {
         g.particles.dust(id, at: at + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.05, count: 3, spread: 0.05)
         g.particles.add(Particle(pos: at, vel: V3(Float(n.x), Float(n.y) + 1, Float(n.z)) * 2, life: 0.12, maxLife: 0.12, layer: Int(Tex.id("smoke")),
                                  uv0: V2(0, 0), uvSize: 1, size: 0.06, gravity: 0, color: V3(1.4, 1.1, 0.5), collide: false, glow: true))
-        g.sfx(.bulletImpact(soundMat(id)), 0.55, at: at)
+        g.sfx(RecordedNov15.bulletImpact(id), 0.55, at: at)
         if Rand.float(in: 0..<1) < 0.2 { g.sfx(.gun(8), 0.35, at: at) }
         return 0
     }
@@ -732,7 +732,7 @@ extension Game {
         if VRReload.buttonMode { arms.reload *= VRReload.buttonScale }               // P286 (b): the comfort option
         arms.reloadGun = gi
         arms.aim = 0
-        sfx(.gunReload(gs.sound), 0.8)
+        sfx(Guns.reloadSound(gi), 0.8)
         return true
     }
 
