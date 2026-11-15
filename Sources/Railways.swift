@@ -361,7 +361,8 @@ enum Railways {
         guard eastIn(gen, row, s) == nil, southOf(gen, row, s) == nil, northOf(gen, row, s) == nil else { return nil }
         for k in (linkReach + 1)...farReach where hasLine(gen, row, s + k) {
             guard let l = line(gen, row: row, stretch: s + k) else { continue }
-            return fedFromNorth(gen, row, s + k) || fedFromSouth(gen, row, s + k) ? nil : (l, key(row, s + k))
+            let fed = fedInRow(gen, row, s + k) || fedFromNorth(gen, row, s + k) || fedFromSouth(gen, row, s + k)
+            return fed ? nil : (l, key(row, s + k))
         }
         return nil
     }
