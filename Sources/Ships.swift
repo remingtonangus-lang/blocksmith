@@ -760,7 +760,7 @@ final class Ship: LifeLinked {
 // MARK: Manager (one per World / dimension)
 
 final class ShipManager: LifeLinked {
-    static let oldAssemble = ProcessInfo.processInfo.environment["BS_OLDASSEMBLE"] == "1"
+    static let oldAssemble = Env.all["BS_OLDASSEMBLE"] == "1"
     lazy var lifeLink = LifeLink(self)    // (item 8: background builds reach the manager by link, not a weak reference)
     unowned let world: World
     static var quarantined = 0               // ship steps that produced NaN (ShipPhysics.step puts the pose back)
@@ -823,7 +823,7 @@ final class ShipManager: LifeLinked {
         var turrets: [TakenTurret]? = nil            // (her turrets as left: one shot away stays away)
     }
     struct TakenTurret: Codable { var mount: [Float]; var size: [Int]; var palette: [String]; var cells: Data }
-    static let oldTakenGrid = ProcessInfo.processInfo.environment["BS_OLDTAKENGRID"] == "1"
+    static let oldTakenGrid = Env.all["BS_OLDTAKENGRID"] == "1"
     // A grid as palette names + lzfse(u16 palette index per cell), and back (nil: sizes or data don't match).
     static func packGrid(_ blocks: [BlockID]) -> ([String], Data) {
         var map: [BlockID: UInt16] = [:]

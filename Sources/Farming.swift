@@ -748,6 +748,6 @@ enum RandomTickRng {
     static var track = false                                     // (the frame soak's SOAK_MOBPROF: the slowest one, timed as it runs)
     static var frameWorstMs = 0.0, frameWorst = ""                 // (and the dearest frame of them, split)
     static var drawCpu = 0.0, drawTicks = 0                         // (and the draws' own CPU in all, over that many game ticks)
-    static let oldScan = ProcessInfo.processInfo.environment["BS_OLDRTSCAN"] == "1"
+    static let oldScan = Env.all["BS_OLDRTSCAN"] == "1"
     static var frameSeconds = 0.0012                    // (store review: a frame's random ticks at most this long)
 }

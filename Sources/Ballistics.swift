@@ -45,7 +45,7 @@ struct Beam {
 }
 
 final class Armory {
-    static let oldIncendiary = ProcessInfo.processInfo.environment["BS_OLDINCENDIARY"] == "1"
+    static let oldIncendiary = Env.all["BS_OLDINCENDIARY"] == "1"
     var slugs: [Slug] = []
     var breaches: [CraterJob] = []      // manned naval shells' wall breaches being carved (NavalGuns.swift, P103)
     var beams: [Beam] = []
@@ -136,7 +136,7 @@ final class Armory {
     // deck up in the open, and the crew that bailed out of it shot him dead there ("You were shot by Ashguard
     // Driver"). At its helm he is buttoned up: rounds and bolts don't find him; they ring off the hull. Blasts still
     // reach him by what they can see. BS_OLDTANKHATCH=1: as before.
-    static let oldTankHatch = ProcessInfo.processInfo.environment["BS_OLDTANKHATCH"] == "1"
+    static let oldTankHatch = Env.all["BS_OLDTANKHATCH"] == "1"
     static func buttonedUp(_ g: Game) -> Bool {
         !oldTankHatch && g.world.ships.pilot?.root.name == AshCommandeer.tankName
     }
@@ -155,6 +155,7 @@ final class Armory {
         let u0 = CFAbsoluteTimeGetCurrent(), det0 = Armory.detonations, n0 = slugs.count
         if g.coop.current == 0 || !g.coop.active { NavalGuns.stepBreaches(g) }
         let u1 = CFAbsoluteTimeGetCurrent()
+        TickProf.mark("arms: breaches")
         let blast0 = Explosion.totalMs
         defer {
             let ms = (CFAbsoluteTimeGetCurrent() - u0) * 1000
@@ -675,7 +676,7 @@ extension MobKind {
 }
 
 extension Game {
-    static let oldVRFlash = ProcessInfo.processInfo.environment["BS_OLDVRFLASH"] == "1"
+    static let oldVRFlash = Env.all["BS_OLDVRFLASH"] == "1"
 }
 
 extension Game {

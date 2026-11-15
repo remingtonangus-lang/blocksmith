@@ -19,7 +19,7 @@ import simd
 // them, a few blocks a tick, so he watches them go up.
 enum BuildersGrounds {
     static let worldName = "Builders' Grounds"
-    static let seed: UInt64 = UInt64(ProcessInfo.processInfo.environment["BS_BUILDSEED"] ?? "") ?? 632461258612199693
+    static let seed: UInt64 = UInt64(Env.all["BS_BUILDSEED"] ?? "") ?? 632461258612199693
 
     // MARK: Blueprints
 
@@ -340,7 +340,7 @@ enum BuildersGrounds {
             if wet == 0 && hi - lo <= 6 { take("rocky") }
             if wet == 0 && hi - lo <= 4 { take("hilltop") }
         }
-        if ProcessInfo.processInfo.environment["BS_BUILDSURVEY"] != nil { print("builds: \(loads) spots loaded to read") }
+        if Env.all["BS_BUILDSURVEY"] != nil { print("builds: \(loads) spots loaded to read") }
         return found
     }
 

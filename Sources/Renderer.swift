@@ -3130,7 +3130,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     // Isometric block icon (grass/leaves tinted with default biome colours). Model and connecting blocks (stairs,
     // slabs, fences, walls, lanterns, anvils...) draw their real boxes: each box's three visible faces (+Y, +Z on
     // the left, +X on the right) projected with that face's texture sub-rect, back to front.
-    static let oldDoorIcon = ProcessInfo.processInfo.environment["BS_OLDDOORICON"] == "1"
+    static let oldDoorIcon = Env.all["BS_OLDDOORICON"] == "1"
     static var doorIcons = 0                       // (checks: doors drawn flat)
     static func doorIcon(_ id: BlockID, center c: V2, size sz: Float, tint full: V4, _ quad: ([V2], [V2], V4, Float) -> Void) -> Bool {
         guard Blocks.shape[Int(id)] == "door" && !Renderer.oldDoorIcon else { return false }

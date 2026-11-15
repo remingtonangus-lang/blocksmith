@@ -29,7 +29,7 @@ final class LifeLink {
     // BS_OLDWEAKLINK=1: as before. `--weaklinktest` makes and lets go objects under three readers.
     // (the word's layout is the 64-bit runtimes'; an object that got a side table, from a `weak` reference made to it
     // after all, still takes the old read below: no linked class has one)
-    static var old = ProcessInfo.processInfo.environment["BS_OLDWEAKLINK"] == "1" || MemoryLayout<Int>.size != 8
+    static var old = Env.all["BS_OLDWEAKLINK"] == "1" || MemoryLayout<Int>.size != 8
     var object: AnyObject? {
         if !LifeLink.old {
             let word = address + MemoryLayout<Int>.size

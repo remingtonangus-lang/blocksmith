@@ -149,7 +149,7 @@ extension Reporter {
     // URLSession follows the 302 with a GET by itself.
     static func installMac() {
         let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("ClaudeTools/secrets/sunderfall-report-url")
-        let u = ProcessInfo.processInfo.environment["SUNDERFALL_REPORT_URL"]
+        let u = Env.all["SUNDERFALL_REPORT_URL"]
             ?? (try? String(contentsOf: file, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let u, u.hasPrefix("https://") else { return }
         url = u

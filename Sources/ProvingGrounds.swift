@@ -19,7 +19,7 @@ enum ProvingGrounds {
     static let seed: UInt64 = 0x5052_4F56_494E          // a fixed seed: the deck stands over the same land every time
     static let deckY = 300                              // internal y of the deck's walking level (well over any land)
     static let markerBlock = "calcite"                  // laid last at the start corner: the grounds are built
-    static let oldOrder = ProcessInfo.processInfo.environment["BS_OLDPROVINGORDER"] == "1"
+    static let oldOrder = Env.all["BS_OLDPROVINGORDER"] == "1"
 
     static let familyNames: [VehicleZoo.Family: String] = [.car: "Car", .truck: "Truck", .odd: "Odd Build", .tank: "Tank",
         .boat: "Boat", .gunboat: "Gunboat", .airship: "Airship", .plane: "Plane", .heli: "Helicopter", .hybrid: "Hybrid"]
@@ -64,7 +64,7 @@ enum ProvingGrounds {
     // Each gun's computer. (Nov 14: it stood on the pad's corner, joined to the gun only through the pad; on the worked
     // stone deck a computer's search takes the deck for the floor and the pad with it, so it took the computer alone,
     // no gun. Now beside the ring, behind the barrels. BS_OLDGUNPAD=1: on the corner.)
-    static let oldGunPad = ProcessInfo.processInfo.environment["BS_OLDGUNPAD"] == "1"
+    static let oldGunPad = Env.all["BS_OLDGUNPAD"] == "1"
     static func console(_ c: IVec3) -> IVec3 { oldGunPad ? IVec3(c.x + 2, c.y, c.z + 2) : IVec3(c.x, c.y, c.z + 1) }
 
     // The deck's extent (x0...x1, z0...z1).
@@ -88,7 +88,7 @@ enum ProvingGrounds {
     // so for minutes the deck stood empty. Now every step goes in order of its distance from the start, the deck under
     // a place before what stands there (each kind a margin further out than the tiles round it): the near vehicles
     // stand within seconds. BS_OLDPROVINGSTEPS=1: the deck, the walkways, the channels, then the rest.
-    static let oldSteps = ProcessInfo.processInfo.environment["BS_OLDPROVINGSTEPS"] == "1"
+    static let oldSteps = Env.all["BS_OLDPROVINGSTEPS"] == "1"
 
     // MARK: The ten guns (ring at the origin at deck level; barrels run north, -z, the way BuiltGunCheck builds his)
 

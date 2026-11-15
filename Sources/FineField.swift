@@ -12,9 +12,9 @@ import simd
 // rays and every World.fieldDensity(at:) query. The cells (BlockStore.fd) stay what they were (cell solidity, drops,
 // light and the game's block queries are unchanged).
 enum FineField {
-    static var gridColumns = ProcessInfo.processInfo.environment["BS_OLDFINECOLS"] != "1"   // (World.fineColumns)
+    static var gridColumns = Env.all["BS_OLDFINECOLS"] != "1"   // (World.fineColumns)
     static let n = 32, count = 32 * 32 * 32
-    static var enabled = ProcessInfo.processInfo.environment["BS_FINE"] != "0"
+    static var enabled = Env.all["BS_FINE"] != "0"
     @inline(__always) static func index(_ fx: Int, _ fy: Int, _ fz: Int) -> Int { fx + fz * 32 + fy * 1024 }
 
     // A cell's eight samples follow a write to the cell (BlockStore.setDensity): moved by as much as the cell, or set to
@@ -195,6 +195,8 @@ extension World {
     func fineSphere(_ ctr: V3, radius r: Float, carve: Bool, prepared: [(Chunk, Int, Bool)]) -> [(Chunk, Int)] {
         var changed: [(Chunk, Int)] = []
         let reach = r + 1.0
+        let quick = !World.oldSphere
+        let stop: Int8 = carve ? -127 : 127
         for (c, sy, fresh) in prepared {
             guard var f = c.blocks.fine[sy] else { continue }
             c.blocks.fine[sy] = nil                                  // (written back below: no copy on write)
@@ -206,10 +208,23 @@ extension World {
             var any = false
             if x0 <= x1 && y0 <= y1 && z0 <= z1 {
                 for fy in y0...y1 { for fz in z0...z1 { for fx in x0...x1 {
-                    let p = V3(ox + (Float(fx) + 0.5) * 0.5, oy + (Float(fy) + 0.5) * 0.5, oz + (Float(fz) + 0.5) * 0.5)
-                    let dist = simd_length(p - ctr)
                     let k = FineField.index(fx, fy, fz)
-                    let d0 = FieldTerrain.f(f[k])
+                    // Ledger 164 (Nov 15, the fights' crater shaping at 8 ms of a headset frame): most samples a ball
+                    // reaches cannot change, the open air over the ground and what an earlier ball emptied (already at
+                    // the bottom of the scale), and every sample farther from the ball's face than its own value; they
+                    // are passed on a byte or a squared distance, with no root and no rounding. The samples written
+                    // are the same ones with the same values. BS_OLDSPHERE=1: every sample worked out as before.
+                    let v0 = f[k]
+                    if quick && v0 == stop { continue }
+                    let p = V3(ox + (Float(fx) + 0.5) * 0.5, oy + (Float(fy) + 0.5) * 0.5, oz + (Float(fz) + 0.5) * 0.5)
+                    let off = p - ctr
+                    let d0 = FieldTerrain.f(v0)
+                    if quick {
+                        let d2 = simd_length_squared(off)
+                        if carve { let lim = r + d0 + 0.02; if lim <= 0 || d2 >= lim * lim { continue } }
+                        else { let lim = r - d0 + 0.02; if lim <= 0 || d2 >= lim * lim { continue } }
+                    }
+                    let dist = simd_length(off)
                     let d1 = carve ? min(d0, dist - r) : max(d0, r - dist)
                     var q = FieldTerrain.q(d1)
                     if q == f[k] { continue }
@@ -333,8 +348,8 @@ extension Mesher {
     // (meshbench only: where the half-block ground's time goes; main thread)
     static var fineTiming = false
     static var fineT = (pre: 0.0, fill: 0.0, quads: 0.0, subs: 0, empty: 0, adaptive: 0.0)
-    static var oldFineFill = ProcessInfo.processInfo.environment["BS_OLDFINEFILL"] == "1"
-    static var oldFineLookup = ProcessInfo.processInfo.environment["BS_OLDFINELOOKUP"] == "1"
+    static var oldFineFill = Env.all["BS_OLDFINEFILL"] == "1"
+    static var oldFineLookup = Env.all["BS_OLDFINELOOKUP"] == "1"
     static func fineGround(_ n9: [BlockStore], sy: Int, _ R: UnsafeMutablePointer<BlockID>, _ sc: MeshScratch, leafHoles: Bool, detailHoles: Bool,
                            exact: GrowBuf<Float>? = nil, fineBeyond: [UInt32] = [], _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         let vs = sc.fineScratch
@@ -860,7 +875,7 @@ extension World {
     static var finePrefetched: [FinePrefetch] = []      // (prefetchFine's sections not carved yet)
     static var fineMade = 0                              // (sections given their fine samples: the soak's slowest bowl step)
     // (BS_FINEWHY=1, the soak: which sections a bowl step made past its prefetch, printed by CraterJob)
-    static let fineWhy = ProcessInfo.processInfo.environment["BS_FINEWHY"] == "1"
+    static let fineWhy = Env.all["BS_FINEWHY"] == "1"
     static var fineLog: [SIMD3<Int32>] = []
     static var prefetchMarks = 0                         // (main thread)
     static func notePrefetched(_ c: Chunk, _ sy: Int) {

@@ -9,7 +9,7 @@ import simd
 // mesher with the mesh; bodies stand on them under their middle and rays stop on them.
 final class GroundTris {
     // BS_FEET=0: bodies and rays on the field as before P386 (before/after checks).
-    static let feetOn = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
+    static let feetOn = Env.all["BS_FEET"] != "0"
     private static let N = 20                         // columns -2...17 (a section's ground reaches past its own cells)
     private(set) var pos: [UInt32] = []               // 4 packed positions per quad (1/16 block: x | y << 9 | z << 18)
     private var start = [UInt32](repeating: 0, count: GroundTris.N * GroundTris.N + 1)

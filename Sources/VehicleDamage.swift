@@ -132,8 +132,8 @@ enum Momentum {
     // nothing left to pick up (P452). BS_OLDCRUSH=1: as before.
     static var bellyBroke = 0
     static var traceRest = false, rest = (0, 0, 0, 0, V3(0, 0, 0))     // (checks: contacts, up, belly, on other hulls, a belly point)
-    static let oldBelly = ProcessInfo.processInfo.environment["BS_OLDBELLY"] == "1"
-    static let oldCrush = ProcessInfo.processInfo.environment["BS_OLDCRUSH"] == "1"
+    static let oldBelly = Env.all["BS_OLDBELLY"] == "1"
+    static let oldCrush = Env.all["BS_OLDCRUSH"] == "1"
     static func crush(_ s: Ship, _ g: Game) {
         guard !oldCrush, s.mass >= 200, s.engines > 0, s.parent == nil else { return }
         var dir = s.dirToWorld(s.fwd) * (s.throttleEase < 0 ? -1 : 1)

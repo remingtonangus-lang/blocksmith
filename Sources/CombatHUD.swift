@@ -33,7 +33,7 @@ final class CombatHUD {
     // hearts and hunger over the panel. A passenger keeps the toolbar: the panel sits bottom left, lifted over the
     // toolbar's bars when the two would meet (on the headset's panel, at its HUD scale, they did).
     // The panel's box: x - 3s, y0 - 4s, w + 6s wide, `rows` x s high.
-    static let oldPanel = ProcessInfo.processInfo.environment["BS_OLDDRIVEHUD"] == "1"      // (before: bottom left, over the toolbar)
+    static let oldPanel = Env.all["BS_OLDDRIVEHUD"] == "1"      // (before: bottom left, over the toolbar)
     static func panelOrigin(_ g: Game, _ L: HudLayout, rows: Float) -> (x: Float, y0: Float, w: Float) {
         let s = L.s
         if oldPanel { return (L.insetX + 6 * s, L.H - L.insetY - (rows + 6) * s, 104 * s) }
@@ -407,7 +407,7 @@ extension Game {
         guard !Game.oldCarrier, let s = world.ships.pilot ?? world.ships.aboard else { return -1 }
         return s.root.id
     }
-    static let oldCarrier = ProcessInfo.processInfo.environment["BS_OLDCARRIER"] == "1"
+    static let oldCarrier = Env.all["BS_OLDCARRIER"] == "1"
     // Nov 13 (playtest 12:47:55-12:49:10, inside the Meridian Frigate he had taken: "There's people who are shooting at
     // me even though they don't have a line of sight", "People are shooting at me through walls... That's definitely a
     // glitch"; ledger 118): the rule above made the hull he was in no cover from anyone, her own marines on the next
@@ -422,6 +422,6 @@ extension Game {
         if Game.sightLog { print("sight: \(m.kind.key) shares \(s.root.name) (\(s.root.id), \(s.root.blockCount) blocks) with him: hull between \(hid)") }
         return hid
     }
-    static let sightLog = ProcessInfo.processInfo.environment["BS_SIGHTLOG"] == "1"
-    static let oldShipSight = ProcessInfo.processInfo.environment["BS_OLDSHIPSIGHT"] == "1"
+    static let sightLog = Env.all["BS_SIGHTLOG"] == "1"
+    static let oldShipSight = Env.all["BS_OLDSHIPSIGHT"] == "1"
 }

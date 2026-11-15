@@ -284,7 +284,7 @@ enum MobKind: Int, CaseIterable {
 }
 
 final class Mob {
-    static let oldMobLight = ProcessInfo.processInfo.environment["BS_OLDMOBLIGHT"] == "1"     // (lightFor: ragdolls only lit from the cell over a solid one)
+    static let oldMobLight = Env.all["BS_OLDMOBLIGHT"] == "1"     // (lightFor: ragdolls only lit from the cell over a solid one)
     // The light a mob is drawn in (writeMobVertices), read at its middle `lc`. A body lying on smooth ground can have its
     // centre in the block under it; so can a small mob standing on it (Nov 13, Carbon's black chickens at -1793 95 3355,
     // "why are these chickens black?"): its middle a third of a block up and the drawn ground a few tenths over the
@@ -1717,7 +1717,7 @@ final class Mob {
     static var glanced = 0                    // P483: melee blows that glanced off a gun (checks)
     // P321: a gun round on a soldier, its armour and toughness already worked out (Armory.impactMob): taken as dealt.
     static var roundHit = false
-    static let oldMobFire = ProcessInfo.processInfo.environment["BS_OLDMOBFIRE"] == "1"
+    static let oldMobFire = Env.all["BS_OLDMOBFIRE"] == "1"
     static let litCampfires: Set<BlockID> = Set(["campfire", "soul_campfire"].filter { Blocks.has($0) }.map { Blocks.id($0) })
     func hit(from src: V3, damage: Int, knockback: Float = 1, iframes: Bool = false) {
         if posse == Prisoners.posse { return }                              // P347: the camp's prisoners can't be hurt
@@ -2364,7 +2364,7 @@ enum MobDrawStats {
     static var path = "none"
     // BS_MOBBACKCULL=0 draws every face of every part (writeMobVertices: the faces turned away past 16 blocks), for
     // before/after pictures.
-    static var backCull = ProcessInfo.processInfo.environment["BS_MOBBACKCULL"] != "0"
+    static var backCull = Env.all["BS_MOBBACKCULL"] != "0"
     static var line: String {
         "mobs \(mobs) (\(near) within 32), \(written) vertices written, \(drawn) drawn via \(path), \(culled) culled, \(dropped) dropped (buffer full)"
     }

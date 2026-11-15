@@ -626,10 +626,10 @@ enum TreeShapes {
     // with a root flare and moss (its "leaves": moss carpet); a fallen oak is its stump and, two blocks off, a trunk
     // of bark-all-round wood lying along the ground (its "roots": oak wood), laid only where the ground under it holds
     // (buildLitter). BS_OLDLITTER=1: the old placer.
-    static let oldLitter = ProcessInfo.processInfo.environment["BS_OLDLITTER"] == "1"
-    static let oldLitterMoss = ProcessInfo.processInfo.environment["BS_OLDLITTERMOSS"] == "1"
-    static let oldLitterLie = ProcessInfo.processInfo.environment["BS_OLDLITTERLIE"] == "1"
-    static let oldShrubs = ProcessInfo.processInfo.environment["BS_OLDSHRUBS"] == "1"
+    static let oldLitter = Env.all["BS_OLDLITTER"] == "1"
+    static let oldLitterMoss = Env.all["BS_OLDLITTERMOSS"] == "1"
+    static let oldLitterLie = Env.all["BS_OLDLITTERLIE"] == "1"
+    static let oldShrubs = Env.all["BS_OLDSHRUBS"] == "1"
     static let shrubs: [TreeShape] = [
         make("knee shrub", 401, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.3, 0.4, 0, 1.5, 1.1) },
         make("spreading shrub", 402, bole: 1, stretch: 0) { d in d.log(0, 0, 0); d.crown(0.5, 0.3, 0.3, 2.2, 1.0) },
@@ -749,7 +749,7 @@ enum TreeShapes {
 
     // The designs the world grows a kind as. BS_OLDCATALOGUE=1: only the 49 designs from before the catalogue of 100
     // (ids under 200), so every tree stands where and as it stood before Nov 15 (checks that fell a tree of his compare).
-    static var oldCatalogue = ProcessInfo.processInfo.environment["BS_OLDCATALOGUE"] == "1"     // (var: checks of his trees as they stood)
+    static var oldCatalogue = Env.all["BS_OLDCATALOGUE"] == "1"     // (var: checks of his trees as they stood)
     static func planted(_ kind: TreeKind) -> [TreeShape]? {
         guard let set = designs(kind) else { return nil }
         guard oldCatalogue else { return set }

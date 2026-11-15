@@ -171,7 +171,7 @@ enum ShapeRails {
     // straight line fitted through the cells either side of it (up to `fitReach` each way, as far as they keep within
     // 0.8 of a block of one line: a turn stops the reach), then four passes ease what is left. A straight leg at any
     // angle is one straight line; a turn is still an arc. BS_OLDSWAY=1 = before.
-    static let oldSway = ProcessInfo.processInfo.environment["BS_OLDSWAY"] == "1"
+    static let oldSway = Env.all["BS_OLDSWAY"] == "1"
     static let smoothPasses = 4
     static let fitReach = 10, fitPasses = 4
     // How many cells each side of a cell its drawn place depends on (the mesher's walk).
@@ -370,7 +370,7 @@ enum ShapeRails {
 
     // A railway's rail (P470): on the line's bed, the bed cells either side of it open above.
     static let trace: (Int, Int)? = {
-        guard let v = ProcessInfo.processInfo.environment["BS_RAILTRACE"]?.split(separator: ",").compactMap({ Int($0) }), v.count == 2 else { return nil }
+        guard let v = Env.all["BS_RAILTRACE"]?.split(separator: ",").compactMap({ Int($0) }), v.count == 2 else { return nil }
         return (v[0], v[1])
     }()
     static func mainline(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, _ shape: Int) -> Bool {

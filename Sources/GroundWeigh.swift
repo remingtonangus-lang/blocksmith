@@ -43,15 +43,15 @@ final class GroundWeighState {
 }
 
 enum GroundWeigh {
-    static let enabled = ProcessInfo.processInfo.environment["BS_GROUNDWEIGH"] != "0"
-    static let log = ProcessInfo.processInfo.environment["BS_GROUNDWEIGHLOG"] == "1"
+    static let enabled = Env.all["BS_GROUNDWEIGH"] != "0"
+    static let log = Env.all["BS_GROUNDWEIGHLOG"] == "1"
     // (to tell the parts' costs apart in a soak: BS_GWSEEDS=0 no look by the older checks after a fall, BS_GWNOTEOLD=0
     // their drops not noted, BS_GWPROPS=0 props not noted, BS_GWQUEUE=dispatch the weighing on a utility queue)
-    static let seedsOn = ProcessInfo.processInfo.environment["BS_GWSEEDS"] != "0"
-    static let oldSeeds = ProcessInfo.processInfo.environment["BS_GWSEEDS"] == "old"
-    static let noteOld = ProcessInfo.processInfo.environment["BS_GWNOTEOLD"] != "0"
-    static let propsOn = ProcessInfo.processInfo.environment["BS_GWPROPS"] != "0"
-    static let onPool = ProcessInfo.processInfo.environment["BS_GWQUEUE"] != "dispatch"
+    static let seedsOn = Env.all["BS_GWSEEDS"] != "0"
+    static let oldSeeds = Env.all["BS_GWSEEDS"] == "old"
+    static let noteOld = Env.all["BS_GWNOTEOLD"] != "0"
+    static let propsOn = Env.all["BS_GWPROPS"] != "0"
+    static let onPool = Env.all["BS_GWQUEUE"] != "dispatch"
     static let reach = 8                     // the box: the carve's cells and this far round them
     static let maxSide = 44                  // (at most this many cells a side: a naval crater and its surroundings)
     static let maxCarved = 60_000

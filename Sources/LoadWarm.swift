@@ -79,5 +79,35 @@ enum LoadWarm {
         _ = WorldObjects.isLight
         _ = GameBlocks.sculkIDs
         _ = AudioState.kindTable
+        // Ledger 168 (Nov 15): the tables still built by their first user in play, found by reading every lazily
+        // built table in the game: the first fire tick, the first felled tree, the first block set in water, the
+        // first blast near armour, the first ship mesh, the first load check's grids, the first tank track.
+        _ = World.fireOdds
+        _ = World.washedAway
+        _ = TreeWood.twin; _ = TreeWood.plain; _ = TreeWood.isTree; _ = TreeWood.timber
+        _ = Game.rides
+        _ = Game.leafKinds
+        _ = Armour.grade
+        _ = ShipMesh.outerPass; _ = ShipMesh.outerStop
+        _ = Capital.Walkways.passT; _ = Capital.Walkways.ladderT; _ = Capital.Walkways.wayT; _ = Capital.Walkways.floorT
+        _ = Structure.grid
+        _ = StructureTip.hangGrid
+        _ = StructureTip.partAnchors
+        _ = StructureFlow.thinMat
+        _ = Mesher.chipTable; _ = Mesher.chipLayers
+        _ = Mob.churn
+        _ = MobVoice.stepInfo
+        _ = BorealStation.mask
+        _ = FieldMat.table
+        _ = SmoothTerrain.natural
+        _ = ShapeOrganic.isOrganic
+        _ = Circuit.drives
+        _ = Economy.cashIn
+        _ = Stonecutting.recipes
+        _ = Recipes.tagSets
+        _ = Journal.itemNames
+        _ = Countries.mineralOf
+        _ = Guns.models
+        _ = CapitalArms.models
     }
 }

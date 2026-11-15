@@ -14,7 +14,7 @@ import simd
 // quarter second of the last one, a burst is thinned to half, past three quarters to its fireball and flash alone, and a burst beyond 140 blocks is half as well.
 // BS_OLDNAVALBURST=1: the grenade's burst as before.
 enum NavalBurst {
-    static let old = ProcessInfo.processInfo.environment["BS_OLDNAVALBURST"] == "1"
+    static let old = Env.all["BS_OLDNAVALBURST"] == "1"
     static let shipPower: Float = 3.5              // (GunSpec2.naval and .heavy; the autocannons stay small)
     static var bursts = 0                          // (harness)
     static var lastAt = -10.0

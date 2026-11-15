@@ -55,7 +55,7 @@ final class PauseMenu: Menu {
     // Q2c-console-44: why the host paused the game by itself (the headset: away, tracking lost, controllers put down);
     // the pause screen's subtitle until he resumes (Game.paused clears it).
     static var autoReason: String?
-    static let oldSubtitle = ProcessInfo.processInfo.environment["BS_OLDSUBTITLE"] == "1"   // (two-line subtitles at 14 and 23, buttons at 38)
+    static let oldSubtitle = Env.all["BS_OLDSUBTITLE"] == "1"   // (two-line subtitles at 14 and 23, buttons at 38)
     // Q2c-console-10: the one-time notes and the button prompts (Accessibility). P300: the tips and lessons are gone.
     // P328 (NO TEXT): the prompts and notes are gone over play too; what is left to reset is the goals.
     static func resetHints(_ g: Game) {

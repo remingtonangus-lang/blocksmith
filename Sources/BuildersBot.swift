@@ -420,7 +420,7 @@ final class BuilderBot: AgentBot {
         return edge
     }
     private var stuck = 0, inRow = 0, lastDeferSuccess = -1
-    static let trace = ProcessInfo.processInfo.environment["BS_BUILDTRACE"] != nil
+    static let trace = Env.all["BS_BUILDTRACE"] != nil
     private var lastDrop = ""
     // The spot didn't work: the next nearest, by a new route.
     private func drop(_ s: AgentState, _ why: String) {

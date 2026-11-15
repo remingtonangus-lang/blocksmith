@@ -20,7 +20,7 @@ enum CrashGuard {
     // was offered in whichever world opened next, and the new session's first save rotated the crashed one's copy away.
     // Now the session marker names its world: the offer is made only in that world, only for the first ten minutes,
     // during which that world's backup isn't rotated, and the notice no longer tells him to use it.)
-    static let oldAdvice = ProcessInfo.processInfo.environment["BS_OLDCRASHADVICE"] == "1"
+    static let oldAdvice = Env.all["BS_OLDCRASHADVICE"] == "1"
     private(set) static var crashedWorld: String?
     private static var began = CFAbsoluteTimeGetCurrent()
     static var world = "" { didSet { if world != oldValue { mark(true) } } }

@@ -16,7 +16,7 @@ enum AllocCount {
     private static let dump = sym("bs_alloc_dump", Dump.self)
     static var now: Int? { count?() }
 
-    private static let traceDir = ProcessInfo.processInfo.environment["BS_ALLOC_TRACE"]
+    private static let traceDir = Env.all["BS_ALLOC_TRACE"]
     static func traced<R>(_ name: String, _ body: () throws -> R) rethrows -> R {
         try counted(name, body).0
     }

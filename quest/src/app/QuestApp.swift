@@ -28,7 +28,7 @@ final class QuestApp {
     static func headsetWorld() {
         World.fluidSeconds = 0.002                 // fluid ticks yield after 2 ms (World.fluidSeconds)
         World.handoverSeconds = 0.0015             // streamed chunks/meshes installed within 1.5 ms a frame
-        DebrisWorld.budget = (Double(ProcessInfo.processInfo.environment["BS_DEBRISMS"] ?? "") ?? 1.5) / 1000   // a frame's debris sub-steps stop past 1.5 ms
+        DebrisWorld.budget = (Double(Env.all["BS_DEBRISMS"] ?? "") ?? 1.5) / 1000   // a frame's debris sub-steps stop past 1.5 ms
         // P339 (Remington, Oct 18 20:10: "everything out to the 24-chunk view looks exactly like the land near him... no
         // coarse 2-block-lattice LOD, no blur or compression"): every chunk in view is meshed at full detail (no far
         // level, no "fast" leaves). The cost is met by not simulating past the active distance, culling and merged
@@ -43,9 +43,9 @@ final class QuestApp {
         StructureCache.plansOffThread = true
         // Ledger 40: a trip to another dimension holds him in black while the ground streams in, instead of loading it
         // on the frame (BS_OLDTRIP=1 for before).
-        Game.arrivalHold = ProcessInfo.processInfo.environment["BS_OLDTRIP"] != "1"
+        Game.arrivalHold = Env.all["BS_OLDTRIP"] != "1"
         // Ledger 42: a blast's crater is shaped over the next frames within the carving allowance (BS_OLDBLAST=1: at once).
-        BlastShape.deferred = ProcessInfo.processInfo.environment["BS_OLDBLAST"] != "1"
+        BlastShape.deferred = Env.all["BS_OLDBLAST"] != "1"
     }
 
     private(set) var dynRes = DynamicResolution()       // P403 7b
@@ -63,7 +63,7 @@ final class QuestApp {
     // F3: a world being saved behind the loading scene ("Saving the world"), and a quit waiting for that save.
     private var savingGame: Game?
     private var exitWhenSaved = false
-    static let oldExitSave = ProcessInfo.processInfo.environment["BS_OLDEXITSAVE"] == "1"
+    static let oldExitSave = Env.all["BS_OLDEXITSAVE"] == "1"
     private var saveDone = false
     private var loadStatus = "Starting"
     private var loadProgress: Float = 0
@@ -71,7 +71,7 @@ final class QuestApp {
     private var loadStart = CFAbsoluteTimeGetCurrent()
     let stats = FrameStats()
     var platformName = "Quest"
-    static var debugClearOnly = ProcessInfo.processInfo.environment["QUEST_CLEAR_ONLY"] != nil
+    static var debugClearOnly = Env.all["QUEST_CLEAR_ONLY"] != nil
 
     init(xr: XRSession) throws {
         self.xr = xr
@@ -782,6 +782,7 @@ final class FrameStats {
     // The worst frame's own split (where a hitch went): cpu, game tick, world streaming within it, record, gpu.
     private var worstCPU = 0.0, worstTick = 0.0, worstWorld = 0.0, worstRecord = 0.0, worstGPU = 0.0
     private var tickStage: StaticString = "-", tickStageMs = 0.0, worstTickAny = 0.0
+    private var tickStages = ""                    // (Nov 15: the slowest tick's five slowest stages)
     private var since = CFAbsoluteTimeGetCurrent()
     private var loggedRD = -1
     // Auto Render Distance inputs besides the timings: a menu or pause in the window, a save, a dimension change,
@@ -840,6 +841,7 @@ final class FrameStats {
         }
         // The slowest tick of the window and its slowest stage (TickProf), whether or not it made the worst frame.
         if tick > worstTickAny { worstTickAny = tick; (tickStage, tickStageMs) = TickProf.top() }
+        if tick >= worstTickAny { tickStages = TickProf.topStages(5) }
         if target > 0 && frame > target * 1.5 { missed += 1 }
         if let g = game, g.menu != nil || g.paused { busyFrames += 1 }
         let now = CFAbsoluteTimeGetCurrent()
@@ -856,6 +858,10 @@ final class FrameStats {
                           FrameStats.residentMB())
         // The window's slowest game tick and its slowest stage (TickProf): what a tick hitch was.
         lastLine += " | slowest tick \(String(format: "%.1f", worstTickAny)) ms: \(tickStage) \(String(format: "%.1f", tickStageMs)) ms"
+        // (Nov 15: that tick's five slowest stages, and where the window's ordinary ticks went, average ms a tick)
+        lastLine += " (\(tickStages)) | tick stages avg ms: \(TickProf.windowTop(8))"
+        if Explosion.worstMs > 2 { lastLine += String(format: " | slowest blast %.1f ms (", Explosion.worstMs) + Explosion.worstLaps + ")" }
+        Explosion.worstMs = 0; Explosion.worstLaps = ""
         lastLine += " | far ticking \(FarTicks.lastSecond)"                  // P376: things ticking past the active distance (0)
         lastLine += " | eye resolution \(Int((scene.viewScale * 100).rounded()))%"                        // P403 7b (dynamic resolution)
         if let p = dynResProbe?(), p > 0 {                                                                 // P403 step 2: triangles or pixels

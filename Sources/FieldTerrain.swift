@@ -23,7 +23,7 @@ struct FieldData {
 enum FieldMat {
     static let blocks: [BlockID] = table.0
     static let index: [UInt8] = table.1
-    private static let table: ([BlockID], [UInt8]) = {
+    static let table: ([BlockID], [UInt8]) = {
         var list: [BlockID] = [AIR]
         var idx = [UInt8](repeating: 0, count: Blocks.count)
         for i in 0..<Blocks.count where SmoothTerrain.natural[i] && Blocks.opaque[i] {
@@ -37,7 +37,7 @@ enum FieldMat {
 
 enum FieldTerrain {
     static let scale: Float = 32                         // density units per block
-    static let oldBaseBank = ProcessInfo.processInfo.environment["BS_OLDBASEBANK"] == "1"
+    static let oldBaseBank = Env.all["BS_OLDBASEBANK"] == "1"
     static let outside: Int8 = -127                      // far outside the ground (and above the stored part)
     static let inside: Int8 = 127                        // far inside
     static let cellIn: Int8 = 16                         // a cell's centre half a block inside (a filled cell)
@@ -548,6 +548,7 @@ extension World {
     // Subtracts (carve) or adds a sphere to the field: d = min(d, |p - c| - r) or max(d, r - |p - c|). Cells whose
     // solidity flips are written through the block layer (so the game sees them open or filled); a fill takes
     // `material` (or the commonest ground round it). Sections touched are remeshed by the caller's setBlock or here.
+    static let oldSphere = Env.all["BS_OLDSPHERE"] == "1"       // ledger 164
     @discardableResult
     // `keepSolid`: only the surface moves (a blast's bowl walls, a bullet's dent): no cell turns from ground to open or
     // back, so nothing is removed without its drop.
@@ -571,6 +572,8 @@ extension World {
         // chunk is looked up when the row crosses into another)
         var lkx = Int.min, lkz = Int.min
         var lc: Chunk?
+        let quick = !World.oldSphere
+        let stop: Int8 = carve ? -127 : 127
         for y in stride(from: max(0, cyI - reach), through: min(CH - 1, cyI + reach), by: 1) {
             for z in (czI - reach)...(czI + reach) {
                 for x in (cxI - reach)...(cxI + reach) {
@@ -580,10 +583,19 @@ extension World {
                     }
                     guard let c = lc else { continue }
                     guard c.blocks.isField else { continue }
-                    let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
-                    let dist = simd_length(p - ctr)
                     let i = Chunk.index(mod(x, CS), y, mod(z, CS))
-                    let d0 = FieldTerrain.f(c.blocks.density(i))
+                    let v0 = c.blocks.density(i)
+                    if quick && v0 == stop { continue }                // ledger 164 (FineField.fineSphere)
+                    let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                    let off = p - ctr
+                    let d0 = FieldTerrain.f(v0)
+                    if quick {
+                        let d2 = simd_length_squared(off)
+                        // (a carve lifts an unbreakable cell's low value even where it changes nothing else)
+                        if carve { let lim = r + d0 + 0.02; if (v0 <= 0 || v0 >= 8) && (lim <= 0 || d2 >= lim * lim) { continue } }
+                        else { let lim = r - d0 + 0.02; if lim <= 0 || d2 >= lim * lim { continue } }
+                    }
+                    let dist = simd_length(off)
                     let d1 = carve ? min(d0, dist - r) : max(d0, r - dist)
                     var q = FieldTerrain.q(d1)
                     let was = d0 > 0
@@ -815,7 +827,7 @@ extension World {
             let e = ItemEntity(ItemStack(Items.id("cobblestone"), 1), at: V3(x + 0.6, s + 1.2, z - 0.6), vel: .zero, delay: 999)
             g.drops.items.append(e); items.append(e)
         }
-        let verbose = ProcessInfo.processInfo.environment["FIELDBODIES_VERBOSE"] != nil
+        let verbose = Env.all["FIELDBODIES_VERBOSE"] != nil
         let spawnY = mobs.map { $0.pos.y }
         var hist = [[String]](repeating: [], count: mobs.count), told = [Bool](repeating: false, count: mobs.count)
         for t in 0..<150 {

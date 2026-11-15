@@ -30,7 +30,7 @@ enum AlarmWaves {
         }
         func set(_ m: Mob, _ r: Int) { roles[ObjectIdentifier(m)] = Entry(mob: m, role: r) }
     }
-    static let oldKeys = ProcessInfo.processInfo.environment["BS_OLDALARMKEYS"] == "1"
+    static let oldKeys = Env.all["BS_OLDALARMKEYS"] == "1"
     static var plans: [String: Plan] = [:]
 
     // The plan of an alarm at `key`, made when the alarm is new (or after 15 s without a call: it stood down).

@@ -308,8 +308,8 @@ extension Game {
     // in the middle, a ring at 750 m and the rim at 1,500 m, a blip for each contact in its colour (the Capital red,
     // Greywall blue-grey, the rest green; past the rim, on the rim), a tick for north, and under it one short line for
     // the nearest contact. BS_OLDRADARLIST=1: the list.
-    static let oldRadarList = ProcessInfo.processInfo.environment["BS_OLDRADARLIST"] == "1"
-    static let oldRadarYaw = ProcessInfo.processInfo.environment["BS_OLDRADARYAW"] == "1"
+    static let oldRadarList = Env.all["BS_OLDRADARLIST"] == "1"
+    static let oldRadarYaw = Env.all["BS_OLDRADARYAW"] == "1"
     var radarYaw: Float { Game.oldRadarYaw ? player.yaw : lookYaw }
     static var scopeNorth: Float = 0              // (checks: the north tick's bearing on the scope last frame)
     static var scopeBlips = 0                     // (checks: blips drawn last frame)

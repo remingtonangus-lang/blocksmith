@@ -105,7 +105,7 @@ enum Village {
         guard TownSizes.size(cx * CS + 8, cz * CS + 8, seed: gen.seed, ratio: TownSizes.newRatio).rawValue <= TownSize.town.rawValue else { return false }
         return sc.clear(cx: cx, cz: cz, reach: 14, guardSet: sc.legacyP499)
     }
-    static let oldSeats = ProcessInfo.processInfo.environment["BS_OLDSEATS"] == "1"   // (the wrong-way chairs, for checks)
+    static let oldSeats = Env.all["BS_OLDSEATS"] == "1"   // (the wrong-way chairs, for checks)
     static let extraTries = 3
 
     static func place(_ gen: WorldGen, _ seed: UInt64, _ cx: Int, _ cz: Int) -> StructureStart? {

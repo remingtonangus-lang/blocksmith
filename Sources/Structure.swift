@@ -36,19 +36,19 @@ enum Structure {
         var crush: Float = 0
         var crushCap: Float { (crush > 0 ? crush : bond * Structure.crushK) * Structure.crushScale }
     }
-    static let crushK: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSHK"] ?? "") ?? 3
+    static let crushK: Float = Float(Env.all["BS_CRUSHK"] ?? "") ?? 3
     // (BS_CRUSH=0.5: every material's crushing strength times that, to try in the checks)
-    static var crushScale: Float = Float(ProcessInfo.processInfo.environment["BS_CRUSH"] ?? "") ?? 1
+    static var crushScale: Float = Float(Env.all["BS_CRUSH"] ?? "") ?? 1
     // (BS_MATS="planks=6/60/5,concrete=24/400/10": a material's numbers for this run, to try others in the checks)
     static func mat(_ name: String, _ weight: Float, _ bond: Float, _ reach: Int, crush: Float = 0) -> Mat {
-        for e in (ProcessInfo.processInfo.environment["BS_MATS"] ?? "").split(separator: ",") {
+        for e in (Env.all["BS_MATS"] ?? "").split(separator: ",") {
             let kv = e.split(separator: "="), v = kv.count == 2 ? kv[1].split(separator: "/") : []
             if kv.first.map(String.init) == name, v.count == 3, let a = Float(v[0]), let b = Float(v[1]), let c = Int(v[2]) { return Mat(weight: a, bond: b, reach: c) }
         }
         return Mat(weight: weight, bond: bond, reach: reach, crush: crush)
     }
     // BS_LOAD=0: no load checks (before/after).
-    static let enabled = ProcessInfo.processInfo.environment["BS_LOAD"] != "0"
+    static let enabled = Env.all["BS_LOAD"] != "0"
 
     // (Nov 13, StructureFlow) crush: what a block bears pressed straight down, in the same units. Every material bears
     // far more pressed than hung (masonry sixty times its bond in the real thing; here enough for a wall of it 240
@@ -84,7 +84,7 @@ enum Structure {
     // stood on air. A signal torch, wire, a repeater and a comparator carry what is set on them down to what they
     // stand on (a strut: next to no weight, a mason's bond, bears as stone bears). BS_OLDCIRCUITLOAD=1: as before.
     static let circuitStrut: [Bool] = (0..<Blocks.count).map { i in
-        guard ProcessInfo.processInfo.environment["BS_OLDCIRCUITLOAD"] != "1" else { return false }
+        guard Env.all["BS_OLDCIRCUITLOAD"] != "1" else { return false }
         let k = Blocks.key(Blocks.groupBase[i])
         return k == "redstone_wire" || k == "redstone_torch" || k == "redstone_wall_torch" || k == "repeater" || k == "comparator"
     }
@@ -100,7 +100,7 @@ enum Structure {
         // sound blocks it's fixed to)
         return Mat(weight: m.weight * min(1, max(0.1, v)), bond: m.bond, reach: m.reach, fixture: v < 0.5, crush: m.crush)
     }
-    static let oldGunMetal = ProcessInfo.processInfo.environment["BS_OLDGUNMETAL"] == "1"
+    static let oldGunMetal = Env.all["BS_OLDGUNMETAL"] == "1"
     static func material(_ i: Int) -> Mat? {
         let b = BlockID(i)
         if circuitStrut[i] { return strut }
@@ -164,7 +164,7 @@ enum Structure {
     // checks: what a diagonal step up costs in reach, what an edge joint holds against a face joint sideways and on a
     // slope, resting diagonally, and what carrying a block on a much weaker one costs the load's way down)
     static func tune(_ key: String, _ def: Float) -> Float {
-        for e in (ProcessInfo.processInfo.environment["BS_LOADTUNE"] ?? "").split(separator: ",") {
+        for e in (Env.all["BS_LOADTUNE"] ?? "").split(separator: ",") {
             let kv = e.split(separator: "="); if kv.count == 2, kv[0] == key, let v = Float(kv[1]) { return v }
         }
         return def
@@ -188,7 +188,7 @@ enum Structure {
     }
     static var checks = 0, fallen = 0, worstMs: Double = 0, totalMs: Double = 0, crushed = 0      // (harness tallies)
     static var tally: [String: Int]? = nil      // (harness: what queued the checks, old -> new)
-    static let snowLoad = ProcessInfo.processInfo.environment["BS_SNOWLOAD"] == "1"     // (P508 before/after: snow queues checks)
+    static let snowLoad = Env.all["BS_SNOWLOAD"] == "1"     // (P508 before/after: snow queues checks)
 
     // Nov 13 (the Boreal station weighed whole in a field world: its round tower and a mast, 394 blocks, "would come
     // down": they stand on the snow blocks the generator left lying on the ground there, and a natural block that is
@@ -196,7 +196,7 @@ enum Structure {
     // snow is ground.) In a field world a natural block lying on the ground, the ground right under it or under one
     // more natural block, is ground too: a drift, a boulder, a dune's top layer. Higher up it stays what it was.
     // BS_OLDLYINGNATURAL=1: a building block wherever it lies, as before.
-    static let lyingNatural = ProcessInfo.processInfo.environment["BS_OLDLYINGNATURAL"] != "1"
+    static let lyingNatural = Env.all["BS_OLDLYINGNATURAL"] != "1"
     @inline(__always) static func lies(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard lyingNatural else { return false }
         if w.groundAt(x, y - 1, z) { return true }
@@ -269,8 +269,8 @@ enum Structure {
     // one carried on from the blocks newly found sound (the same distances: a search that lowers a block's distance
     // puts it back in the queue, so it settles on the shortest way whatever order it goes in). The load's order is
     // sorted on one number a block. (BS_LOADOLD=1: as before; BS_LOADVERIFY=1: each check run both ways and compared)
-    static var loadOld = ProcessInfo.processInfo.environment["BS_LOADOLD"] == "1"
-    static let loadVerify = ProcessInfo.processInfo.environment["BS_LOADVERIFY"] == "1"
+    static var loadOld = Env.all["BS_LOADOLD"] == "1"
+    static let loadVerify = Env.all["BS_LOADVERIFY"] == "1"
     static var loadVerified = 0, loadVerifyDiffs = 0, loadVerifyOldMs = 0.0, loadVerifyNewMs = 0.0
     static var verifyLine: String {
         let n = Double(max(1, loadVerified))
@@ -559,9 +559,22 @@ enum Structure {
     // tick has left), at most `maxWait` frames; it spends the allowance. Seeded runs and harnesses check as before.
     static var wantSeconds = 0.0012, maxWait = 3          // (one check a frame was all it ever ran: a short wait)
     private static var waited = 0
+    static let oldSplit = Env.all["BS_OLDLOADSPLIT"] == "1"
+    // One load check from one start.
+    static func check(_ g: Game, at s: IVec3) {
+        let w = g.world
+        let r = analyse(w, at: s)
+        checks += 1
+        let cut = r.capped ? looseAll(w, near: s) : []
+        if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
+        // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame.
+        // What this check would drop waits for that, StructureCollapse.hold.)
+        else if !r.falls.isEmpty { if !(r.capped && StructureCollapse.hold(w, at: s)) { drop(g, r.falls) } }
+        if r.capped && cut.isEmpty { StructureCollapse.request(w, at: s) }
+    }
     static func tick(_ g: Game) {
         let w = g.world
-        guard enabled, !w.loadQueue.isEmpty else { return }
+        guard enabled, !w.loadQueue.isEmpty || !w.loadSeeds.isEmpty else { return }
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         if paced {
             // (ledger 126: with the frame governor, when the frame has room for what a check took lately)
@@ -571,6 +584,19 @@ enum Structure {
         }
         let began = CFAbsoluteTimeGetCurrent()
         defer { if paced { let s = CFAbsoluteTimeGetCurrent() - began; CraterJob.spend(s); FrameGovernor.learn(.loadCheck, s) } }
+        // Ledger 165 (Nov 15, the citadel soak: one load check took 7.0 ms of a frame): a check at a shell hole starts
+        // from the changed cell and from up to four blocks of the hole's rim, each a fill of its own (1-2 ms in a
+        // citadel wall), and all five ran in the one tick. In play each start after the first waits for a tick of its
+        // own (the next one with room). BS_OLDLOADSPLIT=1: all at once, as before.
+        if paced, !oldSplit, let s = w.loadSeeds.popLast() {
+            guard w.activeHere(s) else { return }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            check(g, at: s)
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            worstMs = max(worstMs, ms); totalMs += ms
+            if !w.pieces.isEmpty { pieces(g, near: V3(Float(s.x), Float(s.y), Float(s.z))) }
+            return
+        }
         var budget = 1
         while budget > 0, !w.loadQueue.isEmpty {
             let p = w.loadQueue.removeFirst()
@@ -593,15 +619,12 @@ enum Structure {
                 if !w.pieces.isEmpty { pieces(g, near: V3(Float(p.x), Float(p.y), Float(p.z))) }
                 continue
             }
-            for s in [p] + more {
-                let r = analyse(w, at: s)
-                checks += 1
-                let cut = r.capped ? looseAll(w, near: s) : []
-                if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
-                // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame.
-                // What this check would drop waits for that, StructureCollapse.hold.)
-                else if !r.falls.isEmpty { if !(r.capped && StructureCollapse.hold(w, at: s)) { drop(g, r.falls) } }
-                if r.capped && cut.isEmpty { StructureCollapse.request(w, at: s) }
+            if paced && !oldSplit {
+                check(g, at: p)
+                w.loadSeeds.append(contentsOf: more.reversed())
+                if w.loadSeeds.count > 64 { w.loadSeeds.removeFirst(w.loadSeeds.count - 64) }
+            } else {
+                for s in [p] + more { check(g, at: s) }
             }
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             worstMs = max(worstMs, ms); totalMs += ms
@@ -615,7 +638,7 @@ enum Structure {
     // the hole, nothing built beside it, and the blocks at the hole's rim, what was left holding the top, were never
     // checked. Where nothing is built beside the changed cell, the check now starts from the built blocks round the cube that
     // face an open cell inside it (one for each piece they belong to there, up to four). BS_OLDLOADSEED=1: from the first cell only, as before.
-    static let oldSeeds = ProcessInfo.processInfo.environment["BS_OLDLOADSEED"] == "1"
+    static let oldSeeds = Env.all["BS_OLDLOADSEED"] == "1"
     static var rimChecks = 0                                  // (harness: checks started from a hole's rim)
     static func rimSeeds(_ w: World, _ p: IVec3) -> [IVec3] {
         // (only where the check from the changed cell itself finds nothing built beside it: a dug block, a placed one,
@@ -765,7 +788,7 @@ enum Structure {
     // the search above returned the first piece it found loose, and what was taken out with it was taken out quietly (no
     // check after), so a second piece beside the same change, cut loose by the same shot, hung on. Every loose piece
     // beside the change is returned now. (BS_OLDLOOSE=1: the first only, as before)
-    static let oldLoose = ProcessInfo.processInfo.environment["BS_OLDLOOSE"] == "1"
+    static let oldLoose = Env.all["BS_OLDLOOSE"] == "1"
     static func looseAll(_ w: World, near p: IVec3, limit: Int = 24_000) -> [[IVec3]] {
         let held = looseHeld, seen = looseSeen
         held.removeAll()
@@ -937,7 +960,7 @@ extension World {
 struct HeldDeck {
     var y = Int.min, x0 = 0, x1 = -1, z0 = 0, z1 = -1
     static let none = HeldDeck()
-    static let old = ProcessInfo.processInfo.environment["BS_OLDDECKHOLD"] == "1"
+    static let old = Env.all["BS_OLDDECKHOLD"] == "1"
     static func floor(y: Int, x0: Int, x1: Int, z0: Int, z1: Int) -> HeldDeck { old ? none : HeldDeck(y: y, x0: x0, x1: x1, z0: z0, z1: z1) }
     @inline(__always) func holds(_ x: Int, _ y: Int, _ z: Int) -> Bool { y == self.y && x >= x0 && x <= x1 && z >= z0 && z <= z1 }
 }

@@ -53,7 +53,7 @@ enum GroundCollapse {
     // one had found held). Cells of a piece found held; a fill that meets one is that piece, so held (BS_OLDCOLLAPSE=1:
     // every seed filled on its own, as before).
     private static let heldMarks = CellMarks(radius: reach + 1)
-    static let shareHeld = ProcessInfo.processInfo.environment["BS_OLDCOLLAPSE"] != "1"
+    static let shareHeld = Env.all["BS_OLDCOLLAPSE"] != "1"
 
     // Store review (crawler soak, build 103): a check is 1-2.6 ms, and it came on frames already heavy with the drive and
     // the soldiers (ticks of 9-11 ms). It draws on the carving allowance (CraterJob.allowance): a frame with under
@@ -68,7 +68,7 @@ enum GroundCollapse {
     // only round a carve. Built blocks taken out from under ground (a piece of a structure toppled, loose blocks
     // dropped) now queue the check there, and ground lying on a built block counts as held, so a garden stays on a
     // roof that stands and comes down with one that falls.
-    static let onBuilt = ProcessInfo.processInfo.environment["BS_OLDROOFGROUND"] != "1"
+    static let onBuilt = Env.all["BS_OLDROOFGROUND"] != "1"
     static var queuedUnder = 0
     static func builtGone(_ w: World, _ cells: [IVec3]) {
         guard onBuilt, w.fieldTerrain else { return }

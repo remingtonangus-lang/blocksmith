@@ -83,7 +83,7 @@ enum PathFinder {
         if k != cKey { cKey = k; cChunk = w.chunkAt(x, z) }
         return cChunk
     }
-    static let oldTopLookup = ProcessInfo.processInfo.environment["BS_OLDTOPLOOKUP"] == "1"
+    static let oldTopLookup = Env.all["BS_OLDTOPLOOKUP"] == "1"
 
     static let climbIds: Set<BlockID> = {
         var s = Set<BlockID>()

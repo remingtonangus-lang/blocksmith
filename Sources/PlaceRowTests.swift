@@ -183,7 +183,7 @@ enum PlaceRowTests {
                 if at == IVec3(nx, H, nz) { inCorner += 1 }
                 if at == IVec3(nx, H + 1, nz) { over += 1 }
                 tally["\(at.x - nx),\(at.y - H),\(at.z - nz)", default: 0] += 1
-                if ProcessInfo.processInfo.environment["BS_NOTCHTRACE"] == "1" {
+                if Env.all["BS_NOTCHTRACE"] == "1" {
                     print(String(format: "  notch: surface %.2f %.2f %.2f n %.2f %.2f %.2f hit %d,%d,%d axis %d,%d,%d -> %d,%d,%d", tg.at.x - Float(nx), tg.at.y - Float(H), tg.at.z - Float(nz), tg.normal.x, tg.normal.y, tg.normal.z, tt.hit.x - nx, tt.hit.y - H, tt.hit.z - nz, tt.normal.x, tt.normal.y, tt.normal.z, at.x - nx, at.y - H, at.z - nz))
                 }
             } } }

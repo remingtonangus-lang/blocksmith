@@ -22,8 +22,8 @@ extension AdaptiveGround {
     // How far a far detail vertex's shading may drift: the normal (difference of unit vectors; the shading is lit per
     // vertex from it, 0.15 is about 6% brightness at most) and the texture position (in blocks: 0.1 is 1.6 texels, half
     // a pixel at 180 blocks).
-    static var detailNormalTol: Double = Double(ProcessInfo.processInfo.environment["BS_FAR_NORMAL"] ?? "") ?? 0.15
-    static var detailUVTol: Double = Double(ProcessInfo.processInfo.environment["BS_FAR_UV"] ?? "") ?? 0.1
+    static var detailNormalTol: Double = Double(Env.all["BS_FAR_NORMAL"] ?? "") ?? 0.15
+    static var detailUVTol: Double = Double(Env.all["BS_FAR_UV"] ?? "") ?? 0.1
     // Normals closer than this join a shape's vertices drawn at one place (with the same texture position and the rest).
     static var detailWeldTol: Float = 0.12
 

@@ -8,7 +8,7 @@ import simd
 // agent put down, and every cell it dug, is read back; the ground round each build is compared with how it was.
 // BS_BUILDONLY=key,key limits it to some builds.
 enum BuildersCheck {
-    static let maxTicks = Int(ProcessInfo.processInfo.environment["BS_BUILDTICKS"] ?? "") ?? 240_000
+    static let maxTicks = Int(Env.all["BS_BUILDTICKS"] ?? "") ?? 240_000
     static func run(_ g0: Game, _ check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
@@ -38,7 +38,7 @@ enum BuildersCheck {
             w.setBlock(x, gy + 6, z, AIR)
             check(grew == 0 && n1 == n0, "builds: a stone brick 5 over the ground grows none under it (\(grew) cells filled, \(n1 - n0) ground cells more; BS_OLDMEET=1 filled them)")
         }
-        let only = ProcessInfo.processInfo.environment["BS_BUILDONLY"].map { Set($0.split(separator: ",").map(String.init)) }
+        let only = Env.all["BS_BUILDONLY"].map { Set($0.split(separator: ",").map(String.init)) }
         let bps = BuildersGrounds.blueprints().filter { only?.contains($0.key) ?? true }
         print("builds: finding the sites round \(Int(spawn.x)) \(Int(spawn.z))"); fflush(stdout)
         let t0 = CFAbsoluteTimeGetCurrent()

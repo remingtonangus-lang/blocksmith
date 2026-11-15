@@ -181,7 +181,7 @@ enum SoldierRig {
     // anything bring back the old ones." The dress from before the trailer work is the game's again: the Ashguard in
     // black with red trim, flared helmets, caps, armbands and collar tabs; the marauder leader in black. The trailer's
     // remodel (ash grey, visor helmets, the leader's brown duster) stays only behind BS_NEWASHLOOK=1.
-    static let oldAshLook = ProcessInfo.processInfo.environment["BS_NEWASHLOOK"] != "1"
+    static let oldAshLook = Env.all["BS_NEWASHLOOK"] != "1"
 
     static let hipX: Float = 2.0, thighLen: Float = 6.0, shinLen: Float = 6.0
     static let shoulderX: Float = 5.7, shoulderY: Float = 22.3
@@ -1089,6 +1089,7 @@ enum SoldierRig {
     // the pose moves it a few centimetres in that time, the soldier's place and heading are applied fresh each call.
     static var muzzleTick = 0
     static let muzzleFrames = 4
+    static let oldMuzzle = Env.all["BS_OLDMUZZLE"] == "1"
     private static var muzzleKept: [ObjectIdentifier: (V3, Int)] = [:]
     static func muzzleWorld(_ m: Mob) -> V3 {
         let id = ObjectIdentifier(m)
@@ -1098,7 +1099,9 @@ enum SoldierRig {
         // drawn rig's muzzle (the mob pass builds that rig anyway); one not drawn (out of view, past the far detail) is
         // built without the clearance, which moves the muzzle a centimetre or two.
         if muzzleTick &- m.muzzleDrawnAt < muzzleFrames { local = m.muzzleDrawn }
-        else if let k = muzzleKept[id], muzzleTick &- k.1 < muzzleFrames { local = k.0 } else {
+        // (ledger 167: a soldier nobody sees keeps his built muzzle a quarter of a second, not four ticks: the rig
+        // built for it was 7% of the garrison's tick. BS_OLDMUZZLE=1: four ticks.)
+        else if let k = muzzleKept[id], muzzleTick &- k.1 < (oldMuzzle ? muzzleFrames : 18) { local = k.0 } else {
             local = build(m, clearance: false).muzzle
             if muzzleKept.count > 600 { muzzleKept.removeAll(keepingCapacity: true) }
             muzzleKept[id] = (local, muzzleTick)

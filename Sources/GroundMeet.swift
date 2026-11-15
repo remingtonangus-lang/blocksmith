@@ -9,8 +9,8 @@ import simd
 // raised ground is ground: breaking the block leaves it. Saved with the chunk's field (its own format).
 extension World {
     // BS_MEET=0: blocks placed on field ground as before P387 (before/after checks).
-    static let meetGroundOn = ProcessInfo.processInfo.environment["BS_MEET"] != "0"
-    static let oldMeet = ProcessInfo.processInfo.environment["BS_OLDMEET"] == "1"
+    static let meetGroundOn = Env.all["BS_MEET"] != "0"
+    static let oldMeet = Env.all["BS_OLDMEET"] == "1"
 
     // Does a block of this state rest on its cell's floor (so the ground under it should reach that floor)?
     static let restsOnFloor: [Bool] = {
@@ -99,7 +99,7 @@ extension World {
     // places now stands up to it again: in each cell beside it that the blow only rounded off (its middle still within
     // half a block of the level), up to the ground a block and a half further out that way, never over the block's
     // top; a cell he dug out (its middle lower) is left: a trench or a cellar beside the block stays open. Returns the samples' cells it changed. BS_OLDBACK=1: as before.
-    static let oldBack = ProcessInfo.processInfo.environment["BS_OLDBACK"] == "1"
+    static let oldBack = Env.all["BS_OLDBACK"] == "1"
     @discardableResult
     func groundBack(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Int {
         guard !World.oldBack, World.meetGroundOn, fieldTerrain, frame == nil, Blocks.fullCollide[Int(id)], y > 1, y + 2 < CH else { return 0 }

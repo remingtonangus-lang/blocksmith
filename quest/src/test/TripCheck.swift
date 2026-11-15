@@ -61,7 +61,7 @@ enum TripCheck {
                 let held = g.arrivalSince != nil
                 let ms = tick()
                 if held { heldFor = Double(i + 1) / 72 }
-                if held && i % 36 == 0 && ProcessInfo.processInfo.environment["BS_TRIPTRACE"] == "1" {
+                if held && i % 36 == 0 && Env.all["BS_TRIPTRACE"] == "1" {
                     let w = g.world
                     let cx = floorDiv(Int(floor(g.player.pos.x)), CS), cz = floorDiv(Int(floor(g.player.pos.z)), CS)
                     var have = 0, drawn = 0

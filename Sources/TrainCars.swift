@@ -22,7 +22,7 @@ extension Trains {
     static let bigScale: Float = 4
     static let tender = 15, boxcar = 16, tankWagon = 17, flatcar = 18, troopCar = 19
     static let coupler: Float = 0.8                    // blocks between two cars' ends
-    static let oldCouplers = ProcessInfo.processInfo.environment["BS_OLDCOUPLERS"] == "1"
+    static let oldCouplers = Env.all["BS_OLDCOUPLERS"] == "1"
     enum Kind: Int { case passenger, cargo, troop, bullion }
     static var forceKind: Kind?                        // (checks)
 

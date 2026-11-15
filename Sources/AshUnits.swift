@@ -589,7 +589,7 @@ extension Mob {
     // Cinder Tank, the Behemoth, a half-track's rear tracks) churns the ground under its two tracks: grass, snowy grass,
     // podzol, mycelium and dirt turn to coarse dirt, and the snow, grass and flowers on them are crushed flat, two dark
     // lines behind it wherever it went.
-    private static let churn: [Bool] = (0..<Blocks.count).map {
+    static let churn: [Bool] = (0..<Blocks.count).map {
         ["grass_block", "snowy_grass_block", "podzol", "mycelium", "dirt", "rooted_dirt"].contains(Blocks.key(BlockID($0)))
     }
     func ashTracks(_ g: Game, _ speed: Float) {

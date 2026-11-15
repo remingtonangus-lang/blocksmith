@@ -9,7 +9,7 @@ import simd
 // come out exact apart from 565 rounding. Apple GPUs on macOS sample BC formats natively.
 enum TexCompress {
     static var enabled: Bool {
-        if ProcessInfo.processInfo.environment["BLOCKSMITH_TEXCOMPRESS"] == "0" { return false }
+        if Env.all["BLOCKSMITH_TEXCOMPRESS"] == "0" { return false }
         return UserDefaults.standard.object(forKey: "textureCompression") as? Bool ?? true
     }
 

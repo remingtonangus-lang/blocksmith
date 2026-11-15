@@ -53,7 +53,7 @@ final class SoundEngine {
     // sounds made ahead of use and never heard grew the same way (warm groups); they are held to half the budget, the
     // oldest let go first, never the common sounds (SoundBank.trim, from update). BS_CLIPBUDGET=0: no budget.
     static let clipBudget: Int = {
-        if let v = ProcessInfo.processInfo.environment["BS_CLIPBUDGET"], let mb = Int(v) { return mb <= 0 ? Int.max : mb << 20 }
+        if let v = Env.all["BS_CLIPBUDGET"], let mb = Int(v) { return mb <= 0 ? Int.max : mb << 20 }
         return 64 << 20
     }()
     private var heldBytes = 0

@@ -24,7 +24,7 @@ enum QuestVideo {
     // at a size (the whole eye is taller than some encoders' 2160 rows) steps down: full, three quarters, half, a
     // quarter. A size that failed is remembered, so the pictures still in flight at it are dropped and step down no
     // further. BS_VIDEOSCALE=2 or 4: half or the quarter picture (as before) from the start.
-    static var quarters: Int = 4 / max(1, min(4, ProcessInfo.processInfo.environment["BS_VIDEOSCALE"].flatMap { Int($0) } ?? 1))
+    static var quarters: Int = 4 / max(1, min(4, Env.all["BS_VIDEOSCALE"].flatMap { Int($0) } ?? 1))
     private static var failW = 0, failH = 0
     static func bitrate(_ w: Int, _ h: Int) -> Int32 { Int32(max(4_000_000, min(24_000_000, Double(w * h) * fps * 0.2))) }
     static let window: Int32 = 10              // seconds buffered before a note
@@ -79,7 +79,7 @@ enum QuestVideo {
     // resolution on (P498) the eye pass draws only the top-left `drawn` part of the eye image; the video blitted the
     // whole image, the stale rest of it included. It now blits the drawn part to the whole picture (the staging keeps
     // the full image's size, so a changing resolution reallocates nothing). BS_OLDVIDEOAREA=1: the whole image.
-    static let oldArea = ProcessInfo.processInfo.environment["BS_OLDVIDEOAREA"] == "1"
+    static let oldArea = Env.all["BS_OLDVIDEOAREA"] == "1"
     static func service(_ s: SceneRenderer.Slot, ctx: VkContext, image: VkImage, format: VkFormat, width: Int, height: Int,
                         drawn: (Int, Int)? = nil) {
         lock.lock(); let want = wanted; lock.unlock()

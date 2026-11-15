@@ -195,7 +195,7 @@ final class ItemEntityManager {
     var items: [ItemEntity] = []
     private var mergeTimer: Float = 0
     static var drawFar: Float = 64
-    static var p446 = ProcessInfo.processInfo.environment["BS_ITEMS"] != "old"     // (BS_ITEMS=old: no sleep, every pair, all drawn)
+    static var p446 = Env.all["BS_ITEMS"] != "old"     // (BS_ITEMS=old: no sleep, every pair, all drawn)
 
     // Dropped items are saved with their dimension (drops.json): they lived only in memory, so quitting before going
     // back for the things dropped at a death lost them all.

@@ -16,8 +16,8 @@ extension BlockRegistry {
         return Box(min(a.0, c.0), Int(bx.y0), min(a.1, c.1), max(a.0, c.0), Int(bx.y1), max(a.1, c.1), tex: bx.tex)
     }
 
-    static let oldFurniture = ProcessInfo.processInfo.environment["BS_OLDFURNITURE"] == "1"
-    static let oldSeatOrder = ProcessInfo.processInfo.environment["BS_OLDSEATORDER"] == "1"
+    static let oldFurniture = Env.all["BS_OLDFURNITURE"] == "1"
+    static let oldSeatOrder = Env.all["BS_OLDSEATORDER"] == "1"
     func registerSeats() {
         let dirs = ["north", "south", "west", "east"]
         for w in BlockRegistry.doorWoods where has("\(w)_planks") {

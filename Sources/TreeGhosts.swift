@@ -16,7 +16,7 @@ import Foundation
 // when no log is left that they could shape. At most 8,000 are kept (the oldest chunk's go first). Saved with the world (tree-ghosts.json).
 // BS_OLDTREEMORPH=1: none are made or read.
 final class TreeGhosts {
-    static let on = ProcessInfo.processInfo.environment["BS_OLDTREEMORPH"] != "1"
+    static let on = Env.all["BS_OLDTREEMORPH"] != "1"
     static let crownBit: UInt32 = 1 << 16
     static var noted = 0, pruned = 0                 // (harness)
     typealias Map = [IVec3: UInt32]                  // world cell -> the log that stood there | crownBit

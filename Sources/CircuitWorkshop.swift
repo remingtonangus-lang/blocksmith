@@ -51,7 +51,7 @@ enum CircuitWorkshop {
     // Nov 13 playtest (13:05:27-13:06:38, the workshop: "Looks like shit though... Pistons look like shit"): the benches'
     // posts and supports were natural stone, which the realistic world draws as round rock, so a lever or a torch stood
     // on a lumpy boulder. They are smooth stone, a worked block drawn as a cube (BS_OLDWORKSHOPSTONE=1: stone).
-    static let post = ProcessInfo.processInfo.environment["BS_OLDWORKSHOPSTONE"] == "1" || !Blocks.has("smooth_stone") ? "stone" : "smooth_stone"
+    static let post = Env.all["BS_OLDWORKSHOPSTONE"] == "1" || !Blocks.has("smooth_stone") ? "stone" : "smooth_stone"
 
     static let benches: [Bench] = [
         Bench(key: "torch_clock", title: ["Torch Clock", "torch + 4-tick", "repeater loop", "20-tick period"], width: 8) { b in

@@ -159,13 +159,13 @@ final class Turrets {
     var remoteSeat: IVec3?                           // P471: ... in the gun room's chair, sat back in when he leaves
 
     static let roofY: Float = 5.5                    // the heavy turret's gunhouse roof above its origin (HeavyTurret model)
-    static let oldStand = ProcessInfo.processInfo.environment["BS_OLDGUNSTAND"] == "1"
+    static let oldStand = Env.all["BS_OLDGUNSTAND"] == "1"
     // Nov 12 playtest (06:21:27, on a Capital light gun he had turned on its own tower: "This thing should also have
     // limited ammunition"; 06:28:48, "creative so that all the vehicles have infinite ammunition"): a gun he mans has a
     // magazine (the heavy turret 24 shells, a light gun 60, a small mount 120, the flak gun 240); in survival each
     // shell he fires comes out of it, and empty the gun only clicks. Unmanned its crew restocks it, a shell every
     // 10 s. Creative never runs it down. BS_OLDAMMO=1: no magazine.
-    static let oldAmmo = ProcessInfo.processInfo.environment["BS_OLDAMMO"] == "1"
+    static let oldAmmo = Env.all["BS_OLDAMMO"] == "1"
     static func magazineSize(_ m: Mob) -> Int {
         if HeavyTurret.isFlak(m) { return 240 }
         let k = HeavyTurret.scale(m)

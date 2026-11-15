@@ -84,7 +84,7 @@ enum Mesher {
     #if os(macOS)
     static var detailMeshes = false
     #else
-    static var detailMeshes = ProcessInfo.processInfo.environment["BLOCKSMITH_DETAIL"] != "0"
+    static var detailMeshes = Env.all["BLOCKSMITH_DETAIL"] != "0"
     #endif
     // Blocks drawn by the detail generators: the ground and the cube faces round them treat them as open.
     static let detailT: [Bool] = (0..<Blocks.count).map { i in
@@ -133,53 +133,53 @@ enum Mesher {
                                             (1, 2), (-1, 2), (1, -2), (-1, -2), (2, 2), (2, -2), (-2, 2), (-2, -2)]
 
     // P508: built cubes on the field's ground get a foot down into it (BS_FEET=0 leaves them off: before/after renders).
-    static let blockFeet = ProcessInfo.processInfo.environment["BS_FEET"] != "0"
-    static let oldFootDeep = ProcessInfo.processInfo.environment["BS_OLDFOOTDEEP"] == "1"
+    static let blockFeet = Env.all["BS_FEET"] != "0"
+    static let oldFootDeep = Env.all["BS_OLDFOOTDEEP"] == "1"
     // Ledger 89 (trailer item 5, the snow base gate: "green and black striped band under the deck"): a foot's lower
     // corners carried v = 32 in the vertex's 5-bit v, which carried into the layer field: the foot drew the texture
     // registered after the block's own (snow -> cactus side) wherever the ground beside a built block dips (a blast
     // by the gate, any dug ground, any bank lower than the block's bottom). Now v runs 0...16 (the same texels: the
     // texture repeats every block). BS_OLDFOOTV=1: as before. `uvOverflow` (the check after load): any vertex given a
     // u or v past 5 bits since it was cleared.
-    static let oldFootV = ProcessInfo.processInfo.environment["BS_OLDFOOTV"] == "1"
-    static let oldFineCorners = ProcessInfo.processInfo.environment["BS_OLDFINECORNERS"] == "1"
+    static let oldFootV = Env.all["BS_OLDFOOTV"] == "1"
+    static let oldFineCorners = Env.all["BS_OLDFINECORNERS"] == "1"
     // (Nov 12: a border vertex just under a section line, FineField's `edge`. BS_OLDFINEEDGE=1: the upper section leaves it loose.)
-    static let oldFineEdge = oldFineCorners || ProcessInfo.processInfo.environment["BS_OLDFINEEDGE"] == "1"
-    static let oldFineStitch = oldFineEdge || ProcessInfo.processInfo.environment["BS_OLDFINESTITCH"] == "1"
-    static let oldFineJoint = oldFineEdge || ProcessInfo.processInfo.environment["BS_OLDFINEJOINT"] == "1"
+    static let oldFineEdge = oldFineCorners || Env.all["BS_OLDFINEEDGE"] == "1"
+    static let oldFineStitch = oldFineEdge || Env.all["BS_OLDFINESTITCH"] == "1"
+    static let oldFineJoint = oldFineEdge || Env.all["BS_OLDFINEJOINT"] == "1"
     // BS_FINEDEBUG="cx,cz[;cx,cz...]": each half-block section meshed in those chunks prints what it took its neighbours for.
-    static let fineDebug: [SIMD2<Int>] = (ProcessInfo.processInfo.environment["BS_FINEDEBUG"] ?? "").split(separator: ";").compactMap {
+    static let fineDebug: [SIMD2<Int>] = (Env.all["BS_FINEDEBUG"] ?? "").split(separator: ";").compactMap {
         let v = $0.split(separator: ",").compactMap { Int($0) }; return v.count == 2 ? SIMD2(v[0], v[1]) : nil }
     // (BS_FINETRACEBOX="x0,x1,y0,y1,z0,z1", section-local blocks: every pin whose half-block vertex lies in the box)
-    static let fineTraceBox: [Float] = (ProcessInfo.processInfo.environment["BS_FINETRACEBOX"] ?? "").split(separator: ",").compactMap { Float($0) }
-    static let oldFineAdj = oldFineStitch || oldFineJoint || ProcessInfo.processInfo.environment["BS_OLDFINEADJ"] == "1"     // (Nov 13: side by side on a border counted as joined)
+    static let fineTraceBox: [Float] = (Env.all["BS_FINETRACEBOX"] ?? "").split(separator: ",").compactMap { Float($0) }
+    static let oldFineAdj = oldFineStitch || oldFineJoint || Env.all["BS_OLDFINEADJ"] == "1"     // (Nov 13: side by side on a border counted as joined)
     // Nov 13 (pine leaf white holes): a leaf crown's inner shell is its core (SmoothTerrain.smoothQuads). The Mac's
     // shaders don't know u 27, so there it stays a second cut-out shell.
-    static let oldLeafCore = ProcessInfo.processInfo.environment["BS_OLDLEAFCORE"] == "1"
+    static let oldLeafCore = Env.all["BS_OLDLEAFCORE"] == "1"
     #if os(macOS)
     static let leafCoreU = 31
     #else
     static let leafCoreU = oldLeafCore ? 31 : 27
     #endif
-    static let fineTrace = ProcessInfo.processInfo.environment["BS_FINETRACE"] == "1"     // (with BS_FINEDEBUG: every border pin near a section's upright edges)
-    static let oldTrunkFeet = ProcessInfo.processInfo.environment["BS_OLDTRUNKFEET"] == "1"
+    static let fineTrace = Env.all["BS_FINETRACE"] == "1"     // (with BS_FINEDEBUG: every border pin near a section's upright edges)
+    static let oldTrunkFeet = Env.all["BS_OLDTRUNKFEET"] == "1"
     static var uvOverflow = -1           // (u * 1000 + v of the last such vertex; -1 none)
     // Nov 6 (jungle perf spot: bamboo was 27k of the 43k cutout quads past 64 blocks): a stack of one thin model (one box,
     // full height, clear of the cell's sides: bamboo, chains, rods) lit alike all the way up is drawn as one box per run
     // in the section. Its sides take the face-projected texture (u = v = 31 in chunk.vert), which repeats per block
     // exactly as faceUV lays it, so the look is the same. BS_RUNMERGE=0 for before.
-    static let runMerge = ProcessInfo.processInfo.environment["BS_RUNMERGE"] != "0"
-    static let oldWire = ProcessInfo.processInfo.environment["BS_OLDWIRE"] == "1"     // (the beaded wire, Nov 13)
+    static let runMerge = Env.all["BS_RUNMERGE"] != "0"
+    static let oldWire = Env.all["BS_OLDWIRE"] == "1"     // (the beaded wire, Nov 13)
     // The same for a stack of one still, full-size cross (hanging vines: the jungle's most drawn block, 51k quads at the
     // perf spot): one tall cross per run, its corners' u = 28 (rising with x) or 29 (falling) and chunk.vert / ship.vert
     // lay the texture by position as the per-block corners did. Headset shaders only (the Mac's don't read 28 / 29).
     #if QUEST || QUEST_HEADLESS
-    static let crossRuns = runMerge && ProcessInfo.processInfo.environment["BS_CROSSRUNS"] != "0"
+    static let crossRuns = runMerge && Env.all["BS_CROSSRUNS"] != "0"
     // Nov 6 (frame rate, the standing fill-in): small ground plants (grass tufts, ferns, flowers, dead bushes) go last
     // of a section's cutout quads, before the far-only tail, counted in MeshResult.plants, so the renderer can leave
     // them out from SceneRenderer.plantFarFrom (a tuft is under a pixel and a half there at headset resolution). Tall
     // plants, vines and roots stay (water plants too, until Nov 8: below). BS_FARPLANTS=0 for before.
-    static let farPlants = ProcessInfo.processInfo.environment["BS_FARPLANTS"] != "0"
+    static let farPlants = Env.all["BS_FARPLANTS"] != "0"
     static let farPlantKeys: Set<String> = ["short_grass", "grass", "fern", "dead_bush", "bush", "dandelion", "poppy", "blue_orchid",
         "allium", "azure_bluet", "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "oxeye_daisy", "cornflower",
         "lily_of_the_valley", "torchflower", "open_eyeblossom", "closed_eyeblossom", "short_dry_grass", "sweet_berry_bush"]
@@ -188,7 +188,7 @@ enum Mesher {
     // both are seen only through the water, which water.frag draws over the bed with its column's depth band (kelp and
     // seagrass count as water there): over 5+ deep water a strand at 64 shows through at a few percent, and past 76
     // not at all. BS_FARWATERPLANTS=0 keeps them, as before.
-    static let farWaterPlants = farPlants && ProcessInfo.processInfo.environment["BS_FARWATERPLANTS"] != "0"
+    static let farWaterPlants = farPlants && Env.all["BS_FARWATERPLANTS"] != "0"
     static let farWaterPlantKeys: Set<String> = ["seagrass", "kelp"]
     static let farPlantT: [Bool] = (0..<Blocks.count).map { i in
         guard farPlants && Blocks.defs[i].render == .cross else { return false }
@@ -2582,12 +2582,12 @@ enum Mesher {
     }
 
     // P184: merge far still-water tops (environment BS_WATERMERGE=0 turns it off, for before/after measurements).
-    static var mergeFarWater = ProcessInfo.processInfo.environment["BS_WATERMERGE"] != "0"
+    static var mergeFarWater = Env.all["BS_WATERMERGE"] != "0"
     // P376 step 3: lossless strips of cube faces, and faces under lava dropped (BS_STRIPS=0: off, for before/after).
-    static var stripMerge = ProcessInfo.processInfo.environment["BS_STRIPS"] != "0"
+    static var stripMerge = Env.all["BS_STRIPS"] != "0"
     static var stripTally = 0                  // faces saved (harness; racy count across workers)
     // P384 step 1 (BS_BLOCKTALLY=1): vertices the main loop emits by block group << 4 | kind (MeshKind 0...4), every section.
-    static var blockTally: [Int: Int]? = ProcessInfo.processInfo.environment["BS_BLOCKTALLY"] == "1" ? [:] : nil
+    static var blockTally: [Int: Int]? = Env.all["BS_BLOCKTALLY"] == "1" ? [:] : nil
     static let tallyLock = NSLock()
     // Which axis a face's corner values are constant along: 0 = its `a` axis (Mesher's slice order), 1 = `bb`, nil = neither
     // (both: it is flat, merged as such before this is asked).
@@ -2608,16 +2608,16 @@ enum Mesher {
     static let lilyPad: BlockID = Blocks.has("lily_pad") ? Blocks.id("lily_pad") : BlockID.max
     // Far (LOD 1) canopies: solid faces against leaves dropped, leaf light in steps of 4 so faces merge
     // (environment BS_FARLEAF=0 turns it off, for before/after measurements).
-    static var farLeaves = ProcessInfo.processInfo.environment["BS_FARLEAF"] != "0"
+    static var farLeaves = Env.all["BS_FARLEAF"] != "0"
     // P283: far field ground on the two-block lattice (SmoothTerrain.coarseGround); BS_FARGROUND=0 meshes it in full.
-    static var farGround = ProcessInfo.processInfo.environment["BS_FARGROUND"] != "0"
+    static var farGround = Env.all["BS_FARGROUND"] != "0"
     // Ledger 25: the detail stream's far copy holds the trunks at the mid sides (BS_TRUNKFAR=0: the old simplified copy).
-    static var trunkFar = ProcessInfo.processInfo.environment["BS_TRUNKFAR"] != "0"
+    static var trunkFar = Env.all["BS_TRUNKFAR"] != "0"
     // Nov 11: the far canopy tier (see its meshing above; SceneRenderer.canopyFrom draws it). Off unless BS_CANOPY is set.
-    static var canopy = ProcessInfo.processInfo.environment["BS_CANOPY"] != nil
-    static var canopyTol: Float = Float(ProcessInfo.processInfo.environment["BS_CANOPYTOL"] ?? "") ?? 1.0
-    static var canopyLightTol: Double = Double(ProcessInfo.processInfo.environment["BS_CANOPYLT"] ?? "") ?? 2
-    static let canopyLogs = ProcessInfo.processInfo.environment["BS_CANOPYLOGS"] == "1"
+    static var canopy = Env.all["BS_CANOPY"] != nil
+    static var canopyTol: Float = Float(Env.all["BS_CANOPYTOL"] ?? "") ?? 1.0
+    static var canopyLightTol: Double = Double(Env.all["BS_CANOPYLT"] ?? "") ?? 2
+    static let canopyLogs = Env.all["BS_CANOPYLOGS"] == "1"
     static let canopyT: [Bool] = ShapeTrunks.isLog                  // (the far canopy's own shell: the logs)
     // (harness: the far shells' quads and the canopy's, every section meshed with both)
     static var canopyCounts = (sections: 0, shells: 0, canopy: 0)
@@ -2631,16 +2631,16 @@ enum Mesher {
     #if os(macOS)
     static var farCopies = false
     #else
-    static var farCopies = ProcessInfo.processInfo.environment["BS_FARCOPY"] != "0"
+    static var farCopies = Env.all["BS_FARCOPY"] != "0"
     #endif
     // P338 step 5: field worlds draw water and lava near the eye as their own field's surface (BS_FLUIDNETS=0: the cells).
     static let planeDist: [Float] = (0..<25).map { (k: Int) -> Float in
         let dx: Int = k % 5 - 2, dz: Int = k / 5 - 2
         return Float(dx * dx + dz * dz).squareRoot()
     }
-    static var fluidNets = ProcessInfo.processInfo.environment["BS_FLUIDNETS"] != "0"
+    static var fluidNets = Env.all["BS_FLUIDNETS"] != "0"
     // Nov 12: the water level kept inside low natural ground (BS_OLDWATERGROUND=1: through it at its height, as before).
-    static let oldWaterGround = ProcessInfo.processInfo.environment["BS_OLDWATERGROUND"] == "1"
+    static let oldWaterGround = Env.all["BS_OLDWATERGROUND"] == "1"
     // The twelve edges of a cell's corner cube (corner k: x = k & 1, y = (k >> 1) & 1, z = (k >> 2) & 1).
     static let cubeEdges: [(Int, Int)] = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)]
     static var farDarkCull = true

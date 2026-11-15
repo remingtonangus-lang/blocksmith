@@ -337,7 +337,7 @@ enum Contracts {
     // 'cause I kill them"): the once-a-second check looked for the traveller among the living, found nobody (the dead
     // leave that list at once) and so never failed it. The death itself fails it now (BS_OLDESCORT=1: as before, and
     // the old once-a-second follow).
-    static let oldEscort = ProcessInfo.processInfo.environment["BS_OLDESCORT"] == "1"
+    static let oldEscort = Env.all["BS_OLDESCORT"] == "1"
     static func escortDied(_ g: Game, _ m: Mob) {
         guard !oldEscort, m.kind == .villager, m.persistent, let name = m.customName, let st0 = TownLaw.state.contracts else { return }
         for (key, c0) in st0 where c0.kind == "escort" && c0.taken && !c0.paid && !c0.failed && c0.who == name {

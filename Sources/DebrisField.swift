@@ -232,7 +232,7 @@ final class WorldGround: PhysicsGround, DebrisFreeSpace {
     // Nov 12 (the trailer's main-gun strike, 32.6 s: grey pieces hanging still in the sky): a chunk not loaded yet read
     // as solid all the way up, so a piece thrown into one touched it, slept and hung there. Past the loaded world now the
     // generator's ground is solid and the air above it open (its column heights cached here). BS_OLDUNLOADEDROCK=1: solid.
-    static let oldUnloaded = ProcessInfo.processInfo.environment["BS_OLDUNLOADEDROCK"] == "1"
+    static let oldUnloaded = Env.all["BS_OLDUNLOADEDROCK"] == "1"
     private var colKey = [Int](repeating: Int.min, count: 1024)
     private var colTop = [Int](repeating: 0, count: 1024)
     private func unloadedSolid(_ x: Int, _ y: Int, _ z: Int) -> Bool {

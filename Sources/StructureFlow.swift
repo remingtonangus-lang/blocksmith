@@ -50,7 +50,7 @@ enum StructureFlow {
     // check counts blocks of reach as well; a flow has no lever arm, so a whole structure's weight across one joint
     // (a tower's top on its sky bridge) is held to a quarter of it: a concrete joint carries a hundred blocks of
     // concrete (a 24-block balcony with room to spare), not four hundred. BS_SHEAR=1: the whole bond.
-    static var shear: Float = Float(ProcessInfo.processInfo.environment["BS_SHEAR"] ?? "") ?? 0.25
+    static var shear: Float = Float(Env.all["BS_SHEAR"] ?? "") ?? 0.25
     // (and never less than the check near a change allows: a material that corbels `reach` blocks out carries that
     // many of its own blocks on a joint, with a quarter to spare)
     // Nov 13 (his answer to #716: "everything collapses... procedural shit has to obey physics too"; seen in his
@@ -61,7 +61,7 @@ enum StructureFlow {
     // strength: what stands on it is carried through it to what is under, and with nothing under it comes down
     // (StructureCollapse drops it as ground, GroundCollapse.drop). The check near a change keeps its own rule.
     // BS_OLDTHINGROUND=1: all ground holds, as before.
-    static let thinGround = ProcessInfo.processInfo.environment["BS_OLDTHINGROUND"] != "1"
+    static let thinGround = Env.all["BS_OLDTHINGROUND"] != "1"
     // (hanging: within three cells straight down the ground ends on air or water. Ground lying on a built block, a
     // garden on its roof or a city's floor on its cellars, holds as before: weighed as a part it made a citadel one
     // piece of 250,000 cells with its streets, a second to weigh.)
@@ -92,7 +92,7 @@ enum StructureFlow {
     // (carried soil is a part too: it passes what stands on it down to the block it lies on, and anchors nothing, so
     // the parapet beside a roof garden no longer takes the garden for ground and a gutted tower's top storeys do not
     // hang from it; relics lying on the earth over a buried ruin's floor still stand. BS_CARRIED=0: it is ground.)
-    static let carried = ProcessInfo.processInfo.environment["BS_CARRIED"] != "0"
+    static let carried = Env.all["BS_CARRIED"] != "0"
     static var soilRead = 0
     // (hanging ground is followed this many cells from the last built block; past it, it holds: cave roofs run on
     // under a city for a quarter of a million cells)
@@ -103,8 +103,8 @@ enum StructureFlow {
     // Hanging soil holds sideways like rock (with soil's own bond, BS_THINROCK=0, a Capital stood at 1.00 times its
     // weight as generated: too near), and hangs from rooted ground right over it (a corridor's ceiling under a hill:
     // `over`). At the 12-cell bound it is held by what lies past (BS_THINHELD=0: cut loose there).
-    static let thinRock = ProcessInfo.processInfo.environment["BS_THINROCK"] != "0"
-    static let thinHeld = ProcessInfo.processInfo.environment["BS_THINHELD"] != "0"
+    static let thinRock = Env.all["BS_THINROCK"] != "0"
+    static let thinHeld = Env.all["BS_THINHELD"] != "0"
     @inline(__always) static func over(_ k: inout ChunkCursor, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         thinGround && soil(&k, x, y, z) && ground(&k, x, y + 1, z)
     }
@@ -132,7 +132,7 @@ enum StructureFlow {
     // it crushes, and bears this share of its crushing strength (one neighbour: a wall's end, halfway). A wall, a pier
     // two blocks thick or a block in a floor bears all of it. So a storey shot out to a few posts gives way where the
     // same posts inside their walls did not. BS_SLENDER=1: no such rule.
-    static var slenderShare: Float = Float(ProcessInfo.processInfo.environment["BS_SLENDER"] ?? "") ?? 0.5
+    static var slenderShare: Float = Float(Env.all["BS_SLENDER"] ?? "") ?? 0.5
     @inline(__always) static func slender(_ beside: Int) -> Float { beside >= 2 ? 1 : (beside == 1 ? (1 + slenderShare) / 2 : slenderShare) }
     // (weights and strengths as whole numbers: 1/16 of a weight unit)
     static let unit: Float = 16

@@ -149,7 +149,7 @@ enum ItemSearch {
     // trim and two replacements: some 1,500 recipes, six string passes each); the pack's search lit its slots the same
     // way on every frame. The query is normalized once per change and the names once per game, on a worker as a world
     // loads (warm, with the creative palette's). BS_OLDSEARCH=1: as before.
-    static let oldSearch = ProcessInfo.processInfo.environment["BS_OLDSEARCH"] == "1"
+    static let oldSearch = Env.all["BS_OLDSEARCH"] == "1"
     static let names: [String] = (0..<Items.count).map { Game.norm(Items.name(ItemID($0))) }
     static func matches(_ item: ItemID, _ q: String) -> Bool {
         if oldSearch {

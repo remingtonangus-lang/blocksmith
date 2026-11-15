@@ -99,7 +99,7 @@ enum Railways {
     // caller that needs a line another thread is planning now waits for that plan (up to 5 s, then plans it itself).
     // Lines never wait on links or on anything that waits, so no two threads wait on each other. BS_OLDRAILWAIT=1:
     // every caller plans it, as before. railPlansMade / railPlansWaited count them (the launch harness prints them).
-    static let oldWait = ProcessInfo.processInfo.environment["BS_OLDRAILWAIT"] == "1"
+    static let oldWait = Env.all["BS_OLDRAILWAIT"] == "1"
     private(set) static var railPlansMade = 0, railPlansWaited = 0
     // N12 (Nov 12 06:19:15-06:19:55, riding a line: "we need to make sure is that the tracks aren't so autistic. Like
     // currently they're following block patterns... We want them to be able to go diagonal", "Diagonal is a value",
@@ -109,7 +109,7 @@ enum Railways {
     // and Trains.Track runs as one smooth line. Already-generated lines don't move: a line, link or loop whose old way
     // or new way comes within 3 chunks of ground a save had before N12 (structure-guard-n12.txt) keeps its old way
     // exactly. BS_OLDRAILS=1: the old ways everywhere (and the old drawing and train paths).
-    static let oldRails = ProcessInfo.processInfo.environment["BS_OLDRAILS"] == "1"
+    static let oldRails = Env.all["BS_OLDRAILS"] == "1"
     // Whether any of these cells comes within `reach` chunks of ground saved before N12.
     static func savedBeforeN12(_ sc: StructureCache, _ cells: [IVec3], reach: Int = 3) -> Bool {
         guard !sc.legacyN12.isEmpty, !cells.isEmpty else { return false }
@@ -324,7 +324,7 @@ enum Railways {
     // own row up to six stretches on. So a start is still run into by one
     // end at most, and no two links cross. Only in field worlds, only on ground no save had before
     // (structure-guard-l135.txt). BS_OLDRUNON=1: as before.
-    static let oldRunOn = ProcessInfo.processInfo.environment["BS_OLDRUNON"] == "1"
+    static let oldRunOn = Env.all["BS_OLDRUNON"] == "1"
     static var runOnOn = true                         // (checks compare)
     static var runOn: Bool { runOnOn && !oldRunOn && !oldRails }
     // The start a line's east end runs on to by the rules alone (no way looked for), and the rule: 1 the next line
@@ -375,7 +375,7 @@ enum Railways {
     // costs 0.1 to 0.4 s a stretch whether a line stands there or not (its towns' and sites' structure starts). A
     // first launch reached its first frame in 10 s with it, 7.5 s without (7.0 s before the run-on rule); land beside
     // a link generated in 23 s with it, 12.6 s without. BS_FARREACH=6: on.
-    static let farReach = max(linkReach, Int(ProcessInfo.processInfo.environment["BS_FARREACH"] ?? "") ?? linkReach)
+    static let farReach = max(linkReach, Int(Env.all["BS_FARREACH"] ?? "") ?? linkReach)
     static let farRange: [Int] = farReach > linkReach ? Array((linkReach + 1)...farReach) : []
     static func farEastIn(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
         guard eastIn(gen, row, s) == nil, southOf(gen, row, s) == nil, northOf(gen, row, s) == nil else { return nil }
@@ -408,7 +408,7 @@ enum Railways {
     // (Nov 15: every chunk by a railway planned each of the ~50 links of 6 rows by 9 stretches round it, and each
     // run-on link asked for dozens more: land beside a link took 95 s to appear on the host, 12 s before. A link whose
     // box is clear of the chunk, or of the asking link's box, is never planned for it.)
-    static let oldLinkBox = ProcessInfo.processInfo.environment["BS_OLDLINKBOX"] == "1"
+    static let oldLinkBox = Env.all["BS_OLDLINKBOX"] == "1"
     // `west`: the asker's east edge; a link that starts east of it is clear whatever it runs on to (no start asked for).
     static func linkBox(_ gen: WorldGen, _ row: Int, _ s: Int, west: Int? = nil) -> (x0: Int, x1: Int, z0: Int, z1: Int)? {
         guard runOn, gen.fieldWorld, !oldLinkBox else { return nil }
@@ -443,9 +443,9 @@ enum Railways {
             while i < cand.count { _ = line(gen, row: cand[i].0, stretch: cand[i].1); i += n }
         }
     }
-    static let railWarm = ProcessInfo.processInfo.environment["BS_RAILWARM"] == "1"
-    static let exactFarBox = ProcessInfo.processInfo.environment["BS_FARBOX"] == "1"
-    static let railTime = ProcessInfo.processInfo.environment["BS_RAILTIME"] == "1"
+    static let railWarm = Env.all["BS_RAILWARM"] == "1"
+    static let exactFarBox = Env.all["BS_FARBOX"] == "1"
+    static let railTime = Env.all["BS_RAILTIME"] == "1"
     static func planRunOn(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         let t0 = CFAbsoluteTimeGetCurrent()
         var tShut = t0, tLeg = t0, tWay = t0, tRules = t0, tLines = t0, tBoxes = t0
@@ -638,7 +638,7 @@ enum Railways {
     // ground saved before run-on links is shut, and the way never comes back through its first square or into its
     // last square but heading east (the search's "over itself": it came at the goal from the side and went round).
     static let seaRunOn = 160, deepCost: Int32 = 9
-    static let oldRouteWeight = ProcessInfo.processInfo.environment["BS_OLDROUTEWEIGHT"] == "1"
+    static let oldRouteWeight = Env.all["BS_OLDROUTEWEIGHT"] == "1"
     static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false, runOn: Bool = false,
                       shut: Set<Int64> = []) -> [(Int, Int)]? {
         let G = routeCell

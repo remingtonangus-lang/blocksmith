@@ -67,8 +67,8 @@ extension Game {
     }
 
     static let gravityChecksPerTick = 1500
-    static let oldLanding = ProcessInfo.processInfo.environment["BS_OLDLAND"] == "1"
-    static let oldReland = ProcessInfo.processInfo.environment["BS_OLDRELAND"] == "1"
+    static let oldLanding = Env.all["BS_OLDLAND"] == "1"
+    static let oldReland = Env.all["BS_OLDRELAND"] == "1"
     static var gravitySeconds = 0.0008
 
     // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs

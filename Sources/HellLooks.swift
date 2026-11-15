@@ -42,7 +42,7 @@ enum HellLooks {
     // unlit slab, its fine grain gone to one grey at a distance, and at a border its bright grains won the blend
     // (chunk_solid.frag: brighter ground pokes through first) in saw-tooth spikes on the dark rock. It is a sooty grey
     // now (0.45), with deeper ripples and broad soot mottling that a distance keeps. BS_OLDASH=1: the old drift.
-    static let oldAsh = ProcessInfo.processInfo.environment["BS_OLDASH"] == "1"
+    static let oldAsh = Env.all["BS_OLDASH"] == "1"
     static let paleAsh: Gen = oldAsh
         ? rippled(HDTex.soil([(0, 0x847E74), (0.5, 0xA29C90), (1, 0xC0BAAE)], pebble: 0x4A4640, pebbles: 16, clods: 4))
         : sooty(rippled(HDTex.soil([(0, 0x5C564E), (0.5, 0x777068), (1, 0x948C80)], pebble: 0x2C2824, pebbles: 16, clods: 4), deep: true))

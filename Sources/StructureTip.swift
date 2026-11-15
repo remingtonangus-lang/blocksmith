@@ -91,8 +91,8 @@ enum StructureTip {
     // Each cell the fill meets that isn't of the piece is marked in the grid now (cleared after), and a block under
     // another that is of the piece is known to be built on without asking (no block the piece can hold is ground,
     // water or bedrock: `partAnchors`). BS_TIPOLD=1: as before; BS_TIPVERIFY=1: both, every difference printed.
-    static let tipOld = ProcessInfo.processInfo.environment["BS_TIPOLD"] == "1"
-    static let tipVerify = ProcessInfo.processInfo.environment["BS_TIPVERIFY"] == "1"
+    static let tipOld = Env.all["BS_TIPOLD"] == "1"
+    static let tipVerify = Env.all["BS_TIPVERIFY"] == "1"
     static var verified = 0, verifyDiffs = 0
     static let partAnchors: Bool = (0..<Blocks.count).contains { i in
         Structure.table[i] != nil && (Blocks.isLiquid(BlockID(i)) || Blocks.hardness[i] < 0 && Blocks.collide[i])
@@ -315,9 +315,9 @@ enum StructureTip {
     // the piece asked once per block beside it), then again for each block's material and each neighbour when it summed
     // the joints. It now marks each cell it meets, in the piece or not built on, in a box reused from check to check (a
     // new mark each side, so it's never cleared), and keeps each block's material with it. (BS_HANGOLD=1: as before.)
-    static let hangOld = ProcessInfo.processInfo.environment["BS_HANGOLD"] == "1"
+    static let hangOld = Env.all["BS_HANGOLD"] == "1"
     private static let hangR = hangOut + 1, hangW = 2 * hangR + 1
-    private static let hangGrid: UnsafeMutablePointer<UInt32> = {
+    static let hangGrid: UnsafeMutablePointer<UInt32> = {
         let n = hangW * hangW * hangW
         let b = UnsafeMutablePointer<UInt32>.allocate(capacity: n)
         b.initialize(repeating: 0, count: n)

@@ -10,13 +10,13 @@ enum TankSight {
     static let reach: Float = 220
     static var aim: V3?                          // the sight's point (nil: no sight to lay)
     static var elev: Float = 0
-    static let oldArcs = ProcessInfo.processInfo.environment["BS_OLDARCS"] == "1"                   // the first turret's elevation for that point
+    static let oldArcs = Env.all["BS_OLDARCS"] == "1"                   // the first turret's elevation for that point
     // What the laser falls on under the headset's chase view (QuestControls), the sight's point when there is one. (Nov 11,
     // the crawler's VR helm aim, older than Nov 10: the sight ran its own ray from the eye at the helm toward that point,
     // cut at 220 blocks on wheels and stopped by whatever the helm's eye met first, so the guns at the hull's ends were
     // laid on another point and turned 10-13 degrees off the mark 400 m away.)
     static var chasePoint: V3?
-    static let oldChaseSight = ProcessInfo.processInfo.environment["BS_OLDCHASESIGHT"] == "1"
+    static let oldChaseSight = Env.all["BS_OLDCHASESIGHT"] == "1"
     static var laid = false                      // every turret bears on it
     // P483 (Oct 28 17:35-17:36, at a frigate's helm: "the little guns just are not shooting where one would expect"): a
     // warship's (a frigate's) guns are laid on the sight too; they followed the view's bearing and pitch.

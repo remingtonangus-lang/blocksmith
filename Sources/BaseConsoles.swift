@@ -233,4 +233,4 @@ extension Game {
     }
 }
 
-extension Game { static let oldGunFlood = ProcessInfo.processInfo.environment["BS_OLDGUNFLOOD"] == "1" }
+extension Game { static let oldGunFlood = Env.all["BS_OLDGUNFLOOD"] == "1" }
