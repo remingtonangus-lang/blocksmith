@@ -184,6 +184,8 @@ enum Railways {
         }
         railPlansMade += 1
         lock.unlock()
+        let tPlan = CFAbsoluteTimeGetCurrent()
+        defer { if railTime { print(String(format: "railtime: plan %lld: %.0f ms", k, (CFAbsoluteTimeGetCurrent() - tPlan) * 1000)) } }
         let l = make()
         lock.lock()
         if mine { plans[ck]?.planning.remove(k); lock.broadcast() }
@@ -395,11 +397,40 @@ enum Railways {
         }
         return true
     }
+    // Where link (row, s) can lie at most, by the rules alone (no way looked for): the box its search is held to, over
+    // every start it may run on to. Nil: not known this way (not a run-on world), the caller plans the link.
+    // (Nov 15: every chunk by a railway planned each of the ~50 links of 6 rows by 9 stretches round it, and each
+    // run-on link asked for dozens more: land beside a link took 95 s to appear on the host, 12 s before. A link whose
+    // box is clear of the chunk, or of the asking link's box, is never planned for it.)
+    static let oldLinkBox = ProcessInfo.processInfo.environment["BS_OLDLINKBOX"] == "1"
+    static func linkBox(_ gen: WorldGen, _ row: Int, _ s: Int) -> (x0: Int, x1: Int, z0: Int, z1: Int)? {
+        guard runOn, gen.fieldWorld, !oldLinkBox else { return nil }
+        guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let pa = a.cells.last else { return (0, -1, 0, -1) }   // (no link: an empty box)
+        var x1 = pa.x, z0 = pa.z, z1 = pa.z, any = false
+        func take(_ l: Line?) { if let f = l?.cells.first { x1 = max(x1, f.x); z0 = min(z0, f.z); z1 = max(z1, f.z); any = true } }
+        if let e = eastIn(gen, row, s) { take(e.0) } else {
+            for r in [row - 1, row + 1] { for k in 0...linkReach where hasLine(gen, r, s + k) { take(line(gen, row: r, stretch: s + k)) } }
+            take(farEastIn(gen, row, s)?.0)
+        }
+        guard any else { return (0, -1, 0, -1) }
+        let m = routeWander + 2 * routeCell
+        return (pa.x - 5 * routeCell, x1 + 5 * routeCell, z0 - m, z1 + m)
+    }
     // Whether (row, s)'s line has only a far line to run on to (or none).
     static func isFar(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
         eastIn(gen, row, s) == nil && southOf(gen, row, s) == nil && northOf(gen, row, s) == nil
     }
+    static let railTime = ProcessInfo.processInfo.environment["BS_RAILTIME"] == "1"
     static func planRunOn(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var tShut = t0, tLeg = t0, tWay = t0
+        defer {
+            if railTime {
+                let t4 = CFAbsoluteTimeGetCurrent()
+                print(String(format: "railtime: run-on %d %d: %.0f ms (lines and other links %.0f, dog-leg %.0f, search %.0f, grade and rest %.0f)", row, s,
+                             (t4 - t0) * 1000, (tShut - t0) * 1000, (tLeg - tShut) * 1000, (tWay - tLeg) * 1000, (t4 - tWay) * 1000))
+            }
+        }
         guard runOn, gen.fieldWorld, hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures,
               let pa = a.cells.last else { return nil }
         guard let (b, bKey) = eastIn(gen, row, s) ?? southOf(gen, row, s) ?? northOf(gen, row, s) ?? farEastIn(gen, row, s), let pb = b.cells.first else {
@@ -422,7 +453,13 @@ enum Railways {
         // rank: four deep at most.)
         let far = isFar(gen, row, s)
         let rank = mod(row, 4)
+        let mb = (x0: pa.x - 5 * routeCell, x1: pb.x + 5 * routeCell, z0: min(pa.z, pb.z) - routeWander - 2 * routeCell, z1: max(pa.z, pb.z) + routeWander + 2 * routeCell)
+        func apart(_ r: Int, _ t: Int) -> Bool {
+            guard let b = linkBox(gen, r, t) else { return false }
+            return b.x1 < mb.x0 || b.x0 > mb.x1 || b.z1 < mb.z0 || b.z0 > mb.z1
+        }
         for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) {
+            if apart(r, t) { continue }
             if isFar(gen, r, t) { if let o = oldLink(gen, row: r, stretch: t) { for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) } }; continue }
             let lower = far || (r != row && mod(r, 4) < rank)
             guard let o = lower ? link(gen, row: r, stretch: t) : oldLink(gen, row: r, stretch: t) else { continue }
@@ -433,9 +470,12 @@ enum Railways {
             for i in 40..<(run.count - 40) where shut.contains(colKey(floorDiv(run[i].0, routeCell), floorDiv(run[i].1, routeCell))) { return true }
             return false
         }
+        tShut = CFAbsoluteTimeGetCurrent()
         var way = smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
         if let w = way, crosses(w) { way = nil }
+        tLeg = CFAbsoluteTimeGetCurrent()
         if way == nil { way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut) }
+        tWay = CFAbsoluteTimeGetCurrent()
         guard let run = way, run.count > 8 else { tally?("run-on: no way"); return nil }
         if crosses(run) { tally?("run-on: way over another track"); return nil }
         for (i, q) in run.enumerated() where i % 8 == 0 || i == run.count - 1 {
@@ -730,6 +770,7 @@ enum Railways {
         let s0 = floorDiv(x0 - pad - span, w) - (runOn && gen.fieldWorld ? farReach : linkReach), s1 = floorDiv(x1 + pad + span, w)
         var out: [Line] = []
         for row in r0...r1 { for s in s0...s1 where hasLine(gen, row, s) {
+            if wait, let b = linkBox(gen, row, s), b.x1 + pad < x0 || b.x0 - pad > x1 || b.z1 + pad < z0 || b.z0 - pad > z1 { continue }
             guard let l = link(gen, row: row, stretch: s, wait: wait) else { continue }
             if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
             out.append(l)
