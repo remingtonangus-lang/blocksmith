@@ -457,8 +457,9 @@ enum Railways {
         // (build 97's timers: the lines round a link, 0.35 s each, were planned one after another on this thread, 4 to
         // 8 s a link; they are planned side by side first)
         if !oldLinkBox {
-            var cand: [(Int, Int)] = []
-            for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) { cand.append((r, t)) } }
+            var all: [(Int, Int)] = []
+            for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) { all.append((r, t)) } }
+            let cand = all
             DispatchQueue.concurrentPerform(iterations: cand.count) { i in _ = linkBox(gen, cand[i].0, cand[i].1) }
         }
         func apart(_ r: Int, _ t: Int) -> Bool {
