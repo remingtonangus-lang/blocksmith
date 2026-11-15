@@ -679,7 +679,8 @@ enum CapitalCity {
                 // like 300"): the upper floors' beds have their residents too, `CapitalTown.upperResidents` a floor.
                 let mz = bz1 - 4
                 if housed < CapitalTown.upperResidents, !core(x, mz), w.inside(x, Y + 1, mz), w.get(x, Y + 1, mz) == AIR {
-                    w.mob("villager:citizen", V3(Float(x) + 0.5, Float(Y + 1), Float(mz) + 0.5))
+                    // (They keep house: no office desk; their own bed, the head at bz1 - 1, given with them.)
+                    w.mob("villager:citizen#\(x),\(Y + 1),\(bz1 - 1)", V3(Float(x) + 0.5, Float(Y + 1), Float(mz) + 0.5))
                     housed += 1
                 }
             }
