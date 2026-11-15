@@ -162,12 +162,25 @@ enum ShapeRails {
 
     // The smoothing of a line's rail centres (Trains.Track's too): four passes of (1, 2, 1) / 4 across, the ends held,
     // heights as they are. A staircase comes out on its diagonal, a turn as an arc over three or four cells each side.
+    //
+    // Ledger 140 (Remington, Nov 14 21:07, driving a train at 161 km/h: "This is gonna be motion sickness. Fix the
+    // rails so they don't do that"; 20:52: "The rails did not like this ... Bad for the rails"): four passes reach two
+    // cells each side, which straightens a staircase that steps every cell (a 45-degree leg) and nothing else: a leg
+    // at any other angle steps aside one block every 3 to 12 cells, and each step came out as an S-bend, so the drawn
+    // rails snaked and a train swung left and right several times a second. Now each centre is first put on the
+    // straight line fitted through the cells either side of it (up to `fitReach` each way, as far as they keep within
+    // 0.8 of a block of one line: a turn stops the reach), then four passes ease what is left. A straight leg at any
+    // angle is one straight line; a turn is still an arc. BS_OLDSWAY=1 = before.
+    static let oldSway = ProcessInfo.processInfo.environment["BS_OLDSWAY"] == "1"
     static let smoothPasses = 4
-    static func smoothed(_ pts: [SIMD3<Float>], cyclic: Bool = false) -> [SIMD3<Float>] {
+    static let fitReach = 10, fitPasses = 4
+    // How many cells each side of a cell its drawn place depends on (the mesher's walk).
+    static var reach: Int { oldSway ? smoothPasses + 2 : fitReach + fitPasses + 1 }
+    static func passes(_ pts: [SIMD3<Float>], _ count: Int, cyclic: Bool) -> [SIMD3<Float>] {
         let n = pts.count
         guard n >= 3 else { return pts }
         var sm = pts
-        for _ in 0..<smoothPasses {
+        for _ in 0..<count {
             var next = sm
             for i in 0..<n {
                 if !cyclic && (i == 0 || i == n - 1) { continue }
@@ -179,6 +192,74 @@ enum ShapeRails {
         }
         return sm
     }
+    // `only`: the cells whose smoothed place is wanted (the rest may come out anything): the mesher asks for three.
+    static func smoothed(_ pts: [SIMD3<Float>], cyclic: Bool = false, only: ClosedRange<Int>? = nil) -> [SIMD3<Float>] {
+        if oldSway { return passes(pts, smoothPasses, cyclic: cyclic) }
+        let want = only.map { ($0.lowerBound - fitPasses)...($0.upperBound + fitPasses) }
+        return passes(straightened(pts, cyclic: cyclic, only: want), fitPasses, cyclic: cyclic)
+    }
+    // Each centre moved square onto the line fitted through its neighbours (x and z only; the ends held).
+    static func straightened(_ pts: [SIMD3<Float>], cyclic: Bool, only: ClosedRange<Int>?) -> [SIMD3<Float>] {
+        let n = pts.count
+        guard n >= 5 else { return pts }
+        let lo = max(0, only?.lowerBound ?? 0), hi = min(n - 1, only?.upperBound ?? (n - 1))
+        guard lo <= hi else { return pts }
+        var out = pts
+        let tol: Float = 0.8
+        var rx = [Float](repeating: 0, count: 2 * fitReach + 1), rz = rx
+        for i in lo...hi {
+            if !cyclic && (i == 0 || i == n - 1) { continue }
+            let ox = pts[i].x, oz = pts[i].z
+            // (the window's points, relative to this cell: slot fitReach is the cell itself)
+            var a = 0, b = 0, aOpen = true, bOpen = true
+            var sx: Float = 0, sz: Float = 0, sxx: Float = 0, szz: Float = 0, sxz: Float = 0
+            rx[fitReach] = 0; rz[fitReach] = 0
+            var mx: Float = 0, mz: Float = 0, nx: Float = 0, nz: Float = 1
+            // The line through the window's points (their mean, its normal); false if one lies over `tol` off it.
+            func fit() -> Bool {
+                let m = Float(a + b + 1)
+                let ax = sx / m, az = sz / m
+                let cxx = sxx / m - ax * ax, czz = szz / m - az * az, cxz = sxz / m - ax * az
+                let th = 0.5 * atan2f(2 * cxz, cxx - czz)
+                let px = -sinf(th), pz = cosf(th)
+                for k in (fitReach - a)...(fitReach + b) where abs((rx[k] - ax) * px + (rz[k] - az) * pz) > tol { return false }
+                mx = ax; mz = az; nx = px; nz = pz
+                return true
+            }
+            func add(_ j: Int, _ slot: Int) {
+                let dx = pts[j].x - ox, dz = pts[j].z - oz
+                rx[slot] = dx; rz[slot] = dz
+                sx += dx; sz += dz; sxx += dx * dx; szz += dz * dz; sxz += dx * dz
+            }
+            func drop(_ slot: Int) {
+                let dx = rx[slot], dz = rz[slot]
+                sx -= dx; sz -= dz; sxx -= dx * dx; szz -= dz * dz; sxz -= dx * dz
+            }
+            while aOpen || bOpen {
+                if aOpen {
+                    let j = i - a - 1
+                    if a >= fitReach || (!cyclic && j < 0) || a + b + 2 >= n { aOpen = false }
+                    else {
+                        add((j % n + n) % n, fitReach - a - 1); a += 1
+                        if !fit() { a -= 1; drop(fitReach - a - 1); aOpen = false }
+                    }
+                }
+                if bOpen {
+                    let j = i + b + 1
+                    if b >= fitReach || (!cyclic && j > n - 1) || a + b + 2 >= n { bOpen = false }
+                    else {
+                        add(j % n, fitReach + b + 1); b += 1
+                        if !fit() { b -= 1; drop(fitReach + b + 1); bOpen = false }
+                    }
+                }
+            }
+            guard a + b >= 2, fit() else { continue }
+            let d = mx * nx + mz * nz                  // (this cell is the origin: how far the line lies from it)
+            out[i].x = ox + nx * d
+            out[i].z = oz + nz * d
+        }
+        return out
+    }
 
     // The drawn centre line of a main line's rail at (x, y, z) near a turn (nil on a plain straight: drawn as before),
     // in section-local coordinates (as the cells are): from halfway to the cell before to halfway to the cell after along the smoothed line,
@@ -187,7 +268,7 @@ enum ShapeRails {
         let me = SIMD3(x, y, z)
         let nbs = joined(ctx, x, y, z)
         guard nbs.count == 2 else { return nil }
-        let window = smoothPasses + 2
+        let window = reach
         func walk(_ start: SIMD3<Int>) -> [SIMD3<Int>] {
             var chain: [SIMD3<Int>] = [], prev = me, cur = start
             for _ in 0..<window {
@@ -204,8 +285,21 @@ enum ShapeRails {
         let raw: [SIMD3<Float>] = nodes.map { c in
             SIMD3(Float(c.x) + 0.5, Float(c.y) + (bedTop(ctx, c.x, c.y, c.z) ?? 0), Float(c.z) + 0.5)
         }
-        let sm = smoothed(raw)
         let ci = back.count
+        // (ledger 140: a bed column the field did not shape, a deck cell, leaves its rail up to half a block off its
+        // neighbours' grade: a V in the rails. The grade is gentle, so each height is held within an eighth of the
+        // middle of the five round it, then eased once.)
+        var lev = raw
+        if !oldSway && raw.count >= 5 {
+            for i in 2..<(raw.count - 2) {
+                var five = [raw[i - 2].y, raw[i - 1].y, raw[i].y, raw[i + 1].y, raw[i + 2].y]
+                five.sort()
+                lev[i].y = min(max(raw[i].y, five[2] - 0.125), five[2] + 0.125)
+            }
+            let held = lev
+            for i in 1..<(raw.count - 1) { lev[i].y = (held[i - 1].y + 2 * held[i].y + held[i + 1].y) * 0.25 }
+        }
+        let sm = smoothed(lev, only: (ci - 1)...(ci + 1))
         func dir(_ a: Int, _ b: Int) -> SIMD3<Float> {
             let d = sm[b] - sm[a], l = simd_length(d)
             return l > 1e-4 ? d / l : SIMD3(1, 0, 0)
@@ -287,9 +381,14 @@ enum ShapeRails {
         default: sides = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         }
         var open = 0
+        // (ledger 140: on a field line the bed beside a rail may lie a block up or down, where the line climbs across
+        // a diagonal: such a cell failed this and was drawn as a light quarter-turn piece, a break in the main line)
+        let steps = ctx.field != nil && !oldSway ? [0, -1, 1] : [0]
         for (dx, dz) in sides {
-            let at = ctx.block(x + dx, y, z + dz), under = ctx.block(x + dx, y - 1, z + dz)
-            if !Blocks.collide[Int(at)] && (bedKinds[Int(under)] || isRail[Int(at)]) { open += 1 }
+            for dy in steps {
+                let at = ctx.block(x + dx, y + dy, z + dz), under = ctx.block(x + dx, y + dy - 1, z + dz)
+                if !Blocks.collide[Int(at)] && (bedKinds[Int(under)] || isRail[Int(at)]) { open += 1; break }
+            }
         }
         return shape >= 6 ? open >= 2 : open == 2
     }

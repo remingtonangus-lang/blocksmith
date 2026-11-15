@@ -234,7 +234,10 @@ final class Player {
         return nil
     }
     @inline(__always) static func brush(_ b: BlockID) -> Bool { ShapeClass.kind[Int(b)] == .foliage || ShapeClass.kind[Int(b)] == .trunk }
-    private var lastGoodPos: V3?
+    // (Ledger 138: in the space the body is updated in. Aboard a vehicle that is the vehicle's own frame, so
+    // Game.shipPlayerUpdate takes it into the frame and back with the body, as it does lastUpdatePos.)
+    var lastGoodPos: V3?
+    static let oldGoodPos = ProcessInfo.processInfo.environment["BS_OLDGOODPOS"] == "1"
     static let moveOverUnmade = ProcessInfo.processInfo.environment["BS_P414"] != "0"
     private(set) var overUnloaded = false          // P414: over ground not made yet (moving on through it)
     // P414: the lowest height at or above p where a body is clear (ground that came in round it), up to 64 blocks up,

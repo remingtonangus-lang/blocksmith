@@ -216,6 +216,7 @@ enum Trains {
         var raidT: Float = 0
         var raidedDay = -1
         var roofAt: Double = -1e9               // when the player last stood on one of its roofs
+        var whistledAt: Double = -1e9           // when it last whistled (ledger 137)
         var chuff: Float = 0
         var lastS: Float = 0
         // P470 part 2 (TrainCars.swift): a real-size train's kind, its cars' places along it (variant, turned round,
@@ -398,6 +399,7 @@ enum Trains {
     // onto a longer track: the lines and links it runs, the next ones added ahead and those well behind dropped. Its
     // timetable is the longer track's, taken up at the place and heading it has, so it runs on without a jolt and stops
     // at the stations ahead; the line it left builds no train of its own while this one is out.
+    static let oldLinkWarm = ProcessInfo.processInfo.environment["BS_OLDLINKWARM"] == "1"
     static var throughOut: [Int64: Int64] = [:]       // a line's id -> the through train out on it
     static var nextThrough: Int64 = 1 << 61
     static var splices = 0                            // (checks)
@@ -408,6 +410,21 @@ enum Trains {
         let s = tr.lastS, d = now(tr).dir
         var parts = t.parts
         var shift = 0                                  // cells the new track starts east (+) or west (-) of the old
+        // Ledger 135: the track on is asked for 1,500 cells before the train needs it (a run-on link takes seconds to
+        // plan, on a worker: asked for at 200 cells, a fast train was at its line's end before the plan was, and turned
+        // back at an end that runs on). BS_OLDLINKWARM=1: asked for at 200 only.
+        if !Trains.oldLinkWarm {
+            if d > 0 && Float(n - 1) - s < 1500 && Float(n - 1) - s >= 200 {
+                let last = parts[parts.count - 1]
+                if Railways.isLink(last.id) { _ = Railways.linkTarget(gen, last, wait: false) } else {
+                    let (row, st) = Railways.rowStretch(last.id)
+                    if let lk = Railways.link(gen, row: row, stretch: st, wait: false) { _ = Railways.linkTarget(gen, lk, wait: false) }
+                }
+            } else if d < 0 && s < 1500 && s >= 200 {
+                let (row, st) = Railways.rowStretch(parts[0].id)
+                if Railways.isLink(parts[0].id) { _ = Railways.line(gen, row: row, stretch: st, wait: false) } else { _ = Railways.incoming(gen, row, st, wait: false) }
+            }
+        }
         if d > 0 && Float(n - 1) - s < 200 {
             let last = parts[parts.count - 1]
             if Railways.isLink(last.id) {
@@ -482,11 +499,25 @@ enum Trains {
         splices += 1
     }
 
+    // Ledger 139 (Remington, Nov 14 21:06: "The train transformed into a passenger train. That can't happen. It's
+    // impossible"): a train made again where it stands (a car of it shot away, or gone from the world) was made as
+    // whatever the line runs today, so a troop train that came as an arrival, or a bullion train robbed that day, came
+    // back as coaches in front of him. A train made again in place is the kind it was. BS_OLDREKIND=1 = before.
+    static let oldRekind = ProcessInfo.processInfo.environment["BS_OLDREKIND"] == "1"
+    static var keptKinds = 0                      // (harness)
     static func build(_ g: Game, _ tr: Train) {
+        let inPlace = !tr.cars.isEmpty && !oldRekind && !tr.track.armoured && forceKind == nil && tr.bullion == (tr.kind == .bullion)
+        let wasKind = tr.kind
         remove(g, tr)
         // D47: one day in three the line runs a bullion train (VaultObjectives.swift).
         let day = Int(g.time / DAY_LENGTH)
         let wasBullion = tr.bullion
+        if inPlace {
+            keptKinds += 1
+            tr.layout = []
+            buildBig(g, tr, day: day, keep: wasKind)
+            return
+        }
         tr.bullion = !tr.track.armoured && tr.track.dim == .overworld && VaultObjectives.bullionDay(tr.track.id, day) && tr.robbedDay != day
             && forceKind == nil                // (checks: the kind they ask for, whatever the day)
             && TrainArrivals.kindFor(tr.track.id) == nil          // (P508: an arriving train is the kind that was rolled)
@@ -799,8 +830,18 @@ enum Trains {
         return tr
     }
 
+    // Ledger 137 (Nov 14 12:07:30 at Toriwick, the game's own sound record: a whistle every frame for two seconds,
+    // 144 of them at once): the whistle that marks a train about to leave a stop was asked on every frame of the last
+    // two seconds of its stand. One whistle a train in any three seconds. BS_OLDWHISTLE=1: every ask sounds.
+    static let oldWhistle = ProcessInfo.processInfo.environment["BS_OLDWHISTLE"] == "1"
+    static var whistles = 0                                 // (checks: whistles sounded)
     static func whistle(_ g: Game, _ tr: Train) {
         guard let lead = lead(tr) else { return }
+        if !oldWhistle {
+            guard g.clock - tr.whistledAt > 3 || g.clock < tr.whistledAt else { return }
+            tr.whistledAt = g.clock
+        }
+        whistles += 1
         g.sfx(.trainWhistle, tr.track.armoured ? 0.7 : 1, at: chimney(lead))
     }
 

@@ -476,6 +476,7 @@ final class Game: LifeLinked {
     private var lastSpaceTap: Double = -1
     private var flyTapAt: Double = -1         // (the tick of a double-tapped jump: the fly toggle waits for the player's update)
     var clock: Double = 0            // (settable: the deep-war checks step it without a full tick)
+    var lastJump: (at: Double, what: String)?         // ledger 138: the last move of 48+ blocks between two frames
     var toastText = ""
     static func toastLife(_ t: String) -> Double { min(9, 2.2 + Double(max(0, t.count - 30)) * 0.06) }   // P209: time to read it
     var toastTime: Double = -100
@@ -1138,6 +1139,16 @@ final class Game: LifeLinked {
             var moved = V3.zero
             if let p0 = leadFrom, dt > 0 { moved = V3(at.x - p0.x, 0, at.z - p0.z) / Float(dt) }
             if simd_length(moved) > 250 { moved = .zero; leadSmooth = .zero }
+            // Ledger 138: a move of 48 blocks or more between two frames is kept for his voice notes (their "jump" line:
+            // where from, where to, and what he was on), so a move nobody asked for names its own cause next time.
+            if let p0 = leadFrom, simd_length(at - p0) >= 48 {
+                let sh = world.ships
+                let on = sh.pilot.map { "piloting \($0.name) (\($0.role ?? "ship"))" } ?? sh.aboard.map { "aboard \($0.name) (\($0.role ?? "ship"))" }
+                    ?? riding.map { "riding \($0.customName ?? $0.kind.name)" } ?? "on foot"
+                lastJump = (clock, String(format: "%.0f blocks, from %.1f %.1f %.1f to %.1f %.1f %.1f, %@%@; decks refused %d, bodies repaired %d",
+                                          simd_length(at - p0), p0.x, p0.y - Float(YOFF), p0.z, at.x, at.y - Float(YOFF), at.z, on,
+                                          menu.map { ", screen \(type(of: $0))" } ?? "", Game.wildCarries, Player.quarantined))
+            }
             leadFrom = at
             leadSmooth += (moved - leadSmooth) * Float(min(1, dt * 6))
             world.lead = simd_length(leadSmooth) < 0.5 ? .zero : leadSmooth
@@ -2097,10 +2108,20 @@ final class Game: LifeLinked {
                 if sunkCell == at {
                     world.fieldSphere(V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5), radius: 0.56, carve: true, material: nil, remesh: true)
                 }
+                // Ledger 136 (Nov 14 12:44:27, building a house of basalt on a beach: "Building is pretty unsatisfying. I
+                // can't seem to get things perfect"; 12:46:32, "little remnant of stone here I can't get rid of"; Nov 15:
+                // "just make changes so building is satisfying"): rock he placed (stone, basalt, sandstone...) became a
+                // rounded lump of ground, so a wall of it had no flat faces or square corners, and a lump on a wall
+                // top was ground hanging on a build. Rock he places is now a built block, a crisp cube, as a
+                // structure's rock is; loose ground (earth, sand, gravel, mud) still joins the ground, to fill and
+                // level with. BS_OLDROCKLUMP=1: as before.
+                let cube = world.fieldTerrain && FieldMat.index[Int(id)] != 0 && !FieldTerrain.loose[Int(id)] && !Game.oldRockLump
+                world.placeCube = cube
                 world.setBlock(at.x, at.y, at.z, id)
+                world.placeCube = false
                 // P377 step 3: ground placed in a field world swells toward where it was aimed, not only round the cell's
                 // middle (the cell lump World.fieldShape lays; only the surface moves, no other cell fills).
-                if world.fieldTerrain && SmoothTerrain.natural[Int(id)] && FieldMat.index[Int(id)] != 0 && at == t.hit + t.normal {
+                if !cube && world.fieldTerrain && SmoothTerrain.natural[Int(id)] && FieldMat.index[Int(id)] != 0 && at == t.hit + t.normal {
                     let n = V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z))
                     world.fieldSphere(hitPoint(t) + n * 0.45, radius: 0.62, carve: false, material: FieldMat.index[Int(id)], keepSolid: true, remesh: true)
                 } else if world.fieldTerrain {
@@ -2580,6 +2601,7 @@ final class Game: LifeLinked {
     // has gone to the edit lane since P440/P446. The break and its shaping are one edit now: on the headset its sections
     // mesh together on the edit lane and go in a frame or two later (the old meshes stay up until then); elsewhere they
     // mesh once on the frame, not once a step. BS_OLDDIGMESH=1: as before.
+    static let oldRockLump = ProcessInfo.processInfo.environment["BS_OLDROCKLUMP"] == "1"
     static let oldDigMesh = ProcessInfo.processInfo.environment["BS_OLDDIGMESH"] == "1"
     func breakAndShape(_ p: IVec3, _ b: BlockID, at ball: V3, drop: Bool, toPack: Bool = false) {
         let natural = SmoothTerrain.natural[Int(b)]

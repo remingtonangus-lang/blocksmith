@@ -359,6 +359,21 @@ struct BlockStore {
         }
     }
 
+    // Ledger 136: a block of natural rock set as a built block (a crisp cube), not as ground: what a structure's rock
+    // is (FieldTerrain.split's `built`), now also the rock he places (World.placeCube). Ground in the cell opens first.
+    mutating func setBuilt(_ i: Int, _ id: BlockID) {
+        guard i >= 0 && i < CSQ * CH else { return }
+        if !fd.isEmpty && ground(i) { setDensity(i, FieldTerrain.cellOut, material: nil) }
+        if i >= data.count {
+            if id == AIR { return }
+            let need = min(CSQ * CH, (i / BlockStore.section + 1) * BlockStore.section)
+            data.append(contentsOf: repeatElement(AIR, count: need - data.count))
+        }
+        data[i] = id
+        if Blocks.emit[Int(id)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
+        if Blocks.randomTicks[Int(id)] { tickMask |= 1 << UInt32(i / BlockStore.section) }
+    }
+
     // Writes the field at cell i (field worlds), growing the stored part when the ground rises past it. A nil material
     // keeps the cell's own.
     // `follow` (P377 step 1): the cell's eight fine samples, where its section has them, move with it (World.fieldSphere

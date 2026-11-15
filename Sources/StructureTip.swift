@@ -615,7 +615,9 @@ enum StructureTipCheck {
             if pieces.count < spots.count { pieces.append(a?.count ?? 0) }
         } }
         // (CI's host job runs an unoptimized build, about 4x slower: 12.6 ms there, against 18.9 the old way)
-        let want: Double = _isDebugAssertConfiguration() ? 16 : 4
+        // (check fix 42: the cloud's runners got slower, 18.9 ms against 28.2 the old way on Nov 14: there it is held to
+        // the old way's time, less a fifth)
+        let want: Double = _isDebugAssertConfiguration() ? max(16, oldMs * 0.8) : 4
         check(same && newMs < want, String(format: "Nov 4: the overhang check at four blasts on the keep finds the same pieces as before (%@, %@ falling), its slowest %.2f ms (before %.2f; want under %.0f)",
                                          same ? "same" : "DIFFERENT", "\(pieces)", newMs, oldMs, want))
     }

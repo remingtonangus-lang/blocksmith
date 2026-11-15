@@ -156,6 +156,8 @@ enum VoiceNoteContext {
         ]
         // P510: what the frame cost where he stood (the pause menu's Compute page is gone; the notes carry it instead).
         if ComputeCost.fed { r.append(("compute", ComputeCost.summary(g))) }
+        // Ledger 138: a jump in the last five minutes (a trip, a respawn, or one nobody asked for).
+        if let j = g.lastJump, g.clock - j.at < 300 { r.append(("jump", String(format: "%.0f s ago: %@", g.clock - j.at, j.what))) }
         return r
     }
 
