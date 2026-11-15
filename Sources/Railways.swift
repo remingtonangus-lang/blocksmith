@@ -403,9 +403,11 @@ enum Railways {
     // run-on link asked for dozens more: land beside a link took 95 s to appear on the host, 12 s before. A link whose
     // box is clear of the chunk, or of the asking link's box, is never planned for it.)
     static let oldLinkBox = ProcessInfo.processInfo.environment["BS_OLDLINKBOX"] == "1"
-    static func linkBox(_ gen: WorldGen, _ row: Int, _ s: Int) -> (x0: Int, x1: Int, z0: Int, z1: Int)? {
+    // `west`: the asker's east edge; a link that starts east of it is clear whatever it runs on to (no start asked for).
+    static func linkBox(_ gen: WorldGen, _ row: Int, _ s: Int, west: Int? = nil) -> (x0: Int, x1: Int, z0: Int, z1: Int)? {
         guard runOn, gen.fieldWorld, !oldLinkBox else { return nil }
         guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let pa = a.cells.last else { return (0, -1, 0, -1) }   // (no link: an empty box)
+        if let west, !exactFarBox, pa.x - 5 * routeCell > west { return (0, -1, 0, -1) }
         var x1 = pa.x, z0 = pa.z, z1 = pa.z, any = false
         func take(_ l: Line?) { if let f = l?.cells.first { x1 = max(x1, f.x); z0 = min(z0, f.z); z1 = max(z1, f.z); any = true } }
         if let e = eastIn(gen, row, s) { take(e.0) } else {
@@ -492,11 +494,11 @@ enum Railways {
             var all: [(Int, Int)] = []
             for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) { all.append((r, t)) } }
             let cand = all
-            DispatchQueue.concurrentPerform(iterations: cand.count) { i in _ = linkBox(gen, cand[i].0, cand[i].1) }
+            DispatchQueue.concurrentPerform(iterations: cand.count) { i in _ = linkBox(gen, cand[i].0, cand[i].1, west: mb.x1) }
         }
         tBoxes = CFAbsoluteTimeGetCurrent(); madeBoxes = railPlansMade
         func apart(_ r: Int, _ t: Int) -> Bool {
-            guard let b = linkBox(gen, r, t) else { return false }
+            guard let b = linkBox(gen, r, t, west: mb.x1) else { return false }
             return b.x1 < mb.x0 || b.x0 > mb.x1 || b.z1 < mb.z0 || b.z0 > mb.z1
         }
         for r in (min(row, brow) - 2)...(max(row, brow) + 2) { for t in (s - linkReach)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) {
@@ -811,18 +813,23 @@ enum Railways {
         // (a link starts in its own line's stretch and runs up to linkReach stretches on east)
         let s0 = floorDiv(x0 - pad - span, w) - (runOn && gen.fieldWorld ? farReach : linkReach), s1 = floorDiv(x1 + pad + span, w)
         var out: [Line] = []
-        // (a line five or six stretches west reaches here only by a far link, which it has only with no line in the three
-        // stretches east of it; those are the nearer ones, planned for this box anyway, and with one of them there the
-        // far-off line is never planned. A first launch on build 100: 30,223 structure starts against 10,635 before the
-        // run-on rule, 3.6 s more to the first frame, all for lines up to six stretches west that only pruned.)
-        let farOnly = runOn && gen.fieldWorld && !oldLinkBox && !exactFarBox ? s0 + 1 : Int.min
-        for row in r0...r1 { for s in s0...s1 where hasLine(gen, row, s) {
-            if wait, s <= farOnly, (1...linkReach).reversed().contains(where: { hasLine(gen, row, s + $0) && line(gen, row: row, stretch: s + $0) != nil }) { continue }
-            if wait, let b = linkBox(gen, row, s), b.x1 + pad < x0 || b.x0 - pad > x1 || b.z1 + pad < z0 || b.z0 - pad > z1 { continue }
-            guard let l = link(gen, row: row, stretch: s, wait: wait) else { continue }
-            if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
-            out.append(l)
-        } }
+        // (A line four to six stretches west reaches here only by a far link, or by a link to a line just west of here.
+        // Either way the row has no line three stretches west of here: with one there, the nearest start for all three,
+        // none of them is planned. And a link that starts east of the box is clear without its start being asked for.
+        // A first launch on build 100: 65 lines planned where 32 were before the run-on rule, 30,223 structure starts
+        // against 10,635, 3 s more to the first frame, nearly all for lines that only ruled a link out.)
+        let prune = wait && runOn && gen.fieldWorld && !oldLinkBox && !exactFarBox
+        let sWest = s0 + farReach - linkReach                 // (three stretches west of the box's own)
+        for row in r0...r1 {
+            let held = prune && hasLine(gen, row, sWest) && line(gen, row: row, stretch: sWest) != nil
+            for s in s0...s1 where hasLine(gen, row, s) {
+                if held && s < sWest { continue }
+                if wait, let b = linkBox(gen, row, s, west: prune ? x1 + pad : nil), b.x1 + pad < x0 || b.x0 - pad > x1 || b.z1 + pad < z0 || b.z0 - pad > z1 { continue }
+                guard let l = link(gen, row: row, stretch: s, wait: wait) else { continue }
+                if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
+                out.append(l)
+            }
+        }
         return out
     }
 
