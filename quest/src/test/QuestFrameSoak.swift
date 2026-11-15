@@ -528,7 +528,7 @@ enum QuestFrameSoak {
                 print(String(format: "framesoak: siege at %.0f s: citadel %@, patrol %@, %d gunners at turrets, %d turrets standing; %d main gun shots (%d at turrets); frigate %@; %d mobs, %d shells in flight",
                              Double(f + 1) / 72, r?.alert.name ?? "unwatched", (g.bases.patrols[key]?.isEmpty == false || r?.patrol != nil) ? "out" : "none", gunners,
                              g.mobs.mobs.filter { $0.kind == .deckGun && $0.health > 0 }.count, shots, turretShots,
-                             frigate.map { $0.flakHits >= 1 ? String(format: "down (%.0f up)", $0.worldMin.y - g.player.pos.y) : String(format: "flak %.2f", $0.flakHits) } ?? "none",
+                             frigate.map { downAt >= 0 ? String(format: "shot down at %.0f s, its keel %.0f over his feet", Double(downAt) / 72, $0.worldMin.y - g.player.pos.y) : String(format: "flak %.2f", $0.flakHits) } ?? "none",
                              g.mobs.mobs.count, g.world.ships.shells.count))
             }
         }, rd: 8)

@@ -111,6 +111,8 @@ final class Player {
             return la < lb
         }
     }()
+    static let headNudges: [Float] = [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6]
+    static let oldHeadNudge = ProcessInfo.processInfo.environment["BS_OLDHEADNUDGE"] == "1"
     static let fieldNudgeRadii: [Float] = [0.06, 0.12, 0.2, 0.3, 0.45, 0.6, 0.75]
     // (Up first: feet a hair into the floor; down: a head into a rounded ceiling's corners; then sideways and slanting.)
     static let fieldNudgeDirs: [V3] = {
@@ -336,6 +338,12 @@ final class Player {
             let nudges: [V3] = [V3(0, 0.002, 0), V3(0.002, 0, 0), V3(-0.002, 0, 0), V3(0, 0, 0.002), V3(0, 0, -0.002),
                                 V3(0, 0.02, 0), V3(0.01, 0, 0), V3(-0.01, 0, 0), V3(0, 0, 0.01), V3(0, 0, -0.01), V3(0, 0.1, 0)]
             if let n = nudges.first(where: { !collides(at: pos + $0, w) }) { pos += n }
+            // Ledger 182 (ridecheck, the crawler's bulkhead door: a jump in the doorway while the hull turned and rolled
+            // under him put his head 0.24 into the lintel): a head pushed up into a ceiling goes back down out of it,
+            // up to 0.6. Only the pop to the nearest block centre below was left, and it moved him 0.39 sideways and
+            // 0.53 down in one tick, a 23 b/s shove across the deck. (Field worlds had the nudge search below.)
+            if !Player.oldHeadNudge && collides(at: pos, w),
+               let d = Player.headNudges.first(where: { !collides(at: pos - V3(0, $0, 0), w) }) { pos.y -= d }
         }
         // PG2 rewrite: in a field world the ground's rounded walls can press a body that fitted a moment ago (a hole dug a
         // cell at a time, ground a blast reshaped): the nearest free spot within three quarters of a block first. The
