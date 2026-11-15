@@ -2584,9 +2584,17 @@ do {
     lw.renderDistance = 2
     let at = V3(spawn.x - 40, spawn.y, spawn.z)
     _ = lw.loadSync(center: at, radius: 2)
-    let x = Int(floor(at.x)), z = Int(floor(at.z))
+    var x = Int(floor(at.x)), z = Int(floor(at.z))
     var gy = CH - 2
-    while gy > 8 && !Blocks.opaque[Int(lw.block(x, gy, z))] { gy -= 1 }
+    // (a column open to the sky: Nov 15, the tree catalogue's new designs put a crown over the first spot, and a column
+    // dug under leaves rightly stays dark)
+    for k in 0..<24 {
+        let cx = Int(floor(at.x)) + k % 6 * 3, cz = Int(floor(at.z)) + k / 6 * 3
+        var cy = CH - 2
+        while cy > 8 && lw.block(cx, cy, cz) == AIR { cy -= 1 }
+        if Blocks.opaque[Int(lw.block(cx, cy, cz))] && Blocks.fluidKind[Int(lw.block(cx, cy, cz))] == 0 { x = cx; z = cz; gy = cy; break }
+    }
+    if gy == CH - 2 { while gy > 8 && !Blocks.opaque[Int(lw.block(x, gy, z))] { gy -= 1 } }
     let lit0 = lw.litByMesher(x, gy - 3, z), before = lw.lightAt(x, gy - 3, z).sky
     for y in (gy - 3)...gy { lw.setBlockAsync(x, y, z, AIR) }
     let after = lw.lightAt(x, gy - 3, z).sky
