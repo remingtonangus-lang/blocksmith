@@ -328,6 +328,18 @@ if let out = arg("--view"), let ctx = vkctx {
             for _ in 0..<3 { Trains.place(vg, tr, dt: 1.0 / 72) }
             print("view: train: \(tr.kind) of \(tr.cars.count) cars, \(String(format: "%.1f", tr.length)) blocks, middle at cell \(String(format: "%.1f", tr.lastS)) of \(l.cells.count), \(tr.troops.count) soldiers aboard; cars " +
                   tr.cars.map { "\($0.customName ?? "?") at \(Int($0.pos.x)) \(Int($0.pos.y)) \(Int($0.pos.z)) yaw \(Int($0.yaw * 180 / .pi)) pitch \(String(format: "%.1f", $0.trainPitch * 180 / .pi))" }.joined(separator: "; "))
+            // --trainjoin K (Nov 14, couplings): the eye 4 blocks to the side of the join between car K and the next, at
+            // the couplers' height and a little over, looking at it.
+            if let k = Int(arg("--trainjoin") ?? ""), k + 1 < tr.cars.count {
+                let a = tr.cars[k], b = tr.cars[k + 1]
+                let d = simd_normalize(V3(b.pos.x - a.pos.x, 0, b.pos.z - a.pos.z))
+                let j = a.pos + d * (Trains.halfLength(a) + Trains.coupler / 2) + V3(0, 1, 0)
+                let side = V3(-d.z, 0, d.x)
+                vg.player.pos = j + side * 4 + V3(0, 0.6 - vg.player.eyeHeight, 0)
+                let v = j - (vg.player.pos + V3(0, vg.player.eyeHeight, 0))
+                nearYaw = atan2f(-v.x, -v.z)
+                print("view: trainjoin \(k): \(a.customName ?? "?") to \(b.customName ?? "?") at \(j)")
+            }
         } else { print("view: train: none built (\(Trains.trains.count) trains)") }
     }
     // P437 (h): --edittime: place a block in the first air cell beside a solid one near the eye, then break it, and

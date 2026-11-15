@@ -432,7 +432,10 @@ enum BuildersGrounds {
             if sa != sb { return sa }
             let da = (Float(a.0.x) - mx) * (Float(a.0.x) - mx) + (Float(a.0.z) - mz) * (Float(a.0.z) - mz)
             let db = (Float(b.0.x) - mx) * (Float(b.0.x) - mx) + (Float(b.0.z) - mz) * (Float(b.0.z) - mz)
-            if !sa { return da != db ? da > db : (a.0.x, a.0.z) < (b.0.x, b.0.z) }
+            // (full blocks over a hollow from the outside in, the lighthouse's gallery floor; slabs and the like from the
+            // middle out on the agent's props, the gate's arch: laid outside in, its top slabs reached out past what the
+            // load check lets a slab hold before the middle closed)
+            if !sa && Blocks.fullCollide[Int(a.1)] && Blocks.fullCollide[Int(b.1)] { return da != db ? da > db : (a.0.x, a.0.z) < (b.0.x, b.0.z) }
             return da != db ? da < db : (a.0.x, a.0.z) < (b.0.x, b.0.z)
         }
         // (a door is placed once, from its lower half: the game sets both)

@@ -297,7 +297,7 @@ final class BuilderBot: AgentBot {
         // body of its own, in the way of the aim and the flights (the cottage: every aim taken by a Felled Tree). The
         // logs over it come off first, from the top, as a woodsman takes a tree down where it stands.
         var cells = [q]
-        if isLog(w, q) { cells = logsOver(w, q) + [q] }
+        if isLog(w, q) { cells = BuilderBot.topDown(logsOver(w, q) + [q]) }
         for c in cells {
             cutCells.insert(c)
             if let k = jobs[i...].firstIndex(where: { $0.cell == c && $0.want == AIR }) { jobs.remove(at: k) }
@@ -310,20 +310,21 @@ final class BuilderBot: AgentBot {
         let k = Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))])
         return k.hasSuffix("_log") || k.hasSuffix("_wood")
     }
-    // The logs joined to q above it (branches too), highest first.
+    // The logs joined to q (its whole tree: trunk, branches), highest first.
     private func logsOver(_ w: World, _ q: IVec3) -> [IVec3] {
         var seen: Set<IVec3> = [q], todo = [q], out: [IVec3] = []
         while let c = todo.popLast(), out.count < 260 {
-            for dy in 0...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 {
+            for dy in -1...1 { for dz in -1...1 { for dx in -1...1 where dx != 0 || dy != 0 || dz != 0 {
                 let n = c + IVec3(dx, dy, dz)
-                // (a branch level with the cut comes off too)
-                guard n.y >= q.y, n != q, n.y < q.y + 40, !seen.contains(n) else { continue }
+                // (the whole tree: a branch left on a cut trunk, or a trunk under a cut branch, fell later on the build)
+                guard n != q, abs(n.y - q.y) < 40, !seen.contains(n) else { continue }
                 seen.insert(n)
                 if isLog(w, n) && !planned.contains(n) { out.append(n); todo.append(n) }
             } } }
         }
-        return out.sorted { $0.y != $1.y ? $0.y > $1.y : ($0.x, $0.z) < ($1.x, $1.z) }
+        return BuilderBot.topDown(out)
     }
+    static func topDown(_ c: [IVec3]) -> [IVec3] { c.sorted { $0.y != $1.y ? $0.y > $1.y : ($0.x, $0.z) < ($1.x, $1.z) } }
     // Once the digging is done: the ground the digging took from under the floor (a creative break takes a ball, not a
     // cell) filled again with the footing, bottom up, before the floor goes down, as he would.
     private var refooted = false
@@ -364,7 +365,7 @@ final class BuilderBot: AgentBot {
     private var refootRuns = 0
     private var bestGap: Float = .greatestFiniteMagnitude, gainWp = -1, noGain = 0
     private var aimK = 0
-    private var aimAt = V3.zero
+    private var aimAt = V3.zero, aimFrom = V3.zero
     // Would the game's aim on t do the job: break that cell, or put the block in it the right way round?
     private func onJob(_ g: Game, _ j: BuildersGrounds.Job, _ t: (hit: IVec3, normal: IVec3)) -> Bool {
         let w = g.world
@@ -408,8 +409,15 @@ final class BuilderBot: AgentBot {
         } }
         pts.sort { simd_length_squared($0 - a) < simd_length_squared($1 - a) }
         let eye = g.player.eye
-        for q in pts where tries(g, j, eye: eye, at: q) { return q }
-        return nil
+        // (with a little room round it: a point on the very edge of the face fails at the first twitch)
+        var edge: V3?
+        for q in pts where tries(g, j, eye: eye, at: q) {
+            if edge == nil { edge = q }
+            let m: Float = 0.05
+            let ring = [V3(m, 0, 0), V3(-m, 0, 0), V3(0, m, 0), V3(0, -m, 0), V3(0, 0, m), V3(0, 0, -m)]
+            if ring.allSatisfy({ tries(g, j, eye: eye, at: q + $0) }) { return q }
+        }
+        return edge
     }
     private var stuck = 0, inRow = 0, lastDeferSuccess = -1
     static let trace = ProcessInfo.processInfo.environment["BS_BUILDTRACE"] != nil
@@ -440,7 +448,8 @@ final class BuilderBot: AgentBot {
                     cutCells.insert(c); cuts += 1
                     if let k = jobs[(i + 1)...].firstIndex(where: { $0.cell == c && $0.want == AIR }) { jobs.remove(at: k) }
                 }
-                jobs.insert(contentsOf: over.map { BuildersGrounds.Job(cell: $0, want: AIR) }, at: i)
+                jobs.remove(at: i)
+                jobs.insert(contentsOf: BuilderBot.topDown(over + [j.cell]).map { BuildersGrounds.Job(cell: $0, want: AIR) }, at: i)
                 return act
             }
         }
@@ -559,11 +568,12 @@ final class BuilderBot: AgentBot {
                 let gap = simd_length(go)
                 if wp != gainWp || gap < bestGap - 0.05 { bestGap = gap; gainWp = wp; noGain = 0 } else { noGain += 1 }
                 if noGain > 30 { act.jump = true; act.sneak = false; if noGain > 40 { noGain = 20; bestGap += 0.3 } }
-                if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 1.5 {
+                // (arrived, and the body come to rest: a flight still drifting moved the eye off a grazing aim)
+                if wp >= path.count - 1 && flat < 0.3 && abs(d.y) < 0.3 && simd_length(p.vel) < 0.25 {
                     // (the spot's own eye is a little off where the body stops: the point on the face seen from here)
                     phase = 2; aimTicks = 0; aimK = 0
                     guard let q = solveAim(g, j, c.aim) else { drop(s, "nowhere on the face seen from where it stopped"); return act }
-                    aimAt = q
+                    aimAt = q; aimFrom = p.eye
                 }
                 if BuilderBot.trace && s.tick % 30 == 0 {
                     print(String(format: "  trace t%d job %d ph1 pos %.2f %.2f %.2f wp %d/%d -> %.2f %.2f %.2f vel %.1f %.1f %.1f fly %d keys %.0f %.0f %d%d",
@@ -574,6 +584,11 @@ final class BuilderBot: AgentBot {
             }
             // Aiming: once the view is on the point and the game's aim is on the face and the cell, press.
             aimTicks += 1
+            // (the body drifted since the point was found: found again from here)
+            if simd_length(p.eye - aimFrom) > 0.06 {
+                guard let q = solveAim(g, j, c.aim) else { drop(s, "nowhere on the face seen from where it drifted"); return act }
+                aimAt = q; aimFrom = p.eye
+            }
             if abs(ey) < 0.02 && abs(ep) < 0.02 {
                 if let t = g.target {
                     if onJob(g, j, t) {

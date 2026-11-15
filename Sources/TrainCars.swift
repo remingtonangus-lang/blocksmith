@@ -444,8 +444,8 @@ extension Trains {
             let front = !(m.variant == loco || m.variant == armouredLoco)
             for e: Float in front ? [-1, 1] : [1] {
                 let z0 = e > 0 ? h - 1 : -h - reach, len = reach + 1
-                p.append(box(-0.5, 3.7, z0, 1, 0.8, len, bar, 8))                                   // the drawbar
-                p.append(box(-0.9, 3.5, e > 0 ? h + reach - 1.1 : -h - reach + 0.1, 1.8, 1.2, 1, knuckle, 8))   // the knuckle
+                p.append(box(-0.8, 3.5, z0, 1.6, 1.2, len, bar, 8))                                 // the drawbar
+                p.append(box(-1.3, 3.2, e > 0 ? h + reach - 1.3 : -h - reach + 0.1, 2.6, 1.8, 1.2, knuckle, 8))   // the knuckle
             }
         }
         return p
