@@ -548,10 +548,10 @@ extension World {
     // Subtracts (carve) or adds a sphere to the field: d = min(d, |p - c| - r) or max(d, r - |p - c|). Cells whose
     // solidity flips are written through the block layer (so the game sees them open or filled); a fill takes
     // `material` (or the commonest ground round it). Sections touched are remeshed by the caller's setBlock or here.
+    static let oldSphere = ProcessInfo.processInfo.environment["BS_OLDSPHERE"] == "1"       // ledger 164
     @discardableResult
     // `keepSolid`: only the surface moves (a blast's bowl walls, a bullet's dent): no cell turns from ground to open or
     // back, so nothing is removed without its drop.
-    static let oldSphere = ProcessInfo.processInfo.environment["BS_OLDSPHERE"] == "1"       // ledger 164
     func fieldSphere(_ ctr: V3, radius r: Float, carve: Bool, material: UInt8?, keepCell: IVec3? = nil, keepSolid: Bool = false,
                      remesh: Bool = false) -> [IVec3] {
         var flipped: [IVec3] = []

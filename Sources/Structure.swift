@@ -559,9 +559,22 @@ enum Structure {
     // tick has left), at most `maxWait` frames; it spends the allowance. Seeded runs and harnesses check as before.
     static var wantSeconds = 0.0012, maxWait = 3          // (one check a frame was all it ever ran: a short wait)
     private static var waited = 0
+    static let oldSplit = ProcessInfo.processInfo.environment["BS_OLDLOADSPLIT"] == "1"
+    // One load check from one start.
+    static func check(_ g: Game, at s: IVec3) {
+        let w = g.world
+        let r = analyse(w, at: s)
+        checks += 1
+        let cut = r.capped ? looseAll(w, near: s) : []
+        if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
+        // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame.
+        // What this check would drop waits for that, StructureCollapse.hold.)
+        else if !r.falls.isEmpty { if !(r.capped && StructureCollapse.hold(w, at: s)) { drop(g, r.falls) } }
+        if r.capped && cut.isEmpty { StructureCollapse.request(w, at: s) }
+    }
     static func tick(_ g: Game) {
         let w = g.world
-        guard enabled, !w.loadQueue.isEmpty else { return }
+        guard enabled, !w.loadQueue.isEmpty || !w.loadSeeds.isEmpty else { return }
         let paced = CraterJob.inTick && !(World.deterministic || Rand.deterministic)
         if paced {
             // (ledger 126: with the frame governor, when the frame has room for what a check took lately)
@@ -571,6 +584,19 @@ enum Structure {
         }
         let began = CFAbsoluteTimeGetCurrent()
         defer { if paced { let s = CFAbsoluteTimeGetCurrent() - began; CraterJob.spend(s); FrameGovernor.learn(.loadCheck, s) } }
+        // Ledger 165 (Nov 15, the citadel soak: one load check took 7.0 ms of a frame): a check at a shell hole starts
+        // from the changed cell and from up to four blocks of the hole's rim, each a fill of its own (1-2 ms in a
+        // citadel wall), and all five ran in the one tick. In play each start after the first waits for a tick of its
+        // own (the next one with room). BS_OLDLOADSPLIT=1: all at once, as before.
+        if paced, !oldSplit, let s = w.loadSeeds.popLast() {
+            guard w.activeHere(s) else { return }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            check(g, at: s)
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            worstMs = max(worstMs, ms); totalMs += ms
+            if !w.pieces.isEmpty { pieces(g, near: V3(Float(s.x), Float(s.y), Float(s.z))) }
+            return
+        }
         var budget = 1
         while budget > 0, !w.loadQueue.isEmpty {
             let p = w.loadQueue.removeFirst()
@@ -593,15 +619,12 @@ enum Structure {
                 if !w.pieces.isEmpty { pieces(g, near: V3(Float(p.x), Float(p.y), Float(p.z))) }
                 continue
             }
-            for s in [p] + more {
-                let r = analyse(w, at: s)
-                checks += 1
-                let cut = r.capped ? looseAll(w, near: s) : []
-                if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
-                // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame.
-                // What this check would drop waits for that, StructureCollapse.hold.)
-                else if !r.falls.isEmpty { if !(r.capped && StructureCollapse.hold(w, at: s)) { drop(g, r.falls) } }
-                if r.capped && cut.isEmpty { StructureCollapse.request(w, at: s) }
+            if paced && !oldSplit {
+                check(g, at: p)
+                w.loadSeeds.append(contentsOf: more.reversed())
+                if w.loadSeeds.count > 64 { w.loadSeeds.removeFirst(w.loadSeeds.count - 64) }
+            } else {
+                for s in [p] + more { check(g, at: s) }
             }
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             worstMs = max(worstMs, ms); totalMs += ms
