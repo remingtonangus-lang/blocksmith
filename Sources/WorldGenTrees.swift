@@ -16,6 +16,9 @@ enum TreeKind {
 struct TreeWriter {
     let b: UnsafeMutablePointer<BlockID>
     let bx: Int, bz: Int
+    // Nov 15 (TreeWood): the logs this writer lays are a tree's own wood.
+    var tree = false
+    @inline(__always) func wood(_ id: BlockID) -> BlockID { tree ? TreeWood.twin[Int(id)] : id }
     @inline(__always) func inside(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         x >= bx && x < bx + CS && z >= bz && z < bz + CS && y > 0 && y < CH
     }
@@ -25,7 +28,7 @@ struct TreeWriter {
         guard inside(x, y, z) else { return }
         let i = Chunk.index(x - bx, y, z - bz)
         let c = b[i]
-        if c == AIR || Blocks.replaceable[Int(c)] && !Blocks.isLiquid(c) || Mesher.leafT[Int(c)] { b[i] = id }
+        if c == AIR || Blocks.replaceable[Int(c)] && !Blocks.isLiquid(c) || Mesher.leafT[Int(c)] { b[i] = wood(id) }
     }
     func leaf(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
         guard inside(x, y, z) else { return }
@@ -33,7 +36,7 @@ struct TreeWriter {
         let c = b[i]
         if c == AIR || (Blocks.replaceable[Int(c)] && !Blocks.isLiquid(c)) { b[i] = id }
     }
-    func force(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) { if inside(x, y, z) { b[Chunk.index(x - bx, y, z - bz)] = id } }
+    func force(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) { if inside(x, y, z) { b[Chunk.index(x - bx, y, z - bz)] = wood(id) } }
 }
 
 enum TreePlacer {
@@ -226,7 +229,9 @@ enum TreePlacer {
         return collide[Int(w.get(x + 1, y, z))] || collide[Int(w.get(x - 1, y, z))] || collide[Int(w.get(x, y, z + 1))] || collide[Int(w.get(x, y, z - 1))]
     }
 
-    static func build(_ w: TreeWriter, _ kind: TreeKind, _ x: Int, _ y: Int, _ z: Int, _ rng: inout SRng) {
+    static func build(_ w0: TreeWriter, _ kind: TreeKind, _ x: Int, _ y: Int, _ z: Int, _ rng: inout SRng) {
+        var w = w0
+        w.tree = TreeWood.on
         let g = Blocks.id
         func trunk(_ h: Int, _ log: BlockID, wide: Bool = false) {
             for k in 0..<h {

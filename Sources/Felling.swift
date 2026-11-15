@@ -248,6 +248,7 @@ extension Game {
     func fellCheck(_ p: IVec3, _ cut: BlockID) {
         guard CapitalBase.isLog(cut), dim.dim == .overworld || dim.dim == .deep else { return }
         Felling.own(world)
+        if TreeWood.on && TreeWood.isTree[Int(cut)] { fellWhole(p, cut); return }
         Felling.stumpBroken(p)
         Felling.noteCut(p)
         let start = IVec3(p.x, p.y + 1, p.z)
@@ -255,6 +256,85 @@ extension Game {
         guard let logs = Felling.newSeed ? fellBody(p) : fellBodyOld(p) else { return }
         Felling.roundTrunks = Felling.roundFor(world)
         fellLoose(p, logs)
+    }
+
+    // Nov 15 (TreeWood; Remington, Nov 14 evening: "I break a stump, that tree model falls over and the log itself is its
+    // own shape. It doesn't break pieces off it"): a blow to any of a tree's wood, foot, trunk or bough, brings down the
+    // whole tree: every log of it, the ones under the blow too, with its crown, as one body.
+    //  - The tree is the tree wood joined to the struck log. Where that reaches a second trunk (a neighbour whose bough
+    //    touches), each log goes with the trunk it is nearest to through the wood, and only the struck log's tree falls.
+    //  - A trunk is an upright run of three or more tree logs standing on the ground; a root or a bough that touches
+    //    the ground is not one.
+    static var wholeFelled = 0                                // (checks)
+    func fellWhole(_ p: IVec3, _ cut: BlockID) {
+        let w = world
+        let treeT = TreeWood.isTree, rootT = ShapeTrunks.isRoot, leafT = Mesher.leafT
+        @inline(__always) func wood(_ c: IVec3) -> Bool { let b = Int(w.block(c.x, c.y, c.z)); return treeT[b] || rootT[b] }
+        var comp: [IVec3] = []
+        var seen: Set<IVec3> = [p]
+        var queue: [IVec3] = [p]
+        var head = 0
+        let cap = Felling.maxLogs * 2
+        walk: while head < queue.count {
+            let c = queue[head]; head += 1
+            for (dx, dy, dz) in ShapeTrunks.steps {
+                let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
+                guard !seen.contains(q), wood(q) else { continue }
+                seen.insert(q); queue.append(q); comp.append(q)
+                if comp.count >= cap { break walk }
+            }
+        }
+        guard !comp.isEmpty else { return }
+        // The trunks in it: feet (tree wood on the ground with two more upright logs over it), touching feet one trunk.
+        var feet: [IVec3] = []
+        for c in comp {
+            let b = w.block(c.x, c.y, c.z)
+            guard treeT[Int(b)], ShapeTrunks.axisOf[Int(b)] == 1 else { continue }
+            let u = Int(w.block(c.x, c.y - 1, c.z))
+            guard !treeT[u], !rootT[u], !leafT[u], Blocks.opaque[u] || Blocks.collide[u] || w.groundAt(c.x, c.y - 1, c.z) else { continue }
+            guard treeT[Int(w.block(c.x, c.y + 1, c.z))], treeT[Int(w.block(c.x, c.y + 2, c.z))] else { continue }
+            feet.append(c)
+        }
+        var label: [IVec3: Int] = [:]
+        var trunks = 0
+        for f in feet where label[f] == nil {
+            var q = [f]
+            label[f] = trunks
+            while let c = q.popLast() {
+                for g in feet where label[g] == nil && abs(g.x - c.x) <= 1 && abs(g.z - c.z) <= 1 && abs(g.y - c.y) <= 2 { label[g] = trunks; q.append(g) }
+            }
+            trunks += 1
+        }
+        var logs = Set(comp)
+        if trunks > 1 {
+            // Each log to the trunk nearest through the wood (the trunks' own columns first).
+            var q2: [IVec3] = []
+            for f in feet {
+                var c = f
+                let l = label[f]!
+                while seen.contains(c) && c != p && treeT[Int(w.block(c.x, c.y, c.z))] {
+                    if label[c] == nil || c == f { label[c] = l; q2.append(c) }
+                    c = IVec3(c.x, c.y + 1, c.z)
+                }
+            }
+            var h2 = 0
+            var mine = -1
+            while h2 < q2.count {
+                let c = q2[h2]; h2 += 1
+                let l = label[c]!
+                for (dx, dy, dz) in ShapeTrunks.steps {
+                    let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
+                    if q == p { if mine < 0 { mine = l }; continue }
+                    guard seen.contains(q), label[q] == nil else { continue }
+                    label[q] = l; q2.append(q)
+                }
+            }
+            if mine >= 0 { logs = Set(comp.filter { label[$0] == mine || label[$0] == nil }) }
+        }
+        guard !logs.isEmpty, let low = logs.map({ $0.y }).min() else { return }
+        Felling.roundTrunks = Felling.roundFor(world)
+        Game.wholeFelled += 1
+        fellLoose(IVec3(p.x, min(low, p.y) - 1, p.z), logs, whole: (p, cut))
     }
 
     // Nov 13 (ledger 113; his Forest notes of Nov 12, "that turned into two trees... three trees", and the Taiga's of
@@ -399,7 +479,7 @@ extension Game {
     // The logs come loose with their crown as one body.
     // (P441, Oct 24 20:50: "this log is floating... it should be able to sit on whatever's under it": a spruce's top of
     // one or two logs in its crown stayed in the air; with its leaves any part of a tree comes down)
-    func fellLoose(_ p: IVec3, _ logs: Set<IVec3>) {
+    func fellLoose(_ p: IVec3, _ logs: Set<IVec3>, whole: (at: IVec3, block: BlockID)? = nil) {
         let start = IVec3(p.x, p.y + 1, p.z)
         // The crown: leaves joined to the logs (6-connected through leaves, within 5 of a log), and only its own.
         // P478 (Oct 27 18:46, "trees disappear when they hit another root"): crowns in a wood grow through each other,
@@ -413,7 +493,7 @@ extension Game {
             let q = c + d
             if !leaves.contains(q) && CapitalBase.isLeaf(world.block(q.x, q.y, q.z)) && mine(q) { leaves.insert(q); lq.append(q) }
         } }
-        guard leaves.count >= 4 || logs.count >= 3 && leaves.count >= 1 else { return }
+        guard whole != nil || leaves.count >= 4 || logs.count >= 3 && leaves.count >= 1 else { return }
         var head = 0
         while head < lq.count && leaves.count < Felling.maxLeaves {
             let c = lq[head]; head += 1
@@ -424,7 +504,7 @@ extension Game {
                 leaves.insert(q); lq.append(q)
             }
         }
-        Felling.noteStumps(world, logs: logs, cut: p)
+        if whole == nil { Felling.noteStumps(world, logs: logs, cut: p) }
         // The body: its cells relative to the block above the cut, then out of the world.
         let bp = Blueprint()
         var lo = IVec3(Int.max, Int.max, Int.max)
@@ -435,8 +515,10 @@ extension Game {
         // (ledger 45: no circuit marks a block when no circuit part is near the tree)
         let quiet0 = world.circuitQuiet
         if Explosion.circuitCalm && !world.circuitNear(Array(logs) + Array(leaves), margin: 3) { world.circuitQuiet = true }
-        let snap = Felling.shapeSnap(world, logs: logs, cut: p)      // (ledger 134: the shape it stood with, FellShape)
-        world.treeGhosts.note(world, Array(logs))   // (ledger 123: read while the crown is still on)
+        // (ledger 134: the shape it stood with, FellShape; a whole tree's struck log is a ghost in it, so the rest of
+        // the tree is measured as it stood)
+        let snap = Felling.shapeSnap(world, logs: logs, cut: whole == nil ? p : nil, struck: whole.map { [$0.at: $0.block] } ?? [:])
+        if whole == nil { world.treeGhosts.note(world, Array(logs)) }   // (ledger 123: read while the crown is still on)
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in logs { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0

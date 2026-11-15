@@ -112,6 +112,10 @@ enum ShapeTrunks {
         let leafT = Mesher.leafT, opaqueT = Blocks.opaque, collideT = Blocks.collide
         @inline(__always) func log(_ x: Int, _ y: Int, _ z: Int) -> Bool { isTrunk[Int(g.block(x, y, z))] }
         @inline(__always) func logC(_ x: Int, _ y: Int, _ z: Int) -> Bool { isLog[Int(g.block(x, y, z))] }
+        // Nov 15 (TreeWood): a tree's wood and timber are two things. A run is one or the other, only tree wood is ever
+        // a living trunk, a stump, a root or a limb, and timber is a post or a beam whatever stands round it.
+        let woodOn = TreeWood.on
+        let treeT = TreeWood.isTree
         // P433: root cells are limb cells of the tree (col 3): the walk below grows them out of the trunk's foot.
         for y in -M..<(16 + M) { for z in -M..<(16 + M) { for x in -M..<(16 + M) where isRoot[Int(g.block(x, y, z))] { s.col[wi(x, y, z)] = 3 } } }
 
@@ -120,11 +124,14 @@ enum ShapeTrunks {
         for z in -M..<(16 + M) { for x in -M..<(16 + M) {
             var y = -M
             while y < 16 + M {
-                guard logC(x, y, z), y == -M || !logC(x, y - 1, z) else { y += 1; continue }
+                let b0 = g.block(x, y, z)
+                let tc = treeT[Int(b0)]
+                @inline(__always) func same(_ b: BlockID) -> Bool { isLog[Int(b)] && (!woodOn || treeT[Int(b)] == tc) }
+                guard isLog[Int(b0)], y == -M || !same(g.block(x, y - 1, z)) else { y += 1; continue }
                 var bot = y
-                while bot > y - 64 && isLog[Int(g.column(x, bot - 1, z))] { bot -= 1 }
+                while bot > y - 64 && same(g.column(x, bot - 1, z)) { bot -= 1 }
                 var top = y
-                while top < y + 64 && isLog[Int(g.column(x, top + 1, z))] { top += 1 }
+                while top < y + 64 && same(g.column(x, top + 1, z)) { top += 1 }
                 // P433 (Remington, Oct 24: "this giant log, which isn't the same log I hit, it morphed into something
                 // else... the log just got wider"; "clearly algorithmically generated when they break"): a log struck
                 // out of a trunk left two runs, and each was measured and classed on its own: the stump below lost
@@ -132,13 +139,13 @@ enum ShapeTrunks {
                 // timber. A cut of one or two cells with the same upright trunk going on past it is one column still
                 // (the same foot, top, height, taper and crown as before the blow); only the missing cells aren't drawn,
                 // and the trunk shows a cut end at each side of the gap (ShapeTrunks.column).
-                while bot > y - 60 {
+                while !woodOn && bot > y - 60 {
                     let c = cutBelow(g, x, bot, z)
                     if c < 0 { break }
                     bot = c
                     while bot > y - 64 && isLog[Int(g.column(x, bot - 1, z))] { bot -= 1 }
                 }
-                while top < y + 60 {
+                while !woodOn && top < y + 60 {
                     let c = cutAbove(g, x, top, z)
                     if c < 0 { break }
                     top = c
@@ -161,7 +168,16 @@ enum ShapeTrunks {
                 let hanging = hangTrunk && !grounded && !joined && vertical && H >= 3 && !isTrunk[under] && !leafT[under]
                 var kind: UInt8 = 0
                 var noted: Felling.Stump? = nil
-                if grounded || joined || hanging {
+                if woodOn {
+                    if !tc {
+                        if grounded && vertical { kind = 2 }                            // a post
+                    } else if grounded || joined || hanging {
+                        if H >= 3 && vertical || H == 2 && vertical && leansOn(g, x, top, z) { kind = 1 }
+                        else if H <= 2 && rootBeside(g, x, bot, z) && !fallenRun(g, x, bot, z) { kind = 3 }
+                        else if !vertical || H == 1 && lyingBeside(g, x, bot, z) { kind = 0 }
+                        else if grounded && vertical && H == 2 { kind = 4 }             // a shrub's stem, a stump the land grew
+                    }
+                } else if grounded || joined || hanging {
                     // A living tree has leaves round the top of its column (or where its lean carries the crown).
                     var crown = false
                     // P398 (a): an acacia's 2-log foot leans on diagonally (its crown sits on the lean): a living
@@ -195,9 +211,11 @@ enum ShapeTrunks {
                     // building (a log with a wall or floor beside it) keeps its full timber.
                     else if vertical && SmoothTerrain.natural[under] && !builtBeside(g, x, bot, top, z) && (soilFoot || treeFoot(g, x, bot, top, z)) { kind = 4 }
                     else { kind = 2 }                                               // a post (built timber)
+                }
+                do {
                     if kind != 0 {
                         let rb: Float = kind == 1 ? treeRadius(H) : (kind == 4 ? treeRadius(max(5, H + 4)) : 0.45)
-                        for yy in thru(max(y, -M), min(top, 15 + M)) where logC(x, yy, z) {      // (P433: not the cut's cells)
+                        for yy in thru(max(y, -M), min(top, 15 + M)) where same(g.block(x, yy, z)) {      // (P433: not the cut's cells)
                             let i = wi(x, yy, z)
                             s.col[i] = kind
                             let t = (Float(yy - bot) + 0.5) / Float(H)
@@ -229,6 +247,7 @@ enum ShapeTrunks {
                 guard nx >= -M && ny >= -M && nz >= -M && nx < 16 + M && ny < 16 + M && nz < 16 + M else { continue }
                 let j = wi(nx, ny, nz)
                 guard s.dist[j] < 0 && (s.col[j] == 0 || s.col[j] == 3) && log(nx, ny, nz) && !fallenRun(g, nx, ny, nz) else { continue }
+                if woodOn { let nb = Int(g.block(nx, ny, nz)); if !treeT[nb] && !isRoot[nb] { continue } }     // (timber is no limb)
                 // Breadth-first with face steps before edge and corner steps: a cell takes the nearest joint as its parent.
                 s.dist[j] = d + 1
                 s.par[j] = Int32(i)
@@ -276,6 +295,8 @@ enum ShapeTrunks {
                 rootStub(ctx, x, y, z, bark: bark, sides: limbSides)                 // (a root left when its tree is gone)
             } else if s.col[i] == 1 || s.col[i] == 2 || s.col[i] == 4 {
                 column(ctx, s, x, y, z, bark: bark, rings: rings, sides: sides)
+            } else if woodOn && !treeT[Int(b)] {
+                timber(ctx, x, y, z, axis: timberAxis(ctx, b, x, y, z), bark: bark, rings: rings, sides: sides)
             } else if s.dist[i] > 0 && s.par[i] >= 0 {
                 limb(ctx, s, i, x, y, z, bark: bark, rings: rings, sides: limbSides)
             } else if leafy(ctx, x, y, z) {
