@@ -142,5 +142,50 @@ enum PlaceRowTests {
         let gone = w.builtBlock(rx, H + 1, rz) == AIR && !w.groundAt(rx, H + 1, rz)
         check(Game.oldRockLump ? true : (rockBuilt && dirtGround && kinds && gone),
               "placerow (8): placed stone is a built cube (\(rockBuilt)), placed earth joins the ground (\(dirtGround)); stone and basalt are rock, sand and earth loose (\(kinds)); the cube broken leaves nothing (\(gone))")
+        // (9) ledger 142: a corner cell between two built blocks, its ground dug to a slope
+        notch(g, w, H, planks, check: check)
+    }
+    static func notch(_ g: Game, _ w: World, _ H: Int, _ planks: BlockID, check: (Bool, String) -> Void) {
+        let nx = -8, nz = 8                                // the corner cell (nx, H, nz); planks west and north of it
+        func sink(_ x: Int, _ z: Int) {
+            w.editBatch {
+                w.fieldSphere(V3(Float(x) + 0.5, Float(H) + 0.5, Float(z) + 0.5), radius: 0.56, carve: true, material: nil, remesh: false)
+                w.placeCube = true; w.setBlock(x, H, z, planks); w.placeCube = false
+            }
+        }
+        for (x, z) in [(nx - 1, nz - 1), (nx, nz - 1), (nx + 1, nz - 1), (nx - 1, nz), (nx - 1, nz + 1)] { sink(x, z) }
+        // the pit he dug beside them: Creative blows on the cells south-east of the corner, and one on the corner itself
+        g.player.pitch = -Float.pi / 2
+        for (x, y, z) in [(nx + 1, H, nz + 1), (nx + 1, H - 1, nz + 1), (nx, H, nz + 1), (nx + 1, H, nz), (nx, H, nz)] {
+            g.breakAndShape(IVec3(x, y, z), w.block(x, y, z), at: V3(Float(x) + 0.5, Float(y) + 0.8, Float(z) + 0.5), drop: false)
+        }
+        var tally: [String: Int] = [:], n = 0, inCorner = 0, over = 0
+        let p = g.player
+        p.flying = true
+        for (ex, ez) in [(Float(nx) + 2.6, Float(nz) + 2.2), (Float(nx) + 0.5, Float(nz) + 3.0), (Float(nx) + 3.0, Float(nz) + 0.5), (Float(nx) + 1.6, Float(nz) + 1.6)] {
+            for iu in 0..<5 { for iv in 0..<5 { for h in 0..<3 {
+                let q = V3(Float(nx) + 0.1 + Float(iu) * 0.2, Float(H) + 0.1 + Float(h) * 0.35, Float(nz) + 0.1 + Float(iv) * 0.2)
+                p.pos = V3(ex, Float(H) + 1.0, ez)
+                let dv = q - p.eye
+                p.yaw = atan2f(-dv.x, -dv.z); p.pitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
+                guard let t = w.raycast(p.eye, p.look, maxDist: 6) else { continue }
+                g.target = t
+                g.aimGround()
+                guard let tt = g.target, let tg = g.targetGround, tg.cell == tt.hit else { continue }
+                // (aims whose surface point lies in the corner cell's column)
+                guard Int(floor(tg.at.x)) == nx, Int(floor(tg.at.z)) == nz else { continue }
+                let at = g.placeCell(tt, for: planks)
+                n += 1
+                if at == IVec3(nx, H, nz) { inCorner += 1 }
+                if at == IVec3(nx, H + 1, nz) { over += 1 }
+                tally["\(at.x - nx),\(at.y - H),\(at.z - nz)", default: 0] += 1
+                if ProcessInfo.processInfo.environment["BS_NOTCHTRACE"] == "1" {
+                    print(String(format: "  notch: surface %.2f %.2f %.2f n %.2f %.2f %.2f hit %d,%d,%d axis %d,%d,%d -> %d,%d,%d", tg.at.x - Float(nx), tg.at.y - Float(H), tg.at.z - Float(nz), tg.normal.x, tg.normal.y, tg.normal.z, tt.hit.x - nx, tt.hit.y - H, tt.hit.z - nz, tt.normal.x, tt.normal.y, tt.normal.z, at.x - nx, at.y - H, at.z - nz))
+                }
+            } } }
+        }
+        g.target = nil; g.targetGround = nil
+        check(Game.oldNotch ? true : (n >= 20 && inCorner == n),
+              "placerow (9): aimed at the dug ground of a corner cell between two built blocks, the block takes that cell: \(inCorner) of \(n) aims (\(over) went over it; cells from the corner: \(tally.sorted { $0.value > $1.value }.map { "\($0.key) x\($0.value)" }.joined(separator: ", ")))")
     }
 }

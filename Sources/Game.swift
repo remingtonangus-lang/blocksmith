@@ -2277,6 +2277,7 @@ final class Game: LifeLinked {
     // fills less than half of it there, else the one over it); when just one of those two rows has a built block beside
     // the cell, that row. `sunk`: the cell holds ground, which the placing clears (Game.place). BS_OLDPLACEROW=1: before.
     static let oldPlaceRow = ProcessInfo.processInfo.environment["BS_OLDPLACEROW"] == "1"
+    static let oldNotch = ProcessInfo.processInfo.environment["BS_OLDNOTCH"] == "1"
     func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
         guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
               let g = targetGround, g.cell == t.hit, g.normal.y >= 0.5 else { return nil }
