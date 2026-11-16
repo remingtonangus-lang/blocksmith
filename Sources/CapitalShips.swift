@@ -1176,6 +1176,7 @@ extension ShipManager {
             let name = cap ? "Meridian Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
             var ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
+            DetachLooseTiming.prepare(s.grid.sx * s.grid.sy * s.grid.sz)      // (ledger 169: here, on the builder's thread)
             // (batch 3.4) a taken one comes back as he left her: her hull's cells and her chests from the save, and her
             // turrets as they were (matched by their mounts; one shot away stays away).
             let asBuilt = s.blockCount
@@ -3738,7 +3739,38 @@ enum DetachLooseTiming {
     private static var buf: UnsafeMutablePointer<UInt32>? = nil
     private static var cap = 0
     static var base: UInt32 = 1
+    // Ledger 169: a table made ahead, off the frame, when a capital hull is built (its pages written, so the first
+    // blast's search faults none in: that was 3.6 ms of the frigate's first hit on the bench with calloc alone).
+    // BS_DETACHAHEAD=0: made at the first blast.
+    static let ahead = Env.all["BS_DETACHAHEAD"] != "0"
+    private static let lock = NSLock()
+    private static var ready: (UnsafeMutablePointer<UInt32>, Int)? = nil
+    private static var readyAsked = 0
+    static func prepare(_ n: Int) {
+        guard ahead, !oldTable, n > 1 << 16 else { return }
+        lock.lock()
+        let have = max(readyAsked, ready?.1 ?? 0)
+        if n > have { readyAsked = n }
+        lock.unlock()
+        guard n > have else { return }
+        let p = calloc(n, MemoryLayout<UInt32>.stride)!.bindMemory(to: UInt32.self, capacity: n)
+        memset(p, 0, n * MemoryLayout<UInt32>.stride)
+        lock.lock()
+        if let r = ready { if r.1 >= n { lock.unlock(); free(p); return }; free(r.0) }
+        ready = (p, n)
+        lock.unlock()
+    }
     static func table(_ n: Int) -> UnsafeMutablePointer<UInt32> {
+        if n > cap || buf == nil, !oldTable {
+            lock.lock()
+            let r = ready
+            if let r, r.1 >= n { ready = nil }
+            lock.unlock()
+            if let r, r.1 >= n {
+                free(buf)
+                buf = r.0; cap = r.1; base = 1
+            }
+        }
         if n > cap || buf == nil {
             // (Nov 15, --hullblast: the first blast on a frigate, 5 million cells, took 9 ms here clearing 20 MB on the
             // frame; calloc hands back zero pages untouched, and only the pages a search walks are ever faulted in)
