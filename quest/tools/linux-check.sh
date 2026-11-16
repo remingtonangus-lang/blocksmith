@@ -18,11 +18,12 @@ OPT="${QUEST_OPT:--Onone}"
 case "$OPT" in *-Onone*|*-wmo*) ;; *-O*) [ "${QUEST_FAST:-0}" = 1 ] || OPT="$OPT -wmo -enforce-exclusivity=unchecked" ;; esac
 python3 quest/tools/extract_hud.py "$GEN/HudGenerated.swift" >/dev/null
 python3 quest/tools/shaders.py "$GEN/QuestSPIRV.swift" >/dev/null
+python3 quest/tools/listchecks.py --swift "$GEN/CheckList.swift"   # questcheck --list-checks
 for m in simd os Metal; do
   swiftc -parse-as-library -swift-version 5 $OPT -module-name $m -emit-module -emit-module-path "$OUT/$m.swiftmodule" \
     -emit-library -static -o "$OUT/lib$m.a" -I "$OUT" quest/shims/$m/*.swift
 done
-SRCS="$(quest/tools/sources.sh) $(ls quest/src/common/*.swift quest/src/vk/*.swift quest/src/xr/*.swift quest/src/app/*.swift quest/src/test/*.swift quest/src/headless/*.swift) $GEN/HudGenerated.swift $GEN/QuestSPIRV.swift"
+SRCS="$(quest/tools/sources.sh) $(ls quest/src/common/*.swift quest/src/vk/*.swift quest/src/xr/*.swift quest/src/app/*.swift quest/src/test/*.swift quest/src/headless/*.swift) $GEN/HudGenerated.swift $GEN/QuestSPIRV.swift $GEN/CheckList.swift"
 INC="-I $OUT -I quest/c/CZlib -I quest/c/CVulkan -I quest/c/COpenXR -Xcc -I${OPENXR_INCLUDE:-/opt/openxr/include}"
 if [ "$MODE" = typecheck ]; then
   swiftc -typecheck -swift-version 5 -module-name Blocksmith $INC -D QUEST_HEADLESS $SRCS

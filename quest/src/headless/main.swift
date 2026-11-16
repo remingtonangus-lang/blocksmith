@@ -12,6 +12,12 @@ func check(_ ok: Bool, _ what: String) {
     if !ok { failures += 1 }
 }
 setvbuf(stdout, nil, _IOLBF, 0)
+// --list-checks: every named run (`--X-only`, `--X`) with its one-line comment (quest/tools/listchecks.py writes the list).
+if CommandLine.arguments.contains("--list-checks") {
+    let w = questCheckList.map { $0.0.count }.max() ?? 0
+    for (flag, note) in questCheckList { print("  " + flag.padding(toLength: w, withPad: " ", startingAt: 0) + "  " + note) }
+    exit(0)
+}
 
 let seed: UInt64 = CommandLine.arguments.firstIndex(of: "--worldseed").flatMap { i in i + 1 < CommandLine.arguments.count ? UInt64(CommandLine.arguments[i + 1]) : nil } ?? 12345
 WorldRules.p44 = CommandLine.arguments.contains("--p44")   // fixture seeds keep their cities and citadels (WorldRules.p44);
