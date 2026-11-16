@@ -101,7 +101,7 @@ enum Nov15EveningChecks {
         let bps = BuildersGrounds.blueprints()
         let t0 = CFAbsoluteTimeGetCurrent()
         guard let c = BuildersGrounds.findCluster(w, centre: g.findSpawn(), kinds: bps.map { $0.ground }) else {
-            check(false, "Ledger 202 builds together: no place for the six (no water for the boathouse within reach)"); return
+            check(false, "Ledger 202 builds together: no place for the six (\(BuildersGrounds.lastWhy))"); return
         }
         let secs = CFAbsoluteTimeGetCurrent() - t0
         let sites = bps.compactMap { c.sites[$0.ground] }

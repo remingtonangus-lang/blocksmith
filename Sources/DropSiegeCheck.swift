@@ -31,7 +31,7 @@ enum DropSiegeCheck {
         print("drop: citadel at \(cx) \(cz), he stands 110 west; pads: \(r0.dropPads.map { $0.map { "\(Int($0[0])),\(Int($0[1]) - YOFF),\(Int($0[2]))" }.joined(separator: " ") } ?? "none")")
         var seen: [Int: (pos: V3, parked: Bool, at: Float)] = [:]
         var nextBlast: Float = t + 5, nextFar: Float = t + 12, nextLog: Float = t + 30
-        let built0 = CitadelDrops.parkedBuilt, launched0 = CitadelDrops.launched
+        let launched0 = CitadelDrops.launched
         sim(300) {
             if t >= nextBlast, let r = g.bases.records[key] {
                 nextBlast += 40
@@ -65,8 +65,8 @@ enum DropSiegeCheck {
             print("drop: (before) \(seen.count) dropships in 5 minutes, \(fromAir.count) built in the air")
             return 0
         }
-        check(pads.count == CitadelDrops.fleet && CitadelDrops.parkedBuilt - built0 >= 1,
-              "the citadel has \(pads.count) dropship pads, \(CitadelDrops.parkedBuilt - built0) dropships parked on them")
+        check(pads.count == CitadelDrops.fleet && onPads == CitadelDrops.fleet,
+              "the citadel has \(pads.count) dropship pads, \(onPads) dropships first seen parked on them (\(CitadelDrops.parkedBuilt) parked in all)")
         check(seen.count <= CitadelDrops.fleet && fromAir.isEmpty && onPads == seen.count && launched >= 1,
               "over a 5-minute siege \(seen.count) dropships in all (at most \(CitadelDrops.fleet)), \(onPads) first seen on a pad, \(fromAir.count) built in the air, \(launched) launched")
         return fails == 0 ? 0 : 1

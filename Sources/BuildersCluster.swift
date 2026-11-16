@@ -11,6 +11,7 @@ import simd
 extension BuildersGrounds {
     static let oldSites = Env.all["BS_OLDBUILDSITES"] == "1"
     static let spread = 22, apart = 20, spawnOut: Float = 12, near: Float = 40
+    static var lastWhy = ""                   // (checks: how the last search went)
 
     struct Cluster {
         var sites: [String: IVec3]           // each kind's spot (the build's origin corner, y 0)
@@ -62,7 +63,8 @@ extension BuildersGrounds {
             var out: [String] = []
             if wet == 0 && hi - lo >= 4 && hi - lo <= 9 && grass + wood > n / 2 { out.append("slope") }
             if beach > n / 3 && wet >= 2 && wet <= n / 2 { out.append("beach") }
-            if beach == 0 && wet >= n / 4 && wet <= n / 2 && hi - lo <= 7 && dockLie(x0, z0) { out.append("shore") }
+            // (the boathouse's water: any shore, a sea beach too, where the land is north and the water south of it)
+            if wet >= n / 4 && wet <= n / 2 && hi - lo <= 7 && dockLie(x0, z0) { out.append("shore") }
             if wet == 0 && wood > n * 2 / 3 && hi - lo <= 3 { out.append("forest") }
             if wet == 0 && rock > n / 2 && hi - lo <= 5 { out.append("rocky") }
             if wet == 0 && hi - lo <= 4 && lo > SEA + 8 {
@@ -81,7 +83,7 @@ extension BuildersGrounds {
                 for z in [0, 2] where col(x0 + x, z0 + z).h >= SEA { dry += 1 }
                 for z in [10, 12, 14, 16] where col(x0 + x, z0 + z).h < SEA { wet += 1 }
             }
-            return dry >= 6 && wet >= 14
+            return dry >= 5 && wet >= 12
         }
         func could(_ x0: Int, _ z0: Int, _ kind: String) -> Bool {
             kinds(x0, z0).contains(kind) && !(dropped[Screen.key(x0, z0)]?.contains(kind) ?? false)
@@ -173,10 +175,14 @@ extension BuildersGrounds {
             dfs(0, 0)
             return best
         }
-        for _ in 0..<8 {
+        var shoreMids = 0, dropped: [String] = []
+        defer { lastWhy = "\(shoreMids) middles with a spot for the boathouse, \(dropped.count) spots read and dropped (\(dropped.suffix(8).joined(separator: ", ")))" }
+        for _ in 0..<30 {
             var found: ([String: IVec3], Set<String>, Int, Int)?
+            shoreMids = 0
             for (dx, dz) in rings {
                 guard let a = assign(cx + dx, cz + dz) else { continue }
+                shoreMids += 1
                 if found == nil || a.1.count > found!.1.count { found = (a.0, a.1, cx + dx, cz + dz) }
                 if a.1.count == kinds.count { break }
             }
@@ -185,6 +191,7 @@ extension BuildersGrounds {
             var bad = false
             for (k, p) in f.0 where !reads(w, p.x, p.z, f.1.contains(k) ? k : "any") {
                 s.dropped[Screen.key(p.x, p.z), default: []].insert(f.1.contains(k) ? k : "any")
+                dropped.append("\(f.1.contains(k) ? k : "any") \(p.x),\(p.z)")
                 bad = true
             }
             if bad { continue }

@@ -46,6 +46,7 @@ enum BuildersCheck {
         // (ledger 202: the six together, as the world lays them out)
         let cluster = BuildersGrounds.oldSites ? nil : BuildersGrounds.findCluster(w, centre: spawn, kinds: bps.map { $0.ground })
         let sites = cluster?.sites ?? BuildersGrounds.findSites(w, centre: spawn, kinds: bps.map { $0.ground })
+        if !BuildersGrounds.oldSites { check(cluster != nil, "Ledger 202 builds: the six together round one middle (\(cluster == nil ? BuildersGrounds.lastWhy : "found"))") }
         if let c = cluster { print(String(format: "builds: together round %.0f %.0f, he starts at %.0f %.0f; on their own ground: ", c.middle.x, c.middle.z, c.spawn.x, c.spawn.z) + c.own.sorted().joined(separator: ", ")) }
         print(String(format: "builds: spawn %.0f %.0f, sites found in %.1f s:", spawn.x, spawn.z, CFAbsoluteTimeGetCurrent() - t0))
         fflush(stdout)

@@ -733,9 +733,10 @@ enum RailwayTests {
                     g.inventory.held = s
                     g.arms.reload = 0; g.arms.cooldown = 0
                     g.arms.heldGun = Guns.index(s.item) ?? -1; g.arms.heldSlot = g.selected
-                    let n0 = g.arms.slugs.count, pad = PadSnapshot()
+                    let pad = PadSnapshot()
                     for k in 0..<4 { _ = g.gunInteract(pad, pad, fire: true, firePressed: k == 0, aim: false, dt: 0.05); g.armsTick(0.05) }
-                    return g.riding === seat && g.arms.slugs.count > n0
+                    // (a round spent: the slug itself may meet the car's own wall within the four ticks and be gone)
+                    return g.riding === seat && g.inventory.held.tag < 6
                 }
                 let cabShot = shotFrom(loco), carShot = shotFrom(car)
                 g.inventory.held = .empty; g.arms.heldGun = -1
