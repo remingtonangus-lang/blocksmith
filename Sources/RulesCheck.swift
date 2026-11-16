@@ -42,6 +42,39 @@ enum RulesCheck {
             check(east && !west, "water heads for the drop 3 east and not west (east \(east), west \(west))")
         }
 
+        // Ledger 176: still water fills an open pocket beside it under its surface (a crater at the sea's edge); a
+        // lone spring's fall does not wet a ledge it passes.
+        do {
+            let cx0 = cx   // (both pads are handed back clean, so the cases after this one stand where they always stood)
+            defer { cx = cx0 }
+            let x = site()
+            // (a stone block three high with a channel cut in it: two columns of sea, then a pocket over a ledge)
+            for dx in -1...3 { for dz in -1...1 { for dy in 0...2 { w.setBlock(x + dx, floorY + dy, cz + dz, STONE) } } }
+            for dx in 0...2 { for dy in 0...2 where !(dx == 2 && dy == 0) { w.setBlock(x + dx, floorY + dy, cz, AIR) } }
+            for dx in 0...1 {
+                w.setBlock(x + dx, floorY + 2, cz, WATER)
+                w.setBlock(x + dx, floorY + 1, cz, WATER_FALL); w.setBlock(x + dx, floorY, cz, WATER_FALL)
+            }
+            for dy in 0...2 { w.scheduleFluid(around: IVec3(x + 1, floorY + dy, cz)) }
+            for _ in 0..<40 { w.fluidTick() }
+            let low = Blocks.isLiquid(w.builtBlock(x + 2, floorY + 1, cz)), top = Blocks.isLiquid(w.builtBlock(x + 2, floorY + 2, cz))
+            // (a lone spring three up, its fall shut in at the foot by four stones whose tops are the ledges)
+            let x2 = site()
+            let ring = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+            for d in ring { w.setBlock(x2 + d.x, floorY, cz + d.z, STONE) }
+            w.setBlock(x2, floorY + 3, cz, WATER)
+            w.scheduleFluid(around: IVec3(x2, floorY + 3, cz))
+            for _ in 0..<40 { w.fluidTick() }
+            let fell = Blocks.isLiquid(w.builtBlock(x2, floorY, cz))
+            let ledge = ring.contains { Blocks.isLiquid(w.builtBlock(x2 + $0.x, floorY + 1, cz + $0.z)) }
+            let ok = World.oldStillWater ? (!low && !ledge) : (low && top && fell && !ledge)
+            check(ok, "ledger 176: still water fills a pocket beside it under its surface (low \(low), top \(top)); a lone spring's fall leaves the ledges it passes dry (fell \(fell), ledge wet \(ledge))")
+            for dy in stride(from: 3, through: 0, by: -1) { w.setBlock(x2, floorY + dy, cz, AIR) }
+            for d in ring { w.setBlock(x2 + d.x, floorY, cz + d.z, AIR) }
+            for dx in -1...3 { for dz in -1...1 { for dy in stride(from: 2, through: 0, by: -1) { w.setBlock(x + dx, floorY + dy, cz + dz, AIR) } } }
+            for _ in 0..<20 { w.fluidTick() }
+        }
+
         // Ice broken without Silk Touch over stone leaves water.
         do {
             let x = site()

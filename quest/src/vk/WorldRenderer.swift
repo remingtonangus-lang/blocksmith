@@ -341,10 +341,12 @@ final class WorldRenderer {
         // (the mob worker is joined in drawMobs: the panel, the terrain, the ring, ships and landmarks don't touch the
         // mob models' shared state, so the worker has until then)
         if !WorldRenderer.debugSkip.contains("prepass") { prePass?(s) }
+        recordCloudMap(s, u, height: t.height)
         stage(7)
         scene.beginPass(s, t, clear: clear)
         let skip = WorldRenderer.debugSkip
         if !skip.contains("opaque") { scene.drawOpaque(s) }
+        if CostProbe.landTwice && !skip.contains("opaque") { scene.drawOpaque(s) }     // nothing passes the depth test again
         stage(8)
         if !skip.contains("far") { drawFarRing(s, eye) }
         stage(9)
@@ -706,6 +708,28 @@ final class WorldRenderer {
         else { scene.drawScratch(s, "simple", offset: sm.offset, count: sm.count) }
     }
 
+    /// Are the cloud decks drawn this frame (drawSkyLayer)?
+    private var cloudsDrawn: Bool {
+        QuestSettings.clouds && !WorldRenderer.debugSkip.contains("clouds") && game.dim.dim == .overworld && game.blindFog == nil
+            && game.dim.dim.hasSky && !game.player.headInWater
+    }
+    // The cloud map (CloudMap.swift): made at the first frame with clouds; this frame's answer from its record.
+    private(set) var cloudMap: CloudMap?
+    private var cloudMapFailed = false
+    private var cloudRead: (VkDescriptorSet, V4)?
+    private func recordCloudMap(_ s: SceneRenderer.Slot, _ u: FrameUniforms, height: Int) {
+        cloudRead = nil
+        guard CloudMap.on, !cloudMapFailed, !SceneRenderer.overdraw, cloudsDrawn, !WorldRenderer.debugSkip.contains("sky") else { return }
+        if cloudMap == nil {
+            do { cloudMap = try CloudMap(scene: scene) } catch { cloudMapFailed = true; print("cloud map: not made (\(error)); the clouds are drawn as before"); return }
+        }
+        // (the angle between the rays of two pixels one above the other at the middle of the view)
+        let inv = u.invViewProj.0
+        func ray(_ y: Float) -> V3 { let w = inv * V4(0, y, 1, 1); return simd_normalize(V3(w.x, w.y, w.z) / w.w) }
+        let pix = simd_length(simd_cross(ray(0), ray(2 / Float(max(1, height)))))
+        cloudRead = cloudMap?.record(s, cloud: V2(u.clouds.x, u.clouds.y), eyeY: u.eye.y, flash: u.clouds.w, pixAngle: pix)
+    }
+
     private func drawSkyLayer(_ s: SceneRenderer.Slot, _ eye: V3) {
         let underwater = game.player.headInWater
         let hasSky = game.dim.dim.hasSky
@@ -734,8 +758,8 @@ final class WorldRenderer {
             body(-sd, 5, Int(Tex.id("moon_\(game.moonPhase)")), V4(1, 1, 1, 1))
             scene.commit(off, bw.n, EntityVert.self)
             scene.drawScratch(s, "body", offset: off, count: bw.n)
-            if QuestSettings.clouds && !WorldRenderer.debugSkip.contains("clouds") && game.dim.dim == .overworld && game.blindFog == nil {
-                scene.drawClouds(s)
+            if cloudsDrawn {
+                if let (set, extra) = cloudRead { scene.drawCloudsMapped(s, set: set, extra: extra) } else { scene.drawClouds(s) }
             }
         } else if !underwater && !game.player.headInLava, let body = game.ownSkyBody {
             // The Cinder Sun over the Ash Vault (big, dull and red through the haze), hell's Ember Moon (P342).

@@ -49,6 +49,21 @@ enum Trains {
         var source = 0                          // (the line's cell count it was made from: the cache's check)
         // The timetable: (start, duration, from, to) over one period; from == to is a dwell.
         let legs: [(Double, Double, Float, Float)]
+        // Ledger 178: how each leg starts and ends (bit 0: from a stand at its start, bit 1: to a stand at its end).
+        // A track with fewer than two stations (open country, or a window of a through train with one station in
+        // it) is timed between its own ends as well, and a leg runs past such an end at speed, not to a stand.
+        let legEase: [UInt8]
+        let legLam: [Float]                         // (the share of such a leg's length it gathers or loses its speed over)
+        static let cruise: Float = 1.5              // a leg's speed where it doesn't start or end at a stand, in average speeds
+        static let easeRun: Float = 240             // the distance a train takes to reach that speed from a stand, or to stop from it
+        // The share of a leg covered at share f of its time, for a leg that starts from a stand and is passed at speed
+        // at its end: speed rising as a sine over the first `lam` of its length, steady after.
+        static func easeIn(_ f: Float, _ lam: Float) -> Float {
+            let h = Float.pi / 2
+            let t1 = h * lam / (h * lam + 1 - lam)
+            if f < t1 || lam >= 1 { return lam * (1 - cosf(h * min(1, f / max(1e-6, t1)))) }
+            return lam + (1 - lam) * (f - t1) / max(1e-6, 1 - t1)
+        }
         let period: Double
         let phase: Double
         // N12: a field line runs its centres smoothed as ShapeRails draws them (a staircase as its diagonal, a turn as
@@ -59,7 +74,7 @@ enum Trains {
         let arc: [Float]
         let smooth: Bool
         init(id: Int64, name: String, cells: [IVec3], slopes: [Bool], stops: [Int], stopNames: [String], armoured: Bool, dim: Dim,
-             heights: [Float]? = nil, cyclic: Bool = false) {
+             heights: [Float]? = nil, cyclic: Bool = false, openEnds: Bool = false) {
             self.id = id; self.name = name; self.cells = cells; self.stops = stops; self.stopNames = stopNames
             self.armoured = armoured; self.dim = dim; self.cyclic = cyclic
             // (P379 step 3: a field world's line runs at its planned heights, the drawn track's.)
@@ -76,19 +91,40 @@ enum Trains {
                 cum[i] = cum[i - 1] + (sm ? max(0.05, simd_length(SIMD2<Float>(b.x - a.x, b.z - a.z))) : 1)
             }
             arc = cum
-            var legs: [(Double, Double, Float, Float)] = [], t: Double = 0
+            var legs: [(Double, Double, Float, Float)] = [], ease: [UInt8] = [], lams: [Float] = [], t: Double = 0
             // A line runs out and back (its ends turn it round); a circuit runs on round (the last stop's leg ends at
             // the first stop a lap on).
-            let order = cyclic ? stops : stops + stops.reversed().dropFirst().dropLast()
+            // (ledger 178: with fewer than two stations, the track's own ends are places to turn at too; and a through
+            // train's window, `openEnds`, is run to its ends, which move on before the train reaches them)
+            var calls = stops
+            var passed = Set<Int>()
+            if !cyclic && (stops.count < 2 || openEnds) && cells.count >= 2 {
+                let n = cells.count
+                for e in [0, n - 1] where !stops.contains(where: { abs($0 - e) < 8 }) { calls.append(e); passed.insert(e) }
+                calls.sort()
+            }
+            let order = cyclic ? calls : calls + calls.reversed().dropFirst().dropLast()
             for k in 0..<order.count {
                 let a = order[k]
                 let b = cyclic && k + 1 == order.count ? order[0] + cells.count : order[(k + 1) % order.count]
-                legs.append((t, Trains.dwell, Float(a), Float(a))); t += Trains.dwell
+                if !passed.contains(a) { legs.append((t, Trains.dwell, Float(a), Float(a))); ease.append(3); lams.append(1); t += Trains.dwell }
                 let run = sm ? abs(Track.arcAt(cum, Float(b), cells.count, cyclic) - Track.arcAt(cum, Float(a), cells.count, cyclic)) : Float(abs(b - a))
-                let d = Double(run) / Double(Trains.speed * (armoured ? 1.3 : 1))
-                legs.append((t, d, Float(a), Float(b))); t += d
+                let e: UInt8 = (passed.contains(a) ? 0 : 1) | (passed.contains(b) ? 0 : 2)
+                let avg = Trains.speed * (armoured ? 1.3 : 1)
+                // (a leg's top speed is twice its average between two stands; a leg with an end passed at speed runs
+                // at the cruising speed there)
+                var d = Double(run) / Double(avg), lam: Float = 1
+                if e != 3 {
+                    let v = Double(avg * Track.cruise)
+                    lam = e == 0 ? 0 : min(1, Track.easeRun / max(1, run))
+                    let eased = Double(run * lam) * Double.pi / 2 / v
+                    d = max(0.1, eased + Double(run * (1 - lam)) / v)
+                }
+                legs.append((t, d, Float(a), Float(b))); ease.append(e); lams.append(lam); t += d
             }
             self.legs = legs
+            legEase = ease
+            legLam = lams
             period = max(1, t)
             phase = Double(hashf(Int(truncatingIfNeeded: id), Int(truncatingIfNeeded: id >> 32), 0x7A1, 0x5EED)) * max(1, t)
         }
@@ -107,7 +143,14 @@ enum Trains {
             }
             // Ease in and out of each stop (no speed at either end).
             let f = Float(max(0, min(1, (u - t0) / d)))
-            let e = f - sinf(2 * .pi * f) / (2 * .pi)
+            let k = legEase[i]
+            let e: Float
+            switch k {
+            case 3: e = f - sinf(2 * .pi * f) / (2 * .pi)
+            case 1: e = Track.easeIn(f, legLam[i])
+            case 2: e = 1 - Track.easeIn(1 - f, legLam[i])
+            default: e = f
+            }
             if smooth { let da = arcAt(a), db = arcAt(b); return (wrap(sAt(da + (db - da) * e)), b > a ? 1 : -1, nil) }
             return (wrap(a + (b - a) * e), b > a ? 1 : -1, nil)
         }
@@ -159,6 +202,48 @@ enum Trains {
             var d = arcAt(b) - arcAt(a)
             if cyclic { let L = arc[cells.count]; if d > L / 2 { d -= L } else if d < -L / 2 { d += L } }
             return d
+        }
+        // Ledger 173 (Nov 15 20:58:16 "Oh dear. Motion sickness", 20:59:15 "with any major turns", driving at 101 km/h):
+        // a plan's turns are arcs of radius 14 or less, and at the cab's top speed (28 blocks a second) the train went
+        // round one at 115 degrees a second. The pace each cell allows: the turn there (heading change over the 4 cells
+        // either side, per block run) taken at no more than `Trains.turnRate`, never under `Trains.curveFloor`, and
+        // eased both ways along the line at `Trains.curveEase` so the train is already slow where the turn starts.
+        // Straight track allows the top speed. A line run block by block (not smooth) has no limit.
+        private(set) lazy var curveLimit: [Float] = {
+            let n = cells.count
+            guard smooth, n >= 12 else { return [] }
+            var lim = [Float](repeating: Trains.topSpeed, count: n)
+            let w = 4
+            func at(_ i: Int) -> V3 { cyclic ? pts[((i % n) + n) % n] : pts[max(0, min(n - 1, i))] }
+            for i in 0..<n {
+                if !cyclic && (i < w || i >= n - w) { continue }
+                let a = at(i - w), m = at(i), b = at(i + w)
+                let ax = m.x - a.x, az = m.z - a.z, bx = b.x - m.x, bz = b.z - m.z
+                let la = hypotf(ax, az), lb = hypotf(bx, bz)
+                guard la > 0.5, lb > 0.5 else { continue }
+                let turn = abs(atan2f(ax * bz - az * bx, ax * bx + az * bz))
+                let bend = turn / ((la + lb) * 0.5)                     // radians a block
+                if bend > 1e-4 { lim[i] = max(Trains.curveFloor, min(Trains.topSpeed, Trains.turnRate / bend)) }
+            }
+            func ease(_ from: Int, _ to: Int) {
+                let d = max(0.05, simd_length(V2(pts[to].x - pts[from].x, pts[to].z - pts[from].z)))
+                lim[to] = min(lim[to], (lim[from] * lim[from] + 2 * Trains.curveEase * d).squareRoot())
+            }
+            for _ in 0..<(cyclic ? 2 : 1) {
+                for i in 1..<n { ease(i - 1, i) }
+                if cyclic { ease(n - 1, 0) }
+                for i in stride(from: n - 2, through: 0, by: -1) { ease(i + 1, i) }
+                if cyclic { ease(0, n - 1) }
+            }
+            return lim
+        }()
+        // The pace allowed at place s (blocks a second).
+        func curveSpeed(_ s: Float) -> Float {
+            let lim = curveLimit
+            guard !lim.isEmpty else { return Trains.topSpeed }
+            let n = lim.count
+            let i = cyclic ? min(n - 1, Int(wrap(s.rounded()))) : max(0, min(n - 1, Int(s.rounded())))
+            return lim[i]
         }
         func cell(_ s: Float) -> IVec3 {
             let n = cells.count
@@ -463,12 +548,13 @@ enum Trains {
             for st in p.stations { stops.append(off + st.index); names.append(st.name + " Station") }
             off += p.cells.count
         }
-        guard stops.count >= 2 else { return }
+        // (ledger 178: a window over open country may hold one station or none; its track is timed between its ends)
+        guard stops.count >= 2 || Railways.wildWorld(gen) else { return }
         let whole = Railways.Line(id: 0, name: t.name, cells: cells, stations: [], heights: heights)
         let shapes = cells.indices.map { whole.shape($0) }
         nextThrough += 1
         let t2 = Track(id: nextThrough, name: t.name, cells: cells, slopes: shapes.map { (2...5).contains($0) }, stops: stops,
-                       stopNames: names, armoured: false, dim: .overworld, heights: heights)
+                       stopNames: names, armoured: false, dim: .overworld, heights: heights, openEnds: Railways.wildWorld(gen))
         t2.shapes = shapes; t2.parts = parts; t2.through = true
         // Its timetable taken up where it is: the moment the longer track's train is at s, heading d (or standing at the
         // same stop).
@@ -724,6 +810,12 @@ enum Trains {
     static var watch: IVec3?                                     // (RailwayTests: each frame of a driven train's nose near this cell)
     static let topSpeed: Float = 28, backSpeed: Float = 7       // blocks a second at full regulator, ahead and backing
     static let tractive: Float = 2.2, coast: Float = 0.35, brakeRate: Float = 5      // blocks a second, each second
+    // Ledger 173: a driven train takes a turn at no more than `turnRate` radians a second (70 degrees: half what a
+    // radius 14 turn was at top speed, and he asked for 100 km/h on Nov 12, so no slower than it need be), never
+    // under `curveFloor` blocks a second, slowing ahead of it at `curveEase` blocks a second each second (the
+    // brake's own rate). BS_OLDCURVESPEED=1 = before.
+    static let oldCurveSpeed = Env.all["BS_OLDCURVESPEED"] == "1"
+    static let turnRate: Float = 1.22, curveFloor: Float = 10, curveEase: Float = 5
     static let tenderStart: Float = 24, tenderMax: Float = 64
     static var coalBurned: Float = 0                             // (checks)
 
@@ -763,6 +855,13 @@ enum Trains {
         }
         let stopping = brakeRate * max(tr.cabBrake, tr.brake) * dt
         v = v > 0 ? max(0, v - stopping) : min(0, v + stopping)
+        // Ledger 173: the turns' pace (the train's middle and both its ends, so the whole of it is through the turn
+        // before it picks up again); over it, the train is held back at the brake's rate.
+        if !oldCurveSpeed && t.smooth {
+            let half = tr.layout.isEmpty ? Float(2) : tr.length / 2
+            let cap = min(t.curveSpeed(tr.driveS), t.curveSpeed(t.advance(tr.driveS, by: half)), t.curveSpeed(t.advance(tr.driveS, by: -half)))
+            if abs(v) > cap { let nv = max(cap, abs(v) - brakeRate * 1.6 * dt); v = v > 0 ? nv : -nv }
+        }
         // A block he put on the rail ahead (place: heldBy) stops it there, backing or not; he can still pull away from
         // it the other way.
         if tr.heldBy && (tr.heldWay == 0 || v * tr.heldWay > 0) { v = 0 }

@@ -83,14 +83,16 @@ final class ShipMesh {
             let z0 = max(0, (cz0 - 1) * 16), z1 = min(sz, (cz1 + 2) * 16)
             if x1 > x0 && z1 > z0 {
                 let w = x1 - x0, d = z1 - z0
-                var sub = [BlockID](repeating: AIR, count: w * d * sy)
-                s.grid.blocks.withUnsafeBufferPointer { src in
-                    sub.withUnsafeMutableBufferPointer { dst in
+                // (ledger 169: every cell of the copy is written from the grid, so it is not cleared first, and a row
+                // goes over in one move: the copy was the dearest stage of a shell on a frigate)
+                let sub = [BlockID](unsafeUninitializedCapacity: w * d * sy) { dst, n in
+                    s.grid.blocks.withUnsafeBufferPointer { src in
                         for y in 0..<sy { for z in z0..<z1 {
                             let si = x0 + z * sx + y * sx * sz, di = (z - z0) * w + y * w * d
-                            for x in 0..<w { dst[di + x] = src[si + x] }
+                            (dst.baseAddress! + di).update(from: src.baseAddress! + si, count: w)
                         } }
                     }
+                    n = w * d * sy
                 }
                 let ox = x0 / 16, oz = z0 / 16
                 let local = Set(only.map { ShipMesh.key(($0 & 0xFFF) - ox, ($0 >> 12) & 0xFF, (($0 >> 20) & 0xFFF) - oz) })

@@ -106,6 +106,7 @@ final class QuestApp {
         }
         stats.recordStages = { [weak self] in self?.worldRenderer?.takeStages() ?? "" }
         stats.dynResProbe = { [weak self] in self?.dynRes.lastProbe ?? 0 }
+        stats.dynResCounts = { [weak self] in (self?.dynRes.takenBack ?? 0, self?.dynRes.unjudged ?? 0) }      // ledger 177
         stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && !(self?.xr.foveated ?? true) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
         startLoading(WorldRequest(survival: true))       // (code reader Nov 10, batch 2.1: a buyer's first world was Creative: no camp, no goals)
@@ -457,7 +458,7 @@ final class QuestApp {
             let budget = 1000.0 / Double(max(60, xr.refreshRate)) * (xr.spaceWarpOn ? 2 : 1)
             scene.viewScale = dynRes.observe(gpuMs: scene.gpuMs, budgetMs: budget,
                                              enabled: QuestSettings.dynamicResolution && !xr.foveated && game != nil && worldRenderer != nil,
-                                             fps: Double(xr.refreshRate) / (xr.spaceWarpOn ? 2 : 1))
+                                             fps: Double(xr.refreshRate) / (xr.spaceWarpOn ? 2 : 1), quads: scene.drawnQuads)
             let (viewW, viewH) = scene.viewExtent(target)
             xr.viewExtent = (viewW, viewH)
             let cam = rig.camera(xr: xr, far: farPlane)
@@ -808,6 +809,7 @@ final class FrameStats {
     static let captureMissFrac = 0.15, captureGap = 120.0
     var viewGov: ViewGovernor?              // P425: Auto View Distance
     var dynResProbe: (() -> Double)?        // P403 step 2: DynamicResolution.lastProbe
+    var dynResCounts: (() -> (Int, Int))?   // ledger 177: drops taken back, probes with no answer
     var dynResOn: (() -> Bool)?             // P499: dynamic resolution is running (Auto View Distance reads it)
     var perfNotice: (() -> String)?         // P403 step 1: XRSession.perfNoticeLine
     private func capture(game: Game?, target: Double, now: Double) {
@@ -815,6 +817,7 @@ final class FrameStats {
         guard let g = game, target > 0, frames > 0 else { badWindows = 0; return }
         let bad = Double(missed) > Double(frames) * FrameStats.captureMissFrac && busyFrames * 2 < frames
         badWindows = bad ? badWindows + 1 : 0
+        if bad { CostProbe.arm() }          // the next window measures what the sky and the land's triangles cost
         guard badWindows >= 2, now - lastCaptureAt > FrameStats.captureGap else { return }
         let p = g.player.pos, w = g.world
         let biome = g.dim.dim == .overworld ? (w.gen as? WorldGen).map { "\($0.column(Int(p.x), Int(p.z)).biome)" } ?? "-" : "-"
@@ -834,6 +837,7 @@ final class FrameStats {
         PerfOverlay.shared.add(frameMs: frame * 1000)
         if let g = game { MainGunPerf.record(frameMs: frame * 1000, budget: target * 1000, clock: g.clock) }   // "perf: main gun blast" after an impact
         sumCPU += cpu; sumTick += tick; sumRecord += record; sumGPU += gpu
+        CostProbe.add(gpuMs: gpu)
         if frame * 1000 > worstFrame {
             worstFrame = frame * 1000
             worstCPU = cpu; worstTick = tick; worstRecord = record; worstGPU = gpu
@@ -866,8 +870,10 @@ final class FrameStats {
         lastLine += " | eye resolution \(Int((scene.viewScale * 100).rounded()))%"                        // P403 7b (dynamic resolution)
         if let p = dynResProbe?(), p > 0 {                                                                 // P403 step 2: triangles or pixels
             lastLine += String(format: " (10%% fewer pixels gave %.0f%% less gpu: %@)", (1 - p) * 100, p < 0.95 ? "pixel-bound" : "triangle-bound")
+            if let (back, none) = dynResCounts?() { lastLine += " [\(back) drops taken back, \(none) probes without an answer]" }
         }
         // P403 step 1: clocks and the hottest zone, and the runtime's own performance notices (a throttled headset).
+        lastLine += CostProbe.line()
         let clocks = DeviceClocks.line()
         if !clocks.isEmpty { lastLine += " | clocks: " + clocks }
         if let n = perfNotice?(), !n.isEmpty { lastLine += " | runtime performance notice: " + n }
