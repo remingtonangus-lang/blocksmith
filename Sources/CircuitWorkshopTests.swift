@@ -47,7 +47,7 @@ enum CircuitWorkshopTests {
                 }
             }
             check(after == before && fell == 0 && short == 0,
-                  "workshop: the deck stands through its load checks (\(frames) frames, \(before) blocks then \(after), \(fell) fell), \(CircuitWorkshop.pillars().count) pillars, \(short) not down to the land")
+                  "workshop: the deck stands through its load checks, its floor \(CircuitWorkshop.holdFloor ? "held (BS_OLDHELDFLOOR)" : "not held (ledger 209)") (\(frames) frames, \(before) blocks then \(after), \(fell) fell), \(CircuitWorkshop.pillars().count) pillars, \(short) not down to the land")
         }
 
         func blk(_ p: IVec3) -> BlockID { w.block(p.x, p.y, p.z) }

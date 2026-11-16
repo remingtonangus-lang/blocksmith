@@ -600,7 +600,7 @@ extension Game {
         onToast?(lines.isEmpty ? "A chart of the \(s.name). Nothing marked on it" : "Deck plan of the \(s.name). " + lines.joined(separator: "; "))
     }
 
-    static let oldHullLeaves = Env.all["BS_OLDHULLLEAVES"] == "1"
+    static var oldHullLeaves = Env.all["BS_OLDHULLLEAVES"] == "1"           // (var: the ledger 210 check runs both ways)
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float, useHeld: Bool = false) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt

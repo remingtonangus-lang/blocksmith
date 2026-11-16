@@ -161,7 +161,11 @@ enum CircuitWorkshop {
     // or something"): the deck stood 10 over the land on nothing, so the load checks weighed it, benches and all, and
     // brought it down. Its floor is held like bedrock (World.heldDeck), and stone-brick pillars stand under it down to
     // the ground: at the corners, every 8 blocks along both long edges and down the middle. BS_OLDDECKHOLD=1: neither.
-    static func held(_ o: IVec3) -> HeldDeck { .floor(y: o.y - 1, x0: o.x - 1, x1: o.x + deckLength, z0: o.z - 4, z1: o.z + deckDepth) }
+    // Ledger 209 (Fable, after ledger 200): with the pillars under it the floor needs no holding (0 blocks fell in 892
+    // frames of load checks with it off), so it is no longer held: the deck stands as anything built does.
+    // BS_OLDHELDFLOOR=1: held as before.
+    static let holdFloor = Env.all["BS_OLDHELDFLOOR"] == "1"
+    static func held(_ o: IVec3) -> HeldDeck { holdFloor ? .floor(y: o.y - 1, x0: o.x - 1, x1: o.x + deckLength, z0: o.z - 4, z1: o.z + deckDepth) : .none }
     static func pillars() -> [(Int, Int)] {
         var xs = Array(stride(from: -1, through: deckLength, by: 8))
         if xs.last != deckLength { xs.append(deckLength) }

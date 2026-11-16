@@ -21,6 +21,7 @@ final class BuilderBot: AgentBot {
     private var slotOf: [ItemID: Int] = [:], nextSlot = 0
     let cruise: Float
     private(set) var routed = 0, cuts = 0, scaffolds = 0
+    private(set) var felledHits = 0                     // (ledger 213: presses on a felled tree lying across the aim)
     private var scaffoldFor: [IVec3: IVec3] = [:]
     private enum Draft0 { static let plank = Blocks.has("oak_planks") ? Blocks.id("oak_planks") : STONE }
     private(set) var placed = 0, dug = 0, presses = 0, redone = 0
@@ -128,7 +129,7 @@ final class BuilderBot: AgentBot {
         let w = g.world
         let c = j.cell
         var nBody = 0, nState = 0, nRay = 0, nWay = 0, rayAt: [String: Int] = [:], blockers: [IVec3: Int] = [:]
-        blocker = nil
+        blocker = nil; tryWhy = [:]
         var faces: [(hit: IVec3, n: IVec3, aim: V3)] = []
         let cc = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5)
         if j.want == AIR {
@@ -210,7 +211,9 @@ final class BuilderBot: AgentBot {
         noFaces = faces.isEmpty
         blocker = blockers.max { $0.value < $1.value }?.key
         let top = rayAt.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) x\($0.value)" }.joined(separator: ", ")
-        why = "\(faces.count) faces; spots: \(nBody) body blocked, \(nState) wrong way round, \(nRay) ray elsewhere (\(top)), \(spots.count) seen"
+        let tw = tryWhy.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) x\($0.value)" }.joined(separator: ", ")
+        tryWhy = [:]
+        why = "\(faces.count) faces; spots: \(nBody) body blocked, \(nState) wrong way round, \(nRay) ray elsewhere (\(top)), \(spots.count) seen" + (tw.isEmpty ? "" : "; the game's aim: " + tw)
         return spots.prefix(80).map { (feet: $0.0, aim: $0.1) }
     }
 
@@ -393,12 +396,18 @@ final class BuilderBot: AgentBot {
         p.pos = pos0 + (eye - p.eye)
         let dv = q - eye
         p.yaw = atan2f(-dv.x, -dv.z); p.pitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
-        guard let t = w.raycast(p.eye, p.look, maxDist: 6) else { return false }
+        guard let t = w.raycast(p.eye, p.look, maxDist: 6) else { tryWhy["out of reach", default: 0] += 1; return false }
         g.target = t
         g.aimGround()
-        guard let tt = g.target else { return false }
-        return onJob(g, j, tt)
+        guard let tt = g.target else { tryWhy["no aim after the ground's choice", default: 0] += 1; return false }
+        let ok = onJob(g, j, tt)
+        if !ok && j.want != AIR {
+            let at = g.placeCell(tt, for: Blocks.groupBase[Int(j.want)]) - j.cell
+            tryWhy[at == IVec3(0, 0, 0) ? "wrong way round" : "would go in \(at.x),\(at.y),\(at.z) (\(Blocks.key(w.block(j.cell.x + at.x, j.cell.y + at.y, j.cell.z + at.z))))", default: 0] += 1
+        }
+        return ok
     }
+    private var tryWhy: [String: Int] = [:]           // (why the game's own aim turned a spot down: the missed lines)
     // Where the body stopped (never quite the spot): of the points round the planned aim, the nearest one that the
     // game's aim, looked at from this eye, turns into the job. He'd nudge the crosshair the same way.
     private func solveAim(_ g: Game, _ j: BuildersGrounds.Job, _ a: V3) -> V3? {
@@ -421,6 +430,10 @@ final class BuilderBot: AgentBot {
     }
     private var stuck = 0, inRow = 0, lastDeferSuccess = -1
     static let trace = Env.all["BS_BUILDTRACE"] != nil
+    static let oldFelled = Env.all["BS_OLDBOTFELLED"] == "1"
+    // (ledger 213: the boathouse, its posts now set in the water, used its 120 props before the roof's top course, whose
+    // stairs have no face but each other's: 400)
+    static let scaffoldCap = BuilderBot.oldFelled ? 120 : 400
     private var lastDrop = ""
     // The spot didn't work: the next nearest, by a new route.
     private func drop(_ s: AgentState, _ why: String) {
@@ -469,6 +482,12 @@ final class BuilderBot: AgentBot {
         }
         switch phase {
         case 0:
+            // Ledger 213: grass or a flower grown in the cell since the plan (the boathouse's shore): it took every ray at
+            // the face behind it; broken first, as he would (BS_OLDBOTFELLED=1: left).
+            if j.want != AIR && !BuilderBot.oldFelled {
+                let b = w.block(j.cell.x, j.cell.y, j.cell.z)
+                if b != AIR && !Blocks.isLiquid(b) && Blocks.replaceable[Int(b)] && cut(w, j.cell) { return act }
+            }
             spots = candidates(g, j, from: p.pos)
             ci = 0
             if spots.isEmpty {
@@ -478,7 +497,7 @@ final class BuilderBot: AgentBot {
                 if let q = clear, cut(w, q) { return act }
                 // Nothing to place it against (the first block of a ceiling, a top slab over a wall): a plank put down
                 // beside it first and broken after, as he would.
-                if j.want != AIR && noFaces && scaffolds < 120 && scaffoldFor[j.cell] == nil {
+                if j.want != AIR && noFaces && scaffolds < BuilderBot.scaffoldCap && scaffoldFor[j.cell] == nil {
                     for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0)] {
                         let q = j.cell + d
                         guard w.block(q.x, q.y, q.z) == AIR, !(w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) else { continue }
@@ -590,6 +609,15 @@ final class BuilderBot: AgentBot {
                 aimAt = q; aimFrom = p.eye
             }
             if abs(ey) < 0.02 && abs(ep) < 0.02 {
+                // Ledger 213 (Fable's C): a felled tree lying across the aim (one the bot's own cuts brought down, a whole
+                // body of its own since ledger 160) took every ray, and the job ran out of time; its blocks are broken
+                // off, as he would, the time it takes not counted against the job. BS_OLDBOTFELLED=1: left lying.
+                if !BuilderBot.oldFelled, g.target == nil, let st = w.ships.target, st.ship.name == Felling.name, felledHits < 3000 {
+                    felledHits += 1
+                    if felledHits % 2 == 1 { act.attack = true }
+                    ticks -= 1; aimTicks = min(aimTicks, 6)
+                    return act
+                }
                 if let t = g.target {
                     if onJob(g, j, t) {
                         if j.want == AIR { act.attack = true } else { act.use = true }

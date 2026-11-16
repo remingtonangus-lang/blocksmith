@@ -24,6 +24,12 @@ enum FrontierSites {
     static let reachBlocks = 18
     static let ghostMinSpawn: Float = 500
     static let ghostReach = 22                    // P478: a ghost town laid out from its seed reaches further
+    // The chunks round a site's chunk its pieces may reach (StructureType.reach; a ghost town's plan must fit inside).
+    // Ledger 212 (Fable's E, Nov 16): 3, so a ghost town can be laid out from a bigger village plan (on 1,681 regions:
+    // 23 of 23 laid as towns, 12 from the biggest village plan, against 19 and 1 at 2). A ghost town within 3 chunks of
+    // ground a save had made before this (structure-guard-l212.txt) keeps the reach of 2 it was planned with.
+    // --ghostreach measures 2, 3 and 4; BS_FRONTIERREACH=2 is the old reach.
+    static var typeReach = Int(Env.all["BS_FRONTIERREACH"] ?? "") ?? 3
 
     static let ghostLand: Set<Biome> = [.desert, .badlands, .woodedBadlands, .erodedBadlands, .savanna, .windsweptSavanna, .plains, .snowyPlains]
     static let farmLand: Set<Biome> = [.plains, .sunflowerPlains, .meadow, .forest, .flowerForest, .birchForest, .taiga, .snowyTaiga,
@@ -52,7 +58,7 @@ enum FrontierSites {
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: kind, spacing: spacing, separation: separation, salt: 52719133, reach: 2) { [weak gen] seed, cx, cz in
+        StructureType(name: kind, spacing: spacing, separation: separation, salt: 52719133, reach: typeReach) { [weak gen] seed, cx, cz in
             guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             if let sc = gen.structures, !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacySites) { return nil }
             var rng = SRng(seed &+ 0xF207)
@@ -103,13 +109,19 @@ enum FrontierSites {
             let s = rng.next(), rot = rng.int(4)
             // Ledger 207: a ghost town laid out as a town and left (GhostVillage.swift), on ground no save had generated before it.
             if site == "ghost_town", !GhostVillage.old, gen.structures.map({ $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL207) }) ?? true,
-               let st = GhostVillage.start(gen, seed: s, cx: cx, cz: cz, biome: bio, reach: 2) { return st }
+               let st = GhostVillage.start(gen, seed: s, cx: cx, cz: cz, biome: bio, reach: ghostTownReach(gen, cx, cz)) { return st }
             let st = StructureStart(kind: site, pieces: [Piece(min: IVec3(x - reach, y - 10, z - reach),
                                                                max: IVec3(x + reach, y + 12, z + reach)) { w in
                 build(&w, site, bio, x, y, z, rot, s, p478: p478, l49: l49, l62: l62)
             }], anchor: IVec3(x, y + 1, z))
             return st
         }
+    }
+
+    // Ledger 212: the reach a ghost town's plan is laid out in: the type's, but 2 next to ground saved before ledger 212.
+    static func ghostTownReach(_ gen: WorldGen, _ cx: Int, _ cz: Int) -> Int {
+        guard typeReach > 2, let sc = gen.structures else { return min(2, typeReach) }
+        return sc.clear(cx: cx, cz: cz, reach: typeReach, guardSet: sc.legacyL212) ? typeReach : 2
     }
 
     // Every older surface find keeps its ground.

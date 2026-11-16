@@ -10,8 +10,54 @@ enum Nov15EveningChecks {
         shipChair(g, check)
         fittings(check)
         buildsTogether(g, check)
+        buildsOwnGround(g, check)
         provingOrder(check)
         ghostTowns(g, check)
+        hullLeaves(g, check)
+        ghostReachGuard(g, check)
+        wetRow(g, check)
+    }
+
+    // Ledger 210 (the host check ledger 197 lacked): leaves standing in a craft's cell, where the cell's own block (a
+    // slab) leaves room. Aimed through the slab's empty half at the leaves, a break press goes to the world's leaves
+    // with the fix, and to the hull block behind them without it (BS_OLDHULLLEAVES=1). Both ways are run here.
+    static func hullLeaves(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world
+        let p0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, held0 = g.inventory.held, aim0 = g.vrAim
+        let lx = Int(floor(p0.x)) + 3, lz = Int(floor(p0.z)) - 6
+        let ly = min(CH - 8, w.topY(lx, lz) + 12)
+        let leaves = Blocks.id("spruce_leaves"), was = w.block(lx, ly, lz)
+        w.setBlock(lx, ly, lz, leaves)
+        // The craft: two cells north to south, a slab (bottom half) in the leaves' cell, planks behind it, on the grid.
+        let gr = ShipGrid(sx: 1, sy: 1, sz: 2)
+        gr.set(0, 0, 1, Blocks.id("oak_slab")); gr.set(0, 0, 0, Blocks.id("oak_planks"))
+        let s = Ship(id: -210, grid: gr)
+        s.rebuild()
+        s.pos = V3(Float(lx), Float(ly), Float(lz - 1)) + s.com
+        s.updateBounds()
+        w.ships.add(s)
+        let old0 = Game.oldHullLeaves
+        defer {
+            Game.oldHullLeaves = old0
+            w.ships.remove(s, turrets: false)
+            w.setBlock(lx, ly, lz, was)
+            g.player.pos = p0; g.player.yaw = yaw0; g.player.pitch = pitch0; g.player.vel = .zero
+            g.inventory.held = held0; g.vrAim = aim0; g.target = nil; w.ships.target = nil
+        }
+        // He stands 3.5 south of the leaves, eye level with the slab's empty top half, looking north at them.
+        func press(old: Bool) -> (ship: Bool, handled: Bool) {
+            Game.oldHullLeaves = old
+            g.vrAim = nil; g.inventory.held = .empty
+            g.player.yaw = 0; g.player.pitch = 0
+            g.player.pos = V3(Float(lx) + 0.5, Float(ly) + 0.75, Float(lz) + 4.5) - (g.player.eye - g.player.pos)
+            g.target = (hit: IVec3(lx, ly, lz), normal: IVec3(0, 0, 1))
+            w.ships.target = nil
+            let handled = g.shipInteract(breakHeld: true, breakNow: true, useNow: false, sneak: false, dt: 1.0 / 72)
+            return (w.ships.target?.0 === s, handled)
+        }
+        let after = press(old: false), before = press(old: true)        // (the fix's way first: the old press may break the hull)
+        check(before.ship && before.handled && !after.ship && !after.handled,
+              "Ledger 210 hull leaves: leaves in a craft's slab cell, struck through the slab's empty half: before (BS_OLDHULLLEAVES) the press went to the hull (\(before.ship ? "hull" : "world")), with ledger 197 to the leaves (\(after.ship ? "hull" : "world"))")
     }
 
     // Ledger 207 (21:00:20-21:00:26, "make it a normal village, but the village is abandoned... chain modify each village
@@ -148,6 +194,46 @@ enum Nov15EveningChecks {
                 let y = Float(max(BuildersGrounds.groundY(w, Int(p.x), Int(p.z)), SEA)) + 22
                 shot(g, "builders_\(name)", V3(p.x, y, p.z), atan2f(-(m.x - p.x), -(m.z - p.z)), -0.32)
             }
+        }
+    }
+
+    // Ledger 211 (Fable's D): on the Builders' Grounds seed and two others, the six as the world puts them (together,
+    // the trees round them cleared, the sites dressed): each on the kind of ground its name asks for. Each build's line:
+    // its biome, the height spread under it, rock and sand under it, trunks round it, water near, lower ground round it.
+    static func buildsOwnGround(_ g0: Game, _ check: (Bool, String) -> Void) {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0 }
+        let bps = BuildersGrounds.blueprints()
+        let seeds = Env.all["BS_OWNSEEDS"].map { $0.split(separator: ",").compactMap { UInt64($0) } } ?? [BuildersGrounds.seed, 88314448595278, 20261116]
+        for seed in seeds {
+            let w = World(seed: seed, device: g0.world.device, save: nil)
+            w.makeFieldWorld()
+            w.renderDistance = 4; w.activeDistance = 4
+            let g = Game(world: w, save: nil, persistent: false)
+            let t0 = CFAbsoluteTimeGetCurrent()
+            guard let c = BuildersGrounds.findCluster(w, centre: g.findSpawn(), kinds: bps.map { $0.ground }) else {
+                check(false, "Ledger 211 builds on their own ground, seed \(seed): no place for the six (\(BuildersGrounds.lastWhy))"); continue
+            }
+            let secs = CFAbsoluteTimeGetCurrent() - t0
+            var plans: [BuildersGrounds.Placement] = []
+            for bp in bps { guard let st = c.sites[bp.ground] else { continue }
+                _ = w.loadSync(center: V3(Float(st.x), 120, Float(st.z)), radius: 2)
+                plans.append(BuildersGrounds.place(bp, on: w, at: st)) }
+            let mids = plans.map { V3(Float($0.lo.x + $0.hi.x) / 2, 0, Float($0.lo.z + $0.hi.z) / 2) }
+            let m = mids.reduce(V3.zero, +) / Float(max(1, mids.count))
+            let reach = (mids.map { simd_length(V2($0.x - m.x, $0.z - m.z)) } + [simd_length(V2(c.spawn.x - m.x, c.spawn.z - m.z))]).max() ?? 30
+            _ = w.loadSync(center: V3(m.x, 100, m.z), radius: Int(reach / Float(CS)) + 3)
+            _ = BuildersGrounds.clearTrees(w, middle: m, radius: reach + 10)
+            let dressed = g.dressBuildSites(&plans, start: c.spawn)
+            g.player.pos = c.spawn + V3(0, 8, 0); g.player.flying = true
+            for _ in 0..<40 { g.tick(0.05) }
+            var lines: [String] = [], mine = 0
+            for pl in plans { let (ok, r) = BuildersGrounds.own(w, pl); if ok { mine += 1 }; lines.append(BuildersGrounds.line(pl, ok, r)) }
+            for l in lines { print("builds own ground \(seed): " + l) }
+            check(plans.count == bps.count && mine == plans.count,
+                  String(format: "Ledger 211 builds on their own ground, seed %@: %d of %d (natural there: %@; dressed: %@; found in %.1f s)",
+                         "\(seed)", mine, plans.count, c.own.sorted().joined(separator: ", "), dressed.isEmpty ? "none" : dressed.joined(separator: "; "), secs))
         }
     }
 

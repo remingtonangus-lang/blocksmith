@@ -18,6 +18,7 @@ import simd
 enum GhostVillage {
     static let old = Env.all["BS_OLDGHOSTTOWNS"] == "1"
     static var laid = 0, tooBig = 0                       // (checks: villages laid as ghost towns, layouts past the reach)
+    static var tried = 0, fitted = [0, 0, 0, 0, 0]       // (--ghostreach: sites asked; which plan fitted, biggest village first)
 
     // One building's ruin, drawn from where it stands.
     struct House {
@@ -148,13 +149,14 @@ enum GhostVillage {
         let cy = gen.groundY(ox, oz)
         let lo = IVec3((cx - reach) * CS, 0, (cz - reach) * CS), hi = IVec3((cx + reach) * CS + CS - 1, 0, (cz + reach) * CS + CS - 1)
         var st: StructureStart?
+        tried += 1
         // The biggest of a village or a hamlet's plans that fits the site.
-        for (size, bigger, biggest) in [(TownSize.village, false, true), (.village, true, false), (.hamlet, false, true), (.hamlet, true, false), (.hamlet, false, false)] {
+        for (k, (size, bigger, biggest)) in [(TownSize.village, false, true), (.village, true, false), (.hamlet, false, true), (.hamlet, true, false), (.hamlet, false, false)].enumerated() {
             guard let v = Village.layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style, frontier: true, townsGap: true, wide: true,
                                          streets: true, townSize: size, r20: true, p354: true, bigger: bigger, p478: true, biggest: biggest,
                                          p499: true, l52: true) else { continue }
             if v.min.x < lo.x || v.min.z < lo.z || v.max.x > hi.x || v.max.z > hi.z { tooBig += 1; continue }
-            st = v; break
+            st = v; fitted[k] += 1; break
         }
         guard let v = st else { return nil }
         let s32 = UInt32(truncatingIfNeeded: seed ^ (seed >> 29))
