@@ -60,6 +60,13 @@ this list and ask whether the work repeats one of these.
   alone. Checked by `questcheck --elevator` (in the full suite): he walks in, picks the top floor, rides up without
   falling or leaving the car, walks out at the top, a landing button calls the car down; pad columns and his citadel
   towers convert; the rooms are there and differ.
+- **Checked again (Nov 15, Fable's ask: "a host check that rides a capital elevator up and down 5 times with a
+  rider"):** `questcheck --capitallift` (in the full suite) finds a Capital citadel's side-tower lift where the world
+  generator built it (seed 0: the citadel at 3592 1320, two lifts, six landings over 31 blocks) and rides it from the
+  ground floor to the top and back five times with him standing in the car. Every trip, all ten passed on the first
+  run, nothing to fix: the car reaches the landing it was sent to (12-14 s a trip), he never leaves the shaft, never
+  comes off the car's floor by more than half a block, lands within 0.3 of the landing, takes no harm, and the doors
+  are open where it stops and shut behind it.
 
 ### 3. The train (C1, P470, P508, P510; Oct 26 - Nov 1)
 

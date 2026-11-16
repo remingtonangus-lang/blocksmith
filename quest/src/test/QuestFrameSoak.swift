@@ -454,12 +454,15 @@ enum QuestFrameSoak {
     // patrol set out; a hostile Meridian frigate over him brought down by flak bursts inside the first 15 s. View 8.
     static let siegeSeed: UInt64 = 530054557992772521
     static var siegeLog: [String] = []
-    static func siegeScene() -> Setup {
+    // (high: held at the height of his note, displayed y 167, 86 over the ground, where the garrison and the guns can see
+    // him over the walls; else on the ground below it)
+    static func siegeScene(high: Bool = false) -> Setup {
         var crawler: Ship?
+        var perch = V3(0, 0, 0)
         var frigate: Ship?
         var wall = V3(0, 0, 0), downAt = -1, shots = 0, turretShots = 0
         var key = ""
-        return Setup(name: "siege", what: "his Nov 15 08:35 fight: by a crawler shelling a citadel on lockdown every 5 s (turrets first), the garrison firing at him, a frigate over him shot down",
+        return Setup(name: high ? "siegehigh" : "siege", what: (high ? "held at his note's height, 86 over the ground: " : "") + "his Nov 15 08:35 fight: by a crawler shelling a citadel on lockdown every 5 s (turrets first), the garrison firing at him, a frigate over him shot down",
                      seed: siegeSeed, at: V3(434.5, 231, 6421.5), prepare: { g in
             let w = g.world
             w.ships.encounters = false
@@ -495,7 +498,9 @@ enum QuestFrameSoak {
             frigate = w.ships.capitals.first { $0.role == "capfrigate" }
             g.player.flying = false
             g.survival = true; g.difficulty = 2
+            if high { g.player.pos.y = 231; _ = w.loadSync(center: g.player.pos, radius: w.renderDistance) }
             home = g.player.pos
+            perch = home
             g.player.yaw = yaw; g.player.pitch = -0.05
             let folk = g.mobs.mobs.filter { $0.kind.steelhold }.count, guns = g.mobs.mobs.filter { $0.kind == .deckGun }.count
             print(String(format: "framesoak: siege: he stands at %.0f %.0f %.0f (displayed y %.0f), the citadel %.0f blocks off at %.0f %.0f (%d of its garrison, %d turrets); crawler %@, frigate %@",
@@ -505,6 +510,7 @@ enum QuestFrameSoak {
         }, step: { g, f in
             g.survival = true; g.health = 20; g.alive = true
             g.player.vel.x = 0; g.player.vel.z = 0                                       // (he stands and fights)
+            if high { g.player.pos = perch; g.player.vel = .zero; g.player.onGround = true }  // (held up there)
             // (the frigate: a flak burst by its hull every second from 3 s until its engines are out)
             if let s = frigate, downAt < 0, f >= 3 * 72, f % 72 == 0 {
                 let c = s.toWorld(s.com)
@@ -622,7 +628,7 @@ enum QuestFrameSoak {
          trainScene(.cargo, name: "freight"), trainScene(.troop, name: "troops"),
          seaHuntScene(), worstScene(), collapseScene(),
          emberForest("gloamwood", biome: "warped_forest", at: V3(-520, 226 + 64, 700)),
-         emberForest("charwood", biome: "crimson_forest", at: V3(-650, 226 + 64, 780)), strikeScene(), siegeScene()]
+         emberForest("charwood", biome: "crimson_forest", at: V3(-650, 226 + 64, 780)), strikeScene(), siegeScene(), siegeScene(high: true)]
     }
 
     static var scenes: [Setup] { ordinary + [crawlerScene(parkedBy: false), crawlerScene(parkedBy: true), navalScene(), trainScene(), hellScene(), battleScene()] + more }
@@ -658,11 +664,12 @@ enum QuestFrameSoak {
         }
         // The siege must be the fight he played (Fable, Nov 15): at least 60 mobs and a shell in flight at its peak, and the
         // governor's must at least twice the citadel scene's (run with --only citadel,siege).
-        if let s = sceneStats["siege"] {
+        for name in ["siege", "siegehigh"] {
+            guard let s = sceneStats[name] else { continue }
             let c = sceneStats["citadel"]
             let heavy = s.mobs >= 60 && s.shells >= 1 && (c == nil || s.must >= 2 * c!.must)
-            print(String(format: "framesoak siege check: %@ peak %d mobs (60 wanted), %d shells in flight (1 wanted); must %.2f ms against the citadel's %@; tick mean %.2f ms against %@",
-                         heavy ? "ok  " : "FAIL", s.mobs, s.shells, s.must, c.map { String(format: "%.2f (x%.1f, 2 wanted)", $0.must, s.must / max(0.001, $0.must)) } ?? "(not run)",
+            print(String(format: "framesoak %@ check: %@ peak %d mobs (60 wanted), %d shells in flight (1 wanted); must %.2f ms against the citadel's %@; tick mean %.2f ms against %@",
+                         name, heavy ? "ok  " : "FAIL", s.mobs, s.shells, s.must, c.map { String(format: "%.2f (x%.1f, 2 wanted)", $0.must, s.must / max(0.001, $0.must)) } ?? "(not run)",
                          s.tick, c.map { String(format: "%.2f", $0.tick) } ?? "(not run)"))
             if !heavy { bad += 1 }
         }
@@ -945,7 +952,7 @@ enum QuestFrameSoak {
         print("    " + govLine)
         print(String(format: "    governor's must over the scene (ms): mean %.2f, highest %.2f", mustSum * 1000 / n, mustPeak * 1000))
         sceneStats[sc.name] = (mustSum * 1000 / n, mobsPeak, shellsPeak, ticks.reduce(0, +) / n)
-        if sc.name == "siege" { for l in siegeLog { print("    siege message: " + l) } }
+        if sc.name.hasPrefix("siege") { for l in siegeLog { print("    siege message: " + l) } }
         print("    work that can wait (ms a frame): " + govTook + String(format: "; results handed over %d", World.handedOver - handed0))
         print("    came in after the first 3 s: " + PopIn.line)
         print("    soldiers gone without dying: " + TroopVanish.line + "; despawns held while he could see the mob: \(MobManager.heldInSight); mobs left undrawn with the buffer full: \(MobDrawStats.dropped)")

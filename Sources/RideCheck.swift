@@ -912,12 +912,15 @@ enum RideCheck {
             }
             if !foes.isEmpty {
                 // (they must outlast the hull's own guns for the crew's rifles to be tested, as in the troop scene)
-                for m in foes { m.health = max(m.health, 50) }
+                // (Ledger 183: at 50 a hit of the hull's own guns took them under 0 inside a tick; the death sweep took
+                // them out of the world, the line above put 50 back into bodies nobody could see, and the crew had no foe
+                // at all: 0 shots, "the search from him finds nothing". They are held at 10,000 and checked present.)
+                for m in foes { m.health = max(m.health, 10_000) }
                 if foeNote.isEmpty && Float(i) / 60 > stopT + 20 {
                     let crew = st.crewMobs.values.filter { $0.health > 0 }
                     let withFoe = crew.filter { $0.soldierBrain.foe != nil }.count, seeing = crew.filter { $0.soldierBrain.foe != nil && $0.soldierBrain.foeSees }.count
                     let near = crew.map { c in foes.map { simd_length($0.pos - c.pos) }.min() ?? -1 }.min() ?? -1
-                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off; lookouts found %ld, none for %ld (%ld spots, %ld clear of the hull, %ld of the world, %ld with no way there; last: %@)", foes.map { "\($0.factionValue) at \(Int(simd_length($0.pos - s.pos))) health \(Int($0.health))" }.joined(separator: ", "),
+                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off; lookouts found %ld, none for %ld (%ld spots, %ld clear of the hull, %ld of the world, %ld with no way there; last: %@)", foes.map { f in "\(f.factionValue) at \(Int(simd_length(f.pos - s.pos))) health \(Int(f.health))\(g.mobs.mobs.contains { $0 === f } ? "" : " (gone from the world)")" }.joined(separator: ", "),
                                      crew.count, withFoe, seeing, near, CrewLookout.found, CrewLookout.failed, CrewLookout.spots, CrewLookout.hullClear, CrewLookout.worldClear, CrewLookout.noPath, CrewLookout.lastMiss)
                     // (what the nearest crewman makes of it: his side, his brain's clock and foe search, and the search run here)
                     if let c = crew.min(by: { a, b in (foes.map { simd_length($0.pos - a.pos) }.min() ?? 0) < (foes.map { simd_length($0.pos - b.pos) }.min() ?? 0) }) {
