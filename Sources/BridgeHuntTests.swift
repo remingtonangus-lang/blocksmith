@@ -212,7 +212,7 @@ extension BridgeHuntTests {
         let r = weighUntouched(g, t, idx)
         if r.fell > 0 { print("bridge hunt: sea trestle dropped: " + r.notes.joined(separator: " | ")) }
         let what = "bridge hunt: an untouched sea trestle (seed \(seed) \(l.name), \(idx.count) cells over the sea, \(r.decks) on a plank deck, \(r.legs) leg columns), weighed end to end with a hurt cell every 8: \(r.fell) blocks fell"
-        if Railways.sparseLegs { print("bridge hunt (before, BS_OLDTRESTLELEGS): " + what) } else { check(r.decks > idx.count / 2 && r.legs > 0 && r.fell == 0, what) }
+        if Railways.sparseLegs || BridgeHunt.oldLegRule { print("bridge hunt (before, BS_OLDTRESTLELEGS / BS_OLDLEGRULE): " + what) } else { check(r.decks > idx.count / 2 && r.legs > 0 && r.fell == 0, what) }
     }
 }
 

@@ -43,6 +43,7 @@ enum BridgeHunt {
     // two passes over it in which nothing near it fell. No hurt cell: nothing is weighed (an untouched bridge can't fall).
     static var hurt: [IVec3: Int] = [:]          // cell -> quiet passes over it
     static let hurtReach = 8
+    static var oldLegRule = Env.all["BS_OLDLEGRULE"] == "1"   // (before: a leg stood only on a block that collides)
     static var anySpan = Env.all["BS_ANYSPAN"] == "1"      // (before: any unheld cell near a hurt one falls, damaged span or not)
     static let deckGroup = Blocks.groupBase[Int(Blocks.id("spruce_planks"))]
     static let legGroup = Blocks.groupBase[Int(Blocks.id("spruce_log"))]
@@ -102,6 +103,7 @@ enum BridgeHunt {
             let b = w.block(x, yy, z)
             if isLeg(b, leg) { yy -= 1; n += 1; continue }
             // (it stands on anything but air or a liquid: grass, snow, a slab, leaves carry it as the ground under them does)
+            if oldLegRule { return Blocks.collide[Int(b)] || n >= 47 ? 1 : 2 }
             if (b != AIR && !Blocks.isLiquid(b)) || n >= 47 { return 1 }
             // (a sea pier: the writer ran it down to the bed as it saw the bed, and the field draws the bed's top cell as
             // water (an open-country trestle's 32-long legs at seed 1000 end over it). The bed within 3 cells
