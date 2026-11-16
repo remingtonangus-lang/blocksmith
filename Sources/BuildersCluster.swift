@@ -200,24 +200,26 @@ extension BuildersGrounds {
         return nil
     }
 
-    // Where he starts: 12 from the builds' middle on the side from which they spread least across his view, facing it.
+    // Where he starts: clear of every build (9 from its middle at least), as near to their middle as that allows and
+    // on the side from which they spread least across his view, facing it. (Ledger 202, the first pictures: 12 out put
+    // him beside the stilt cabin, its roof filling his view.)
     static func finish(_ w: World, _ sites: [String: IVec3], _ own: Set<String>) -> Cluster {
         let mids = sites.values.map { V3(Float($0.x) + 5, 0, Float($0.z) + 5) }
         let m = mids.reduce(V3.zero, +) / Float(max(1, mids.count))
         var best: (V3, Float)?
-        for k in 0..<8 {
-            let a = Float(k) * .pi / 4
-            let p = m + V3(sinf(a), 0, cosf(a)) * spawnOut
+        for out in [spawnOut, spawnOut + 6, spawnOut + 12, spawnOut + 18, spawnOut + 24] { for k in 0..<16 {
+            let a = Float(k) * .pi / 8
+            let p = m + V3(sinf(a), 0, cosf(a)) * out
             let look = simd_normalize(V3(m.x - p.x, 0, m.z - p.z))
-            var worst: Float = 0, far: Float = 0
+            var worst: Float = 0, far: Float = 0, close: Float = 999
             for b in mids {
                 let d = V3(b.x - p.x, 0, b.z - p.z)
-                far = max(far, simd_length(d))
+                far = max(far, simd_length(d)); close = min(close, simd_length(d))
                 worst = max(worst, acosf(max(-1, min(1, simd_dot(simd_normalize(d), look)))))
             }
-            let score = worst + (far > near - 6 ? 10 : 0)
+            let score = worst + (close < 9 ? 20 : 0) + (far > near ? 5 + (far - near) * 0.2 : 0) + out * 0.01
             if best == nil || score < best!.1 { best = (p, score) }
-        }
+        } }
         let p = best!.0
         let y = Float(groundY(w, Int(floorf(p.x)), Int(floorf(p.z))) + 1)
         return Cluster(sites: sites, own: own, spawn: V3(p.x, y, p.z), yaw: atan2f(-(m.x - p.x), -(m.z - p.z)), middle: m)

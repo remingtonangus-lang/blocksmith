@@ -107,12 +107,13 @@ enum Nov15EveningChecks {
         let sites = bps.compactMap { c.sites[$0.ground] }
         var touching = 0
         for i in 0..<sites.count { for j in (i + 1)..<sites.count where abs(sites[i].x - sites[j].x) < BuildersGrounds.apart && abs(sites[i].z - sites[j].z) < BuildersGrounds.apart { touching += 1 } }
-        let far = sites.map { simd_length(SIMD2<Float>(Float($0.x) + 5 - c.spawn.x, Float($0.z) + 5 - c.spawn.z)) }.max() ?? 999
+        let dists = sites.map { simd_length(SIMD2<Float>(Float($0.x) + 5 - c.spawn.x, Float($0.z) + 5 - c.spawn.z)) }
+        let far = dists.max() ?? 999, close = dists.min() ?? 0
         let look = V2(-sinf(c.yaw), -cosf(c.yaw)), toMid = simd_normalize(V2(c.middle.x - c.spawn.x, c.middle.z - c.spawn.z))
         let facing = simd_dot(look, toMid) > 0.99
-        check(sites.count == bps.count && touching == 0 && far <= BuildersGrounds.near && facing,
-              String(format: "Ledger 202 builds together: %d sites (%d on their own kind of ground: %@), %d touching, the farthest build %.1f from where he starts, facing their middle %@ (found in %.1f s)",
-                     sites.count, c.own.count, c.own.sorted().joined(separator: ", "), touching, far, facing ? "yes" : "no", secs))
+        check(sites.count == bps.count && touching == 0 && far <= BuildersGrounds.near && close >= 9 && facing,
+              String(format: "Ledger 202 builds together: %d sites (%d on their own kind of ground: %@), %d touching, the builds %.1f to %.1f from where he starts, facing their middle %@ (found in %.1f s)",
+                     sites.count, c.own.count, c.own.sorted().joined(separator: ", "), touching, close, far, facing ? "yes" : "no", secs))
         // The six as the world puts them up (BuildersWorld: every job applied, the trees round them cleared), 20 s later:
         // every block where it was put; the pictures from where he starts and from the four sides, at noon.
         var plans: [BuildersGrounds.Placement] = []
@@ -134,7 +135,10 @@ enum Nov15EveningChecks {
               "Ledger 202/203 builds put up as the world does: \(plans.reduce(0) { $0 + $1.jobs.count }) jobs, \(felled) tree cells cleared round them, 20 s later \(wrong.count) blocks not where they were put (\(byBuild.joined(separator: ", ")))")
         if let shot = CircuitWorkshopTests.shot {
             g.time = 0.3 * DAY_LENGTH
-            shot(g, "builders_start", c.spawn + V3(0, 7, 0), c.yaw, -0.3)
+            w.renderDistance = 8
+            let floors = plans.map { Float($0.origin.y) }.sorted(), mid = floors[floors.count / 2]
+            let ey = max(c.spawn.y + 2, mid + 10)
+            shot(g, "builders_start", V3(c.spawn.x, ey + 1.6, c.spawn.z), c.yaw, -atan2f(ey - mid - 3, simd_length(V2(c.middle.x - c.spawn.x, c.middle.z - c.spawn.z))))
             for (name, a) in [("south", Float(0)), ("east", Float.pi / 2), ("north", Float.pi), ("west", -Float.pi / 2)] {
                 let p = V3(m.x + sinf(a) * 46, 0, m.z + cosf(a) * 46)
                 let y = Float(max(BuildersGrounds.groundY(w, Int(p.x), Int(p.z)), SEA)) + 22

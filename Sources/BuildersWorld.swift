@@ -143,12 +143,13 @@ extension Game {
         if case let (p, a)? = start {
             let floors = plans.map { Float($0.origin.y) }.sorted()
             let mid = floors[floors.count / 2]
-            let y = max(p.y + 2, mid + 7)
+            let y = max(p.y + 2, mid + 10)
             player.pos = V3(p.x, y, p.z)
             player.vel = .zero
             player.flying = true
             player.yaw = a
-            player.pitch = -atan2f(y - mid - 3, BuildersGrounds.spawnOut)
+            let cm = plans.map { V2(Float($0.lo.x + $0.hi.x) / 2, Float($0.lo.z + $0.hi.z) / 2) }.reduce(V2.zero, +) / Float(plans.count)
+            player.pitch = -atan2f(y - mid - 3, max(6, simd_length(cm - V2(p.x, p.z))))
             spawnPoint = V3(p.x, p.y, p.z)
             return
         }
