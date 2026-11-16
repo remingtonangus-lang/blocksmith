@@ -418,12 +418,18 @@ enum TrainHullCheck {
             p.flying = false
             p.pos = Trains.seat(coaches[0]) + V3(0, 0.05, 0); p.vel = .zero
             frames(6, MoveInput())
+            do {
+                let l0 = sa.toLocal(p.pos)
+                print(String(format: "rail: ledger 141 start: in the first coach at %.2f %.2f %.2f, aboard %@, same coach as before %@, on ground %@",
+                             l0.x, l0.y, l0.z, w.ships.aboard === sa ? "it" : w.ships.aboard == nil ? "nothing" : "another", coaches[0] === coach ? "yes" : "no", p.onGround ? "yes" : "no"))
+            }
             var go = MoveInput(); go.forward = 1
             var crossed = false, took = 0, lowest: Float = 9
             for k in 0..<(30 * 12) {
                 let d = coaches[1].pos - p.pos
                 p.yaw = atan2f(-d.x, -d.z)
                 frames(1, go)
+                if k == 15 || k == 60 { let l1 = sa.toLocal(p.pos); print(String(format: "rail: ledger 141 frame %d: %.2f %.2f %.2f, aboard %@", k, l1.x, l1.y, l1.z, w.ships.aboard === sa ? "first" : w.ships.aboard === sb ? "second" : w.ships.aboard == nil ? "nothing" : "another")) }
                 let lb = sb.toLocal(p.pos)
                 lowest = min(lowest, min(lb.y, sa.toLocal(p.pos).y))
                 if lb.x > 0.2 && lb.x < 2.8 && lb.z > 2 && lb.z < Float(sb.grid.sz) - 2 && lb.y > 1.15 && lb.y < 1.6 { crossed = true; took = k + 1; break }

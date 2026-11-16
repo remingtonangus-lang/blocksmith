@@ -177,6 +177,11 @@ enum RailLoopCheck {
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }
+        // (ledger 178: loops are what a world made before open-country track keeps; these checks hold them to that,
+        // on their own generators and worlds)
+        let wild0 = Railways.wildOn
+        Railways.wildOn = false
+        defer { Railways.wildOn = wild0 }
         var ends = 0, linked = 0, looped = 0, bad: [String] = []
         var why: [String: Int] = [:]
         let lock = NSLock()
