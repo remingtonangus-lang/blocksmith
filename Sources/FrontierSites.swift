@@ -24,6 +24,9 @@ enum FrontierSites {
     static let reachBlocks = 18
     static let ghostMinSpawn: Float = 500
     static let ghostReach = 22                    // P478: a ghost town laid out from its seed reaches further
+    // The chunks round a site's chunk its pieces may reach (StructureType.reach; a ghost town's plan must fit inside).
+    // 2 in the game; --ghostreach measures 3 and 4 (Fable's question E, Nov 16): BS_FRONTIERREACH=N tries one.
+    static var typeReach = Int(Env.all["BS_FRONTIERREACH"] ?? "") ?? 2
 
     static let ghostLand: Set<Biome> = [.desert, .badlands, .woodedBadlands, .erodedBadlands, .savanna, .windsweptSavanna, .plains, .snowyPlains]
     static let farmLand: Set<Biome> = [.plains, .sunflowerPlains, .meadow, .forest, .flowerForest, .birchForest, .taiga, .snowyTaiga,
@@ -52,7 +55,7 @@ enum FrontierSites {
     // MARK: Placement
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: kind, spacing: spacing, separation: separation, salt: 52719133, reach: 2) { [weak gen] seed, cx, cz in
+        StructureType(name: kind, spacing: spacing, separation: separation, salt: 52719133, reach: typeReach) { [weak gen] seed, cx, cz in
             guard let gen else { return nil }             // (Nov 6: weak, not unowned: a plan on a worker outlived its world, perf scenes crashed)
             if let sc = gen.structures, !sc.clear(cx: cx, cz: cz, reach: 2, guardSet: sc.legacySites) { return nil }
             var rng = SRng(seed &+ 0xF207)
@@ -103,7 +106,7 @@ enum FrontierSites {
             let s = rng.next(), rot = rng.int(4)
             // Ledger 207: a ghost town laid out as a town and left (GhostVillage.swift), on ground no save had generated before it.
             if site == "ghost_town", !GhostVillage.old, gen.structures.map({ $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL207) }) ?? true,
-               let st = GhostVillage.start(gen, seed: s, cx: cx, cz: cz, biome: bio, reach: 2) { return st }
+               let st = GhostVillage.start(gen, seed: s, cx: cx, cz: cz, biome: bio, reach: typeReach) { return st }
             let st = StructureStart(kind: site, pieces: [Piece(min: IVec3(x - reach, y - 10, z - reach),
                                                                max: IVec3(x + reach, y + 12, z + reach)) { w in
                 build(&w, site, bio, x, y, z, rot, s, p478: p478, l49: l49, l62: l62)

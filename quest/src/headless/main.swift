@@ -2556,6 +2556,38 @@ let world = World(seed: seed, device: device, save: nil)
 world.renderDistance = 6
 let game = Game(world: world, save: nil, persistent: false)
 let spawn = game.findSpawn()
+// Fable's question E (Nov 16): ghost towns are held to hamlet plans by the frontier sites' reach (2 chunks). For reach
+// 2, 3 and 4: how many ghost town sites take a village's plan, a hamlet's or none (the old street), over 41 x 41
+// regions round the origin; and the time to make 2,000 structure starts round spawn, as --launch's near ring does.
+if CommandLine.arguments.contains("--ghostreach") {
+    for r in [2, 3, 4] {
+        FrontierSites.typeReach = r
+        GhostVillage.tried = 0; GhostVillage.laid = 0; GhostVillage.tooBig = 0; GhostVillage.fitted = [0, 0, 0, 0, 0]
+        let wa = World(seed: seed, device: device, save: nil)
+        guard let sa = wa.gen.structures, let ft = sa.types.first(where: { $0.name == FrontierSites.kind }) else { print("ghostreach: no frontier sites"); exit(1) }
+        let ta = CFAbsoluteTimeGetCurrent()
+        for rz in -20...20 { for rx in -20...20 { _ = sa.start(ft, regionX: rx, regionZ: rz) } }
+        let msA = (CFAbsoluteTimeGetCurrent() - ta) * 1000
+        let f = GhostVillage.fitted
+        let wb = World(seed: seed, device: device, save: nil)
+        guard let sb = wb.gen.structures else { exit(1) }
+        let made0 = StructureCache.startsMade, scx = floorDiv(Int(spawn.x), CS), scz = floorDiv(Int(spawn.z), CS)
+        let tb = CFAbsoluteTimeGetCurrent()
+        var ring = 0
+        ringLoop: while ring < 400 {
+            for dz in -ring...ring { for dx in -ring...ring where max(abs(dx), abs(dz)) == ring {
+                for t in sb.types { _ = sb.startsNear(cx: scx + dx, cz: scz + dz, t) }
+            } }
+            if StructureCache.startsMade - made0 >= 2000 { break ringLoop }
+            ring += 1
+        }
+        let msB = (CFAbsoluteTimeGetCurrent() - tb) * 1000
+        print(String(format: "ghostreach: reach %d: %d ghost town sites, %d laid as towns (village biggest %d, village bigger %d, hamlet biggest %d, hamlet bigger %d, hamlet %d), %d left the old street, %d plans past the site; 1,681 frontier regions %.0f ms; %d structure starts round spawn (ring %d) %.0f ms",
+                     r, GhostVillage.tried, GhostVillage.laid, f[0], f[1], f[2], f[3], f[4], GhostVillage.tried - f.reduce(0, +), GhostVillage.tooBig, msA,
+                     StructureCache.startsMade - made0, ring, msB))
+    }
+    exit(0)
+}
 game.player.pos = spawn
 game.paused = false
 game.time = 0.25 * DAY_LENGTH
