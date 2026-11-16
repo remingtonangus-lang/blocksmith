@@ -15,13 +15,16 @@ enum BridgeHuntTests {
         defer { BridgeHunt.on = true }
         let w = g.world, ships = w.ships
         let pos0 = g.player.pos, surv0 = g.survival, fly0 = g.player.flying, enc0 = ships.encounters, toast0 = g.onToast
-        let regions0 = ships.spawnedRegions, ships0 = ships.list.count, riding0 = g.riding, health0 = g.health
+        let regions0 = ships.spawnedRegions, ships0 = Set(ships.list.map { ObjectIdentifier($0) }), mobs0 = Set(g.mobs.mobs.map { ObjectIdentifier($0) }), riding0 = g.riding, health0 = g.health
         var placed: [IVec3] = []
         let trackId: Int64 = -20900
         defer {
             Trains.trains[trackId] = nil
             g.riding = riding0
-            while ships.list.count > ships0, let s = ships.list.last { ships.remove(s) }
+            // (every ship and mob the scenes brought, by identity: the list's order shifts as ships are let go, and a
+            // hunter left behind with its marines shot at the suite's later walks, run 1 on build 22)
+            while let s = ships.list.first(where: { !ships0.contains(ObjectIdentifier($0)) }) { ships.remove(s) }
+            g.mobs.mobs.removeAll { !mobs0.contains(ObjectIdentifier($0)) }
             ships.shells.removeAll()
             g.falling.removeAll()
             for q in placed { w.setBlock(q.x, q.y, q.z, AIR) }
@@ -129,7 +132,7 @@ enum BridgeHuntTests {
                 if firstShot < 0 && BridgeHunt.shots > shots0 { firstShot = time }
                 if BridgeHunt.fell > fell1 { firstFall = time }
             }
-            return (came, firstShot, firstFall, ships.list.dropFirst(ships0).filter { BridgeHunt.hunts($0) }.count)
+            return (came, firstShot, firstFall, ships.list.filter { !ships0.contains(ObjectIdentifier($0)) && BridgeHunt.hunts($0) }.count)
         }
         // (the before, BS_NOBRIDGEHUNT=1: the same 40 s ride over the same bridge)
         BridgeHunt.on = false
