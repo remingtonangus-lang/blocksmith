@@ -215,3 +215,61 @@ extension BridgeHuntTests {
         if Railways.sparseLegs { print("bridge hunt (before, BS_OLDTRESTLELEGS): " + what) } else { check(r.decks > idx.count / 2 && r.legs > 0 && r.fell == 0, what) }
     }
 }
+
+// Fable (Nov 16): a trestle drawn before the diagonal lines' legs (centre piers only, 8 apart): one pier cut drops the
+// two spans it carried, and the spans beside them, untouched, stand. Both ways (before: BridgeHunt.anySpan).
+extension BridgeHuntTests {
+    static func sparse(game g: Game, check: (Bool, String) -> Void) {
+        guard BridgeHunt.on else { return }
+        let w = g.world, ships = w.ships
+        let pos0 = g.player.pos, regions0 = ships.spawnedRegions, any0 = BridgeHunt.anySpan
+        var placed: [IVec3] = []
+        defer {
+            g.falling.removeAll()
+            for q in placed { w.setBlock(q.x, q.y, q.z, AIR) }
+            ships.spawnedRegions = regions0
+            BridgeHunt.anySpan = any0
+            BridgeHunt.reset(ships)
+        }
+        BridgeHunt.reset(ships)
+        let fx = Int(floor(pos0.x)) + 40, fz = Int(floor(pos0.z)) + 40
+        let py = min(CH - 60, w.topY(fx, fz) + 24)
+        _ = w.loadSync(center: V3(Float(fx + 32), Float(py), Float(fz)), radius: 6)
+        let rail = Blocks.id("rail"), deck = Blocks.id("spruce_planks"), leg = Blocks.id("spruce_log")
+        let ry = py + 12
+        var cells: [IVec3] = []
+        for i in 0..<64 { cells.append(IVec3(fx + i, ry, fz)) }
+        let t = Trains.Track(id: -20901, name: "check", cells: cells, slopes: [Bool](repeating: false, count: cells.count), stops: [],
+                             stopNames: [], armoured: false, dim: .overworld)
+        func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) { w.setBlock(x, y, z, b); placed.append(IVec3(x, y, z)) }
+        func build() {
+            for x in (fx - 2)...(fx + 65) { for z in (fz - 5)...(fz + 5) { for y in py...(ry + 2) {
+                let wall = x == fx - 2 || x == fx + 65 || z == fz - 5 || z == fz + 5 || y == py
+                put(x, y, z, y > py + 7 ? AIR : wall ? STONE : (y <= py + 6 ? WATER : AIR))
+            } } }
+            for i in 0..<64 {
+                put(fx + i, ry, fz, rail)
+                for dz in -1...1 { put(fx + i, ry - 1, fz + dz, deck) }
+                if i % 8 == 4 { for y in (py + 1)...(ry - 2) { put(fx + i, y, fz, leg) } }
+            }
+            g.falling.removeAll()
+        }
+        func run() -> (gone: [Int], fell: Int) {
+            build()
+            BridgeHunt.hurt = [:]; BridgeHunt.gaps = []
+            // (the pier at cell 28 cut at the water, as a blast cuts it)
+            for y in (py + 5)...(py + 8) { let x = fx + 28; BridgeHunt.broke(w.block(x, y, fz), x, y, fz); w.setBlock(x, y, fz, AIR) }
+            let fell0 = BridgeHunt.fell
+            for _ in 0..<8 { if BridgeHunt.weigh(g, t, at: 32, back: 40, fwd: 40) == 0 { break } }
+            return ((0..<64).filter { !Rails.isRail(w.block(fx + $0, ry, fz)) }, BridgeHunt.fell - fell0)
+        }
+        BridgeHunt.anySpan = true
+        let before = run()
+        BridgeHunt.anySpan = false
+        let after = run()
+        func span(_ g: [Int]) -> String { g.isEmpty ? "none" : "\(g.count) (\(g.first!)-\(g.last!))" }
+        print("bridge hunt (before, BS_ANYSPAN): centre piers 8 apart, the pier at 28 cut: rail cells gone \(span(before.gone)), \(before.fell) blocks fell")
+        check(after.gone == Array(24...32) && Rails.isRail(w.block(fx + 16, ry, fz)) && Rails.isRail(w.block(fx + 40, ry, fz)),
+              "bridge hunt: on a trestle of centre piers 8 apart one pier cut drops the two spans it carried (rail cells gone \(span(after.gone)), want 9 (24-32); \(after.fell) blocks fell) and the next spans' middles stand (16 \(Rails.isRail(w.block(fx + 16, ry, fz))), 40 \(Rails.isRail(w.block(fx + 40, ry, fz)))); before: \(span(before.gone))")
+    }
+}

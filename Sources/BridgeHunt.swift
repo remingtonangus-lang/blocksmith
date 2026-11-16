@@ -43,6 +43,7 @@ enum BridgeHunt {
     // two passes over it in which nothing near it fell. No hurt cell: nothing is weighed (an untouched bridge can't fall).
     static var hurt: [IVec3: Int] = [:]          // cell -> quiet passes over it
     static let hurtReach = 8
+    static var anySpan = Env.all["BS_ANYSPAN"] == "1"      // (before: any unheld cell near a hurt one falls, damaged span or not)
     static let deckGroup = Blocks.groupBase[Int(Blocks.id("spruce_planks"))]
     static let legGroup = Blocks.groupBase[Int(Blocks.id("spruce_log"))]
     @inline(__always) static func broke(_ b: BlockID, _ x: Int, _ y: Int, _ z: Int) {
@@ -140,6 +141,7 @@ enum BridgeHunt {
         // 0 nothing there (a hole), 1 deck over a standing leg, 2 deck or stump with no standing leg, 3 on the ground
         // (a bank, a tunnel floor, ground not loaded): 1 and 3 carry their neighbours.
         var cells = [IVec3](), state = [UInt8](repeating: 3, count: n)
+        var cutLeg = [Bool](repeating: false, count: n)
         cells.reserveCapacity(n)
         let total = t.cells.count, i0 = Int(s0.rounded())
         for k in 0..<n {
@@ -156,7 +158,7 @@ enum BridgeHunt {
                 if st != 0 { any = true }
             } }
             if stands { state[k] = planks ? 1 : 0 }
-            else if any { state[k] = 2 }
+            else if any { state[k] = 2; cutLeg[k] = true }
             else if planks { state[k] = Blocks.collide[Int(w.block(c.x, c.y - 2, c.z))] ? 3 : 2 }
             else { state[k] = Blocks.collide[Int(w.block(c.x, c.y - 1, c.z))] ? 3 : 0 }
         }
@@ -167,11 +169,25 @@ enum BridgeHunt {
         guard !inWindow.isEmpty else { return 0 }
         var judged = [Bool](repeating: false, count: n)
         for k in 0..<n where state[k] == 2 { judged[k] = inWindow.contains { near(cells[k], $0) } }
+        // Fable (Nov 16): a cell no pier holds falls only when its own span is damaged: a cut leg or a hurt cell lies
+        // between it and the nearest standing pier on one side at least. (A trestle drawn before the diagonal lines'
+        // legs, centre piers 8 apart, keeps the untouched spans beside one that was hit.)
+        var damaged = [Bool](repeating: false, count: n)
+        for k in 0..<n where state[k] != 1 && state[k] != 3 {
+            let c = cells[k]
+            damaged[k] = cutLeg[k] || inWindow.contains { abs($0.x - c.x) <= 1 && abs($0.z - c.z) <= 1 && $0.y <= c.y + 2 && $0.y >= c.y - 140 }
+        }
+        func spanDamaged(_ k: Int, _ step: Int) -> Bool {
+            var j = k
+            while j >= 0 && j < n && state[j] != 1 && state[j] != 3 { if damaged[j] { return true }; j += step }
+            return false
+        }
         var out = [IVec3](), seen = Set<IVec3>(), rails = 0
         for k in reach..<(n - reach) where state[k] == 2 && judged[k] {
             var held = false
             for j in (k - reach)...(k + reach) where state[j] == 1 || state[j] == 3 { held = true; break }
             if held { continue }
+            if !BridgeHunt.anySpan && !spanDamaged(k, -1) && !spanDamaged(k, 1) { continue }
             let c = cells[k]
             if notes.count < 6 {
                 let win = (max(0, k - 4)...min(n - 1, k + 4)).map { String(state[$0]) }.joined()
