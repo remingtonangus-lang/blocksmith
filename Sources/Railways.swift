@@ -153,8 +153,8 @@ enum Railways {
     // Only in worlds made on this build or later (structure-guard-l178.txt empty: no chunk was saved before), in
     // field worlds. BS_OLDRAILENDS=1: as before.
     static let oldRailEnds = Env.all["BS_OLDRAILENDS"] == "1"
-    // (not yet on by default: BS_RAILENDS=1 turns it on, until its launch time and its ends are measured)
-    static var wildOn = Env.all["BS_RAILENDS"] == "1"
+    // (BS_RAILENDS=0 also turns it off; a var so the checks can lay the same ground both ways)
+    static var wildOn = Env.all["BS_RAILENDS"] != "0"
     static func wildWorld(_ gen: WorldGen) -> Bool {
         wildOn && !oldRailEnds && runOn && gen.fieldWorld && (gen.structures?.legacyL178.isEmpty ?? false)
     }
