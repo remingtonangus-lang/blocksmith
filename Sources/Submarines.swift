@@ -98,6 +98,7 @@ extension Game {
         if Submarine.mineTimer >= 0.2 { Submarine.mineTimer = 0; minesCheck() }
         sonarTick()
         enemySubTick(dt)
+        bridgeHuntTick(dt)
     }
 
     // A player or a moving vessel close to a sea mine sets it off.

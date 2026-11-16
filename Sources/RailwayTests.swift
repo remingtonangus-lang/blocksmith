@@ -740,6 +740,10 @@ enum RailwayTests {
             tr.throttle = room < tr.length / 2 + 20 ? -1 : 2
             let tender = tr.coal, left = g.inventory.held.count
             for _ in 0..<(60 * 6) { g.time += Double(dt); Trains.drive(lead2, dt, g) }
+            if !(tr.blocksPerSec > 1) {
+                print(String(format: "rail: Nov 12 coal: stood at s %.1f of %.0f (room %.1f, length %.1f), throttle %.1f, rate %.2f, driveV %.2f, brake %.2f, cab brake %.2f, held %@ way %.0f, coal %.1f, track %@ open ends, wrecked %@",
+                             tr.driveS, tn2, room, tr.length, tr.throttle, tr.rate, tr.driveV, tr.brake, tr.cabBrake, tr.heldBy ? "yes" : "no", tr.heldWay, tr.coal, tr.track.name, tr.wrecked ? "yes" : "no"))
+            }
             check(pedal > 1 && Trains.coalBurned > burned0 && dryAfter > 0 && fed && tender >= 5 && left == 0 && tr.blocksPerSec > 1,
                   String(format: "Nov 12 trains: the pedal opened the regulator to %.0f%%; the tender ran dry and the train came to a stand in %.0f s; 5 coal used on the engine (tender %.0f, %d left in hand) and it runs again (%.1f b/s)",
                          pedal * 50, dryAfter, tender, left, tr.blocksPerSec))
