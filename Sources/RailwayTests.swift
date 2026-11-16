@@ -268,7 +268,7 @@ enum RailwayTests {
                         for dz in -4...4 { for dx in -4...4 {
                             let x = q.x + dx - bx, z = q.z + dz - bz
                             guard x >= 0, x < CS, z >= 0, z < CS else { continue }
-                            for y in max(0, q.y - 2)..<min(CH, q.y + 12) where CapitalBase.isLog(b[Chunk.index(x, y, z)]) {
+                            for y in max(0, q.y)..<min(CH, q.y + 12) where CapitalBase.isLog(b[Chunk.index(x, y, z)]) {
                                 trunks += 1
                                 guard abs(dx) <= 2 && abs(dz) <= 2 else { continue }
                                 close += 1
