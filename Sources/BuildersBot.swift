@@ -21,6 +21,7 @@ final class BuilderBot: AgentBot {
     private var slotOf: [ItemID: Int] = [:], nextSlot = 0
     let cruise: Float
     private(set) var routed = 0, cuts = 0, scaffolds = 0
+    private(set) var felledHits = 0                     // (ledger 213: presses on a felled tree lying across the aim)
     private var scaffoldFor: [IVec3: IVec3] = [:]
     private enum Draft0 { static let plank = Blocks.has("oak_planks") ? Blocks.id("oak_planks") : STONE }
     private(set) var placed = 0, dug = 0, presses = 0, redone = 0
@@ -429,6 +430,10 @@ final class BuilderBot: AgentBot {
     }
     private var stuck = 0, inRow = 0, lastDeferSuccess = -1
     static let trace = Env.all["BS_BUILDTRACE"] != nil
+    static let oldFelled = Env.all["BS_OLDBOTFELLED"] == "1"
+    // (ledger 213: the boathouse, its posts now set in the water, used its 120 props before the roof's top course, whose
+    // stairs have no face but each other's: 400)
+    static let scaffoldCap = BuilderBot.oldFelled ? 120 : 400
     private var lastDrop = ""
     // The spot didn't work: the next nearest, by a new route.
     private func drop(_ s: AgentState, _ why: String) {
@@ -486,7 +491,7 @@ final class BuilderBot: AgentBot {
                 if let q = clear, cut(w, q) { return act }
                 // Nothing to place it against (the first block of a ceiling, a top slab over a wall): a plank put down
                 // beside it first and broken after, as he would.
-                if j.want != AIR && noFaces && scaffolds < 120 && scaffoldFor[j.cell] == nil {
+                if j.want != AIR && noFaces && scaffolds < BuilderBot.scaffoldCap && scaffoldFor[j.cell] == nil {
                     for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0)] {
                         let q = j.cell + d
                         guard w.block(q.x, q.y, q.z) == AIR, !(w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) else { continue }
@@ -598,6 +603,15 @@ final class BuilderBot: AgentBot {
                 aimAt = q; aimFrom = p.eye
             }
             if abs(ey) < 0.02 && abs(ep) < 0.02 {
+                // Ledger 213 (Fable's C): a felled tree lying across the aim (one the bot's own cuts brought down, a whole
+                // body of its own since ledger 160) took every ray, and the job ran out of time; its blocks are broken
+                // off, as he would, the time it takes not counted against the job. BS_OLDBOTFELLED=1: left lying.
+                if !BuilderBot.oldFelled, g.target == nil, let st = w.ships.target, st.ship.name == Felling.name, felledHits < 3000 {
+                    felledHits += 1
+                    if felledHits % 2 == 1 { act.attack = true }
+                    ticks -= 1; aimTicks = min(aimTicks, 6)
+                    return act
+                }
                 if let t = g.target {
                     if onJob(g, j, t) {
                         if j.want == AIR { act.attack = true } else { act.use = true }

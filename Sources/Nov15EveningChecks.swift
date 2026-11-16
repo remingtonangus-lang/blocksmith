@@ -14,6 +14,7 @@ enum Nov15EveningChecks {
         provingOrder(check)
         ghostTowns(g, check)
         hullLeaves(g, check)
+        ghostReachGuard(g, check)
     }
 
     // Ledger 210 (the host check ledger 197 lacked): leaves standing in a craft's cell, where the cell's own block (a
@@ -203,7 +204,8 @@ enum Nov15EveningChecks {
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }
         let bps = BuildersGrounds.blueprints()
-        for seed in [BuildersGrounds.seed, 88314448595278, 20261116] as [UInt64] {
+        let seeds = Env.all["BS_OWNSEEDS"].map { $0.split(separator: ",").compactMap { UInt64($0) } } ?? [BuildersGrounds.seed, 88314448595278, 20261116]
+        for seed in seeds {
             let w = World(seed: seed, device: g0.world.device, save: nil)
             w.makeFieldWorld()
             w.renderDistance = 4; w.activeDistance = 4
@@ -222,7 +224,7 @@ enum Nov15EveningChecks {
             let reach = (mids.map { simd_length(V2($0.x - m.x, $0.z - m.z)) } + [simd_length(V2(c.spawn.x - m.x, c.spawn.z - m.z))]).max() ?? 30
             _ = w.loadSync(center: V3(m.x, 100, m.z), radius: Int(reach / Float(CS)) + 3)
             _ = BuildersGrounds.clearTrees(w, middle: m, radius: reach + 10)
-            let dressed = g.dressBuildSites(plans, start: c.spawn)
+            let dressed = g.dressBuildSites(&plans, start: c.spawn)
             g.player.pos = c.spawn + V3(0, 8, 0); g.player.flying = true
             for _ in 0..<40 { g.tick(0.05) }
             var lines: [String] = [], mine = 0

@@ -136,7 +136,7 @@ extension Game {
             let reach = (mids.map { simd_length(V2($0.x - m.x, $0.z - m.z)) } + [simd_length(V2(p.x - m.x, p.z - m.z))]).max() ?? 30
             _ = world.loadSync(center: V3(m.x, 100, m.z), radius: Int(reach / Float(CS)) + 2)
             _ = BuildersGrounds.clearTrees(world, middle: m, radius: reach + 10)
-            dressBuildSites(plans, start: p)                          // (ledger 211: each on its own kind of ground)
+            dressBuildSites(&plans, start: p)                          // (ledger 211: each on its own kind of ground)
         }
         buildersRun = BuildersGrounds.Run(plans)
         // He starts by the first build, flying, looking north at it. (Ledger 202: where all six are in front of him, 12

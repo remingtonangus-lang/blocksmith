@@ -162,8 +162,14 @@ extension BuildersGrounds {
                     if let b = best, rank(b.1) >= rank(Set(cur.keys)) { return }
                     // the rest on plain ground
                     var full = cur
+                    // (ledger 211: the beach's plain spot the one nearest the boathouse's water, so its sand has water by it)
                     for k in kinds where full[k] == nil {
-                        guard k != "shore", let p = anyCands.first(where: { q in !full.values.contains(where: { clash($0, q) }) }) else { return }
+                        var pool = anyCands
+                        if k == "beach" && !oldGround, let sh = full["shore"] {
+                            func dw(_ p: IVec3) -> Int { (p.x - sh.x) * (p.x - sh.x) + (p.z - sh.z - 8) * (p.z - sh.z - 8) }
+                            pool = anyCands.sorted { dw($0) < dw($1) }
+                        }
+                        guard k != "shore", let p = pool.first(where: { q in !full.values.contains(where: { clash($0, q) }) }) else { return }
                         full[k] = p
                     }
                     best = (full, Set(cur.keys))

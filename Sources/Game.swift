@@ -2284,14 +2284,18 @@ final class Game: LifeLinked {
     // the cell, that row. `sunk`: the cell holds ground, which the placing clears (Game.place). BS_OLDPLACEROW=1: before.
     static let oldPlaceRow = Env.all["BS_OLDPLACEROW"] == "1"
     static let oldNotch = Env.all["BS_OLDNOTCH"] == "1"
+    static let oldWetRow = Env.all["BS_OLDWETROW"] == "1"
     func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
         guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
               let g = targetGround, g.cell == t.hit, g.normal.y >= 0.5 else { return nil }
         let x = Int(floor(g.at.x)), z = Int(floor(g.at.z)), r0 = Int(floor(g.at.y))
         guard r0 >= 1, r0 + 1 < CH else { return nil }
+        // Ledger 213 (Fable's C, the boathouse's posts): water over the ground is a cell a block can go in, as it is off
+        // the ground (a post stood on a lake bed went in the dry row over the water, or sank into the bed); BS_OLDWETROW=1:
+        // a wet row was not free.
         func free(_ y: Int) -> Bool {
             let bb = world.builtBlock(x, y, z)
-            return bb == AIR || (Blocks.replaceable[Int(bb)] && !Blocks.isLiquid(bb))
+            return bb == AIR || (Blocks.replaceable[Int(bb)] && (!Blocks.isLiquid(bb) || !Game.oldWetRow))
         }
         func beside(_ y: Int) -> Bool {
             for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.fullCollide[Int(world.builtBlock(x + dx, y, z + dz))] { return true }
