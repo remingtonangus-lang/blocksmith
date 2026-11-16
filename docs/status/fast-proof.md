@@ -46,3 +46,29 @@ Things to know:
   about 6 minutes at `-O`. Body-only edits are seconds.
 - Non-WMO `-O` code is not the shipped code (nothing inlines across files): fine for logic, never for timings.
 - Don't run two builds at once on 4 cores with a WMO build (memory: ~7 GB each).
+
+## What a named run starts with (job 2, Nov 16)
+
+Before, every `--X-only` run paid ~27 s of setup before its check: the natural census (NaturalCensus.swift, ~70
+sample chunks generated, 18 s: questcheck points its data root at a per-run temp dir, so the census's disk cache never
+hit), the shared world (World + Game + loadSync radius 4, ~5 s) and four inline whole-run checks (axis place, block
+feet, stale light, driving HUD, ~4 s), plus GunFittingsCheck before the later runs.
+
+Now, on a run that names a check (any `--X-only` argument):
+- **No world:** gunfittings, factions-structures, water, overlaps, musiclevels, settings, savesoak and capitals run
+  before the shared world is made (they make their own worlds or none).
+- **Census kept per binary:** the census is copied to `/tmp/questcheck-census-<exe path hash>-<size>-<date>.txt`
+  after the first named run of a build and read back by the next (same binary, same result). The whole run always
+  computes it. `QC_KEEP_CENSUS=0` turns it off; `=1` turns it on for a whole run too.
+- **Whole-run-only checks skipped:** the four inline checks and GunFittingsCheck run on the whole run only (the
+  gunfittings run still runs its own check).
+- **Full world:** every other named check still gets the same radius-4 world as before. A smaller world was not added:
+  it would save ~3 s and could make a check pass alone that fails in the suite.
+
+| Check | Before | After (census kept) |
+|---|---|---|
+| `--gunfittings-only` (no world) | 27 s | under 1 s |
+| `--throw-only` (full world, small check) | 28 s | 6 s |
+| `--rules-only` (full world, mid check) | 27 s | 9-10 s |
+
+The first named run of a new build still computes the census once (+18 s). The whole suite runs exactly as before.
