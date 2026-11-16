@@ -264,7 +264,24 @@ extension Game {
         }
         for key in Array(b.records.keys) {
             guard var r = b.records[key] else { continue }
-            guard world.isLoaded(r.cx, r.cz), world.isLoaded(r.cx, r.cz + 52) else { continue }
+            guard world.isLoaded(r.cx, r.cz) else { continue }
+            // Ledger 180 (the siege soak, his Nov 15 08:35 fight): at view 8 from 115 blocks out the citadel's centre
+            // is loaded but not its gate, 52 further on, and the whole citadel was skipped: shelled in its middle it
+            // stayed calm, its garrison never turned out, its turrets were never crewed. With the gate side not loaded
+            // it now hears, alerts, locks down, fires its missiles and sends its Kestrel (the pad is checked loaded);
+            // the work that needs the far side (patrols mustering at the gate, the crawler and parked Kestrel, the
+            // rebuild with its time away, the cleared count, which would miss the garrison out there) waits for it.
+            guard world.isLoaded(r.cx, r.cz + 52) else {
+                baseHear(&r, b)
+                TickProf.mark("bases: hear+cleared")
+                baseAlertStep(&r, b, step)
+                if r.alert == .lockdown { baseLockdown(&r, b, step) } else { baseStandDown(&r, b) }
+                baseMissiles(&r, step)
+                baseAir(&r, b, step)
+                TickProf.mark("bases: alert")
+                b.records[key] = r
+                continue
+            }
             let away = clock - r.lastTick
             r.lastTick = clock
             baseHear(&r, b)

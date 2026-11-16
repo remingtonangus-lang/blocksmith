@@ -431,7 +431,15 @@ enum HorseTests {
             func press(_ pitch: Float) -> Float {
                 for i in 0..<60 {
                     h.hs.spookCool = 99
-                    if g.riding !== h && lost.isEmpty { lost = "saddle lost before tick \(i) of the press at pitch \(pitch), thrown \(thrown0) before the presses, horse health \(h.health), rear \(h.hs.rear)" }
+                    // (Nov 15, the sound PR's first full run: "horse health -5969" by tick 3 and no rider: where it was,
+                    // its last hit and what it stood on say what killed it the next time)
+                    if g.riding !== h && lost.isEmpty {
+                        let feet = g.world.block(Int(floor(h.pos.x)), Int(floor(h.pos.y - 0.1)), Int(floor(h.pos.z)))
+                        lost = "saddle lost before tick \(i) of the press at pitch \(pitch), thrown \(thrown0) before the presses, horse health \(h.health), rear \(h.hs.rear)"
+                            + String(format: "; horse at %.1f %.1f %.1f on %@ (last hit %d, fire %.1f, on the ground %@, in the mob list %@), he at %.1f %.1f %.1f",
+                                     h.pos.x, h.pos.y, h.pos.z, Blocks.key(feet), h.lastHurtAmount, h.fire, h.onGround ? "yes" : "no",
+                                     g.mobs.mobs.contains { $0 === h } ? "yes" : "no", g.player.pos.x, g.player.pos.y, g.player.pos.z)
+                    }
                     var p = PadSnapshot()
                     if i == 50 || i == 51 { p.lt = 1 }
                     pm.simulated = p

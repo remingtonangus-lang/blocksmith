@@ -29,8 +29,9 @@ enum RideCheck {
         var md: [String] = []
         var fails = 0
         var scene = ""
+        var outer: ((Bool, String) -> Void)?          // (in the full suite: its checks are the suite's)
         func check(_ ok: Bool, _ what: String) {
-            print("\(ok ? "PASS" : "FAIL") ride \(scene): \(what)")
+            if let o = outer { o(ok, "ridecheck \(scene): " + what) } else { print("\(ok ? "PASS" : "FAIL") ride \(scene): \(what)") }
             md.append("- " + (ok ? "" : "**FAIL** ") + what)
             if !ok { fails += 1 }
         }
@@ -46,11 +47,11 @@ enum RideCheck {
 
     struct Scene { let agent: Agent; let game: Game; let world: World; let ship: Ship; let st: CapitalState }
 
-    static func run() -> Int32 {
+    static func run(into outer: ((Bool, String) -> Void)? = nil) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)            // a CI timeout still shows how far it got
-        guard let device = MTLCreateSystemDefaultDevice() else { print("ridecheck: no Metal device"); return 2 }
-        PrefsSandbox.begin()
-        defer { PrefsSandbox.end() }
+        guard let device = MTLCreateSystemDefaultDevice() else { print("ridecheck: no Metal device"); outer?(false, "ridecheck: no Metal device"); return 2 }
+        if outer == nil { PrefsSandbox.begin() }
+        defer { if outer == nil { PrefsSandbox.end() } }
         let out = arg("--out") ?? "snaps"
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
@@ -58,6 +59,7 @@ enum RideCheck {
         let all = "crawler,rough,crawlerwall,frigate,warfrigate,board,frigateboard,crew,troops,frigatecrew,frigatecrash"
         let names = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         let r = Report()
+        r.outer = outer
         r.md = ["# Ride check", "", "Seed \(seed), scale \(scale). Bots ride the capital vehicles through Game.tick.", ""]
         let t0 = CFAbsoluteTimeGetCurrent()
         for n in names {
@@ -708,7 +710,7 @@ enum RideCheck {
         var firstJump = "", firstInside = ""
         var t: Float = 0
         while t < 80 {
-            for m in foes { m.health = max(m.health, 50) }        // they must outlast the crawler's guns for the test
+            for m in foes { m.health = max(m.health, 10_000) }    // they must outlast the crawler's guns for the test (ledger 183: at 50 a hit swept them out)
             sc.agent.step(idle)
             t += 1.0 / 60
             if Int(t * 60) % 300 == 0 {
@@ -802,16 +804,20 @@ enum RideCheck {
         // under the old 8.5, where a trooper at his post on the keel counted as fallen off the ship).
         let floorY: Float = frigate ? min(8.5, (st.crew.map { $0.y }.min() ?? 9) - 0.5) : 9.5
         var worstPost: Float = 0, worstWho = "", worstWhen = ""
-        var off = 0, inside = 0, firstOff = "", firstIn = ""
+        var off = 0, inside = 0, firstOff = "", firstIn = "", sentOut = 0
         // (the drift's story: each soldier's last second, every sixth tick: post error, deck-relative speed, ship turn rate)
         var trail: [ObjectIdentifier: [String]] = [:]
         var worstTrail: [String] = []
         func crewCheck(_ i: Int, posts: Bool) {
             for (k, m) in st.crewMobs where m.health > 0 {
                 let l = s.toLocal(m.pos)
+                // (Ledger 181: the bay troops the crawler sends out down its ramp at foes beside it (CapitalShips, the
+                // squad it carries) leave the hull by design; ridecheck's troop leg checks their walk. They counted here
+                // as crew fallen off: 2308 crew-ticks, the first a trooper on the lowered ramp.)
+                if st.troops.contains(where: { $0 === m }) { sentOut += 1; continue }
                 if m.deck !== s || l.y < floorY - 0.6 {
                     off += 1
-                    if firstOff.isEmpty { firstOff = String(format: "%@ (post %ld) at ship-space %.1f,%.1f,%.1f, deck %@", m.kind.key, k, l.x, l.y, l.z, m.deck === s ? "kept" : "lost") }
+                    if firstOff.isEmpty { firstOff = String(format: "%@ (post %ld) at ship-space %.2f,%.2f,%.2f, deck %@, tick %ld, route %ld, free %@, post %@, ramp %@, ground %@", m.kind.key, k, l.x, l.y, l.z, m.deck === s ? "kept" : "lost", i, m.crewRoute.count, m.crewFree ? "yes" : "no", m.crewPost == nil ? "none" : "kept", st.rampDown ? "down" : "up", m.onGround ? "yes" : "no") }
                     continue
                 }
                 w.frame = s
@@ -884,6 +890,7 @@ enum RideCheck {
         var mags: [ObjectIdentifier: Int] = [:]
         var foes: [Mob] = []
         var foeNote = ""
+        var foeGone: [String] = [], foeSpots: [V3] = [], replaced = 0
         let limit = frigate ? 120 * 60 : 60 * 60
         for i in 0..<limit {
             sc.agent.step(idle)
@@ -900,21 +907,46 @@ enum RideCheck {
                 for k in 0..<2 {
                     let at = s.pos + side * Float(-34 - k * 3) + V3(0, 0, Float(k) * 3)
                     let ix = Int(floor(at.x)), iz = Int(floor(at.z))
-                    let m = Mob(.soldierRecruit, at: V3(at.x, Float(w.topY(ix, iz) + 1), at.z))
+                    foeSpots.append(V3(at.x, Float(w.topY(ix, iz) + 1), at.z))
+                    let m = Mob(.soldierRecruit, at: foeSpots[k])
                     m.persistent = true
                     g.mobs.mobs.append(m)
                     foes.append(m)
                 }
             }
+            // Ledger 183: the hull's own guns kill a soldier outright with a shell to the body (P345, damage = his health
+            // + 1000): the first foe was gone 2 s after it came, the second at 13 s, before any crewman fired, and the
+            // check held 50 health in bodies no longer in the world (0 shots, "the search from him finds nothing"). A foe
+            // the guns take is replaced at its spot by the next man, as a squad coming on would be, so the crew's rifles
+            // have someone to fire at; rifles alone don't drop them (held at 10,000).
+            for (k, f) in foes.enumerated() where !g.mobs.mobs.contains(where: { $0 === f }) && k < foeSpots.count {
+                if foeGone.count < 2 {
+                    foeGone.append("foe gone \((Float(i) / 60 - stopT).rounded()) s after the wreck stopped, health \(f.health) (the hull's guns), replaced")
+                }
+                replaced += 1
+                let m = Mob(.soldierRecruit, at: foeSpots[k])
+                m.persistent = true
+                g.mobs.mobs.append(m)
+                foes[k] = m
+            }
             if !foes.isEmpty {
-                // (they must outlast the hull's own guns for the crew's rifles to be tested, as in the troop scene)
-                for m in foes { m.health = max(m.health, 50) }
+                for m in foes { m.health = max(m.health, 10_000) }
                 if foeNote.isEmpty && Float(i) / 60 > stopT + 20 {
                     let crew = st.crewMobs.values.filter { $0.health > 0 }
                     let withFoe = crew.filter { $0.soldierBrain.foe != nil }.count, seeing = crew.filter { $0.soldierBrain.foe != nil && $0.soldierBrain.foeSees }.count
                     let near = crew.map { c in foes.map { simd_length($0.pos - c.pos) }.min() ?? -1 }.min() ?? -1
-                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off; lookouts found %ld, none for %ld (%ld spots, %ld clear of the hull, %ld of the world, %ld with no way there; last: %@)", foes.map { "\($0.factionValue) at \(Int(simd_length($0.pos - s.pos))) health \(Int($0.health))" }.joined(separator: ", "),
+                    foeNote = String(format: "foes %@; of %ld crew %ld have one as their foe, %ld see it; the nearest crew %.0f blocks off; lookouts found %ld, none for %ld (%ld spots, %ld clear of the hull, %ld of the world, %ld with no way there; last: %@)", foes.map { f in "\(f.factionValue) at \(Int(simd_length(f.pos - s.pos))) health \(Int(f.health))\(g.mobs.mobs.contains { $0 === f } ? "" : " (gone from the world)")" }.joined(separator: ", "),
                                      crew.count, withFoe, seeing, near, CrewLookout.found, CrewLookout.failed, CrewLookout.spots, CrewLookout.hullClear, CrewLookout.worldClear, CrewLookout.noPath, CrewLookout.lastMiss)
+                    // (what the nearest crewman makes of it: his side, his brain's clock and foe search, and the search run here)
+                    if let c = crew.min(by: { a, b in (foes.map { simd_length($0.pos - a.pos) }.min() ?? 0) < (foes.map { simd_length($0.pos - b.pos) }.min() ?? 0) }) {
+                        let cb = c.soldierBrain
+                        let f = w.ships.nearestFoe(of: c.factionValue, near: c.pos, range: 64, game: g)
+                        foeNote += String(format: "; the nearest crewman: %@ of %@ (raw %d), aggro %@, routed %@, hired %@, posse %d, free %@, on the hull %@, post %@, brain clock %.1f, foe timer %.2f, sees him %@; the search from him finds %@; truce %@",
+                                          c.kind.key, "\(c.factionValue)", Int(c.faction), c.aggro ? "yes" : "no", c.routed ? "yes" : "no", c.hired ? "yes" : "no", Int(c.posse),
+                                          c.crewFree ? "yes" : "no", c.deck === s ? "yes" : "no", c.crewPost == nil ? "none" : "yes", cb.clock, cb.foeTimer, cb.sees ? "yes" : "no",
+                                          f.map { $0.mob.map { "a \($0.kind.key) of \($0.factionValue) \(Int(simd_length($0.pos - c.pos))) off" } ?? ($0.ship.map { "the ship \($0.name)" } ?? "nothing") } ?? "nothing",
+                                          Reckoning.truce(g, c.factionValue, c.pos) ? "yes" : "no")
+                    }
                 }
                 for m in st.crewMobs.values where m.health > 0 {
                     let b = m.soldierBrain
@@ -940,8 +972,10 @@ enum RideCheck {
             r.check(worstDecel < 4, String(format: "no sudden stop (worst deceleration %.2f b/s2)", worstDecel))
             r.check(shots > 0, "the crew fight enemy soldiers from aboard (\(shots) shots)")
             r.note("crew fight: " + foeNote)
+            for l in foeGone { r.note("crew fight: " + l) }
+            r.note("crew fight: \(replaced) foes taken by the hull's guns and replaced")
         }
-        r.check(off == 0, "the crew stay aboard the disabled vehicle (\(off) crew-ticks off)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
+        r.check(off == 0, "the crew stay aboard the disabled vehicle (\(off) crew-ticks off; \(sentOut) troop-ticks of the squad sent out down the ramp, not counted)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(aliveAtRest == spawned, "the crew survive it (\(aliveAtRest) of \(spawned) alive when it came to rest, \(alive) at the end)")
         r.check(st.crewMobs.values.allSatisfy { $0.health <= 0 || $0.crewFree }, "the crew are released to fight")
     }

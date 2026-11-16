@@ -5,13 +5,19 @@ import Metal
 // P455 (Oct 25 14:19-14:25, the Ironstride Siege Carriage: "the trees are bullying it too much... this thing just blasts
 // through trees"): a heavy hull driven into trees and a timber wall pushes through them on its engine; a light car is
 // stopped by the trunks. Played through Game.tick (the physics, the contacts and Momentum.shove).
-//   questcheck --shovecheck
+//   questcheck --shovecheck; the full suite runs it too (`into`: the suite's check, on a world of its own; the
+//   generator's and the smooth ground's switches put back after).
 enum QuestShoveCheck {
-    static func run() -> Int32 {
+    static func run(into outer: ((Bool, String) -> Void)? = nil) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
         TextureGen.registerAll()
         var fails = 0
-        func check(_ ok: Bool, _ what: String) { print("\(ok ? "ok  " : "FAIL") shovecheck: \(what)"); if !ok { fails += 1 } }
+        func check(_ ok: Bool, _ what: String) {
+            if let o = outer { o(ok, "shovecheck: " + what) } else { print("\(ok ? "ok  " : "FAIL") shovecheck: \(what)") }
+            if !ok { fails += 1 }
+        }
+        let newWorlds0 = FieldTerrain.newWorlds, trace0 = Momentum.traceRest
+        defer { FieldTerrain.newWorlds = newWorlds0; Momentum.traceRest = trace0 }
 
         let w = World(seed: 4797859299361840175, device: sharedSystemDevice, save: nil)
         FieldTerrain.newWorlds = true; w.makeFieldWorld()
