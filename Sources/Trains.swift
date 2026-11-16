@@ -688,7 +688,7 @@ enum Trains {
                              t.id, tr.lastS, dir0, ahead, c.x, c.y, c.z, Blocks.key(b), placed[c] != nil ? "yes" : "no",
                              now(tr).stop == nil ? "none" : "yes", t.armoured ? "yes" : "no", tr.driveV))
             }
-            // Ledger 209 (BridgeHunt.swift): a trestle span fell into the sea ahead: the train stops short of the gap.
+            // Ledger 214 (BridgeHunt.swift): a trestle span fell into the sea ahead: the train stops short of the gap.
             var gapAhead = false
             if !BridgeHunt.gaps.isEmpty {
                 for k: Float in [0, 4, 8, 12] where BridgeHunt.gap(g, t.cell(t.advance(ahead, by: dir0 * k))) { gapAhead = true; break }

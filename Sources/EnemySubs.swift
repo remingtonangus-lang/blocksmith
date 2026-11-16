@@ -40,7 +40,7 @@ extension Game {
         let ships = world.ships
         var live = 0
         for s in ships.list where EnemySub.hunting(s) {
-            if !BridgeHunt.hunter.values.contains(s.id) { live += 1 }      // (ledger 209: a bridge's hunter is its area's own)
+            if !BridgeHunt.hunter.values.contains(s.id) { live += 1 }      // (ledger 214: a bridge's hunter is its area's own)
             enemySubDrive(s, dt)
         }
         guard live == 0, clock >= EnemySub.nextCheck else { return }
@@ -50,7 +50,7 @@ extension Game {
         guard EnemySub.deep(world, Int(floor(p.x)), Int(floor(p.z))) != nil else { return }
         // P434 (e): no hunt while the player rides a ship that isn't a submarine (the frigate, an airship).
         if let on = ships.aboardOrPilot, on.root.ballast == 0 { return }
-        guard let area = BridgeHunt.free(ships, Int(floor(p.x)), Int(floor(p.z))) else { return }      // ledger 209: one to an area of sea
+        guard let area = BridgeHunt.free(ships, Int(floor(p.x)), Int(floor(p.z))) else { return }      // ledger 214: one to an area of sea
         guard Rand.float(in: 0..<1) < 0.35 else { return }
         let a0 = Rand.float(in: 0..<(2 * .pi))
         for k in 0..<8 {
@@ -89,7 +89,7 @@ extension Game {
         let to = V2(p.x - s.pos.x, p.z - s.pos.z)
         let d = simd_length(to)
         // Left far behind: she dives off and is gone.
-        // (ledger 209: riding a train over a sea bridge he stands on a coach's hull: she stays on him)
+        // (ledger 214: riding a train over a sea bridge he stands on a coach's hull: she stays on him)
         let onShip = !BridgeHunt.onBridge && (world.ships.aboardOrPilot.map { $0.root.ballast == 0 } ?? false)
         if d > 400 || !alive || (onShip && d > EnemySub.torpedoRange) {
             BridgeHunt.left(s)

@@ -32,7 +32,7 @@ extension Game {
         commandeerHintTick()
         let p = player
         var cand = ships.frameShip(for: p.pos, height: p.height, current: ships.aboard)
-        // Ledger 141 (coach to coach on a grade): two coaches' ends meet at one height only on level track; where the
+        // Ledger 215 (coach to coach on a grade; the check is ledger 141's): two coaches' ends meet at one height only on level track; where the
         // grade changes the next coach's floor is up to a block lower or higher at the coupling. He was kept in the
         // coach he left until 1.5 blocks past its end (frameShip's hold), walked out over nothing there, sank past the
         // next coach's floor and fell through the train. Off the end of one coach's floor and over another's, he is

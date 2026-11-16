@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// Ledger 209 (Remington, Nov 16 15:03 UTC: "on those long sea bridges you get hunted by subs and frigates and they are
+// Ledger 214 (Remington, Nov 16 15:03 UTC: "on those long sea bridges you get hunted by subs and frigates and they are
 // constantly blowing up the bridge as you traverse it and because of physics the bridge collapses in the water as it
 // loses supports. Also, frigates and subs, make equation of one per every x sq blocks of ocean surface and when you
 // destroy it no other respawns in that area").

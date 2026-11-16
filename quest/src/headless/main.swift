@@ -3809,7 +3809,7 @@ if CommandLine.arguments.contains("--submarine-only") {
     SubmarineTests.run(game: game, check: check)
     print(failures == 0 ? "submarine: all checks passed" : "submarine: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
-// --bridgehunt-only: sea-bridge hunters and falling trestles (Sources/BridgeHuntTests.swift, ledger 209).
+// --bridgehunt-only: sea-bridge hunters and falling trestles (Sources/BridgeHuntTests.swift, ledger 214).
 if CommandLine.arguments.contains("--bridgehunt-only") {
     BridgeHuntTests.run(game: game, check: check)
     print(failures == 0 ? "bridgehunt: all checks passed" : "bridgehunt: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
