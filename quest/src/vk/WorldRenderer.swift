@@ -341,7 +341,7 @@ final class WorldRenderer {
         // (the mob worker is joined in drawMobs: the panel, the terrain, the ring, ships and landmarks don't touch the
         // mob models' shared state, so the worker has until then)
         if !WorldRenderer.debugSkip.contains("prepass") { prePass?(s) }
-        recordCloudMap(s, u)
+        recordCloudMap(s, u, height: t.height)
         stage(7)
         scene.beginPass(s, t, clear: clear)
         let skip = WorldRenderer.debugSkip
@@ -717,13 +717,17 @@ final class WorldRenderer {
     private(set) var cloudMap: CloudMap?
     private var cloudMapFailed = false
     private var cloudRead: (VkDescriptorSet, V4)?
-    private func recordCloudMap(_ s: SceneRenderer.Slot, _ u: FrameUniforms) {
+    private func recordCloudMap(_ s: SceneRenderer.Slot, _ u: FrameUniforms, height: Int) {
         cloudRead = nil
         guard CloudMap.on, !cloudMapFailed, !SceneRenderer.overdraw, cloudsDrawn, !WorldRenderer.debugSkip.contains("sky") else { return }
         if cloudMap == nil {
             do { cloudMap = try CloudMap(scene: scene) } catch { cloudMapFailed = true; print("cloud map: not made (\(error)); the clouds are drawn as before"); return }
         }
-        cloudRead = cloudMap?.record(s, cloud: V2(u.clouds.x, u.clouds.y), eyeY: u.eye.y, flash: u.clouds.w)
+        // (the angle between the rays of two pixels one above the other at the middle of the view)
+        let inv = u.invViewProj.0
+        func ray(_ y: Float) -> V3 { let w = inv * V4(0, y, 1, 1); return simd_normalize(V3(w.x, w.y, w.z) / w.w) }
+        let pix = simd_length(simd_cross(ray(0), ray(2 / Float(max(1, height)))))
+        cloudRead = cloudMap?.record(s, cloud: V2(u.clouds.x, u.clouds.y), eyeY: u.eye.y, flash: u.clouds.w, pixAngle: pix)
     }
 
     private func drawSkyLayer(_ s: SceneRenderer.Slot, _ eye: V3) {

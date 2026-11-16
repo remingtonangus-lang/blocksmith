@@ -267,7 +267,10 @@ vec4 worldColor(vec4 c) { return finalColor(vec4(grade(filmic(c.rgb)), c.a)); }
 #ifdef BS_CLOUDS
 const float CUMULUS_Y = 340.0;   // internal world y (displayed y 276), above every peak; nothing draws from above it
 const float CIRRUS_Y = 900.0;
-vec4 cloudDecks(vec3 d) {
+// `pixAngle` (the cloud map's bake, ledger 171): the angle one pixel of the picture spans, so the bake fades each octave
+// as the picture's own pixels would (its texels are several times finer toward the horizon, and painted at their own
+// footprint the low sky came out as small hard pieces where the picture has soft streaks). 0: the fragment's own.
+vec4 cloudDecks(vec3 d, float pixAngle) {
     float hu = CUMULUS_Y - u.eye.y;
     if (d.y <= 0.004 || hu <= 0.0) { return vec4(0.0); }
     float cover = u.clouds.z;
@@ -293,7 +296,7 @@ vec4 cloudDecks(vec3 d) {
     // Footprint filtering: toward the horizon one pixel spans many cloud cells, so each octave fades to its mean (0.5)
     // once its cells shrink below ~2 pixels, the base octave included, and the rim widens by the footprint: no
     // zebra stripes or shimmer in the distant deck. Octaves are rotated against each other (no grid-aligned smears).
-    float fp = length(fwidth(p));
+    float fp = max(length(fwidth(p)), pixAngle * (t / d.y) * (1.0 / 150.0));   // (a pixel's reach along the deck: hu / sin^2)
     const mat2 rot = mat2(0.8, -0.6, 0.6, 0.8);
     vec2 p1 = rot * p * 2.13 + 3.7, p2 = rot * p1 * 2.21 + 5.1, p3 = rot * p2 * 2.1 + 1.3;
     float w0 = 1.0 - smoothstep(0.3, 0.6, fp), w1 = 1.0 - smoothstep(0.3, 0.6, fp * 2.13);
@@ -336,4 +339,5 @@ vec4 cloudDecks(vec3 d) {
     if (a < 0.003) { return vec4(0.0); }
     return vec4((cc * ac + ci * ai * (1.0 - ac)) / a, a);
 }
+vec4 cloudDecks(vec3 d) { return cloudDecks(d, 0.0); }
 #endif

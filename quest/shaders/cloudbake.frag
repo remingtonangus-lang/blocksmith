@@ -19,7 +19,7 @@ void main() {
     float th = min(1.0 - (1.0 - r) * (1.0 - r), 0.9985) * 1.5707963;
     vec2 q = az * (pc.extra.z * sin(th) / cos(th));          // the deck point, from the map's origin
     vec2 e = u.clouds.xy - pc.extra.xy;                       // the eye, from the map's origin
-    vec4 c = cloudDecks(normalize(vec3(q.x - e.x, CUMULUS_Y - u.eye.y, q.y - e.y)));
+    vec4 c = cloudDecks(normalize(vec3(q.x - e.x, CUMULUS_Y - u.eye.y, q.y - e.y)), pc.extra.w);   // (w: the picture's pixel angle)
     if (length(oNdc) >= 1.0) { c = vec4(0.0); }
     outColor = vec4(grade(filmic(c.rgb)) * c.a, c.a);
 }

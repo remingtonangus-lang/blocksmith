@@ -50,6 +50,7 @@ final class CloudMap {
     private var painting = -1                  // a map being painted whole (not yet shown), and its next strip
     private var strip = 0
     private var refresh = 0                    // the shown map's next strip
+    private var pixAngle: Float = 0            // the world pass's pixel angle this frame (cloudbake.frag)
     private var seenEpoch = 0                  // (CloudMap.epoch as last seen: a change starts the maps over)
     private(set) var stripsPainted = 0, mapsBegun = 0, framesMapped = 0, framesDirect = 0
 
@@ -167,7 +168,9 @@ final class CloudMap {
     /// strip, and answers which map the world pass reads (its set and its origin and height for clouds_map.frag), or
     /// nil for clouds.frag itself. `c` is the eye in cloud space (u.clouds.xy), `eyeY` its world height, `flash` the
     /// storm flash (u.clouds.w).
-    func record(_ s: SceneRenderer.Slot, cloud c: V2, eyeY: Float, flash: Float, now: Double = CFAbsoluteTimeGetCurrent()) -> (VkDescriptorSet, V4)? {
+    /// `pixAngle`: the angle a pixel of the world pass spans at the middle of the view (the bake fades detail to it).
+    func record(_ s: SceneRenderer.Slot, cloud c: V2, eyeY: Float, flash: Float, pixAngle: Float = 0, now: Double = CFAbsoluteTimeGetCurrent()) -> (VkDescriptorSet, V4)? {
+        self.pixAngle = pixAngle
         let hu = CloudMap.deckY - eyeY
         if seenEpoch != CloudMap.epoch { seenEpoch = CloudMap.epoch; shown = -1; painting = -1; strip = 0; refresh = 0 }
         guard hu > 0 else { framesDirect += 1; return nil }             // above the deck nothing is drawn
@@ -218,7 +221,7 @@ final class CloudMap {
         var set: VkDescriptorSet? = s.set0
         vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipeLayout, 0, 1, &set, 0, nil)
         let m = maps[i]
-        scene.pushConstants(s, model: matrix_identity_float4x4, extra: V4(m.origin.x, m.origin.y, m.height, 0))
+        scene.pushConstants(s, model: matrix_identity_float4x4, extra: V4(m.origin.x, m.origin.y, m.height, pixAngle))
         vkCmdDraw(s.cmd, 3, 1, 0, 0)
         vkCmdEndRenderPass(s.cmd)
     }
