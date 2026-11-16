@@ -4999,6 +4999,12 @@ do {
         if l.hasPrefix("PASS ride ") { n += 1; check(true, "ridecheck " + l.dropFirst(10)) }
         else if l.hasPrefix("FAIL ride ") { n += 1; check(false, "ridecheck " + l.dropFirst(10)) }
     }
+    // (A scene that failed here prints its notes too, "ride crew: crew fight: ..." and the like: the suite showed only
+    // "0 shots" once and the run that failed could not be read after.)
+    let failed = Set(lines.filter { $0.hasPrefix("FAIL ride ") }.compactMap { $0.dropFirst(10).split(separator: ":").first.map(String.init) })
+    for l in lines where l.hasPrefix("ride ") {
+        if let scene = l.dropFirst(5).split(separator: ":").first, failed.contains(String(scene)) { print("ridecheck note: " + l.dropFirst(5)) }
+    }
     let status = ran ? Int(proc.terminationStatus) : -1
     check(status == 0 && n > 0, "ridecheck: its own process ran \(n) checks in \(Int(CFAbsoluteTimeGetCurrent() - t0)) s, exit \(status)" + (lines.last.map { " (" + $0 + ")" } ?? ""))
 }
