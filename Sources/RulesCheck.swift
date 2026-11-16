@@ -42,6 +42,32 @@ enum RulesCheck {
             check(east && !west, "water heads for the drop 3 east and not west (east \(east), west \(west))")
         }
 
+        // Ledger 176: still water fills an open pocket beside it under its surface (a crater at the sea's edge); a
+        // lone spring's fall does not wet a ledge it passes.
+        do {
+            let x = site()
+            // (a stone block three high with a channel cut in it: two columns of sea, then a pocket over a ledge)
+            for dx in -1...3 { for dz in -1...1 { for dy in 0...2 { w.setBlock(x + dx, floorY + dy, cz + dz, STONE) } } }
+            for dx in 0...2 { for dy in 0...2 where !(dx == 2 && dy == 0) { w.setBlock(x + dx, floorY + dy, cz, AIR) } }
+            for dx in 0...1 {
+                w.setBlock(x + dx, floorY + 2, cz, WATER)
+                w.setBlock(x + dx, floorY + 1, cz, WATER_FALL); w.setBlock(x + dx, floorY, cz, WATER_FALL)
+            }
+            for dy in 0...2 { w.scheduleFluid(around: IVec3(x + 1, floorY + dy, cz)) }
+            for _ in 0..<40 { w.fluidTick() }
+            let low = Blocks.isLiquid(w.builtBlock(x + 2, floorY + 1, cz)), top = Blocks.isLiquid(w.builtBlock(x + 2, floorY + 2, cz))
+            let x2 = site()
+            w.setBlock(x2 + 1, floorY, cz, STONE)                       // (the ledge, its top beside the fall)
+            w.setBlock(x2, floorY + 3, cz, WATER)
+            w.scheduleFluid(around: IVec3(x2, floorY + 3, cz))
+            for _ in 0..<40 { w.fluidTick() }
+            let fell = Blocks.isLiquid(w.builtBlock(x2, floorY + 1, cz)), ledge = Blocks.isLiquid(w.builtBlock(x2 + 1, floorY + 1, cz))
+            let ok = World.oldStillWater ? (!low && !ledge) : (low && top && fell && !ledge)
+            check(ok, "ledger 176: still water fills a pocket beside it under its surface (low \(low), top \(top)); a lone spring's fall leaves the ledge it passes dry (fell \(fell), ledge wet \(ledge))")
+            for dy in 0...4 { for dx in -8...8 { for dz in -8...8 where Blocks.isLiquid(w.builtBlock(x2 + dx, floorY + dy, cz + dz)) { w.setBlock(x2 + dx, floorY + dy, cz + dz, AIR) } } }
+            w.setBlock(x2 + 1, floorY, cz, AIR)
+        }
+
         // Ice broken without Silk Touch over stone leaves water.
         do {
             let x = site()

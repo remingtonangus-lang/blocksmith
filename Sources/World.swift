@@ -2986,6 +2986,7 @@ final class World: LifeLinked {
     // from a block over it to a block under it in eighths; y - 1 when there is none that near. (`--cellflow`: the
     // harness's before for P378 step 4, the flow without the drawn slope.)
     static let drawnFlow = !CommandLine.arguments.contains("--cellflow")
+    static let oldStillWater = Env.all["BS_OLDSTILLWATER"] == "1"
     func drawnFloor(_ x: Int, _ y: Int, _ z: Int) -> Float {
         let px = Float(x) + 0.5, pz = Float(z) + 0.5
         var t = Float(y) + 1
@@ -3137,7 +3138,9 @@ final class World: LifeLinked {
                         best = min(best, n == 8 ? 0 : n)
                     }
                     let below = fluidCell(p.x, p.y - 1, p.z)
-                    if kind == 1 && sources >= 2 && (Blocks.opaque[Int(below)] || (lvT[Int(below)] == 0 && fkT[Int(below)] == kind)) { want = 0 }
+                    // (ledger 176: over a still column's falling water too, so a pool's edge levels)
+                    let onWater = fkT[Int(below)] == kind && (lvT[Int(below)] == 0 || (lvT[Int(below)] == 8 && !World.oldStillWater))
+                    if kind == 1 && sources >= 2 && (Blocks.opaque[Int(below)] || onWater) { want = 0 }
                     else if best + stepLevel > 7 { want = -1 }
                     else { want = best + stepLevel }
                 }
@@ -3160,7 +3163,43 @@ final class World: LifeLinked {
                 setFluid(IVec3(p.x, p.y - 1, p.z), fall)
                 continue
             }
-            if lvT[Int(below)] >= 0 { continue }
+            if lvT[Int(below)] >= 0 {
+                // Ledger 176 (Nov 15 21:12:57 "Uh-oh, water. This is bad", 21:13:03 "Fix fluid dynamics", a crater at
+                // the sea's edge, 7427 60 -420): the sea ran into a crater as falling columns under its surface, and a
+                // column with water under it never spread sideways, so an open pocket beside it under the water line
+                // stayed dry and the water's side stood beside it as a hanging sheet. Still water (a column with water
+                // over this cell, topped by a source that has another source beside it: a sea, a lake, a pool) fills an
+                // open cell beside it that has a floor, as still water does. A waterfall (no source body on top) is as
+                // before. BS_OLDSTILLWATER=1 = before.
+                guard kind == 1, !World.oldStillWater else { continue }
+                let under = fkT[Int(fluidCell(p.x, p.y + 1, p.z))] == kind        // (water over this cell)
+                guard under || lv == 0 else { continue }
+                var sides = 0
+                for (i, d) in World.sideDirs.enumerated() {
+                    let nb = fluidCell(p.x + d.x, p.y, p.z + d.z)
+                    guard fluidCanEnter(nb, level: 0, kind: kind) || shallowGround(p.x + d.x, p.y, p.z + d.z) else { continue }
+                    let nbBelow = fluidCell(p.x + d.x, p.y - 1, p.z + d.z)
+                    let holds = (lvT[Int(nbBelow)] >= 0 && fkT[Int(nbBelow)] == kind)
+                        || !(fluidCanEnter(nbBelow, level: 0, kind: kind) || shallowGround(p.x + d.x, p.y - 1, p.z + d.z))
+                    if holds { sides |= 1 << i }
+                }
+                guard sides != 0 else { continue }
+                var y = under ? p.y + 1 : p.y, still = false
+                while y < CH && y < p.y + 32 {
+                    let c = fluidCell(p.x, y, p.z)
+                    guard fkT[Int(c)] == kind else { break }
+                    if lvT[Int(c)] == 0 {
+                        for d in World.sideDirs where lvT[Int(fluidCell(p.x + d.x, y, p.z + d.z))] == 0 && fkT[Int(fluidCell(p.x + d.x, y, p.z + d.z))] == kind { still = true; break }
+                        break
+                    }
+                    y += 1
+                }
+                guard still else { continue }
+                for (i, d) in World.sideDirs.enumerated() where sides & (1 << i) != 0 {
+                    setFluid(IVec3(p.x + d.x, p.y, p.z + d.z), fall)
+                }
+                continue
+            }
             let next = (lv == 8 ? 0 : lv) + stepLevel
             if next > 7 { continue }
             // Reference spread: only toward the nearest drop within 4 blocks (lava 2, 4 in the Emberdeep); every side
