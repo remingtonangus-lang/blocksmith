@@ -25,7 +25,8 @@ import simd
 enum BridgeHunt {
     static let on = Env.all["BS_NOBRIDGEHUNT"] != "1"
     static let area = 512
-    static let reach = 3                         // cells along the track a standing leg carries the deck
+    static let reach = 2                         // cells along the track a pier carries the deck (a pier: a standing leg in the
+                                                 // cell's own 3 by 3, so a leg holds the deck 3 cells either way)
     static let fireEvery: Float = 5
     static var owner: ObjectIdentifier?
     static var hunter: [String: Int] = [:]       // area key -> its hunter's ship id
@@ -123,10 +124,13 @@ enum BridgeHunt {
         // (a bank, a tunnel floor, ground not loaded): 1 and 3 carry their neighbours.
         var cells = [IVec3](), state = [UInt8](repeating: 3, count: n)
         cells.reserveCapacity(n)
+        let total = t.cells.count, i0 = Int(s0.rounded())
         for k in 0..<n {
-            let c = t.cell(s0 + Float(k - back))
+            // (past a track's own end nothing is weighed: the end carries)
+            let i = i0 + k - back
+            let c = t.cyclic ? t.cells[((i % total) + total) % total] : t.cells[max(0, min(total - 1, i))]
             cells.append(c)
-            guard w.chunkAt(c.x, c.z) != nil else { continue }
+            guard t.cyclic || (i >= 0 && i < total), w.chunkAt(c.x, c.z) != nil else { continue }
             var planks = false, stands = false, any = false
             for dz in -1...1 { for dx in -1...1 {
                 if !planks, Blocks.groupBase[Int(w.block(c.x + dx, c.y - 1, c.z + dz))] == deck { planks = true }

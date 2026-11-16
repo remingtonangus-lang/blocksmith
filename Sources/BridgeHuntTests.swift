@@ -62,7 +62,7 @@ enum BridgeHuntTests {
             var n = 0
             for (i, c) in cells.enumerated() where Blocks.groupBase[Int(w.block(c.x, c.y - 1, c.z))] == Blocks.groupBase[Int(deck)] {
                 var held = false
-                for j in max(0, i - BridgeHunt.reach)...min(cells.count - 1, i + BridgeHunt.reach) {
+                for j in max(0, i - BridgeHunt.reach - 1)...min(cells.count - 1, i + BridgeHunt.reach + 1) {
                     for dz in -1...1 where BridgeHunt.legState(w, cells[j].x, ry - 2, fz + dz, Blocks.groupBase[Int(leg)]) == 1 { held = true }
                 }
                 if !held { n += 1 }
