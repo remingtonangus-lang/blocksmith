@@ -14,6 +14,10 @@ enum CrewLookout {
     static var ready: Bool { CFAbsoluteTimeGetCurrent() >= nextSearch }
     private static let reach = 22               // how far along the deck a spot is looked for (blocks, each way)
     static let oldRanges = Env.all["BS_OLDLOOKOUT"] == "1"
+    // Ledger 208 (ridecheck crew, 0 shots in about 1 run in 3): the spots were tried nearest the man first, so the 400
+    // rays went on the deck round him, mid-hull, and none reached the side facing the foe 20 blocks over: of 22 crew
+    // 0 to 2 ever saw him. Now nearest the foe first. BS_OLDLOOKOUTORDER=1: as before.
+    static let oldOrder = Env.all["BS_OLDLOOKOUTORDER"] == "1"
 
     // The code reader's Nov 10 batch, 1 (questcheck --lookout, and the full suite): a crewman standing on a hull's top
     // layer, one on a torn-off piece two blocks high, and one 30 blocks off the grid each search and come back.
@@ -58,7 +62,7 @@ enum CrewLookout {
         let collide = Blocks.collide
         @inline(__always) func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { collide[Int(gr.get(x, y, z))] }
         // Standable cells on its own deck (a step up or down), nearest first.
-        var cands: [(Int, IVec3)] = []
+        var cands: [(Float, IVec3)] = []
         // (thru: on a hull's top layer (fy >= sy - 1), on a piece 2 or fewer high (a torn-off part) or more than `reach`
         // off the grid, these ranges came out backwards: lo...hi with hi < lo ran on forever on the headset, a freeze.
         // BS_OLDLOOKOUT=1: the old height range, for the check's before.)
@@ -68,7 +72,11 @@ enum CrewLookout {
                 for x in thru(max(0, fx - reach), min(gr.sx - 1, fx + reach)) {
                     guard solid(x, y - 1, z), !solid(x, y, z), !solid(x, y + 1, z) else { continue }
                     let dx = x - fx, dz = z - fz, dy = y - fy
-                    cands.append((dx * dx + dz * dz + dy * dy * 4, IVec3(x, y, z)))
+                    if oldOrder { cands.append((Float(dx * dx + dz * dz + dy * dy * 4), IVec3(x, y, z))); continue }
+                    // Ledger 208: nearest the foe first (the side of the hull that faces him), then nearest the man.
+                    let fd = simd_length(V2(Float(x) + 0.5 - fl.x, Float(z) + 0.5 - fl.z))
+                    let md = sqrtf(Float(dx * dx + dz * dz + dy * dy * 4))
+                    cands.append((fd + 0.5 * md, IVec3(x, y, z)))
                 }
             }
         }
