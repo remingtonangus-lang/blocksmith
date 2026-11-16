@@ -14,7 +14,8 @@ void main() {
     if (d.y <= 0.004 || hu <= 0.0) { discard; }
     vec2 q = (u.clouds.xy - pc.extra.xy) + d.xz * (hu / d.y);
     float ql = length(q);
-    vec2 m = q * (atan(ql, pc.extra.z) / (1.5707963 * max(ql, 1e-5)));
+    float t = atan(ql, pc.extra.z) / 1.5707963;                  // zenith angle of the deck point from the map's origin, 0...1
+    vec2 m = q * ((1.0 - sqrt(max(1.0 - t, 0.0))) / max(ql, 1e-5));
     vec4 c = textureLod(cloudMap, m * 0.5 + 0.5, 0.0);
     if (c.a < 0.003) { discard; }
     float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));

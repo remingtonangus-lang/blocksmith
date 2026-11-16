@@ -17,9 +17,16 @@ import CVulkan
 /// BS_CLOUDMAP=0: never (the old path). BS_CLOUDMAPSIZE (2048), BS_CLOUDMAPSTRIPS (16; 1 = whole map every frame, for
 /// the harness's one-frame pictures).
 final class CloudMap {
-    static let on = Env.all["BS_CLOUDMAP"] != "0"
+    static var on = Env.all["BS_CLOUDMAP"] != "0"
     static let size = max(256, Int(Env.all["BS_CLOUDMAPSIZE"] ?? "") ?? 2048)
-    static let strips = max(1, Int(Env.all["BS_CLOUDMAPSTRIPS"] ?? "") ?? 16)
+    static var strips = max(1, Int(Env.all["BS_CLOUDMAPSTRIPS"] ?? "") ?? 16)
+    static var framesMappedAll = 0         // (checks: frames any map was read, all renderers)
+    // (checks: a map begun this far from the eye, so a picture reads it from off its origin as play does after a walk;
+    // BS_CLOUDMAPOFF=dx,dz for the harness's views)
+    static var testOffset: V2 = {
+        let v = (Env.all["BS_CLOUDMAPOFF"] ?? "").split(separator: ",").compactMap { Float($0) }
+        return v.count == 2 ? V2(v[0], v[1]) : V2(0, 0)
+    }()
     static let deckY: Float = 340          // clouds.frag CUMULUS_Y
 
     private struct Map {
@@ -148,7 +155,7 @@ final class CloudMap {
     }
 
     private func begin(_ i: Int, _ c: V2, _ hu: Float) {
-        maps[i] = Map(origin: c, height: hu, whole: false, painted: 0)
+        maps[i] = Map(origin: c + CloudMap.testOffset, height: hu, whole: false, painted: 0)
         painting = i; strip = 0; mapsBegun += 1
     }
 
@@ -165,11 +172,12 @@ final class CloudMap {
         if painting >= 0 && !(simd_length(c - maps[painting].origin) <= 0.6 * maps[painting].height) { painting = -1 }   // (a teleport mid-way)
         if painting < 0 {
             if shown < 0 { begin(0, c, hu) }
-            else if !reads(maps[shown], c, hu, within: 0.25, lo: 0.87, hi: 1.15) { begin(1 - shown, c, hu) }   // drifted: round the new origin
+            else if !reads(maps[shown], c + CloudMap.testOffset, hu, within: 0.25, lo: 0.87, hi: 1.15) { begin(1 - shown, c, hu) }   // drifted: round the new origin
         }
         if painting >= 0 {
             paint(s, painting, strip)
             strip += 1
+            if shown >= 0 { maps[shown].painted = now }       // (still shown meanwhile: stale only when no frame draws clouds)
             if strip >= CloudMap.strips {
                 maps[painting].whole = true; maps[painting].painted = now
                 shown = painting; painting = -1; refresh = 0
@@ -181,6 +189,7 @@ final class CloudMap {
         }
         guard shown >= 0 else { framesDirect += 1; return nil }
         framesMapped += 1
+        CloudMap.framesMappedAll += 1
         let m = maps[shown]
         return (sets[shown], V4(m.origin.x, m.origin.y, m.height, 0))
     }

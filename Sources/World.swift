@@ -1540,6 +1540,13 @@ final class World: LifeLinked {
     static var vehicleEdits = false
     static var frameNow: Double = 0                 // (P511: this frame's clock, World.update)
     static var ramEdits = false                     // (P511: what its bow rams that stands up in the way: at once)
+    // Ledger 172 (Nov 15 evening, at the crawler's helm: "Explosion's still taking too long to register... Two seconds"):
+    // a shell that burst inside the crawler's own wear zone (its hull and two chunks round it, 60 blocks past the bow)
+    // changed sections there like any rut, so its crater waited out the wear gap (3 s after the chunk's last mesh)
+    // behind the queue. A blast's edits and its bowl's are edits wherever they land. BS_OLDBLASTWEAR=1: wear, as before.
+    static var blastEdits = false
+    static let oldBlastWear = Env.all["BS_OLDBLASTWEAR"] == "1"
+    static var blastUrgent = 0                      // (checks: sections a blast sent ahead inside a wear zone)
     static let ramGap: Double = Double(Env.all["BS_RAMGAP"] ?? "") ?? 1.0
     // P511 (build 82 at his spot: still 232 edit jobs in 16 s at one and two chunks off, 22.7 s of meshing): the edits
     // settling after a pass (light, loose ground, the field's carve) reached chunks the footprint stamp missed and made

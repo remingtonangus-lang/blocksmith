@@ -1176,7 +1176,6 @@ extension ShipManager {
             let name = cap ? "Meridian Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
             var ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
-            DetachLooseTiming.prepare(s.grid.sx * s.grid.sy * s.grid.sz)      // (ledger 169: here, on the builder's thread)
             // (batch 3.4) a taken one comes back as he left her: her hull's cells and her chests from the save, and her
             // turrets as they were (matched by their mounts; one shot away stays away).
             let asBuilt = s.blockCount
@@ -3734,43 +3733,13 @@ extension ShipManager {
 enum DetachLooseTiming {
     static let oldSearch = Env.all["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
     static let oldTable = Env.all["BS_DETACHTABLE"] == "1"     // (--hullblast: the table cleared on the frame)
+    static let oldReads = Env.all["BS_DETACHREADS"] == "1"     // (--hullblast, ledger 169: cells read through the array)
     // detachLoose's cell table (the main thread's blasts only), grown to the largest hull blasted; `base` moves past
     // each blast's searches, so the table is never cleared (but when it would run past the top).
     private static var buf: UnsafeMutablePointer<UInt32>? = nil
     private static var cap = 0
     static var base: UInt32 = 1
-    // Ledger 169: a table made ahead, off the frame, when a capital hull is built (its pages written, so the first
-    // blast's search faults none in: that was 3.6 ms of the frigate's first hit on the bench with calloc alone).
-    // BS_DETACHAHEAD=0: made at the first blast.
-    static let ahead = Env.all["BS_DETACHAHEAD"] != "0"
-    private static let lock = NSLock()
-    private static var ready: (UnsafeMutablePointer<UInt32>, Int)? = nil
-    private static var readyAsked = 0
-    static func prepare(_ n: Int) {
-        guard ahead, !oldTable, n > 1 << 16 else { return }
-        lock.lock()
-        let have = max(readyAsked, ready?.1 ?? 0)
-        if n > have { readyAsked = n }
-        lock.unlock()
-        guard n > have else { return }
-        let p = calloc(n, MemoryLayout<UInt32>.stride)!.bindMemory(to: UInt32.self, capacity: n)
-        memset(p, 0, n * MemoryLayout<UInt32>.stride)
-        lock.lock()
-        if let r = ready { if r.1 >= n { lock.unlock(); free(p); return }; free(r.0) }
-        ready = (p, n)
-        lock.unlock()
-    }
     static func table(_ n: Int) -> UnsafeMutablePointer<UInt32> {
-        if n > cap || buf == nil, !oldTable {
-            lock.lock()
-            let r = ready
-            if let r, r.1 >= n { ready = nil }
-            lock.unlock()
-            if let r, r.1 >= n {
-                free(buf)
-                buf = r.0; cap = r.1; base = 1
-            }
-        }
         if n > cap || buf == nil {
             // (Nov 15, --hullblast: the first blast on a frigate, 5 million cells, took 9 ms here clearing 20 MB on the
             // frame; calloc hands back zero pages untouched, and only the pages a search walks are ever faulted in)
@@ -3840,38 +3809,48 @@ extension ShipManager {
             // the next profile: as a dictionary it was still 4.6 million instructions a blast on the crawler in game,
             // the first search's 4,000 cells hashed six times each; now a flat buffer over the grid, reused from blast
             // to blast: a cell holds base + its search, anything under base is unseen.)
+            // Ledger 169 (Nov 16, --hullblast: 6.6 ms a search on the frigate's hull for a million instructions of
+            // work): every cell read went through the grid's array, a count up and a count down on the array's
+            // storage each time, while the hull's mesh jobs, sent off the line before, held and read the same array
+            // on the workers: the count's cache line went back and forth between the cores 24,000 times a search.
+            // The cells are read through one pointer taken for the whole search. BS_DETACHREADS=1: through the array.
             let cells = g.sx * g.sy * g.sz
             let owner = DetachLooseTiming.table(cells)
             let base = DetachLooseTiming.base
             var k: UInt32 = 0
             defer { DetachLooseTiming.base = base + k + 1 }
-            for st in starts {
-                let si = g.index(st.x, st.y, st.z)
-                if owner[si] >= base { continue }
-                k += 1
-                owner[si] = base + k
-                var comp: [IVec3] = [st]
-                var head = 0
-                var open = true
-                search: while head < comp.count {
-                    let c = comp[head]; head += 1
-                    for d in dirs {
-                        let n = c + d
-                        guard g.inside(n.x, n.y, n.z) else { continue }
-                        let ni = g.index(n.x, n.y, n.z)
-                        let o = owner[ni]
-                        if o >= base {
-                            if o == base + k { continue }
-                            open = false; break search             // an earlier search's cell: joined to the hull
+            let sx = g.sx, sy = g.sy, sz = g.sz
+            func run(_ at: (Int) -> BlockID) {
+                for st in starts {
+                    let si = st.x + st.z * sx + st.y * sx * sz
+                    if owner[si] >= base { continue }
+                    k += 1
+                    owner[si] = base + k
+                    var comp: [IVec3] = [st]
+                    comp.reserveCapacity(min(limit + 8, 4096))
+                    var head = 0
+                    var open = true
+                    search: while head < comp.count {
+                        let c = comp[head]; head += 1
+                        for d in dirs {
+                            let n = c + d
+                            guard n.x >= 0 && n.y >= 0 && n.z >= 0 && n.x < sx && n.y < sy && n.z < sz else { continue }
+                            let ni = n.x + n.z * sx + n.y * sx * sz
+                            let o = owner[ni]
+                            if o >= base {
+                                if o == base + k { continue }
+                                open = false; break search             // an earlier search's cell: joined to the hull
+                            }
+                            if at(ni) == AIR { continue }
+                            owner[ni] = base + k
+                            comp.append(n)
                         }
-                        if g.get(n.x, n.y, n.z) == AIR { continue }
-                        owner[ni] = base + k
-                        comp.append(n)
+                        if comp.count > limit { open = false; break }
                     }
-                    if comp.count > limit { open = false; break }
+                    if open { pieces.append(comp) }
                 }
-                if open { pieces.append(comp) }
             }
+            if DetachLooseTiming.oldReads { run { g.blocks[$0] } } else { g.blocks.withUnsafeBufferPointer { bp in run { bp[$0] } } }
         }
         Explosion.lap("ships: detach search")
         guard !pieces.isEmpty else { return }

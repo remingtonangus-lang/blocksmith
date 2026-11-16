@@ -2769,6 +2769,15 @@ if let a = arg("--railprobe") {
         print("railprobe: \(l.name): \(l.stations.count) stations \(l.stations.map { "\($0.name) \($0.x) \($0.z)" }), x \(l.minX)...\(l.maxX), z \(l.minZ)...\(l.maxZ)"
               + (l.diagonal ? ", diagonal (longest leg \(best) turn cells, middle \(mid.x) \(mid.y) \(mid.z))" : ""))
     } }
+    // (Nov 16: the links in the box too, each with where it starts and ends and the line it runs on to, so a line's
+    // two ends can be read for "does it run on" without a render)
+    let t1 = CFAbsoluteTimeGetCurrent()
+    for l in Railways.linksNear(gen, x0: cx - r, z0: cz - r, x1: cx + r, z1: cz + r) {
+        guard let a = l.cells.first, let b = l.cells.last else { continue }
+        let to = Railways.linkTarget(gen, l).map { $0.name } ?? "nothing"
+        print("railprobe: link \(l.name)\(l.runOn ? " (run-on)" : ""): \(l.cells.count) cells from \(a.x) \(a.y) \(a.z) to \(b.x) \(b.y) \(b.z), on to \(to)")
+    }
+    print(String(format: "railprobe: links took %.1f s", CFAbsoluteTimeGetCurrent() - t1))
     print(String(format: "railprobe: %d of %d stretches have a line (%.1f s); no line: ", found, tried, CFAbsoluteTimeGetCurrent() - t0)
           + why.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
     exit(0)
@@ -3837,6 +3846,7 @@ if CommandLine.arguments.contains("--lastwar-only") {
 }
 // The Sparkstone Workshop's circuit benches (Sources/CircuitWorkshopTests.swift); --workshop-only stops after them.
 CircuitWorkshopTests.run(game, check: check)
+BlastWearCheck.run(game, check)                // ledger 172: a blast in a vehicle's wear zone is an edit
 // P505: the hundred copper circuits players build (Sources/CircuitZoo.swift).
 CircuitZoo.run(game, check)
 // L3 perf overlay (Sources/PerfOverlayTests.swift): its window, lines, option and HUD drawing on the Quest's HUD host.

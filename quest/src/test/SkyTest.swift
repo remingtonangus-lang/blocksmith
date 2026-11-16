@@ -152,5 +152,47 @@ enum SkyTest {
               String(format: "sky: desert air is hazier and warmer with fewer clouds (horizon r/b %.2f vs %.2f plains, cover %.2f vs %.2f)", rb(desH), rb(plainH), desC, plainC))
         check(rb(snowH) < rb(plainH) - 0.03 && rb(snowZ) <= rb(plainZ),
               String(format: "sky: snow air is a colder blue (horizon r/b %.2f vs %.2f plains)", rb(snowH), rb(plainH)))
+
+        // The cloud map (CloudMap, ledger 171): the decks read from the map against the shader itself, straight up and
+        // toward the horizon, at noon and at sunset; and a map painted over two frames against one painted in one.
+        let strips0 = CloudMap.strips, on0 = CloudMap.on
+        defer { CloudMap.strips = strips0; CloudMap.on = on0 }
+        game.weather = Weather(); game.weather.rain = 0; game.weather.thunder = 0
+        func decks(_ name: String, time: Double, pitch: Float, mapped: Bool, strips: Int = 1) throws -> [UInt8] {
+            game.time = time * DAY_LENGTH
+            game.sky.flashAge = 9
+            CloudMap.on = mapped; CloudMap.strips = strips
+            try RenderTest.render(game: game, ctx: ctx, path: "\(dir)/cloudmap_\(name).png", width: w, height: h, yaw: 0.6, pitch: pitch)
+            return RenderTest.lastRGBA
+        }
+        // (the last: the map begun 60 blocks from the eye, read from off its origin as after a walk under the deck)
+        let off0 = CloudMap.testOffset
+        defer { CloudMap.testOffset = off0 }
+        let views: [(String, Double, Float, V2)] = [("noon_up", 0.25, 0.9, V2(0, 0)), ("noon_low", 0.25, 0.12, V2(0, 0)),
+                                                    ("sunset_low", 0.49, 0.15, V2(0, 0)), ("noon_low_walked", 0.25, 0.3, V2(50, -35))]
+        for (name, time, pitch, walked) in views {
+            CloudMap.testOffset = walked
+            let a = try decks(name + "_shader", time: time, pitch: pitch, mapped: false)
+            CloudMap.framesMappedAll = 0
+            let b = try decks(name + "_map", time: time, pitch: pitch, mapped: true)
+            let used = CloudMap.framesMappedAll
+            let c = try decks(name + "_map2", time: time, pitch: pitch, mapped: true, strips: 2)
+            var off = 0, sum = 0, off2 = 0, cloudy = 0
+            let n = w * 2 * h
+            for k in 0..<n {
+                let i = k * 4
+                let d = abs(Int(a[i]) - Int(b[i])) + abs(Int(a[i + 1]) - Int(b[i + 1])) + abs(Int(a[i + 2]) - Int(b[i + 2]))
+                let d2 = abs(Int(b[i]) - Int(c[i])) + abs(Int(b[i + 1]) - Int(c[i + 1])) + abs(Int(b[i + 2]) - Int(c[i + 2]))
+                sum += d
+                if d > 30 { off += 1 }
+                if d2 > 12 { off2 += 1 }
+                if Int(b[i]) + Int(b[i + 1]) > 400 { cloudy += 1 }
+            }
+            let mean = Double(sum) / Double(n) / 3
+            check(used >= 3 && off * 100 < n && mean < 1.0,
+                  String(format: "cloud map: %@ reads as the cloud shader draws it (%d of %d pixels more than 10 levels a channel off, mean %.2f levels; %d frames from the map; %d bright pixels)",
+                         name, off, n, mean, used, cloudy))
+            check(off2 * 200 < n, "cloud map: \(name) painted over two frames reads as one painted in one (\(off2) of \(n) pixels differ)")
+        }
     }
 }
