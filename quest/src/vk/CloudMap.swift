@@ -19,7 +19,10 @@ import CVulkan
 final class CloudMap {
     static var on = Env.all["BS_CLOUDMAP"] != "0"
     static let size = max(256, Int(Env.all["BS_CLOUDMAPSIZE"] ?? "") ?? 2048)
-    static var strips = max(1, Int(Env.all["BS_CLOUDMAPSTRIPS"] ?? "") ?? 16)
+    // (a change of the strip count starts every map over: a map part painted in strips of one size and finished or
+    // refreshed in another would be read with rows never painted. Only the checks change it.)
+    static var strips = max(1, Int(Env.all["BS_CLOUDMAPSTRIPS"] ?? "") ?? 16) { didSet { if strips != oldValue { epoch += 1 } } }
+    static var epoch = 0
     static var framesMappedAll = 0         // (checks: frames any map was read, all renderers)
     // (checks: a map begun this far from the eye, so a picture reads it from off its origin as play does after a walk;
     // BS_CLOUDMAPOFF=dx,dz for the harness's views)
@@ -47,6 +50,7 @@ final class CloudMap {
     private var painting = -1                  // a map being painted whole (not yet shown), and its next strip
     private var strip = 0
     private var refresh = 0                    // the shown map's next strip
+    private var seenEpoch = 0                  // (CloudMap.epoch as last seen: a change starts the maps over)
     private(set) var stripsPainted = 0, mapsBegun = 0, framesMapped = 0, framesDirect = 0
 
     init(scene: SceneRenderer) throws {
@@ -165,6 +169,7 @@ final class CloudMap {
     /// storm flash (u.clouds.w).
     func record(_ s: SceneRenderer.Slot, cloud c: V2, eyeY: Float, flash: Float, now: Double = CFAbsoluteTimeGetCurrent()) -> (VkDescriptorSet, V4)? {
         let hu = CloudMap.deckY - eyeY
+        if seenEpoch != CloudMap.epoch { seenEpoch = CloudMap.epoch; shown = -1; painting = -1; strip = 0; refresh = 0 }
         guard hu > 0 else { framesDirect += 1; return nil }             // above the deck nothing is drawn
         // A flash lights the clouds from inside for a few frames: the shader itself, and a map being painted starts over.
         if flash > 0.001 { painting = -1; framesDirect += 1; return nil }

@@ -22,13 +22,22 @@ enum BlastWearCheck {
         _ = w.setBlockAsync(x, y, z, AIR)
         let rutWorn = c.vehicleWorn && !c.urgent
         _ = w.setBlockAsync(x, y, z, b0)
-        // A blast at the same spot.
+        // A blast over the same spot, on a plate of planks set in the air there. (In the whole suite the site, wherever
+        // the checks before left the player, was ground a blast breaks nothing of, water or hard rock: no block
+        // changed, so nothing was sent anywhere and the check failed on a blast that had nothing to do.)
+        let py = min(CH - 8, y + 6)
+        var plate: [IVec3] = []
+        for dx in -1...1 { for dz in -1...1 where w.chunkAt(x + dx, z + dz) === c { plate.append(IVec3(x + dx, py, z + dz)) } }
+        for q in plate { _ = w.setBlockAsync(q.x, q.y, q.z, PLANKS) }
         c.urgent = false; c.vehicleWorn = true
         let n0 = World.blastUrgent
-        Explosion.explode(at: V3(Float(x) + 0.5, Float(y) + 1, Float(z) + 0.5), power: 4, game: g, breakBlocks: true)
+        Explosion.explode(at: V3(Float(x) + 0.5, Float(py) + 1.6, Float(z) + 0.5), power: 4, game: g, breakBlocks: true)
         let sent = World.blastUrgent - n0
+        let urgent = c.urgent
+        let broke = plate.filter { w.block($0.x, $0.y, $0.z) == AIR }.count
+        for q in plate { _ = w.setBlockAsync(q.x, q.y, q.z, AIR) }
         let want = !World.oldBlastWear
-        check(rutWorn && c.urgent == want && (sent > 0) == want,
-              "blast wear: in a vehicle's wear zone a rut waits (\(rutWorn)) and a blast's crater goes ahead of the queue (urgent \(c.urgent), \(sent) sections sent ahead)")
+        check(rutWorn && broke > 0 && urgent == want && (sent > 0) == want,
+              "blast wear: in a vehicle's wear zone a rut waits (\(rutWorn)) and a blast's crater goes ahead of the queue (it broke \(broke) of \(plate.count) planks; urgent \(urgent), \(sent) sections sent ahead)")
     }
 }
