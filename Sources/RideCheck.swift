@@ -890,7 +890,7 @@ enum RideCheck {
         var mags: [ObjectIdentifier: Int] = [:]
         var foes: [Mob] = []
         var foeNote = ""
-        var foeGone: [String] = []
+        var foeGone: [String] = [], foeSpots: [V3] = [], replaced = 0
         let limit = frigate ? 120 * 60 : 60 * 60
         for i in 0..<limit {
             sc.agent.step(idle)
@@ -907,26 +907,29 @@ enum RideCheck {
                 for k in 0..<2 {
                     let at = s.pos + side * Float(-34 - k * 3) + V3(0, 0, Float(k) * 3)
                     let ix = Int(floor(at.x)), iz = Int(floor(at.z))
-                    let m = Mob(.soldierRecruit, at: V3(at.x, Float(w.topY(ix, iz) + 1), at.z))
+                    foeSpots.append(V3(at.x, Float(w.topY(ix, iz) + 1), at.z))
+                    let m = Mob(.soldierRecruit, at: foeSpots[k])
                     m.persistent = true
                     g.mobs.mobs.append(m)
                     foes.append(m)
                 }
-                TroopVanish.reset(); TroopVanish.on = true
             }
-            // (when a foe leaves the world, what it was then: the troop vanish rule, its health after the tick, where)
-            for (k, f) in foes.enumerated() where k >= foeGone.count || foeGone[k].isEmpty {
-                while foeGone.count <= k { foeGone.append("") }
-                if !g.mobs.mobs.contains(where: { $0 === f }) {
-                    let gone = (Float(i) / 60 - stopT * 1).rounded(), hp = f.health, dh = simd_length(f.pos - s.pos).rounded(), db = simd_length(f.pos - g.player.pos).rounded()
-                    foeGone[k] = "foe \(k) gone \(gone) s after it came, health \(hp), \(dh) blocks from the hull's middle, \(db) from the bot, aggro \(f.aggro), routed \(f.routed), fled \(f.fledClear); troop vanish: " + TroopVanish.line
+            // Ledger 183: the hull's own guns kill a soldier outright with a shell to the body (P345, damage = his health
+            // + 1000): the first foe was gone 2 s after it came, the second at 13 s, before any crewman fired, and the
+            // check held 50 health in bodies no longer in the world (0 shots, "the search from him finds nothing"). A foe
+            // the guns take is replaced at its spot by the next man, as a squad coming on would be, so the crew's rifles
+            // have someone to fire at; rifles alone don't drop them (held at 10,000).
+            for (k, f) in foes.enumerated() where !g.mobs.mobs.contains(where: { $0 === f }) && k < foeSpots.count {
+                if foeGone.count < 2 {
+                    foeGone.append("foe gone \((Float(i) / 60 - stopT).rounded()) s after the wreck stopped, health \(f.health) (the hull's guns), replaced")
                 }
+                replaced += 1
+                let m = Mob(.soldierRecruit, at: foeSpots[k])
+                m.persistent = true
+                g.mobs.mobs.append(m)
+                foes[k] = m
             }
             if !foes.isEmpty {
-                // (they must outlast the hull's own guns for the crew's rifles to be tested, as in the troop scene)
-                // (Ledger 183: at 50 a hit of the hull's own guns took them under 0 inside a tick; the death sweep took
-                // them out of the world, the line above put 50 back into bodies nobody could see, and the crew had no foe
-                // at all: 0 shots, "the search from him finds nothing". They are held at 10,000 and checked present.)
                 for m in foes { m.health = max(m.health, 10_000) }
                 if foeNote.isEmpty && Float(i) / 60 > stopT + 20 {
                     let crew = st.crewMobs.values.filter { $0.health > 0 }
@@ -969,8 +972,8 @@ enum RideCheck {
             r.check(worstDecel < 4, String(format: "no sudden stop (worst deceleration %.2f b/s2)", worstDecel))
             r.check(shots > 0, "the crew fight enemy soldiers from aboard (\(shots) shots)")
             r.note("crew fight: " + foeNote)
-            for l in foeGone where !l.isEmpty { r.note("crew fight: " + l) }
-            TroopVanish.on = false
+            for l in foeGone { r.note("crew fight: " + l) }
+            r.note("crew fight: \(replaced) foes taken by the hull's guns and replaced")
         }
         r.check(off == 0, "the crew stay aboard the disabled vehicle (\(off) crew-ticks off; \(sentOut) troop-ticks of the squad sent out down the ramp, not counted)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(aliveAtRest == spawned, "the crew survive it (\(aliveAtRest) of \(spawned) alive when it came to rest, \(alive) at the end)")
