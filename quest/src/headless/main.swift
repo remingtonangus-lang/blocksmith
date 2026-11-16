@@ -3098,6 +3098,10 @@ if CommandLine.arguments.contains("--garagedoor") {            // FAILURES.md 1:
     GarageDoorCheck.run(game, check)
     print(failures == 0 ? "garagedoor: all checks passed" : "garagedoor: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--capitallift") {           // FAILURES.md 2 on a citadel's own lift, five rides up and down
+    CapitalElevatorCheck.run(game, check)
+    print(failures == 0 ? "capitallift: all checks passed" : "capitallift: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--elevator") {              // FAILURES.md 2: a lift car riding its shaft
     ElevatorCheck.run(game, check)
     print(failures == 0 ? "elevator: all checks passed" : "elevator: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -3790,6 +3794,7 @@ if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
 CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft
+leaves("capitallift") { CapitalElevatorCheck.run(game, check) }   // (and a citadel's own, up and down five times with him in it)
 RoutCheck.run(game, check)                             // P511: four in five of a garrison down, the rest run
 CrewLookout.check(game, check)                         // the code reader's Nov 10 batch, 1: no endless deck range
 BrushCheck.run(game, check)                            // P511: through bushes and limbs at his full pace
@@ -4896,6 +4901,43 @@ HorseTests.run(game: game, check: check)
 // The pose oracle (Sources/PoseCheck.swift; the Mac fast lane runs it too): limbs, soldiers' hands, heads and weapons in
 // every stance.
 check(PoseCheck.run(game: game), "posecheck: \(PoseCheck.failures.count) failed \(PoseCheck.failures.prefix(6).joined(separator: ", "))")
+
+// P455 and ledger 163 (Fable, Nov 15: it passes now): a heavy hull drives through trees and a timber wall, a felled
+// tree across its way is smashed, a light car is stopped (quest/src/test/QuestShoveCheck.swift), on its own world.
+do {
+    let smooth0 = SmoothTerrain.enabled, field0 = SmoothTerrain.fromField
+    leaves("shovecheck") { _ = QuestShoveCheck.run(into: check) }
+    SmoothTerrain.set(smooth0, world: nil); SmoothTerrain.fromField = field0
+}
+
+// Fable's Nov 15 set: the bots riding the capital vehicles (Sources/RideCheck.swift; ledger 181-183), once it passed
+// twice in a row on its own. It runs as its own process (this program with --ridecheck): run in this one, after the
+// suite's headset settings and a thousand checks' leftovers, its ships stepped differently (world velocity jumps of 7-11
+// b/s in a tick on every ride scene, a frigate dropping at 10.8) where it passes alone; its numbers are for the game as
+// it starts.
+do {
+    let t0 = CFAbsoluteTimeGetCurrent()
+    let proc = Process()
+    proc.executableURL = URL(fileURLWithPath: "/proc/self/exe")
+    proc.arguments = ["--ridecheck", "--out", tmp.path]
+    let pipe = Pipe()
+    proc.standardOutput = pipe; proc.standardError = pipe
+    var lines: [String] = [], ran = false
+    do {
+        try proc.run()
+        ran = true
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        lines = String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
+    } catch { lines = [] }
+    var n = 0
+    for l in lines {
+        if l.hasPrefix("PASS ride ") { n += 1; check(true, "ridecheck " + l.dropFirst(10)) }
+        else if l.hasPrefix("FAIL ride ") { n += 1; check(false, "ridecheck " + l.dropFirst(10)) }
+    }
+    let status = ran ? Int(proc.terminationStatus) : -1
+    check(status == 0 && n > 0, "ridecheck: its own process ran \(n) checks in \(Int(CFAbsoluteTimeGetCurrent() - t0)) s, exit \(status)" + (lines.last.map { " (" + $0 + ")" } ?? ""))
+}
 
 // The VR monkey input (--questsim), last: what it leaves behind meets no check after it.
 if let f = fuzzLast { f() }

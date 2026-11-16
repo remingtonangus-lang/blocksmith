@@ -144,7 +144,15 @@ extension HorseTests {
                                let a = h.pos + f * 0.9
                                let col = (0...3).map { Blocks.key(g.world.block(Int(floor(a.x)), Int(floor(h.pos.y)) + $0, Int(floor(a.z)))) }
                                let under = Blocks.key(g.world.block(Int(floor(a.x)), Int(floor(h.pos.y)) - 1, Int(floor(a.z))))
-                               return String(format: ", yaw %.2f, ahead ", h.yaw) + col.joined(separator: "/") + " over " + under
+                               // (Nov 15, the sound PR's third full run: both stood still at a gallop with clear ground under
+                               // the next step; what its sure footing saw further on, a drop or fire or lava, holds it)
+                               var hz = "none within 12"
+                               if let d = h.hazardAhead(g.world, maxDist: 12) {
+                                   let q = h.pos + f * d
+                                   let ys = (-3...1).map { Blocks.key(g.world.block(Int(floor(q.x)), Int(floor(h.pos.y)) + $0, Int(floor(q.z)))) }
+                                   hz = String(format: "%.1f ahead at %.0f %.0f (y-3..y+1: ", d, q.x, q.z) + ys.joined(separator: "/") + ")"
+                               }
+                               return String(format: ", yaw %.2f, ahead ", h.yaw) + col.joined(separator: "/") + " over " + under + "; footing's hazard " + hz
                            }())
                 let z0 = h.pos.z
                 var n = 0
