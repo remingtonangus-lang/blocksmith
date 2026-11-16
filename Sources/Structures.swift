@@ -29,6 +29,8 @@ struct StructWriter {
     // blocks instead of joining the ground's field (FieldTerrain.split). The foundations, banks and roads that shape the
     // ground (fillUnder, berm, packed earth) are ground and are not marked.
     var mark: UnsafeMutablePointer<UInt8>? = nil
+    // Ledger 207: a ghost town's ruin (GhostVillage.ruin): what each cell a town piece writes becomes (nil: as written).
+    var ruin: ((Int, Int, Int, BlockID) -> BlockID)? = nil
     @inline(__always) func note(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
         if Blocks.collide[Int(b)] && !low.off { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
     }
@@ -39,7 +41,8 @@ struct StructWriter {
     func get(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
         inside(x, y, z) ? blocks[Chunk.index(x - bx, y, z - bz)] : AIR
     }
-    func set(_ x: Int, _ y: Int, _ z: Int, _ b0: BlockID) {
+    func set(_ x: Int, _ y: Int, _ z: Int, _ b1: BlockID) {
+        let b0 = ruin.map { $0(x, y, z, b1) } ?? b1
         // PG5 ("roads on smooth ground blend into each other and into the terrain"): in a Polygons world the generators'
         // paths are laid as packed earth, natural ground the smooth surface runs straight through, instead of the
         // path block, a built shape the smooth ground had to stop at.
@@ -81,6 +84,7 @@ struct StructWriter {
         let za = max(z0, bz), zb = min(z1, bz + CS - 1)
         let ya = max(0, y0), yb = min(CH - 1, y1)
         guard xa <= xb, za <= zb, ya <= yb else { return }
+        if ruin != nil { for y in ya...yb { for z in za...zb { for x in xa...xb { set(x, y, z, b) } } }; return }
         for y in ya...yb { for z in za...zb { for x in xa...xb { blocks[Chunk.index(x - bx, y, z - bz)] = b } } }
         if let m = mark { for y in ya...yb { for z in za...zb { for x in xa...xb { m[Chunk.index(x - bx, y, z - bz)] = 1 } } } }
         for z in za...zb { for x in xa...xb { note(x, ya, z, b); unplant(x, yb, z, b) } }
@@ -328,6 +332,7 @@ final class StructureCache {
             legacyL62 = SaveManager.guarding?.structureGuard(file: "structure-guard-l62.txt") ?? []
             legacyN12 = SaveManager.guarding?.structureGuard(file: "structure-guard-n12.txt") ?? []
             legacyL135 = SaveManager.guarding?.structureGuard(file: "structure-guard-l135.txt") ?? []
+            legacyL207 = SaveManager.guarding?.structureGuard(file: "structure-guard-l207.txt") ?? []
             legacyL178 = SaveManager.guarding?.structureGuard(file: "structure-guard-l178.txt") ?? []
         }
     }
@@ -348,6 +353,7 @@ final class StructureCache {
     var legacyL49: Set<Int64> = []               // ground saved before ledger 49 (pueblo tiers on the roof below, frontier ladders, ghost town boards)
     var legacyL52: Set<Int64> = []               // ground saved before ledger 52-54 (family house table, outpost tent steps, no lamps on the town square)
     var legacyL62: Set<Int64> = []               // ground saved before ledgers 62-63 (log wall plates under the homestead's eaves; the Dust Mission's corbelled roof)
+    var legacyL207: Set<Int64> = []              // ground saved before ledger 207's ghost towns laid out as towns (GhostVillage.swift)
     var legacyL178: Set<Int64> = []              // chunks saved before ledger 178's open-country track (Railways.planWild: only in worlds with none)
     var legacyL135: Set<Int64> = []              // ground saved before ledger 135's run-on links (Railways.planRunOn: no new link there)
     var legacyN12: Set<Int64> = []               // ground saved before N12's diagonal railways (Railways.plan's gate: such a line keeps its old way)

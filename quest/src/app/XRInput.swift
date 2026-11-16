@@ -57,3 +57,37 @@ struct VRButton {
     // The analog value as the game's 0.5 cut should see it (a trigger fed to the pad).
     var padValue: Float { down ? max(value, 0.6) : min(value, 0.45) }
 }
+
+// Ledger 190 (Nov 15 20:39:04: "the waypoint ... gets dropped like a ways under where it's pointing"; 20:40:44 "the
+// waypoints aren't easy to set"): pulling a trigger tips the controller down, so by the time the pull passes
+// VRButton.pressAt the laser has dropped below what he aimed at. A press aims where the laser was when the pull began:
+// the newest frame with the trigger under startBelow, at most maxBack frames back (~0.2 s), unless the laser moved more
+// than maxShift px in between (a sweep he meant). The shift holds while the trigger stays down, so a held press doesn't
+// count the dip as a drag either.
+struct PullAim {
+    static let startBelow: Float = 0.15, maxBack = 15, maxShift: Float = 90
+    private var at = [V2](repeating: V2(-1, -1), count: 16), trig = [Float](repeating: 0, count: 16)
+    private var head = 0, count = 0
+    private(set) var shift = V2.zero
+
+    mutating func record(_ p: V2, trigger v: Float) {
+        head = (head + 1) % 16; at[head] = p; trig[head] = v; count = min(count + 1, 16)
+    }
+    mutating func reset() { count = 0; shift = .zero }
+
+    // The press frame (just recorded): where the pull began, and the shift from the laser now to it.
+    mutating func press() -> V2? {
+        guard count > 0 else { return nil }
+        let now = at[head]
+        var start = now
+        for k in 1..<min(count, PullAim.maxBack + 1) {
+            let i = (head - k + 16) % 16
+            start = at[i]
+            if trig[i] < PullAim.startBelow { break }
+        }
+        let d = start - now
+        shift = abs(d.x) + abs(d.y) > PullAim.maxShift ? .zero : d
+        return now + shift
+    }
+    mutating func release() { shift = .zero }
+}

@@ -20,6 +20,8 @@ import simd
 enum BuildersGrounds {
     static let worldName = "Builders' Grounds"
     static let seed: UInt64 = UInt64(Env.all["BS_BUILDSEED"] ?? "") ?? 632461258612199693
+    static let oldGate = Env.all["BS_OLDGATE"] == "1"
+    static let oldTower = Env.all["BS_OLDTOWER"] == "1", oldBoathouse = Env.all["BS_OLDBOATHOUSE"] == "1"
 
     // MARK: Blueprints
 
@@ -140,51 +142,145 @@ enum BuildersGrounds {
             out.append(Blueprint(key: "lighthouse", title: ["Beach Lighthouse", "on the sand"], ground: "beach", footing: .terrace, draft: d))
         }
 
-        // Ridge Watchtower: 5 x 5 stone brick, 11 high, battlements, lanterns.
-        do {
+        // Ridge Watchtower. (Ledger 203, Nov 15 20:44: "Ridge Watchtower. That's gotta be the most pathetic thing": a 5 x 5
+        // brick box 11 high. Now a 7 x 7 keep 15 high on a cobbled plinth, quoined corners, slit windows on three levels,
+        // a jutting fighting top on corbels with merlons, and a lookout on four posts with a pitched roof over its middle.
+        // BS_OLDTOWER=1: the old one.)
+        if BuildersGrounds.oldTower {
+            do {
+                var d = Draft()
+                d.footKey = "stone_bricks"
+                d.box(0, 0, 0, 4, 0, 4, "stone_bricks")
+                for y in 1...9 {
+                    for x in 0...4 { d.put(x, y, 0, y % 4 == 2 ? "mossy_stone_bricks" : "stone_bricks"); d.put(x, y, 4, "stone_bricks") }
+                    for z in 1...3 { d.put(0, y, z, "stone_bricks"); d.put(4, y, z, y % 3 == 0 ? "mossy_stone_bricks" : "stone_bricks") }
+                }
+                d.clear(1, 1, 1, 3, 9, 3)
+                d.cells[IVec3(2, 1, 4)] = nil; d.cells[IVec3(2, 2, 4)] = nil
+                d.air.insert(IVec3(2, 1, 4)); d.air.insert(IVec3(2, 2, 4))         // the way in
+                for (x, z) in [(2, 0), (0, 2), (4, 2)] { for y in [4, 7] { d.cells[IVec3(x, y, z)] = nil; d.air.insert(IVec3(x, y, z)) } }   // slits
+                d.box(1, 9, 1, 3, 9, 3, "spruce_planks")                         // the top floor
+                d.box(-1, 10, -1, 5, 10, 5, "stone_bricks")                      // a course jutting out
+                for x in -1...5 { for z in -1...5 where x == -1 || x == 5 || z == -1 || z == 5 {
+                    if (x + z) % 2 == 0 { d.put(x, 11, z, "stone_brick_wall", or: "stone_bricks") }
+                } }
+                for (x, z) in [(0, 0), (4, 0), (0, 4), (4, 4)] { d.put(x, 11, z, "lantern") }
+                for x in 0...4 { for z in 0...4 { d.footprint.append((x, z)) } }
+                out.append(Blueprint(key: "watchtower", title: ["Ridge Watchtower", "on the hilltop"], ground: "hilltop", footing: .terrace, draft: d))
+            }
+        } else {
             var d = Draft()
             d.footKey = "stone_bricks"
-            d.box(0, 0, 0, 4, 0, 4, "stone_bricks")
-            for y in 1...9 {
-                for x in 0...4 { d.put(x, y, 0, y % 4 == 2 ? "mossy_stone_bricks" : "stone_bricks"); d.put(x, y, 4, "stone_bricks") }
-                for z in 1...3 { d.put(0, y, z, "stone_bricks"); d.put(4, y, z, y % 3 == 0 ? "mossy_stone_bricks" : "stone_bricks") }
+            d.box(-1, 0, -1, 7, 0, 7, "cobblestone")                         // the plinth, one out all round
+            d.box(0, 0, 0, 6, 0, 6, "stone_bricks")
+            for y in 1...14 {
+                for x in 0...6 { for z in 0...6 where x == 0 || x == 6 || z == 0 || z == 6 {
+                    let corner = (x == 0 || x == 6) && (z == 0 || z == 6)
+                    let k = corner ? (y % 2 == 0 ? "polished_andesite" : "chiseled_stone_bricks")
+                                   : ((x * 7 + y * 3 + z * 5) % 11 == 0 ? "mossy_stone_bricks" : "stone_bricks")
+                    d.put(x, y, z, k, or: "stone_bricks")
+                } }
             }
-            d.clear(1, 1, 1, 3, 9, 3)
-            d.cells[IVec3(2, 1, 4)] = nil; d.cells[IVec3(2, 2, 4)] = nil
-            d.air.insert(IVec3(2, 1, 4)); d.air.insert(IVec3(2, 2, 4))         // the way in
-            for (x, z) in [(2, 0), (0, 2), (4, 2)] { for y in [4, 7] { d.cells[IVec3(x, y, z)] = nil; d.air.insert(IVec3(x, y, z)) } }   // slits
-            d.box(1, 9, 1, 3, 9, 3, "spruce_planks")                         // the top floor
-            d.box(-1, 10, -1, 5, 10, 5, "stone_bricks")                      // a course jutting out
-            for x in -1...5 { for z in -1...5 where x == -1 || x == 5 || z == -1 || z == 5 {
-                if (x + z) % 2 == 0 { d.put(x, 11, z, "stone_brick_wall", or: "stone_bricks") }
+            d.clear(1, 1, 1, 5, 13, 5)
+            for y in [5, 10] { d.box(1, y, 1, 5, y, 5, "spruce_planks") }       // two floors inside
+            d.box(1, 14, 1, 5, 14, 5, "spruce_planks")                           // the top floor
+            // The door and the way in.
+            d.cells[IVec3(3, 1, 6)] = nil; d.cells[IVec3(3, 2, 6)] = nil
+            d.put(3, 1, 6, "spruce_door", 1); d.put(3, 2, 6, "spruce_door", 1 + 8)
+            d.put(3, 3, 6, "stone_brick_stairs", 0 + 4, or: "stone_bricks")      // a hood over the door
+            // Slit windows on three levels, every side.
+            for y in [3, 7, 12] {
+                for (x, z) in [(3, 0), (0, 3), (6, 3)] { d.cells[IVec3(x, y, z)] = nil; d.cells[IVec3(x, y + 1, z)] = nil; d.put(x, y, z, "glass_pane"); d.put(x, y + 1, z, "glass_pane") }
+                if y != 3 { d.cells[IVec3(3, y, 6)] = nil; d.cells[IVec3(3, y + 1, 6)] = nil; d.put(3, y, 6, "glass_pane"); d.put(3, y + 1, 6, "glass_pane") }
+            }
+            // Corbels: upside-down stairs one out under the fighting top, every other cell.
+            for i in 0...6 where i % 2 == 0 {
+                d.stairs(i, 14, -1, "stone_brick", 1, top: true); d.stairs(i, 14, 7, "stone_brick", 0, top: true)
+                d.stairs(-1, 14, i, "stone_brick", 3, top: true); d.stairs(7, 14, i, "stone_brick", 2, top: true)
+            }
+            d.box(-1, 15, -1, 7, 15, 7, "stone_bricks")                       // the fighting top's floor, jutting one out
+            for x in -1...7 { for z in -1...7 where x == -1 || x == 7 || z == -1 || z == 7 {
+                d.put(x, 16, z, "stone_bricks")                                  // the parapet
+                if (x + z) % 2 == 0 { d.put(x, 17, z, "stone_brick_wall", or: "stone_bricks") }     // merlons
             } }
-            for (x, z) in [(0, 0), (4, 0), (0, 4), (4, 4)] { d.put(x, 11, z, "lantern") }
-            for x in 0...4 { for z in 0...4 { d.footprint.append((x, z)) } }
+            // The lookout: four log posts, a pitched spruce roof over the middle, a lantern hung from its ridge beam.
+            for (x, z) in [(1, 1), (5, 1), (1, 5), (5, 5)] { for y in 16...18 { d.log(x, y, z, "spruce_log") } }
+            d.box(1, 19, 1, 5, 19, 5, "spruce_planks")
+            d.roofX(1, 5, 1, 5, 19, "spruce", gable: "spruce_planks")
+            d.put(3, 18, 3, "lantern", 1)                                       // hanging from the planks over it
+            for (x, z) in [(-1, -1), (7, -1), (-1, 7), (7, 7)] { d.put(x, 18, z, "lantern") }    // on the corner merlons
+            for x in -1...7 { for z in -1...7 { d.footprint.append((x, z)) } }
             out.append(Blueprint(key: "watchtower", title: ["Ridge Watchtower", "on the hilltop"], ground: "hilltop", footing: .terrace, draft: d))
         }
 
-        // Lakeside Boathouse: a deck 11 long running out over the water (south), log posts to the bed, a hut on the shore.
-        do {
+        // Lakeside Boathouse. (Ledger 203, Nov 15 20:43: "This is a half-built dock, if anything": a deck out over the water
+        // with a hut at its shore end and nothing over the deck. Now a boathouse: a hut on the shore, walkways down both
+        // sides of an open slip, all under one long pitched roof on log posts, and a pier past it to a pair of lanterns.
+        // BS_OLDBOATHOUSE=1: the old one.)
+        if BuildersGrounds.oldBoathouse {
+            do {
+                var d = Draft()
+                d.footKey = "spruce_planks"
+                d.box(0, 0, 0, 4, 0, 10, "spruce_planks")
+                for (x, z) in [(0, 4), (4, 4), (0, 7), (4, 7), (0, 10), (4, 10)] { d.posts.append((x, z, "spruce_log")) }
+                for z in 5...10 { d.put(0, 1, z, "spruce_fence"); d.put(4, 1, z, "spruce_fence") }
+                d.put(0, 2, 10, "lantern"); d.put(4, 2, 10, "lantern")
+                for y in 1...3 {
+                    for x in 0...4 { d.put(x, y, 0, "oak_planks") }
+                    for z in 1...3 { d.put(0, y, z, "oak_planks"); d.put(4, y, z, "oak_planks") }
+                    d.put(0, y, 3, "oak_log"); d.put(4, y, 3, "oak_log"); d.put(0, y, 0, "oak_log"); d.put(4, y, 0, "oak_log")
+                }
+                d.put(2, 2, 0, "glass_pane")
+                d.clear(1, 1, 1, 3, 3, 3)
+                d.air.insert(IVec3(1, 1, 4)); d.air.insert(IVec3(2, 1, 4)); d.air.insert(IVec3(3, 1, 4))
+                for i in 0..<3 {
+                    for z in (-1)...4 { d.stairs(-1 + i, 3 + i, z, "oak", 3); d.stairs(5 - i, 3 + i, z, "oak", 2) }
+                }
+                for z in (-1)...4 { d.slab(2, 6, z, "oak") }
+                for z in [0, 3] { for x in 1...3 { d.put(x, 4, z, "oak_planks") }; d.put(2, 5, z, "oak_planks") }   // the gable ends
+                for x in 0...4 { for z in 0...3 { d.footprint.append((x, z)) } }
+                out.append(Blueprint(key: "boathouse", title: ["Lakeside Boathouse", "out over the water"], ground: "shore", footing: .dock, draft: d))
+            }
+        } else {
             var d = Draft()
             d.footKey = "spruce_planks"
-            d.box(0, 0, 0, 4, 0, 10, "spruce_planks")
-            for (x, z) in [(0, 4), (4, 4), (0, 7), (4, 7), (0, 10), (4, 10)] { d.posts.append((x, z, "spruce_log")) }
-            for z in 5...10 { d.put(0, 1, z, "spruce_fence"); d.put(4, 1, z, "spruce_fence") }
-            d.put(0, 2, 10, "lantern"); d.put(4, 2, 10, "lantern")
+            // The hut's floor and the walkways (x 0-1 and 5-6) down both sides of the slip (x 2-4, z 4-12).
+            d.box(0, 0, 0, 6, 0, 3, "spruce_planks")
+            d.box(0, 0, 4, 1, 0, 12, "spruce_planks"); d.box(5, 0, 4, 6, 0, 12, "spruce_planks")
+            d.box(2, 0, 13, 4, 0, 16, "spruce_planks")                       // the pier past the slip
+            for (x, z) in [(0, 4), (6, 4), (0, 8), (6, 8), (0, 12), (6, 12), (2, 13), (4, 13), (2, 16), (4, 16)] { d.posts.append((x, z, "spruce_log")) }
+            // The hut: oak walls on log corners, a door onto the west walkway, a window over the water.
             for y in 1...3 {
-                for x in 0...4 { d.put(x, y, 0, "oak_planks") }
-                for z in 1...3 { d.put(0, y, z, "oak_planks"); d.put(4, y, z, "oak_planks") }
-                d.put(0, y, 3, "oak_log"); d.put(4, y, 3, "oak_log"); d.put(0, y, 0, "oak_log"); d.put(4, y, 0, "oak_log")
+                for x in 0...6 { d.put(x, y, 0, "oak_planks") }
+                for z in 1...3 { d.put(0, y, z, "oak_planks"); d.put(6, y, z, "oak_planks") }
+                for x in [0, 6] { d.put(x, y, 0, "oak_log"); d.put(x, y, 3, "oak_log") }
+                for x in 1...5 { d.put(x, y, 3, "oak_planks") }
             }
-            d.put(2, 2, 0, "glass_pane")
-            d.clear(1, 1, 1, 3, 3, 3)
-            d.air.insert(IVec3(1, 1, 4)); d.air.insert(IVec3(2, 1, 4)); d.air.insert(IVec3(3, 1, 4))
-            for i in 0..<3 {
-                for z in (-1)...4 { d.stairs(-1 + i, 3 + i, z, "oak", 3); d.stairs(5 - i, 3 + i, z, "oak", 2) }
+            d.put(3, 2, 0, "glass_pane"); d.put(0, 2, 2, "glass_pane"); d.put(6, 2, 2, "glass_pane")
+            d.clear(1, 1, 1, 5, 3, 2)
+            d.cells[IVec3(1, 1, 3)] = nil; d.cells[IVec3(1, 2, 3)] = nil
+            d.put(1, 1, 3, "spruce_door", 1); d.put(1, 2, 3, "spruce_door", 1 + 8)
+            for x in 2...5 { d.put(x, 2, 3, x == 3 || x == 4 ? "glass_pane" : "oak_planks") }
+            // Log posts up from the walkways to the eaves, fences between them.
+            for (x, z) in [(0, 4), (6, 4), (0, 8), (6, 8), (0, 12), (6, 12)] { for y in 1...3 { d.log(x, y, z, "spruce_log") } }
+            for z in 5...11 where z != 8 { d.put(0, 1, z, "spruce_fence"); d.put(6, 1, z, "spruce_fence") }
+            for (x, z) in [(0, 6), (6, 6), (0, 10), (6, 10)] { d.put(x, 2, z, "lantern") }      // on the rail's posts
+            // The roof: one pitch along z over the hut and the slip, oak stairs from both sides to a slab ridge.
+            for i in 0..<4 {
+                for z in -1...13 { d.stairs(-1 + i, 4 + i, z, "oak", 3); d.stairs(7 - i, 4 + i, z, "oak", 2) }
             }
-            for z in (-1)...4 { d.slab(2, 6, z, "oak") }
-            for z in [0, 3] { for x in 1...3 { d.put(x, 4, z, "oak_planks") }; d.put(2, 5, z, "oak_planks") }   // the gable ends
-            for x in 0...4 { for z in 0...3 { d.footprint.append((x, z)) } }
+            for z in -1...13 { d.slab(3, 8, z, "oak") }
+            // Gable ends: the hut's north wall up into the roof; open over the slip's mouth but for a beam.
+            for (y, x0, x1) in [(4, 1, 5), (5, 1, 5), (6, 2, 4), (7, 3, 3)] { for x in x0...x1 { d.put(x, y, 0, "oak_planks") } }
+            for z in 0...12 { d.put(0, 4, z, "spruce_planks"); d.put(6, 4, z, "spruce_planks") }      // the wall plates the roof sits on
+            for x in 0...6 { d.put(x, 4, 12, x == 0 || x == 6 ? "spruce_log" : "spruce_planks") }
+            for x in 0...6 { d.put(x, 4, 4, "spruce_planks") }                  // a tie beam over the slip's head
+            // The pier: a rail each side, lanterns at its end.
+            for z in 14...15 { d.put(2, 1, z, "spruce_fence"); d.put(4, 1, z, "spruce_fence") }
+            d.put(2, 1, 16, "spruce_fence"); d.put(4, 1, 16, "spruce_fence")
+            d.put(2, 2, 16, "lantern"); d.put(4, 2, 16, "lantern")
+            d.air.insert(IVec3(1, 1, 4)); d.air.insert(IVec3(5, 1, 4))
+            for x in 0...6 { for z in 0...3 { d.footprint.append((x, z)) } }
             out.append(Blueprint(key: "boathouse", title: ["Lakeside Boathouse", "out over the water"], ground: "shore", footing: .dock, draft: d))
         }
 
@@ -222,6 +318,10 @@ enum BuildersGrounds {
             for z in 0...1 { d.stairs(2, 6, z, "stone_brick", 2, top: true); d.stairs(6, 6, z, "stone_brick", 3, top: true) }
             for x in 3...5 { for z in 0...1 { d.slab(x, 6, z, "stone_brick", top: true) } }
             for x in -1...9 { for z in -1...2 where x == -1 || x == 9 || z == -1 || z == 2 { d.slab(x, 8, z, "stone_brick") } }
+            // Ledger 201 (Nov 15 20:41, "lanterns aren't attached to the goddamn block"): the lanterns hung under a top
+            // slab, their chains half a block short of it. The arch's keystone is a full block they hang from
+            // (BS_OLDGATE=1: the slab). Attach.flush checks every lantern, torch and sign of every build.
+            if !BuildersGrounds.oldGate { for z in 0...1 { d.put(4, 6, z, "chiseled_stone_bricks", or: "stone_bricks") } }
             d.put(4, 5, 0, "lantern", 1); d.put(4, 5, 1, "lantern", 1)
             for x in 2...6 { for y in 0...5 { for z in 0...1 { if d.cells[IVec3(x, y, z)] == nil { d.air.insert(IVec3(x, y, z)) } } } }
             for x in [0, 1, 7, 8] { for z in 0...1 { d.footprint.append((x, z)) } }
@@ -365,7 +465,7 @@ enum BuildersGrounds {
         case .stilts(let h): fy = (gs.last ?? mid) + h + 1
         case .dock:
             var surf = SEA
-            for z in 0...10 { for x in 0...4 where Blocks.isLiquid(w.block(site.x + x, groundY(w, site.x + x, site.z + z) + 1, site.z + z)) {
+            for z in 0...(oldBoathouse ? 10 : 16) { for x in 0...(oldBoathouse ? 4 : 6) where Blocks.isLiquid(w.block(site.x + x, groundY(w, site.x + x, site.z + z) + 1, site.z + z)) {
                 var y = groundY(w, site.x + x, site.z + z) + 1
                 while Blocks.isLiquid(w.block(site.x + x, y + 1, site.z + z)) { y += 1 }
                 surf = max(surf, y)

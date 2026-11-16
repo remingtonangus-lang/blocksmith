@@ -101,6 +101,9 @@ enum FrontierSites {
             }
             if crowded(gen, x, z) { return nil }
             let s = rng.next(), rot = rng.int(4)
+            // Ledger 207: a ghost town laid out as a town and left (GhostVillage.swift), on ground no save had generated before it.
+            if site == "ghost_town", !GhostVillage.old, gen.structures.map({ $0.clear(cx: cx, cz: cz, reach: 2, guardSet: $0.legacyL207) }) ?? true,
+               let st = GhostVillage.start(gen, seed: s, cx: cx, cz: cz, biome: bio, reach: 2) { return st }
             let st = StructureStart(kind: site, pieces: [Piece(min: IVec3(x - reach, y - 10, z - reach),
                                                                max: IVec3(x + reach, y + 12, z + reach)) { w in
                 build(&w, site, bio, x, y, z, rot, s, p478: p478, l49: l49, l62: l62)

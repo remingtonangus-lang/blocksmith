@@ -325,6 +325,10 @@ enum BorealTests {
         g.player.pos = at(-5, S + 1, Float(BorealStation.yard - 6))
         secs(1)
         let bar0 = g.stationOpBar()?.0 ?? "none"
+        // Ledger 199: the jobs are in the journal, once.
+        let orders = g.journal.filter { $0.id == "boreal-orders" }
+        check(BorealOps.oldOrders || (orders.count == 1 && (orders.first?.pages?.count ?? 0) == BorealOps.orders.count && orders.first?.cat == "orders"),
+              "Ledger 199 boreal ops: stepping in files the station's orders in the journal once (\(orders.count) entries, \(orders.first?.pages?.count ?? 0) pages, shelf \(orders.first?.cat ?? "none"))")
         check(g.stationOps[key]?.stage == 1 && bar0.hasPrefix("Station operation 0 / 3") && !toasts.contains { $0.hasPrefix("Station operation") },
               "boreal ops: stepping inside starts the operation (bar \"\(bar0)\")")
         // P475: the ring's ceiling guns fire on him below them, and the control room's console shuts them down.
@@ -332,8 +336,12 @@ enum BorealTests {
         let gunsHung = CeilingGuns.spots.filter { world.block(cx + $0.0, F + $0.1, cz + $0.2) == gunId }.count
         g.player.pos = at(-12, F + 1, -6); g.player.vel = .zero
         let fired0 = CeilingGuns.fired
+        CeilingGuns.worstOff = 0
         for _ in 0..<40 { g.ceilingGunsTick(0.05) }
         let shots = CeilingGuns.fired - fired0
+        // Ledger 195: the barrels point at him at every shot (the head turned to him before the burst).
+        check(CeilingGuns.old || (shots > 0 && CeilingGuns.worstOff < 10),
+              "Ledger 195 ceiling guns: every round leaves along the barrels turned at him (widest \(String(format: "%.1f", CeilingGuns.worstOff)) degrees off over \(shots) rounds)")
         g.player.pos = at(0, F + 1, -21)
         let offUse = g.stationUse(console)
         let offToast = toasts.last ?? "none"

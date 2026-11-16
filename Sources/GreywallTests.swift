@@ -18,6 +18,7 @@ enum GreywallTests {
         defer { game.player.flying = fly0; game.menu = menu0 }       // (the turret check flies; the war table opens a report)
         faction(game, check)
         alarm(game, check)
+        party(game, check)
         alarmHeir(check)
         capture(game, check)
         turret(game, check)
@@ -270,6 +271,37 @@ enum GreywallTests {
         let front = m.pos.z > Float(cz + t.half) && steps < 600
         check(held == 0 && back > 0 && toward && front,
               String(format: "greywall leash: a step out past the wall is held (%.2f), a soldier outside walks round to the gate side (%.2f, south %@) and is back at the front after %d steps (%@)", held, back, toward ? "yes" : "no", steps, front ? "yes" : "no"))
+    }
+
+    // Ledger 198: an unarmed visitor outside the walls: the party forms up in the yard behind the gate (where he can see
+    // it come out), however deep in the base its four men stood.
+    static func party(_ g: Game, _ check: (Bool, String) -> Void) {
+        let p0 = g.player.pos, mobs0 = g.mobs.mobs, surv0 = g.survival, toast0 = g.onToast, held0 = g.inventory.selected
+        var said: [String] = []
+        g.onToast = { said.append($0) }
+        let cx = Int(floor(p0.x)) + 300, cz = Int(floor(p0.z)), S = Int(floor(p0.y)) + 40
+        _ = g.world.loadSync(center: V3(Float(cx), p0.y, Float(cz)), radius: 2)
+        let t = Greywall.Tier.fortress
+        var placed: [IVec3] = []
+        defer {
+            for q in placed { g.world.setBlock(q.x, q.y, q.z, AIR) }
+            g.player.pos = p0; g.mobs.mobs = mobs0; g.survival = surv0; g.onToast = toast0; g.inventory.selected = held0
+        }
+        for z in (cz + t.half - 8)...(cz + t.half - 1) { for x in (cx - 3)...(cx + 3) { g.world.setBlock(x, S, z, STONE); placed.append(IVec3(x, S, z)) } }
+        var site = GreywallAlarmState.Site(cx: cx, cz: cz, S: S, tier: t)
+        var men: [Mob] = []
+        for (i, (dx, dz)) in [(-6, -6), (6, -6), (-4, 2), (4, -10)].enumerated() {
+            if let m = Mob.structureMob("soldier_trooper@grey\(Greywall.leashTag(cx, cz, t))", at: V3(Float(cx + dx) + 0.5, Float(S + 1 + i % 2), Float(cz + dz) + 0.5)) { men.append(m) }
+        }
+        g.mobs.mobs = men
+        g.survival = true
+        g.inventory.selected = (0..<9).first { g.inventory.main[$0].isEmpty || Guns.index(g.inventory.main[$0].item) == nil } ?? 0
+        g.player.pos = V3(Float(cx) + 0.5, Float(S + 1), Float(cz + t.half + 24) + 0.5)
+        g.greywallParty(&site, [g.player.pos])
+        let gate = V3(Float(cx) + 0.5, Float(S + 1), Float(cz + t.half - 3) + 0.5)
+        let atGate = men.filter { simd_length($0.pos - gate) < 4 && $0.aggro }.count
+        check(Game.oldParty || (men.count == 4 && atGate == 4 && said.contains { $0.contains("party") }),
+              "Ledger 198 Greywall party: the four men form up in the yard behind the gate (\(atGate) of \(men.count) within 4 blocks of it: \(men.map { String(format: "%.0f,%.0f", $0.pos.x - Float(cx), $0.pos.z - Float(cz)) }.joined(separator: " ")))")
     }
 
     // An alarm's plan outlives the men in it (15 s): a soldier made at a dead holder's address isn't taken for him.

@@ -960,6 +960,7 @@ enum Trains {
         }
     }
 
+    static let oldCarUse = Env.all["BS_OLDCARUSE"] == "1"          // ledger 205 (Game.interact, MilitaryTrain.use)
     // Use a car: the coach seats you; the express car's strongbox cracks (a held-up train only).
     static func use(_ g: Game, _ m: Mob) -> Bool {
         guard isCar(m), let (tr, k) = carOf[ObjectIdentifier(m)] else { return false }

@@ -41,6 +41,7 @@ enum CopperTests {
         func key(_ p: IVec3) -> String { Blocks.key(Blocks.groupBase[Int(blk(p))]) }
         func tick(_ n: Int = 1) { for _ in 0..<n { rs.tick(); rs.detectorCheck(carts) } }
         // Ticks until `c` holds (1 = on the first tick), -1 if never within `limit`.
+        let sees = Circuit.oldSwitchUpdate ? 0 : 1           // ledger 192: a tick sooner, the switch seen at once
         func until(_ limit: Int, _ c: () -> Bool) -> Int { for i in 1...limit { tick(); if c() { return i } }; return -1 }
         func lit(_ p: IVec3) -> Bool { key(p) == "redstone_lamp" && st(p) == 1 }
         func use(_ p: IVec3) { _ = g.useCircuit(p) }
@@ -222,7 +223,8 @@ enum CopperTests {
             put(P(1), "stone"); put(P(1, 1), "redstone_torch"); put(P(1, 0, 1), "lever", 5)
             tick(5); use(P(1, 0, 1))
             let n = until(10) { st(P(1, 1)) == 1 }
-            return (n == 3, "torch off on tick \(n) (2 ticks after the engine sees the lever)")
+            // (ledger 192: the engine sees the lever in the tick it is used, as the reference does; it saw it a tick later)
+            return (n == 3 - sees, "torch off on tick \(n) (2 ticks after the engine sees the lever)")
         }
         t("torch.above") {
             put(P(1), "stone"); put(P(1, 1), "redstone_torch"); put(P(1, 2), "stone"); put(P(2, 1), "stone"); put(P(2, 2), "redstone_wire")
@@ -261,7 +263,7 @@ enum CopperTests {
                 let z = d * 2 - 3
                 on(P(0, 0, z), "lever"); on(P(1, 0, z), "repeater", 3 + d * 4); put(P(2, 0, z), "redstone_lamp")
                 tick(5); use(P(0, 0, z))
-                got.append(until(20) { lit(P(2, 0, z)) } - 1)
+                got.append(until(20) { lit(P(2, 0, z)) } - 1 + sees)
             }
             use(P(1, 0, 3))
             let cycled = (st(P(1, 0, 3)) >> 2) & 3
@@ -365,7 +367,7 @@ enum CopperTests {
             on(P(0), "lever"); on(P(1), "comparator", 3)
             tick(5); use(P(0))
             let n = until(10) { comparatorOut(P(1)) > 0 }
-            return (n == 3, "output on tick \(n) (2 ticks after the engine sees the lever)")
+            return (n == 3 - sees, "output on tick \(n) (2 ticks after the engine sees the lever)")
         }
         t("comparator.frame") {
             guard Blocks.has("item_frame") else { return (false, "no item frame block") }
@@ -577,7 +579,7 @@ enum CopperTests {
             let once = total(be) == 4
             use(P(0)); tick(2); use(P(0)); tick(6)
             for e in g.drops.items.suffix(max(0, g.drops.items.count - n0)) { spawned.append(e) }
-            return (n == 5 && once && total(be) == 3, "fired on tick \(n), once per pulse \(once), again on the next pulse \(total(be) == 3)")
+            return (n == 5 - sees && once && total(be) == 3, "fired on tick \(n), once per pulse \(once), again on the next pulse \(total(be) == 3)")
         }
         t("dispenser.qc") {
             let be = dispenser(P(1), "dropper", [item("cobblestone", 2)]); tick(3)
@@ -858,7 +860,7 @@ enum CopperTests {
             on(P(0), "lever"); put(P(1), "redstone_lamp"); tick(2)
             use(P(0)); let a = until(10) { lit(P(1)) }
             use(P(0)); let b = until(10) { !lit(P(1)) }
-            return (a == 1 && b == 5, "lit on tick \(a), dark on tick \(b) (4 ticks after the engine sees it)")
+            return (a == 1 && b == 5 - sees, "lit on tick \(a), dark on tick \(b) (4 ticks after the engine sees it)")
         }
         t("note.pitch") {
             on(P(1), "note_block")

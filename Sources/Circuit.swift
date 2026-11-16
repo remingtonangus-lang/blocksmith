@@ -458,8 +458,13 @@ final class Circuit {
         }
         if !moving.isEmpty && now % 20 == 0 { moving = moving.filter { $0.value > now } }
         if !pistonStarted.isEmpty && now % 200 == 0 { pistonStarted = pistonStarted.filter { now - $0.value < 10 } }
-        // First in, first out by a read index (removeFirst() moved the whole queue each time: quadratic in a big
-        // circuit's 20,000 updates); updates may append more, which this tick still reaches up to the cap.
+        drainDirty()
+        periodic()
+    }
+
+    // First in, first out by a read index (removeFirst() moved the whole queue each time: quadratic in a big circuit's
+    // 20,000 updates); updates may append more, which this pass still reaches up to the cap.
+    private func drainDirty() {
         var head = 0
         while head < dirty.count && head < 20000 {
             let p = dirty[head]
@@ -468,7 +473,17 @@ final class Circuit {
             update(p)
         }
         if head > 0 { dirty.removeFirst(head) }
-        periodic()
+    }
+
+    // Ledger 192 (Nov 15 20:44:58, the workshop's piston door: "too much of a delay between pressing the switch and the
+    // redstone occurring"): a lever or button he uses updates its neighbours at once, in the tick he used it (reference),
+    // not at the next circuit tick: the inverting torch went out 3 game ticks after the lever, now 2 (its own delay).
+    // BS_OLDSWITCHUPDATE=1: at the next tick.
+    static let oldSwitchUpdate = Env.all["BS_OLDSWITCHUPDATE"] == "1"
+    func settleNow() {
+        guard !Circuit.oldSwitchUpdate, !dirty.isEmpty else { return }
+        settledWires.removeAll(keepingCapacity: true)
+        drainDirty()
     }
 
     private func update(_ p: IVec3) {

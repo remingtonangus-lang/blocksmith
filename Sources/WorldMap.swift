@@ -683,8 +683,17 @@ final class MapMenu: Menu, CustomDrawnMenu {
         // doesn't drag: the headset's laser and trigger) puts it where you point (P73: on the headset the centre cross
         // was the only way and he never found it). Again on a waypoint removes it.
         func pin(_ x: Int, _ z: Int) {
-            if MapMenu.follow(g, x: x, z: z, near: Float(max(4, bpc * 3))) { return }      // Q2c-console-20
-            let added = MapCache.shared.togglePin(g, x: x, z: z, near: max(3, bpc * 3))
+            // Ledger 190 (Nov 15 20:39-20:40: "doesn't get dropped where the thing's pointing", "should show up on my
+            // little nav bar", "aren't easy to set"): a tap snapped to any place or took his pin away within 3 cells
+            // (a marker is drawn about 3 cells across, so a tap beside one moved the waypoint onto it, and a tap to
+            // nudge the pin removed it); now only a tap on the marker itself (1.5 cells) does. The new waypoint is the
+            // tracked target, on the bar along the top of the HUD.
+            if MapMenu.follow(g, x: x, z: z, near: Float(max(3, bpc * 3 / 2))) { return }      // Q2c-console-20
+            let added = MapCache.shared.togglePin(g, x: x, z: z, near: MapMenu.pinNear(bpc))
+            if added {
+                Waymarks.track(g, Waymarks.Target(kind: "pin", key: "\(x),\(z)", name: "Waypoint: \(x), \(z)",
+                                                  pos: V3(Float(x) + 0.5, g.player.pos.y, Float(z) + 0.5)))
+            } else if Waymarks.trackedKey?.hasPrefix("pin|") == true { Waymarks.track(g, nil) }
             g.sfx(added ? .click : .uiBack, 0.4)
         }
         let L = HudLayout(g.screen.x, g.screen.y).fitted(self)
@@ -714,6 +723,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
         MapMenu.prevPad = p
     }
     static var prevPad = PadSnapshot()
+    static func pinNear(_ bpc: Int) -> Int { max(2, bpc * 3 / 2) }
     static let cols = 152, rows = 82
 
     // Q2c-console-20: a tap on a marker follows it: a followable one (contract, bounty, horse, ship, vehicle, Director

@@ -50,6 +50,13 @@ enum MilitaryTrain {
             guard m.health > 0 else { g.onToast?("The guard car's gun is wrecked"); return true }
             guard tr.taken else {
                 let left = holding(tr).count
+                // Ledger 205: boarded like a troop car (he rides its deck by the gun), the gun his once the train is.
+                // BS_OLDCARUSE=1: refused.
+                if !Trains.oldCarUse && g.riding !== m {
+                    board(g, m)
+                    g.onToast?(left > 0 ? "Aboard the guard car: \(left) soldiers still hold the train" : "Aboard the guard car: take the engine for its gun")
+                    return true
+                }
                 g.onToast?(left > 0 ? "\(left) soldiers still hold the train" : "Take the engine first")
                 return true
             }

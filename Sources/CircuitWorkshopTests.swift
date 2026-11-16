@@ -8,6 +8,9 @@ import Metal
 // reference: the periods, the toggles, the door, the sorted items, the subtraction. Then the deck is cleared.
 // Shared (questcheck runs it; the Mac runs it with --coppertest).
 enum CircuitWorkshopTests {
+    // (the suite's renderer, when it has one: pictures from under the rebuilt deck)
+    static var shot: ((Game, String, V3, Float, Float) -> Void)?
+
     static func run(_ g: Game, check: (Bool, String) -> Void) {
         let w = g.world, rs = w.redstone
         let p0 = g.player.pos
@@ -102,7 +105,14 @@ enum CircuitWorkshopTests {
             let lever = b + IVec3(3, 2, -2)
             func doorway() -> [String] { [key(b + IVec3(5, 0, 0)), key(b + IVec3(5, 1, 0))] }
             let shut = doorway() == ["stone_bricks", "stone_bricks"] && st(b + IVec3(3, 0, 0)) == 11 && st(b + IVec3(3, 1, 0)) == 11
-            use(lever); tick(20)
+            // Ledger 192 (Nov 15 20:44:58, at this lever: "too much of a delay between pressing the switch and the
+            // redstone occurring"): the game ticks from the lever to the open doorway. The rules' least is the torch's
+            // 2 (one circuit tick) and the pistons pulling back on the tick the torch goes out.
+            use(lever)
+            var openAt = -1
+            for i in 1...20 { tick(); if openAt < 0 && blk(b + IVec3(5, 0, 0)) == AIR && blk(b + IVec3(5, 1, 0)) == AIR { openAt = i } }
+            check(openAt >= 1 && openAt <= 2,
+                  "Ledger 192 workshop: the piston door opens \(openAt) game ticks (\(openAt * 50) ms) after the lever, the rules' least (the torch's one circuit tick)")
             let after = "lever \(st(lever)), torch \(st(b + IVec3(3, 1, -1))), pistons \(st(b + IVec3(3, 0, 0)))/\(st(b + IVec3(3, 1, 0))), x4 \(key(b + IVec3(4, 0, 0)))/\(key(b + IVec3(4, 1, 0))), x5 \(doorway())"
             let open = blk(b + IVec3(5, 0, 0)) == AIR && blk(b + IVec3(5, 1, 0)) == AIR
                 && key(b + IVec3(4, 0, 0)) == "stone_bricks" && key(b + IVec3(4, 1, 0)) == "stone_bricks"
@@ -158,6 +168,7 @@ enum CircuitWorkshopTests {
         check(at.count == CircuitWorkshop.benches.count && signs == at.count,
               "workshop: \(at.count) benches built, \(signs) signed (the Sparkstone Workshop world in the Worlds menu)")
         entry(device: w.device, check: check)
+        rebuild(device: w.device, check: check, shot: shot)
     }
 
     // Entering the world the way the Worlds menu does: a fresh save folder named after the workshop, its fixed seed, the
@@ -202,6 +213,105 @@ enum CircuitWorkshopTests {
         let second = CircuitWorkshop.built(g2.world, spawn: g2.spawnPoint)
         check(CircuitWorkshop.built(g2.world, spawn: site) && !second && simd_length(g2.player.pos - start2) < 0.01 && abs(start2.x - bed.x) < 16,
               "workshop world entry: coming back (spawn moved 200 blocks by a bed) finds the deck, builds no second one (\(second)) and leaves the player be")
+    }
+}
+
+extension CircuitWorkshopTests {
+    // Ledger 200: his save as the Nov 15 evening pictures show it. A deck that came down lies on the land, an old bench's
+    // stone posts on it, short pillars standing on it; a deck over it on those pillars with a bench's sign gone, another
+    // stacked over that; items dropped in the box. The save has no record of its deck (as every save before this).
+    // Entering the world must leave one deck: its pillars from the land to its floor, every bench as a new world's,
+    // nothing else built in the box, no items. Then the held floor is let go and the load checks run: what falls is
+    // reported (whether pillars every 8 blocks stand the deck alone).
+    static func rebuild(device: MTLDevice, check: (Bool, String) -> Void, shot: ((Game, String, V3, Float, Float) -> Void)?) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("wsrebuild-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+        let dir = root.appendingPathComponent(CircuitWorkshop.worldName, isDirectory: true)
+        try? FileManager.default.removeItem(at: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let save = SaveManager(dir: dir)
+        let w = World(seed: CircuitWorkshop.seed, device: device, save: save)
+        w.renderDistance = 4
+        let g = Game(world: w, save: save, persistent: true)
+        g.survival = false; g.player.pos = g.spawnPoint
+        g.workshopTick()
+        guard case let (o, v)? = g.workshopDeck, v == CircuitWorkshop.version else {
+            check(CircuitWorkshop.oldDeck, "Ledger 200 workshop rebuild: a new world records its deck (\(g.workshopDeck.map { "\($0.1)" } ?? "none"))"); return
+        }
+        let len = CircuitWorkshop.deckLength, depth = CircuitWorkshop.deckDepth
+        let brick = Blocks.id("stone_bricks")
+        // A new world's deck, as the benches are built (state groups: the clocks tick).
+        func deck(_ o: IVec3) -> [BlockID] {
+            var out: [BlockID] = []
+            for x in -1...len { for z in -4...depth { for y in -1...5 { out.append(Blocks.groupBase[Int(w.rawBlock(o.x + x, o.y + y, o.z + z))]) } } }
+            return out
+        }
+        let fresh = deck(o)
+        // His save: a fallen deck on the land, stone posts on it, short pillars from it up to a deck with a sign gone,
+        // and one more stacked on that. Items dropped in the box.
+        let site = g.findSpawn()
+        let (x0, z0) = CircuitWorkshop.corner(site)
+        var land = SEA
+        for x in -1...len { for z in -4...depth { land = max(land, CircuitWorkshop.landY(w, x0 + x, z0 + z)) } }
+        let fallen = IVec3(x0, land + 2, z0)
+        CircuitWorkshop.clear(w, at: o)
+        CircuitWorkshop.build(w, at: fallen)
+        for x in stride(from: 3, to: len, by: 9) { _ = w.setBlockAsync(fallen.x + x, fallen.y, fallen.z + 2, STONE); _ = w.setBlockAsync(fallen.x + x, fallen.y + 1, fallen.z + 2, STONE) }
+        let mid = IVec3(x0, fallen.y + 11, z0)
+        CircuitWorkshop.build(w, at: mid)
+        for (x, z) in CircuitWorkshop.pillars() { for y in (fallen.y + 6)...(mid.y - 2) { _ = w.setBlockAsync(mid.x + x, y, mid.z + z, brick) } }
+        let gone = mid + IVec3(CircuitWorkshop.layout()[2].1 - 1, 0, -1)
+        w.blockEntities[gone] = nil; _ = w.setBlockAsync(gone.x, gone.y, gone.z, AIR)
+        CircuitWorkshop.build(w, at: mid + IVec3(0, 11, 0))
+        for i in 0..<5 { g.dim.drops.spawn(ItemStack(Items.id("cobblestone"), 1), at: V3(Float(x0 + 4 + i * 9), Float(fallen.y + 1), Float(z0 + 2))) }
+        let items0 = g.dim.drops.items.count
+        g.workshopDeck = nil
+        g.player.pos = CircuitWorkshop.walkwayStart(mid)
+        g.workshopChecked = false
+        g.workshopTick()
+        guard case let (o2, _)? = g.workshopDeck else { check(false, "Ledger 200 workshop rebuild: no deck recorded after the rebuild"); return }
+        // One deck: the walkway's marker corner at one height only, the recorded one.
+        var corners: [Int] = []
+        let marker = Blocks.id(CircuitWorkshop.markerBlock)
+        for y in 1..<(CH - 1) where w.rawBlock(x0 - 1, y - 1, z0 - 4) == marker && w.rawBlock(x0 - 1, y - 1, z0 - 3) == marker { corners.append(y) }
+        // Every pillar from the land to the floor.
+        var short = 0
+        for (x, z) in CircuitWorkshop.pillars() {
+            var y = o2.y - 2
+            while y > 1 && w.rawBlock(o2.x + x, y, o2.z + z) == brick { y -= 1 }
+            let b = Int(w.rawBlock(o2.x + x, y, o2.z + z))
+            if !(Blocks.collide[b] && SmoothTerrain.natural[b]) || w.rawBlock(o2.x + x, o2.y - 2, o2.z + z) != brick { short += 1 }
+        }
+        // Every bench as a new world's.
+        let now = deck(o2)
+        let benches = now == fresh && CircuitWorkshop.whole(w, at: o2)
+        // Nothing else built in the box.
+        var pillarCells = Set<IVec3>()
+        for (x, z) in CircuitWorkshop.pillars() { for y in 0..<CH where w.rawBlock(o2.x + x, y, o2.z + z) == brick { pillarCells.insert(IVec3(o2.x + x, y, o2.z + z)) } }
+        var stray = 0, strayAt: IVec3?
+        for x in (o2.x - 2)...(o2.x + len + 2) { for z in (o2.z - 6)...(o2.z + depth + 2) {
+            for y in (CircuitWorkshop.landY(w, x, z) + 1)...min(CH - 2, o2.y + CircuitWorkshop.boxUp + CircuitWorkshop.boxReach) {
+                let p = IVec3(x, y, z)
+                let inDeck = x >= o2.x - 1 && x <= o2.x + len && z >= o2.z - 4 && z <= o2.z + depth && y >= o2.y - 1 && y <= o2.y + 5
+                if !inDeck && !pillarCells.contains(p) && !CircuitWorkshop.keeps(w.rawBlock(x, y, z)) { stray += 1; if strayAt == nil { strayAt = p } }
+            }
+        } }
+        let itemsLeft = g.dim.drops.items.filter { $0.pos.x >= Float(x0 - 2) && $0.pos.x < Float(x0 + len + 3) && $0.pos.z >= Float(z0 - 6) && $0.pos.z < Float(z0 + depth + 3) }.count
+        let onWalk = simd_length(g.player.pos - CircuitWorkshop.walkwayStart(o2)) < 0.01
+        check(corners == [o2.y] && short == 0 && benches && stray == 0 && itemsLeft == 0 && onWalk,
+              "Ledger 200 workshop rebuild: his save (a fallen deck, short pillars, a deck with a sign gone, one stacked on it, \(items0) items) enters as one deck (marker rows at \(corners), recorded \(o2.y)), \(CircuitWorkshop.pillars().count) pillars, \(short) not from the land to the floor, benches as a new world's \(benches), \(stray) other built blocks in the box\(strayAt.map { " (first \($0.x) \($0.y) \($0.z): \(Blocks.key(w.rawBlock($0.x, $0.y, $0.z))))" } ?? ""), \(itemsLeft) items left, he stands on the walkway \(onWalk)")
+        // Pictures from under the deck (the suite's renderer).
+        if let shot = shot {
+            let under = Float(o2.y) - 4
+            shot(g, "workshop_under_west", V3(Float(o2.x) - 10, under, Float(o2.z) + 4), .pi / 2 + .pi, 0.25)
+            shot(g, "workshop_under_south", V3(Float(o2.x + len / 2), under, Float(o2.z + depth) + 14), 0, 0.3)
+            shot(g, "workshop_under_mid", V3(Float(o2.x + len / 2), under + 1, Float(o2.z) + 4), -.pi / 2, 0.35)
+            shot(g, "workshop_deck", V3(Float(o2.x) + 0.5, Float(o2.y) + 1.6, Float(o2.z) - 1.5), -.pi / 2, -0.1)
+        }
+        // The held floor let go: what the load checks bring down with pillars alone.
+        w.heldDeck = .none
+        for x in stride(from: -1, through: len, by: 4) { for z in stride(from: -4, through: depth, by: 4) { w.requeueLoadCheck(IVec3(o2.x + x, o2.y - 1, o2.z + z)) } }
+        let (frames, fell) = DeckHold.settle(g, around: (V3(Float(o2.x + len / 2), Float(o2.y), Float(o2.z + 4)), Float(len / 2 + 16)), origin: o2)
+        print("workshop held floor off: \(fell) blocks fell in \(frames) frames (\(CircuitWorkshop.pillars().count) pillars, every 8 blocks)")
     }
 }
 
