@@ -128,7 +128,7 @@ final class BuilderBot: AgentBot {
         let w = g.world
         let c = j.cell
         var nBody = 0, nState = 0, nRay = 0, nWay = 0, rayAt: [String: Int] = [:], blockers: [IVec3: Int] = [:]
-        blocker = nil
+        blocker = nil; tryWhy = [:]
         var faces: [(hit: IVec3, n: IVec3, aim: V3)] = []
         let cc = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5)
         if j.want == AIR {
@@ -210,7 +210,9 @@ final class BuilderBot: AgentBot {
         noFaces = faces.isEmpty
         blocker = blockers.max { $0.value < $1.value }?.key
         let top = rayAt.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) x\($0.value)" }.joined(separator: ", ")
-        why = "\(faces.count) faces; spots: \(nBody) body blocked, \(nState) wrong way round, \(nRay) ray elsewhere (\(top)), \(spots.count) seen"
+        let tw = tryWhy.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) x\($0.value)" }.joined(separator: ", ")
+        tryWhy = [:]
+        why = "\(faces.count) faces; spots: \(nBody) body blocked, \(nState) wrong way round, \(nRay) ray elsewhere (\(top)), \(spots.count) seen" + (tw.isEmpty ? "" : "; the game's aim: " + tw)
         return spots.prefix(80).map { (feet: $0.0, aim: $0.1) }
     }
 
@@ -393,12 +395,18 @@ final class BuilderBot: AgentBot {
         p.pos = pos0 + (eye - p.eye)
         let dv = q - eye
         p.yaw = atan2f(-dv.x, -dv.z); p.pitch = atan2f(dv.y, simd_length(V2(dv.x, dv.z)))
-        guard let t = w.raycast(p.eye, p.look, maxDist: 6) else { return false }
+        guard let t = w.raycast(p.eye, p.look, maxDist: 6) else { tryWhy["out of reach", default: 0] += 1; return false }
         g.target = t
         g.aimGround()
-        guard let tt = g.target else { return false }
-        return onJob(g, j, tt)
+        guard let tt = g.target else { tryWhy["no aim after the ground's choice", default: 0] += 1; return false }
+        let ok = onJob(g, j, tt)
+        if !ok && j.want != AIR {
+            let at = g.placeCell(tt, for: Blocks.groupBase[Int(j.want)]) - j.cell
+            tryWhy[at == IVec3(0, 0, 0) ? "wrong way round" : "would go in \(at.x),\(at.y),\(at.z) (\(Blocks.key(w.block(j.cell.x + at.x, j.cell.y + at.y, j.cell.z + at.z))))", default: 0] += 1
+        }
+        return ok
     }
+    private var tryWhy: [String: Int] = [:]           // (why the game's own aim turned a spot down: the missed lines)
     // Where the body stopped (never quite the spot): of the points round the planned aim, the nearest one that the
     // game's aim, looked at from this eye, turns into the job. He'd nudge the crosshair the same way.
     private func solveAim(_ g: Game, _ j: BuildersGrounds.Job, _ a: V3) -> V3? {
