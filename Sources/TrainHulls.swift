@@ -451,7 +451,7 @@ enum TrainHullCheck {
             let la = sa.toLocal(p.pos)
             let what = String(format: "ledger 141: he walks from one coach through the end doors into the next (%@ in %.1f s, never lower than %.2f over the rail; ends in the first at %.2f %.2f %.2f)",
                               crossed ? "there" : "not there", Float(took) / 30, lowest, la.x, la.y, la.z)
-            if TrainHulls.oldGangway { print("rail: (before) " + what) } else { check(crossed && lowest > 0.6, what)       // (ledger 215: on a grade the coupling's plate is half a block under the aisle he left) }
+            if TrainHulls.oldGangway { print("rail: (before) " + what) } else { check(crossed && lowest > 0.6, what) }      // (ledger 215: on a grade the coupling's plate is half a block under the aisle he left)
         }
         // Down from the engine: free in its cab.
         if let eng = tr.cars.first(where: { Trains.isEngine($0) && $0.variant == Trains.loco }), let es = TrainHulls.hull(eng) {
