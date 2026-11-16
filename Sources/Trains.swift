@@ -766,10 +766,12 @@ enum Trains {
     static var watch: IVec3?                                     // (RailwayTests: each frame of a driven train's nose near this cell)
     static let topSpeed: Float = 28, backSpeed: Float = 7       // blocks a second at full regulator, ahead and backing
     static let tractive: Float = 2.2, coast: Float = 0.35, brakeRate: Float = 5      // blocks a second, each second
-    // Ledger 173: a driven train takes a turn at no more than `turnRate` radians a second (40 degrees), never under
-    // `curveFloor` blocks a second, slowing ahead of it at `curveEase` blocks a second each second. BS_OLDCURVESPEED=1 = before.
+    // Ledger 173: a driven train takes a turn at no more than `turnRate` radians a second (70 degrees: half what a
+    // radius 14 turn was at top speed, and he asked for 100 km/h on Nov 12, so no slower than it need be), never
+    // under `curveFloor` blocks a second, slowing ahead of it at `curveEase` blocks a second each second (the
+    // brake's own rate). BS_OLDCURVESPEED=1 = before.
     static let oldCurveSpeed = Env.all["BS_OLDCURVESPEED"] == "1"
-    static let turnRate: Float = 0.7, curveFloor: Float = 8, curveEase: Float = 3
+    static let turnRate: Float = 1.22, curveFloor: Float = 10, curveEase: Float = 5
     static let tenderStart: Float = 24, tenderMax: Float = 64
     static var coalBurned: Float = 0                             // (checks)
 

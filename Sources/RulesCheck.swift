@@ -56,16 +56,20 @@ enum RulesCheck {
             for dy in 0...2 { w.scheduleFluid(around: IVec3(x + 1, floorY + dy, cz)) }
             for _ in 0..<40 { w.fluidTick() }
             let low = Blocks.isLiquid(w.builtBlock(x + 2, floorY + 1, cz)), top = Blocks.isLiquid(w.builtBlock(x + 2, floorY + 2, cz))
+            // (a lone spring three up, its fall shut in at the foot by four stones whose tops are the ledges)
             let x2 = site()
-            w.setBlock(x2 + 1, floorY, cz, STONE)                       // (the ledge, its top beside the fall)
+            let ring = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+            for d in ring { w.setBlock(x2 + d.x, floorY, cz + d.z, STONE) }
             w.setBlock(x2, floorY + 3, cz, WATER)
             w.scheduleFluid(around: IVec3(x2, floorY + 3, cz))
             for _ in 0..<40 { w.fluidTick() }
-            let fell = Blocks.isLiquid(w.builtBlock(x2, floorY + 1, cz)), ledge = Blocks.isLiquid(w.builtBlock(x2 + 1, floorY + 1, cz))
+            let fell = Blocks.isLiquid(w.builtBlock(x2, floorY, cz))
+            let ledge = ring.contains { Blocks.isLiquid(w.builtBlock(x2 + $0.x, floorY + 1, cz + $0.z)) }
             let ok = World.oldStillWater ? (!low && !ledge) : (low && top && fell && !ledge)
-            check(ok, "ledger 176: still water fills a pocket beside it under its surface (low \(low), top \(top)); a lone spring's fall leaves the ledge it passes dry (fell \(fell), ledge wet \(ledge))")
-            for dy in 0...4 { for dx in -8...8 { for dz in -8...8 where Blocks.isLiquid(w.builtBlock(x2 + dx, floorY + dy, cz + dz)) { w.setBlock(x2 + dx, floorY + dy, cz + dz, AIR) } } }
-            w.setBlock(x2 + 1, floorY, cz, AIR)
+            check(ok, "ledger 176: still water fills a pocket beside it under its surface (low \(low), top \(top)); a lone spring's fall leaves the ledges it passes dry (fell \(fell), ledge wet \(ledge))")
+            for dy in stride(from: 3, through: 0, by: -1) { w.setBlock(x2, floorY + dy, cz, AIR) }
+            for d in ring { w.setBlock(x2 + d.x, floorY, cz + d.z, AIR) }
+            for _ in 0..<20 { w.fluidTick() }
         }
 
         // Ice broken without Silk Touch over stone leaves water.

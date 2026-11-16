@@ -3198,6 +3198,8 @@ final class World: LifeLinked {
                 for (i, d) in World.sideDirs.enumerated() where sides & (1 << i) != 0 {
                     setFluid(IVec3(p.x + d.x, p.y, p.z + d.z), fall)
                 }
+                // (the cell over this one looks again: the pocket's next cell up now has water under it)
+                scheduleFluid(around: IVec3(p.x, p.y + 1, p.z))
                 continue
             }
             let next = (lv == 8 ? 0 : lv) + stepLevel
