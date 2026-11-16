@@ -903,9 +903,12 @@ enum RideCheck {
             if i > 60 { crewCheck(i, posts: false) }
             // Two enemy soldiers turn up beside the wreck once it is still: the crew fight them from aboard.
             if !frigate && st.settled && foes.isEmpty {
-                let side = s.dirToWorld(V3(1, 0, 0))
+                // (Ledger 183 note: 34 blocks along the side from the hull's pose put them 3 to 4 blocks off its left
+                // face, 12 below the deck: under the overhang, where no spot on the deck sees them, and about 1 run in
+                // 5 none of the crew ever fired (load runs, Nov 16). Now 14 and 17 blocks out from that face, by the
+                // middle of the hull, in its own frame.)
                 for k in 0..<2 {
-                    let at = s.pos + side * Float(-34 - k * 3) + V3(0, 0, Float(k) * 3)
+                    let at = s.toWorld(V3(Float(-14 - k * 3), 0, Float(s.grid.sz / 2 + k * 3)))
                     let ix = Int(floor(at.x)), iz = Int(floor(at.z))
                     foeSpots.append(V3(at.x, Float(w.topY(ix, iz) + 1), at.z))
                     let m = Mob(.soldierRecruit, at: foeSpots[k])
