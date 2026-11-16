@@ -30,19 +30,22 @@ enum GhostVillage {
 
         init(_ a: IVec3, _ b: IVec3, seed: UInt32) {
             x0 = a.x; z0 = a.z; x1 = b.x; z1 = b.z; y = a.y; tall = b.y - a.y
-            s = seed ^ UInt32(truncatingIfNeeded: a.x &* 73_856_093 ^ a.z &* 19_349_663)
-            func h(_ k: Int) -> Float { hashf(a.x, k, a.z, s) }
+            let s0 = seed ^ UInt32(truncatingIfNeeded: a.x &* 73_856_093 ^ a.z &* 19_349_663)
+            s = s0
+            func h(_ k: Int) -> Float { hashf(a.x, k, a.z, s0) }
             let u = h(1)
-            rule = u < 0.2 ? 0 : (u < 0.5 ? 1 : (u < 0.75 ? 2 : (u < 0.9 ? 3 : 4)))
-            let wx = Float(x1 - x0), wz = Float(z1 - z0)
-            switch rule {
+            let ru = u < 0.2 ? 0 : (u < 0.5 ? 1 : (u < 0.75 ? 2 : (u < 0.9 ? 3 : 4)))
+            rule = ru
+            let wx = Float(b.x - a.x), wz = Float(b.z - a.z)
+            let cornerX: Float = h(2) < 0.5 ? Float(a.x) : Float(b.x) + 1, cornerZ: Float = h(3) < 0.5 ? Float(a.z) : Float(b.z) + 1
+            switch ru {
             case 0, 1:
-                px = Float(x0) + 1.5 + h(2) * max(0, wx - 2); pz = Float(z0) + 1.5 + h(3) * max(0, wz - 2)
-                r = rule == 0 ? 1.2 + h(4) : 2.2 + h(4) * 2.2
+                px = Float(a.x) + 1.5 + h(2) * max(0, wx - 2); pz = Float(a.z) + 1.5 + h(3) * max(0, wz - 2)
+                r = ru == 0 ? 1.2 + h(4) : 2.2 + h(4) * 2.2
             case 2:
-                px = h(2) < 0.5 ? Float(x0) : Float(x1) + 1; pz = h(3) < 0.5 ? Float(z0) : Float(z1) + 1; r = 0
+                px = cornerX; pz = cornerZ; r = 0
             default:
-                px = h(2) < 0.5 ? Float(x0) : Float(x1) + 1; pz = h(3) < 0.5 ? Float(z0) : Float(z1) + 1; r = h(5) < 0.5 ? 0 : 1   // r: 0 an x side, 1 a z side
+                px = cornerX; pz = cornerZ; r = h(5) < 0.5 ? 0 : 1          // r: 0 an x side, 1 a z side
             }
             slope = 0.55 + h(6) * 0.5
             doors = h(7) < 0.7 ? 1 : 0
