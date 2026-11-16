@@ -422,6 +422,11 @@ enum TrainHullCheck {
                 let l0 = sa.toLocal(p.pos)
                 print(String(format: "rail: ledger 141 start: in the first coach at %.2f %.2f %.2f, aboard %@, same coach as before %@, on ground %@",
                              l0.x, l0.y, l0.z, w.ships.aboard === sa ? "it" : w.ships.aboard == nil ? "nothing" : "another", coaches[0] === coach ? "yes" : "no", p.onGround ? "yes" : "no"))
+                let nb = sa.toLocal(sb.toWorld(V3(1.5, 1.25, 0))), nf = sa.toLocal(sb.toWorld(V3(1.5, 1.25, Float(sb.grid.sz))))
+                var holes: [Int] = []
+                for z in 0..<sa.grid.sz where !Blocks.collide[Int(sa.grid.get(1, 0, z))] && !Blocks.collide[Int(sa.grid.get(1, 1, z))] { holes.append(z) }
+                print(String(format: "rail: ledger 141 start: the first coach's hull is %d long; the second's near end is at %.2f %.2f %.2f of the first, its far end at %.2f %.2f %.2f; aisle cells with no floor: %@; train at %.1f blocks a second",
+                             sa.grid.sz, nb.x, nb.y, nb.z, nf.x, nf.y, nf.z, holes.map { String($0) }.joined(separator: " "), tr.blocksPerSec))
             }
             var go = MoveInput(); go.forward = 1
             var crossed = false, took = 0, lowest: Float = 9
