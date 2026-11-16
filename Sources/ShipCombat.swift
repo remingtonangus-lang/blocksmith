@@ -27,6 +27,7 @@ final class Shell {
     var seekPoint: V3?
     var gentle = false               // hurts, breaks no blocks (an auto-turret's shell: Wrecks.swift)
     var parked: Float = -1           // seconds waiting where it struck for a shell chunk's blocks (World.dataReady); -1 flying
+    var askedAt: Float = -1          // ledger 175: its age when the ground it will strike was last asked for
     init(pos: V3, vel: V3, owner: Int, power: Float) { self.pos = pos; self.vel = vel; self.owner = owner; self.power = power }
 }
 
@@ -233,6 +234,26 @@ extension ShipManager {
                 }
             }
             sh.vel.y -= sh.gravity * dt
+            // Ledger 175 (Nov 15 21:06:34 "Explosion's still taking too long to register", 21:06:40 "Two seconds for it
+            // to register there", the crawler's guns on a town past the distance blocks are kept): the blocks where a
+            // shot would land were only asked for once it got there, and it stood parked up to refillWait while they
+            // came. A shot in flight now looks along its own fall (up to 2.5 s ahead, eight times a second) and asks
+            // for the ground it will meet, so the blocks are there when it arrives. BS_OLDSHELLAHEAD=1 = before.
+            if !ShipManager.oldShellAhead && !sh.gentle && sh.parked < 0 && sh.kind != 4 && sh.kind != 5 && sh.age - sh.askedAt > 0.125 {
+                sh.askedAt = sh.age
+                var q = start, v = sh.vel
+                let h: Float = 0.1
+                for _ in 0..<25 {
+                    v.y -= sh.gravity * h
+                    q += v * h
+                    let x = Int(floor(q.x)), z = Int(floor(q.z))
+                    guard let c = world.chunkAt(x, z) else { break }
+                    if q.y <= Float(c.height[(x & 15) + (z & 15) * CS]) + 3 {
+                        if c.hollow { _ = world.dataReady(around: q, reach: blastReach(sh)) }
+                        break
+                    }
+                }
+            }
             // Torpedoes run level under water and drop once out of it; depth charges sink slowly in it and burst at depth.
             if sh.kind == 4 || sh.kind == 5 {
                 let wet = Blocks.fluidKind[Int(reader.get(Int(floor(start.x)), Int(floor(start.y)), Int(floor(start.z))))] == 1
@@ -368,6 +389,7 @@ extension ShipManager {
     // How far from where a shot strikes its burst can change blocks: a rail slug's bore and its burst, a shell's
     // blast. A Tidebreaker's slug waits only for the ground it strikes (its bowl waits for the rest: CraterJob).
     static let refillWait: Float = 1.5
+    static let oldShellAhead = Env.all["BS_OLDSHELLAHEAD"] == "1"
     static var blastSpares = -1                           // (a ship's root id its own blast leaves whole: CraterJob, a Tidebreaker's bowl)
     static var slowContactMs = 0.0, slowContact = ""     // (harness: the slowest hull contact of a commandeered capital)
     static var probeBuilds = 0, probeMs = 0.0             // (harness: a capital hull's contact probes made again, CapitalShips.hullContact)

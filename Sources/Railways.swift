@@ -808,6 +808,7 @@ enum Railways {
     }
 
     // Links whose track may pass within `pad` blocks of the box (as `near` for lines).
+    static let oldLinkTrees = Env.all["BS_OLDLINKTREES"] == "1"
     static func linksNear(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true) -> [Line] {
         guard on, linksOn else { return [] }
         // (a link may go round things up to routeWander off its rows)

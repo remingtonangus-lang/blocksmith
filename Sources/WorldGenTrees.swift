@@ -123,7 +123,15 @@ enum TreePlacer {
         // jungle town's station at 6308, 2565 on his Oct 28 seed, seen from across the line).
         let railPad = margin + 8
         var railCells: [(Int, Int)] = []
-        for l in Railways.near(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0) {
+        // Ledger 174 (Nov 15 20:58:30 "Floating tree", 20:58:33 "the trees aren't despawning in the way, so when I hit
+        // the trees, the train breaks them", riding a link of track east of -5984, z -1612): only a line's own cells
+        // kept trees off. A link between two lines and a loop are track too. BS_OLDLINKTREES=1 = lines only.
+        var tracks = Railways.near(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0)
+        if !Railways.oldLinkTrees {
+            tracks += Railways.linksNear(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0)
+            tracks += Railways.loopsNear(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0)
+        }
+        for l in tracks {
             for c in l.cells where c.x >= bx - railPad && c.x < bx + CS + railPad && c.z >= bz - railPad && c.z < bz + CS + railPad {
                 railCells.append((c.x, c.z))
             }

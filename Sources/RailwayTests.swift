@@ -85,8 +85,75 @@ enum RailwayTests {
         check(ok, String(format: "ledger 140: a straight leg at any angle is drawn and run straight (off the line by at most %.2f of a block, heading swings %.1f deg a cell; a turn keeps within %.2f of its cells)", worstOff, worstTurn, far) + ", worst leg \(worstAt)")
     }
 
+    // Ledger 173: a dog-leg as the plans make one (two 45 degree turns eased at radius 14), run as a train runs it:
+    // at the cab's top speed its heading turned over 80 degrees a second in the turns; at the pace the track allows it
+    // turns under 55, it is never asked to go slower than the floor, and the straights well clear of a turn allow the
+    // top speed. BS_OLDCURVESPEED=1 only stops the cab using the limit (the check reads the track's own numbers).
+    static func curveSpeed(_ check: (Bool, String) -> Void) {
+        let poly: [(Float, Float)] = [(0, 0), (150, 0), (250, 100), (400, 100)]
+        let c = Railways.rasterPolyline(Railways.roundPolyline(poly, radius: 14))
+        let cells = c.map { IVec3(Int($0.0), 100, Int($0.1)) }
+        let t = Trains.Track(id: 173, name: "check", cells: cells, slopes: [Bool](repeating: false, count: cells.count), stops: [0, cells.count - 1],
+                             stopNames: ["a", "b"], armoured: false, dim: .overworld, heights: [Float](repeating: 100, count: cells.count))
+        var fast: Float = 0, held: Float = 0, slowest = Trains.topSpeed, wiggles = 0
+        var s = t.advance(0, by: 8)
+        let end = Float(cells.count - 1)
+        var lastTurn: Float = 0
+        while t.advance(s, by: 8) < end - 1 {
+            let a = t.point(t.advance(s, by: -4)), m = t.point(s), b = t.point(t.advance(s, by: 4))
+            let ax = m.x - a.x, az = m.z - a.z, bx = b.x - m.x, bz = b.z - m.z
+            let turn = atan2f(ax * bz - az * bx, ax * bx + az * bz) / 4          // radians a block, signed
+            let v = t.curveSpeed(s)
+            fast = max(fast, abs(turn) * Trains.topSpeed); held = max(held, abs(turn) * v); slowest = min(slowest, v)
+            if turn * lastTurn < 0 && min(abs(turn), abs(lastTurn)) > 0.02 { wiggles += 1 }
+            if abs(turn) > 0.004 { lastTurn = turn }
+            s = t.advance(s, by: 1)
+        }
+        let open = t.curveSpeed(t.advance(0, by: 40))
+        let deg: Float = 180 / .pi
+        let ok = fast * deg > 80 && held * deg < 55 && slowest >= Trains.curveFloor - 0.01 && open >= Trains.topSpeed - 0.01
+        check(ok, String(format: "ledger 173: a driven train slows for a turn (a radius 14 dog-leg turned %.0f deg a second at top speed, %.0f at the pace the track allows; slowest %.1f blocks a second, %.0f on the straight; %d heading reversals)",
+                         fast * deg, held * deg, slowest, open, wiggles))
+    }
+
+    // Ledger 174: no tree trunk stands within 4 blocks of a link's or a loop's track in freshly generated ground
+    // (it was only a line's own cells that kept trees off; BS_OLDLINKTREES=1 = that).
+    static func linkTrees(_ check: (Bool, String) -> Void) {
+        var chunks = 0, trunks = 0, tracks = 0, at = ""
+        for k in 0..<4 where chunks < 36 {
+            let gen = WorldGen(seed: UInt64(1000 + k * 7919))
+            gen.fieldWorld = true
+            let all = Railways.linksNear(gen, x0: -4000, z0: -4000, x1: 4000, z1: 4000, pad: 0) + Railways.loopsNear(gen, x0: -4000, z0: -4000, x1: 4000, z1: 4000, pad: 0)
+            for l in all.prefix(4) where chunks < 36 {
+                tracks += 1
+                var seen = Set<IVec2Key>()
+                for i in stride(from: 12, to: l.cells.count, by: 30) where chunks < 36 {
+                    let c = l.cells[i], key = IVec2Key(floorDiv(c.x, CS), floorDiv(c.z, CS))
+                    guard seen.insert(key).inserted else { continue }
+                    let b = gen.generate(cx: key.x, cz: key.z)
+                    chunks += 1
+                    let bx = key.x * CS, bz = key.z * CS
+                    for q in l.cells where abs(q.x - c.x) < 24 && abs(q.z - c.z) < 24 {
+                        for dz in -4...4 { for dx in -4...4 {
+                            let x = q.x + dx - bx, z = q.z + dz - bz
+                            guard x >= 0, x < CS, z >= 0, z < CS else { continue }
+                            for y in max(0, q.y - 2)..<min(CH, q.y + 12) where CapitalBase.isLog(b[Chunk.index(x, y, z)]) {
+                                trunks += 1
+                                if at.isEmpty { at = " (first at \(q.x + dx) \(y) \(q.z + dz), seed \(gen.seed))" }
+                            }
+                        } }
+                    }
+                }
+            }
+        }
+        let ok = Railways.oldLinkTrees ? true : (trunks == 0 && chunks > 0)
+        check(ok, "ledger 174: no tree stands on or beside a link's or a loop's track (\(tracks) tracks, \(chunks) chunks generated, \(trunks) trunk blocks within 4 blocks of the rails\(at))")
+    }
+
     static func diagonals(_ check: (Bool, String) -> Void) {
         sway(check)
+        curveSpeed(check)
+        linkTrees(check)
         guard !Railways.oldRails else { print("rail: N12 diagonals skipped (BS_OLDRAILS=1)"); return }
         var lines = 0, diag = 0, legs = 0, bad: [String] = [], gateOK = 0, gateTried = 0
         var worstTurn: Float = 0, worstOldTurn: Float = 0, worstPace: Float = 0, longest = 0

@@ -160,6 +160,48 @@ enum Trains {
             if cyclic { let L = arc[cells.count]; if d > L / 2 { d -= L } else if d < -L / 2 { d += L } }
             return d
         }
+        // Ledger 173 (Nov 15 20:58:16 "Oh dear. Motion sickness", 20:59:15 "with any major turns", driving at 101 km/h):
+        // a plan's turns are arcs of radius 14 or less, and at the cab's top speed (28 blocks a second) the train went
+        // round one at 115 degrees a second. The pace each cell allows: the turn there (heading change over the 4 cells
+        // either side, per block run) taken at no more than `Trains.turnRate`, never under `Trains.curveFloor`, and
+        // eased both ways along the line at `Trains.curveEase` so the train is already slow where the turn starts.
+        // Straight track allows the top speed. A line run block by block (not smooth) has no limit.
+        private(set) lazy var curveLimit: [Float] = {
+            let n = cells.count
+            guard smooth, n >= 12 else { return [] }
+            var lim = [Float](repeating: Trains.topSpeed, count: n)
+            let w = 4
+            func at(_ i: Int) -> V3 { cyclic ? pts[((i % n) + n) % n] : pts[max(0, min(n - 1, i))] }
+            for i in 0..<n {
+                if !cyclic && (i < w || i >= n - w) { continue }
+                let a = at(i - w), m = at(i), b = at(i + w)
+                let ax = m.x - a.x, az = m.z - a.z, bx = b.x - m.x, bz = b.z - m.z
+                let la = hypotf(ax, az), lb = hypotf(bx, bz)
+                guard la > 0.5, lb > 0.5 else { continue }
+                let turn = abs(atan2f(ax * bz - az * bx, ax * bx + az * bz))
+                let bend = turn / ((la + lb) * 0.5)                     // radians a block
+                if bend > 1e-4 { lim[i] = max(Trains.curveFloor, min(Trains.topSpeed, Trains.turnRate / bend)) }
+            }
+            func ease(_ from: Int, _ to: Int) {
+                let d = max(0.05, simd_length(V2(pts[to].x - pts[from].x, pts[to].z - pts[from].z)))
+                lim[to] = min(lim[to], (lim[from] * lim[from] + 2 * Trains.curveEase * d).squareRoot())
+            }
+            for _ in 0..<(cyclic ? 2 : 1) {
+                for i in 1..<n { ease(i - 1, i) }
+                if cyclic { ease(n - 1, 0) }
+                for i in stride(from: n - 2, through: 0, by: -1) { ease(i + 1, i) }
+                if cyclic { ease(0, n - 1) }
+            }
+            return lim
+        }()
+        // The pace allowed at place s (blocks a second).
+        func curveSpeed(_ s: Float) -> Float {
+            let lim = curveLimit
+            guard !lim.isEmpty else { return Trains.topSpeed }
+            let n = lim.count
+            let i = cyclic ? min(n - 1, Int(wrap(s.rounded()))) : max(0, min(n - 1, Int(s.rounded())))
+            return lim[i]
+        }
         func cell(_ s: Float) -> IVec3 {
             let n = cells.count
             if cyclic { return cells[min(n - 1, Int(wrap(s.rounded())))] }
@@ -724,6 +766,10 @@ enum Trains {
     static var watch: IVec3?                                     // (RailwayTests: each frame of a driven train's nose near this cell)
     static let topSpeed: Float = 28, backSpeed: Float = 7       // blocks a second at full regulator, ahead and backing
     static let tractive: Float = 2.2, coast: Float = 0.35, brakeRate: Float = 5      // blocks a second, each second
+    // Ledger 173: a driven train takes a turn at no more than `turnRate` radians a second (40 degrees), never under
+    // `curveFloor` blocks a second, slowing ahead of it at `curveEase` blocks a second each second. BS_OLDCURVESPEED=1 = before.
+    static let oldCurveSpeed = Env.all["BS_OLDCURVESPEED"] == "1"
+    static let turnRate: Float = 0.7, curveFloor: Float = 8, curveEase: Float = 3
     static let tenderStart: Float = 24, tenderMax: Float = 64
     static var coalBurned: Float = 0                             // (checks)
 
@@ -763,6 +809,13 @@ enum Trains {
         }
         let stopping = brakeRate * max(tr.cabBrake, tr.brake) * dt
         v = v > 0 ? max(0, v - stopping) : min(0, v + stopping)
+        // Ledger 173: the turns' pace (the train's middle and both its ends, so the whole of it is through the turn
+        // before it picks up again); over it, the train is held back at the brake's rate.
+        if !oldCurveSpeed && t.smooth {
+            let half = tr.layout.isEmpty ? Float(2) : tr.length / 2
+            let cap = min(t.curveSpeed(tr.driveS), t.curveSpeed(t.advance(tr.driveS, by: half)), t.curveSpeed(t.advance(tr.driveS, by: -half)))
+            if abs(v) > cap { let nv = max(cap, abs(v) - brakeRate * 1.6 * dt); v = v > 0 ? nv : -nv }
+        }
         // A block he put on the rail ahead (place: heldBy) stops it there, backing or not; he can still pull away from
         // it the other way.
         if tr.heldBy && (tr.heldWay == 0 || v * tr.heldWay > 0) { v = 0 }
