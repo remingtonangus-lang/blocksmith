@@ -113,6 +113,34 @@ enum Nov15EveningChecks {
         check(sites.count == bps.count && touching == 0 && far <= BuildersGrounds.near && facing,
               String(format: "Ledger 202 builds together: %d sites (%d on their own kind of ground: %@), %d touching, the farthest build %.1f from where he starts, facing their middle %@ (found in %.1f s)",
                      sites.count, c.own.count, c.own.sorted().joined(separator: ", "), touching, far, facing ? "yes" : "no", secs))
+        // The six as the world puts them up (BuildersWorld: every job applied, the trees round them cleared), 20 s later:
+        // every block where it was put; the pictures from where he starts and from the four sides, at noon.
+        var plans: [BuildersGrounds.Placement] = []
+        for bp in bps { guard let st = c.sites[bp.ground] else { continue }
+            _ = w.loadSync(center: V3(Float(st.x), 120, Float(st.z)), radius: 1)
+            plans.append(BuildersGrounds.place(bp, on: w, at: st)) }
+        let mids = plans.map { V3(Float($0.lo.x + $0.hi.x) / 2, 0, Float($0.lo.z + $0.hi.z) / 2) }
+        let m = mids.reduce(V3.zero, +) / Float(max(1, mids.count))
+        let reach = (mids.map { simd_length(V2($0.x - m.x, $0.z - m.z)) } + [simd_length(V2(c.spawn.x - m.x, c.spawn.z - m.z))]).max() ?? 30
+        _ = w.loadSync(center: V3(m.x, 100, m.z), radius: Int(reach / Float(CS)) + 2)
+        let felled = BuildersGrounds.clearTrees(w, middle: m, radius: reach + 10)
+        for pl in plans { for j in pl.jobs { BuildersGrounds.apply(g, j) } }
+        g.player.pos = c.spawn + V3(0, 8, 0); g.player.flying = true
+        for _ in 0..<400 { g.tick(0.05) }
+        var wrong: [String] = []
+        for pl in plans { for j in pl.jobs where j.want != AIR && !BuildersGrounds.holds(w, j) { wrong.append(pl.bp.key) } }
+        let byBuild = Dictionary(grouping: wrong, by: { $0 }).map { "\($0.key) \($0.value.count)" }.sorted()
+        check(wrong.isEmpty,
+              "Ledger 202/203 builds put up as the world does: \(plans.reduce(0) { $0 + $1.jobs.count }) jobs, \(felled) tree cells cleared round them, 20 s later \(wrong.count) blocks not where they were put (\(byBuild.joined(separator: ", ")))")
+        if let shot = CircuitWorkshopTests.shot {
+            g.time = 0.3 * DAY_LENGTH
+            shot(g, "builders_start", c.spawn + V3(0, 7, 0), c.yaw, -0.3)
+            for (name, a) in [("south", Float(0)), ("east", Float.pi / 2), ("north", Float.pi), ("west", -Float.pi / 2)] {
+                let p = V3(m.x + sinf(a) * 46, 0, m.z + cosf(a) * 46)
+                let y = Float(max(BuildersGrounds.groundY(w, Int(p.x), Int(p.z)), SEA)) + 22
+                shot(g, "builders_\(name)", V3(p.x, y, p.z), atan2f(-(m.x - p.x), -(m.z - p.z)), -0.32)
+            }
+        }
     }
 
     // Ledger 196 (21:14:15, "Why can't I get in this chair?"): a chair on a craft's deck seats him, holds him on it as the

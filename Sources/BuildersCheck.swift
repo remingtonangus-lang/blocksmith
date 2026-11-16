@@ -141,9 +141,9 @@ enum BuildersCheck {
                 let a = Float(k) * .pi / 2
                 let p = c.middle + V3(sinf(a), 0, cosf(a)) * 46
                 let y = Float(BuildersGrounds.groundY(w, Int(c.middle.x), Int(c.middle.z))) + 22
-                shot(g, "builders_\(name)", V3(p.x, y, p.z), atan2f(-(c.middle.x - p.x), -(c.middle.z - p.z)), -0.32)
+                shot(g, "builders_bot_\(name)", V3(p.x, y, p.z), atan2f(-(c.middle.x - p.x), -(c.middle.z - p.z)), -0.32)
             }
-            shot(g, "builders_start", c.spawn + V3(0, 7, 0), c.yaw, -0.3)
+            shot(g, "builders_bot_start", c.spawn + V3(0, 7, 0), c.yaw, -0.3)
         }
     }
 }

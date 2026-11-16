@@ -35,6 +35,26 @@ extension BuildersGrounds {
         else { w.meetGround(c.x, c.y, c.z, job.want) }                 // (as a placed block does: Game.useItem)
     }
 
+    // Ledger 202: the trees round the six and where he starts, so he sees them from there (his Nov 15 pictures: a wood;
+    // the first place the search finds with all six is often in one). Trunks and leaves only, from the ground up, each
+    // column within `radius` of the middle. Returns the cells cleared.
+    static func clearTrees(_ w: World, middle m: V3, radius: Float) -> Int {
+        var n = 0
+        let r = Int(radius.rounded(.up))
+        for dz in -r...r { for dx in -r...r where Float(dx * dx + dz * dz) <= radius * radius {
+            let x = Int(floorf(m.x)) + dx, z = Int(floorf(m.z)) + dz
+            guard w.isLoaded(x, z) else { continue }
+            let g = groundY(w, x, z)
+            for y in (g + 1)...(g + 40) {
+                let b = w.block(x, y, z)
+                guard b != AIR else { continue }
+                let k = ShapeClass.kind[Int(b)]
+                if k == .trunk || k == .foliage { _ = w.setBlockAsync(x, y, z, AIR); n += 1 }
+            }
+        } }
+        return n
+    }
+
     // A sign by a build, on the ground two out from its south side.
     static func sign(_ g: Game, _ pl: Placement) {
         let w = g.world
@@ -109,6 +129,14 @@ extension Game {
             plans.append(BuildersGrounds.place(bp, on: world, at: s))
         }
         guard let first = plans.first else { return }
+        if case let (p, _)? = start {
+            // (ledger 202: no wood between him and the six)
+            let mids = plans.map { V3(Float($0.lo.x + $0.hi.x) / 2, 0, Float($0.lo.z + $0.hi.z) / 2) }
+            let m = mids.reduce(V3.zero, +) / Float(mids.count)
+            let reach = (mids.map { simd_length(V2($0.x - m.x, $0.z - m.z)) } + [simd_length(V2(p.x - m.x, p.z - m.z))]).max() ?? 30
+            _ = world.loadSync(center: V3(m.x, 100, m.z), radius: Int(reach / Float(CS)) + 2)
+            _ = BuildersGrounds.clearTrees(world, middle: m, radius: reach + 10)
+        }
         buildersRun = BuildersGrounds.Run(plans)
         // He starts by the first build, flying, looking north at it. (Ledger 202: where all six are in front of him, 12
         // from their middle, a little over the ground, looking down at them; the world's spawn there too.)
