@@ -258,6 +258,7 @@ final class Game: LifeLinked {
     var shriekDecay = 600    // nightwings appear after 3 days (3600 s) without sleep
     private var beaconTicks = 0
     var workshopChecked = false                 // the Sparkstone Workshop deck check has run (CircuitWorkshop.swift)
+    var workshopDeck: (IVec3, Int)?             // ledger 200: the workshop deck this world stands, its origin and version
     var provingChecked = false                  // P512: the Proving Grounds check has run (ProvingGrounds.swift)
     var provingBuild: ProvingGrounds.Build?     // ... and the grounds still going down, a few steps a tick
     var buildersChecked = false                 // the Builders' Grounds check has run (BuildersWorld.swift)
@@ -1464,8 +1465,12 @@ final class Game: LifeLinked {
         if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(vrAim?.origin ?? player.eye, vrAim?.dir ?? player.look, maxDist: 4.5),
            AshCommandeer.takeable(hit.0.kind), ashCommandeer(hit.0) { mining = nil; return }
         // FAILURES 3 (Nov 2 08:41:46, a carbine in hand: "I can't seem to drive the train now"): ...nor taking an engine's cab.
-        if useNow && heldGun != nil && riding == nil, let hit = mobs.raycast(vrAim?.origin ?? player.eye, vrAim?.dir ?? player.look, maxDist: 4.5),
-           Trains.isCar(hit.0) && Trains.isEngine(hit.0), Trains.use(self, hit.0) { mining = nil; return }
+        // Ledger 205 (Nov 15 20:56:34, a carbine in hand in a troop car: "How do I get into the gun car?"): any car, from
+        // the ground or from another car of the train, the same as with empty hands (BS_OLDCARUSE=1: engines from the
+        // ground only).
+        if useNow && heldGun != nil && (riding == nil || (!Trains.oldCarUse && riding.map { Trains.isCar($0) } == true)),
+           let hit = mobs.raycast(vrAim?.origin ?? player.eye, vrAim?.dir ?? player.look, maxDist: 4.5), hit.0 !== riding,
+           Trains.isCar(hit.0) && (Trains.isEngine(hit.0) || !Trains.oldCarUse), Trains.use(self, hit.0) { mining = nil; return }
         // P74 (Oct 12 playtest, 09:22): a gun in hand still opens a door, a chest or a lever within arm's reach; the
         // gun's aim took the use press first, so nothing could be opened with a gun out.
         if useNow && heldGun != nil && !(input.shift || p.b), let t = target,

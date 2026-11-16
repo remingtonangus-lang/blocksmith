@@ -325,6 +325,10 @@ enum BorealTests {
         g.player.pos = at(-5, S + 1, Float(BorealStation.yard - 6))
         secs(1)
         let bar0 = g.stationOpBar()?.0 ?? "none"
+        // Ledger 199: the jobs are in the journal, once.
+        let orders = g.journal.filter { $0.id == "boreal-orders" }
+        check(BorealOps.oldOrders || (orders.count == 1 && (orders.first?.pages?.count ?? 0) == BorealOps.orders.count && orders.first?.cat == "orders"),
+              "Ledger 199 boreal ops: stepping in files the station's orders in the journal once (\(orders.count) entries, \(orders.first?.pages?.count ?? 0) pages, shelf \(orders.first?.cat ?? "none"))")
         check(g.stationOps[key]?.stage == 1 && bar0.hasPrefix("Station operation 0 / 3") && !toasts.contains { $0.hasPrefix("Station operation") },
               "boreal ops: stepping inside starts the operation (bar \"\(bar0)\")")
         // P475: the ring's ceiling guns fire on him below them, and the control room's console shuts them down.

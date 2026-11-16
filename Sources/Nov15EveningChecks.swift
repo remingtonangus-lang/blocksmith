@@ -8,6 +8,111 @@ enum Nov15EveningChecks {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
         attachPin(g, check)
         shipChair(g, check)
+        fittings(check)
+        buildsTogether(g, check)
+        provingOrder(check)
+        ghostTowns(g, check)
+    }
+
+    // Ledger 207 (21:00:20-21:00:26, "make it a normal village, but the village is abandoned... chain modify each village
+    // building so it's abandoned"): ghost towns are towns' layouts (lots along streets, the towns' own buildings), each
+    // building ruined by its own draw; nobody lives there, no light burns, cobwebs hang inside; no two alike.
+    static func ghostTowns(_ g: Game, _ check: (Bool, String) -> Void) {
+        guard !GhostVillage.old, let sc = g.world.gen.structures else { return }
+        let w = g.world
+        var towns: [StructureStart] = []
+        for (x, z) in [(3000, -2000), (-3000, 2500), (5000, 5000), (-5000, -5000), (2000, 6000), (-6000, 1000), (6000, -3000), (-2000, -6000),
+                       (8000, 0), (0, 8000), (-8000, 0), (0, -8000)] where towns.count < 3 {
+            guard let st = sc.nearest(FrontierSites.kind, x: x, z: z, maxRegions: 8, accept: { $0.kind == "ghost_town" && $0.info["lots"] != nil }),
+                  !towns.contains(where: { $0 === st }) else { continue }
+            towns.append(st)
+        }
+        var lines: [String] = [], rules = Set<Int>(), ok = !towns.isEmpty, shapes = Set<String>()
+        for (i, st) in towns.enumerated() {
+            let a = st.anchor, mid = V3(Float(st.min.x + st.max.x) / 2, Float(a.y), Float(st.min.z + st.max.z) / 2)
+            _ = w.loadSync(center: mid, radius: 4)
+            for k in 0..<5 where (st.info["rule\(k)"] ?? 0) > 0 { rules.insert(k) }
+            var lights = 0, beds = 0, webs = 0, built = 0, folk = 0
+            for y in (a.y - 4)...(a.y + 16) { for z in st.min.z...st.max.z { for x in st.min.x...st.max.x {
+                let b = w.block(x, y, z)
+                guard b != AIR else { continue }
+                let k = Blocks.key(Blocks.groupBase[Int(b)])
+                if GhostVillage.dead[Int(b)] { if Blocks.shape[Int(b)] == "bed" || k.hasSuffix("_bed") { beds += 1 } else { lights += 1 } }
+                if b == GhostVillage.web { webs += 1 }
+                if !SmoothTerrain.natural[Int(b)] { built += 1 }
+            } } }
+            func inBox(_ p: V3) -> Bool { p.x >= Float(st.min.x) && p.x <= Float(st.max.x + 1) && p.z >= Float(st.min.z) && p.z <= Float(st.max.z + 1) }
+            folk = w.pendingMobs.filter { inBox($0.1) }.count + g.mobs.mobs.filter { inBox($0.pos) && $0.kind == .villager }.count
+            let houses = st.far.filter { $0.tone != .roof }.count
+            let rl = (0..<5).map { "\(st.info["rule\($0)"] ?? 0)" }.joined(separator: "/")
+            lines.append("\(a.x),\(a.z): \(st.info["lots"] ?? 0) lots, \(houses) buildings (rules \(rl)), \(built) built blocks, \(webs) cobwebs, \(lights) lights, \(beds) beds, \(folk) folk")
+            shapes.insert("\(built)/\(webs)")
+            ok = ok && houses >= 3 && lights == 0 && beds == 0 && folk == 0 && webs > 0
+            if let shot = CircuitWorkshopTests.shot {
+                let eye = V3(Float(st.min.x) - 10, Float(a.y) + 22, Float(st.max.z) + 10)
+                shot(g, "ghost_town_\(i)", eye, atan2f(-(mid.x - eye.x), -(mid.z - eye.z)), -0.5)
+                let low = V3(mid.x + 4, Float(a.y) + 3, mid.z + 3)
+                shot(g, "ghost_street_\(i)", low, atan2f(-(Float(a.x) - low.x), -(Float(a.z) - low.z)) + 0.4, -0.12)
+            }
+        }
+        check(ok && towns.count >= 2 && rules.count >= 3 && shapes.count == towns.count,
+              "Ledger 207 ghost towns: \(towns.count) laid out as towns (\(GhostVillage.laid) laid, \(GhostVillage.tooBig) layouts past the site), \(rules.count) of 5 ruin rules among them, no two alike: \(lines.joined(separator: "; "))")
+    }
+
+    // Ledger 204 (20:35-20:37, the Proving Grounds: "no vehicle circuits nor guns here... Giant flat thing"): the build
+    // lays a gun and a vehicle by him within its first steps, not after the deck round him for 200 blocks.
+    static func provingOrder(_ check: (Bool, String) -> Void) {
+        let b = ProvingGrounds.plan(IVec3(0, ProvingGrounds.deckY, 0))
+        let gun = b.kinds.firstIndex(of: "gun") ?? 9999, car = b.kinds.firstIndex(of: "vehicle") ?? 9999, circuit = b.kinds.firstIndex(of: "circuit") ?? 9999
+        let decks = b.kinds.filter { $0 == "deck" }.count
+        check(gun <= 8 && car <= 12 && circuit < b.steps.count / 2,
+              "Ledger 204 proving order: of \(b.steps.count) steps (\(decks) deck tiles), the first gun is step \(gun), the first vehicle \(car), the first circuit \(circuit)")
+    }
+
+    // Ledger 201: a lantern hung under a top slab floats (the gate's, Nov 15 20:41); under a full block it touches.
+    // Every lantern, torch and sign in the six agent builds touches what holds it (their drafts: under the floor, the
+    // footing).
+    static func fittings(_ check: (Bool, String) -> Void) {
+        let hang = Blocks.id("lantern") + 1, top = Blocks.id("stone_brick_slab") + 1, brick = Blocks.id("stone_bricks")
+        let p = IVec3(0, 0, 0)
+        let underSlab = Attach.flush({ $0 == p ? hang : ($0 == IVec3(0, 1, 0) ? top : AIR) }, p)
+        let underBrick = Attach.flush({ $0 == p ? hang : ($0 == IVec3(0, 1, 0) ? brick : AIR) }, p)
+        var loose: [String] = [], n = 0
+        for bp in BuildersGrounds.blueprints() {
+            let d = bp.draft
+            n += d.cells.values.filter { Attach.fitting[Int($0)] }.count
+            loose += Attach.loose(Array(d.cells.keys)) { q in d.cells[q] ?? (q.y < 0 ? STONE : AIR) }.map { "\(bp.key): \($0)" }
+        }
+        check(!underSlab && underBrick && n >= 10 && loose.isEmpty,
+              "Ledger 201 fittings: a lantern under a top slab floats (\(!underSlab)), under a brick it hangs (\(underBrick)); the six builds' \(n) lanterns, torches and signs all touch what holds them (\(loose.prefix(4).joined(separator: "; ")))")
+    }
+
+    // Ledger 202 (20:37-20:42, "where are the builds? ... put them right in front of my face when I spawn in"): in the
+    // Builders' Grounds world, the six sites lie together, none touching another, and he starts facing their middle
+    // with every build within 40 of him.
+    static func buildsTogether(_ g0: Game, _ check: (Bool, String) -> Void) {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0 }
+        let w = World(seed: BuildersGrounds.seed, device: g0.world.device, save: nil)
+        w.makeFieldWorld()
+        w.renderDistance = 4; w.activeDistance = 4
+        let g = Game(world: w, save: nil, persistent: false)
+        let bps = BuildersGrounds.blueprints()
+        let t0 = CFAbsoluteTimeGetCurrent()
+        guard let c = BuildersGrounds.findCluster(w, centre: g.findSpawn(), kinds: bps.map { $0.ground }) else {
+            check(false, "Ledger 202 builds together: no place for the six (no water for the boathouse within reach)"); return
+        }
+        let secs = CFAbsoluteTimeGetCurrent() - t0
+        let sites = bps.compactMap { c.sites[$0.ground] }
+        var touching = 0
+        for i in 0..<sites.count { for j in (i + 1)..<sites.count where abs(sites[i].x - sites[j].x) < BuildersGrounds.apart && abs(sites[i].z - sites[j].z) < BuildersGrounds.apart { touching += 1 } }
+        let far = sites.map { simd_length(SIMD2<Float>(Float($0.x) + 5 - c.spawn.x, Float($0.z) + 5 - c.spawn.z)) }.max() ?? 999
+        let look = V2(-sinf(c.yaw), -cosf(c.yaw)), toMid = simd_normalize(V2(c.middle.x - c.spawn.x, c.middle.z - c.spawn.z))
+        let facing = simd_dot(look, toMid) > 0.99
+        check(sites.count == bps.count && touching == 0 && far <= BuildersGrounds.near && facing,
+              String(format: "Ledger 202 builds together: %d sites (%d on their own kind of ground: %@), %d touching, the farthest build %.1f from where he starts, facing their middle %@ (found in %.1f s)",
+                     sites.count, c.own.count, c.own.sorted().joined(separator: ", "), touching, far, facing ? "yes" : "no", secs))
     }
 
     // Ledger 196 (21:14:15, "Why can't I get in this chair?"): a chair on a craft's deck seats him, holds him on it as the

@@ -3108,7 +3108,21 @@ if CommandLine.arguments.contains("--elevator") {              // FAILURES.md 2:
 }
 if CommandLine.arguments.contains("--spawncensus") { exit(SpawnCensus.run(game)) }   // Nov 14 evening: animals in clumps (Sources/SpawnCensus.swift)
 if CommandLine.arguments.contains("--wearprobe") { exit(WearProbe.run(game)) }   // Nov 14 evening: the concrete he could not shoot through (Sources/SpawnCensus.swift)
+// Ledgers 200 and 203: pictures from under the rebuilt workshop deck (CircuitWorkshopTests.rebuild) and of the six
+// agent builds (BuildersCheck), beside the --render PNG.
+if let path = renderPath, !path.isEmpty, let ctx = vkctx {
+    let dir = (path as NSString).deletingLastPathComponent
+    CircuitWorkshopTests.shot = { g, name, p, yaw, pitch in
+        g.player.pos = p; g.player.vel = .zero; g.player.flying = true
+        _ = g.world.loadSync(center: p, radius: 5)
+        do {
+            try RenderTest.render(game: g, ctx: ctx, path: (dir.isEmpty ? "." : dir) + "/\(name).png", yaw: yaw, pitch: pitch)
+            print("render: \(dir)/\(name).png")
+        } catch { print("workshop render \(name): \(error)") }
+    }
+}
 if CommandLine.arguments.contains("--builds") {                // Builders' Grounds: an agent builds on natural ground
+    BuildersCheck.shot = CircuitWorkshopTests.shot          // (with --render: pictures of the six from four sides)
     BuildersCheck.run(game, check)
     print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
@@ -3199,6 +3213,10 @@ if CommandLine.arguments.contains("--fallenoaks") {            // Nov 15: fallen
 if CommandLine.arguments.contains("--nov15") {                 // Nov 15 morning playtest checks alone
     Nov15MorningChecks.run(game, check)
     print(failures == 0 ? "nov15: all checks passed" : "nov15: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--nov15e") {                // Nov 15 evening playtest checks alone (ledger 190 on)
+    Nov15EveningChecks.run(game, check)
+    print(failures == 0 ? "nov15e: all checks passed" : "nov15e: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--planeexit") {             // Nov 13: off a Salvaged Fighter's helm (and the Nov 13 checks)
     PlaneExitCheck.run(game, check)
@@ -3499,6 +3517,9 @@ if CommandLine.arguments.contains("--towns-only") {
     TownTests.run(game: game, makeWorld: { World(seed: seed, device: device, save: nil) }, check: check)
     print(failures == 0 ? "towns: all checks passed" : "towns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --dropsiege (ledger 206, Sources/DropSiegeCheck.swift): five minutes of a siege at the citadel nearest the spawn; its
+// dropships stand on pads, two in all, none built in the air. The suite runs it as its own process.
+if CommandLine.arguments.contains("--dropsiege") { exit(DropSiegeCheck.run(game)) }
 // --basetest-only [phase]: the Mac snap shard's citadel scenes (Sources/BaseTests.swift) at the citadel nearest spawn,
 // as `--structure military_base --basetest patrol` frames it (cloud threads can see which citadel G12's rules leave).
 if let i = CommandLine.arguments.firstIndex(of: "--basetest-only") {
@@ -4958,6 +4979,33 @@ do {
     }
     let status = ran ? Int(proc.terminationStatus) : -1
     check(status == 0 && n > 0, "ridecheck: its own process ran \(n) checks in \(Int(CFAbsoluteTimeGetCurrent() - t0)) s, exit \(status)" + (lines.last.map { " (" + $0 + ")" } ?? ""))
+}
+
+// Ledger 206: the citadel's dropships over a 5-minute siege (Sources/DropSiegeCheck.swift), in its own process (a world
+// with a citadel's garrison roused and its record changed is no ground for the checks after it).
+do {
+    let t0 = CFAbsoluteTimeGetCurrent()
+    let proc = Process()
+    proc.executableURL = URL(fileURLWithPath: "/proc/self/exe")
+    proc.arguments = ["--dropsiege"]
+    let pipe = Pipe()
+    proc.standardOutput = pipe; proc.standardError = pipe
+    var lines: [String] = [], ran = false
+    do {
+        try proc.run()
+        ran = true
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        lines = String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
+    } catch { lines = [] }
+    var n = 0
+    for l in lines {
+        if l.hasPrefix("PASS drop ") { n += 1; check(true, "dropsiege " + l.dropFirst(10)) }
+        else if l.hasPrefix("FAIL drop ") { n += 1; check(false, "dropsiege " + l.dropFirst(10)) }
+        else if l.hasPrefix("drop: ") { print(l) }
+    }
+    let status = ran ? Int(proc.terminationStatus) : -1
+    check(status == 0 && n > 0, "dropsiege: its own process ran \(n) checks in \(Int(CFAbsoluteTimeGetCurrent() - t0)) s, exit \(status)" + (lines.last.map { " (" + $0 + ")" } ?? ""))
 }
 
 // The VR monkey input (--questsim), last: what it leaves behind meets no check after it.

@@ -467,6 +467,7 @@ extension Game {
         if !stationOps.isEmpty, let e = try? JSONEncoder().encode(Array(stationOps.values)), let str = String(data: e, encoding: .utf8) { d["stationOps"] = str }
         // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
         if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
+        if case let (o, v)? = workshopDeck { d["workshopDeck"] = "\(o.x),\(o.y),\(o.z),\(v)" }     // ledger 200 (CircuitWorkshop.swift)
         if horseBond != 0 { d["horseBond"] = "\(Int(horseBond))" }
         if let gr = horseGrave, let e = try? JSONEncoder().encode(gr), let str = String(data: e, encoding: .utf8) { d["horseGrave"] = str }   // P259
         if journalTold { d["journalTold"] = "1" }
@@ -538,6 +539,11 @@ extension Game {
         }
         if let str = d["raid"], let data = str.data(using: .utf8), let rec = try? JSONDecoder().decode(RaidRecord.self, from: data) { raid = Raid(rec) }
         if let str = d["coop2"], let data = str.data(using: .utf8), let c = try? JSONDecoder().decode(Coop.Saved.self, from: data) { coop.restoreSecond(c) }
+        workshopDeck = nil
+        if let a = d["workshopDeck"] {
+            let v = a.split(separator: ",").compactMap { Int($0) }
+            if v.count == 4 { workshopDeck = (IVec3(v[0], v[1], v[2]), v[3]) }
+        }
         if let a = d["anchor"] {
             let v = a.split(separator: ",").compactMap { Int($0) }
             if v.count == 3 { anchorSpawn = IVec3(v[0], v[1], v[2]) }

@@ -75,20 +75,31 @@ extension Game {
         guard let dir = save?.dir, dir.lastPathComponent == BuildersGrounds.worldName else { buildersChecked = true; return }
         guard dim.dim == .overworld else { return }
         buildersChecked = true
-        if save?.hasMarker(BuildersGrounds.builtMarker) == true { return }
         let bps = BuildersGrounds.blueprints()
-        // The sites: kept from the first load, else found round the spawn.
+        // The sites: kept from the first load, else found round the spawn. (Ledger 202: the six together, kept with
+        // where he starts, a "cluster" line; a save from before, its six spread out, has them built again together.)
         var sites: [String: IVec3] = [:]
+        var start: (V3, Float)?
         let sf = dir.appendingPathComponent(BuildersGrounds.sitesFile)
         if let s = try? String(contentsOf: sf, encoding: .utf8) {
             for line in s.split(separator: "\n") {
                 let f = line.split(separator: " ")
                 if f.count == 3, let x = Int(f[1]), let z = Int(f[2]) { sites[String(f[0])] = IVec3(x, 0, z) }
+                if f.count == 5, f[0] == "cluster", let x = Float(f[1]), let y = Float(f[2]), let z = Float(f[3]), let a = Float(f[4]) { start = (V3(x, y, z), a) }
             }
-        } else {
+            if !BuildersGrounds.oldSites && start == nil { sites = [:] }
+        }
+        if save?.hasMarker(BuildersGrounds.builtMarker) == true && !sites.isEmpty { return }
+        if sites.isEmpty {
             onToast?("Builders' Grounds: finding the ground")
-            sites = BuildersGrounds.findSites(world, centre: findSpawn(), kinds: bps.map { $0.ground })
-            let text = sites.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value.x) \($0.value.z)" }.joined(separator: "\n") + "\n"
+            if !BuildersGrounds.oldSites, let c = BuildersGrounds.findCluster(world, centre: findSpawn(), kinds: bps.map { $0.ground }) {
+                sites = c.sites
+                start = (c.spawn, c.yaw)
+            } else {
+                sites = BuildersGrounds.findSites(world, centre: findSpawn(), kinds: bps.map { $0.ground })
+            }
+            var text = sites.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value.x) \($0.value.z)" }.joined(separator: "\n") + "\n"
+            if case let (p, a)? = start { text += "cluster \(p.x) \(p.y) \(p.z) \(a)\n" }
             try? text.write(to: sf, atomically: true, encoding: .utf8)
         }
         var plans: [BuildersGrounds.Placement] = []
@@ -99,7 +110,20 @@ extension Game {
         }
         guard let first = plans.first else { return }
         buildersRun = BuildersGrounds.Run(plans)
-        // He starts by the first build, flying, looking north at it.
+        // He starts by the first build, flying, looking north at it. (Ledger 202: where all six are in front of him, 12
+        // from their middle, a little over the ground, looking down at them; the world's spawn there too.)
+        if case let (p, a)? = start {
+            let floors = plans.map { Float($0.origin.y) }.sorted()
+            let mid = floors[floors.count / 2]
+            let y = max(p.y + 2, mid + 7)
+            player.pos = V3(p.x, y, p.z)
+            player.vel = .zero
+            player.flying = true
+            player.yaw = a
+            player.pitch = -atan2f(y - mid - 3, BuildersGrounds.spawnOut)
+            spawnPoint = V3(p.x, p.y, p.z)
+            return
+        }
         player.pos = V3(Float(first.origin.x) + 4.5, Float(max(first.hi.y, world.topY(first.origin.x + 4, first.hi.z + 12)) + 3), Float(first.hi.z) + 12.5)
         player.vel = .zero
         player.flying = true

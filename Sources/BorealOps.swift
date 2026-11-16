@@ -127,6 +127,10 @@ extension Game {
         guard op.stage == 0 else { return }
         op.stage = 1
         bases.boreal.log.append("\(op.key) operation started")      // (P328, NO TEXT: no toast listing the jobs)
+        // Ledger 199 (Nov 15 20:54:57-20:55:02, a station cleared: "The objectives when invading the Boreal Station are
+        // kind of unclear... I don't really understand the point of it"): the bar named the count, never the jobs. The
+        // first station he steps into files its orders in the journal, once (no play text).
+        if !BorealOps.oldOrders { logDocument(BorealOps.ordersTitle, BorealOps.orders, cat: .orders, id: "boreal-orders") }
     }
 
     // Use on a block (Game.interact, before guns and doors): a control-room console starts the copy, the generator
@@ -452,4 +456,16 @@ extension Game {
         }
         return nil
     }
+}
+
+enum BorealOps {
+    static let oldOrders = Env.all["BS_OLDSTATIONORDERS"] == "1"
+    static let ordersTitle = "Orders: Boreal Station"
+    static let orders = [
+        "A Boreal Station keeps the uplink codes for the north and the generator that powers it. Three jobs, in any order of the first two.",
+        "1. The codes. In the control room, the north wing, use a command console and stay beside it while the codes copy (8 seconds). Step away and the copy waits; while the alarm sounds the uplink is locked.",
+        "2. The generator. In the generator hall, the south-east room, use the generator to set a charge. It blows 45 seconds later and the whole station hears it.",
+        "3. Out. With the codes copied and the charge set, get out past the fence.",
+        "Done without the alarm ever sounding, it pays better: a Farsight Rifle and its rounds, and more money. Loud, it still pays.",
+    ]
 }

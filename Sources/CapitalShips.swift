@@ -54,6 +54,7 @@ enum DropLift {
 
 final class CapitalState {
     static let oldCrewAim = Env.all["BS_OLDCREWAIM"] == "1"   // (harness: cleared as before)
+    var parked = false                     // ledger 206: a citadel's dropship standing on its pad (CitadelDropships.swift)
     // P476 (Oct 27, "these four giant things are engines... thruster blocks back here. The engines connect to the
     // thruster blocks and somehow are what drives the frigate... if it doesn't have enough thrust, it doesn't get off
     // the ground"): the stern's thruster cores as built (the cells by the exhaust mouths), how many still burn, and
@@ -3271,9 +3272,48 @@ extension ShipManager {
         return true
     }
 
+    // Ledger 206: a citadel's dropship parked on its pad, its keel on the pad's surface, nobody aboard, until the
+    // citadel launches it (launchParked). Built here on the frame (one hull, about 20 ms, once as he comes near).
+    func parkDropship(faction: Faction, pad: V3, yaw: Float) -> Ship {
+        let ids = (0..<2).map { _ in newId() }
+        let hb = Capital.dropship()
+        let ships = Capital.makeShips(hb, ids: ids, name: faction == .steelhold ? "Capital Dropship" : "Dropship", role: "dropship", faction: faction)
+        let d = ships[0]
+        d.rot = simd_quatf(angle: yaw, axis: V3(0, 1, 0))
+        d.updateBounds()
+        let ds = CapitalState()
+        ds.mainGunCD = .greatestFiniteMagnitude
+        ds.missileCD = .greatestFiniteMagnitude
+        ds.sight = 140
+        ds.parked = true
+        ds.troopsLeft = 4
+        ds.ramp = V3(Float(hb.ox) + 0.5, 2, 18.5)
+        ds.groundOffset = d.com.y - d.localMin.y
+        ds.crew = hb.crew; ds.crewRoles = hb.crewRoles
+        d.pos = V3(pad.x, pad.y + ds.groundOffset + 0.02, pad.z)
+        d.prevPos = d.pos; d.prevRot = d.rot
+        d.home = d.pos
+        d.initialBlocks = d.blockCount
+        d.updateBounds()
+        for t in ships.dropFirst() { t.followParent(0); t.prevPos = t.pos; t.prevRot = t.rot }
+        installCapital((ships, ds))
+        return d
+    }
+    // Off its pad to land its squad at `p`: up and across, as a dropship called in from the air flies from there on.
+    func launchParked(_ d: Ship, to p: V3, game g: Game) -> Bool {
+        guard let ds = capState[d.id], ds.parked, !d.wrecked, !d.captured else { return false }
+        ds.parked = false
+        ds.phase = 1; ds.phaseT = 0
+        ds.dropPoint = p
+        ds.launchDir = simd_normalize(V3(p.x - d.pos.x, 0, p.z - d.pos.z) + V3(1e-4, 0, 0))
+        g.sfx(.engineStart, 1, at: d.pos)
+        return true
+    }
+
     // Dropship flight: out of the hangar, across to the drop point, down to a hover, the ramp troops out one by one,
     // then it circles the fight with its autocannon and finally climbs away. Shot to pieces it falls and blows up.
     private func dropshipTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        if st.parked { s.vel = .zero; s.angVel = .zero; return }          // (ledger 206: on its pad, nobody aboard)
         st.phaseT += dt
         // P334 (a): its crew aboard (spawnCrew); with the pilot dead nobody flies it (pilotless, below).
         spawnCrew(s, st, boundsDistance(s, g.player.pos), g)
