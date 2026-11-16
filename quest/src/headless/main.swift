@@ -4910,6 +4910,14 @@ do {
     SmoothTerrain.set(smooth0, world: nil); SmoothTerrain.fromField = field0
 }
 
+// Fable's Nov 15 set: the bots riding the capital vehicles (Sources/RideCheck.swift, --ridecheck alone; ledger 181-183),
+// on worlds of their own, once it passed twice in a row.
+do {
+    let smooth0 = SmoothTerrain.enabled, field0 = SmoothTerrain.fromField
+    leaves("ridecheck") { _ = RideCheck.run(into: check) }
+    SmoothTerrain.set(smooth0, world: nil); SmoothTerrain.fromField = field0
+}
+
 // The VR monkey input (--questsim), last: what it leaves behind meets no check after it.
 if let f = fuzzLast { f() }
 // Ledger 89's bloom: nothing the whole run meshed (both worlds, every scene, the VR sim and its fuzz) gave a vertex a u

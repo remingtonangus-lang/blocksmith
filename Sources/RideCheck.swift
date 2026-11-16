@@ -29,8 +29,9 @@ enum RideCheck {
         var md: [String] = []
         var fails = 0
         var scene = ""
+        var outer: ((Bool, String) -> Void)?          // (in the full suite: its checks are the suite's)
         func check(_ ok: Bool, _ what: String) {
-            print("\(ok ? "PASS" : "FAIL") ride \(scene): \(what)")
+            if let o = outer { o(ok, "ridecheck \(scene): " + what) } else { print("\(ok ? "PASS" : "FAIL") ride \(scene): \(what)") }
             md.append("- " + (ok ? "" : "**FAIL** ") + what)
             if !ok { fails += 1 }
         }
@@ -46,11 +47,11 @@ enum RideCheck {
 
     struct Scene { let agent: Agent; let game: Game; let world: World; let ship: Ship; let st: CapitalState }
 
-    static func run() -> Int32 {
+    static func run(into outer: ((Bool, String) -> Void)? = nil) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)            // a CI timeout still shows how far it got
-        guard let device = MTLCreateSystemDefaultDevice() else { print("ridecheck: no Metal device"); return 2 }
-        PrefsSandbox.begin()
-        defer { PrefsSandbox.end() }
+        guard let device = MTLCreateSystemDefaultDevice() else { print("ridecheck: no Metal device"); outer?(false, "ridecheck: no Metal device"); return 2 }
+        if outer == nil { PrefsSandbox.begin() }
+        defer { if outer == nil { PrefsSandbox.end() } }
         let out = arg("--out") ?? "snaps"
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
@@ -58,6 +59,7 @@ enum RideCheck {
         let all = "crawler,rough,crawlerwall,frigate,warfrigate,board,frigateboard,crew,troops,frigatecrew,frigatecrash"
         let names = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         let r = Report()
+        r.outer = outer
         r.md = ["# Ride check", "", "Seed \(seed), scale \(scale). Bots ride the capital vehicles through Game.tick.", ""]
         let t0 = CFAbsoluteTimeGetCurrent()
         for n in names {
@@ -708,7 +710,7 @@ enum RideCheck {
         var firstJump = "", firstInside = ""
         var t: Float = 0
         while t < 80 {
-            for m in foes { m.health = max(m.health, 50) }        // they must outlast the crawler's guns for the test
+            for m in foes { m.health = max(m.health, 10_000) }    // they must outlast the crawler's guns for the test (ledger 183: at 50 a hit swept them out)
             sc.agent.step(idle)
             t += 1.0 / 60
             if Int(t * 60) % 300 == 0 {
