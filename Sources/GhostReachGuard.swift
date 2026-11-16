@@ -73,11 +73,15 @@ extension Nov15EveningChecks {
             _ = wc.loadSync(center: V3(Float(k.x * CS + 8), 100, Float(k.z * CS + 8)), radius: 0)
             if let c = wc.chunks[k] { control[k] = c.blocks.rawFull() }
         }
+        let oldSites = Set(towns(wc).keys)            // (made while the reach is still 2: ghostTownReach reads it)
         // This build: reach 3, the same save opened.
         FrontierSites.typeReach = 3
         let w2 = World(seed: seed, device: dev, save: SaveManager(dir: tmp))
         let again = towns(w2)
-        let sameSites = Set(again.keys) == Set(before.keys)
+        // (the sites as the build before lists them for this save; and whether, without a save, the reach alone changes
+        // which regions have a ghost town)
+        let sameSites = Set(again.keys) == oldSites
+        print("ghost reach guard: \(oldSites.count) sites in the saved world on the build before, \(again.count) on this one; with no save \(before.count) at reach 2, \(after.count) at reach 3 (\(Set(before.keys) == Set(after.keys) ? "the same regions" : "NOT the same regions"))")
         let keptPlans = savedTowns.filter { again[$0] == before[$0] }.count
         let newGround = before.keys.filter { !savedTowns.contains($0) }
         let grown = newGround.filter { again[$0] == after[$0] }.count
@@ -97,6 +101,6 @@ extension Nov15EveningChecks {
         }
         for k in Set(again.keys).symmetricDifference(before.keys) { print("ghost reach guard: region \(k): reach 2 \(before[k] ?? "none"); now \(again[k] ?? "none")") }
         check(sameSites && keptPlans == savedTowns.count && read == saved.count && differ == 0 && grown == newGround.count,
-              "Ledger 212 ghost town reach 3 on new ground only: a world saved at reach 2 lists the same \(again.count) ghost town sites (\(sameSites ? "same" : "NOT the same") as \(before.count)), its \(savedTowns.count) towns by saved ground keep their plans (\(keptPlans) of \(savedTowns.count); without the guard \(savedTowns.count) of \(savedTowns.count) would change), \(read) of \(saved.count) saved chunks read back, \(differ) changed (as the build before reads them; \(repaired) mended by any load); \(grown) of \(newGround.count) towns on new ground laid out at 3 (\(moved.count) of \(before.count) plans differ between 2 and 3)")
+              "Ledger 212 ghost town reach 3 on new ground only: a world saved at reach 2 lists the same \(again.count) ghost town sites (\(sameSites ? "the same" : "NOT the same") as the build before lists for it, \(oldSites.count)), its \(savedTowns.count) towns by saved ground keep their plans (\(keptPlans) of \(savedTowns.count); without the guard \(savedTowns.count) of \(savedTowns.count) would change), \(read) of \(saved.count) saved chunks read back, \(differ) changed (as the build before reads them; \(repaired) mended by any load); \(grown) of \(newGround.count) towns on new ground laid out at 3 (\(moved.count) of \(before.count) plans differ between 2 and 3)")
     }
 }

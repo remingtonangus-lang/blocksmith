@@ -482,6 +482,12 @@ final class BuilderBot: AgentBot {
         }
         switch phase {
         case 0:
+            // Ledger 213: grass or a flower grown in the cell since the plan (the boathouse's shore): it took every ray at
+            // the face behind it; broken first, as he would (BS_OLDBOTFELLED=1: left).
+            if j.want != AIR && !BuilderBot.oldFelled {
+                let b = w.block(j.cell.x, j.cell.y, j.cell.z)
+                if b != AIR && !Blocks.isLiquid(b) && Blocks.replaceable[Int(b)] && cut(w, j.cell) { return act }
+            }
             spots = candidates(g, j, from: p.pos)
             ci = 0
             if spots.isEmpty {

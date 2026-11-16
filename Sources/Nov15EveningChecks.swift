@@ -15,6 +15,7 @@ enum Nov15EveningChecks {
         ghostTowns(g, check)
         hullLeaves(g, check)
         ghostReachGuard(g, check)
+        wetRow(g, check)
     }
 
     // Ledger 210 (the host check ledger 197 lacked): leaves standing in a craft's cell, where the cell's own block (a

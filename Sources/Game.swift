@@ -2284,7 +2284,7 @@ final class Game: LifeLinked {
     // the cell, that row. `sunk`: the cell holds ground, which the placing clears (Game.place). BS_OLDPLACEROW=1: before.
     static let oldPlaceRow = Env.all["BS_OLDPLACEROW"] == "1"
     static let oldNotch = Env.all["BS_OLDNOTCH"] == "1"
-    static let oldWetRow = Env.all["BS_OLDWETROW"] == "1"
+    static var oldWetRow = Env.all["BS_OLDWETROW"] == "1"
     func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
         guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
               let g = targetGround, g.cell == t.hit, g.normal.y >= 0.5 else { return nil }
