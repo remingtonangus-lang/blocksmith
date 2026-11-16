@@ -49,6 +49,7 @@ enum Railways {
         var joins = -1                     // P511, a loop's (RailLoops.swift): the line's cell it comes back into
         var diagonal = false               // N12: planned with diagonal legs and eased turns (wider bed, beds by nearest cell)
         var runOn = false                  // ledger 135: a run-on link (planRunOn): sea bridges on long piers
+        var wild = false                   // ledger 178: open-country track with no stations (planWild)
         init(id: Int64, name: String, cells: [IVec3], stations: [Station], heights: [Float]? = nil) {
             self.id = id; self.name = name; self.cells = cells; self.stations = stations; self.heights = heights
             minX = cells.map { $0.x }.min() ?? 0; maxX = cells.map { $0.x }.max() ?? 0
@@ -135,7 +136,83 @@ enum Railways {
     // land), a long stall on the headset too.
     static func line(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
         guard on else { return nil }
-        return cached(gen, key(row, s), wait: wait) { plan(gen, row: row, stretch: s) }
+        guard wildWorld(gen) else { return cached(gen, key(row, s), wait: wait) { plan(gen, row: row, stretch: s) } }
+        return cached(gen, key(row, s), wait: wait) { townLine(gen, row: row, stretch: s) ?? planWild(gen, row: row, stretch: s) }
+    }
+
+    // MARK: Ledger 178 open-country track
+
+    // Ledger 178 (Nov 15 20:46-21:10, riding east and west along one row: "the rails just end", at -8674 107 -1387 and
+    // at -3631 -1499; Nov 15 01:28 "procedurally generate the trains forever, they never end"; Nov 1 "The train should
+    // never end"): a line's end ran on only where another town line stood within three stretches and a way could be
+    // found to it. A quarter of all ends had no line to run on to, and a row's last line is always such an end.
+    // Now every stretch of every row carries track: where no town line stands, a plain track with no stations crosses
+    // the stretch (straight along the row's own z where nothing stands in the way, else found round it inside the
+    // row's band; over the sea on piers, as a run-on link), and each line's east end runs on to the next stretch's
+    // line in its own row and nowhere else. So a row is one unbroken track, with no end to meet and no start.
+    // Only in worlds made on this build or later (structure-guard-l178.txt empty: no chunk was saved before), in
+    // field worlds. BS_OLDRAILENDS=1: as before.
+    static let oldRailEnds = Env.all["BS_OLDRAILENDS"] == "1"
+    // (not yet on by default: BS_RAILENDS=1 turns it on, until its launch time and its ends are measured)
+    static var wildOn = Env.all["BS_RAILENDS"] == "1"
+    static func wildWorld(_ gen: WorldGen) -> Bool {
+        wildOn && !oldRailEnds && runOn && gen.fieldWorld && (gen.structures?.legacyL178.isEmpty ?? false)
+    }
+    static let realFlip: Int64 = 1 << 59              // (the cache key of a stretch's town line alone)
+    // A stretch's town line alone (nil: none, the stretch is open country), planned without the open-country track.
+    static func townLine(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
+        cached(gen, key(row, s) ^ realFlip, wait: wait) { plan(gen, row: row, stretch: s) }
+    }
+    static let wildPad = 240                          // an open-country track's ends, in from its stretch's edges
+    static let wildEdge = 96                          // ...and its way, in from its row's edges (a town line of the next row stays clear)
+    static func wildBand(_ row: Int) -> (lo: Int, hi: Int) { (row * span + wildEdge, (row + 1) * span - 1 - wildEdge) }
+    // The z a row's open-country track runs at (the same along the whole row, so one stretch meets the next straight on).
+    static func wildZ(_ gen: WorldGen, _ row: Int) -> Int {
+        let b = wildBand(row)
+        return b.lo + 80 + Int(hashf(row, 0x178, 0x3D, UInt32(truncatingIfNeeded: gen.seed) ^ 0x1785) * Float(b.hi - b.lo - 160))
+    }
+    static func wildEnds(_ gen: WorldGen, _ row: Int, _ s: Int) -> (west: (x: Int, z: Int), east: (x: Int, z: Int)) {
+        let z = wildZ(gen, row)
+        return ((s * stretch * span + wildPad, z), ((s + 1) * stretch * span - 1 - wildPad, z))
+    }
+    // The ends of stretch (row, s)'s line by the rules alone: its town line's, else the open-country track's (whose way
+    // is never planned for this).
+    static func ends(_ gen: WorldGen, _ row: Int, _ s: Int) -> (west: (x: Int, z: Int), east: (x: Int, z: Int)) {
+        if hasLine(gen, row, s), let l = townLine(gen, row: row, stretch: s), let f = l.cells.first, let e = l.cells.last { return ((f.x, f.z), (e.x, e.z)) }
+        return wildEnds(gen, row, s)
+    }
+    // Whether stretch (row, s) holds open-country track that keeps clear of z0...z1 whatever its way (its band is clear).
+    static func wildClearOf(_ gen: WorldGen, _ row: Int, _ s: Int, z0: Int, z1: Int) -> Bool {
+        guard wildWorld(gen), townLine(gen, row: row, stretch: s) == nil else { return false }
+        let b = wildBand(row)
+        return z1 < b.lo - 2 * routeCell || z0 > b.hi + 2 * routeCell
+    }
+    static let wildWords = ["Long Mile", "Far Country", "Open Range", "High Plains", "Lone Pine", "Dry Fork", "Wind Gap", "Stony Ford",
+                            "Grey Heron", "Salt Flat", "Elk Meadow", "Cold Spring", "Black Brush", "Hawk Ridge", "Tall Grass", "Red Bluff"]
+    static func planWild(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        guard wildWorld(gen), hasLine(gen, row, s), let sc = gen.structures else { return nil }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let (a, b) = wildEnds(gen, row, s)
+        func lay(_ run: [(Int, Int)]) -> Line? {
+            let flat = run.map { IVec3($0.0, 0, $0.1) }
+            guard let h = gentleProfile(gen, flat, [], diagonal: true, maxOff: 128) else { return nil }
+            let cells = flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }
+            let w = wildWords[Int(hashf(row, 0x178, 0x4E, UInt32(truncatingIfNeeded: gen.seed)) * Float(wildWords.count)) % wildWords.count]
+            let l = Line(id: key(row, s), name: "\(w) Overland", cells: cells, stations: [], heights: h)
+            l.diagonal = true; l.runOn = true; l.wild = true
+            return l
+        }
+        var out: Line? = nil, how = "straight"
+        if !blocked(gen, sc, x0: a.x, z0: a.z, x1: b.x, z1: b.z, except: []) { out = lay((a.x...b.x).map { ($0, a.z) }) }
+        if out == nil {
+            how = "found"
+            let band = wildBand(row)
+            if let w = route(gen, sc, from: (a.x - 1, a.z), to: (b.x + 1, b.z), diagonal: true, runOn: true, band: (band.lo, band.hi)) { out = lay(w) }
+        }
+        if out == nil { how = "none" }
+        tally?("open country: \(how)")
+        if railTime { print(String(format: "railtime: open country %d %d: %.0f ms (%@)", row, s, (CFAbsoluteTimeGetCurrent() - t0) * 1000, how)) }
+        return out
     }
 
     // A plan by key from the cache, planned now (wait) or on a worker and left out until then.
@@ -197,7 +274,8 @@ enum Railways {
     }
 
     // Lines whose track may pass within `pad` blocks of the box.
-    static func near(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true) -> [Line] {
+    // `wild`: open-country track too (ledger 178; left out for callers that want lines with stations and trains).
+    static func near(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true, wild: Bool = false) -> [Line] {
         guard on else { return [] }
         // A line stays inside its row's band give or take a town's box and the south gap (half a region is plenty).
         let r0 = floorDiv(z0 - pad - span / 2, span), r1 = floorDiv(z1 + pad + span / 2, span)
@@ -206,6 +284,18 @@ enum Railways {
         var out: [Line] = []
         for row in r0...r1 { for s in s0...s1 {
             guard hashf(s, row, 0xC1, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC1A1) < share else { continue }
+            if !wild, wildWorld(gen) {
+                // (a stretch of open country is never planned for a caller that leaves it out)
+                guard let l = townLine(gen, row: row, stretch: s, wait: wait) else { continue }
+                if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
+                out.append(l)
+                continue
+            }
+            if wild, wildWorld(gen), townLine(gen, row: row, stretch: s, wait: wait) == nil {
+                // (open country: its track lies inside its ends and its row's band, so most boxes are clear unplanned)
+                let e = wildEnds(gen, row, s), b = wildBand(row)
+                if e.east.x + pad < x0 || e.west.x - pad > x1 || b.hi + 2 * routeCell + pad < z0 || b.lo - 2 * routeCell - pad > z1 { continue }
+            }
             guard let l = line(gen, row: row, stretch: s, wait: wait) else { continue }
             if l.maxX + pad < x0 || l.minX - pad > x1 || l.maxZ + pad < z0 || l.minZ - pad > z1 { continue }
             out.append(l)
@@ -270,6 +360,11 @@ enum Railways {
     // link is the one that comes here), or with none there, a line in the row north whose link comes south to it.
     static func incoming(_ gen: WorldGen, _ row: Int, _ s: Int, wait: Bool = true) -> (Line, Line)? {
         let me = key(row, s)
+        if wildWorld(gen) {
+            // (ledger 178: only the stretch before it in its row runs into it)
+            guard let a = line(gen, row: row, stretch: s - 1, wait: wait), let lk = link(gen, row: row, stretch: s - 1, wait: wait), lk.target == me else { return nil }
+            return (a, lk)
+        }
         for k in 1...linkReach where hasLine(gen, row, s - k) {
             guard let a = line(gen, row: row, stretch: s - k, wait: wait) else { continue }
             if let lk = link(gen, row: row, stretch: s - k, wait: wait), lk.target == me { return (a, lk) }
@@ -330,16 +425,19 @@ enum Railways {
     // The start a line's east end runs on to by the rules alone (no way looked for), and the rule: 1 the next line
     // east in its row, 2 one in the row south, 3 (run-on) one in the row north.
     static func eastIn(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
+        if wildWorld(gen) { return line(gen, row: row, stretch: s + 1).map { ($0, key(row, s + 1)) } }     // (ledger 178: the next stretch's, or none)
         for k in 1...linkReach where hasLine(gen, row, s + k) {
             if let l = line(gen, row: row, stretch: s + k) { return (l, key(row, s + k)) }
         }
         return nil
     }
     static func fedInRow(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
+        if wildWorld(gen) { return line(gen, row: row, stretch: s - 1) != nil }
         for j in 1...linkReach where hasLine(gen, row, s - j) { if line(gen, row: row, stretch: s - j) != nil { return true } }
         return false
     }
     static func southOf(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
+        if wildWorld(gen) { return nil }
         guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let pa = a.cells.last, eastIn(gen, row, s) == nil else { return nil }
         for k in 0...linkReach where hasLine(gen, row + 1, s + k) {
             guard let l = line(gen, row: row + 1, stretch: s + k), let f = l.cells.first, f.x - pa.x >= 40 else { continue }
@@ -354,6 +452,7 @@ enum Railways {
         return false
     }
     static func northOf(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
+        if wildWorld(gen) { return nil }
         guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let pa = a.cells.last,
               eastIn(gen, row, s) == nil, southOf(gen, row, s) == nil else { return nil }
         for k in 0...linkReach where hasLine(gen, row - 1, s + k) {
@@ -378,6 +477,7 @@ enum Railways {
     static let farReach = max(linkReach, Int(Env.all["BS_FARREACH"] ?? "") ?? linkReach)
     static let farRange: [Int] = farReach > linkReach ? Array((linkReach + 1)...farReach) : []
     static func farEastIn(_ gen: WorldGen, _ row: Int, _ s: Int) -> (Line, Int64)? {
+        if wildWorld(gen) { return nil }
         guard eastIn(gen, row, s) == nil, southOf(gen, row, s) == nil, northOf(gen, row, s) == nil else { return nil }
         for k in farRange where hasLine(gen, row, s + k) {
             guard let l = line(gen, row: row, stretch: s + k) else { continue }
@@ -392,6 +492,8 @@ enum Railways {
         let (brow, bs) = l.target != 0 ? rowStretch(l.target) : (row, s + linkReach)
         var cells = Set<Int64>()
         for r in (min(row, brow) - 1)...(max(row, brow) + 1) { for t in (s - 1)...(bs + 1) where hasLine(gen, r, t) && !(r == row && t == s) && !(r == brow && t == bs && l.target != 0) {
+            if wildClearOf(gen, r, t, z0: l.minZ, z1: l.maxZ) { continue }
+            if wildWorld(gen) { let e = ends(gen, r, t); if e.east.x + 2 < l.minX || e.west.x - 2 > l.maxX { continue } }
             guard let o = line(gen, row: r, stretch: t) else { continue }
             if l.target == 0, let f = o.cells.first, let e = l.cells.last, abs(f.x - e.x) + abs(f.z - e.z) <= 1 { continue }     // (the line it joins)
             for c in o.cells { cells.insert(colKey(c.x, c.z)) }
@@ -412,6 +514,15 @@ enum Railways {
     // `west`: the asker's east edge; a link that starts east of it is clear whatever it runs on to (no start asked for).
     static func linkBox(_ gen: WorldGen, _ row: Int, _ s: Int, west: Int? = nil) -> (x0: Int, x1: Int, z0: Int, z1: Int)? {
         guard runOn, gen.fieldWorld, !oldLinkBox else { return nil }
+        if wildWorld(gen) {
+            // (ledger 178: a link runs from its stretch's east end to the next stretch's west end; both ends are known
+            // without planning any open-country track)
+            guard hasLine(gen, row, s), hasLine(gen, row, s + 1) else { return (0, -1, 0, -1) }
+            let pa = ends(gen, row, s).east, pb = ends(gen, row, s + 1).west
+            if let west, !exactFarBox, pa.x - 5 * routeCell > west { return (0, -1, 0, -1) }
+            let m = routeWander + 2 * routeCell
+            return (pa.x - 5 * routeCell, pb.x + 5 * routeCell, min(pa.z, pb.z) - m, max(pa.z, pb.z) + m)
+        }
         guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let pa = a.cells.last else { return (0, -1, 0, -1) }   // (no link: an empty box)
         if let west, !exactFarBox, pa.x - 5 * routeCell > west { return (0, -1, 0, -1) }
         var x1 = pa.x, z0 = pa.z, z1 = pa.z, any = false
@@ -474,7 +585,10 @@ enum Railways {
         // track is laid across another (the first count: 748 link cells lay on another track).
         var shut = Set<Int64>()
         let (brow, bs) = rowStretch(bKey)
+        let wildW = wildWorld(gen)
         for r in (min(row, brow) - 1)...(max(row, brow) + 1) { for t in (s - 1)...(bs + 1) where hasLine(gen, r, t) {
+            // (ledger 178: a stretch whose line, by its ends alone, lies well clear of this link's box is not planned for it)
+            if wildW { let e = ends(gen, r, t); if e.east.x + 4 * routeCell < pa.x - 5 * routeCell || e.west.x - 4 * routeCell > pb.x + 5 * routeCell { continue } }
             guard let o = line(gen, row: r, stretch: t) else { continue }
             for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
             // (and the three squares out from each end, where its own links leave and arrive: the last crossing in
@@ -549,14 +663,15 @@ enum Railways {
     static func planLink(_ gen: WorldGen, row: Int, stretch s: Int, diagonal: Bool) -> Line? {
         guard hasLine(gen, row, s), let a = line(gen, row: row, stretch: s), let sc = gen.structures else { return nil }
         var b: Line? = nil, bKey: Int64 = 0
-        for k in 1...linkReach where hasLine(gen, row, s + k) {
+        let wildW = wildWorld(gen)                      // (ledger 178: the next stretch's line and no other)
+        for k in 1...(wildW ? 1 : linkReach) where hasLine(gen, row, s + k) {
             if let l = line(gen, row: row, stretch: s + k) { b = l; bKey = key(row, s + k); break }
         }
         // P510 (the link check: 80 of 128 lines had no line on along their row within reach, so most trains still met
         // buffers): with none, the link comes south to a line in the next row whose west end nothing else runs into
         // (no line before it in its own row), so every row's last line hands on to the row below. Only south: a west
         // end is fed from its own row or from the row north, never from two links.
-        if b == nil, let pa = a.cells.last {
+        if b == nil, !wildW, let pa = a.cells.last {
             south: for k in 0...linkReach where hasLine(gen, row + 1, s + k) {
                 guard let l = line(gen, row: row + 1, stretch: s + k), let f = l.cells.first, f.x - pa.x >= 40 else { continue }
                 for j in 1...linkReach where hasLine(gen, row + 1, s + k - j) {
@@ -639,15 +754,16 @@ enum Railways {
     // last square but heading east (the search's "over itself": it came at the goal from the side and went round).
     static let seaRunOn = 160, deepCost: Int32 = 9
     static let oldRouteWeight = Env.all["BS_OLDROUTEWEIGHT"] == "1"
+    // `band` (ledger 178, open-country track): the z the way is held between, in place of routeWander either side.
     static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false, runOn: Bool = false,
-                      shut: Set<Int64> = []) -> [(Int, Int)]? {
+                      shut: Set<Int64> = [], band: (lo: Int, hi: Int)? = nil) -> [(Int, Int)]? {
         let G = routeCell
         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
         let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
         guard e0.0 - s0.0 >= 2 * G else { tally?("link route: too short"); return nil }
         let margin = routeWander
         let gx0 = floorDiv(min(s0.0, e0.0) - 4 * G, G), gx1 = floorDiv(max(s0.0, e0.0) + 4 * G, G)
-        let gz0 = floorDiv(min(s0.1, e0.1) - margin, G), gz1 = floorDiv(max(s0.1, e0.1) + margin, G)
+        let gz0 = floorDiv(band?.lo ?? min(s0.1, e0.1) - margin, G), gz1 = floorDiv(band?.hi ?? max(s0.1, e0.1) + margin, G)
         let nx = gx1 - gx0 + 1, nz = gz1 - gz0 + 1
         guard nx * nz <= 400_000 else { tally?("link route: too big"); return nil }
         // Blocked squares: structure pieces (padded), filled in once from the starts round the box.
@@ -818,7 +934,9 @@ enum Railways {
         let r1 = floorDiv(z1 + pad + span / 2 + routeWander + routeCell, span) + (runOn && gen.fieldWorld ? 1 : 0)
         let w = stretch * span
         // (a link starts in its own line's stretch and runs up to linkReach stretches on east)
-        let s0 = floorDiv(x0 - pad - span, w) - (runOn && gen.fieldWorld ? farReach : linkReach), s1 = floorDiv(x1 + pad + span, w)
+        // (ledger 178: in a world of unbroken rows, only from the stretch before)
+        let wildW = wildWorld(gen)
+        let s0 = floorDiv(x0 - pad - span, w) - (wildW ? 1 : runOn && gen.fieldWorld ? farReach : linkReach), s1 = floorDiv(x1 + pad + span, w)
         var out: [Line] = []
         // (A line four to six stretches west reaches here only by a far link, or by a link to a line just west of here.
         // Either way the row has no line three stretches west of here: with one there, the nearest start for all three,
@@ -828,7 +946,7 @@ enum Railways {
         let prune = wait && runOn && gen.fieldWorld && !oldLinkBox && !exactFarBox
         let sWest = s0 + farReach - linkReach                 // (three stretches west of the box's own)
         for row in r0...r1 {
-            let held = prune && hasLine(gen, row, sWest) && line(gen, row: row, stretch: sWest) != nil
+            let held = prune && !wildW && hasLine(gen, row, sWest) && line(gen, row: row, stretch: sWest) != nil
             for s in s0...s1 where hasLine(gen, row, s) {
                 if held && s < sWest { continue }
                 if wait, let b = linkBox(gen, row, s, west: prune ? x1 + pad : nil), b.x1 + pad < x0 || b.x0 - pad > x1 || b.z1 + pad < z0 || b.z0 - pad > z1 { continue }
@@ -1388,7 +1506,7 @@ enum Railways {
         let bx = cx * CS, bz = cz * CS
         // (BS_RAILTRACE=X,Z: for X,Z's chunk, each line found and how many of its bed cells were shaped)
         let tr = ShapeRails.trace.map { floorDiv($0.0, CS) == cx && floorDiv($0.1, CS) == cz } ?? false
-        for l in near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) + linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2)
+        for l in near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2, wild: true) + linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2)
             + loopsNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 2) {
             if tr {
                 var inside = 0, shaped = 0, notes: [String] = []
@@ -1450,7 +1568,7 @@ enum Railways {
     // Lays the railways through this chunk (StructureCache.after, after the roads).
     static func draw(_ gen: WorldGen, _ w: inout StructWriter, _ cx: Int, _ cz: Int) {
         let bx = cx * CS, bz = cz * CS
-        let lines = near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8)
+        let lines = near(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8, wild: true)
         let links = linksNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8)
         let loops = loopsNear(gen, x0: bx, z0: bz, x1: bx + CS - 1, z1: bz + CS - 1, pad: 8)
         guard !lines.isEmpty || !links.isEmpty || !loops.isEmpty, Blocks.has("rail") else { return }

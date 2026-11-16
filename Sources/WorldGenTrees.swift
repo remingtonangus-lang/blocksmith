@@ -126,7 +126,7 @@ enum TreePlacer {
         // Ledger 174 (Nov 15 20:58:30 "Floating tree", 20:58:33 "the trees aren't despawning in the way, so when I hit
         // the trees, the train breaks them", riding a link of track east of -5984, z -1612): only a line's own cells
         // kept trees off. A link between two lines and a loop are track too. BS_OLDLINKTREES=1 = lines only.
-        var tracks = Railways.near(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0)
+        var tracks = Railways.near(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0, wild: true)
         if !Railways.oldLinkTrees {
             tracks += Railways.linksNear(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0)
             tracks += Railways.loopsNear(gen, x0: bx - railPad, z0: bz - railPad, x1: bx + CS - 1 + railPad, z1: bz + CS - 1 + railPad, pad: 0)

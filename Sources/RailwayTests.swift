@@ -116,6 +116,137 @@ enum RailwayTests {
                          fast * deg, held * deg, slowest, open, wiggles))
     }
 
+    // Ledger 178: in a new world every stretch of every row carries track (a town line, or plain track across open
+    // country), each runs on by a link to the next stretch's in its row, joined cell to cell at a grade, no track lies
+    // on another, and open-country track keeps inside its row's band. Before (the same ground with the rule off): the
+    // town lines' east ends that ran on. And a train's timetable over track with no station runs at one steady speed,
+    // gathers its speed over a fixed run from a station and holds it to the window's end.
+    static func openCountry(_ check: (Bool, String) -> Void) {
+        guard Railways.wildOn else { print("open country: off (BS_RAILENDS=1 turns it on)"); return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var stretches = 0, none = 0, wild = 0, found = 0, links = 0, linked = 0, crossings = 0, steps = 0, offBand = 0, jumps = 0, seaCells = 0
+        var townLines = 0, ranOnBefore = 0
+        var bad: [String] = []
+        var why: [String: Int] = [:]
+        let whyLock = NSLock()
+        let tally0 = Railways.tally
+        Railways.tally = { k in whyLock.lock(); why[k, default: 0] += 1; whyLock.unlock() }
+        defer { Railways.tally = tally0 }
+        var window: [Railways.Line] = [], townWindow: [Railways.Line] = []
+        let rows = -2...2, sts = -2...2
+        for k in 0..<3 {
+            let seed = UInt64(1000 + k * 7919)
+            let gen = WorldGen(seed: seed)
+            gen.fieldWorld = true
+            var owner: [Int64: Int64] = [:]
+            for row in rows { for st in sts {
+                stretches += 1
+                guard let l = Railways.line(gen, row: row, stretch: st) else { none += 1; bad.append("seed \(seed) row \(row) stretch \(st): no track"); continue }
+                if l.wild {
+                    wild += 1
+                    let b = Railways.wildBand(row)
+                    if l.minZ != l.maxZ { found += 1 }
+                    if l.minZ < b.lo - 2 * Railways.routeCell || l.maxZ > b.hi + 2 * Railways.routeCell { offBand += 1 }
+                    for i in stride(from: 0, to: l.cells.count, by: 8) where gen.column(l.cells[i].x, l.cells[i].z).biome.isOcean { seaCells += 8 }
+                }
+                for i in 1..<l.cells.count where abs(l.cells[i].x - l.cells[i - 1].x) + abs(l.cells[i].z - l.cells[i - 1].z) != 1 { steps += 1; break }
+                if let h = l.heights { for i in 1..<h.count where abs(h[i] - h[i - 1]) > Railways.grade + 0.02 { jumps += 1; bad.append(String(format: "seed %llu row %d stretch %d: height jumps %.2f at %d", seed, row, st, h[i] - h[i - 1], i)); break } }
+                for c in l.cells {
+                    let ck = Railways.colKey(c.x, c.z)
+                    if let o = owner[ck], o != l.id { crossings += 1; if crossings <= 4 { bad.append("seed \(seed) row \(row) stretch \(st): cell \(c) on another track") } }
+                    owner[ck] = l.id
+                }
+            } }
+            for row in rows { for st in sts where st < sts.upperBound {
+                guard let a = Railways.line(gen, row: row, stretch: st), let b = Railways.line(gen, row: row, stretch: st + 1) else { continue }
+                links += 1
+                guard let lk = Railways.link(gen, row: row, stretch: st), lk.target == Railways.key(row, st + 1) else {
+                    if bad.count < 12 { bad.append("seed \(seed) row \(row) stretch \(st): no link on from \(a.cells.last!) to \(b.cells.first!)") }
+                    continue
+                }
+                linked += 1
+                let chain = [a.cells.last!] + lk.cells + [b.cells.first!]
+                for i in 1..<chain.count where abs(chain[i].x - chain[i - 1].x) + abs(chain[i].z - chain[i - 1].z) != 1 { steps += 1; bad.append("seed \(seed) row \(row) stretch \(st): link step \(i) not adjacent"); break }
+                if let ha = a.heights, let hl = lk.heights, let hb = b.heights {
+                    let hs = [ha.last!] + hl + [hb.first!]
+                    for i in 1..<hs.count where abs(hs[i] - hs[i - 1]) > Railways.grade + 0.02 { jumps += 1; bad.append(String(format: "seed %llu row %d stretch %d: link height jumps %.2f at %d", seed, row, st, hs[i] - hs[i - 1], i)); break }
+                }
+                for c in lk.cells {
+                    let ck = Railways.colKey(c.x, c.z)
+                    if let o = owner[ck], o != lk.id { crossings += 1; if crossings <= 4 { bad.append("seed \(seed) row \(row) stretch \(st): link cell \(c) on another track") } }
+                    owner[ck] = lk.id
+                }
+                if window.isEmpty, a.wild, b.wild { window = [a, lk, b] }
+                if townWindow.isEmpty, !a.wild, b.wild { townWindow = [a, lk, b] }
+            } }
+            // Before: the same ground with the rule off (its own generator: plans are kept by generator).
+            Railways.wildOn = false
+            let old = WorldGen(seed: seed)
+            old.fieldWorld = true
+            for row in rows { for st in sts {
+                guard Railways.line(old, row: row, stretch: st) != nil else { continue }
+                townLines += 1
+                if Railways.link(old, row: row, stretch: st) != nil { ranOnBefore += 1 }
+            } }
+            Railways.wildOn = true
+        }
+        whyLock.lock()
+        let whyText = why.filter { $0.key.hasPrefix("open country") || $0.key.hasPrefix("run-on") || $0.key.hasPrefix("link") && !$0.key.hasPrefix("link route detail") }
+            .sorted { $0.value > $1.value }.prefix(14).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        whyLock.unlock()
+        for b in bad.prefix(12) { print("open country: " + b) }
+        print(String(format: "open country: %.1f s; ", CFAbsoluteTimeGetCurrent() - t0) + whyText)
+        let ok = none == 0 && linked == links && crossings == 0 && steps == 0 && offBand == 0 && jumps == 0
+        check(ok, "ledger 178: every stretch carries track and runs on to the next (\(stretches) stretches of 3 worlds: \(stretches - none) with track, \(wild) of them open country, \(found) found round something, about \(seaCells) cells over the sea; \(linked) of \(links) run on; \(crossings) cells on another track, \(steps) breaks, \(jumps) height jumps, \(offBand) off their band; before: \(ranOnBefore) of \(townLines) town lines ran on)")
+
+        // The timetable over such track.
+        func timed(_ parts: [Railways.Line]) -> Trains.Track {
+            let cells = parts.flatMap { $0.cells }
+            var stops: [Int] = [], names: [String] = [], off = 0
+            for p in parts { for st in p.stations { stops.append(off + st.index); names.append(st.name) }; off += p.cells.count }
+            return Trains.Track(id: 178, name: "check", cells: cells, slopes: [Bool](repeating: false, count: cells.count), stops: stops, stopNames: names,
+                                armoured: false, dim: .overworld, heights: parts.flatMap { $0.heights ?? [] }, openEnds: true)
+        }
+        let cruise = Trains.speed * Trains.Track.cruise
+        var steady = false, steadyNote = "no two open-country stretches in a row"
+        if !window.isEmpty {
+            let t = timed(window)
+            var lo = Float.infinity, hi: Float = 0, turns = 0
+            var u = 0.0, last = t.at(-t.phase)
+            while u < t.period - 0.5 {
+                u += 0.5
+                let a = t.at(u - t.phase)
+                if a.dir != last.dir { turns += 1 } else { let v = abs(t.arcAt(a.s) - t.arcAt(last.s)) / 0.5; lo = min(lo, v); hi = max(hi, v) }
+                last = a
+            }
+            steady = t.stops.isEmpty && turns == 1 && lo > cruise * 0.97 && hi < cruise * 1.03
+            steadyNote = String(format: "%d cells, no station: %.2f to %.2f blocks a second (cruise %.2f), %d turn at its end", t.cells.count, lo, hi, cruise, turns)
+        }
+        var away = false, awayNote = "no town line beside open country"
+        if !townWindow.isEmpty {
+            let t = timed(townWindow)
+            // (from its last station east: at speed within the easing run, and still at speed at the window's end)
+            let stop = Float(t.stops.last!), end = Float(t.cells.count - 1)
+            var u = 0.0, vAt: Float = 0, vEnd: Float = 0, top: Float = 0, seen = false
+            var last = t.at(-t.phase)
+            while u < t.period * 2 {
+                u += 0.25
+                let a = t.at(u - t.phase)
+                if a.dir > 0 && last.dir > 0 && a.s > stop && last.s >= stop {
+                    let v = (t.arcAt(a.s) - t.arcAt(last.s)) / 0.25
+                    top = max(top, v)
+                    let run = t.arcAt(a.s) - t.arcAt(stop)
+                    if run > Trains.Track.easeRun + 20 && !seen { vAt = v; seen = true }
+                    if a.s > end - 40 { vEnd = max(vEnd, v) }
+                }
+                last = a
+            }
+            away = seen && vAt > cruise * 0.97 && vEnd > cruise * 0.97 && top < cruise * 1.03
+            awayNote = String(format: "from the last station: %.2f blocks a second %.0f blocks out, %.2f at the window's end, top %.2f", vAt, Trains.Track.easeRun + 20, vEnd, top)
+        }
+        check(steady && away, "ledger 178: a train over open country holds one speed (\(steadyNote); \(awayNote))")
+    }
+
     // Ledger 174: no tree trunk or bough stands within 2 blocks of a link's or a loop's track in freshly generated ground
     // (it was only a line's own cells that kept trees off; BS_OLDLINKTREES=1 = that).
     static func linkTrees(_ check: (Bool, String) -> Void) {
@@ -157,6 +288,7 @@ enum RailwayTests {
         sway(check)
         curveSpeed(check)
         linkTrees(check)
+        openCountry(check)
         guard !Railways.oldRails else { print("rail: N12 diagonals skipped (BS_OLDRAILS=1)"); return }
         var lines = 0, diag = 0, legs = 0, bad: [String] = [], gateOK = 0, gateTried = 0
         var worstTurn: Float = 0, worstOldTurn: Float = 0, worstPace: Float = 0, longest = 0

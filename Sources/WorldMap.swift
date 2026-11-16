@@ -113,7 +113,7 @@ final class MapCache {
     private static var railGen: Int?                 // (the generator's plan serial, not its address: P510)
     static func onRail(_ gen: WorldGen, _ k: Int64, _ x: Int, _ z: Int) -> Bool {
         let n = cellBlocks
-        for l in Railways.near(gen, x0: x, z0: z, x1: x + n - 1, z1: z + n - 1, pad: 0) {
+        for l in Railways.near(gen, x0: x, z0: z, x1: x + n - 1, z1: z + n - 1, pad: 0, wild: true) {
             railLock.lock()
             if railCells.count > 512 || railGen != gen.planSerial { railCells.removeAll(); railGen = gen.planSerial }
             var set = railCells[l.id]
