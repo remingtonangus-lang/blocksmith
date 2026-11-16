@@ -378,6 +378,10 @@ enum Railways {
     static var linksOn = true                         // (checks compare)
     static var banked = 0                             // (checks: bed cells banked up with earth instead of a trestle)
     static var deckNotes: [String: String] = [:]      // (checks: a field line's deck cell -> the column the writer saw under it)
+    // (Nov 16: the headset job's debug build crashed in the draw: `deckNotes.count` was read outside the lock while
+    // another worker wrote a note, every world's first 64 deck cells, and open-country track lays far more deck. The
+    // notes are now taken only when a check asks, and counted under the lock.)
+    static var deckNotesOn = false
     static let noteLock = NSLock()
 
     // The link from line (row, s)'s east end on to the next line east, if one is laid.
@@ -1751,12 +1755,14 @@ enum Railways {
                 else if bank > 0 {
                     for d in 2..<bank { w.set(x, y - d, z, fill) }
                     w.set(x, y - 1, z, ballast)
-                    banked += 1
+                    Railways.noteLock.lock(); banked += 1; Railways.noteLock.unlock()
                 } else {
-                    if l.heights != nil, Railways.deckNotes.count < 64 {
+                    if l.heights != nil, Railways.deckNotesOn {
                         // (checks: what the writer saw under a field line's deck)
                         let col = (1...9).map { Blocks.key(w.get(x, y - $0, z)) }.joined(separator: ",")
-                        Railways.noteLock.lock(); Railways.deckNotes["\(x) \(y) \(z)"] = col; Railways.noteLock.unlock()
+                        Railways.noteLock.lock()
+                        if Railways.deckNotes.count < 64 { Railways.deckNotes["\(x) \(y) \(z)"] = col }
+                        Railways.noteLock.unlock()
                     }
                     w.set(x, y - 1, z, deck)                                       // trestle deck
                     let edge = l.diagonal ? abs(x - c.x) + abs(z - c.z) >= 2 : (alongX && z != c.z) || (!alongX && x != c.x)

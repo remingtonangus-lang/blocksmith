@@ -484,6 +484,8 @@ enum RailwayTests {
     // stay in the cab with clear air round the head, the train on the track, and every station passed. Then the brake:
     // with the regulator still open, the brake alone brings the train to a stand.
     static func ride(_ g0: Game, check: (Bool, String) -> Void) {
+        Railways.deckNotesOn = true
+        defer { Railways.deckNotesOn = false }
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }
