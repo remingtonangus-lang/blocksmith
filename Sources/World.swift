@@ -3140,7 +3140,10 @@ final class World: LifeLinked {
                     let below = fluidCell(p.x, p.y - 1, p.z)
                     // (ledger 176: over a still column's falling water too, so a pool's edge levels)
                     let onWater = fkT[Int(below)] == kind && (lvT[Int(below)] == 0 || (lvT[Int(below)] == 8 && !World.oldStillWater))
-                    if kind == 1 && sources >= 2 && (Blocks.opaque[Int(below)] || onWater) { want = 0 }
+                    // (and at the sea's own level one source beside it is enough over water: a hole opened beside
+                    // the sea fills as sea; it cannot climb or run over land, there is no water under it there)
+                    let seaTop = p.y == SEA && sources >= 1 && onWater && !World.oldStillWater
+                    if kind == 1 && ((sources >= 2 && (Blocks.opaque[Int(below)] || onWater)) || seaTop) { want = 0 }
                     else if best + stepLevel > 7 { want = -1 }
                     else { want = best + stepLevel }
                 }
@@ -3167,10 +3170,9 @@ final class World: LifeLinked {
                 // Ledger 176 (Nov 15 21:12:57 "Uh-oh, water. This is bad", 21:13:03 "Fix fluid dynamics", a crater at
                 // the sea's edge, 7427 60 -420): the sea ran into a crater as falling columns under its surface, and a
                 // column with water under it never spread sideways, so an open pocket beside it under the water line
-                // stayed dry and the water's side stood beside it as a hanging sheet. Still water (a column with water
-                // over this cell, topped by a source that has another source beside it: a sea, a lake, a pool) fills an
-                // open cell beside it that has a floor, as still water does. A waterfall (no source body on top) is as
-                // before. BS_OLDSTILLWATER=1 = before.
+                // stayed dry and the water's side stood beside it as a hanging sheet. Still water (a column whose top
+                // lies in the surface of a sea, a lake or a pool) fills an open cell beside it that has a floor or
+                // water under it, as still water does. A lone spring's fall is as before. BS_OLDSTILLWATER=1 = before.
                 guard kind == 1, !World.oldStillWater else { continue }
                 let under = fkT[Int(fluidCell(p.x, p.y + 1, p.z))] == kind        // (water over this cell)
                 guard under || lv == 0 else { continue }
@@ -3184,17 +3186,16 @@ final class World: LifeLinked {
                     if holds { sides |= 1 << i }
                 }
                 guard sides != 0 else { continue }
-                var y = under ? p.y + 1 : p.y, still = false
-                while y < CH && y < p.y + 32 {
-                    let c = fluidCell(p.x, y, p.z)
-                    guard fkT[Int(c)] == kind else { break }
-                    if lvT[Int(c)] == 0 {
-                        for d in World.sideDirs where lvT[Int(fluidCell(p.x + d.x, y, p.z + d.z))] == 0 && fkT[Int(fluidCell(p.x + d.x, y, p.z + d.z))] == kind { still = true; break }
-                        break
-                    }
-                    y += 1
-                }
-                guard still else { continue }
+                // (still: the column's top cell lies in a body's surface: two or more sources within 4 of it on its
+                // layer. A lone spring's fall has one.)
+                var y = p.y
+                while y + 1 < CH && y < p.y + 32 && fkT[Int(fluidCell(p.x, y + 1, p.z))] == kind { y += 1 }
+                var near = 0
+                scan: for dz in -4...4 { for dx in -4...4 {
+                    let c = fluidCell(p.x + dx, y, p.z + dz)
+                    if lvT[Int(c)] == 0 && fkT[Int(c)] == kind { near += 1; if near >= 2 { break scan } }
+                } }
+                guard near >= 2 else { continue }
                 for (i, d) in World.sideDirs.enumerated() where sides & (1 << i) != 0 {
                     setFluid(IVec3(p.x + d.x, p.y, p.z + d.z), fall)
                 }
