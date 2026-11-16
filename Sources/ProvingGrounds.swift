@@ -89,6 +89,15 @@ enum ProvingGrounds {
     // a place before what stands there (each kind a margin further out than the tiles round it): the near vehicles
     // stand within seconds. BS_OLDPROVINGSTEPS=1: the deck, the walkways, the channels, then the rest.
     static let oldSteps = Env.all["BS_OLDPROVINGSTEPS"] == "1"
+    // Ledger 204 (Nov 15 20:35-20:37, "I don't see anything on the Proving Grounds... no vehicle circuits nor guns here.
+    // This is nothing. Giant flat thing"): a vehicle, a gun or a circuit waited for every deck tile 192 blocks further out
+    // than its own (the deck is held, World.heldDeck), so the first gun went down after some sixty tiles, each streamed
+    // in first: a minute and more of bare deck. Now each waits only for the tiles that reach under it (a deck tile clears
+    // what stands on it, so every tile it overlaps goes first): 23 (a tile's half diagonal) past its own reach, and a
+    // boat for its channel's tiles too. The guns stand by him within the first steps, the vehicles right after.
+    // BS_OLDPROVINGMARGIN=1: 192 (256 the targets).
+    static let oldMargin = Env.all["BS_OLDPROVINGMARGIN"] == "1"
+    static func margin(reach: Float, channel: Bool = false) -> Float { oldMargin ? 192 : 24 + reach + (channel ? 64 : 0) }
 
     // MARK: The ten guns (ring at the origin at deck level; barrels run north, -z, the way BuiltGunCheck builds his)
 
@@ -145,17 +154,18 @@ enum ProvingGrounds {
         var steps: [(Game) -> Void] = []
         var needs: [(V3, Int)?] = []          // the chunks each step works in (a centre, a radius in chunks)
         var after: [Float] = []               // (how far past its own tile's distance a step waits: ProvingGrounds.oldSteps)
+        var kinds: [String] = []              // what each step lays: deck, walk, water, vehicle, gun, targets, circuit
         var next = 0
         var circuitsOK = 0
         var waited = 0
         init(_ o: IVec3) { self.o = o }
         var done: Bool { next >= steps.count }
-        func add(_ at: V3?, _ r: Int, after a: Float = 0, _ f: @escaping (Game) -> Void) { steps.append(f); needs.append(at.map { ($0, r) }); after.append(a) }
+        func add(_ at: V3?, _ r: Int, after a: Float = 0, kind: String = "", _ f: @escaping (Game) -> Void) { steps.append(f); needs.append(at.map { ($0, r) }); after.append(a); kinds.append(kind) }
         // Every step by its distance from `from` plus its margin (ties in the order added); steps with no place last.
         func nearestFirst(from: V3) {
             let key: [Float] = needs.indices.map { i in needs[i].map { simd_distance(SIMD2($0.0.x, $0.0.z), SIMD2(from.x, from.z)) + after[i] } ?? .infinity }
             let order = steps.indices.sorted { key[$0] != key[$1] ? key[$0] < key[$1] : $0 < $1 }
-            steps = order.map { steps[$0] }; needs = order.map { needs[$0] }; after = order.map { after[$0] }
+            steps = order.map { steps[$0] }; needs = order.map { needs[$0] }; after = order.map { after[$0] }; kinds = order.map { kinds[$0] }
         }
         // Runs steps for up to `budget` seconds (at least one). With `stream`, a step whose chunks aren't made yet waits
         // for the world's workers to make them (World.extraCenter streams round it, as round a second player) instead
@@ -225,7 +235,7 @@ enum ProvingGrounds {
         if !oldOrder { tilesAt.sort { ($0.0 + 16) * ($0.0 + 16) + ($0.1 + 16) * ($0.1 + 16) < ($1.0 + 16) * ($1.0 + 16) + ($1.1 + 16) * ($1.1 + 16) } }
         for (tx, tz) in tilesAt {
             let at = V3(Float(o.x + tx + 16), Float(o.y), Float(o.z + tz + 16))
-            b.add(at, 1) { g in
+            b.add(at, 1, kind: "deck") { g in
                 let w = g.world
                 _ = w.loadSync(center: at, radius: 1)
                 for z in tz..<min(tz + 32, d.z1 + 1) { for x in tx..<min(tx + 32, d.x1 + 1) {
@@ -263,7 +273,8 @@ enum ProvingGrounds {
         for pl in park.plots {
             let base = o + pl.at
             let at = V3(Float(base.x + pl.size.x / 2), Float(o.y), Float(base.z + pl.size.z / 2))
-            b.add(at, 1, after: 192) { g in
+            let reach = (Float(pl.size.x * pl.size.x + pl.size.z * pl.size.z)).squareRoot() / 2 + 2
+            b.add(at, 1, after: margin(reach: reach, channel: pl.water), kind: "vehicle") { g in
                 let w = g.world
                 let p = VehicleZoo.plan(pl.index)
                 _ = w.loadSync(center: at, radius: 1)
@@ -282,7 +293,7 @@ enum ProvingGrounds {
         // The ten guns, each on its plank pad with its computer, a sign on the walkway side; and the targets.
         for (k, gd) in guns.enumerated() {
             let c = o + gunAt(k)
-            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 1, after: 192) { g in
+            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 1, after: margin(reach: 12), kind: "gun") { g in
                 let w = g.world
                 _ = w.loadSync(center: V3(Float(c.x), Float(o.y), Float(c.z)), radius: 1)
                 for y in o.y...(o.y + 7) { for z in (c.z - 11)...(c.z + 3) { for x in (c.x - 2)...(c.x + 2) { put(w, x, y, z, AIR) } } }
@@ -292,7 +303,7 @@ enum ProvingGrounds {
                 sign(w, IVec3(c.x, o.y, c.z + 5), facingSouth: true, gd.lines)
             }
         }
-        b.add(V3(Float(o.x + 70), Float(o.y), Float(o.z + targetZ)), 3, after: 256) { g in
+        b.add(V3(Float(o.x + 70), Float(o.y), Float(o.z + targetZ)), 3, after: oldMargin ? 256 : margin(reach: 72), kind: "targets") { g in
             let w = g.world
             let iron = key("iron_block"), bricks = key("stone_bricks"), plank = key("spruce_planks")
             for k in 0..<5 {
@@ -306,7 +317,7 @@ enum ProvingGrounds {
         let cases = CircuitZoo.cases()
         for i in 0..<min(100, cases.count) {
             let c = o + pad(i)
-            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 2, after: 192) { g in
+            b.add(V3(Float(c.x), Float(o.y), Float(c.z)), 2, after: margin(reach: Float(padGap) * 0.71), kind: "circuit") { g in
                 let w = g.world
                 _ = w.loadSync(center: V3(Float(c.x), Float(o.y), Float(c.z)), radius: 2)
                 let h = padGap / 2 - 1
@@ -380,7 +391,7 @@ extension Game {
         let first = ProvingGrounds.built(world, o) == false
         if first {
             provingBuild = ProvingGrounds.plan(o)
-            if !ProvingGrounds.oldOrder { onToast?("Proving Grounds: building, the deck first") }
+            if !ProvingGrounds.oldOrder { onToast?(ProvingGrounds.oldMargin ? "Proving Grounds: building, the deck first" : "Proving Grounds: building round you") }
         }
         if first || player.pos.y < Float(o.y) - 30 {
             player.pos = ProvingGrounds.start(o)

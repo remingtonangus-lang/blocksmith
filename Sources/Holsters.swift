@@ -22,6 +22,19 @@ enum Holsters {
         return .none
     }
 
+    // Ledger 193 (Nov 15 21:03:07, a revolver in hand: "the guns really fuck things up on the toolbar. But look, I was
+    // right-clicking"; the hand went revolver, keycard, revolver, keycard on every right grip): the hip zone is where a
+    // relaxed gun arm hangs, so every right grip with the arm down holstered the revolver (back to the slot before it)
+    // or drew it again. As with the hip pouch (VRReload, R1), only a hand that reached the holster in the last `fresh`
+    // seconds takes the grip; a hand hanging there grips for the hotbar. Call every frame. BS_OLDHOLSTER=1: any hand.
+    static let old = Env.all["BS_OLDHOLSTER"] == "1"
+    static let fresh: Double = 1.5
+    static var lastZone: Zone = .none, enteredAt: Double = -100
+    static func reach(_ z: Zone, clock: Double) -> Zone {
+        if z != lastZone { lastZone = z; if z != .none { enteredAt = clock } }
+        return old || clock - enteredAt <= fresh ? z : .none
+    }
+
     // Hotbar slots of the holstered guns: the first handgun (hip) and the second (chest).
     static func slots(_ g: Game) -> (hip: Int?, chest: Int?) {
         var found: [Int] = []

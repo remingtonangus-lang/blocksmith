@@ -1231,6 +1231,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeArms(&wr, eye: eye)
                 game.writeLecternBooks(&wr, eye: eye)
                 game.writeShelves(&wr, eye: eye)
+                game.writeCeilingGuns(&wr, eye: eye)                                  // (ledger 195: turned heads)
                 game.writeFelled(&wr, eye: eye)                                       // (P297 d: round felled trunks)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n

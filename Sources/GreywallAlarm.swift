@@ -767,6 +767,17 @@ extension Game {
     static let partyReach: Float = 48              // blocks past the walls
     static let partyEvery: Double = 150
     static var greywallParties = 0                 // (checks)
+    static let oldParty = Env.all["BS_OLDPARTY"] == "1"
+    // The k-th man's place in the yard behind the gate: two abreast, rows a block and a half apart, on a free floor.
+    static func partySpot(_ w: World, _ gate: V3, _ k: Int) -> V3? {
+        let at = gate + V3(k % 2 == 0 ? -0.8 : 0.8, 0, -1.5 * Float(k / 2))
+        let x = Int(floor(at.x)), z = Int(floor(at.z))
+        for dy in [0, 1, -1, 2] {
+            let y = Int(gate.y) + dy
+            if w.solidAt(x, y - 1, z) && !w.solidAt(x, y, z) && !w.solidAt(x, y + 1, z) { return V3(at.x, Float(y), at.z) }
+        }
+        return nil
+    }
     func greywallParty(_ site: inout GreywallAlarmState.Site, _ players: [V3]) {
         guard survival, alive, !site.on, clock - site.partyAt > Game.partyEvery, heldGun == nil, world.ships.pilot == nil else { return }
         let h = Float(site.tier.half)
@@ -778,7 +789,15 @@ extension Game {
             && Soldier.rank($0.kind) != nil && !$0.aggro && Greywall.inside(site, $0.pos, pad: 2) }
         guard !garrison.isEmpty else { return }
         site.partyAt = clock
+        // Ledger 198 (Nov 15 21:14:23-21:15:09 at the Greywall Garrison: "Greywall party? Hold on", "Where's this Greywall
+        // party you speak of?", "Where are they?"): the four nearest soldiers set off from wherever they stood, the keep's
+        // rooms and the towers, and the toast came long before anything walked out; most never found a way to him. The
+        // party now forms up in the yard just inside the gate (the one way out, on the base's +z side) and marches out
+        // of it toward him, so he sees it come. BS_OLDPARTY=1: from where they stood.
+        let gate = V3(Float(site.cx) + 0.5, Float(site.S + 1), Float(site.cz + Int(h) - 3) + 0.5)
+        var k = 0
         for m in garrison.sorted(by: { simd_length_squared($0.pos - p) < simd_length_squared($1.pos - p) }).prefix(4) {
+            if !Game.oldParty, let at = Game.partySpot(world, gate, k) { m.pos = at; m.vel = .zero; m.yaw = 0; k += 1 }
             m.leash = nil
             m.aggro = true
             m.soldierBrain.ready = true

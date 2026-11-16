@@ -9,6 +9,7 @@ import simd
 // BS_BUILDONLY=key,key limits it to some builds.
 enum BuildersCheck {
     static let maxTicks = Int(Env.all["BS_BUILDTICKS"] ?? "") ?? 240_000
+    static var shot: ((Game, String, V3, Float, Float) -> Void)?
     static func run(_ g0: Game, _ check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
@@ -42,7 +43,11 @@ enum BuildersCheck {
         let bps = BuildersGrounds.blueprints().filter { only?.contains($0.key) ?? true }
         print("builds: finding the sites round \(Int(spawn.x)) \(Int(spawn.z))"); fflush(stdout)
         let t0 = CFAbsoluteTimeGetCurrent()
-        let sites = BuildersGrounds.findSites(w, centre: spawn, kinds: bps.map { $0.ground })
+        // (ledger 202: the six together, as the world lays them out)
+        let cluster = BuildersGrounds.oldSites ? nil : BuildersGrounds.findCluster(w, centre: spawn, kinds: bps.map { $0.ground })
+        let sites = cluster?.sites ?? BuildersGrounds.findSites(w, centre: spawn, kinds: bps.map { $0.ground })
+        if !BuildersGrounds.oldSites { check(cluster != nil, "Ledger 202 builds: the six together round one middle (\(cluster == nil ? BuildersGrounds.lastWhy : "found"))") }
+        if let c = cluster { print(String(format: "builds: together round %.0f %.0f, he starts at %.0f %.0f; on their own ground: ", c.middle.x, c.middle.z, c.spawn.x, c.spawn.z) + c.own.sorted().joined(separator: ", ")) }
         print(String(format: "builds: spawn %.0f %.0f, sites found in %.1f s:", spawn.x, spawn.z, CFAbsoluteTimeGetCurrent() - t0))
         fflush(stdout)
         for bp in bps { print("  \(bp.key) on \(bp.ground): \(sites[bp.ground].map { "\($0.x) \($0.z)" } ?? "NONE")") }
@@ -126,6 +131,19 @@ enum BuildersCheck {
             check(bot.done && bot.missed.isEmpty, "builds: the agent builds the \(bp.key) on \(bp.ground) through the controls (\(bot.placed) placed, \(bot.dug) dug, \(bot.missed.count) missed)")
             check(wrong.isEmpty && fell == 0, "builds: the \(bp.key) stands whole 20 s later (\(wrong.count) cells wrong, \(fell) fell)")
             check(lost + gained <= 12, "builds: the ground round the \(bp.key) is left as it was (\(lost) cells lost, \(gained) gained; want at most 12)")
+            // Ledger 201: every lantern, torch and sign touches what holds it.
+            let loose = Attach.loose(plan.jobs.map { $0.cell }) { w.block($0.x, $0.y, $0.z) }
+            check(loose.isEmpty, "builds: every lantern, torch and sign of the \(bp.key) touches what holds it (\(loose.prefix(4).joined(separator: "; ")))")
+        }
+        // Pictures from four sides of the six together (the suite's renderer, when it has one).
+        if let shot = shot, let c = cluster {
+            for (k, name) in ["south", "east", "north", "west"].enumerated() {
+                let a = Float(k) * .pi / 2
+                let p = c.middle + V3(sinf(a), 0, cosf(a)) * 46
+                let y = Float(BuildersGrounds.groundY(w, Int(c.middle.x), Int(c.middle.z))) + 22
+                shot(g, "builders_bot_\(name)", V3(p.x, y, p.z), atan2f(-(c.middle.x - p.x), -(c.middle.z - p.z)), -0.32)
+            }
+            shot(g, "builders_bot_start", c.spawn + V3(0, 7, 0), c.yaw, -0.3)
         }
     }
 }

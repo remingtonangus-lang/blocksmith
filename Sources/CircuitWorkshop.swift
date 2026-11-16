@@ -187,6 +187,7 @@ enum CircuitWorkshop {
     }
     // The deck's origin, where one stands at this spawn (found as `built` finds it).
     static func found(_ w: World, spawn: V3) -> IVec3? {
+        // (ledger 200: the game takes the saved current deck, Game.workshopDeck; this finds an old save's)
         let x0 = Int(floorf(spawn.x)) - 8, z0 = Int(floorf(spawn.z)) - 4
         let first = layout()[0].1
         let marker = Blocks.id(markerBlock)
@@ -214,6 +215,84 @@ enum CircuitWorkshop {
     }
     static let markerBlock = "chiseled_stone_bricks"
 
+    // Ledger 200 (Nov 15 evening, the workshop: decks stacked on decks, pillars standing over the floor, a fallen deck
+    // lying on the land under it): every deck the game had ever built was still there. A deck that came down before its
+    // floor was held lay where it fell; `found` took the lowest marker it met, the fallen one, and `origin` stood the
+    // next deck 10 over the top of everything built, so a load brought down deck after deck and the pillars of each
+    // reached only the one below. Now the deck this world stands is saved with a version (Game.workshopDeck): a save
+    // whose deck is not the current one, or not whole, has the whole box cleared, from the land up (every block that
+    // is not ground, water, plants or trees; dropped items and loose bodies too), and one deck built 10 over the land,
+    // its pillars from the land to its floor. BS_OLDWORKSHOPDECK=1: as before.
+    static let version = 2
+    static let oldDeck = Env.all["BS_OLDWORKSHOPDECK"] == "1"
+    static let boxUp = 12, boxReach = 40            // the box: up to the deck + 12, and anything built up to 40 over it
+
+    // Whether a block belongs to the land (ground, rock, water, plants, trees, snow): never built.
+    static func keeps(_ b: BlockID) -> Bool {
+        if b == AIR { return true }
+        switch ShapeClass.kind[Int(b)] {
+        case .none, .liquid, .plant, .foliage, .trunk, .terrain, .organic: return true
+        default: return Blocks.key(Blocks.groupBase[Int(b)]) == "snow"
+        }
+    }
+    // The land under a column: the top of four natural solid blocks in a row (an old bench's stone post, standing on a
+    // fallen floor, is not land; a cliff's top is).
+    static func landY(_ w: World, _ x: Int, _ z: Int) -> Int {
+        var y = min(CH - 2, w.topY(x, z) + 1), run = 0
+        while y > 1 {
+            let b = Int(w.rawBlock(x, y, z))
+            if SmoothTerrain.natural[b] && Blocks.collide[b] { run += 1; if run == 4 { return y + 3 } } else { run = 0 }
+            y -= 1
+        }
+        return y
+    }
+    // The deck's x/z corner at this site (as `found` and `built` take it).
+    static func corner(_ site: V3) -> (Int, Int) { (Int(floorf(site.x)) - 8, Int(floorf(site.z)) - 4) }
+    // Where the one deck goes: 10 over the highest land under it (built blocks never count).
+    static func landOrigin(_ w: World, site: V3) -> IVec3 {
+        let (x0, z0) = corner(site)
+        var top = SEA
+        for x in stride(from: -1, through: deckLength, by: 4) { for z in stride(from: -4, through: deckDepth, by: 4) { top = max(top, landY(w, x0 + x, z0 + z)) } }
+        top = max(top, landY(w, x0 + deckLength, z0 + deckDepth))
+        return IVec3(x0, min(CH - 12, top + 10), z0)
+    }
+    // Clears the box round the deck at `o`: x -2...deckLength + 2, z -6...deckDepth + 2, from each column's land up to
+    // the deck + 12 (and whatever is built up to 40 over the deck): every built block and its block entity, a natural
+    // block that stood on a cleared one (an old bench's stone post), the dropped items and loose bodies (falling blocks,
+    // broken-off pieces) in it. Returns the blocks cleared.
+    @discardableResult
+    static func clearBox(_ g: Game, at o: IVec3) -> Int {
+        let w = g.world
+        let xa = o.x - 2, xb = o.x + deckLength + 2, za = o.z - 6, zb = o.z + deckDepth + 2
+        let yTop = min(CH - 2, o.y + boxUp + boxReach)
+        var n = 0
+        for x in xa...xb { for z in za...zb {
+            let land = landY(w, x, z)
+            var below = false                       // the block under was cleared
+            var y = land + 1
+            while y <= yTop {
+                let b = w.rawBlock(x, y, z)
+                let clear = b != AIR && (!keeps(b) || (below && SmoothTerrain.natural[Int(b)]))
+                if clear {
+                    let p = IVec3(x, y, z)
+                    w.blockEntities[p] = nil
+                    _ = w.setBlockAsync(x, y, z, AIR)
+                    n += 1
+                }
+                below = clear
+                y += 1
+            }
+        } }
+        func inBox(_ p: V3) -> Bool {
+            p.x >= Float(xa) && p.x < Float(xb + 1) && p.z >= Float(za) && p.z < Float(zb + 1) && p.y > Float(o.y - 80) && p.y < Float(yTop + 1)
+        }
+        g.dim.drops.items.removeAll { inBox($0.pos) }
+        g.falling.removeAll { inBox($0.pos) }
+        for s in w.ships.list where inBox(s.pos) && s !== w.ships.pilot { w.ships.remove(s) }
+        for _ in 0..<10 { w.redstone.tick() }
+        return n
+    }
+
     // Where the deck goes in the workshop world: over the fixed spawn, 10 above the highest ground under it.
     static func origin(_ w: World, spawn: V3) -> IVec3 {
         let x0 = Int(floorf(spawn.x)) - 8, z0 = Int(floorf(spawn.z)) - 4
@@ -236,6 +315,33 @@ extension Game {
         let site = findSpawn()
         _ = world.loadSync(center: site, radius: 1)                                // the marker corner is near the site
         let len = CircuitWorkshop.deckLength
+        if !CircuitWorkshop.oldDeck && !HeldDeck.old {
+            _ = world.loadSync(center: site + V3(Float(len / 2 - 8), 0, 0), radius: len / 32 + 2)
+            // The saved deck, current and whole: its floor held, its pillars made good.
+            if case let (o, v)? = workshopDeck, v == CircuitWorkshop.version, CircuitWorkshop.whole(world, at: o) {
+                world.heldDeck = CircuitWorkshop.held(o)
+                CircuitWorkshop.supports(world, at: o)
+                return
+            }
+            // None yet, an old one, or one come down: the box cleared, one deck over the land.
+            let before = CircuitWorkshop.found(world, spawn: site) != nil || workshopDeck != nil
+            let o = CircuitWorkshop.landOrigin(world, site: site)
+            CircuitWorkshop.clearBox(self, at: o)
+            world.heldDeck = CircuitWorkshop.held(o)                   // (before a block of it goes down)
+            CircuitWorkshop.build(world, at: o)
+            workshopDeck = (o, CircuitWorkshop.version)
+            // He stands on the walkway the first time, or when he stood in the box (what he stood on is gone).
+            let (x0, z0) = CircuitWorkshop.corner(site)
+            let p = player.pos
+            let inBox = p.x >= Float(x0 - 2) && p.x < Float(x0 + len + 3) && p.z >= Float(z0 - 6) && p.z < Float(z0 + CircuitWorkshop.deckDepth + 3)
+            if !before || inBox {
+                player.pos = CircuitWorkshop.walkwayStart(o)
+                player.vel = .zero
+                player.yaw = -.pi / 2
+            }
+            onToast?(before ? "Sparkstone Workshop: rebuilt" : "Sparkstone Workshop")
+            return
+        }
         if let o = CircuitWorkshop.found(world, spawn: site) {
             // (Nov 14: its floor held; a deck from before, its pillars added, and built again where it came down)
             world.heldDeck = CircuitWorkshop.held(o)

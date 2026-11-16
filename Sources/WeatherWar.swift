@@ -80,7 +80,8 @@ extension Game {
                 let wet = weather.rain > 0.2 && weather.rain < 0.7 && !weather.thundering
                 let chance: Float = dry ? 0 : (dawn ? 0.2 : 0) + (damp ? 0.12 : 0) + (wet ? 0.1 : 0)
                 WeatherWar.fogOn = over && Rand.float(in: 0..<1) < chance   // (P211: was 0.8 / 0.35)
-                if WeatherWar.fogOn { onToast?("The sky is clouding over: fog is coming") }
+                // (Nov 15 21:04:13: "I don't need to know if fog's coming or not. Get rid of that": no toast; the fog
+                // itself rolls in over two to three minutes.)
                 WeatherWar.fogTimer = WeatherWar.fogOn ? Double(Rand.float(in: 240...600)) : Double(Rand.float(in: 600...2400))
             }
         }

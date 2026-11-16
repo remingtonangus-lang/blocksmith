@@ -923,11 +923,32 @@ enum RailwayTests {
                 mtr.blocksPerSec = 0                                           // (stood still: on foot they'd pile out)
                 for _ in 0..<3 { Trains.troopTick(g, mtr) }
                 let stayed = MilitaryTrain.holding(mtr).count == troops0 && troops0 >= 4
+                // Ledger 205: from the troop car, the guard car is boarded the same way (before the train is his).
+                _ = Trains.use(g, gun)
+                let guardAboard = Trains.oldCarUse || g.riding === gun
                 _ = Trains.use(g, loco)
                 let refused = g.riding !== loco && !mtr.taken
                 for m in mtr.troops { m.health = 0 }
                 _ = Trains.use(g, loco)
                 let took = mtr.taken && g.riding === loco
+                // Ledger 205 (20:56:53, at the regulator with a revolver: "Why can't I use the gun?"): a held gun fires
+                // from the cab and from a troop car.
+                func shotFrom(_ seat: Mob) -> Bool {
+                    if g.riding !== seat { _ = Trains.use(g, seat) }
+                    var s = ItemStack(Items.id("gun_revolver"), 1); s.tag = 6
+                    g.inventory.held = s
+                    g.arms.reload = 0; g.arms.cooldown = 0
+                    g.arms.heldGun = Guns.index(s.item) ?? -1; g.arms.heldSlot = g.selected
+                    let pad = PadSnapshot()
+                    for k in 0..<4 { _ = g.gunInteract(pad, pad, fire: true, firePressed: k == 0, aim: false, dt: 0.05); g.armsTick(0.05) }
+                    // (a round spent: the slug itself may meet the car's own wall within the four ticks and be gone)
+                    return g.riding === seat && g.inventory.held.tag < 6
+                }
+                let cabShot = shotFrom(loco), carShot = shotFrom(car)
+                g.inventory.held = .empty; g.arms.heldGun = -1
+                _ = Trains.use(g, loco)
+                print("rail: ledger 205: guard car boarded from a troop car \(guardAboard); a revolver fires from the cab \(cabShot), from a troop car \(carShot)")
+                check(guardAboard && cabShot && carShot, "ledger 205 train cars: the guard car is boarded from a troop car like any car (\(guardAboard)); a held revolver fires from the engine's cab (\(cabShot)) and from a troop car (\(carShot))")
                 let s0 = TrainGun.shared.shots, slugs0 = g.arms.slugs.count
                 _ = Trains.use(g, gun)
                 let manned = TrainGun.shared.car === gun && g.riding == nil

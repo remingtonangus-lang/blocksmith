@@ -70,6 +70,8 @@ struct BaseRecord: Codable {
     var cleared: Bool? = nil                // every soldier inside the walls killed: no new troops, ever (P23)
     var missiles: Int? = nil                // small missiles left (P135; nil: a full load)
     var missileCD: Float? = nil
+    var dropPads: [[Float]]? = nil          // ledger 206: where its dropships stand (x, y, z, yaw; CitadelDropships.swift)
+    var dropSpent: [Bool]? = nil            // ... and which have flown (or been taken or shot up)
 
     var centre: V3 { V3(Float(cx) + 0.5, Float(y0 + 4), Float(cz) + 0.5) }
     var gate: V3 { V3(Float(cx) + 0.5, Float(y0 + 1), Float(cz + 52) + 0.5) }
@@ -112,6 +114,8 @@ extension BaseRecord {
         cleared = (try? c.decodeIfPresent(Bool.self, forKey: .cleared))
         missiles = (try? c.decodeIfPresent(Int.self, forKey: .missiles))
         missileCD = (try? c.decodeIfPresent(Float.self, forKey: .missileCD))
+        dropPads = (try? c.decodeIfPresent([[Float]].self, forKey: .dropPads))
+        dropSpent = (try? c.decodeIfPresent([Bool].self, forKey: .dropSpent))
     }
 }
 
@@ -140,6 +144,7 @@ final class BaseWatch {
     var emptySince: [String: Double] = [:]          // P419 (a): when the walls were last seen with nobody inside
     var workers: [String: [Mob]] = [:]
     var aircraft: [String: Ship] = [:]
+    var dropIds: [String: [Int: Int]] = [:]           // ledger 206: the dropship standing on each pad this session (CitadelDropships.swift)
     var noWay = MobTable<Float>()                       // patrol members with no way home: seconds so
     var queue: [String: [(IVec3, BlockID)]] = [:]
     var pending = Set<String>()
@@ -296,6 +301,7 @@ extension Game {
             baseCrawler(&r, b, step)
             TickProf.mark("bases: crawler")
             baseParked(&r, b)
+            baseDropPads(&r, b)                                        // ledger 206 (CitadelDropships.swift)
             baseAir(&r, b, step)
             TickProf.mark("bases: air")
             baseRebuild(&r, b, step, away: Float(away))
@@ -329,7 +335,7 @@ extension Game {
                 // either": it was the Ironback crawler, rolled out of the citadel's motor pool as a Capital vehicle.
                 // Crawlers belong to the Ironback Legion alone; phase 9 marks the dropship's two-minute call.)
                 if n.kind != .gunshot && d > 70 && r.crawlerGoal == nil,
-                   world.ships.callDropship(faction: .steelhold, from: c, to: n.pos, game: self) {
+                   CitadelDrops.old ? world.ships.callDropship(faction: .steelhold, from: c, to: n.pos, game: self) : baseLaunchDrop(&r, b, to: n.pos) {
                     r.crawlerGoal = [n.pos.x, n.pos.y, n.pos.z]; r.crawlerPhase = 9; r.crawlerT = 0
                     b.note("\(r.key) dropship out to \(Int(n.pos.x)),\(Int(n.pos.z))")
                 }
@@ -500,9 +506,13 @@ extension Game {
             let pp = V2(player.pos.x, player.pos.z), need = world.pastFog(0, size: 16)
             while far < 400 && simd_length(V2(r.centre.x + dir.x * far, r.centre.z + dir.z * far) - pp) < need { far += 20 }
             let from = r.centre + dir * far + V3(0, 60, 0)
-            if world.ships.callDropship(faction: .steelhold, from: from, to: dropZone(r), game: self) {
-                r.dropships += 1
-                b.note("\(r.key) dropship \(r.dropships) called")
+            if CitadelDrops.old {
+                if world.ships.callDropship(faction: .steelhold, from: from, to: dropZone(r), game: self) {
+                    r.dropships += 1
+                    b.note("\(r.key) dropship \(r.dropships) called")
+                }
+            } else if baseLaunchDrop(&r, b, to: dropZone(r)) {
+                b.note("\(r.key) dropship \(r.dropships) off its pad")
             }
         }
         if Int(r.calm) % 8 == 0 && r.calm < 40 { sfx(.gun(10), 1.2, at: r.centre) }

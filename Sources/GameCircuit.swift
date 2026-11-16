@@ -58,13 +58,13 @@ extension Game {
         case .lever:
             let ns = s >= 12 ? s - 12 : s + 12
             world.setBlock(p.x, p.y, p.z, base + BlockID(ns))
-            rs.switchChanged(p, ns)
+            rs.switchChanged(p, ns); rs.settleNow()
             sfx(.lever, 0.6, at: at)
             rs.vibrate(at: at, freq: ns >= 12 ? 10 : 9)          // W9: block activate / deactivate
         case .button:
             guard s < 12 else { return true }
             world.setBlock(p.x, p.y, p.z, base + BlockID(s + 12))
-            rs.switchChanged(p, s + 12)
+            rs.switchChanged(p, s + 12); rs.settleNow()
             let stone = Blocks.key(base).hasPrefix("stone") || Blocks.key(base).hasPrefix("polished")
             rs.schedule(p, stone ? 20 : 30)
             sfx(stone ? .buttonStone : .buttonWood, 0.6, at: at)

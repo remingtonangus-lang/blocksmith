@@ -532,8 +532,9 @@ final class QuestControls {
             }
         }
         // D6: the gun hand at a holster (hip or chest) and gripped draws or holsters a handgun (Holsters.swift).
-        if !inMenu && !bagGrip && !handGrab && rGrip && !prevGripR && R.gripValid && game.alive,
-           Holsters.grip(game, Holsters.zone(head: rig.headWorld, yaw: rig.headYaw, hand: rig.toWorld(R.gripPos))) {
+        // Ledger 193: only a hand that has just reached the holster (Holsters.reach), not one hanging there.
+        let rZone = Holsters.reach(R.gripValid ? Holsters.zone(head: rig.headWorld, yaw: rig.headYaw, hand: rig.toWorld(R.gripPos)) : .none, clock: game.clock)
+        if !inMenu && !bagGrip && !handGrab && rGrip && !prevGripR && R.gripValid && game.alive, Holsters.grip(game, rZone) {
             app.input.haptic(aimHand, amplitude: 0.6, seconds: 0.05, frequency: 160)
             bagGrip = true
         }
@@ -1658,6 +1659,7 @@ final class QuestControls {
 
     // The laser on the menu panel drives the game's mouse.
     private var lastLaser = V2(-100, -100)
+    private var pullAim = PullAim()
     private func menuPointer(_ R: XRHand) {
         let (rx, uy, n) = panelAxes()
         let denom = simd_dot(aimDir, n)
@@ -1678,7 +1680,12 @@ final class QuestControls {
         // pin (the second click took the first one away again). Pressed past 0.6, let go under 0.35.
         let trig = trigBtn[1].down, grip = gripBtn[1].down          // (P303: VRButton's thresholds)
         if let uv {
-            let mx = uv.x * Float(QuestControls.panelW), my = uv.y * Float(QuestControls.panelH)
+            // Ledger 190: a press aims where the laser was as the pull began (PullAim, XRInput.swift), not where the
+            // pull tipped it to; the shift holds until both trigger and grip let go.
+            let lx = uv.x * Float(QuestControls.panelW), ly = uv.y * Float(QuestControls.panelH)
+            pullAim.record(V2(lx, ly), trigger: max(trigBtn[1].value, gripBtn[1].value))
+            if (trig && !prevTrigger) || (grip && !prevGrip) { _ = pullAim.press() } else if !trig && !grip { pullAim.release() }
+            let mx = lx + pullAim.shift.x, my = ly + pullAim.shift.y
             // P176 (Oct 13: "I'm not able to use the left slider still"): the left stick moves the menu cursor and
             // parks the mouse at -1; comparing the laser with that every frame counted as a laser move and snapped the
             // cursor straight back under the laser. Only the laser itself moving (2 px) takes the cursor back.
@@ -1702,6 +1709,7 @@ final class QuestControls {
             if game.menuCursor != lastHoverSlot { lastHoverSlot = game.menuCursor; hoverRest = 0; app.input.haptic(aimHand, amplitude: 0.12, seconds: 0.01, frequency: 320) } else { hoverRest += 1.0 / 72 }
         } else {
             input.leftDown = false; input.rightDown = false
+            pullAim.reset()
             // P309 (b): the laser off the panel altogether, out into the world: a pull throws the carried stack that
             // way (the grip one item), from the hand (Game.throwAway).
             let m = game.menu

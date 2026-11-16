@@ -235,7 +235,7 @@ enum CircuitZoo {
         }
     }
 
-    // Repeater lines: a lever, wire runs and repeaters of mixed delays, a lamp. On after 1 + 2 x (sum of delays) ticks,
+    // Repeater lines: a lever, wire runs and repeaters of mixed delays, a lamp. On after 2 x (sum of delays) ticks,
     // off 4 ticks later than that; a run of 16 wires starves the next repeater.
     static func repeaterLines() -> [Case] {
         let specs: [[Int]] = [[0, 1, 0], [3, 4, 2], [15, 1, 15, 1, 15], [16, 2, 3], [1, 2, 0, 3, 0, 4, 1], [5, 1, 5, 1, 5, 1, 5],
@@ -258,10 +258,11 @@ enum CircuitZoo {
                 z.tick(40)
                 z.use(0, 0, 0)
                 let tOff = z.until(120) { !z.lit(x, 0, 0) }
-                let sum = delays.reduce(0, +) * 2
-                let ok = fed ? (tOn == 1 + sum && tOff == 5 + sum) : (tOn == nil)
+                // Ledger 192: the lever is seen in the tick it is used, one tick sooner (BS_OLDSWITCHUPDATE=1: as before).
+                let sum = delays.reduce(0, +) * 2 + (Circuit.oldSwitchUpdate ? 1 : 0)
+                let ok = fed ? (tOn == sum && tOff == 4 + sum) : (tOn == nil)
                 let on = tOn.map { "\($0)" } ?? "never", off = tOff.map { "\($0)" } ?? "-"
-                return (ok, "lamp on after \(on) ticks (want \(fed ? "\(1 + sum)" : "never")), off after \(off) (want \(fed ? "\(5 + sum)" : "-"))")
+                return (ok, "lamp on after \(on) ticks (want \(fed ? "\(sum)" : "never")), off after \(off) (want \(fed ? "\(4 + sum)" : "-"))")
             }
         }
     }

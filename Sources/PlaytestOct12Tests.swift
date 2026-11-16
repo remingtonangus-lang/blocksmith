@@ -549,6 +549,40 @@ enum PlaytestOct12Tests {
         undo()
         check(hit && tapped.count == 1 && dragged == 0,
               "P73 map: a tap drops a waypoint where it points (\(tapped) for \(want)); a drag pans and drops none (\(dragged))")
+
+        // Ledger 190: the pin is drawn on the very cell under the pointer, it is the tracked target (the HUD's bar), a tap
+        // two cells off moves it there (it used to take it away within 3 cells), and a tap on it takes it away.
+        let tracked0 = Waymarks.trackedKey
+        defer { Waymarks.trackedKey = tracked0; Waymarks.cache = (-1e9, nil) }
+        let x0 = o.x + 8 * s, y0 = o.y + 18 * s, px = 2 * s
+        func cell(_ p: V2) -> (Int, Int) { (Int(floor((p.x - x0) / px)), Int(floor((p.y - y0) / px))) }
+        func tap(_ p: V2) { g.input.mouseX = p.x; g.input.mouseY = p.y; g.input.leftDown = true; m.tick(); m.tick(); g.input.leftDown = false; m.tick() }
+        func drawnCell(_ q: (Int, Int)) -> (Int, Int)? {
+            MapDraw.project(Float(q.0) + 0.5, Float(q.1) + 0.5, x0: x0, y0: y0, cols: MapMenu.cols, rows: MapMenu.rows, px: px,
+                            wx: m.cx, wz: m.cz, bpc: m.bpc).map(cell)
+        }
+        var notes: [String] = []
+        var ok = true
+        for (dc, dr) in [(30, 10), (-41, 23), (5, -30), (60, -2)] {
+            let p = V2(x0 + (Float(MapMenu.cols / 2 + dc) + 0.37) * px, y0 + (Float(MapMenu.rows / 2 + dr) + 0.81) * px)
+            tap(p)
+            let a = added()
+            let drawn = a.first.flatMap(drawnCell)
+            let onCell = a.count == 1 && drawn.map { $0 == cell(p) } == true
+            let tracking = a.first.map { Waymarks.trackedKey == "pin|\($0.0),\($0.1)" && Waymarks.hud(g) != nil } ?? false
+            // Two cells to the right: it moves.
+            let p2 = p + V2(2 * px, 0)
+            tap(p2)
+            let b = added()
+            let moved = b.count == 1 && b.first.flatMap(drawnCell).map { $0 == cell(p2) } == true
+            // On it: it goes, and the bar is back on the story.
+            tap(p2)
+            let gone = added().isEmpty && Waymarks.trackedKey?.hasPrefix("pin|") != true
+            if !(onCell && tracking && moved && gone) { ok = false }
+            notes.append("\(cell(p)) -> \(drawn.map { "\($0)" } ?? "none") \(tracking ? "tracked" : "untracked") \(moved ? "moved" : "not moved") \(gone ? "gone" : "kept")")
+            undo()
+        }
+        check(ok, "Ledger 190 map pin: drawn on the cell under the pointer, tracked on the HUD bar, a tap 2 cells off moves it, a tap on it takes it away (\(notes.joined(separator: "; ")))")
     }
 
     // P71 (09:20): wide towns' streets are five blocks across (a narrow, saved-ground town keeps three). The town's
@@ -843,9 +877,23 @@ enum PlaytestOct12Tests {
               + (gunOut && aimed > 0.3 ? "" : " [gun out \(gunOut), held \(Items.key(g.held.item)), alive \(g.alive), paused \(g.paused), menu \(g.menu.map { "\(type(of: $0))" } ?? "none"), vrAim \(g.vrAim != nil), button mode \(VRReload.buttonMode)]"))
         // The left grip by the side with a full gun: no magazine taken; P465: and it doesn't step the hotbar either (the
         // grip in front of the waist does, P109).
+        // Ledger 194: that holds only just after a magazine went in (the re-squeeze); otherwise a full gun leaves the grip
+        // to the hotbar (.none: the left grip's tap steps it).
         let head = g.player.eye
+        let ins0 = VRReload.insertedAt
+        defer { VRReload.insertedAt = ins0 }
+        VRReload.insertedAt = g.clock - 1
         let ev = VRReload.tick(g, offHand: head + V3(-0.25, -0.8, 0.05), gunHand: head + V3(0.2, -0.35, -0.35), head: head, grip: true, gripWas: false)
-        check(ev == .full && !g.arms.magInHand, "P74/P465 gun in hand: a left grip at the side with a full magazine takes nothing (\(ev)) and keeps the gun"
+        VRReload.insertedAt = g.clock - 60
+        let later = VRReload.tick(g, offHand: head + V3(-0.25, -0.8, 0.05), gunHand: head + V3(0.2, -0.35, -0.35), head: head, grip: true, gripWas: false)
+        check(ev == .full && later == .none && !g.arms.magInHand, "P74/P465/ledger 194 gun in hand: a left grip at the side with a full magazine takes nothing and keeps the gun; just after a magazine went in it is the pouch's (\(ev)), a minute on the hotbar's (\(later))"
               + (ev == .full ? "" : " [gun \(g.heldGun != nil), alive \(g.alive), button mode \(VRReload.buttonMode), mag in hand \(g.arms.magInHand)]"))
+        // Ledger 193: a gun hand hanging in the hip holster zone holsters nothing; one that has just reached it does.
+        let z0 = (Holsters.lastZone, Holsters.enteredAt)
+        defer { Holsters.lastZone = z0.0; Holsters.enteredAt = z0.1 }
+        _ = Holsters.reach(.none, clock: g.clock - 10)
+        let fresh = Holsters.reach(.hip, clock: g.clock - 0.5)
+        let hanging = Holsters.reach(.hip, clock: g.clock + 5)
+        check(fresh == .hip && hanging == .none, "Ledger 193 holster: a gun hand just reaching the hip holster grips it (\(fresh)); one hanging there 5 s grips for the hotbar (\(hanging))")
     }
 }
