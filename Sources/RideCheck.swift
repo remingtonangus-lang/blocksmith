@@ -890,6 +890,7 @@ enum RideCheck {
         var mags: [ObjectIdentifier: Int] = [:]
         var foes: [Mob] = []
         var foeNote = ""
+        var foeGone: [String] = []
         let limit = frigate ? 120 * 60 : 60 * 60
         for i in 0..<limit {
             sc.agent.step(idle)
@@ -910,6 +911,16 @@ enum RideCheck {
                     m.persistent = true
                     g.mobs.mobs.append(m)
                     foes.append(m)
+                }
+                TroopVanish.reset(); TroopVanish.on = true
+            }
+            // (when a foe leaves the world, what it was then: the troop vanish rule, its health after the tick, where)
+            for (k, f) in foes.enumerated() where k >= foeGone.count || foeGone[k].isEmpty {
+                while foeGone.count <= k { foeGone.append("") }
+                if !g.mobs.mobs.contains(where: { $0 === f }) {
+                    foeGone[k] = String(format: "foe %ld gone %.1f s after it came, health %.0f, %.0f blocks from the hull's middle, %.0f from the bot, aggro %@, routed %@, fled %@; troop vanish: %@",
+                                        k, (Float(i) / 60) - stopT, f.health, simd_length(f.pos - s.pos), simd_length(f.pos - g.player.pos),
+                                        f.aggro ? "yes" : "no", f.routed ? "yes" : "no", f.fledClear ? "yes" : "no", TroopVanish.line)
                 }
             }
             if !foes.isEmpty {
@@ -959,6 +970,8 @@ enum RideCheck {
             r.check(worstDecel < 4, String(format: "no sudden stop (worst deceleration %.2f b/s2)", worstDecel))
             r.check(shots > 0, "the crew fight enemy soldiers from aboard (\(shots) shots)")
             r.note("crew fight: " + foeNote)
+            for l in foeGone where !l.isEmpty { r.note("crew fight: " + l) }
+            TroopVanish.on = false
         }
         r.check(off == 0, "the crew stay aboard the disabled vehicle (\(off) crew-ticks off; \(sentOut) troop-ticks of the squad sent out down the ramp, not counted)\(firstOff.isEmpty ? "" : ", first: " + firstOff)")
         r.check(aliveAtRest == spawned, "the crew survive it (\(aliveAtRest) of \(spawned) alive when it came to rest, \(alive) at the end)")
