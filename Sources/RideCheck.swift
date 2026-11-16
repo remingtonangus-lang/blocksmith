@@ -918,7 +918,7 @@ enum RideCheck {
             for (k, f) in foes.enumerated() where k >= foeGone.count || foeGone[k].isEmpty {
                 while foeGone.count <= k { foeGone.append("") }
                 if !g.mobs.mobs.contains(where: { $0 === f }) {
-                    let gone = (Float(i) / 60 - stopT * 1).rounded(), hp = f.health.rounded(), dh = simd_length(f.pos - s.pos).rounded(), db = simd_length(f.pos - g.player.pos).rounded()
+                    let gone = (Float(i) / 60 - stopT * 1).rounded(), hp = f.health, dh = simd_length(f.pos - s.pos).rounded(), db = simd_length(f.pos - g.player.pos).rounded()
                     foeGone[k] = "foe \(k) gone \(gone) s after it came, health \(hp), \(dh) blocks from the hull's middle, \(db) from the bot, aggro \(f.aggro), routed \(f.routed), fled \(f.fledClear); troop vanish: " + TroopVanish.line
                 }
             }
