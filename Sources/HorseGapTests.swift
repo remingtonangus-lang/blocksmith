@@ -341,11 +341,15 @@ extension HorseTests {
             for _ in 0..<600 { g.mobs.update(0.05, game: g); far = max(far, simd_length(V2(h.pos.x - left.x, h.pos.z - left.z))) }
             check(far < 7, String(format: "horse gap: a horse left alone grazes near where you got off, not where it waited before (strayed %.1f blocks in 30 s)", far))
             // A wolf comes by a horse waiting at bond level 1: it bolts.
+            // (Calm first: a monster the world spawned by it in the 30 s above could have it still bolting from that,
+            // and a horse already bolting doesn't count the wolf: 1 run in 3 failed so.)
+            let panic0 = h.panic, level = h.bondLevel
+            h.panic = 0
             let bolted0 = HorseLife.bolted
             let wolf = Mob(.wolf, at: h.pos + V3(3, 0, 0))
             g.mobs.mobs = [h, wolf]
             for _ in 0..<10 { g.mobs.update(0.05, game: g); wolf.pos = h.pos + V3(3, 0, 0) }
-            check(HorseLife.bolted > bolted0 && h.panic > 0, "horse gap: a horse left waiting bolts from a wolf (until bond level 3)")
+            check(HorseLife.bolted > bolted0 && h.panic > 0, "horse gap: a horse left waiting bolts from a wolf (until bond level 3) (bolted \(HorseLife.bolted - bolted0), panic \(h.panic), bond level \(level), bolting before \(panic0))")
             g.mobs.mobs = [h]
         }
 

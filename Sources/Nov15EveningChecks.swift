@@ -17,9 +17,13 @@ enum Nov15EveningChecks {
     // Ledger 207 (21:00:20-21:00:26, "make it a normal village, but the village is abandoned... chain modify each village
     // building so it's abandoned"): ghost towns are towns' layouts (lots along streets, the towns' own buildings), each
     // building ruined by its own draw; nobody lives there, no light burns, cobwebs hang inside; no two alike.
-    static func ghostTowns(_ g: Game, _ check: (Bool, String) -> Void) {
-        guard !GhostVillage.old, let sc = g.world.gen.structures else { return }
-        let w = g.world
+    static func ghostTowns(_ g0: Game, _ check: (Bool, String) -> Void) {
+        // A world of its own on the suite's seed: three towns thousands of blocks out loaded (and pictured) in the suite's
+        // world left him there flying and its ground loaded far off for every group after.
+        let w = World(seed: g0.world.seed, device: g0.world.device, save: nil)
+        w.renderDistance = 4; w.activeDistance = 4
+        let g = Game(world: w, save: nil, persistent: false)
+        guard !GhostVillage.old, let sc = w.gen.structures else { return }
         var towns: [StructureStart] = []
         for (x, z) in [(3000, -2000), (-3000, 2500), (5000, 5000), (-5000, -5000), (2000, 6000), (-6000, 1000), (6000, -3000), (-2000, -6000),
                        (8000, 0), (0, 8000), (-8000, 0), (0, -8000)] where towns.count < 3 {

@@ -732,7 +732,9 @@ extension Mesher {
             } } }
         }
 
-        if let hook = SmoothTerrain.vertexHook {             // (tests: the same cell meshed by two sections)
+        // (Tests, on the main thread only: a world's mesh workers never read or call it, so a check meshing a section by
+        // hand while the world meshes its own can't have two threads filling one table — the suite crashed so once.)
+        if Thread.isMainThread, let hook = SmoothTerrain.vertexHook {             // (tests: the same cell meshed by two sections)
             for ky in KO...(KO + 16) { for kz in KO...(KO + 16) { for kx in KO...(KO + 16) {
                 let vi = kx + kz * K + ky * KK
                 if VL[vi] >= 0 { hook(kx - KO, ky - KO, kz - KO, SIMD3<Float>(VP[vi * 3], VP[vi * 3 + 1], VP[vi * 3 + 2])) }
