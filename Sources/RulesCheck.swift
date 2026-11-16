@@ -45,6 +45,8 @@ enum RulesCheck {
         // Ledger 176: still water fills an open pocket beside it under its surface (a crater at the sea's edge); a
         // lone spring's fall does not wet a ledge it passes.
         do {
+            let cx0 = cx   // (both pads are handed back clean, so the cases after this one stand where they always stood)
+            defer { cx = cx0 }
             let x = site()
             // (a stone block three high with a channel cut in it: two columns of sea, then a pocket over a ledge)
             for dx in -1...3 { for dz in -1...1 { for dy in 0...2 { w.setBlock(x + dx, floorY + dy, cz + dz, STONE) } } }
@@ -69,6 +71,7 @@ enum RulesCheck {
             check(ok, "ledger 176: still water fills a pocket beside it under its surface (low \(low), top \(top)); a lone spring's fall leaves the ledges it passes dry (fell \(fell), ledge wet \(ledge))")
             for dy in stride(from: 3, through: 0, by: -1) { w.setBlock(x2, floorY + dy, cz, AIR) }
             for d in ring { w.setBlock(x2 + d.x, floorY, cz + d.z, AIR) }
+            for dx in -1...3 { for dz in -1...1 { for dy in stride(from: 2, through: 0, by: -1) { w.setBlock(x + dx, floorY + dy, cz + dz, AIR) } } }
             for _ in 0..<20 { w.fluidTick() }
         }
 
