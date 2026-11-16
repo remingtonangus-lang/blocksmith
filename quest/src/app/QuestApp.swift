@@ -815,6 +815,7 @@ final class FrameStats {
         guard let g = game, target > 0, frames > 0 else { badWindows = 0; return }
         let bad = Double(missed) > Double(frames) * FrameStats.captureMissFrac && busyFrames * 2 < frames
         badWindows = bad ? badWindows + 1 : 0
+        if bad { CostProbe.arm() }          // the next window measures what the sky and the land's triangles cost
         guard badWindows >= 2, now - lastCaptureAt > FrameStats.captureGap else { return }
         let p = g.player.pos, w = g.world
         let biome = g.dim.dim == .overworld ? (w.gen as? WorldGen).map { "\($0.column(Int(p.x), Int(p.z)).biome)" } ?? "-" : "-"
@@ -834,6 +835,7 @@ final class FrameStats {
         PerfOverlay.shared.add(frameMs: frame * 1000)
         if let g = game { MainGunPerf.record(frameMs: frame * 1000, budget: target * 1000, clock: g.clock) }   // "perf: main gun blast" after an impact
         sumCPU += cpu; sumTick += tick; sumRecord += record; sumGPU += gpu
+        CostProbe.add(gpuMs: gpu)
         if frame * 1000 > worstFrame {
             worstFrame = frame * 1000
             worstCPU = cpu; worstTick = tick; worstRecord = record; worstGPU = gpu
@@ -868,6 +870,7 @@ final class FrameStats {
             lastLine += String(format: " (10%% fewer pixels gave %.0f%% less gpu: %@)", (1 - p) * 100, p < 0.95 ? "pixel-bound" : "triangle-bound")
         }
         // P403 step 1: clocks and the hottest zone, and the runtime's own performance notices (a throttled headset).
+        lastLine += CostProbe.line()
         let clocks = DeviceClocks.line()
         if !clocks.isEmpty { lastLine += " | clocks: " + clocks }
         if let n = perfNotice?(), !n.isEmpty { lastLine += " | runtime performance notice: " + n }

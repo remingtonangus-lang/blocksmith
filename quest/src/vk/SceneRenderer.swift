@@ -405,6 +405,7 @@ final class SceneRenderer {
         var cull = VK_CULL_MODE_BACK_BIT
         var topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
         var colorWrite = true
+        var nilBlend = false        // blended as source x 0 + what is there: shaded, never seen (CostProbe)
     }
 
     private var modules: [String: VkShaderModule] = [:]
@@ -511,6 +512,10 @@ final class SceneRenderer {
             att.blendEnable = 1
             att.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE; att.colorBlendOp = VK_BLEND_OP_ADD
             att.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.alphaBlendOp = VK_BLEND_OP_ADD
+        } else if p.nilBlend {
+            att.blendEnable = 1
+            att.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO; att.dstColorBlendFactor = VK_BLEND_FACTOR_ONE; att.colorBlendOp = VK_BLEND_OP_ADD
+            att.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; att.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE; att.alphaBlendOp = VK_BLEND_OP_ADD
         } else if p.blend {
             att.blendEnable = 1
             att.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA
@@ -567,6 +572,11 @@ final class SceneRenderer {
             "waterUnder": PipeDesc(vert: "chunk.vert", frag: "water.frag", input: .chunk, blend: true, depthWrite: false, compare: le, cull: none),
             "sky": PipeDesc(vert: "sky.vert", frag: "sky.frag", depthWrite: false, compare: le, cull: none),
             "clouds": PipeDesc(vert: "sky.vert", frag: "clouds.frag", blend: true, depthWrite: false, compare: le, cull: none),
+            // (CostProbe: the clouds shaded a second time, blended as nothing)
+            "cloudsNil": PipeDesc(vert: "sky.vert", frag: "clouds.frag", blend: true, depthWrite: false, compare: le, cull: none, nilBlend: true),
+            // (CloudMap: the decks read from the cloud map)
+            "cloudsMap": PipeDesc(vert: "sky.vert", frag: "clouds_map.frag", blend: true, depthWrite: false, compare: le, cull: none),
+            "cloudsMapNil": PipeDesc(vert: "sky.vert", frag: "clouds_map.frag", blend: true, depthWrite: false, compare: le, cull: none, nilBlend: true),
             "star": PipeDesc(vert: "star.vert", frag: "star.frag", input: .simple, blend: true, depthWrite: false, compare: le, cull: none),
             "body": PipeDesc(vert: "body.vert", frag: "crack.frag", input: .entity, blend: true, depthWrite: false, compare: le, cull: none),
             "simple": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, blend: true, depthWrite: false, compare: le, cull: none),
@@ -1045,11 +1055,29 @@ final class SceneRenderer {
     func drawClouds(_ s: Slot) {
         vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("clouds"))
         vkCmdDraw(s.cmd, 3, 1, 0, 0)
+        if CostProbe.skyTwice {
+            vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("cloudsNil"))
+            vkCmdDraw(s.cmd, 3, 1, 0, 0)
+        }
+    }
+
+    /// The clouds from the cloud map (CloudMap.record's answer).
+    func drawCloudsMapped(_ s: Slot, set: VkDescriptorSet, extra: V4) {
+        var st: VkDescriptorSet? = set
+        vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeLayout, 2, 1, &st, 0, nil)
+        pushConstants(s, model: matrix_identity_float4x4, extra: extra)
+        vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("cloudsMap"))
+        vkCmdDraw(s.cmd, 3, 1, 0, 0)
+        if CostProbe.skyTwice {
+            vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("cloudsMapNil"))
+            vkCmdDraw(s.cmd, 3, 1, 0, 0)
+        }
     }
 
     func drawSky(_ s: Slot) {
         vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("sky"))
         vkCmdDraw(s.cmd, 3, 1, 0, 0)
+        if CostProbe.skyTwice { vkCmdDraw(s.cmd, 3, 1, 0, 0) }
     }
 
     // MARK: Terrain
