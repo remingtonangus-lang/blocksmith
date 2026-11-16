@@ -102,7 +102,14 @@ enum CircuitWorkshopTests {
             let lever = b + IVec3(3, 2, -2)
             func doorway() -> [String] { [key(b + IVec3(5, 0, 0)), key(b + IVec3(5, 1, 0))] }
             let shut = doorway() == ["stone_bricks", "stone_bricks"] && st(b + IVec3(3, 0, 0)) == 11 && st(b + IVec3(3, 1, 0)) == 11
-            use(lever); tick(20)
+            // Ledger 192 (Nov 15 20:44:58, at this lever: "too much of a delay between pressing the switch and the
+            // redstone occurring"): the game ticks from the lever to the open doorway. The rules' least is the torch's
+            // 2 (one circuit tick) and the pistons pulling back on the tick the torch goes out.
+            use(lever)
+            var openAt = -1
+            for i in 1...20 { tick(); if openAt < 0 && blk(b + IVec3(5, 0, 0)) == AIR && blk(b + IVec3(5, 1, 0)) == AIR { openAt = i } }
+            check(openAt >= 1 && openAt <= 2,
+                  "Ledger 192 workshop: the piston door opens \(openAt) game ticks (\(openAt * 50) ms) after the lever, the rules' least (the torch's one circuit tick)")
             let after = "lever \(st(lever)), torch \(st(b + IVec3(3, 1, -1))), pistons \(st(b + IVec3(3, 0, 0)))/\(st(b + IVec3(3, 1, 0))), x4 \(key(b + IVec3(4, 0, 0)))/\(key(b + IVec3(4, 1, 0))), x5 \(doorway())"
             let open = blk(b + IVec3(5, 0, 0)) == AIR && blk(b + IVec3(5, 1, 0)) == AIR
                 && key(b + IVec3(4, 0, 0)) == "stone_bricks" && key(b + IVec3(4, 1, 0)) == "stone_bricks"

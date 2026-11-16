@@ -600,6 +600,7 @@ extension Game {
         onToast?(lines.isEmpty ? "A chart of the \(s.name). Nothing marked on it" : "Deck plan of the \(s.name). " + lines.joined(separator: "; "))
     }
 
+    static let oldHullLeaves = Env.all["BS_OLDHULLLEAVES"] == "1"
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float, useHeld: Bool = false) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt
@@ -699,6 +700,11 @@ extension Game {
             // P268: snow, grass or a plant lying on or against the hull (a wreck in the snow) doesn't hide it either.
             let wb = world.block(tg.hit.x, tg.hit.y, tg.hit.z)
             let hp = hitPoint(tg)
+            // Ledger 197 (Nov 15 21:13:26-21:13:29, spruce leaves left in a parked crawler's tracks: "Here they are,
+            // blocks and the wheel... They don't get removed when I break them"): a world hit inside the craft's
+            // blocks was the craft's (P224, a wreck's terrain), so breaking the leaves struck the track instead. Leaves
+            // nearer than the hull are the world's to break. BS_OLDHULLLEAVES=1: as before.
+            if !Game.oldHullLeaves && Blocks.key(Blocks.groupBase[Int(wb)]).hasSuffix("_leaves") { ships.target = nil; return false }
             let loose = (Blocks.replaceable[Int(wb)] || !Blocks.collide[Int(wb)]) && t - simd_length(hp - eye) < 1.5
                 && hp.x > s.worldMin.x - 0.5 && hp.x < s.worldMax.x + 0.5 && hp.y > s.worldMin.y - 0.5 && hp.y < s.worldMax.y + 0.5
                 && hp.z > s.worldMin.z - 0.5 && hp.z < s.worldMax.z + 0.5
@@ -856,6 +862,8 @@ extension Game {
             openMenu(ChestMenu(game: self, container: be.container, title: Blocks.name(b)))
             return true
         }
+
+        if !sneak && ChairSeat.shared.sitShip(self, s, cell) { return true }      // ledger 196: a seat aboard (Seats.swift)
 
         // Placing a block on the ship.
         guard let item = held.def.block else { return true }

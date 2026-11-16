@@ -122,8 +122,65 @@ final class ChairSeat {
         ChairSeat.sat += 1
     }
 
+    // Ledger 196 (Nov 15 21:14:15, on a taken crawler's deck: "Why can't I get in this chair?"): a seat on a ship or
+    // vehicle was only a block of its hull (using a hull cell opened doors, chests and the helm; a chair did nothing).
+    // He sits on it in the craft's frame: held on its seat as the craft moves and turns, facing its front, and stands
+    // up a step in front of it. BS_OLDSHIPCHAIR=1: as before.
+    static let oldShipChair = Env.all["BS_OLDSHIPCHAIR"] == "1"
+    private(set) var onShip: (ship: Ship, cell: IVec3)?
+    static func shipSeatYaw(_ s: Ship, _ b: BlockID) -> Float {
+        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        let f: Float = k.hasSuffix("_stool") ? 0 : [0, Float.pi, Float.pi / 2, -Float.pi / 2][Int(b - Blocks.groupBase[Int(b)]) & 3]
+        return f + s.yaw
+    }
+    func sitShip(_ g: Game, _ s: Ship, _ cell: IVec3) -> Bool {
+        guard !ChairSeat.oldShipChair, g.riding == nil else { return false }
+        let b = s.grid.get(cell.x, cell.y, cell.z)
+        guard ChairSeat.seatTop(Blocks.key(Blocks.groupBase[Int(b)])) != nil else { return false }
+        let above = s.grid.get(cell.x, cell.y + 1, cell.z)
+        guard !Blocks.collide[Int(above)] else { return false }
+        at = nil
+        onShip = (s, cell)
+        ready = false
+        g.player.yaw = ChairSeat.shipSeatYaw(s, b)
+        g.player.vel = .zero
+        g.sfx(RecordedNov15.pick(.chairSit, .place(.wood)), 0.6, at: s.toWorld(V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5))
+        ChairSeat.sat += 1
+        return true
+    }
+    // The seated feet point on a ship's seat.
+    static func shipSeatPos(_ s: Ship, _ cell: IVec3, top: Float) -> V3 { s.toWorld(V3(Float(cell.x) + 0.5, Float(cell.y) + top - 0.55, Float(cell.z) + 0.5)) }
+    private func shipTick(_ g: Game, _ mi: MoveInput) -> Bool {
+        guard let (s, cell) = onShip else { return false }
+        let b = s.grid.get(cell.x, cell.y, cell.z)
+        guard g.alive, g.riding == nil, g.world.ships.list.contains(where: { $0 === s }),
+              let top = ChairSeat.seatTop(Blocks.key(Blocks.groupBase[Int(b)])) else { onShip = nil; return false }
+        let still = !mi.jump && !mi.sneak && abs(mi.forward) < 0.5 && abs(mi.strafe) < 0.5
+        if !still && ready { standShip(g); return false }
+        if still { ready = true }
+        g.player.pos = ChairSeat.shipSeatPos(s, cell, top: top)
+        g.player.vel = .zero
+        g.player.onGround = true
+        g.player.airPeak = g.player.pos.y
+        return true
+    }
+    private func standShip(_ g: Game) {
+        guard let (s, cell) = onShip else { return }
+        onShip = nil
+        let b = s.grid.get(cell.x, cell.y, cell.z)
+        let yaw = ChairSeat.shipSeatYaw(s, b) - s.yaw
+        let f = IVec3(cell.x + Int((-sinf(yaw)).rounded()), cell.y, cell.z + Int((-cosf(yaw)).rounded()))
+        let open = !Blocks.collide[Int(s.grid.get(f.x, f.y, f.z))] && !Blocks.collide[Int(s.grid.get(f.x, f.y + 1, f.z))]
+        let c = open ? f : IVec3(cell.x, cell.y + 1, cell.z)
+        g.player.pos = s.toWorld(V3(Float(c.x) + 0.5, Float(c.y) + 0.02, Float(c.z) + 0.5))
+        g.player.vel = .zero
+        g.player.airPeak = g.player.pos.y
+    }
+    var seatedOnShip: Bool { onShip != nil }
+
     // Once a frame (Game.tick, before movement): true while seated (movement is skipped).
     func tick(_ g: Game, _ mi: MoveInput) -> Bool {
+        if onShip != nil { return shipTick(g, mi) }
         guard let p = at else { return false }
         let w = g.world
         guard g.alive, g.riding == nil, let top = ChairSeat.seatTop(ChairSeat.key(w, p)) else { at = nil; return false }
@@ -139,7 +196,7 @@ final class ChairSeat {
     }
 
     // Off the seat where he is (P471: he goes up to the gun the computer works; Turrets brings him back to it).
-    func release() { at = nil }
+    func release() { at = nil; onShip = nil }
 
     // Up and a step out in front of the seat (onto it when the front is blocked).
     func stand(_ g: Game) {

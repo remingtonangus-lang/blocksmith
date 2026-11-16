@@ -43,7 +43,16 @@ enum SmoothTerrain {
     static let pins: [Bool] = (0..<Blocks.count).map { i in
         let n = Blocks.key(BlockID(i))
         if natural[i] || n == "snow" || n.hasSuffix("_leaves") { return false }
-        return Blocks.opaque[i] || Blocks.collide[i]
+        return Blocks.opaque[i] || Blocks.collide[i] || (!oldAttachPin && attached(Blocks.key(Blocks.groupBase[i])))
+    }
+    // Ledger 191 (Nov 15 20:45:34, the Sparkstone Workshop: "the wire is not perfectly flush with material under it"):
+    // copper wire, torches, levers, buttons, plates, rails, repeaters and comparators neither fill nor block their space,
+    // so the natural block they stand on rounded away under them (the wire floated over a lumpy rock). They pin the
+    // ground's corners like any built block: the face under them is the block's flat top. BS_OLDATTACHPIN=1: as before.
+    static let oldAttachPin = Env.all["BS_OLDATTACHPIN"] == "1"
+    static func attached(_ n: String) -> Bool {
+        n.hasPrefix("redstone_wire") || n.hasSuffix("torch") || n.hasSuffix("torch_off") || n == "lever" || n.hasSuffix("_button")
+            || n.hasSuffix("pressure_plate") || n.hasSuffix("rail") || n == "repeater" || n == "comparator" || n.hasPrefix("tripwire")
     }
     // ...with the realistic world's round shapes (Mesher.detailT) open: the ground runs under a trunk's root flare.
     static let pinsDetail: [Bool] = (0..<Blocks.count).map { pins[$0] && !Mesher.detailT[$0] }

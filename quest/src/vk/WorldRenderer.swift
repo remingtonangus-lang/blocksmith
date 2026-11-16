@@ -840,6 +840,7 @@ final class WorldRenderer {
         lapE(6)
         game.writeLecternBooks(&wr, eye: eye)
         game.writeShelves(&wr, eye: eye)
+        game.writeCeilingGuns(&wr, eye: eye)                                  // (ledger 195: turned heads)
         lapE(7)
         if !es.contains("felled") { game.writeFelled(&wr, eye: eye) }   // (P297 d: round felled trunks)
         lapE(8)

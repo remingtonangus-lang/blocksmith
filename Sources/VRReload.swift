@@ -50,6 +50,9 @@ enum VRReload {
     }
 
     static var grabs = 0, inserts = 0           // tests
+    static var insertedAt: Double = -100        // (ledger 194: when a magazine last went in)
+    static let fullHold: Double = 3
+    static let oldFullGrip = Env.all["BS_OLDFULLGRIP"] == "1"
 
     // P257 (e): there is a magazine to take: a gun in hand, not full, rounds for it in the pack (or a second gun to load).
     static func canTake(_ g: Game) -> Bool {
@@ -86,7 +89,7 @@ enum VRReload {
                 a.reload = 0
                 g.loadMagazine(gi, shells: GunActions.shellByShell(gi) ? handful : nil)     // D7 / P286 (c): a handful of shells
                 GunActions.magazineIn(gi)                   // P475: then charge it
-                inserts += 1
+                inserts += 1; insertedAt = g.clock
                 return .inserted
             }
             return .none
@@ -98,13 +101,20 @@ enum VRReload {
         // A full gun: nothing to take (no toast; P74). P465 (Oct 25 19:41-19:42, "Reloading sucks... I am not trying to
         // move across the toolbar": a squeeze at the hip for the Faustrohr's next warhead stepped the hotbar off the
         // launcher): a reach for the pouch never steps the hotbar; the grip in front of the waist (P109) still does.
-        if g.held.tag >= Guns.magSize(g.held) && !DualWield.offEmptyOrLow(g) { return .full }
+        // Ledger 194 (Nov 15 20:50:05, the assault shotgun loaded 20 / 20 in a fight: "there's periods of times when
+        // I'm holding my gun where the left grip doesn't do anything... like right now"): every grip of a hand moving at
+        // his side counted as a reach for the pouch while the gun was full, and did nothing. Only the squeeze just after
+        // a magazine went in (P465's next warhead, `fullHold` seconds) is the pouch's; otherwise a full gun leaves the
+        // grip to the hotbar. BS_OLDFULLGRIP=1: always the pouch's.
+        if g.held.tag >= Guns.magSize(g.held) && !DualWield.offEmptyOrLow(g) {
+            return oldFullGrip || g.clock - insertedAt < fullHold ? .full : .none
+        }
         if g.ammoCount(gs.ammo) <= 0 { g.onToast?("No \(Items.def(Items.id(gs.ammo)).display)"); return .refused }   // P300 (b)
         // D8: both hands full (two revolvers): a speedloader for each gun, at once.
         if DualWield.active(g) != nil {
             g.loadMagazine(gi)
             DualWield.reloadOff(g)
-            inserts += 1
+            inserts += 1; insertedAt = g.clock
             return .inserted
         }
         a.magInHand = true

@@ -4910,6 +4910,27 @@ do {
     SmoothTerrain.set(smooth0, world: nil); SmoothTerrain.fromField = field0
 }
 
+// Ledger 190 (Nov 15 20:39:04, the waypoint dropped "a ways under where it's pointing"): a press aims where the laser was
+// as the pull began. A pull that tips the laser 4 px a frame down, then a fast sweep (60 px a frame) as the trigger comes down (no shift).
+do {
+    var a = PullAim()
+    for _ in 0..<6 { a.record(V2(500, 300), trigger: 0.02) }
+    var y: Float = 300
+    for v in [Float(0.2), 0.35, 0.5] { y += 4; a.record(V2(500, y), trigger: v) }
+    y += 4; a.record(V2(500, y), trigger: 0.62)
+    let p = a.press()
+    let held = a.shift
+    a.release()
+    var b = PullAim()
+    for k in 0..<6 { b.record(V2(300 + Float(k) * 60, 300), trigger: k < 4 ? 0.05 : 0.4) }
+    let q = b.press()
+    check(p == V2(500, 300) && held == V2(0, -16) && a.shift == .zero && q == V2(600, 300),
+          "Ledger 190 laser press: a pull that tipped the laser 16 px down presses where it began (\(p.map { "\($0)" } ?? "nil"), shift \(held)); a sweep presses where it is (\(q.map { "\($0)" } ?? "nil"))")
+}
+
+// Fable's set from the Nov 15 evening playtest (Sources/Nov15EveningChecks.swift; ledger 190 on).
+leaves("nov15e") { Nov15EveningChecks.run(game, check) }
+
 // Fable's Nov 15 set: the bots riding the capital vehicles (Sources/RideCheck.swift; ledger 181-183), once it passed
 // twice in a row on its own. It runs as its own process (this program with --ridecheck): run in this one, after the
 // suite's headset settings and a thousand checks' leftovers, its ships stepped differently (world velocity jumps of 7-11

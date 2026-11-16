@@ -12,9 +12,28 @@ enum CeilingGuns {
     // (dx, row above the bunker floor block, dz): hung from the corridor ceiling (row 5) at the ring's corners.
     static let spots: [(Int, Int, Int)] = [(-12, 4, -12), (12, 4, -12), (-12, 4, 12), (12, 4, 11)]      // (12, 4, 12): the power cable
     static let range: Float = 26, wind: Float = 0.7, gap: Float = 0.1, cool: Float = 1.4, burst = 4, damage: Float = 3
-    struct Gun { var look: Float = 0, sees = false, windup: Float = 0, shots = 0, gapT: Float = 0, cool: Float = 0 }
+    // Ledger 195 (Nov 15 20:51:30, a station's ring: "the robot guns ... still aren't pointing at what they're shooting
+    // at"): the gun head and its barrels were part of the block, fixed facing north, and the rounds went straight at him
+    // from wherever it hung. The block is now the plate and the mount's drum; the head is drawn turned to `aim`
+    // (writeCeilingGuns), which swings toward him at `turn` radians a second, and a burst only starts, and its rounds
+    // only leave, along the barrels (within `onTarget` of him). BS_OLDCEILINGGUN=1: as before.
+    static let old = Env.all["BS_OLDCEILINGGUN"] == "1"
+    static let rest = simd_normalize(V3(0, -0.45, -1)), turn: Float = 3.5, onTarget: Float = 0.985
+    struct Gun { var look: Float = 0, sees = false, windup: Float = 0, shots = 0, gapT: Float = 0, cool: Float = 0, aim = CeilingGuns.rest }
+    // Turn `a` toward `u` by at most `step` radians.
+    static func swing(_ a: V3, toward u: V3, step: Float) -> V3 {
+        let c = max(-1, min(1, simd_dot(a, u)))
+        let ang = acosf(c)
+        if ang <= step || ang < 1e-4 { return u }
+        var axis = simd_cross(a, u)
+        if simd_length(axis) < 1e-5 { axis = simd_cross(a, V3(0, 1, 0)); if simd_length(axis) < 1e-5 { axis = V3(1, 0, 0) } }
+        return simd_normalize(simd_quatf(angle: step, axis: simd_normalize(axis)).act(a))
+    }
+    // The head's centre in the block (the drum's foot).
+    static func headCenter(_ p: IVec3) -> V3 { V3(Float(p.x) + 0.5, Float(p.y) + 0.47, Float(p.z) + 0.5) }
     static var guns: [IVec3: Gun] = [:]
     static var fired = 0                                   // (harness)
+    static var worstOff: Float = 0                         // (harness, ledger 195: the widest angle, degrees, between the barrels and him at a shot)
 
     // Below the mount: the target at least 6 degrees under the gun's level.
     static func inArc(_ u: V3) -> Bool { u.y < -0.1 }
@@ -27,8 +46,9 @@ extension BlockRegistry {
         d.tex = ["wall_turret_side"]; d.render = .model; d.layer = .cutout; d.opaque = false; d.skyStop = false
         d.hardness = 3; d.resistance = 12; d.tool = .pickaxe; d.harvestLevel = 1; d.requiresTool = true; d.sound = .metal
         // A plate on the ceiling, the drum of the mount under it, the gun head and its twin barrels.
-        d.boxes = [Box(3, 14, 3, 13, 16, 13), Box(5, 10, 5, 11, 14, 11), Box(4, 5, 4, 12, 10, 12),
-                   Box(5, 6, 0, 7, 8, 4), Box(9, 6, 0, 11, 8, 4)]
+        d.boxes = CeilingGuns.old ? [Box(3, 14, 3, 13, 16, 13), Box(5, 10, 5, 11, 14, 11), Box(4, 5, 4, 12, 10, 12),
+                                     Box(5, 6, 0, 7, 8, 4), Box(9, 6, 0, 11, 8, 4)]
+            : [Box(3, 14, 3, 13, 16, 13), Box(5, 10, 5, 11, 14, 11)]        // (the head: writeCeilingGuns, ledger 195)
         add(d)
     }
 }
@@ -50,7 +70,8 @@ extension Game {
                 var gs = CeilingGuns.guns[p] ?? CeilingGuns.Gun()
                 defer { CeilingGuns.guns[p] = gs }
                 if off { gs = CeilingGuns.Gun(); continue }
-                let muzzle = V3(Float(p.x) + 0.5, Float(p.y) + 0.25, Float(p.z) + 0.5)
+                let head = CeilingGuns.headCenter(p)
+                let muzzle = CeilingGuns.old ? V3(Float(p.x) + 0.5, Float(p.y) + 0.25, Float(p.z) + 0.5) : head
                 let to = eye - muzzle
                 let d = simd_length(to)
                 let u = to / max(d, 0.01)
@@ -60,11 +81,18 @@ extension Game {
                     gs.look = 0.25
                     gs.sees = d < CeilingGuns.range && CeilingGuns.inArc(u) && world.canSee(muzzle + u * 0.7, eye)
                 }
+                // The head follows him while it sees him (and holds through a burst), and drifts back to rest after.
+                if !CeilingGuns.old {
+                    let want = gs.sees || gs.shots > 0 ? u : CeilingGuns.rest
+                    gs.aim = CeilingGuns.swing(gs.aim, toward: want, step: CeilingGuns.turn * dt * (gs.sees || gs.shots > 0 ? 1 : 0.3))
+                }
+                let onTarget = CeilingGuns.old || simd_dot(gs.aim, u) >= CeilingGuns.onTarget
                 if gs.shots > 0 {
                     gs.gapT -= dt
                     if gs.gapT <= 0 {
                         gs.gapT = CeilingGuns.gap; gs.shots -= 1
-                        let dir = Guns.scatter(u, 0.03)
+                        CeilingGuns.worstOff = max(CeilingGuns.worstOff, acosf(max(-1, min(1, simd_dot(gs.aim, u)))) * 180 / .pi)
+                        let dir = Guns.scatter(CeilingGuns.old ? u : gs.aim, 0.03)
                         arms.spawn(Slug(pos: muzzle + dir * 0.6, vel: dir * 140, kind: .bullet, damage: CeilingGuns.damage, fromPlayer: false,
                                         shooter: nil, by: "a ceiling gun", life: 0.5, gravity: 0))
                         addFlash(at: muzzle + dir * 0.7, color: V3(5, 3.5, 1.6), radius: 4, life: 0.06)
@@ -73,7 +101,7 @@ extension Game {
                         // (the station's own gun: heard as one of its own, not a hostile shot to send the garrison to)
                         if gs.shots == 0 { gs.cool = CeilingGuns.cool; baseNoise(at: muzzle, kind: .gunshot, hostile: false) }
                     }
-                } else if gs.sees && gs.cool <= 0 {
+                } else if gs.sees && gs.cool <= 0 && onTarget {
                     if gs.windup == 0 {
                         sfx(.gun(12), 0.7, at: muzzle)
                         addFlash(at: muzzle, color: V3(4, 0.4, 0.3), radius: 3, life: CeilingGuns.wind)
@@ -82,6 +110,35 @@ extension Game {
                     if gs.windup >= CeilingGuns.wind { gs.windup = 0; gs.shots = CeilingGuns.burst; gs.gapT = 0 }
                 } else {
                     gs.windup = max(0, gs.windup - dt * 2)
+                }
+            }
+        }
+    }
+}
+
+extension Game {
+    // Ledger 195: every ceiling gun of a station near the eye, its head and twin barrels turned to its aim.
+    func writeCeilingGuns(_ wr: inout EntityWriter, eye: V3) {
+        guard !CeilingGuns.old, Blocks.has(CeilingGuns.key), !bases.boreal.sites.isEmpty else { return }
+        let id = Blocks.id(CeilingGuns.key)
+        let layer = Int(Blocks.tex[Int(id) * 6 + 2])
+        for (_, site) in bases.boreal.sites {
+            guard abs(eye.x - Float(site.cx)) < 64, abs(eye.z - Float(site.cz)) < 64 else { continue }
+            let F = site.S - BorealStation.depth
+            for (dx, ly, dz) in CeilingGuns.spots {
+                let p = IVec3(site.cx + dx, F + ly, site.cz + dz)
+                guard world.isLoaded(p.x, p.z), world.block(p.x, p.y, p.z) == id else { continue }
+                let f = CeilingGuns.guns[p]?.aim ?? CeilingGuns.rest
+                var r = simd_cross(f, V3(0, 1, 0))
+                r = simd_length(r) < 1e-4 ? V3(1, 0, 0) : simd_normalize(r)
+                let u = simd_cross(r, f)
+                let l = world.lightAt(p.x, p.y - 1, p.z)
+                let light = max(0.2, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+                let c = CeilingGuns.headCenter(p) - eye
+                wr.orientedBox(c, r * 0.25, u * 0.16, f * 0.25, layer: layer, color: V4(V3(repeating: light), 1))
+                let dark = V4(V3(repeating: light * 0.55), 1)
+                for side: Float in [-0.125, 0.125] {
+                    wr.orientedBox(c + r * side - u * 0.03 + f * 0.43, r * 0.0625, u * 0.0625, f * 0.18, layer: layer, color: dark)
                 }
             }
         }
