@@ -12,6 +12,49 @@ enum Nov15EveningChecks {
         buildsTogether(g, check)
         provingOrder(check)
         ghostTowns(g, check)
+        hullLeaves(g, check)
+    }
+
+    // Ledger 210 (the host check ledger 197 lacked): leaves standing in a craft's cell, where the cell's own block (a
+    // slab) leaves room. Aimed through the slab's empty half at the leaves, a break press goes to the world's leaves
+    // with the fix, and to the hull block behind them without it (BS_OLDHULLLEAVES=1). Both ways are run here.
+    static func hullLeaves(_ g: Game, _ check: (Bool, String) -> Void) {
+        let w = g.world
+        let p0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, held0 = g.inventory.held, aim0 = g.vrAim
+        let lx = Int(floor(p0.x)) + 3, lz = Int(floor(p0.z)) - 6
+        let ly = min(CH - 8, w.topY(lx, lz) + 12)
+        let leaves = Blocks.id("spruce_leaves"), was = w.block(lx, ly, lz)
+        w.setBlock(lx, ly, lz, leaves)
+        // The craft: two cells north to south, a slab (bottom half) in the leaves' cell, planks behind it, on the grid.
+        let gr = ShipGrid(sx: 1, sy: 1, sz: 2)
+        gr.set(0, 0, 1, Blocks.id("oak_slab")); gr.set(0, 0, 0, Blocks.id("oak_planks"))
+        let s = Ship(id: -210, grid: gr)
+        s.rebuild()
+        s.pos = V3(Float(lx), Float(ly), Float(lz - 1)) + s.com
+        s.updateBounds()
+        w.ships.add(s)
+        let old0 = Game.oldHullLeaves
+        defer {
+            Game.oldHullLeaves = old0
+            w.ships.remove(s, turrets: false)
+            w.setBlock(lx, ly, lz, was)
+            g.player.pos = p0; g.player.yaw = yaw0; g.player.pitch = pitch0; g.player.vel = .zero
+            g.inventory.held = held0; g.vrAim = aim0; g.target = nil; w.ships.target = nil
+        }
+        // He stands 3.5 south of the leaves, eye level with the slab's empty top half, looking north at them.
+        func press(old: Bool) -> (ship: Bool, handled: Bool) {
+            Game.oldHullLeaves = old
+            g.vrAim = nil; g.inventory.held = .empty
+            g.player.yaw = 0; g.player.pitch = 0
+            g.player.pos = V3(Float(lx) + 0.5, Float(ly) + 0.75, Float(lz) + 4.5) - (g.player.eye - g.player.pos)
+            g.target = (hit: IVec3(lx, ly, lz), normal: IVec3(0, 0, 1))
+            w.ships.target = nil
+            let handled = g.shipInteract(breakHeld: true, breakNow: true, useNow: false, sneak: false, dt: 1.0 / 72)
+            return (w.ships.target?.0 === s, handled)
+        }
+        let after = press(old: false), before = press(old: true)        // (the fix's way first: the old press may break the hull)
+        check(before.ship && before.handled && !after.ship && !after.handled,
+              "Ledger 210 hull leaves: leaves in a craft's slab cell, struck through the slab's empty half: before (BS_OLDHULLLEAVES) the press went to the hull (\(before.ship ? "hull" : "world")), with ledger 197 to the leaves (\(after.ship ? "hull" : "world"))")
     }
 
     // Ledger 207 (21:00:20-21:00:26, "make it a normal village, but the village is abandoned... chain modify each village
