@@ -102,7 +102,17 @@ enum BridgeHunt {
             let b = w.block(x, yy, z)
             if isLeg(b, leg) { yy -= 1; n += 1; continue }
             // (it stands on anything but air or a liquid: grass, snow, a slab, leaves carry it as the ground under them does)
-            return (b != AIR && !Blocks.isLiquid(b)) || n >= 47 ? 1 : 2
+            if (b != AIR && !Blocks.isLiquid(b)) || n >= 47 { return 1 }
+            // (a sea pier: the writer ran it down to the bed as it saw the bed, and the field draws the bed's top cell as
+            // water (an open-country trestle's 32-long legs at seed 1000 end over it). The bed within 3 cells
+            // under it, through water only, carries it; a leg cut by a blast has air or its own lower stump there.)
+            guard Blocks.isLiquid(b) else { return 2 }
+            for d in 1...3 {
+                let u = w.block(x, yy - d, z)
+                if Blocks.isLiquid(u) { continue }
+                return u != AIR && !isLeg(u, leg) ? 1 : 2
+            }
+            return 2
         }
         return 1
     }
@@ -195,7 +205,7 @@ enum BridgeHunt {
                 for dz in -1...1 { for dx in -1...1 {
                     var y = c.y - 2, d = 0
                     while y > 1, isLeg(w.block(c.x + dx, y, c.z + dz), leg) { y -= 1; d += 1 }
-                    if d > 0 { col.append("\(dx),\(dz): \(d) legs on \(Blocks.key(w.block(c.x + dx, y, c.z + dz)))") }
+                    if d > 0 { col.append("\(dx),\(dz): \(d) legs on " + (0...4).map { Blocks.key(w.block(c.x + dx, y - $0, c.z + dz)) }.joined(separator: ",")) }
                 } }
                 notes.append("\(c.x) \(c.y) \(c.z) states \(win) under \(Blocks.key(w.block(c.x, c.y - 1, c.z)))/\(Blocks.key(w.block(c.x, c.y - 2, c.z))) water \(water(w, c).map { String($0) } ?? "none") legs [\(col.joined(separator: "; "))]")
             }
