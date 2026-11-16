@@ -10,6 +10,7 @@ enum Nov15EveningChecks {
         shipChair(g, check)
         fittings(check)
         buildsTogether(g, check)
+        buildsOwnGround(g, check)
         provingOrder(check)
         ghostTowns(g, check)
         hullLeaves(g, check)
@@ -191,6 +192,45 @@ enum Nov15EveningChecks {
                 let y = Float(max(BuildersGrounds.groundY(w, Int(p.x), Int(p.z)), SEA)) + 22
                 shot(g, "builders_\(name)", V3(p.x, y, p.z), atan2f(-(m.x - p.x), -(m.z - p.z)), -0.32)
             }
+        }
+    }
+
+    // Ledger 211 (Fable's D): on the Builders' Grounds seed and two others, the six as the world puts them (together,
+    // the trees round them cleared, the sites dressed): each on the kind of ground its name asks for. Each build's line:
+    // its biome, the height spread under it, rock and sand under it, trunks round it, water near, lower ground round it.
+    static func buildsOwnGround(_ g0: Game, _ check: (Bool, String) -> Void) {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0 }
+        let bps = BuildersGrounds.blueprints()
+        for seed in [BuildersGrounds.seed, 88314448595278, 20261116] as [UInt64] {
+            let w = World(seed: seed, device: g0.world.device, save: nil)
+            w.makeFieldWorld()
+            w.renderDistance = 4; w.activeDistance = 4
+            let g = Game(world: w, save: nil, persistent: false)
+            let t0 = CFAbsoluteTimeGetCurrent()
+            guard let c = BuildersGrounds.findCluster(w, centre: g.findSpawn(), kinds: bps.map { $0.ground }) else {
+                check(false, "Ledger 211 builds on their own ground, seed \(seed): no place for the six (\(BuildersGrounds.lastWhy))"); continue
+            }
+            let secs = CFAbsoluteTimeGetCurrent() - t0
+            var plans: [BuildersGrounds.Placement] = []
+            for bp in bps { guard let st = c.sites[bp.ground] else { continue }
+                _ = w.loadSync(center: V3(Float(st.x), 120, Float(st.z)), radius: 2)
+                plans.append(BuildersGrounds.place(bp, on: w, at: st)) }
+            let mids = plans.map { V3(Float($0.lo.x + $0.hi.x) / 2, 0, Float($0.lo.z + $0.hi.z) / 2) }
+            let m = mids.reduce(V3.zero, +) / Float(max(1, mids.count))
+            let reach = (mids.map { simd_length(V2($0.x - m.x, $0.z - m.z)) } + [simd_length(V2(c.spawn.x - m.x, c.spawn.z - m.z))]).max() ?? 30
+            _ = w.loadSync(center: V3(m.x, 100, m.z), radius: Int(reach / Float(CS)) + 3)
+            _ = BuildersGrounds.clearTrees(w, middle: m, radius: reach + 10)
+            let dressed = g.dressBuildSites(plans, start: c.spawn)
+            g.player.pos = c.spawn + V3(0, 8, 0); g.player.flying = true
+            for _ in 0..<40 { g.tick(0.05) }
+            var lines: [String] = [], mine = 0
+            for pl in plans { let (ok, r) = BuildersGrounds.own(w, pl); if ok { mine += 1 }; lines.append(BuildersGrounds.line(pl, ok, r)) }
+            for l in lines { print("builds own ground \(seed): " + l) }
+            check(plans.count == bps.count && mine == plans.count,
+                  String(format: "Ledger 211 builds on their own ground, seed %@: %d of %d (natural there: %@; dressed: %@; found in %.1f s)",
+                         "\(seed)", mine, plans.count, c.own.sorted().joined(separator: ", "), dressed.isEmpty ? "none" : dressed.joined(separator: "; "), secs))
         }
     }
 

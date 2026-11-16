@@ -137,6 +137,9 @@ extension BuildersGrounds {
             for i in stride(from: -r, to: r, by: step) { rings.append((i, -r)); rings.append((r, i)); rings.append((-i, r)); rings.append((-r, -i)) }
         }
         func clash(_ a: IVec3, _ b: IVec3) -> Bool { abs(a.x - b.x) < apart && abs(a.z - b.z) < apart }
+        // Ledger 211 (a): the kinds no build can make for itself on its own ground first, then the most kinds.
+        let natural = oldGround ? Set<String>() : Set(kinds).subtracting(dressable)
+        func rank(_ own: Set<String>) -> (Int, Int) { (own.intersection(natural).count, own.count) }
         // The best assignment at one middle: the most kinds on their own ground; nil without the boathouse's water.
         func assign(_ mx: Int, _ mz: Int) -> ([String: IVec3], Set<String>)? {
             var spots: [IVec3] = []
@@ -156,7 +159,7 @@ extension BuildersGrounds {
             func dfs(_ i: Int, _ matched: Int) {
                 if best.map({ $0.1.count == kinds.count }) ?? false { return }
                 if i == order.count {
-                    if let b = best, b.1.count >= matched { return }
+                    if let b = best, rank(b.1) >= rank(Set(cur.keys)) { return }
                     // the rest on plain ground
                     var full = cur
                     for k in kinds where full[k] == nil {
@@ -183,8 +186,8 @@ extension BuildersGrounds {
             for (dx, dz) in rings {
                 guard let a = assign(cx + dx, cz + dz) else { continue }
                 shoreMids += 1
-                if found == nil || a.1.count > found!.1.count { found = (a.0, a.1, cx + dx, cz + dz) }
-                if a.1.count == kinds.count { break }
+                if found == nil || rank(a.1) > rank(found!.1) { found = (a.0, a.1, cx + dx, cz + dz) }
+                if a.1.count == kinds.count || (!natural.isEmpty && a.1.isSuperset(of: natural)) { break }
             }
             guard let f = found else { return nil }
             // Read each spot's ground; a spot that is not what the screen took it for is dropped and the search runs again.
