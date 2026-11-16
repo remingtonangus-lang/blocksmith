@@ -3809,6 +3809,11 @@ if CommandLine.arguments.contains("--submarine-only") {
     SubmarineTests.run(game: game, check: check)
     print(failures == 0 ? "submarine: all checks passed" : "submarine: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --bridgehunt-only: sea-bridge hunters and falling trestles (Sources/BridgeHuntTests.swift, ledger 209).
+if CommandLine.arguments.contains("--bridgehunt-only") {
+    BridgeHuntTests.run(game: game, check: check)
+    print(failures == 0 ? "bridgehunt: all checks passed" : "bridgehunt: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --skiff-only: the Sky Skiff, the ready-made flyer (Sources/SkySkiffTests.swift, backlog A4).
 if CommandLine.arguments.contains("--skiff-only") {
     SkySkiffTests.run(game: game, check: check)
@@ -4728,6 +4733,7 @@ leaves("mapfog") { MapFogTests.run(game: game, check: check) }
 leaves("radio") { RadioTests.run(game: game, check: check) }
 leaves("skyisle") { SkyIsleTests.run(device: device, game: game, check: check) }
 leaves("submarine") { SubmarineTests.run(game: game, check: check) }
+leaves("bridgehunt") { BridgeHuntTests.run(game: game, check: check) }
 leaves("savesoak") { SaveSoakTests.run(device: device, cycles: 5, check: check) }     // the full 100 in --savesoak-only (about 9 s a cycle)
 leaves("balance") { BalanceTests.run(game: game, check: check) }
 MusicLevelTests.run(check: check)

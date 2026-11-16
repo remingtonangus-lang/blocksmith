@@ -32,6 +32,27 @@ extension Game {
         commandeerHintTick()
         let p = player
         var cand = ships.frameShip(for: p.pos, height: p.height, current: ships.aboard)
+        // Ledger 141 (coach to coach on a grade): two coaches' ends meet at one height only on level track; where the
+        // grade changes the next coach's floor is up to a block lower or higher at the coupling. He was kept in the
+        // coach he left until 1.5 blocks past its end (frameShip's hold), walked out over nothing there, sank past the
+        // next coach's floor and fell through the train. Off the end of one coach's floor and over another's, he is
+        // in the other's frame at once: a lower floor he drops onto, a higher one he steps up.
+        if TrainHulls.gangwayOn, let c = ships.aboard, cand === c, TrainHulls.isHull(c), !ships.holdsRider(c, c.toLocal(p.pos), halfW: p.halfW) {
+            for o in ships.list where o !== c && TrainHulls.isHull(o) {
+                let l = o.toLocal(p.pos)
+                guard l.x > 0, l.z > 0, l.x < Float(o.grid.sx), l.z < Float(o.grid.sz) else { continue }
+                let x = Int(floor(l.x)), z = Int(floor(l.z))
+                var top: Int?
+                for y in stride(from: Int(floor(l.y + 1.1)), through: Int(floor(l.y - 1.6)), by: -1) where o.grid.inside(x, y, z) && o.grid.inside(x, y + 2, z) {
+                    if Blocks.collide[Int(o.grid.get(x, y, z))] && !Blocks.collide[Int(o.grid.get(x, y + 1, z))] && !Blocks.collide[Int(o.grid.get(x, y + 2, z))] { top = y + 1; break }
+                }
+                guard let t = top else { continue }
+                if Float(t) > l.y { p.pos = o.toWorld(V3(l.x, Float(t) + 0.01, l.z)); p.vel.y = max(p.vel.y, o.velocity(at: p.pos).y) }
+                cand = o
+                TrainHulls.gangwaySteps += 1
+                break
+            }
+        }
         // Boarding takes a hold on the ship (its deck under the feet, its ladder, its cabin air): beside or under a
         // moving hull you stay in the world.
         if let s = cand, s !== ships.aboard, !ships.canBoard(s, p.pos, halfW: p.halfW) { cand = nil }
