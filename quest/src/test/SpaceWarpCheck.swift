@@ -47,6 +47,23 @@ enum SpaceWarpCheck {
                          full, Double(first) / 72, over, late, Double(over) * 100 / Double(late), sc, lo, c.drops, c.takenBack))
             if full < 21 { ok = ok && first >= 0 && first < 72 && Double(over) / Double(late) < 0.1 && c.takenBack == 0 }
         }
+        // Ledger 177: his Nov 15 evening desert capture (32,555 quads, 14.6 ms at full size, all pixels) with the scene
+        // changing as it did on the headset: the time steps up by a fifth just as each probe is read (he turns toward
+        // more sky; the GPU's clock steps down). The probe alone put the resolution back each time; now the cut stays.
+        for old in [true, false] {
+            var c = DynamicResolution(), sc: Float = 1, over = 0, late = 0, lastDrops = 0, bump = 0
+            for f in 0..<(72 * 20) {
+                if c.drops != lastDrops { lastDrops = c.drops; bump = 40 }             // (the swing as the probe is taken)
+                if bump > 0 { bump -= 1 }
+                let gpu = 14.6 * (0.08 + 0.92 * Double(sc * sc)) * (bump > 0 ? 1.2 : 1.0)
+                if f >= 72 * 5 { late += 1; if gpu > 1000.0 / 72 { over += 1 } }
+                sc = c.observe(gpuMs: gpu, budgetMs: 1000.0 / 72, enabled: true, fps: 72, quads: old ? .max : 32_555)
+            }
+            let share = Double(over) / Double(late)
+            print(String(format: "dynres: ledger 177 desert (14.6 ms full, 32,555 quads), %@: %d of %d frames over (%.0f%%), scale %.2f, %d drops, %d taken back, %d unjudged",
+                         old ? "the probe alone (as if heavy)" : "light frame", over, late, share * 100, sc, c.drops, c.takenBack, c.unjudged))
+            if !old && !DynamicResolution.oldProbe { ok = ok && share < 0.15 && c.takenBack == 0 && sc < 1 }
+        }
         print(ok ? "dynres: ok" : "FAIL dynres")
         return ok ? 0 : 1
     }

@@ -69,6 +69,9 @@ enum DetachCheck {
             guard let e = w.ships.list.dropFirst(n1).first(where: { $0.kinematic && $0.parent == nil }) else { check(false, "hullblast: no \(kind)"); continue }
             defer { w.ships.remove(e); w.ships.capState.removeValue(forKey: e.id); w.ships.shockwaves.removeAll(); g.arms.breaches.removeAll() }
             _ = w.loadSync(center: e.pos, radius: 3)
+            // (her first mesh job holds her grid: a hit before it ends copies the whole grid, which play never does)
+            var waited = 0
+            while e.mesh.building > 0 && waited < 3000 { usleep(2000); waited += 1 }
             func hull() -> Int { w.ships.list.filter { $0.root === e.root }.reduce(0) { $0 + $1.blockCount } }
             var worstA = 0.0, lapsA = "", worstB = 0.0, lapsB = "", sumA = 0.0, sumB = 0.0, torn = 0
             let ships0 = w.ships.list.count, drops0 = g.drops.items.count

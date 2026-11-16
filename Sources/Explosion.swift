@@ -94,6 +94,9 @@ enum Explosion {
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
                         decay: Bool = true, resistCap: Float = .infinity, along: V3? = nil) {
         let w = g.world
+        let blast0 = World.blastEdits
+        World.blastEdits = true                    // (ledger 172: its edits are edits, in a vehicle's wear zone too)
+        defer { World.blastEdits = blast0 }
         Explosion.onExplode?(c, power)
         Explosion.lapStart()
         defer { Explosion.lapEnd("entities") }
@@ -963,7 +966,9 @@ final class BlastShape {
         guard let w = world, w === g.world else { return true }        // (left for another dimension: dropped)
         let quiet0 = w.circuitQuiet
         if quiet { w.circuitQuiet = true }
-        defer { w.circuitQuiet = quiet0 }
+        let blast0 = World.blastEdits
+        World.blastEdits = true                    // (ledger 172)
+        defer { w.circuitQuiet = quiet0; World.blastEdits = blast0 }
         var first = true
         while first || CFAbsoluteTimeGetCurrent() < deadline {
             first = false

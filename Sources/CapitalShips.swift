@@ -3773,6 +3773,44 @@ extension ShipManager {
 enum DetachLooseTiming {
     static let oldSearch = Env.all["BS_DETACHOLD"] == "1"     // (--detachcheck: the search before Nov 4)
     static let oldTable = Env.all["BS_DETACHTABLE"] == "1"     // (--hullblast: the table cleared on the frame)
+    static let bigTable = Env.all["BS_DETACHBIG"] == "1"       // (--hullblast, ledger 169: the flat table over the grid)
+    // Ledger 169: a blast's search marks: an open-addressed hash of cell index -> search number (keys kept + 1, 0 is
+    // empty), the main thread's only, kept from blast to blast and grown when over half full.
+    private static var mKeys = UnsafeMutablePointer<UInt32>.allocate(capacity: 1 << 14), mVals = UnsafeMutablePointer<UInt32>.allocate(capacity: 1 << 14)
+    private static var mCap = 1 << 14, mCount = 0
+    static func marksReset() {
+        mKeys.update(repeating: 0, count: mCap)
+        mCount = 0
+    }
+    @inline(__always) static func mark(_ cell: UInt32) -> UInt32 {
+        let key = cell &+ 1, mask = mCap - 1
+        var i = Int(truncatingIfNeeded: key &* 2654435761) & mask
+        while true {
+            let q = mKeys[i]
+            if q == key { return mVals[i] }
+            if q == 0 { return 0 }
+            i = (i + 1) & mask
+        }
+    }
+    static func setMark(_ cell: UInt32, _ v: UInt32) {
+        if mCount * 2 >= mCap {
+            let oldK = mKeys, oldV = mVals, oldCap = mCap
+            mCap *= 2
+            mKeys = UnsafeMutablePointer<UInt32>.allocate(capacity: mCap); mVals = UnsafeMutablePointer<UInt32>.allocate(capacity: mCap)
+            mKeys.initialize(repeating: 0, count: mCap); mVals.initialize(repeating: 0, count: mCap)
+            mCount = 0
+            for j in 0..<oldCap where oldK[j] != 0 { setMark(oldK[j] &- 1, oldV[j]) }
+            oldK.deallocate(); oldV.deallocate()
+        }
+        let key = cell &+ 1, mask = mCap - 1
+        var i = Int(truncatingIfNeeded: key &* 2654435761) & mask
+        while true {
+            let q = mKeys[i]
+            if q == key { mVals[i] = v; return }
+            if q == 0 { mKeys[i] = key; mVals[i] = v; mCount += 1; return }
+            i = (i + 1) & mask
+        }
+    }
     // detachLoose's cell table (the main thread's blasts only), grown to the largest hull blasted; `base` moves past
     // each blast's searches, so the table is never cleared (but when it would run past the top).
     private static var buf: UnsafeMutablePointer<UInt32>? = nil
@@ -3848,37 +3886,84 @@ extension ShipManager {
             // the next profile: as a dictionary it was still 4.6 million instructions a blast on the crawler in game,
             // the first search's 4,000 cells hashed six times each; now a flat buffer over the grid, reused from blast
             // to blast: a cell holds base + its search, anything under base is unseen.)
-            let cells = g.sx * g.sy * g.sz
-            let owner = DetachLooseTiming.table(cells)
-            let base = DetachLooseTiming.base
-            var k: UInt32 = 0
-            defer { DetachLooseTiming.base = base + k + 1 }
-            for st in starts {
-                let si = g.index(st.x, st.y, st.z)
-                if owner[si] >= base { continue }
-                k += 1
-                owner[si] = base + k
-                var comp: [IVec3] = [st]
-                var head = 0
-                var open = true
-                search: while head < comp.count {
-                    let c = comp[head]; head += 1
-                    for d in dirs {
-                        let n = c + d
-                        guard g.inside(n.x, n.y, n.z) else { continue }
-                        let ni = g.index(n.x, n.y, n.z)
-                        let o = owner[ni]
-                        if o >= base {
-                            if o == base + k { continue }
-                            open = false; break search             // an earlier search's cell: joined to the hull
+            // Ledger 169 (Nov 16, --hullblast: 6.6 ms a search on the frigate's hull for a million instructions of
+            // work, and callgrind saw only 30,000 cache misses in it): the time was the kernel's. The flat table over
+            // the frigate's grid is 20 MB; a search's 4,000 cells lie a row (452 bytes) and a layer (217 KB) apart in
+            // it, so each search at a new place on the hull touched a thousand or more pages of it for the first
+            // time, each one a page fault. The search's marks now go in a small hash of the cells it meets (128 KB,
+            // kept from blast to blast, always in memory), and the hull's cells are read through one pointer.
+            // BS_DETACHBIG=1: the flat table over the grid.
+            let sx = g.sx, sy = g.sy, sz = g.sz
+            if DetachLooseTiming.bigTable {
+                let cells = sx * sy * sz
+                let owner = DetachLooseTiming.table(cells)
+                let base = DetachLooseTiming.base
+                var k: UInt32 = 0
+                defer { DetachLooseTiming.base = base + k + 1 }
+                g.blocks.withUnsafeBufferPointer { bp in
+                    for st in starts {
+                        let si = st.x + st.z * sx + st.y * sx * sz
+                        if owner[si] >= base { continue }
+                        k += 1
+                        owner[si] = base + k
+                        var comp: [IVec3] = [st]
+                        comp.reserveCapacity(min(limit + 8, 4096))
+                        var head = 0
+                        var open = true
+                        search: while head < comp.count {
+                            let c = comp[head]; head += 1
+                            for d in dirs {
+                                let n = c + d
+                                guard n.x >= 0 && n.y >= 0 && n.z >= 0 && n.x < sx && n.y < sy && n.z < sz else { continue }
+                                let ni = n.x + n.z * sx + n.y * sx * sz
+                                let o = owner[ni]
+                                if o >= base {
+                                    if o == base + k { continue }
+                                    open = false; break search             // an earlier search's cell: joined to the hull
+                                }
+                                if bp[ni] == AIR { continue }
+                                owner[ni] = base + k
+                                comp.append(n)
+                            }
+                            if comp.count > limit { open = false; break }
                         }
-                        if g.get(n.x, n.y, n.z) == AIR { continue }
-                        owner[ni] = base + k
-                        comp.append(n)
+                        if open { pieces.append(comp) }
                     }
-                    if comp.count > limit { open = false; break }
                 }
-                if open { pieces.append(comp) }
+            } else {
+                DetachLooseTiming.marksReset()
+                var k: UInt32 = 0
+                g.blocks.withUnsafeBufferPointer { bp in
+                    for st in starts {
+                        let si = UInt32(st.x + st.z * sx + st.y * sx * sz)
+                        if DetachLooseTiming.mark(si) != 0 { continue }
+                        k += 1
+                        DetachLooseTiming.setMark(si, k)
+                        var comp: [IVec3] = [st]
+                        comp.reserveCapacity(min(limit + 8, 4096))
+                        var head = 0
+                        var open = true
+                        search: while head < comp.count {
+                            let c = comp[head]; head += 1
+                            for d in dirs {
+                                let n = c + d
+                                guard n.x >= 0 && n.y >= 0 && n.z >= 0 && n.x < sx && n.y < sy && n.z < sz else { continue }
+                                let ni = n.x + n.z * sx + n.y * sx * sz
+                                // (air first: the hull's cells are in memory, and most of a search's looks are at air)
+                                if bp[ni] == AIR { continue }
+                                let o = DetachLooseTiming.mark(UInt32(ni))
+                                if o != 0 {
+                                    if o == k { continue }
+                                    open = false; break search             // an earlier search's cell: joined to the hull
+                                }
+                                DetachLooseTiming.setMark(UInt32(ni), k)
+                                comp.append(n)
+                            }
+                            if comp.count > limit { open = false; break }
+                        }
+                        if open { pieces.append(comp) }
+                    }
+                }
             }
         }
         Explosion.lap("ships: detach search")
