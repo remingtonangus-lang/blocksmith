@@ -2653,6 +2653,7 @@ final class Game: LifeLinked {
             particles.blockBreak(b, at: p)
             Soldier.heardBreach(self, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))     // P460
         }
+        BridgeHunt.broke(b, p.x, p.y, p.z)          // (ledger 214: a trestle hurt by his hand)
         let deferred = world.deferRemesh
         if quiet { world.deferRemesh = true }
         world.setBlock(p.x, p.y, p.z, AIR)

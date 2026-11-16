@@ -649,6 +649,17 @@ enum RailwayTests {
         if BridgeHunt.fell > 0 || !BridgeHunt.gaps.isEmpty {
             print("rail: after the ride the trestle weigh dropped \(BridgeHunt.fell) cells, \(BridgeHunt.gaps.count) rail gaps; first: " + BridgeHunt.notes.joined(separator: " | "))
         }
+        // (every deck cell of the line, its ground loaded)
+        for i in stride(from: 0, to: l.cells.count, by: 16) { let c = l.cells[i]; _ = world.loadSync(center: V3(Float(c.x), Float(c.y), Float(c.z)), radius: 1) }
+        let deckIdx = l.cells.indices.filter { let c = l.cells[$0]; return Blocks.groupBase[Int(world.block(c.x, c.y - 1, c.z))] == BridgeHunt.deckGroup }
+        // Ledger 214 (Fable's 3a): the bridge the ride crossed, untouched, weighed end to end with a hurt cell every 8.
+        do {
+            let idx = deckIdx
+            let r = BridgeHuntTests.weighUntouched(g, t, idx)
+            if r.fell > 0 { print("rail: the ride's bridge dropped: " + r.notes.joined(separator: " | ")) }
+            let what = "bridge hunt: the bridges on the ride's line (\(idx.count) cells, \(r.decks) on a plank deck, \(tag.filter { $0 == 3 }.count) over water, \(r.legs) leg columns), untouched, weighed end to end with a hurt cell every 8: \(r.fell) blocks fell"
+            if Railways.sparseLegs { print("rail: (before, BS_OLDTRESTLELEGS) " + what) } else { check(r.fell == 0 && r.decks > 0, what) }
+        }
         // P379 step 2, leaving the last station (after the ride: at full regulator it ran past the bridge before the ride was counted): the brake alone stops it, the regulator left open; let off, it runs again.
         let lead2 = tr.cars[0]
         // Nov 12: the cab is his (Trains.driveCab): at full regulator it reached 100 km/h and ran through every station.

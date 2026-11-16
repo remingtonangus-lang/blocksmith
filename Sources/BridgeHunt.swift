@@ -38,13 +38,27 @@ enum BridgeHunt {
     static var onBridge = false                  // he rides a train over a sea trestle now (EnemySubs: she stays on him)
     static var spawned = 0, sunk = 0, shots = 0, fell = 0      // counters (checks)
     static var notes: [String] = []              // (checks: the first rail cells weigh() dropped and why)
+    // Ledger 214 (Fable, Nov 16): only a trestle with evidence of damage is weighed. A trestle log or plank broken by a
+    // blast or by his hand is a hurt cell; weigh() judges the track cells within `hurtReach` of one and forgets it after
+    // two passes over it in which nothing near it fell. No hurt cell: nothing is weighed (an untouched bridge can't fall).
+    static var hurt: [IVec3: Int] = [:]          // cell -> quiet passes over it
+    static let hurtReach = 8
+    static let deckGroup = Blocks.groupBase[Int(Blocks.id("spruce_planks"))]
+    static let legGroup = Blocks.groupBase[Int(Blocks.id("spruce_log"))]
+    @inline(__always) static func broke(_ b: BlockID, _ x: Int, _ y: Int, _ z: Int) {
+        guard on, b != AIR else { return }
+        let gb = Blocks.groupBase[Int(b)]
+        guard gb == deckGroup || gb == legGroup else { return }
+        if hurt.count >= 4096 { hurt.removeAll() }
+        hurt[IVec3(x, y, z)] = 0
+    }
 
     static func key(_ x: Int, _ z: Int) -> String { "sea:\(floorDiv(x, area)),\(floorDiv(z, area))" }
     static func gapKey(_ c: IVec3) -> String { "gap:\(c.x),\(c.y),\(c.z)" }
 
     static func reset(_ ships: ShipManager) {
         owner = ObjectIdentifier(ships)
-        hunter = [:]; fireCD = [:]; gaps = []; acc = 0; last = nil; lastAt = -1e9; onBridge = false
+        hunter = [:]; fireCD = [:]; gaps = []; hurt = [:]; acc = 0; last = nil; lastAt = -1e9; onBridge = false
         for k in ships.spawnedRegions where k.hasPrefix("gap:") {
             let p = k.dropFirst(4).split(separator: ",").compactMap { Int($0) }
             if p.count == 3 { gaps.insert(IVec3(p[0], p[1], p[2])) }
@@ -86,7 +100,8 @@ enum BridgeHunt {
         while yy > 1 {
             let b = w.block(x, yy, z)
             if isLeg(b, leg) { yy -= 1; n += 1; continue }
-            return Blocks.collide[Int(b)] || n >= 47 ? 1 : 2
+            // (it stands on anything but air or a liquid: grass, snow, a slab, leaves carry it as the ground under them does)
+            return (b != AIR && !Blocks.isLiquid(b)) || n >= 47 ? 1 : 2
         }
         return 1
     }
@@ -118,8 +133,9 @@ enum BridgeHunt {
     // Weighs the trestle round a point of the track and drops what no longer stands. Returns the cells that fell.
     @discardableResult
     static func weigh(_ g: Game, _ t: Trains.Track, at s0: Float, back: Int = 70, fwd: Int = 90, limit: Int = 24) -> Int {
+        guard !hurt.isEmpty else { return 0 }
         let w = g.world
-        let deck = Blocks.groupBase[Int(Blocks.id("spruce_planks"))], leg = Blocks.groupBase[Int(Blocks.id("spruce_log"))]
+        let deck = deckGroup, leg = legGroup
         let n = back + fwd + 1
         // 0 nothing there (a hole), 1 deck over a standing leg, 2 deck or stump with no standing leg, 3 on the ground
         // (a bank, a tunnel floor, ground not loaded): 1 and 3 carry their neighbours.
@@ -144,8 +160,15 @@ enum BridgeHunt {
             else if planks { state[k] = Blocks.collide[Int(w.block(c.x, c.y - 2, c.z))] ? 3 : 2 }
             else { state[k] = Blocks.collide[Int(w.block(c.x, c.y - 1, c.z))] ? 3 : 0 }
         }
+        // (the hurt cells this window passes over, and the track cells near one: only those are judged)
+        func near(_ c: IVec3, _ h: IVec3) -> Bool { abs(c.x - h.x) <= hurtReach && abs(c.z - h.z) <= hurtReach && h.y <= c.y + 2 && h.y >= c.y - 140 }
+        var inWindow: [IVec3] = []
+        for h in hurt.keys where cells.contains(where: { near($0, h) }) { inWindow.append(h) }
+        guard !inWindow.isEmpty else { return 0 }
+        var judged = [Bool](repeating: false, count: n)
+        for k in 0..<n where state[k] == 2 { judged[k] = inWindow.contains { near(cells[k], $0) } }
         var out = [IVec3](), seen = Set<IVec3>(), rails = 0
-        for k in reach..<(n - reach) where state[k] == 2 {
+        for k in reach..<(n - reach) where state[k] == 2 && judged[k] {
             var held = false
             for j in (k - reach)...(k + reach) where state[j] == 1 || state[j] == 3 { held = true; break }
             if held { continue }
@@ -176,7 +199,16 @@ enum BridgeHunt {
             rails += 1
             if rails >= limit { break }
         }
-        if !out.isEmpty { Structure.drop(g, out); fell += out.count }
+        if !out.isEmpty {
+            for c in out { broke(w.block(c.x, c.y, c.z), c.x, c.y, c.z) }       // (what falls hurts its neighbours: the fall runs on)
+            Structure.drop(g, out); fell += out.count
+        }
+        // (a hurt cell nothing near fell from on two passes is forgotten)
+        for h in inWindow {
+            if out.contains(where: { abs($0.x - h.x) <= hurtReach && abs($0.z - h.z) <= hurtReach }) { hurt[h] = 0; continue }
+            let q = (hurt[h] ?? 0) + 1
+            hurt[h] = q >= 2 ? nil : q
+        }
         return out.count
     }
 

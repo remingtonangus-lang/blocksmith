@@ -75,13 +75,15 @@ enum BridgeHuntTests {
         check(fell0 == 0 && rails() == 64, "bridge hunt: an untouched trestle stands (\(fell0) blocks fell, \(rails()) of 64 rail cells)")
 
         // One row of legs cut at the water (cell 16), then the next (cell 20; its centre pier is cell 20's own).
-        for dz in [-1, 1] { for y in (py + 5)...(py + 8) { w.setBlock(fx + 16, y, fz + dz, AIR) } }
+        // (cut as a blast cuts them: each log a hurt cell, BridgeHunt.broke)
+        func cut(_ x: Int, _ y: Int, _ z: Int) { BridgeHunt.broke(w.block(x, y, z), x, y, z); w.setBlock(x, y, z, AIR) }
+        for dz in [-1, 1] { for y in (py + 5)...(py + 8) { cut(fx + 16, y, fz + dz) } }
         let hang1 = hanging()
         settle()
         let one = rails(), gap1 = BridgeHunt.gap(g, cells[16]), kept = ships.spawnedRegions.contains(BridgeHunt.gapKey(cells[16]))
         check(hang1 == 1 && hanging() == 0 && one == 63 && gap1 && kept && Rails.isRail(w.block(fx + 14, ry, fz)),
               "bridge hunt: a row of legs cut, the deck over it falls (hanging \(hang1) before, \(hanging()) after; \(one) of 64 rail cells; gap remembered \(gap1), saved \(kept))")
-        for dz in -1...1 { for y in (py + 5)...(py + 8) { w.setBlock(fx + 20, y, fz + dz, AIR) } }
+        for dz in -1...1 { for y in (py + 5)...(py + 8) { cut(fx + 20, y, fz + dz) } }
         let hang2 = hanging()
         settle()
         let gone = (16...20).filter { !Rails.isRail(w.block(fx + $0, ry, fz)) }.count
@@ -139,5 +141,77 @@ enum BridgeHuntTests {
         check(came && hunters == 1 && firstShot > 0 && firstFall > 0 && rails() < railsBefore,
               String(format: "bridge hunt: riding the bridge a hunter comes (%d), shoots a pier ahead (first shot %.1f s) and the deck falls (%.1f s; %d of %d rail cells left)",
                      hunters, firstShot, firstFall, rails(), railsBefore))
+    }
+}
+
+// Ledger 214, Fable's 3a: on generated bridges, untouched, a weigh pass along the whole span with a hurt cell every 8
+// cells drops nothing (legState read on real legs): the river bridge the P379 (4) ride crosses (RailwayTests.ride) and
+// a sea trestle of an open-country line (here).
+extension BridgeHuntTests {
+    // Weighs every run of `idx` (indices into t.cells) with fake hurt cells; returns (deck cells, blocks fell, notes).
+    static func weighUntouched(_ g: Game, _ t: Trains.Track, _ idx: [Int]) -> (decks: Int, fell: Int, legs: Int, notes: [String]) {
+        let w = g.world
+        guard !idx.isEmpty else { return (0, 0, 0, []) }
+        let hurt0 = BridgeHunt.hurt, notes0 = BridgeHunt.notes, gaps0 = BridgeHunt.gaps
+        defer { BridgeHunt.hurt = hurt0; BridgeHunt.gaps = gaps0 }
+        BridgeHunt.notes = []
+        var runs: [[Int]] = [], cur: [Int] = []
+        for i in idx.sorted() { if let l = cur.last, i != l + 1 { runs.append(cur); cur = [] }; cur.append(i) }
+        if !cur.isEmpty { runs.append(cur) }
+        var decks = 0, fell = 0, legs = 0
+        for r in runs {
+            for i in stride(from: r.first!, through: r.last!, by: 24) {
+                let c = t.cells[i]
+                _ = w.loadSync(center: V3(Float(c.x), Float(c.y), Float(c.z)), radius: 2)
+            }
+            for i in r {
+                let c = t.cells[i]
+                if Blocks.groupBase[Int(w.block(c.x, c.y - 1, c.z))] == BridgeHunt.deckGroup { decks += 1 }
+                for dz in -1...1 { for dx in -1...1 where BridgeHunt.legState(w, c.x + dx, c.y - 2, c.z + dz, BridgeHunt.legGroup) != 0 { legs += 1 } }
+            }
+            BridgeHunt.hurt = [:]
+            for i in stride(from: r.first!, through: r.last!, by: 8) { let c = t.cells[i]; BridgeHunt.hurt[IVec3(c.x, c.y - 2, c.z)] = 0 }
+            let fell0 = BridgeHunt.fell
+            for i in stride(from: r.first!, through: r.last!, by: 60) { BridgeHunt.weigh(g, t, at: Float(i), back: 70, fwd: 90, limit: 10_000) }
+            fell += BridgeHunt.fell - fell0
+        }
+        let notes = BridgeHunt.notes
+        BridgeHunt.notes = notes0
+        return (decks, fell, legs, notes)
+    }
+
+    // A sea trestle of an open-country line: the longest run over the ocean among the lines round the origin.
+    static func seaTrestle(_ g0: Game, check: (Bool, String) -> Void) {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        defer { FieldTerrain.newWorlds = field0 }
+        var pick: (UInt64, Railways.Line, [Int])?
+        for k in 0..<3 where pick == nil {
+            let seed = UInt64(1000 + k * 7919)
+            let gen = WorldGen(seed: seed)
+            gen.fieldWorld = true
+            for row in -2...2 { for st in -2...2 {
+                guard let l = Railways.line(gen, row: row, stretch: st), l.wild else { continue }
+                var best: [Int] = [], run: [Int] = []
+                for (i, c) in l.cells.enumerated() {
+                    if gen.column(c.x, c.z).biome.isOcean && gen.groundY(c.x, c.z) < SEA - 3 && c.y > SEA { run.append(i) } else { if run.count > best.count { best = run }; run = [] }
+                }
+                if run.count > best.count { best = run }
+                if best.count >= 24 && (pick == nil || best.count > pick!.2.count) { pick = (seed, l, Array(best.prefix(160))) }
+            } }
+        }
+        guard let (seed, l, idx) = pick else { check(false, "bridge hunt: no open-country line with 24 cells over the sea round the origin (seeds 1000, 8919, 16838)"); return }
+        let world = World(seed: seed, device: g0.world.device, save: nil)
+        world.makeFieldWorld()
+        world.renderDistance = 3; world.activeDistance = 3
+        let g = Game(world: world, save: nil, persistent: false)
+        g.survival = false
+        let c0 = l.cells[idx[idx.count / 2]]
+        g.player.pos = V3(Float(c0.x) + 0.5, Float(c0.y + 2), Float(c0.z) + 0.5); g.player.flying = true
+        let t = Trains.track(l)
+        let r = weighUntouched(g, t, idx)
+        if r.fell > 0 { print("bridge hunt: sea trestle dropped: " + r.notes.joined(separator: " | ")) }
+        let what = "bridge hunt: an untouched sea trestle (seed \(seed) \(l.name), \(idx.count) cells over the sea, \(r.decks) on a plank deck, \(r.legs) leg columns), weighed end to end with a hurt cell every 8: \(r.fell) blocks fell"
+        if Railways.sparseLegs { print("bridge hunt (before, BS_OLDTRESTLELEGS): " + what) } else { check(r.decks > idx.count / 2 && r.legs > 0 && r.fell == 0, what) }
     }
 }
