@@ -186,8 +186,11 @@ enum Railways {
         wildEndLock.unlock()
         var w = w0, e = e0
         if let sc = gen.structures {
-            for i in 0...6 { w = w0 + i * 48; if !blocked(gen, sc, x0: w - 40, z0: z, x1: w + 64, z1: z, except: []) { break }; if i == 6 { w = w0 } }
-            for i in 0...6 { e = e0 - i * 48; if !blocked(gen, sc, x0: e - 64, z0: z, x1: e + 40, z1: z, except: []) { break }; if i == 6 { e = e0 } }
+            // (the second count: 1 of 76 stretches still had no way because its end stood a square east of a camp: the
+            // way's squares are 16 wide and padded, so the end's box is looked at a square wider each way and to
+            // each side)
+            for i in 0...10 { w = w0 + i * 48; if !blocked(gen, sc, x0: w - 56, z0: z - 20, x1: w + 80, z1: z + 20, except: []) { break }; if i == 10 { w = w0 } }
+            for i in 0...10 { e = e0 - i * 48; if !blocked(gen, sc, x0: e - 80, z0: z - 20, x1: e + 56, z1: z + 20, except: []) { break }; if i == 10 { e = e0 } }
         }
         wildEndLock.lock()
         if wildEndCache.count > 8 { wildEndCache.removeAll() }
@@ -236,7 +239,10 @@ enum Railways {
         let hW = endHeight(a, toward: s - 1, edge: s * stretch * span), hE = endHeight(b, toward: s + 1, edge: (s + 1) * stretch * span)
         func lay(_ run: [(Int, Int)]) -> Line? {
             let flat = run.map { IVec3($0.0, 0, $0.1) }
-            guard let h = gentleProfile(gen, flat, [], ends: (hW, hE), diagonal: true, maxOff: 128) else { tally?("open country: grade"); return nil }
+            // (3 of 76 stretches had no track because the grade took it more than 128 off the land, under a mountain
+            // beside a low end: there it tunnels, as deep as it must)
+            guard let h = gentleProfile(gen, flat, [], ends: (hW, hE), diagonal: true, maxOff: 128)
+                    ?? gentleProfile(gen, flat, [], ends: (hW, hE), diagonal: true, maxOff: Float(CH)) else { tally?("open country: grade"); return nil }
             let cells = flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }
             let w = wildWords[Int(hashf(row, 0x178, 0x4E, UInt32(truncatingIfNeeded: gen.seed)) * Float(wildWords.count)) % wildWords.count]
             let l = Line(id: key(row, s), name: "\(w) Overland", cells: cells, stations: [], heights: h)
@@ -248,7 +254,10 @@ enum Railways {
         if out == nil {
             how = "found"
             let band = wildBand(row)
-            if let w = route(gen, sc, from: (a.x - 1, a.z), to: (b.x + 1, b.z), diagonal: true, runOn: true, band: (band.lo, band.hi), seaMax: 400) { out = lay(w) }
+            if let w = route(gen, sc, from: (a.x - 1, a.z), to: (b.x + 1, b.z), diagonal: true, runOn: true, band: (band.lo, band.hi), seaMax: 400, easeEnds: true) { out = lay(w) }
+            // (walled in by something as wide as the band: once more with the band out to 24 from the row's edges)
+            if out == nil, let w = route(gen, sc, from: (a.x - 1, a.z), to: (b.x + 1, b.z), diagonal: true, runOn: true,
+                                         band: (row * span + 24, (row + 1) * span - 25), seaMax: 400, easeEnds: true) { out = lay(w); how = "found wide" }
         }
         if out == nil { how = "none" }
         tally?("open country: \(how)")
@@ -465,12 +474,13 @@ enum Railways {
         var way = pb.x - pa.x > 1200 ? nil : smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
         if let w = way, crosses(w) || w.contains(where: { $0.1 < band.lo || $0.1 > band.hi }) { way = nil }
         var how = "straight or dog-leg"
-        if way == nil { how = "found"; way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut, band: band) }
+        if way == nil { how = "found"; way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut, band: band, seaMax: 400, easeEnds: true) }
         guard let run = way, run.count > 8 else { tally?("row link: no way"); return nil }
         if crosses(run) { tally?("row link: way over a town line"); return nil }
         let flat = run.map { IVec3($0.0, 0, $0.1) }
         let h0 = a.heights?.last ?? Float(pa.y), h1 = b.heights?.first ?? Float(pb.y)
-        guard let h = gentleProfile(gen, flat, [], ends: (h0, h1), diagonal: true, maxOff: 128) else { tally?("row link: grade"); return nil }
+        guard let h = gentleProfile(gen, flat, [], ends: (h0, h1), diagonal: true, maxOff: 128)
+                ?? gentleProfile(gen, flat, [], ends: (h0, h1), diagonal: true, maxOff: Float(CH)) else { tally?("row link: grade"); return nil }
         let cells = flat.indices.map { IVec3(flat[$0].x, Int(h[$0].rounded()), flat[$0].z) }
         let lk = Line(id: linkKey(row, s), name: a.name, cells: cells, stations: [], heights: h)
         lk.target = key(row, s + 1)
@@ -843,7 +853,7 @@ enum Railways {
     static let oldRouteWeight = Env.all["BS_OLDROUTEWEIGHT"] == "1"
     // `band` (ledger 178, open-country track): the z the way is held between, in place of routeWander either side.
     static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false, runOn: Bool = false,
-                      shut: Set<Int64> = [], band: (lo: Int, hi: Int)? = nil, seaMax: Int? = nil) -> [(Int, Int)]? {
+                      shut: Set<Int64> = [], band: (lo: Int, hi: Int)? = nil, seaMax: Int? = nil, easeEnds: Bool = false) -> [(Int, Int)]? {
         let G = routeCell
         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
         let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
@@ -895,6 +905,23 @@ enum Railways {
         let start = (floorDiv(s0.1, G) - gz0) * nx + (floorDiv(s0.0, G) - gx0)
         let goal = (floorDiv(e0.1, G) - gz0) * nx + (floorDiv(e0.0, G) - gx0)
         blocked[start] = false; blocked[goal] = false; looked[start] = 1; looked[goal] = 1
+        // (ledger 178: the way leaves its start eastward and comes at its goal from the west. A square there shut by a
+        // structure's padded box, where the track's own run through it touches no piece, is open: 3 of 109 stretches
+        // and joins had no way because a camp's corner reached into the square beside an end.)
+        if easeEnds {
+            for (q, row, dir) in [(start, s0, 1), (goal, e0, -1)] {
+                for k in 1...2 {
+                    let x = q % nx + dir * k
+                    guard x >= 0 && x < nx else { break }
+                    let j = (q / nx) * nx + x
+                    guard blocked[j], blockedBy[j] > 0 else { continue }
+                    if shut.contains(colKey(gx0 + x, gz0 + q / nx)) { break }
+                    let bx = (gx0 + x) * G
+                    if Railways.blocked(gen, sc, x0: bx, z0: row.1, x1: bx + G - 1, z1: row.1, except: []) { break }
+                    blocked[j] = false
+                }
+            }
+        }
         // A* over (square, heading): headings 0 east, 1 south, 2 west, 3 north.
         let dx = [1, 0, -1, 0], dz = [0, 1, 0, -1]
         let turnCost: Int32 = 3
