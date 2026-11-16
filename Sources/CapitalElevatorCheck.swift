@@ -13,10 +13,16 @@ enum CapitalElevatorCheck {
         guard Elevators.has(), let st = w.gen.structures?.nearest("military_base", x: Int(p.pos.x), z: Int(p.pos.z), maxRegions: 16) else {
             check(false, "capital lift: no citadel within 16 regions"); return
         }
-        let home = p.pos, surv0 = g.survival, fly0 = p.flying, yaw0 = p.yaw, pitch0 = p.pitch
+        let home = p.pos, surv0 = g.survival, fly0 = p.flying, yaw0 = p.yaw, pitch0 = p.pitch, active0 = w.activeCenter
         defer {
             p.pos = home; p.vel = .zero; g.survival = surv0; p.flying = fly0; p.yaw = yaw0; p.pitch = pitch0
             g.closeMenu()
+            // (Ten trips of the game's tick at a citadel far off streamed the world round it: the ground at home was let
+            // go and the active centre left there, and the next check's escort, put down beside him at home, stood
+            // still, its chunk unloaded: the suite's "Nov 15 escort: follows him on foot (16.0 -> 16.0)". Home is loaded
+            // again and the active centre put back.)
+            _ = w.loadSync(center: home, radius: w.renderDistance)
+            w.activeCenter = active0
         }
         let cx = (st.min.x + st.max.x) / 2, cz = (st.min.z + st.max.z) / 2
         let mid = V3(Float(cx) + 0.5, Float(st.min.y + 40), Float(cz) + 0.5)

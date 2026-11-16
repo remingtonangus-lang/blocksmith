@@ -4910,12 +4910,33 @@ do {
     SmoothTerrain.set(smooth0, world: nil); SmoothTerrain.fromField = field0
 }
 
-// Fable's Nov 15 set: the bots riding the capital vehicles (Sources/RideCheck.swift, --ridecheck alone; ledger 181-183),
-// on worlds of their own, once it passed twice in a row.
+// Fable's Nov 15 set: the bots riding the capital vehicles (Sources/RideCheck.swift; ledger 181-183), once it passed
+// twice in a row on its own. It runs as its own process (this program with --ridecheck): run in this one, after the
+// suite's headset settings and a thousand checks' leftovers, its ships stepped differently (world velocity jumps of 7-11
+// b/s in a tick on every ride scene, a frigate dropping at 10.8) where it passes alone; its numbers are for the game as
+// it starts.
 do {
-    let smooth0 = SmoothTerrain.enabled, field0 = SmoothTerrain.fromField
-    leaves("ridecheck") { _ = RideCheck.run(into: check) }
-    SmoothTerrain.set(smooth0, world: nil); SmoothTerrain.fromField = field0
+    let t0 = CFAbsoluteTimeGetCurrent()
+    let proc = Process()
+    proc.executableURL = URL(fileURLWithPath: "/proc/self/exe")
+    proc.arguments = ["--ridecheck", "--out", tmp.path]
+    let pipe = Pipe()
+    proc.standardOutput = pipe; proc.standardError = pipe
+    var lines: [String] = [], ran = false
+    do {
+        try proc.run()
+        ran = true
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        lines = String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
+    } catch { lines = [] }
+    var n = 0
+    for l in lines {
+        if l.hasPrefix("PASS ride ") { n += 1; check(true, "ridecheck " + l.dropFirst(10)) }
+        else if l.hasPrefix("FAIL ride ") { n += 1; check(false, "ridecheck " + l.dropFirst(10)) }
+    }
+    let status = ran ? Int(proc.terminationStatus) : -1
+    check(status == 0 && n > 0, "ridecheck: its own process ran \(n) checks in \(Int(CFAbsoluteTimeGetCurrent() - t0)) s, exit \(status)" + (lines.last.map { " (" + $0 + ")" } ?? ""))
 }
 
 // The VR monkey input (--questsim), last: what it leaves behind meets no check after it.
