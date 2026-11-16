@@ -23,7 +23,7 @@ import simd
 //
 // BS_NOBRIDGEHUNT=1: none of this (the before: no hunters come for a train, a trestle stands on nothing).
 enum BridgeHunt {
-    static let on = Env.all["BS_NOBRIDGEHUNT"] != "1"
+    static var on = Env.all["BS_NOBRIDGEHUNT"] != "1"
     static let area = 512
     static let reach = 2                         // cells along the track a pier carries the deck (a pier: a standing leg in the
                                                  // cell's own 3 by 3, so a leg holds the deck 3 cells either way)
@@ -37,6 +37,7 @@ enum BridgeHunt {
     static var lastAt: Double = -1e9
     static var onBridge = false                  // he rides a train over a sea trestle now (EnemySubs: she stays on him)
     static var spawned = 0, sunk = 0, shots = 0, fell = 0      // counters (checks)
+    static var notes: [String] = []              // (checks: the first rail cells weigh() dropped and why)
 
     static func key(_ x: Int, _ z: Int) -> String { "sea:\(floorDiv(x, area)),\(floorDiv(z, area))" }
     static func gapKey(_ c: IVec3) -> String { "gap:\(c.x),\(c.y),\(c.z)" }
@@ -149,6 +150,16 @@ enum BridgeHunt {
             for j in (k - reach)...(k + reach) where state[j] == 1 || state[j] == 3 { held = true; break }
             if held { continue }
             let c = cells[k]
+            if notes.count < 6 {
+                let win = (max(0, k - 4)...min(n - 1, k + 4)).map { String(state[$0]) }.joined()
+                var col: [String] = []
+                for dz in -1...1 { for dx in -1...1 {
+                    var y = c.y - 2, d = 0
+                    while y > 1, isLeg(w.block(c.x + dx, y, c.z + dz), leg) { y -= 1; d += 1 }
+                    if d > 0 { col.append("\(dx),\(dz): \(d) legs on \(Blocks.key(w.block(c.x + dx, y, c.z + dz)))") }
+                } }
+                notes.append("\(c.x) \(c.y) \(c.z) states \(win) under \(Blocks.key(w.block(c.x, c.y - 1, c.z)))/\(Blocks.key(w.block(c.x, c.y - 2, c.z))) water \(water(w, c).map { String($0) } ?? "none") legs [\(col.joined(separator: "; "))]")
+            }
             if Rails.isRail(w.block(c.x, c.y, c.z)) {
                 w.setBlock(c.x, c.y, c.z, AIR)
                 if gaps.insert(c).inserted { w.ships.spawnedRegions.insert(gapKey(c)) }

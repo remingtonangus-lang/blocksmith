@@ -646,6 +646,9 @@ enum RailwayTests {
         print(String(format: "rail ride: %d frames (%.0f s of play, %.1f s wall), worst tick %.1f ms, reached cell %.0f of %d", frames, Float(frames) * dt, wall, worst * 1000, maxS, l.cells.count))
         check(maxS >= Float(last.index) - 0.5 && stops.count == l.stations.count && passed.count == 3 && unseated == 0 && headIn == 0 && offTrack == 0,
               "P379 (4): rode \(l.name) end to end from the cab: \(stops.count) of \(l.stations.count) stations, through cutting/tunnel/bridge \(passed.sorted()), unseated \(unseated), head in ground \(headIn) frames, off the track \(offTrack) frames")
+        if BridgeHunt.fell > 0 || !BridgeHunt.gaps.isEmpty {
+            print("rail: after the ride the trestle weigh dropped \(BridgeHunt.fell) cells, \(BridgeHunt.gaps.count) rail gaps; first: " + BridgeHunt.notes.joined(separator: " | "))
+        }
         // P379 step 2, leaving the last station (after the ride: at full regulator it ran past the bridge before the ride was counted): the brake alone stops it, the regulator left open; let off, it runs again.
         let lead2 = tr.cars[0]
         // Nov 12: the cab is his (Trains.driveCab): at full regulator it reached 100 km/h and ran through every station.

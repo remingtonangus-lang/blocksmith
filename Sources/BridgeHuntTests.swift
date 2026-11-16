@@ -12,6 +12,7 @@ import simd
 enum BridgeHuntTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
         guard BridgeHunt.on else { return }
+        defer { BridgeHunt.on = true }
         let w = g.world, ships = w.ships
         let pos0 = g.player.pos, surv0 = g.survival, fly0 = g.player.flying, enc0 = ships.encounters, toast0 = g.onToast
         let regions0 = ships.spawnedRegions, ships0 = ships.list.count, riding0 = g.riding, health0 = g.health
@@ -110,21 +111,31 @@ enum BridgeHuntTests {
         g.survival = true
         g.player.flying = true
         g.player.pos = car.pos + V3(0, 0.5, 0); g.player.vel = .zero
-        let spawned0 = BridgeHunt.spawned, shots0 = BridgeHunt.shots, fell1 = BridgeHunt.fell, railsBefore = rails()
-        var came = false, firstShot: Float = -1, firstFall: Float = -1
-        var time: Float = 0
-        while time < 40 && firstFall < 0 {
-            g.riding = car
-            g.player.pos = car.pos + V3(0, 0.5, 0); g.player.vel = .zero
-            g.health = 20
-            g.bridgeHuntTick(1.0 / 60)
-            ships.update(1.0 / 60, game: g)
-            time += 1.0 / 60
-            if BridgeHunt.spawned > spawned0 { came = true }
-            if firstShot < 0 && BridgeHunt.shots > shots0 { firstShot = time }
-            if BridgeHunt.fell > fell1 { firstFall = time }
+        let railsBefore = rails()
+        func hunt() -> (came: Bool, firstShot: Float, firstFall: Float, hunters: Int) {
+            let spawned0 = BridgeHunt.spawned, shots0 = BridgeHunt.shots, fell1 = BridgeHunt.fell
+            var came = false, firstShot: Float = -1, firstFall: Float = -1
+            var time: Float = 0
+            while time < 40 && firstFall < 0 {
+                g.riding = car
+                g.player.pos = car.pos + V3(0, 0.5, 0); g.player.vel = .zero
+                g.health = 20
+                g.bridgeHuntTick(1.0 / 60)
+                ships.update(1.0 / 60, game: g)
+                time += 1.0 / 60
+                if BridgeHunt.spawned > spawned0 { came = true }
+                if firstShot < 0 && BridgeHunt.shots > shots0 { firstShot = time }
+                if BridgeHunt.fell > fell1 { firstFall = time }
+            }
+            return (came, firstShot, firstFall, ships.list.dropFirst(ships0).filter { BridgeHunt.hunts($0) }.count)
         }
-        let hunters = ships.list.dropFirst(ships0).filter { BridgeHunt.hunts($0) }.count
+        // (the before, BS_NOBRIDGEHUNT=1: the same 40 s ride over the same bridge)
+        BridgeHunt.on = false
+        let off = hunt()
+        BridgeHunt.on = true
+        print(String(format: "bridge hunt (before, BS_NOBRIDGEHUNT): riding the bridge 40 s, %d hunters came, %d shots, deck fell %@; %d of %d rail cells left",
+                     off.hunters, off.firstShot > 0 ? 1 : 0, off.firstFall > 0 ? "yes" : "no", rails(), railsBefore))
+        let (came, firstShot, firstFall, hunters) = hunt()
         check(came && hunters == 1 && firstShot > 0 && firstFall > 0 && rails() < railsBefore,
               String(format: "bridge hunt: riding the bridge a hunter comes (%d), shoots a pier ahead (first shot %.1f s) and the deck falls (%.1f s; %d of %d rail cells left)",
                      hunters, firstShot, firstFall, rails(), railsBefore))
