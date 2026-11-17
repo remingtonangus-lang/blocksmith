@@ -41,3 +41,47 @@ Builds from ledger 284-285 on read two debug properties (only adb can set `debug
   `env: from debug properties:`); `KEY+=more` continues a long value. `--env` packs a list into them:
 
       tools/headset_gate.sh --no-install --route spots --env "BS_EYEFIX=0.8;BS_DYNRES=0"
+
+## What the report counts (Nov 17, after the first run on his Quest)
+
+logcat carries one VrApi line a second from every VR process, the system shell (com.oculus.vrshell) too: the first
+run counted both (476 "seconds" in 240 s, 8 of its 9 dips the shell's). Now only lines from a process that also wrote
+the game's own lines (tag Blocksmith) count, which follows a restart; the shell's are one line marked "not counted".
+Every second is in a phase: `launch` (nothing loading yet), `loading` (a `load:` or `world: switching` line until the
+world is handed over, `adopt:`), `play`; the loading scene must hold the display rate itself (Meta's reviewers see it
+first), so its missed seconds are listed on their own. With the route player, a table gives one row per leg or held
+spot: seconds, min/median fps, seconds under 70 and 60, the app's GPU and CPU ms, quads, eye resolution, view, the
+GPU clock (of 690 MHz) and how busy it was. `python3 tools/headset_gate.py --selftest` checks all this on a sample
+with two processes and a restart.
+
+Not in the totals or the verdict: the `launch` seconds (the system splash before the app draws) and the `spotworld`
+leg (making the spot world); they get one "not counted" line, and their legs are starred in the table.
+
+The run itself (from the second real run): logcat is started as adb itself and that pid is killed (the old `kill` hit
+the shell function's subshell, so each trial's raw.log kept collecting the later trials); any leftover logcat with the
+gate's arguments is killed at the start and in cleanup. The proximity override (`prox_close`) is said again every 30 s
+and undone at the end. Once the XR session has been focused (state 5), any other state (asleep 6, system menu 4,
+quit) or the app's process going away stops the run at once: "headset_gate: STOPPED N s in: ...", the partial report,
+exit 2 (not a measurement).
+
+## Space Warp: XR_FB_space_warp now, XR_EXT_frame_synthesis next (notes, no code yet)
+
+Today (quest/src/xr/XRSession.swift, P381 step 9): `XR_FB_space_warp` is requested only when Options' Space Warp is on
+(`QuestSettings.spaceWarp`, `BS_SPACEWARP=1` through debug.sunderfall.env; off by default, so his log says "space warp
+off (P426): extension not requested"). `createSpaceWarp` reads `XrSystemSpaceWarpPropertiesFB` (recommended motion
+vector size), makes an RGBA16F motion-vector swapchain and a depth swapchain (2 layers each), and every projection
+view chains an `XrCompositionLayerSpaceWarpInfoFB` (motion vector and depth sub-images, `appSpaceDeltaPose`,
+min/max depth 0/1, near/far). The game then draws at half the display rate and the runtime makes the other frames.
+
+`XR_EXT_frame_synthesis` (in our openxr.h, spec version 1) is the cross-vendor version of the same thing. A path for it
+needs:
+1. Request "XR_EXT_frame_synthesis" when the runtime lists it (prefer it over the FB extension, keep FB as fallback).
+2. The recommended motion-vector size from `XrFrameSynthesisConfigViewEXT` chained on `xrEnumerateViewConfigurationViews`
+   (per view), instead of `XrSystemSpaceWarpPropertiesFB`.
+3. The same two swapchains (motion vectors RGBA16F, depth), the same recording pass (SpaceWarpPass, swmotion.vert).
+4. Per projection view, `XrFrameSynthesisInfoEXT` instead of the FB struct: the same sub-images, `appSpaceDeltaPose`,
+   min/max depth, near/far, plus `motionVectorScale` / `motionVectorOffset` (vec4; (1,1,1,1) and (0,0,0,0) when the
+   vectors are written as the FB extension expects) and `layerFlags` (`USE_2D_MOTION_VECTOR_BIT` if we write 2D vectors;
+   `REQUEST_RELAXED_FRAME_INTERVAL_BIT` asks the runtime to let the app run at half rate).
+5. Its structure type constants from openxr.h (XR_TYPE_FRAME_SYNTHESIS_INFO_EXT, XR_TYPE_FRAME_SYNTHESIS_CONFIG_VIEW_EXT).
+Whether either one is on for the store is Fable's and Remington's call (it was tangled with the Oct 30 jitter).
