@@ -517,6 +517,7 @@ extension Game {
         let ships = world.ships
         guard let s = ships.pilot else { return }
         ships.pilot = nil
+        faceYaw = nil                                         // (ledger 240: a turn to the helm's forward not yet made)
         s.piloted = false
         s.throttle = 0; s.steer = 0; s.climb = 0; s.strafe = 0; s.boost = false
         ships.aboard = s
