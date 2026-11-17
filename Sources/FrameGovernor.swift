@@ -127,16 +127,51 @@ enum FrameGovernor {
         lateBits = lateBits << 1 | (wasLate ? 1 : 0)
         late += (wasLate ? 1 : 0) - Int(out)
         tickEnd = 0
-        JobPool.shared.setHeld(workersHeld)
+        closedAt = now
+        if wasLate { lastLate = now }
+        let h = workersHeld
+        JobPool.shared.setHeld(h)
+        heldSum += h; heldMost = max(heldMost, h); heldFrames += 1; landLow = min(landLow, landShare)
     }
 
+    // Ledger 221 (Nov 16 evening, flying the frigate toward the capital at 65-68 fps: "things aren't loading", "what's
+    // holding it up"): after late frames up to three quarters of the workers were held, and the workers' CPU is what
+    // brings land in (making chunks 44%, meshing them 56% on the host's flight at his 39 b/s): holding half of them
+    // cut the land drawn in view after 30 s from 405 of 489 to 170. While land in view near him is missing (under 95%
+    // of the near ring drawn: World.update's scan) or he moves faster than 15 b/s, at most one worker is held, and only
+    // for a quarter second after the last late frame; standing in a battle the hold is as before.
+    // BS_OLDWORKERHOLD=1: the hold as before everywhere.
+    static let oldHold = Env.all["BS_OLDWORKERHOLD"] == "1"
+    static var landWanted = false                  // (World.update: near land missing, or moving fast)
+    static var landShare = 1.0                     // (World.update: drawn of expected in the near ring, for the line)
+    private static var lastLate = 0.0, closedAt = 0.0
+    private(set) static var heldSum = 0, heldMost = 0, heldFrames = 0, landLow = 1.0
     // How many of the world's workers take no new job just now: none with room; after late frames a share of them,
     // more the more frames were late, never all (the world must still arrive).
-    static var workersHeld: Int {
-        guard armed, late > 0 else { return 0 }
+    static var workersHeld: Int { armed ? heldNow : 0 }
+    private static var heldNow: Int {
+        guard late > 0 else { return 0 }
+        if !oldHold && landWanted { return closedAt - lastLate < 0.25 ? min(1, JobPool.shared.workers - 1) : 0 }
         let n = JobPool.shared.workers
         let share = min(0.75, Double(late) / 8)          // (8 late frames in the last second: three quarters held)
         return min(n - 1, Int((Double(n) * share).rounded(.up)))
+    }
+
+    // Harness (questcheck --streamtest with BS_STREAMLATE=K): one frame of the late window as the headset's frame loop
+    // keeps it, late or not, and the workers held for it, without arming the slices.
+    static func harnessFrame(late wasLate: Bool, now: Double) {
+        let out = lateBits2 >> 7 & 1
+        lateBits2 = (lateBits2 << 1 | lateBits >> 63) & 0xFF
+        lateBits = lateBits << 1 | (wasLate ? 1 : 0)
+        late += (wasLate ? 1 : 0) - Int(out)
+        closedAt = now
+        if wasLate { lastLate = now }
+        let h = heldNow
+        JobPool.shared.setHeld(h)
+        heldSum += h; heldMost = max(heldMost, h); heldFrames += 1; landLow = min(landLow, landShare)
+    }
+    static var heldLine: String {
+        String(format: "workers held mean %.2f, most %d; land drawn near %.0f%% (least %.0f%%)", Double(heldSum) / Double(max(1, heldFrames)), heldMost, landShare * 100, landLow * 100)
     }
 
     // The kinds of work that can wait (each keeps count of the frames it has been refused).
@@ -230,8 +265,9 @@ enum FrameGovernor {
     // For the perf line and the soak.
     static var line: String {
         guard armed else { return "governor off" }
-        return String(format: "governor: tick budget %.1f ms, must %.1f ms, spare %.0f%%, late %d/%d (all %d of %d, worst +%.1f ms), grants %d (boosted %d, refused %d, forced %d), workers held %d",
-                      tickBudget * 1000, mustEMA * 1000, spare * 100, late, window, lateTotal, frames, worstOver * 1000, grants, boosted, refused, forced, workersHeld)
+        return String(format: "governor: tick budget %.1f ms, must %.1f ms, spare %.0f%%, late %d/%d (all %d of %d, worst +%.1f ms), grants %d (boosted %d, refused %d, forced %d), workers held %d (mean %.1f, most %d), land drawn near %.0f%% (least %.0f%%)%@",
+                      tickBudget * 1000, mustEMA * 1000, spare * 100, late, window, lateTotal, frames, worstOver * 1000, grants, boosted, refused, forced, workersHeld,
+                      Double(heldSum) / Double(max(1, heldFrames)), heldMost, landShare * 100, landLow * 100, landWanted ? ", land first" : "")
     }
 
     static func tookLine(frames: Int) -> String {
@@ -242,5 +278,6 @@ enum FrameGovernor {
 
     // Checks: a frame loop of their own.
     static func disarm() { armed = false; start = 0; tickEnd = 0; late = 0; lateBits = 0; lateBits2 = 0; spare = 0; deferred = 0; mustEMA = 0.004; mustHigh = 0; starved = [Int](repeating: 0, count: Job.allCases.count); JobPool.shared.setHeld(0) }
-    static func resetCounts() { took = [Double](repeating: 0, count: Job.allCases.count); grants = 0; refused = 0; forced = 0; boosted = 0; lateTotal = 0; frames = 0; worstOver = 0 }
+    static func resetCounts() { took = [Double](repeating: 0, count: Job.allCases.count); grants = 0; refused = 0; forced = 0; boosted = 0; lateTotal = 0; frames = 0; worstOver = 0
+        heldSum = 0; heldMost = 0; heldFrames = 0; landLow = 1 }
 }
