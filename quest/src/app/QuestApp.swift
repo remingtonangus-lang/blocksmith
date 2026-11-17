@@ -928,6 +928,20 @@ final class FrameStats {
     var dynResCounts: (() -> (Int, Int))?   // ledger 177: drops taken back, probes with no answer
     var dynResOn: (() -> Bool)?             // P499: dynamic resolution is running (Auto View Distance reads it)
     var perfNotice: (() -> String)?         // P403 step 1: XRSession.perfNoticeLine
+    // Ledger 234: the view's quad budget, asked once a second (ViewGovernor.overQuads).
+    private var sumQuads = 0, quadSum = 0, quadFrames = 0, quadSince = CFAbsoluteTimeGetCurrent()
+    private func quadCheck(game: Game?, target: Double) {
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - quadSince >= 1 else { return }
+        let q = quadSum / max(1, quadFrames), dt = now - quadSince
+        quadSum = 0; quadFrames = 0; quadSince = now
+        guard FrameStats.viewFix == nil, QuestSettings.autoViewDistance, let g = game, var vg = viewGov, target > 0 else { return }
+        if case .lower(let rd) = vg.overQuads(q, seconds: dt) {
+            g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
+            print("perf: \(q) quads a frame, over the budget of \(ViewGovernor.quadCap): view distance \(rd) for now (slider \(vg.chosen))")
+        }
+        viewGov = vg
+    }
     private func capture(game: Game?, target: Double, now: Double) {
         defer { prevLine = lastLine }
         guard let g = game, target > 0, frames > 0 else { badWindows = 0; return }
@@ -953,6 +967,8 @@ final class FrameStats {
         PerfOverlay.shared.add(frameMs: frame * 1000)
         if let g = game { MainGunPerf.record(frameMs: frame * 1000, budget: target * 1000, clock: g.clock) }   // "perf: main gun blast" after an impact
         sumCPU += cpu; sumTick += tick; sumRecord += record; sumGPU += gpu
+        sumQuads += scene.drawnQuads; quadSum += scene.drawnQuads; quadFrames += 1
+        quadCheck(game: game, target: target)
         CostProbe.add(gpuMs: gpu)
         if frame * 1000 > worstFrame {
             worstFrame = frame * 1000
@@ -1048,7 +1064,8 @@ final class FrameStats {
                 let w = ViewGovernor.Window(seconds: now - since, frames: frames, missed: missed, gpuMs: sumGPU / n, budgetMs: target * 1000,
                                             loading: genRate > FrameStats.loadingChunksPerSecond, excused: excused,
                                             dynRes: dynResOn?() ?? false, scale: Double(scene.viewScale),
-                                            pixelShare: probe > 0 ? max(0, min(1, (1 - probe) * 10)) : 0)
+                                            pixelShare: probe > 0 ? max(0, min(1, (1 - probe) * 10)) : 0,
+                                            quads: sumQuads / max(1, frames))
                 switch vg.observe(w) {
                 case .lower(let rd):
                     g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
@@ -1066,6 +1083,7 @@ final class FrameStats {
             loggedRD = g.world.renderDistance
             print("perf: render distance \(loggedRD)")
         }
+        sumQuads = 0
         frames = 0; missed = 0; busyFrames = 0; sumCPU = 0; sumTick = 0; sumRecord = 0; sumGPU = 0; worstFrame = 0; worstTickAny = 0
         since = now
     }

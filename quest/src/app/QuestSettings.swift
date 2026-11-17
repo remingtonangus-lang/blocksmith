@@ -121,7 +121,7 @@ enum QuestSettings {
     static let startAtFloor = Env.all["BS_OLDSTARTVIEW"] != "1"
     static var startView: Int {
         guard autoViewDistance else { return renderDistance }
-        return startAtFloor ? min(renderDistance, 8) : max(8, min(renderDistance, 16, autoViewLast / 2 * 2))
+        return startAtFloor ? min(renderDistance, ViewGovernor.quadCap > 0 ? ViewGovernor.quadFloor : 8) : max(8, min(renderDistance, 16, autoViewLast / 2 * 2))
     }
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }
