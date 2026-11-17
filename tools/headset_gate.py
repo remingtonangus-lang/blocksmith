@@ -10,6 +10,9 @@
 # Every second is in a phase: "launch" (process up, nothing loading yet), "loading" (from a "load:" or "world:
 # switching" line to the world handed over, "adopt:"), "play". With the route player, its legs ("route: leg NAME")
 # split play further; a table gives one row per leg (and per held spot of --route spots).
+# Not in the totals or the verdict (Fable, Nov 17, from the first real runs): the "launch" seconds (process up, the
+# system's splash, before the app draws its menu) and the "spotworld" leg (making the spot world); they get a line of
+# their own.
 import re, sys, os
 
 T = re.compile(r"^\s*(\d+\.\d+)\s+(\d+)\s+(\d+)\s+\w\s+(\S+?)\s*:\s?(.*)$")
@@ -78,8 +81,18 @@ def pct(v, p):
 GPU_MAX_MHZ = 690          # Quest 3: 285 ... 690 MHz
 
 
+UNCOUNTED_LEGS = ("launch", "spotworld")
+
+
+def counted(r):
+    return r["phase"] != "launch" and r["leg"] not in UNCOUNTED_LEGS
+
+
 def report(rows, other, info):
     out = []
+    every = rows
+    aside = [r for r in rows if not counted(r)]
+    rows = [r for r in rows if counted(r)]
     def stats(name, rs):
         f = [r["fps"] for r in rs]
         if not f:
@@ -90,7 +103,10 @@ def report(rows, other, info):
     out.append(f"headset gate: {len(rows)} seconds of the game's VrApi (pid {', '.join(info['pids']) or '?'}), display {info['rate'] or '?'} Hz, {info['warp']}")
     if other:
         out.append(f"(not counted: {len(other)} VrApi lines from other processes, the system shell; min {min(other)}, median {pct(other, 50)})")
-    for ph in ("launch", "loading", "play"):
+    stats("not counted", aside)
+    if aside:
+        out.append("  (launch and the spotworld leg: the system splash and making the spot world; not in the totals)")
+    for ph in ("loading", "play"):
         stats(ph, [r for r in rows if r["phase"] == ph])
     load = [r for r in rows if r["phase"] == "loading" and r["fps"] < r["target"]]
     if load:
@@ -98,18 +114,18 @@ def report(rows, other, info):
         for r in load[:40]:
             out.append(f"  {r['t']:.0f} {r['leg']} {r['fps']}/{r['target']} stale {r['stale']:.0f} app {r['app']:.1f} ms")
     legs = []
-    for r in rows:
+    for r in every:
         if r["leg"] not in legs: legs.append(r["leg"])
     if len(legs) > 1 or (legs and legs[0] not in ("launch", "play")):
-        out.append("legs: name | s | fps min/median | s under 70 / 60 | gpu ms median (app perf) | cpu ms median | quads median | eye % | view | gpu MHz (of 690) | gpu busy %")
+        out.append("legs (* not counted): name | s | fps min/median | s under 70 / 60 | gpu ms median (app perf) | cpu ms median | quads median | eye % | view | gpu MHz (of 690) | gpu busy %")
         for g in legs:
-            rs = [r for r in rows if r["leg"] == g]
+            rs = [r for r in every if r["leg"] == g]
             f = [r["fps"] for r in rs]
             def med(k):
                 v = [r[k] for r in rs if r[k] >= 0]
                 return pct(v, 50) if v else None
             gp, cp, q, mz, busy = med("pgpu"), med("pcpu"), med("quads"), med("mhz"), med("gpuraw")
-            out.append(f"  {g:<20} | {len(f):>4} | {min(f):>3}/{pct(f,50):>3} | {sum(x < 70 for x in f):>3} / {sum(x < 60 for x in f):>3} | "
+            out.append(f"  {g + ('' if g not in UNCOUNTED_LEGS else ' *'):<20} | {len(f):>4} | {min(f):>3}/{pct(f,50):>3} | {sum(x < 70 for x in f):>3} / {sum(x < 60 for x in f):>3} | "
                        f"{'?' if gp is None else f'{gp:.2f}'} | {'?' if cp is None else f'{cp:.2f}'} | {'?' if q is None else q} | "
                        f"{rs[-1]['eye'] or '?'} | {rs[-1]['vd'] or '?'} | {'?' if mz is None else f'{mz} ({mz * 100 // GPU_MAX_MHZ}%)'} | "
                        f"{'?' if busy is None else f'{busy * 100:.0f}'}")
@@ -128,6 +144,10 @@ def report(rows, other, info):
 
 def selftest():
     log = """\
+1731849999.500  4000  4020 I VrApi   : FPS=30/72,Stale=0,App=5.00ms,GPU%=0.10
+1731849999.900  4000  4010 I Blocksmith: route: leg spotworld
+1731849999.950  4000  4020 I VrApi   : FPS=45/72,Stale=0,App=5.00ms,GPU%=0.10
+1731849999.990  4000  4010 I Blocksmith: route: leg plains
 1731850000.100  4000  4010 I Blocksmith: xr: space warp off (P426): extension not requested
 1731850000.200  4000  4010 I Blocksmith: load: Starting (0.0 s)
 1731850000.500  4000  4020 I VrApi   : FPS=72/72,Stale=0,CPU4/GPU=4/4,1785/492MHz,App=5.10ms,GPU%=0.40
@@ -146,13 +166,18 @@ def selftest():
     fails = []
     def check(c, what):
         if not c: fails.append(what)
-    check(len(rows) == 5, f"the game's seconds only (two pids + a restart): {len(rows)} rows, want 5")
+    check(len(rows) == 7, f"the game's seconds only (two pids + a restart): {len(rows)} rows, want 7")
+    check(rows[0]["phase"] == "launch" and rows[1]["leg"] == "spotworld", f"launch and spotworld rows: {rows[:2]}")
+    rows = rows[2:]
     check(sorted(other) == [40, 50], f"the shell's lines kept apart: {other}")
     check(info["pids"] == ["4000", "5000"], f"game pids followed through a restart: {info['pids']}")
     check([r["phase"] for r in rows[:3]] == ["loading", "loading", "play"], f"phases: {[r['phase'] for r in rows[:3]]}")
     check(rows[3]["leg"] == "spot-jungle" and rows[3]["pgpu"] == 11.2 and rows[3]["pcpu"] == 7.1 and rows[3]["quads"] == 500000
           and rows[3]["vd"] == "12" and rows[3]["eye"] == "90" and rows[3]["mhz"] == 545, f"spot row fields: {rows[3]}")
     txt, ok = report(rows, other, info)
+    check("of 5;" in txt, "verdict leaves out launch and spotworld")
+    txt, ok = report(parse(log.splitlines())[0], other, info)
+    check("of 5;" in txt and "not counted       2 s" in txt.replace("not counted        ", "not counted       "), f"launch + spotworld counted apart:\n{txt}")
     check(not ok and "1 s under 60" in txt, "verdict counts the game's 55 only")
     check("loading-screen seconds" in txt and "55/72" in txt, "loading-screen misses listed")
     check("spot-jungle" in txt and "545 (78%)" in txt, "leg table with gpu MHz")

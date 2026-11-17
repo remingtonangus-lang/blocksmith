@@ -54,6 +54,16 @@ spot: seconds, min/median fps, seconds under 70 and 60, the app's GPU and CPU ms
 GPU clock (of 690 MHz) and how busy it was. `python3 tools/headset_gate.py --selftest` checks all this on a sample
 with two processes and a restart.
 
+Not in the totals or the verdict: the `launch` seconds (the system splash before the app draws) and the `spotworld`
+leg (making the spot world); they get one "not counted" line, and their legs are starred in the table.
+
+The run itself (from the second real run): logcat is started as adb itself and that pid is killed (the old `kill` hit
+the shell function's subshell, so each trial's raw.log kept collecting the later trials); any leftover logcat with the
+gate's arguments is killed at the start and in cleanup. The proximity override (`prox_close`) is said again every 30 s
+and undone at the end. Once the XR session has been focused (state 5), any other state (asleep 6, system menu 4,
+quit) or the app's process going away stops the run at once: "headset_gate: STOPPED N s in: ...", the partial report,
+exit 2 (not a measurement).
+
 ## Space Warp: XR_FB_space_warp now, XR_EXT_frame_synthesis next (notes, no code yet)
 
 Today (quest/src/xr/XRSession.swift, P381 step 9): `XR_FB_space_warp` is requested only when Options' Space Warp is on

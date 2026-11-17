@@ -41,13 +41,20 @@ if [[ "$n" != 1 ]]; then
   exit 2
 fi
 echo "headset_gate: $(adb shell getprop ro.product.model | tr -d '\r'), build $(adb shell getprop ro.build.version.incremental | tr -d '\r')"
-# Awake with no head in it (undone at the end).
-adb shell am broadcast -a com.oculus.vrpowermanager.prox_close >/dev/null
+# Awake with no head in it for the whole run (said again every 30 s while waiting; undone at the end). The first real
+# run (Nov 17) slept 46 s in (xr session state 6) and waited for ever: the wait now fails fast when the session leaves
+# focus.
+awake() { adb shell am broadcast -a com.oculus.vrpowermanager.prox_close >/dev/null 2>&1; }
+awake
+# A logcat left over from an earlier run (killed script, or the old `kill` of the wrapper) still writes its raw.log.
+LOGPAT="logcat -v epoch -s VrApi:I Blocksmith:I"
+pkill -f "$LOGPAT" 2>/dev/null
 cleanup() {
   adb shell setprop debug.sunderfall.route '""' >/dev/null 2>&1
   for p in env env2 env3 env4 env5 env6; do adb shell setprop debug.sunderfall.$p '""' >/dev/null 2>&1; done
   adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable >/dev/null 2>&1
   [[ -n "${LOGPID:-}" ]] && kill "$LOGPID" 2>/dev/null
+  pkill -f "$LOGPAT" 2>/dev/null
 }
 trap cleanup EXIT
 if [[ -n "$APK" && "$INSTALL" == 1 ]]; then
@@ -97,16 +104,33 @@ PY
   adb shell setprop debug.sunderfall.env$suf "'$chunk'"
 done
 adb logcat -c
-adb logcat -v epoch -s VrApi:I Blocksmith:I > "$OUT/raw.log" 2>&1 &
+# adb itself in the background (not the adb() function: $! would be a subshell and kill would leave adb writing).
+"$ADB" $LOGPAT > "$OUT/raw.log" 2>&1 &
 LOGPID=$!
 adb shell am start -n $ACT >/dev/null
-START=$(date +%s)
-if [[ -n "$ROUTE" ]]; then
-  # The route player prints "route: done" (or "route: failed ...") at its end; 40 minutes at most.
-  until grep -q 'route: done\|route: failed' "$OUT/raw.log" || (( $(date +%s) - START > 2400 )); do sleep 5; done
-else
-  sleep $(( MIN * 60 ))
-fi
+START=$(date +%s); LAST_AWAKE=$START; LOST=""
+# Ends at "route: done" / "route: failed" (with --route; 40 minutes at most) or after --minutes. Fails fast once the
+# XR session, having been focused (state 5), reports any other state: asleep, system menu, quit.
+LIMIT=$([[ -n "$ROUTE" ]] && echo 2400 || echo $(( MIN * 60 )))
+while (( $(date +%s) - START < LIMIT )); do
+  sleep 5
+  [[ -n "$ROUTE" ]] && grep -q 'route: done\|route: failed' "$OUT/raw.log" && break
+  st=$(grep -o 'xr: session state [0-9]*' "$OUT/raw.log" | awk '{print $4}' | tr '\n' ' ')
+  if [[ " $st" == *" 5 "* ]]; then
+    last=$(echo $st | awk '{print $NF}')
+    if [[ "$last" != 5 ]]; then
+      case "$last" in 1) n=idle;; 2) n=ready;; 3) n=synchronized;; 4) n="visible (system menu over the game)";; 6) n="stopping (asleep or quit)";; 7) n="loss pending";; 8) n=exiting;; *) n="?";; esac
+      LOST="it left focus, xr session state $last ($n)"; break
+    fi
+  fi
+  if ! adb shell pidof $PKG >/dev/null 2>&1 && (( $(date +%s) - START > 20 )); then LOST="the app is not running (crashed or closed)"; break; fi
+  (( $(date +%s) - LAST_AWAKE >= 30 )) && { awake; LAST_AWAKE=$(date +%s); }
+done
 kill "$LOGPID" 2>/dev/null; LOGPID=""
 adb shell am force-stop $PKG
+if [[ -n "$LOST" ]]; then
+  echo "headset_gate: STOPPED $(( $(date +%s) - START )) s in: $LOST. Not a measurement; the partial report follows."
+  python3 "$(dirname "$0")/headset_gate.py" "$OUT"
+  exit 2
+fi
 python3 "$(dirname "$0")/headset_gate.py" "$OUT"
