@@ -683,7 +683,10 @@ final class SceneRenderer {
         si.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT
         si.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT
         si.maxLod = 16
-        if ctx.features.samplerAnisotropy != 0 { si.anisotropyEnable = 1; si.maxAnisotropy = min(8, ctx.props.limits.maxSamplerAnisotropy) }
+        // (ledger 235, headset trials: BS_ANISO=1..8 the most anisotropy, BS_MIPBIAS=0.5 a blurrier level sooner)
+        let aniso = Env.all["BS_ANISO"].flatMap { Float($0) } ?? 8
+        if ctx.features.samplerAnisotropy != 0 && aniso > 1 { si.anisotropyEnable = 1; si.maxAnisotropy = min(aniso, ctx.props.limits.maxSamplerAnisotropy) }
+        si.mipLodBias = Env.all["BS_MIPBIAS"].flatMap { Float($0) } ?? 0
         var s: VkSampler?
         try vkCheck(vkCreateSampler(ctx.device, &si, nil, &s), "vkCreateSampler")
         sampler = s!
