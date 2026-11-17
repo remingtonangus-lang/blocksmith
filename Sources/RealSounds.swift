@@ -100,9 +100,16 @@ enum RealSounds {
         return ix
     }
 
+    // Ledger 248 (Nov 15 recorded set, take 38: every take a lone click): the sidearm slot's reload (the Falke and Wren
+    // pistols, the Breaker revolver) plays sidearm_reload.wav, cut from Kenney's CC0 rpg-audio and impact-sounds clicks:
+    // release 0.10 s, mag seated 0.61, slide back 1.00, forward 1.33, 1.49 s long, inside the Falke's 1.4 s reload but
+    // the tail. (The source's 2.0 s had its two silent gaps cut 0.25 and 0.18 s.) BS_OLDPISTOLRELOAD=1: the older take.
+    static let oldPistolReload = Env.all["BS_OLDPISTOLRELOAD"] == "1"
+
     // Legacy roster names play the mob family's own files.
     static func fileName(_ s: Snd) -> String {
         switch s {
+        case .gunReload(WeaponAudio.sidearmSlot) where !oldPistolReload: return "sidearm_reload"
         case .mobCow: return Snd.mob(.cow, .ambient).name
         case .mobSheep: return Snd.mob(.sheep, .ambient).name
         case .mobChicken: return Snd.mob(.chicken, .ambient).name

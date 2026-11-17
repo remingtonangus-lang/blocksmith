@@ -1,0 +1,26 @@
+# Bug hunt round 1 (trains): every car of the standing train, used as he uses it (looking at it from the platform):
+# a coach seats him, the engine takes him into its cab; nothing leaves him inside a wall when he steps off.
+stream on
+train at station
+survival on
+face train car 1
+ride train car 1
+expect riding == 1
+hold sneak 0.1
+tick 0.5
+expect riding == 0
+expect player.inblock == 0
+face train car 2
+ride train car 2
+expect riding == 1
+hold sneak 0.1
+tick 0.5
+expect riding == 0
+expect player.inblock == 0
+face train car 3
+ride train car 3
+expect riding == 1
+hold sneak 0.1
+tick 0.5
+expect riding == 0
+expect player.inblock == 0

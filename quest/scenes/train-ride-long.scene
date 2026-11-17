@@ -1,0 +1,16 @@
+# Bug hunt round 1 (trains): a long seated ride (three minutes, through stations, over chunk borders), in survival.
+# The train keeps every car, he stays seated, takes no harm, and the game keeps its pace.
+stream on
+train at station
+survival on
+ride nearest train
+expect riding == 1
+tick 180
+print train
+print player
+print fps
+expect riding == 1
+expect train.cars >= 3
+expect player.health >= 20
+expect player.inblock == 0
+expect fps.worst < 60

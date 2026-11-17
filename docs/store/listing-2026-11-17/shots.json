@@ -1,0 +1,594 @@
+[
+ {
+  "name": "01-building",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    2000,
+    2000
+   ]
+  },
+  "time": 0.3,
+  "seconds": 2,
+  "warm": 3,
+  "peaceful": true,
+  "rd": 12,
+  "fov": 70,
+  "survival": true,
+  "hold": "oak_planks",
+  "hud": true,
+  "hands": [
+   [
+    0.2,
+    -0.36,
+    -0.48
+   ],
+   [
+    -0.22,
+    -0.42,
+    -0.45
+   ]
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "blueprint",
+    "block": "cottage",
+    "at": [
+     -4,
+     0,
+     -16
+    ],
+    "power": 0.72
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     2.5,
+     1.6,
+     -1.5
+    ],
+    "look": [
+     0.5,
+     2.6,
+     -13
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "02-gunfight",
+  "anchor": {
+   "at": [
+    -1840,
+    0,
+    658
+   ]
+  },
+  "time": 0.42,
+  "seconds": 6,
+  "warm": 2,
+  "survival": false,
+  "rd": 12,
+  "fov": 70,
+  "hold": "gun_slatefall",
+  "hands": [
+   [
+    0.2,
+    -0.36,
+    -0.48
+   ],
+   [
+    -0.22,
+    -0.42,
+    -0.45
+   ]
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "clear",
+    "mob": "villager",
+    "at": [
+     -26,
+     0,
+     2
+    ],
+    "spread": 40
+   },
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_trooper@marauder^90",
+    "at": [
+     2,
+     0,
+     -2
+    ],
+    "to": [
+     -15,
+     0,
+     0
+    ],
+    "n": 5,
+    "spread": 4,
+    "power": 3
+   },
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "soldier_marksman@marauder^90",
+    "at": [
+     5,
+     0,
+     3
+    ],
+    "to": [
+     -12,
+     0,
+     3
+    ],
+    "n": 2,
+    "spread": 2,
+    "power": 3
+   },
+   {
+    "t": 2.0,
+    "do": "shoot",
+    "at": [
+     -15,
+     0,
+     0
+    ],
+    "spread": 14,
+    "n": 1
+   },
+   {
+    "t": 2.7,
+    "do": "shoot",
+    "at": [
+     -15,
+     0,
+     0
+    ],
+    "spread": 14,
+    "n": 1
+   },
+   {
+    "t": 3.4,
+    "do": "shoot",
+    "at": [
+     -15,
+     0,
+     0
+    ],
+    "spread": 14,
+    "n": 1
+   },
+   {
+    "t": 4.1,
+    "do": "shoot",
+    "at": [
+     -15,
+     0,
+     0
+    ],
+    "spread": 14,
+    "n": 1
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -23.5,
+     1.6,
+     2.0
+    ],
+    "look": [
+     10,
+     2.4,
+     0
+    ],
+    "ground": true
+   },
+   {
+    "t": 6,
+    "pos": [
+     -23,
+     1.6,
+     3.0
+    ],
+    "look": [
+     10,
+     2.4,
+     1.5
+    ],
+    "ground": true
+   }
+  ],
+  "hud": true
+ },
+ {
+  "name": "03-village",
+  "anchor": {
+   "near": "village",
+   "from": [
+    -500,
+    -2500
+   ]
+  },
+  "time": 0.32,
+  "seconds": 2,
+  "warm": 6,
+  "peaceful": true,
+  "rd": 12,
+  "fov": 70,
+  "survival": true,
+  "hold": "bread",
+  "hud": true,
+  "hands": [
+   [
+    0.2,
+    -0.36,
+    -0.48
+   ],
+   [
+    -0.22,
+    -0.42,
+    -0.45
+   ]
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "spawn",
+    "mob": "villager",
+    "at": [
+     2,
+     0,
+     9.5
+    ],
+    "n": 4,
+    "spread": 1.3
+   },
+   {
+    "t": 0,
+    "do": "aim",
+    "at": [
+     3,
+     0.2,
+     11
+    ],
+    "dur": 5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     8,
+     1.6,
+     5
+    ],
+    "look": [
+     1.5,
+     1.4,
+     7.8
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "04-train",
+  "anchor": {
+   "rail": 50,
+   "from": [
+    -1500,
+    1500
+   ],
+   "train": "passenger"
+  },
+  "time": 0.44,
+  "seconds": 4,
+  "warm": 4,
+  "fov": 70,
+  "rd": 12,
+  "survival": true,
+  "hold": "hands",
+  "hud": true,
+  "hands": [
+   [
+    0.2,
+    -0.28,
+    -0.48
+   ],
+   [
+    -0.22,
+    -0.33,
+    -0.45
+   ]
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "board",
+    "mob": "coach",
+    "n": 1
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     1.6,
+     0
+    ],
+    "look": [
+     0,
+     -1,
+     -10
+    ]
+   }
+  ]
+ },
+ {
+  "name": "05-frigate",
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -120,
+    45,
+    0
+   ]
+  },
+  "time": 0.34,
+  "seconds": 2,
+  "warm": 3,
+  "fov": 70,
+  "rd": 12,
+  "survival": true,
+  "hold": "gun_slatefall",
+  "hud": true,
+  "hands": [
+   [
+    0.2,
+    -0.36,
+    -0.48
+   ],
+   [
+    -0.22,
+    -0.42,
+    -0.45
+   ]
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "board",
+    "mob": "deck",
+    "at": [
+     24,
+     14,
+     37
+    ]
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "look": [
+     6,
+     -3.4,
+     -5
+    ]
+   }
+  ]
+ },
+ {
+  "name": "06-mining",
+  "anchor": {
+   "find": "plains",
+   "from": [
+    3000,
+    1500
+   ],
+   "cave": true
+  },
+  "time": 0.3,
+  "seconds": 2,
+  "warm": 2,
+  "peaceful": true,
+  "rd": 12,
+  "fov": 70,
+  "events": [
+   {
+    "t": 0,
+    "do": "place",
+    "block": "lantern",
+    "at": [
+     5,
+     0,
+     0
+    ],
+    "n": 16,
+    "spread": 8
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -6.5,
+     1.75,
+     2.2
+    ],
+    "look": [
+     -2.5,
+     1.0,
+     10.2
+    ]
+   }
+  ],
+  "hold": "iron_pickaxe",
+  "hands": [
+   [
+    0.2,
+    -0.36,
+    -0.48
+   ],
+   [
+    -0.22,
+    -0.42,
+    -0.45
+   ]
+  ],
+  "hud": true,
+  "survival": true
+ },
+ {
+  "name": "07-felling",
+  "anchor": {
+   "find": "forest",
+   "from": [
+    2000,
+    -2000
+   ]
+  },
+  "time": 0.3,
+  "seconds": 10,
+  "warm": 3,
+  "peaceful": true,
+  "rd": 12,
+  "fov": 70,
+  "survival": true,
+  "hold": "iron_axe",
+  "hud": true,
+  "hands": [
+   [
+    0.2,
+    -0.36,
+    -0.48
+   ],
+   [
+    -0.22,
+    -0.42,
+    -0.45
+   ]
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "fell",
+    "at": [
+     -6,
+     0,
+     -11
+    ],
+    "to": [
+     -3,
+     0,
+     -11
+    ]
+   },
+   {
+    "t": 0,
+    "do": "aim",
+    "at": [
+     4.2,
+     1.5,
+     0.8
+    ],
+    "dur": 5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     3.4,
+     1.6,
+     2.2
+    ],
+    "look": [
+     1.0,
+     1.3,
+     -2.0
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "name": "08-greywall",
+  "anchor": {
+   "near": "greywall_base",
+   "from": [
+    -1500,
+    1500
+   ]
+  },
+  "time": 0.3,
+  "seconds": 3,
+  "warm": 6,
+  "rd": 12,
+  "fov": 70,
+  "survival": false,
+  "hold": "gun_slatefall",
+  "hud": true,
+  "hands": [
+   [
+    0.2,
+    -0.36,
+    -0.48
+   ],
+   [
+    -0.22,
+    -0.42,
+    -0.45
+   ]
+  ],
+  "events": [
+   {
+    "t": 0,
+    "do": "aim",
+    "at": [
+     6,
+     6,
+     -20
+    ],
+    "dur": 5
+   }
+  ],
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     38,
+     1.6,
+     -40
+    ],
+    "look": [
+     6,
+     7,
+     -20
+    ],
+    "ground": true
+   }
+  ]
+ }
+]
