@@ -1,0 +1,10 @@
+# Bug hunt round 1 (trains): a ride at night, a minute and a half on, through the next stop.
+time 0.7
+train at station
+ride nearest train
+tick 90
+print train
+print player
+expect riding == 1
+expect train.dist < 3
+expect player.inblock == 0

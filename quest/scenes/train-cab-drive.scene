@@ -1,0 +1,17 @@
+# Bug hunt round 1 (trains): he takes the cab, opens the regulator, then shuts it and the train comes to a stand.
+train at station
+ride train car 1
+print player
+expect riding == 1
+drive 1 15
+print train
+expect train.speed > 2
+drive 0 30
+print train
+expect train.speed < 0.5
+expect train.dist < 3
+hold sneak 0.1
+tick 1
+print player
+expect riding == 0
+expect player.inblock == 0
