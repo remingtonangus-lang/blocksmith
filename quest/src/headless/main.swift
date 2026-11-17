@@ -3222,6 +3222,11 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         } catch { print("workshop render \(name): \(error)") }
     }
 }
+if CommandLine.arguments.contains("--builds-hand") {           // ledger 217: the six laid in the plan's order, load checks between pieces: none falls
+    BuildersCheck.stand = 1
+    BuildersCheck.run(game, check)
+    print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--builds") {                // Builders' Grounds: an agent builds on natural ground
     BuildersCheck.shot = CircuitWorkshopTests.shot          // (with --render: pictures of the six from four sides)
     BuildersCheck.run(game, check)
@@ -4743,7 +4748,7 @@ if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "bore
 // Greywall Command bases (Sources/GreywallTests.swift, backlog A1): the faction, rarity, and a real base of every tier walked.
 // Each Lane A group must leave the player and world as it found them: a skiff check that left the player flying moved
 // every later check (boarding, the Reckoning, roads, the sheriff, outlaws, countries) onto other ground.
-// Ledger 217-218 (job 5): what a group leaves behind, after leaves() has put back what it puts back: ships, mobs, the
+// Ledger 218-219 (job 5): what a group leaves behind, after leaves() has put back what it puts back: ships, mobs, the
 // trains, the player's place and mode, the factions' standing, the time of day, live Games, the random stream's mode.
 // Printed only ("left behind: NAME: ..."), never a failure (yet).
 func suiteFingerprint() -> [(String, String)] {

@@ -36,7 +36,7 @@ final class HellState {
     var raged = false
     var fx: FX = .none
     var feint = false                             // P185: this wind-up is a feint (it breaks off and comes again)
-    // Ledger 218 (balance gear pays, a knight's duel 6.6 s one run and 10.5 s the next on the same seed): the order's
+    // Ledger 219 (balance gear pays, a knight's duel 6.6 s one run and 10.5 s the next on the same seed): the order's
     // fighting rolls (wind-up length, feint, low cut, side, riposte, charge cool) drew from the game's one random stream,
     // shared with everything else a tick draws (grass, particles, the chunks that land), so a fight's luck was whatever
     // the world had drawn before it. Each fighter rolls from a stream of its own, seeded where it was made: the same

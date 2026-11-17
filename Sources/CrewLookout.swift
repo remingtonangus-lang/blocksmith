@@ -11,7 +11,7 @@ enum CrewLookout {
     static var found = 0, failed = 0            // (counters: ridecheck)
     static var spots = 0, hullClear = 0, worldClear = 0, noPath = 0
     static var lastMiss = ""                    // (ridecheck: the last search that found nothing, where it looked)
-    // Ledger 217 (ridecheck crew, 0 shots about 1 run in 10, in the suite and alone): the gap between searches was 0.2 s
+    // Ledger 218 (ridecheck crew, 0 shots about 1 run in 10, in the suite and alone): the gap between searches was 0.2 s
     // of real time. The check plays the 30 s after the wreck stops in about a second, so 22 crew got 5 or 6 searches
     // between them where a player's 30 s give 150, and whether one of those few found a spot decided the check. It
     // is counted on the game's clock now, so a search's rate is the game's own on any machine and at any frame rate.

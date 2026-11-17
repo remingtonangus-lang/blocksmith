@@ -569,7 +569,10 @@ enum Structure {
         if !cut.isEmpty { for piece in cut { g.topple(piece) } }     // P407: a tower cut from its footing
         // (Nov 13: a piece too big for this check, still joined to the ground: weighed whole, off the frame.
         // What this check would drop waits for that, StructureCollapse.hold.)
-        else if !r.falls.isEmpty { if !(r.capped && StructureCollapse.hold(w, at: s)) { drop(g, r.falls) } }
+        else if !r.falls.isEmpty {
+            if fellTally != nil && Env.all["BS_LOAD_DEBUG"] != nil { debugPiece(w, analyse(w, at: s, collect: true)) }   // (harness: why it fell)
+            if !(r.capped && StructureCollapse.hold(w, at: s)) { drop(g, r.falls) }
+        }
         if r.capped && cut.isEmpty { StructureCollapse.request(w, at: s) }
     }
     static func tick(_ g: Game) {

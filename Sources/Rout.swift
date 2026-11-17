@@ -170,7 +170,7 @@ enum RoutCheck {
             let creeperSeen = MobManager.inPlainSight(cr, g)
             g.player.yaw = yaw0; g.player.pitch = pitch0
             // (which of the spot's points he sees: the check's spot is the first that shows him the soldier's head or
-            // middle, and the ground under them as loaded decides which; ledger 219's run saw the head alone)
+            // middle, and the ground under them as loaded decides which; ledger 220's run saw the head alone)
             let pts = [("head", 1.75), ("body", 1.2), ("feet", 0.4)].map { (n, h) in "\(n) \(g.world.canSee(g.player.eye, w.pos + V3(0, Float(h), 0)) ? "seen" : "hidden")" }
             check(Game.oldSpawnSight ? spawnOK : !spawnOK,
                   "spawn: a spot \(Int(d)) blocks ahead in plain sight \(spawnOK ? "takes a spawn (it pops in)" : "takes no spawn") (\(pts.joined(separator: ", ")))")
@@ -178,7 +178,7 @@ enum RoutCheck {
                   String(format: "despawn: a wandering soldier %.0f blocks off in plain sight (%@) %@; turned away, %@; a monster 30 blocks ahead counts as seen (%@)",
                          d, seen ? "seen" : "not seen", tookSeen ? "is taken out" : "stays", tookAway ? "he goes" : "he stays", creeperSeen ? "yes" : "no"))
         }
-        // Ledger 219: a spot whose head shows over a wall that hides its body and feet takes no spawn (the suite's spawn
+        // Ledger 220: a spot whose head shows over a wall that hides its body and feet takes no spawn (the suite's spawn
         // check above meets this only when the loaded ground puts a rise there: 1 whole run in 3).
         do {
             let w = g.world
