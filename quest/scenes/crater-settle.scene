@@ -1,0 +1,20 @@
+# Ledger 127 (ground that is dug under is weighed): a cap of earth on a stem of earth, the stem blasted through; what the
+# blast leaves with nothing under it (the stem's stub, the cap over it) comes down.
+# Fixed: passes. BS_GROUNDWEIGH=0 (no weighing, as before): the stub and the cap hang in the air and it fails.
+# (Seen Nov 17: the cap's outer ring, 3 to 5 out, stays up; the weigher logs it as "had no way down before either".)
+#   questcheck --scene quest/scenes/crater-settle.scene --headset
+at 14 150 14
+fly on
+load 3
+ground -7 120 -7 7 175 7 air
+ground -1 40 -1 1 159 1 dirt       # the stem, from deep in the land
+ground -5 160 -5 5 162 5 dirt      # the cap
+expect ground 0 161 0 == true
+blast 0 154 0 4
+tick 3
+expect ground 0 154 0 == false     # the blast's own hole
+expect ground 0 157 0 == false     # the stem's stub over it came down
+expect ground 0 161 0 == false     # and the cap's middle over that
+expect ground 0 148 0 == true      # the stem under the hole stands
+dump -5 150 0 5 163 0
+print fps

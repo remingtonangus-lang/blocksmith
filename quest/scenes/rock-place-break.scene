@@ -1,0 +1,19 @@
+# Ledger 136 (Nov 14, building a house of basalt: "little remnant of stone here I can't get rid of"): rock he places in a
+# field world is a crisp built cube, not a lump of ground, and breaking it leaves nothing behind.
+# Fixed: passes. BS_OLDROCKLUMP=1 (before): the stone became a lump of ground on the wall's top and fails.
+#   questcheck --scene quest/scenes/rock-place-break.scene --headset
+at 2.5 141 2.5
+fly on
+load 2
+ground -3 120 -3 3 150 3 air
+ground -1 40 -1 1 139 1 dirt       # a pillar of earth up from the land, the wall on it
+set 0 140 0 oak_planks
+set 0 141 0 oak_planks
+give stone 8
+place 0 142 0
+expect block 0 142 0 == stone
+expect ground 0 142 0 == false
+break 0 142 0
+expect block 0 142 0 == air
+expect ground 0 142 0 == false
+expect block 0 141 0 == oak_planks
