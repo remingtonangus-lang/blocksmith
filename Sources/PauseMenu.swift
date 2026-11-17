@@ -380,6 +380,7 @@ final class PauseMenu: Menu {
                     rows.insert(("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"), at: rows.count - 1)
                     if BugNotes.hasVideo { rows.insert(("Bug Note Video: \(on(st.bugNoteVideo))", "bugvideo"), at: rows.count - 1) }   // P368
                     if BugNotes.hasVideo { rows.insert(("Record All Play: \(on(st.recordFootage))", "footage"), at: rows.count - 1) }   // P467
+                    rows.insert(("Frame Rate Warning: \(on(st.fpsWarning))", "fpswarn"), at: rows.count - 1)                 // ledger 263 (playtests)
                 }
             case .accessibility:
                 rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Narrator: \(on(st.narrator))", "narrator"),
@@ -981,6 +982,7 @@ final class PauseMenu: Menu {
         case "hidehud": g.hideHUD.toggle()
         case "debug": g.showDebug.toggle()
         case "perf": st.perfOverlay.toggle(); PerfOverlay.shared.reset()
+        case "fpswarn": st.fpsWarning.toggle(); FpsWarning.shared.reset()
         case "devtools": st.devTools.toggle()
         case "testmode": st.testMode.toggle()
         case "subtitles": st.subtitles.toggle()

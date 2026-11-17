@@ -56,6 +56,7 @@ final class Settings {
     @Pref("padLookCurve2") var lookCurve = 0         // right stick response: 0 default (power), 1 linear, 2 precise
 
     // Video
+    @Pref("fpsWarning") var fpsWarning = false       // ledger 263: playtest frame-rate warning (FpsWarning.swift); off by default
     @Pref("perfOverlay") var perfOverlay = false     // frame rate, frame times, render distance, chunk jobs in the HUD corner (PerfOverlay)
     @Pref("launchFullscreen") var launchFullscreen = true
     @Pref("vsync") var vsync = true
@@ -128,7 +129,7 @@ final class Settings {
         launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1; brightness = 0.5
         musicSource = 0; musicShuffle = true; customMusicVolume = 1; songTitles = true
         safeArea = 0; buttonHints = true; hintSeconds = 0; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
-        subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false
+        subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false; perfOverlay = false; fpsWarning = false
         targetBar = true; lookNames = true
         display = ""; smoothTerrain = true; shaderFX = ShaderFX.all; chipping = true; bugNotes = 0; bugNoteVideo = true; recordFootage = true   // (P432: Polygons for new worlds again)
         mapZoom = 3; wreckHint = false; mastHint = false; chestJoinTold = false       // (questcheck --settings-only: every @Pref resets)

@@ -516,6 +516,7 @@ enum TownLaw {
         Legendaries.tick(g)                              // C10: worn and held perks, the gallery
         Seasons.tick(g)                                  // C9: the season, herds and festival nights
         Nation.tick(g)                                   // C3: your provinces' days, settlers and buildings
+        TickProf.mark("town law: perks, seasons, nation")              // (store review: the stage split to find a 26 ms second)
         if let m = g.menu, openPos != nil { checkTaking(g, m) }
         emeraldTip(g)
         Strangers.tick(g)                                // D20
@@ -527,10 +528,12 @@ enum TownLaw {
         NavalPort.tick(g)                                // D39: dockyard garrisons and harbourmasters
         FrontierSites.tick(g)                            // D48: frontier sites on the map, the ghost town's dead
         Waymarks.tick(g)                                 // D51: the tracked target's beacon, moving map marks
+        TickProf.mark("town law: strangers .. waymarks")
         Tracking.tick(g)                                 // D46: tracks, blood trails, the wind
         Fence.today = Int(g.time / DAY_LENGTH)
         Saloon.tick(g)                                   // D17: the piano player
         Jail.tick(g, dt)                                 // R20: the jail term, a prisoner in tow
+        TickProf.mark("town law: tracking, saloon, jail")
         // Heat cools; hostility runs out.
         let cool = Honour.coolRate(Honour.value)
         for (t, h) in state.heat where !isHostile(t) {
@@ -554,6 +557,7 @@ enum TownLaw {
         MiningTowns.tick(g)                              // C12: mine gas
         BountyHunters.tick(g)
         TownRaids.tick(g)                                  // night raids (TownRaids.swift)
+        TickProf.mark("town law: board, contracts, mines, bounty, raids")
         var nearest: Mob?
         var nd: Float = 48
         var sheriffs: [String: [Mob]] = [:]
