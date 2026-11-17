@@ -399,12 +399,7 @@ final class WorldRenderer {
 
     // F4: the middle ring after the opaque terrain (the loaded chunks win the depth test; far.vert sinks the ring under
     // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
-    static var rdbg = [Double](repeating: 0, count: 8)   // DEBUG261R
     private func drawFarRing(_ s: SceneRenderer.Slot, _ eye: V3) {
-        var rt = CFAbsoluteTimeGetCurrent(); let r0 = rt   // DEBUG261R
-        func rm(_ i: Int) { let n = CFAbsoluteTimeGetCurrent(); WorldRenderer.rdbg[i] = (n - rt) * 1000; rt = n }   // DEBUG261R
-        for i in 0..<8 { WorldRenderer.rdbg[i] = 0 }   // DEBUG261R
-        defer { if (CFAbsoluteTimeGetCurrent() - r0) * 1000 > 3 { print("DEBUG261R " + WorldRenderer.rdbg.map { String(format: "%.1f", $0) }.joined(separator: " ")) } }   // DEBUG261R
         farFrame += 1
         farRingQuads = 0
         gapChunks = 0
@@ -413,14 +408,11 @@ final class WorldRenderer {
             && !underground && !game.inVaultSky && game.world.gen is WorldGen
         if gapOn {
             FarRing.shared.request(game, eye: eye)
-            rm(0)
             drawGaps(s, eye)
-            rm(1)
         }
         guard farRingOn else { return }
         let ring = FarRing.shared
         ring.request(game, eye: eye)
-        rm(2)
         if let m = ring.current(), m.seed == game.world.seed, m.gen != farGen, m.quads > 0 {
             let k = farLive < 0 ? 0 : 1 - farLive
             let bytes = m.verts.count * MemoryLayout<SimpleVert>.stride
@@ -436,7 +428,6 @@ final class WorldRenderer {
                 }
             }
         }
-        rm(3)
         guard farLive >= 0, farSeed == game.world.seed, farQuads > 0, let b = farBufs[farLive] else { return }
         farUsed[farLive] = farFrame
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
@@ -451,11 +442,9 @@ final class WorldRenderer {
             farCover = gapLive >= 0 ? FarRing.loadedRadius(game.world.renderDistance)
                 : FarRing.meshedRadius(game.world, game.world.renderDistance, center: ChunkKey(x: pcx, z: pcz))
         }
-        rm(4)
         let rin = farCover
         let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(lx, lz, rin, 12), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
         scene.drawFar(s, b, quads: farQuads, params: params)
-        rm(5)
         farRingQuads = farQuads
     }
 
@@ -479,14 +468,33 @@ final class WorldRenderer {
                 keys.append(k)
             } }
             // (A gap chunk made since the last build lifts its cover: liftGaps.)
-            if keys != gapKeys || made != gapMade || m.gen != gapRingGen || (gapLive < 0 && !keys.isEmpty) {
+            if keys != gapKeys || made != gapMade || m.gen != gapRingGen || (gapLive < 0 && !keys.isEmpty) || liftOwed {
                 gapVerts.removeAll(keepingCapacity: true)
                 var missing = 0
-                for k in keys { if let r = m.inner[k] { gapVerts += m.innerVerts[r] } else { missing += 1 } }
+                if WorldRenderer.gapLift && !WorldRenderer.oldGapLift {
+                    // Ledger 262: each gap chunk's cover lifted once and kept (per ring build, and again once the chunk
+                    // is made), at most ~1 ms of lifting a rebuild; a chunk past the budget shows the ring's heights for
+                    // a rebuild or two. Lifting all of them every rebuild took 7-11 ms of a walk's frames on the host.
+                    let t0 = CFAbsoluteTimeGetCurrent()
+                    liftOwed = false
+                    var keep: [ChunkKey: LiftedGap] = [:]
+                    keep.reserveCapacity(keys.count)
+                    for k in keys {
+                        guard let r = m.inner[k] else { missing += 1; continue }
+                        let have = w.chunks[k] != nil
+                        if let e = liftedGaps[k], e.gen == m.gen, e.have == have { gapVerts += e.verts; keep[k] = e; continue }
+                        if CFAbsoluteTimeGetCurrent() - t0 > 0.001 { liftOwed = true; gapVerts += m.innerVerts[r]; continue }
+                        var v = Array(m.innerVerts[r])
+                        WorldRenderer.lift(&v, w, ox: m.cx, oz: m.cz)
+                        keep[k] = LiftedGap(gen: m.gen, have: have, verts: v)
+                        gapVerts += v
+                    }
+                    liftedGaps = keep
+                } else {
+                    for k in keys { if let r = m.inner[k] { gapVerts += m.innerVerts[r] } else { missing += 1 } }
+                    if WorldRenderer.gapLift { WorldRenderer.lift(&gapVerts, w, ox: m.cx, oz: m.cz) }
+                }
                 gapMissing = missing
-                let lt = CFAbsoluteTimeGetCurrent()   // DEBUG261R
-                if WorldRenderer.gapLift { liftGaps(w, ox: m.cx, oz: m.cz) }
-                WorldRenderer.rdbg[6] = (CFAbsoluteTimeGetCurrent() - lt) * 1000; WorldRenderer.rdbg[7] = Double(gapVerts.count)   // DEBUG261R
                 if WorldRenderer.gapTint { for i in gapVerts.indices { gapVerts[i].color = V4(1, 0, 1, 0) } }
                 let k = gapLive < 0 ? 0 : 1 - gapLive
                 // (Written only into the buffer both frames in flight are done with; otherwise next time round.)
@@ -523,7 +531,11 @@ final class WorldRenderer {
     // cut bank the cover lay blocks under the drawn ground beside it, and the sky showed through the step between them
     // (the rock under a drawn chunk's edge isn't meshed while he flies). BS_GAPLIFT=0: the ring's heights.
     static var gapLift = Env.all["BS_GAPLIFT"] != "0"
-    private func liftGaps(_ w: World, ox: Int, oz: Int) {
+    static let oldGapLift = Env.all["BS_OLDGAPLIFT"] == "1"       // (ledger 262: every gap lifted on every rebuild)
+    private struct LiftedGap { let gen: Int; let have: Bool; let verts: [SimpleVert] }
+    private var liftedGaps: [ChunkKey: LiftedGap] = [:]
+    private var liftOwed = false
+    private static func lift(_ gapVerts: inout [SimpleVert], _ w: World, ox: Int, oz: Int) {
         let opaqueT = Blocks.opaque, leafT = Mesher.leafT, fluidT = Blocks.fluidKind
         var lastKey = ChunkKey(x: Int.min, z: 0)
         var lastChunk: Chunk? = nil

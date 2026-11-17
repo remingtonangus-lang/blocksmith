@@ -710,7 +710,7 @@ final class SceneRenderer {
         }
     }
 
-    func startTextureUpload(pregenerated: [[UInt8]]? = nil, batch: Int = 48) throws -> TextureUpload {
+    func startTextureUpload(pregenerated: [[UInt8]]? = nil, batch: Int = 24) throws -> TextureUpload {
         TextureGen.registerAll()
         let layers = Tex.count, size = TextureGen.size
         var levels = 1

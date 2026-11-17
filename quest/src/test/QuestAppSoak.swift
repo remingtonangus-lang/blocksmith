@@ -80,10 +80,17 @@ enum QuestAppSoak {
             xr.hlInput[0] = hand
             let t0 = CFAbsoluteTimeGetCurrent()
             var f = 0
+            var lastPos = app.game?.player.pos ?? .zero
             while CFAbsoluteTimeGetCurrent() - t0 < secs {
                 if let g = app.game { g.survival = false; g.alive = true; g.health = 20 }       // (nothing ends the walk)
                 f += 1
-                var r = XRHand(); r.aimValid = true; r.gripValid = true; r.aimPos = V3(0.2, 1.2, -0.3); r.gripPos = r.aimPos; r.stick = V2(f % 720 < 360 ? 0.3 : -0.3, 0)               // (looking about as he walks)
+                // (looking about as he walks; stuck against something for 2 s: a full push of the stick, a snap turn)
+                var turn: Float = f % 720 < 360 ? 0.3 : -0.3
+                if f % 144 == 0, let g = app.game {
+                    if simd_distance(g.player.pos, lastPos) < 2 { turn = 1 }
+                    lastPos = g.player.pos
+                }
+                var r = XRHand(); r.aimValid = true; r.gripValid = true; r.aimPos = V3(0.2, 1.2, -0.3); r.gripPos = r.aimPos; r.stick = V2(turn, 0)
                 xr.hlInput[1] = r
                 if !app.frame() { break }
             }
@@ -103,6 +110,7 @@ enum QuestAppSoak {
         next("walk \(Int(walk)) s")
         walkFor(walk)
         let moved = simd_distance(app.game.map { $0.player.pos } ?? .zero, pos0)
+        print(String(format: "appsoak: view %d (render distance of the world)", app.game?.world.renderDistance ?? 0))
 
         next("create new world")
         app.game?.appAction?("newworld")
