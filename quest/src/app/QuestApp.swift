@@ -366,6 +366,7 @@ final class QuestApp {
     // (ledger 231, headset trial: BS_FOVDYN=1 lets dynamic resolution run on a foveated swapchain; they were kept apart
     // because the density map is laid over the whole image, not the drawn part: to be seen on the headset)
     static let fovDyn = Env.all["BS_FOVDYN"] == "1"
+    static let swDelta = Env.all["BS_SWDELTA"] ?? ""
     func frame() -> Bool {
         guard xr.pollEvents() else { return false }
         guard xr.running else {
@@ -483,7 +484,11 @@ final class QuestApp {
                 xr.swFar = cam.far > 0 ? cam.far : farPlane
                 let now = rig.appToWorld
                 if let was = lastAppToWorld {
-                    let q = was.rotation.inverse * now.rotation, p = was.rotation.inverse.act(now.translation - was.translation)
+                    var q = was.rotation.inverse * now.rotation, p = was.rotation.inverse.act(now.translation - was.translation)
+                    // (ledger 232, headset trial: which way round the runtime wants the delta cannot be told off the
+                    // headset. BS_SWDELTA=inv sends the opposite pose, BS_SWDELTA=0 none.)
+                    if QuestApp.swDelta == "inv" { q = now.rotation.inverse * was.rotation; p = now.rotation.inverse.act(was.translation - now.translation) }
+                    else if QuestApp.swDelta == "0" { q = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1); p = .zero }
                     xr.appSpaceDelta = XrPosef(orientation: XrQuaternionf(x: q.imag.x, y: q.imag.y, z: q.imag.z, w: q.real),
                                                position: XrVector3f(x: p.x, y: p.y, z: p.z))
                 }
