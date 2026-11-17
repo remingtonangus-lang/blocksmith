@@ -1,10 +1,12 @@
 #!/bin/bash
-# Headset frame-rate gate (ledger 281's store job; docs/status/headset-gate.md). Runs on the Mac with the Quest on USB:
+# Headset frame-rate gate (ledger 285, the store job; docs/status/headset-gate.md). Runs on the Mac with the Quest on USB:
 #   tools/headset_gate.sh [APK] [--minutes N] [--route LEGS] [--out DIR] [--no-install]
 # APK: installed first (adb install -r); without one, the build already on the headset is measured.
-# --route all (or a list such as "menu newworld walk jungle"): the on-device route player plays those legs (debug
+# --route all (or a list such as "menu newworld plains jungle"): the on-device route player plays those legs (debug
 #   property debug.sunderfall.route, cleared at the end); without it the app is left alone (menu, then the world it
 #   loads) for --minutes (default 5).
+# --env "BS_A=1;BS_B=0": before/after switches for this run (debug.sunderfall.env, read at launch by builds with
+#   ledger 284; at most 91 characters; cleared at the end).
 # Records `adb logcat` VrApi (the source OVR Metrics shows: FPS=a/b, Stale, App/GPU ms, CPU/GPU levels) and the app's
 # own lines (tag Blocksmith: perf, load, route, xr), once a second, tagged by leg. Writes DIR/raw.log, DIR/seconds.tsv,
 # DIR/summary.txt. PASS = no second under 60 fps anywhere (menus and loading included) and under 2% of seconds below
@@ -13,14 +15,15 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 PKG=com.blocksmith.quest
 ACT=$PKG/android.app.NativeActivity
-APK=""; MIN=5; ROUTE=""; OUT=""; INSTALL=1
+APK=""; MIN=5; ROUTE=""; OUT=""; INSTALL=1; ENVS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --minutes) MIN="$2"; shift 2 ;;
     --route) ROUTE="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
     --no-install) INSTALL=0; shift ;;
-    -h|--help) sed -n 2,12p "$0"; exit 0 ;;
+    --env) ENVS="$2"; shift 2 ;;
+    -h|--help) sed -n 2,13p "$0"; exit 0 ;;
     *) APK="$1"; shift ;;
   esac
 done
@@ -38,6 +41,7 @@ echo "headset_gate: $(adb shell getprop ro.product.model | tr -d '\r'), build $(
 adb shell am broadcast -a com.oculus.vrpowermanager.prox_close >/dev/null
 cleanup() {
   adb shell setprop debug.sunderfall.route '""' >/dev/null 2>&1
+  adb shell setprop debug.sunderfall.env '""' >/dev/null 2>&1
   adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable >/dev/null 2>&1
   [[ -n "${LOGPID:-}" ]] && kill "$LOGPID" 2>/dev/null
 }
@@ -50,6 +54,7 @@ echo "headset_gate: app version $(adb shell dumpsys package $PKG | grep -m1 vers
 adb shell am force-stop $PKG
 sleep 2
 adb shell setprop debug.sunderfall.route "${ROUTE:-\"\"}"
+adb shell setprop debug.sunderfall.env "${ENVS:-\"\"}"
 adb logcat -c
 adb logcat -v epoch -s VrApi:I Blocksmith:I > "$OUT/raw.log" 2>&1 &
 LOGPID=$!

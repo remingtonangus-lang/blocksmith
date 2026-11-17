@@ -43,7 +43,7 @@ for l in lines:
         r = re.search(k + r"=([\d.]+)", l)
         return float(r.group(1)) if r else -1
     eye = re.search(r"eye resolution (\d+)%", perf)
-    vd = re.search(r"(?:view|active) distance (\d+)", view) if view else None
+    vd = re.search(r"\| view (\d+)", perf) or (re.search(r"(?:view|active) distance (\d+)", view) if view else None)
     rows.append(dict(t=t, leg=leg, fps=int(f.group(1)), target=int(f.group(2)), stale=num("Stale"), app=num("App"),
                      gpuraw=num("GPU%"), tear=num("Tear"),
                      eye=eye.group(1) if eye else "", vd=vd.group(1) if vd else "", rate=rate))
