@@ -399,7 +399,12 @@ final class WorldRenderer {
 
     // F4: the middle ring after the opaque terrain (the loaded chunks win the depth test; far.vert sinks the ring under
     // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
+    static var rdbg = [Double](repeating: 0, count: 8)   // DEBUG261R
     private func drawFarRing(_ s: SceneRenderer.Slot, _ eye: V3) {
+        var rt = CFAbsoluteTimeGetCurrent(); let r0 = rt   // DEBUG261R
+        func rm(_ i: Int) { let n = CFAbsoluteTimeGetCurrent(); WorldRenderer.rdbg[i] = (n - rt) * 1000; rt = n }   // DEBUG261R
+        for i in 0..<8 { WorldRenderer.rdbg[i] = 0 }   // DEBUG261R
+        defer { if (CFAbsoluteTimeGetCurrent() - r0) * 1000 > 3 { print("DEBUG261R " + WorldRenderer.rdbg.map { String(format: "%.1f", $0) }.joined(separator: " ")) } }   // DEBUG261R
         farFrame += 1
         farRingQuads = 0
         gapChunks = 0
@@ -408,11 +413,14 @@ final class WorldRenderer {
             && !underground && !game.inVaultSky && game.world.gen is WorldGen
         if gapOn {
             FarRing.shared.request(game, eye: eye)
+            rm(0)
             drawGaps(s, eye)
+            rm(1)
         }
         guard farRingOn else { return }
         let ring = FarRing.shared
         ring.request(game, eye: eye)
+        rm(2)
         if let m = ring.current(), m.seed == game.world.seed, m.gen != farGen, m.quads > 0 {
             let k = farLive < 0 ? 0 : 1 - farLive
             let bytes = m.verts.count * MemoryLayout<SimpleVert>.stride
@@ -428,6 +436,7 @@ final class WorldRenderer {
                 }
             }
         }
+        rm(3)
         guard farLive >= 0, farSeed == game.world.seed, farQuads > 0, let b = farBufs[farLive] else { return }
         farUsed[farLive] = farFrame
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
@@ -442,9 +451,11 @@ final class WorldRenderer {
             farCover = gapLive >= 0 ? FarRing.loadedRadius(game.world.renderDistance)
                 : FarRing.meshedRadius(game.world, game.world.renderDistance, center: ChunkKey(x: pcx, z: pcz))
         }
+        rm(4)
         let rin = farCover
         let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(lx, lz, rin, 12), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
         scene.drawFar(s, b, quads: farQuads, params: params)
+        rm(5)
         farRingQuads = farQuads
     }
 
@@ -473,7 +484,9 @@ final class WorldRenderer {
                 var missing = 0
                 for k in keys { if let r = m.inner[k] { gapVerts += m.innerVerts[r] } else { missing += 1 } }
                 gapMissing = missing
+                let lt = CFAbsoluteTimeGetCurrent()   // DEBUG261R
                 if WorldRenderer.gapLift { liftGaps(w, ox: m.cx, oz: m.cz) }
+                WorldRenderer.rdbg[6] = (CFAbsoluteTimeGetCurrent() - lt) * 1000; WorldRenderer.rdbg[7] = Double(gapVerts.count)   // DEBUG261R
                 if WorldRenderer.gapTint { for i in gapVerts.indices { gapVerts[i].color = V4(1, 0, 1, 0) } }
                 let k = gapLive < 0 ? 0 : 1 - gapLive
                 // (Written only into the buffer both frames in flight are done with; otherwise next time round.)
