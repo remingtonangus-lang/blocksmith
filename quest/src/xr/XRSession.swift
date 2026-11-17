@@ -151,6 +151,11 @@ final class XRSession {
         // P381 step 9: Application SpaceWarp (an option, off by default; it applies at the next launch).
         if QuestSettings.spaceWarp && avail.contains("XR_FB_space_warp") { want.append("XR_FB_space_warp") }
         else { print("xr: space warp off (P426): extension not requested") }
+        // (ledger 231, headset trials: BS_XREXT=NAME,NAME asks for more extensions the runtime offers, e.g.
+        // XR_META_recommended_layer_resolution, which the top GPU clocks may be tied to)
+        for e in (Env.all["BS_XREXT"] ?? "").split(separator: ",").map(String.init) where avail.contains(e) && !want.contains(e) {
+            want.append(e); print("xr: also asking for \(e)")
+        }
         exts = Set(want)
         let a = PtrArena()
         var ci = XrInstanceCreateInfo()
