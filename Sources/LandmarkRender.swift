@@ -97,6 +97,7 @@ extension Renderer {
     // and the smoke while smoke rises: the ground was most of a build, redone every second frame by a chimney's smoke).
     // `landmarks` false (P385 again, Nov 4): the smoke alone (volcano plumes, fires, camp smoke, town glow, a far hit's
     // dust), for a caller that keeps the cones, spires, citadels and town boxes of its last build.
+    static let lmTime = Env.all["BS_LMTIME"] == "1"
     func buildLandmarks(_ out: inout [SimpleVert], smokeStart: inout Int, game: Game, eye: V3, far: Float, fog: V3, rd: Float,
                         horizon: Bool = true, landmarks: Bool = true) {
         smokeStart = 0; Renderer.plumeRising = false; Renderer.horizonEnd = out.count
@@ -106,6 +107,17 @@ extension Renderer {
         // the middle ring's reach still shows as its ground (FarRing), and the horizon ground keeps its land (HorizonRing).
         // BS_OLDFARVOLCANOES=1: the impostors as before.
         Renderer.farVolcanoesDrawn = 0
+        // (ledger 287: BS_LMTIME=1 prints a build's parts when it took over 2 ms: horizon+cones, spires, citadels, towns)
+        var lmClock = CFAbsoluteTimeGetCurrent(), lmParts = [Double](repeating: 0, count: 5)
+        let lmStart = lmClock
+        func lmT(_ i: Int) {
+            guard Renderer.lmTime else { return }
+            let n = CFAbsoluteTimeGetCurrent(); lmParts[i - 1] += (n - lmClock) * 1000; lmClock = n
+            if i == 4, (n - lmStart) * 1000 > 2 {
+                print(String(format: "lmtime: %.1f ms: horizon+cones %.1f, spires %.1f, citadels %.1f, towns+smoke %.1f (horizon %@)", (n - lmStart) * 1000,
+                             lmParts[0], lmParts[1], lmParts[2], lmParts[3], horizon ? "yes" : "no"))
+            }
+        }
         let vols = Renderer.oldFarVolcanoes ? wg.terrain.volcanoes(near: eye.x, eye.z, reach: Renderer.landmarkRange) : []
         let loaded = rd * 16
         let sun = game.sunDir
@@ -284,6 +296,7 @@ extension Renderer {
         }
         // Ancient Spires: an eight-sided shaft with a broken crown.
         let grey = V3(0.43, 0.43, 0.44)
+        lmT(1)
         for sp in landmarks ? spireCache(game) : [] {
             let dist = simd_length(V2(sp.x - eye.x, sp.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.spireRange else { continue }
@@ -310,6 +323,7 @@ extension Renderer {
         // at its true depth out to 1024 blocks) rising behind them covered them from above (P483, "I can't see it").
         func at(_ w: V3, _ near: Bool) -> V4 { near ? (gpu ? V4(w, -1) : V4(w - eye, 1)) : ps(w) }
         let stone = V3(0.9, 0.91, 0.92), trim = V3(0.68, 0.7, 0.73)
+        lmT(2)
         for (ci, ct) in (landmarks ? citadelCache(game) : []).enumerated() {
             let dist = simd_length(V2(ct.x - eye.x, ct.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.citadelRange else { continue }
@@ -349,6 +363,7 @@ extension Renderer {
         // the Capital's cities stand as boxes (StructureStart.far): their buildings and terraces, walls facing the eye only.
         let tones: [V3] = [V3(0.6, 0.47, 0.33), V3(0.36, 0.24, 0.19), V3(0.9, 0.91, 0.92), V3(0.3, 0.48, 0.58),
                            V3(0.64, 0.66, 0.69), V3(0.55, 0.55, 0.56)]
+        lmT(3)
         _ = townCache(game)
         for bx in landmarks ? Renderer.townBoxes : [] {
             // (down into the middle ring's coarse ground)
@@ -385,6 +400,7 @@ extension Renderer {
         fireSmoke(&smoke, game: game, eye: eye, day: day, hdrK: hdrK)                     // P365 (a)
         townGlow(&smoke, game: game, eye: eye, loaded: loaded, fog: fog, day: day, hdrK: hdrK, shell: p)   // P365 (i)
         campSmoke(&smoke, game: game, eye: eye, loaded: loaded, fog: fog, day: day, hdrK: hdrK, shell: p)   // P331
+        lmT(4)
         smokeStart = out.count
         out.append(contentsOf: smoke)
         landmarkSmoke = smoke

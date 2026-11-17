@@ -85,3 +85,36 @@ needs:
    `REQUEST_RELAXED_FRAME_INTERVAL_BIT` asks the runtime to let the app run at half rate).
 5. Its structure type constants from openxr.h (XR_TYPE_FRAME_SYNTHESIS_INFO_EXT, XR_TYPE_FRAME_SYNTHESIS_CONFIG_VIEW_EXT).
 Whether either one is on for the store is Fable's and Remington's call (it was tangled with the Oct 30 jitter).
+
+## The hand-over gate: `--route all` on a reviewer's fresh install (ledger 288)
+
+`tools/headset_gate.sh --route all` is the gate before a store build goes in. Every gate run now plays as Meta's
+reviewer does: the script sets BS_REVIEWER=1 (debug property), and the app then keeps all its data in
+`<app data>/reviewer`, emptied at each launch: options (UserDefaults, via HOME/XDG), worlds, the mesh cache, crash
+notes and voice notes. Remington's options, worlds and notes are neither read nor written, and `quest-settings.txt`
+overrides are skipped. `--own-settings` runs on his own data instead (the old behaviour). A build from before ledger
+288 ignores the property; the gate sees no "reviewer: fresh data" line within 20 s and stops (exit 2) rather than
+play on his worlds.
+
+What the reviewer path covers: first launch with no worlds (the app makes "Quest World" with default options: 72 Hz,
+Auto View on and its start view, 128 px textures, dynamic resolution on, Space Warp off, foveation 0); the first-launch
+setup panel over the world (shown through the `menu` leg, then closed); the pause menu; making a new world; walking in
+plains, forest and jungle; a village; a fight; the frigate; the train; saving and loading the world again.
+
+What it does not cover: installing from the store and the system splash before the app draws (not counted); the
+microphone permission dialog (Android keeps his grant per app, so a reviewer may see a dialog this run does not; store
+builds compile voice notes out); the headset's own Guardian and account setup; real hands (the route drives the
+game's pad, not the Touch controllers' tracking); thermals of a long session off the charger (the headset is on USB
+power, at most 40 minutes).
+
+## Combat legs (Nov 17 evening, Fable's store confidence)
+
+`--route combat` (or `battle`, `siege`, `naval` by name) plays the heaviest fights the game has, each in a world the
+route makes first (leg `combatworld`: GateCombat<time>, seed 7653607216494784574). No spot or combat leg runs in a
+world the route did not make: the route checks the save folder and ends with "route: failed: leg X refused" otherwise
+(the first combat build ran in his playtest world). battle: the Ash Vault gate in the Deep at Total War (about 100
+mobs, two thirds aggro); siege: the crawler 40 blocks off the nearest military base, main gun into it every 5 s;
+naval: two frigates 90 blocks off a stone float at sea (hostile or not by where they are). Set-up frames (a world
+loaded on the frame thread, ships built) and 3 s after are "NAME-stage", left out of the totals with "combatworld";
+then 90 s of "NAME", with "route: combat ..." every 5 s giving mobs, ships and particles (drawn quads count land only).
+Headset, 0.133 base: all three held 72 once running.

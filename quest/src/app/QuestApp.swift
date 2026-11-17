@@ -463,6 +463,8 @@ final class QuestApp {
         guard let wr = worldRenderer else { return "" }
         return zip(WorldRenderer.stageNames, wr.stageFrame).filter { $0.1 >= 1 }.sorted { $0.1 > $1.1 }.map { String(format: "%@ %.1f", $0.0, $0.1) }.joined(separator: ", ")
     }
+    // (this frame's record stages, ms, in WorldRenderer.stageNames order; empty with no world: the route soak sums them)
+    var recordStageMs: [Double] { worldRenderer?.stageFrame ?? [] }
     var lapLine: String {
         zip(QuestApp.lapNames, lapMs).filter { $0.1 >= 1 }.sorted { $0.1 > $1.1 }.map { String(format: "%@ %.1f", $0.0, $0.1) }.joined(separator: ", ")
     }
