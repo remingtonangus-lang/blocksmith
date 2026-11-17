@@ -519,10 +519,17 @@ enum BuildersGrounds {
         }
         // (in a course, what stands on something first: walls before their eaves; then what spans open air from the
         // outside in, each piece reaching out from the last, never a floor's middle first over a hollow)
-        let below = Set(places.map { $0.0 }), digSet = Set(digs)
+        // (a lantern hanging under a cell holds nothing up: the watchtower's lookout ceiling, its middle plank over the
+        // lantern laid first among the standing blocks, alone in the air, fell before the planks round it came;
+        // BS_OLDHELD=1: as before)
+        let oldHeld = Env.all["BS_OLDHELD"] == "1"
+        let below = Set(places.compactMap { oldHeld || Blocks.shape[Int($0.1)] != "lantern" ? $0.0 : nil }), digSet = Set(digs)
         func held(_ p: IVec3) -> Bool {
             let q = p - IVec3(0, 1, 0)
-            return below.contains(q) || (w.solidAt(q.x, q.y, q.z) && !digSet.contains(q))
+            // (nor do a tree's leaves: the boathouse's eave stair over a shore tree's crown, laid before the wall plate
+            // it hangs from, fell alone)
+            let leaf = !oldHeld && Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))]).hasSuffix("_leaves")
+            return below.contains(q) || (w.solidAt(q.x, q.y, q.z) && !digSet.contains(q) && !leaf)
         }
         var standing: [IVec3: Bool] = [:]
         for (p, _) in places { standing[p] = held(p) }
@@ -537,6 +544,34 @@ enum BuildersGrounds {
             // load check lets a slab hold before the middle closed)
             if !sa && Blocks.fullCollide[Int(a.1)] && Blocks.fullCollide[Int(b.1)] { return da != db ? da > db : (a.0.x, a.0.z) < (b.0.x, b.0.z) }
             return da != db ? da < db : (a.0.x, a.0.z) < (b.0.x, b.0.z)
+        }
+        // (in a course, what doesn't stand on anything goes up as a hand builds it: each piece against one already
+        // laid, layer by layer out from what holds it. The order above, by distance from the middle, mixed two rules
+        // that disagree (outside in for full blocks, middle out for the rest), so the sort settled anywhere: the
+        // boathouse's eave stairs and wall plates went up before the plates and posts they hang from, alone, and fell.
+        // BS_OLDORDER=1: as sorted above)
+        if Env.all["BS_OLDORDER"] != "1" {
+            var out: [(IVec3, BlockID)] = [], laid = Set<IVec3>()
+            func holds(_ q: IVec3) -> Bool {
+                laid.contains(q) || (w.solidAt(q.x, q.y, q.z) && !digSet.contains(q) && !Blocks.key(Blocks.groupBase[Int(w.block(q.x, q.y, q.z))]).hasSuffix("_leaves"))
+            }
+            func lay(_ p: (IVec3, BlockID)) { out.append(p); if Blocks.shape[Int(p.1)] != "lantern" { laid.insert(p.0) } }
+            var k = 0
+            while k < places.count {
+                var e = k
+                while e < places.count && course(places[e]) == course(places[k]) { e += 1 }
+                var rest: [(IVec3, BlockID)] = []
+                for p in places[k..<e] { if standing[p.0] ?? true { lay(p) } else { rest.append(p) } }
+                while !rest.isEmpty {
+                    let layer = rest.filter { p in World.allDirs.contains { holds(p.0 + $0) } }
+                    if layer.isEmpty { out += rest; break }
+                    for p in layer { lay(p) }
+                    let ls = Set(layer.map { $0.0 })
+                    rest.removeAll { ls.contains($0.0) }
+                }
+                k = e
+            }
+            places = out
         }
         // (a door is placed once, from its lower half: the game sets both)
         places.removeAll { Blocks.shape[Int($0.1)] == "door" && Int($0.1 - Blocks.groupBase[Int($0.1)]) & 8 != 0 }

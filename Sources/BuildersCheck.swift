@@ -9,6 +9,10 @@ import simd
 // BS_BUILDONLY=key,key limits it to some builds.
 enum BuildersCheck {
     static let maxTicks = Int(Env.all["BS_BUILDTICKS"] ?? "") ?? 240_000
+    // (tool, Nov 17) BS_BUILDSTAND=1: no bot; every job of the plan set in its order with 3 ticks between (a perfect
+    // builder: what still goes wrong is the plan's order or the game). =2: every job set at once, then the run-on (is the
+    // finished build sound?). The same report follows.
+    static var stand = Int(Env.all["BS_BUILDSTAND"] ?? "") ?? 0     // (1: --builds-hand)
     static var shot: ((Game, String, V3, Float, Float) -> Void)?
     static func run(_ g0: Game, _ check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds
@@ -40,12 +44,13 @@ enum BuildersCheck {
             check(grew == 0 && n1 == n0, "builds: a stone brick 5 over the ground grows none under it (\(grew) cells filled, \(n1 - n0) ground cells more; BS_OLDMEET=1 filled them)")
         }
         let only = Env.all["BS_BUILDONLY"].map { Set($0.split(separator: ",").map(String.init)) }
-        let bps = BuildersGrounds.blueprints().filter { only?.contains($0.key) ?? true }
+        // (the sites found for all six, so one build alone goes up where it does among them)
+        let all = BuildersGrounds.blueprints(), bps = all.filter { only?.contains($0.key) ?? true }
         print("builds: finding the sites round \(Int(spawn.x)) \(Int(spawn.z))"); fflush(stdout)
         let t0 = CFAbsoluteTimeGetCurrent()
         // (ledger 202: the six together, as the world lays them out)
-        let cluster = BuildersGrounds.oldSites ? nil : BuildersGrounds.findCluster(w, centre: spawn, kinds: bps.map { $0.ground })
-        let sites = cluster?.sites ?? BuildersGrounds.findSites(w, centre: spawn, kinds: bps.map { $0.ground })
+        let cluster = BuildersGrounds.oldSites ? nil : BuildersGrounds.findCluster(w, centre: spawn, kinds: all.map { $0.ground })
+        let sites = cluster?.sites ?? BuildersGrounds.findSites(w, centre: spawn, kinds: all.map { $0.ground })
         if !BuildersGrounds.oldSites { check(cluster != nil, "Ledger 202 builds: the six together round one middle (\(cluster == nil ? BuildersGrounds.lastWhy : "found"))") }
         if let c = cluster { print(String(format: "builds: together round %.0f %.0f, he starts at %.0f %.0f; on their own ground: ", c.middle.x, c.middle.z, c.spawn.x, c.spawn.z) + c.own.sorted().joined(separator: ", ")) }
         print(String(format: "builds: spawn %.0f %.0f, sites found in %.1f s:", spawn.x, spawn.z, CFAbsoluteTimeGetCurrent() - t0))
@@ -83,8 +88,28 @@ enum BuildersCheck {
             }
             var columns0: [IVec3: String] = [:]
             for x in plan.lo.x...plan.hi.x { for z in plan.lo.z...plan.hi.z { columns0[IVec3(x, 0, z)] = column(x, z) } }
-            while !bot.done && ticks < BuildersCheck.maxTicks {
-                agent.step(bot); ticks += 1
+            if BuildersCheck.stand > 0 {
+                for j in plan.jobs {
+                    w.setBlock(j.cell.x, j.cell.y, j.cell.z, j.want)
+                    // (mode 1, a hand builder's order: each piece placed, then the load checks run out before the next)
+                    if BuildersCheck.stand == 1 { var k = 0; repeat { g.tick(1.0 / 60); k += 1 } while k < 3 || (k < 120 && !(w.loadQueue.isEmpty && w.loadSeeds.isEmpty)); ticks += k }
+                }
+            }
+            // (BS_BUILDWATCH="x y z": each change of that cell, when and at which job)
+            let wv = (Env.all["BS_BUILDWATCH"] ?? "").split(separator: " ").compactMap { Int($0) }
+            let wq: IVec3? = wv.count == 3 ? IVec3(wv[0], wv[1] + YOFF, wv[2]) : nil
+            var wb = wq.map { w.block($0.x, $0.y, $0.z) } ?? AIR
+            func watch(_ t: Int) {
+                guard let q = wq else { return }
+                let b = w.block(q.x, q.y, q.z)
+                if b != wb {
+                    let jb = bot.i < bot.jobs.count ? bot.jobs[bot.i] : nil
+                    print("builds:   watch \(Blocks.key(wb)) -> \(Blocks.key(b)) at tick \(t), job \(bot.i): \(jb.map { ($0.want == AIR ? "dig" : Blocks.key($0.want)) + " at \($0.cell.x) \($0.cell.y - YOFF) \($0.cell.z)" } ?? "-"), he is at \(Int(floor(g.player.pos.x))) \(Int(floor(g.player.pos.y)) - YOFF) \(Int(floor(g.player.pos.z)))")
+                    wb = b
+                }
+            }
+            while BuildersCheck.stand == 0 && !bot.done && ticks < BuildersCheck.maxTicks {
+                agent.step(bot); ticks += 1; watch(ticks)
                 if ticks % 20 == 0 {
                     for (q, was) in groundWas {
                         let now = w.groundAt(q.x, q.y, q.z)
@@ -106,7 +131,7 @@ enum BuildersCheck {
             }
             let buildS = CFAbsoluteTimeGetCurrent() - tb
             // The world runs on for 20 s with the agent standing by.
-            for _ in 0..<1200 { agent.step(bot) }
+            for k in 0..<1200 { if BuildersCheck.stand > 0 { g.tick(1.0 / 60) } else { agent.step(bot) }; watch(ticks + k) }
             var wrong: [String] = []
             // (the end state: a cell dug and then built on is checked as built)
             let builtCells = Set(plan.jobs.filter { $0.want != AIR }.map { $0.cell })
@@ -124,10 +149,18 @@ enum BuildersCheck {
                          bp.key, ticks, buildS, bot.placed, bot.dug, bot.presses, bot.redone, bot.felledHits, bot.scaffolds, bot.missed.count, wrong.count, fell, lost, gained))
             if risen > 0 { print("builds:   ground came up in \(risen) of the build's cells while it went up") }
             for m in bot.missed.prefix(BuilderBot.trace ? 2000 : 8) { print("   missed: \(m)") }
-            for m in wrong.prefix(8) { print("   wrong: \(m)") }
+            for m in wrong.prefix(BuilderBot.trace || BuildersCheck.stand > 0 ? 200 : 8) { print("   wrong: \(m)") }
             if let t = Structure.fellTally, !t.isEmpty { print("   fell: " + t.sorted { $0.value > $1.value }.prefix(8).map { "\($0.key) x\($0.value)" }.joined(separator: ", ")) }
+            // (what of the building fell, not the trees its digs left hanging)
+            let builtFell = (Structure.fellTally ?? [:]).filter { !$0.key.hasPrefix("(") && !$0.key.hasPrefix("tree_") }.values.reduce(0, +)
             Structure.fellTally = nil
             fflush(stdout)
+            if BuildersCheck.stand == 1 {
+                // Ledger 216: laid piece by piece in the plan's order (a hand builder's: each course up from what holds
+                // it), the load checks run out after every piece: no piece falls, half built or whole.
+                check(wrong.isEmpty && builtFell == 0, "builds-hand: the \(bp.key) goes up piece by piece and none of it falls (\(wrong.count) cells wrong, \(builtFell) of its blocks fell; BS_OLDORDER=1 BS_OLDHELD=1: the old order)")
+                continue
+            }
             check(bot.done && bot.missed.isEmpty, "builds: the agent builds the \(bp.key) on \(bp.ground) through the controls (\(bot.placed) placed, \(bot.dug) dug, \(bot.missed.count) missed)")
             check(wrong.isEmpty && fell == 0, "builds: the \(bp.key) stands whole 20 s later (\(wrong.count) cells wrong, \(fell) fell)")
             check(lost + gained <= 12, "builds: the ground round the \(bp.key) is left as it was (\(lost) cells lost, \(gained) gained; want at most 12)")

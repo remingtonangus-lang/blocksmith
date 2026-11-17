@@ -3220,6 +3220,11 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         } catch { print("workshop render \(name): \(error)") }
     }
 }
+if CommandLine.arguments.contains("--builds-hand") {           // ledger 216: the six laid in the plan's order, load checks between pieces: none falls
+    BuildersCheck.stand = 1
+    BuildersCheck.run(game, check)
+    print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--builds") {                // Builders' Grounds: an agent builds on natural ground
     BuildersCheck.shot = CircuitWorkshopTests.shot          // (with --render: pictures of the six from four sides)
     BuildersCheck.run(game, check)
