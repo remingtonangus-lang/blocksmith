@@ -688,7 +688,14 @@ enum Trains {
                              t.id, tr.lastS, dir0, ahead, c.x, c.y, c.z, Blocks.key(b), placed[c] != nil ? "yes" : "no",
                              now(tr).stop == nil ? "none" : "yes", t.armoured ? "yes" : "no", tr.driveV))
             }
-            if Blocks.collide[Int(b)] && !Rails.isRail(b) && now(tr).stop == nil && !t.armoured {
+            // Ledger 214 (BridgeHunt.swift): a trestle span fell into the sea ahead: the train stops short of the gap.
+            var gapAhead = false
+            if !BridgeHunt.gaps.isEmpty {
+                for k: Float in [0, 4, 8, 12] where BridgeHunt.gap(g, t.cell(t.advance(ahead, by: dir0 * k))) { gapAhead = true; break }
+            }
+            if gapAhead {
+                if !tr.heldBy { tr.heldBy = true; tr.heldWay = tr.driven && tr.driveV < 0 ? -1 : 1; tr.stoppedFor = 0; whistle(g, tr) }
+            } else if Blocks.collide[Int(b)] && !Rails.isRail(b) && now(tr).stop == nil && !t.armoured {
                 // P510 (Nov 1 20:39, "Why isn't it moving?... Train's broken for some reason. Fix it"): only a block he
                 // put there stops it. Anything else on the rail (a structure, a road or a tree drawn over the line after
                 // it, ground that grew back) held the train for good: it let go a minute later or once he was 48 blocks

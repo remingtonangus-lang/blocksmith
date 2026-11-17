@@ -382,6 +382,11 @@ enum Railways {
     // another worker wrote a note, every world's first 64 deck cells, and open-country track lays far more deck. The
     // notes are now taken only when a check asks, and counted under the lock.)
     static var deckNotesOn = false
+    // Ledger 214: a diagonal line's trestle took edge legs only at its staircase cells (two out from the rail), so a
+    // straight run of it stood on the centre piers alone, 8 apart, and the deck midway between them carried nothing
+    // (BridgeHunt.weigh dropped it untouched). The side columns of its straight runs take legs every 4 too.
+    // BS_OLDTRESTLELEGS=1: before.
+    static var sparseLegs = Env.all["BS_OLDTRESTLELEGS"] == "1"
     static let noteLock = NSLock()
 
     // The link from line (row, s)'s east end on to the next line east, if one is laid.
@@ -1765,7 +1770,8 @@ enum Railways {
                         Railways.noteLock.unlock()
                     }
                     w.set(x, y - 1, z, deck)                                       // trestle deck
-                    let edge = l.diagonal ? abs(x - c.x) + abs(z - c.z) >= 2 : (alongX && z != c.z) || (!alongX && x != c.x)
+                    let side = (alongX && z != c.z) || (!alongX && x != c.x)
+                    let edge = l.diagonal ? abs(x - c.x) + abs(z - c.z) >= 2 || (!Railways.sparseLegs && side) : side
                     if edge && i % 4 == 0 { w.groundDown(x, y - 2, z, leg, minY: y - (l.runOn ? 136 : 48)) }
                 }
             }

@@ -646,6 +646,20 @@ enum RailwayTests {
         print(String(format: "rail ride: %d frames (%.0f s of play, %.1f s wall), worst tick %.1f ms, reached cell %.0f of %d", frames, Float(frames) * dt, wall, worst * 1000, maxS, l.cells.count))
         check(maxS >= Float(last.index) - 0.5 && stops.count == l.stations.count && passed.count == 3 && unseated == 0 && headIn == 0 && offTrack == 0,
               "P379 (4): rode \(l.name) end to end from the cab: \(stops.count) of \(l.stations.count) stations, through cutting/tunnel/bridge \(passed.sorted()), unseated \(unseated), head in ground \(headIn) frames, off the track \(offTrack) frames")
+        if BridgeHunt.fell > 0 || !BridgeHunt.gaps.isEmpty {
+            print("rail: after the ride the trestle weigh dropped \(BridgeHunt.fell) cells, \(BridgeHunt.gaps.count) rail gaps; first: " + BridgeHunt.notes.joined(separator: " | "))
+        }
+        // (every deck cell of the line, its ground loaded)
+        for i in stride(from: 0, to: l.cells.count, by: 16) { let c = l.cells[i]; _ = world.loadSync(center: V3(Float(c.x), Float(c.y), Float(c.z)), radius: 1) }
+        let deckIdx = l.cells.indices.filter { let c = l.cells[$0]; return Blocks.groupBase[Int(world.block(c.x, c.y - 1, c.z))] == BridgeHunt.deckGroup }
+        // Ledger 214 (Fable's 3a): the bridge the ride crossed, untouched, weighed end to end with a hurt cell every 8.
+        do {
+            let idx = deckIdx
+            let r = BridgeHuntTests.weighUntouched(g, t, idx)
+            if r.fell > 0 { print("rail: the ride's bridge dropped: " + r.notes.joined(separator: " | ")) }
+            let what = "bridge hunt: the bridges on the ride's line (\(idx.count) cells, \(r.decks) on a plank deck, \(tag.filter { $0 == 3 }.count) over water, \(r.legs) leg columns), untouched, weighed end to end with a hurt cell every 8: \(r.fell) blocks fell"
+            if Railways.sparseLegs { print("rail: (before, BS_OLDTRESTLELEGS) " + what) } else { check(r.fell == 0 && r.decks > 0, what) }
+        }
         // P379 step 2, leaving the last station (after the ride: at full regulator it ran past the bridge before the ride was counted): the brake alone stops it, the regulator left open; let off, it runs again.
         let lead2 = tr.cars[0]
         // Nov 12: the cab is his (Trains.driveCab): at full regulator it reached 100 km/h and ran through every station.
@@ -740,6 +754,10 @@ enum RailwayTests {
             tr.throttle = room < tr.length / 2 + 20 ? -1 : 2
             let tender = tr.coal, left = g.inventory.held.count
             for _ in 0..<(60 * 6) { g.time += Double(dt); Trains.drive(lead2, dt, g) }
+            if !(tr.blocksPerSec > 1) {
+                print(String(format: "rail: Nov 12 coal: stood at s %.1f of %.0f (room %.1f, length %.1f), throttle %.1f, rate %.2f, driveV %.2f, brake %.2f, cab brake %.2f, held %@ way %.0f, coal %.1f, track %@ open ends, wrecked %@",
+                             tr.driveS, tn2, room, tr.length, tr.throttle, tr.rate, tr.driveV, tr.brake, tr.cabBrake, tr.heldBy ? "yes" : "no", tr.heldWay, tr.coal, tr.track.name, tr.wrecked ? "yes" : "no"))
+            }
             check(pedal > 1 && Trains.coalBurned > burned0 && dryAfter > 0 && fed && tender >= 5 && left == 0 && tr.blocksPerSec > 1,
                   String(format: "Nov 12 trains: the pedal opened the regulator to %.0f%%; the tender ran dry and the train came to a stand in %.0f s; 5 coal used on the engine (tender %.0f, %d left in hand) and it runs again (%.1f b/s)",
                          pedal * 50, dryAfter, tender, left, tr.blocksPerSec))

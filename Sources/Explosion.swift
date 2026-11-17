@@ -222,6 +222,7 @@ enum Explosion {
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)   // an open screen shares it
             }
             if w.batchShape && w.isGround(b) { opened.append(b) }
+            BridgeHunt.broke(id, b.x, b.y, b.z)                    // (ledger 214: a trestle hurt)
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
         w.batchShape = false
@@ -719,6 +720,7 @@ final class CraterJob {
             for s in Explosion.blastDrops(id) { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }      // (P452)
             let ts = CFAbsoluteTimeGetCurrent()
             w.batchShape = d2 <= innerR2
+            BridgeHunt.broke(id, x, y, z)                           // (ledger 214: a trestle hurt)
             w.setBlockAsync(x, y, z, AIR)
             setSeconds += CFAbsoluteTimeGetCurrent() - ts
             if spanA == AIR { spanA = id } else { spanB = id }
@@ -1010,6 +1012,7 @@ final class BlastShape {
             if next < dots.count {
                 let q = dots[next]; next += 1
                 for s in Explosion.blastDrops(w.block(q.x, q.y, q.z)) { g.drops.spawn(s, at: V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)) }
+                BridgeHunt.broke(w.block(q.x, q.y, q.z), q.x, q.y, q.z)
                 w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true)
                 if next == dots.count { Explosion.lap("dots shaped") }
                 continue

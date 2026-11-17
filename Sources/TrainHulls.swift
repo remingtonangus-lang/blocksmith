@@ -17,6 +17,10 @@ enum TrainHulls {
     static let role = "traincar"
     static var hullOf: [ObjectIdentifier: Ship] = [:]
     static var built = 0                                     // (checks)
+    // Ledger 215: the step between two coaches whose floors don't meet (ShipPlay.shipPlayerUpdate). BS_OLDGANGWAYSTEP=1: before.
+    static var gangwayOn = Env.all["BS_OLDGANGWAYSTEP"] != "1"
+    static var gangwaySteps = 0
+    static func isHull(_ s: Ship) -> Bool { hullOf.values.contains { $0 === s } }
 
     // MARK: Cells (a code per cell: a slab of a height, or the parts of a walk-in car's cell)
 
@@ -434,15 +438,20 @@ enum TrainHullCheck {
                 let d = coaches[1].pos - p.pos
                 p.yaw = atan2f(-d.x, -d.z)
                 frames(1, go)
-                if k == 15 || k == 60 { let l1 = sa.toLocal(p.pos); print(String(format: "rail: ledger 141 frame %d: %.2f %.2f %.2f, aboard %@", k, l1.x, l1.y, l1.z, w.ships.aboard === sa ? "first" : w.ships.aboard === sb ? "second" : w.ships.aboard == nil ? "nothing" : "another")) }
+                if k % 6 == 0 && k >= 36 && k <= 120 {
+                    let l1 = sa.toLocal(p.pos), l2 = sb.toLocal(p.pos)
+                    print(String(format: "rail: ledger 141 frame %d: in the first %.2f %.2f %.2f, in the second %.2f %.2f %.2f, aboard %@, on ground %@, held by the first %@ by the second %@",
+                                 k, l1.x, l1.y, l1.z, l2.x, l2.y, l2.z, w.ships.aboard === sa ? "first" : w.ships.aboard === sb ? "second" : w.ships.aboard == nil ? "nothing" : "another",
+                                 p.onGround ? "yes" : "no", w.ships.holdsRider(sa, l1, halfW: p.halfW) ? "yes" : "no", w.ships.holdsRider(sb, l2, halfW: p.halfW) ? "yes" : "no"))
+                }
                 let lb = sb.toLocal(p.pos)
-                lowest = min(lowest, min(lb.y, sa.toLocal(p.pos).y))
+                lowest = min(lowest, w.ships.aboard === sb ? lb.y : sa.toLocal(p.pos).y)        // (in the coach he is in: the floors differ on a grade)
                 if lb.x > 0.2 && lb.x < 2.8 && lb.z > 2 && lb.z < Float(sb.grid.sz) - 2 && lb.y > 1.15 && lb.y < 1.6 { crossed = true; took = k + 1; break }
             }
             let la = sa.toLocal(p.pos)
             let what = String(format: "ledger 141: he walks from one coach through the end doors into the next (%@ in %.1f s, never lower than %.2f over the rail; ends in the first at %.2f %.2f %.2f)",
                               crossed ? "there" : "not there", Float(took) / 30, lowest, la.x, la.y, la.z)
-            if TrainHulls.oldGangway { print("rail: (before) " + what) } else { check(crossed && lowest > 1.1, what) }
+            if TrainHulls.oldGangway { print("rail: (before) " + what) } else { check(crossed && lowest > 0.6, what) }      // (ledger 215: on a grade the coupling's plate is half a block under the aisle he left)
         }
         // Down from the engine: free in its cab.
         if let eng = tr.cars.first(where: { Trains.isEngine($0) && $0.variant == Trains.loco }), let es = TrainHulls.hull(eng) {

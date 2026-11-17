@@ -40,7 +40,7 @@ extension Game {
         let ships = world.ships
         var live = 0
         for s in ships.list where EnemySub.hunting(s) {
-            live += 1
+            if !BridgeHunt.hunter.values.contains(s.id) { live += 1 }      // (ledger 214: a bridge's hunter is its area's own)
             enemySubDrive(s, dt)
         }
         guard live == 0, clock >= EnemySub.nextCheck else { return }
@@ -50,32 +50,38 @@ extension Game {
         guard EnemySub.deep(world, Int(floor(p.x)), Int(floor(p.z))) != nil else { return }
         // P434 (e): no hunt while the player rides a ship that isn't a submarine (the frigate, an airship).
         if let on = ships.aboardOrPilot, on.root.ballast == 0 { return }
+        guard let area = BridgeHunt.free(ships, Int(floor(p.x)), Int(floor(p.z))) else { return }      // ledger 214: one to an area of sea
         guard Rand.float(in: 0..<1) < 0.35 else { return }
         let a0 = Rand.float(in: 0..<(2 * .pi))
         for k in 0..<8 {
             let a = a0 + Float(k) * .pi / 4
-            let c = p + V3(cosf(a), 0, sinf(a)) * EnemySub.spawnDist
-            let cx = Int(floor(c.x)), cz = Int(floor(c.z))
-            guard let (top, bed) = EnemySub.deep(world, cx, cz) else { continue }
-            var ok = true
-            for dz in [-5, 0, 5] { for dx in [-5, 0, 5] where EnemySub.deep(world, cx + dx, cz + dz) == nil { ok = false } }
-            guard ok else { continue }
-            let yaw = atan2f(c.x - p.x, c.z - p.z)                 // bow (-Z) toward the player
-            let s = ships.spawn(Submarine.blueprint(), at: V3(c.x, Float(top) + 1, c.z), yaw: yaw, name: EnemySub.name, role: "")
-            s.role = nil
-            s.faction = Faction.meridian.rawValue
-            let keel = Float(min(top - 6, bed + 4))
-            s.pos.y += keel - s.toWorld(V3(0, s.localMin.y, 0)).y
-            s.prevPos = s.pos
-            s.depthY = s.pos.y
-            s.updateBounds()
-            s.initialBlocks = s.blockCount
-            EnemySub.spawned += 1
-            EnemySub.fireCD[s.id] = 6
+            guard let s = spawnEnemySub(at: p + V3(cosf(a), 0, sinf(a)) * EnemySub.spawnDist, facing: p) else { continue }
+            BridgeHunt.claim(s, area)
             onToast?("Sonar contact: a navy submarine is hunting you")
             sfx(.sonarPing, 1.3, at: p)
             return
         }
+    }
+
+    // A navy submarine in the deep water at `c`, her bow toward `p`; nil where the water is not deep and open.
+    func spawnEnemySub(at c: V3, facing p: V3) -> Ship? {
+        let ships = world.ships
+        let cx = Int(floor(c.x)), cz = Int(floor(c.z))
+        guard let (top, bed) = EnemySub.deep(world, cx, cz) else { return nil }
+        for dz in [-5, 0, 5] { for dx in [-5, 0, 5] where EnemySub.deep(world, cx + dx, cz + dz) == nil { return nil } }
+        let yaw = atan2f(c.x - p.x, c.z - p.z)                 // bow (-Z) toward the player
+        let s = ships.spawn(Submarine.blueprint(), at: V3(c.x, Float(top) + 1, c.z), yaw: yaw, name: EnemySub.name, role: "")
+        s.role = nil
+        s.faction = Faction.meridian.rawValue
+        let keel = Float(min(top - 6, bed + 4))
+        s.pos.y += keel - s.toWorld(V3(0, s.localMin.y, 0)).y
+        s.prevPos = s.pos
+        s.depthY = s.pos.y
+        s.updateBounds()
+        s.initialBlocks = s.blockCount
+        EnemySub.spawned += 1
+        EnemySub.fireCD[s.id] = 6
+        return s
     }
 
     private func enemySubDrive(_ s: Ship, _ dt: Float) {
@@ -83,8 +89,10 @@ extension Game {
         let to = V2(p.x - s.pos.x, p.z - s.pos.z)
         let d = simd_length(to)
         // Left far behind: she dives off and is gone.
-        let onShip = world.ships.aboardOrPilot.map { $0.root.ballast == 0 } ?? false
+        // (ledger 214: riding a train over a sea bridge he stands on a coach's hull: she stays on him)
+        let onShip = !BridgeHunt.onBridge && (world.ships.aboardOrPilot.map { $0.root.ballast == 0 } ?? false)
         if d > 400 || !alive || (onShip && d > EnemySub.torpedoRange) {
+            BridgeHunt.left(s)
             world.ships.remove(s)
             EnemySub.nextSpawn = clock + EnemySub.cooldown
             return
