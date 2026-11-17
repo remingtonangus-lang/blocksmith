@@ -36,6 +36,23 @@ final class HellState {
     var raged = false
     var fx: FX = .none
     var feint = false                             // P185: this wind-up is a feint (it breaks off and comes again)
+    // Ledger 218 (balance gear pays, a knight's duel 6.6 s one run and 10.5 s the next on the same seed): the order's
+    // fighting rolls (wind-up length, feint, low cut, side, riposte, charge cool) drew from the game's one random stream,
+    // shared with everything else a tick draws (grass, particles, the chunks that land), so a fight's luck was whatever
+    // the world had drawn before it. Each fighter rolls from a stream of its own, seeded where it was made: the same
+    // odds, and the same fight from the same start. BS_OLDORDERRAND=1: the shared stream, as before.
+    static let oldRand = Env.all["BS_OLDORDERRAND"] == "1"
+    var rng: UInt64 = Rand.next()
+    func roll() -> Float {
+        if HellState.oldRand { return Rand.float(in: 0..<1) }
+        rng &+= 0x9E3779B97F4A7C15
+        var z = rng
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        z ^= z >> 31
+        return Float(z >> 40) / Float(1 << 24)
+    }
+    func roll(_ r: ClosedRange<Float>) -> Float { r.lowerBound + roll() * (r.upperBound - r.lowerBound) }
 }
 
 // What's live in the world for these mobs and the gate (Game.hell).
@@ -189,7 +206,7 @@ extension Mob {
             if h.guardLeft <= 0 { h.s = .stagger; h.t = 1.4; h.fx = .guardBreak; HellStats.guardBreaks += 1 } else {
                 h.fx = .clang
                 // P185: a blow taken on the guard can be answered with a quick riposte (more often the higher the rank).
-                if h.s == .idle && Rand.float(in: 0..<1) < HellMobs.riposte[max(0, min(3, kind.orderRank))] {
+                if h.s == .idle && h.roll() < HellMobs.riposte[max(0, min(3, kind.orderRank))] {
                     h.s = .windup; h.t = 0.32; h.feint = false; HellStats.ripostes += 1
                 }
             }
@@ -282,8 +299,8 @@ extension Mob {
                 // a different time, so the rhythm can't be learnt; the recovery after it is the opening. (P341: a
                 // greatsword's combo is a cut shorter; each cut comes from the other side, high or low anew.)
                 if h.swings <= rank - (style == 1 ? 1 : 0) && gap < reach + 1 {
-                    h.s = .windup; h.t = windup * Rand.float(in: 0.5...0.9); h.feint = false
-                    h.side = -h.side; strikeLow = Rand.float(in: 0..<1) < (style == 2 ? 0.45 : 0.3)
+                    h.s = .windup; h.t = windup * h.roll(0.5...0.9); h.feint = false
+                    h.side = -h.side; strikeLow = h.roll() < (style == 2 ? 0.45 : 0.3)
                 }
                 else { h.s = .recover; h.t = (rank >= 2 ? 0.6 : 0.85) * (style == 1 ? 1.3 : 1); h.swings = 0 }
             }
@@ -334,23 +351,23 @@ extension Mob {
             // paths straight at you.
             if gap < reach + 1 { guardTurn(player, dt) } else { face(player) }
             h.sideT -= dt
-            if h.sideT <= 0 { h.sideT = Rand.float(in: 1.5...3); h.side = Rand.float(in: 0..<1) < 0.5 ? -1 : 1 }
+            if h.sideT <= 0 { h.sideT = h.roll(1.5...3); h.side = h.roll() < 0.5 ? -1 : 1 }
             if rank >= 1 && h.cool <= 0 && dist > 5.5 && dist < 16 && onGround && abs(player.y - pos.y) < 2.5
                 && g.world.canSee(eye, g.player.eye) {
                 h.s = .aim
                 h.t = rank == 3 ? 0.7 : (rank == 2 ? 0.75 : 0.85)
-                h.cool = h.raged ? 4.5 : Rand.float(in: 6...9)
+                h.cool = h.raged ? 4.5 : h.roll(6...9)
                 g.sfx(.mob(kind, .ambient), 1.3, at: pos)
                 return 0
             }
             // P341: a spear keeps its point between you: it backs off when you crowd it.
             if style == 2 && gap < reach - 1.4 { strafe = h.side * spec.speed * 0.3; return -spec.speed * 0.6 }
             if gap < reach && attackCooldown <= 0 {
-                h.s = .windup; h.t = windup * Rand.float(in: 0.85...1.2)
-                h.feint = Rand.float(in: 0..<1) < HellMobs.feint[min(3, rank)]
+                h.s = .windup; h.t = windup * h.roll(0.85...1.2)
+                h.feint = h.roll() < HellMobs.feint[min(3, rank)]
                 // P341 (c): the cut comes high or low, from the side the wind-up shows.
-                strikeLow = Rand.float(in: 0..<1) < (style == 2 ? 0.45 : 0.3)
-                if Rand.float(in: 0..<1) < 0.5 { h.side = -h.side }
+                strikeLow = h.roll() < (style == 2 ? 0.45 : 0.3)
+                if h.roll() < 0.5 { h.side = -h.side }
                 attackCooldown = 1.4
                 g.sfx(.spyglass, 0.7, at: pos + V3(0, height, 0))      // the rising whine of the wind-up
                 return 0

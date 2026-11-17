@@ -7,11 +7,18 @@ import simd
 // see the foe from: a deck edge, a hatch, the roof walkway, the lowered ramp. The way there is a path search in the
 // hull's own frame (World.frame: the search reads its cells), never off its edge.
 enum CrewLookout {
-    static var nextSearch = 0.0                 // one search at a time across all crew (seconds, CFAbsoluteTime)
+    static var nextSearch = 0.0                 // one search at a time across all crew (seconds of game clock, Game.clock)
     static var found = 0, failed = 0            // (counters: ridecheck)
     static var spots = 0, hullClear = 0, worldClear = 0, noPath = 0
     static var lastMiss = ""                    // (ridecheck: the last search that found nothing, where it looked)
-    static var ready: Bool { CFAbsoluteTimeGetCurrent() >= nextSearch }
+    // Ledger 217 (ridecheck crew, 0 shots about 1 run in 10, in the suite and alone): the gap between searches was 0.2 s
+    // of real time. The check plays the 30 s after the wreck stops in about a second, so 22 crew got 5 or 6 searches
+    // between them where a player's 30 s give 150, and whether one of those few found a spot decided the check. It
+    // is counted on the game's clock now, so a search's rate is the game's own on any machine and at any frame rate.
+    // (A clock behind it - a new world's game - starts it over.) BS_OLDLOOKOUTCLOCK=1: real time, as before.
+    static let oldClock = Env.all["BS_OLDLOOKOUTCLOCK"] == "1"
+    static func now(_ g: Game) -> Double { oldClock ? CFAbsoluteTimeGetCurrent() : g.clock }
+    static func ready(_ g: Game) -> Bool { let t = now(g); return t >= nextSearch || nextSearch - t > 1 }
     private static let reach = 22               // how far along the deck a spot is looked for (blocks, each way)
     static let oldRanges = Env.all["BS_OLDLOOKOUT"] == "1"
     // Ledger 208 (ridecheck crew, 0 shots in about 1 run in 3): the spots were tried nearest the man first, so the 400
@@ -51,9 +58,8 @@ enum CrewLookout {
 
     /// Sends `m` (aboard `s`) to a spot of the hull it can see `foe` from. True: it is on its way.
     static func walk(_ m: Mob, _ s: Ship, to foe: V3, _ g: Game) -> Bool {
-        let now = CFAbsoluteTimeGetCurrent()
-        guard now >= nextSearch else { return false }
-        nextSearch = now + 0.2
+        guard ready(g) else { return false }
+        nextSearch = now(g) + 0.2
         let w = g.world
         let gr = s.grid
         let l = s.toLocal(m.pos)
