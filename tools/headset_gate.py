@@ -43,8 +43,10 @@ for l in lines:
         r = re.search(k + r"=([\d.]+)", l)
         return float(r.group(1)) if r else -1
     eye = re.search(r"eye resolution (\d+)%", perf)
-    vd = re.search(r"(?:view|active) distance (\d+)", view) if view else None
-    rows.append(dict(t=t, leg=leg, fps=int(f.group(1)), target=int(f.group(2)), stale=num("Stale"), app=num("App"),
+    vd = re.search(r"\| view (\d+)", perf) or (re.search(r"(?:view|active) distance (\d+)", view) if view else None)
+    pg = re.search(r"\| gpu ([\d.]+) ms \|", perf); pq = re.search(r"quads (\d+)", perf); pc = re.search(r"clocks: ([^|]+)", perf)
+    rows.append(dict(pgpu=float(pg.group(1)) if pg else -1, quads=int(pq.group(1)) if pq else -1, clocks=pc.group(1).strip() if pc else "",
+                     t=t, leg=leg, fps=int(f.group(1)), target=int(f.group(2)), stale=num("Stale"), app=num("App"),
                      gpuraw=num("GPU%"), tear=num("Tear"),
                      eye=eye.group(1) if eye else "", vd=vd.group(1) if vd else "", rate=rate))
 
@@ -73,6 +75,15 @@ out.append(f"headset gate: {len(rows)} seconds of VrApi, display {rate or '?'} H
 for g in legs:
     stats(g, [r for r in rows if r["leg"] == g])
 stats("ALL", rows)
+spots = [g for g in legs if g.startswith("spot-") and not g.endswith("-load")]
+if spots:
+    out.append("spots (held, after loading settled): name | s | fps median/min | gpu ms median/worst (app perf) | eye % | view | quads median | clocks")
+    for g in spots:
+        rs = [r for r in rows if r["leg"] == g]
+        f = [r["fps"] for r in rs]; gp = [r["pgpu"] for r in rs if r["pgpu"] >= 0]; q = [r["quads"] for r in rs if r["quads"] >= 0]
+        out.append(f"  {g[5:]:<9} | {len(f):>3} | {pct(f,50):>3}/{min(f):>3} | "
+                   + (f"{pct(gp,50):.2f}/{max(gp):.2f}" if gp else "?") + f" | {rs[-1]['eye'] or '?'} | {rs[-1]['vd'] or '?'} | "
+                   + (f"{pct(q,50)}" if q else "?") + f" | {rs[-1]['clocks'] or '?'}")
 f = [r["fps"] for r in rows]
 under60 = sum(x < 60 for x in f); under70 = sum(x < 70 for x in f)
 ok = bool(f) and under60 == 0 and under70 < 0.02 * len(f)

@@ -23,6 +23,8 @@ layout(set = 0, binding = 0, std140) uniform Frame {
                            // z = mist top (world y), w = colour grade (-1 night cool ... 0 day ... 1 sunrise/sunset warm)
     uvec4 sheen[16];       // SH1: a bit per texture layer that shines like metal or ice (2048 layers)
     uvec4 turn[16];        // P496: a bit per texture layer whose tops are turned per block like grass (ShaderFX.turnBits)
+    mat4 prevClip[2];      // ledger 232 (Space Warp): per eye, this frame's camera-relative point to the last drawn
+                           // frame's clip space (its view-projection, the head's move between the two taken in)
 } u;
 
 // SH1: is a shader piece switched on (Video options)?

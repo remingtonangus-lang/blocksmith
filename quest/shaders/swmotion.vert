@@ -14,6 +14,8 @@ void main() {
     // runtime's smaller size) keeps the object's own pixels and nothing behind a nearer surface.
     vec4 cur = u.viewProj[gl_ViewIndex] * vec4(pos.xyz, 1.0);
     oCur = cur;
-    oPrev = u.viewProj[gl_ViewIndex] * vec4((pc.m * vec4(pos.xyz, 1.0)).xyz, 1.0);
+    // (ledger 232: through the last drawn frame's view-projection, as the world's vectors are: pc.extra.z)
+    vec4 was = vec4((pc.m * vec4(pos.xyz, 1.0)).xyz, 1.0);
+    oPrev = pc.extra.z > 0.5 ? u.prevClip[gl_ViewIndex] * was : u.viewProj[gl_ViewIndex] * was;
     gl_Position = u.viewProj[gl_ViewIndex] * vec4(pos.xyz * 0.98, 1.0);
 }

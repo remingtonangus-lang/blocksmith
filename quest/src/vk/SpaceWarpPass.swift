@@ -142,14 +142,14 @@ final class SpaceWarpPass {
         vkCmdBindDescriptorSets(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipeLayout, 2, 1, &set, 0, nil)
         // P403 7b: the scene drew into the top-left part of its depth this frame (dynamic resolution).
         let (vw, vh) = scene.viewExtent(t)
-        scene.pushConstants(s, model: matrix_identity_float4x4, extra: V4(Float(vw) / Float(t.width), Float(vh) / Float(t.height), 0, 0))
+        scene.pushConstants(s, model: matrix_identity_float4x4, extra: V4(Float(vw) / Float(t.width), Float(vh) / Float(t.height), SpaceWarpCam.on ? 1 : 0, 0))
         vkCmdDraw(s.cmd, 3, 1, 0, 0)
         // P403 7b: the hands, what they hold, mobs: their own motion since the last drawn frame (the world holds still).
         var bound: SceneRenderer.Input? = nil
         for d in scene.motionDraws {
             guard let p = motionPipes[d.input], d.buffer != nil else { continue }
             if bound != d.input { vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p); bound = d.input }
-            scene.pushConstants(s, model: d.prev, extra: .zero)
+            scene.pushConstants(s, model: d.prev, extra: V4(0, 0, SpaceWarpCam.on ? 1 : 0, 0))
             var b: VkBuffer? = d.buffer
             var o = VkDeviceSize(d.offset)
             vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)

@@ -151,6 +151,11 @@ final class XRSession {
         // P381 step 9: Application SpaceWarp (an option, off by default; it applies at the next launch).
         if QuestSettings.spaceWarp && avail.contains("XR_FB_space_warp") { want.append("XR_FB_space_warp") }
         else { print("xr: space warp off (P426): extension not requested") }
+        // (ledger 231, headset trials: BS_XREXT=NAME,NAME asks for more extensions the runtime offers, e.g.
+        // XR_META_recommended_layer_resolution, which the top GPU clocks may be tied to)
+        for e in (Env.all["BS_XREXT"] ?? "").split(separator: ",").map(String.init) where avail.contains(e) && !want.contains(e) {
+            want.append(e); print("xr: also asking for \(e)")
+        }
         exts = Set(want)
         let a = PtrArena()
         var ci = XrInstanceCreateInfo()
@@ -713,9 +718,20 @@ final class XRSession {
         }
         if exts.contains("XR_EXT_performance_settings"),
            let setLevel = proc("xrPerfSettingsSetPerformanceLevelEXT", PFN_xrPerfSettingsSetPerformanceLevelEXT.self) {
-            _ = setLevel(session, XR_PERF_SETTINGS_DOMAIN_CPU_EXT, XR_PERF_SETTINGS_LEVEL_SUSTAINED_HIGH_EXT)
-            _ = setLevel(session, XR_PERF_SETTINGS_DOMAIN_GPU_EXT, XR_PERF_SETTINGS_LEVEL_SUSTAINED_HIGH_EXT)
-            print("xr: CPU/GPU performance level sustained high")
+            // Store review, Nov 17 (ledger 231): his captures read "gpu 545 MHz of 545" with the GPU 90 % busy and the
+            // frame over its budget: sustained high caps the clock. BS_GPULEVEL / BS_CPULEVEL = boost | high | low try
+            // another level on the headset (the launch log says what the runtime answered).
+            func level(_ key: String) -> (XrPerfSettingsLevelEXT, String) {
+                switch Env.all[key] ?? "" {
+                case "boost": return (XR_PERF_SETTINGS_LEVEL_BOOST_EXT, "boost")
+                case "low": return (XR_PERF_SETTINGS_LEVEL_SUSTAINED_LOW_EXT, "sustained low")
+                default: return (XR_PERF_SETTINGS_LEVEL_SUSTAINED_HIGH_EXT, "sustained high")
+                }
+            }
+            let (cl, cn) = level("BS_CPULEVEL"), (gl, gn) = level("BS_GPULEVEL")
+            let rc = setLevel(session, XR_PERF_SETTINGS_DOMAIN_CPU_EXT, cl)
+            let rg = setLevel(session, XR_PERF_SETTINGS_DOMAIN_GPU_EXT, gl)
+            print("xr: performance level CPU \(cn) (\(rc.rawValue)), GPU \(gn) (\(rg.rawValue))")
         }
         #if os(Android)
         // The frame thread (game tick + rendering) tells the runtime it is the app's main and render thread, so the

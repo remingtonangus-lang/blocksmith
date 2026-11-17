@@ -304,7 +304,7 @@ final class QuestApp {
     }
 
     // The pause menu's app-level actions (App.swift on the Mac).
-    private func appAction(_ id: String) {
+    func appAction(_ id: String) {
         switch id {
         case "quit":
             exitWhenSaved = true
@@ -362,6 +362,7 @@ final class QuestApp {
     private var lastFrameTime = CFAbsoluteTimeGetCurrent()
 
     // One display frame. Returns false when the app should exit.
+    static let eyeFix = Env.all["BS_EYEFIX"].flatMap { Float($0) }
     func frame() -> Bool {
         guard xr.pollEvents() else { return false }
         guard xr.running else {
@@ -392,6 +393,7 @@ final class QuestApp {
         xr.pollInput()
         var tickMs = 0.0, recordMs = 0.0
         if game == nil, f.shouldRender { rig.updateLoading(xr: xr) }
+        if game == nil { QuestRoute.shared?.step(self, nil, dt: 1.0 / 72) }
         if let g = game {
             // The step is the time between the frames the game draws (P381 step 9: with space warp, every other
             // displayed frame). P510 (Nov 1 20:10, at 49 fps: "what the hell is slowing me down here?"): it was the
@@ -406,6 +408,7 @@ final class QuestApp {
             if abs(ShipManager.stepRate - rate) > 0.5 { ShipManager.stepRate = rate; ShipManager.stepSlack = 0.2 / rate }
             if f.shouldRender { rig.update(xr: xr, game: g) }
             controls?.update(dt: Float(dt))
+            QuestRoute.shared?.step(self, g, dt: dt)             // ledger 285: the headset gate's route (debug property only)
             let a = CFAbsoluteTimeGetCurrent()
             // Input focus lost (headset off, the system menu or a dialog up): the world stops and the pause menu is up
             // when the user comes back, so nothing happens to them meanwhile.
@@ -459,6 +462,7 @@ final class QuestApp {
             scene.viewScale = dynRes.observe(gpuMs: scene.gpuMs, budgetMs: budget,
                                              enabled: QuestSettings.dynamicResolution && !xr.foveated && game != nil && worldRenderer != nil,
                                              fps: Double(xr.refreshRate) / (xr.spaceWarpOn ? 2 : 1), quads: scene.drawnQuads)
+            if let fix = QuestApp.eyeFix { scene.viewScale = fix }     // (ledger 231, headset trials: BS_EYEFIX=0.8)
             let (viewW, viewH) = scene.viewExtent(target)
             xr.viewExtent = (viewW, viewH)
             let cam = rig.camera(xr: xr, far: farPlane)
@@ -471,6 +475,7 @@ final class QuestApp {
             }
             vkCmdEndRenderPass(s.cmd)
             if let sw = spaceWarpPass, xr.spaceWarpOn {
+                defer { SpaceWarpCam.drawn(cam) }
                 // P381 step 9: this frame's depth and motion vectors for the runtime, and how far the tracking space
                 // moved through the world since the last drawn frame (walking, turning, riding), in its own terms.
                 sw.record(s, target, mvIndex: xr.mvIndex, depthIndex: xr.swDepthIndex)
@@ -484,6 +489,7 @@ final class QuestApp {
                 lastAppToWorld = now
             } else {
                 lastAppToWorld = nil                      // (P426: switched off; no stale delta when it comes back)
+                SpaceWarpCam.reset()
             }
             // Bug-note screenshot (if one is pending): left eye, HUD panel included, blitted small before release.
             QuestScreenshot.service(s, ctx: xr.vk, image: target.image, format: xr.colorFormat, width: viewW, height: viewH)
@@ -605,6 +611,7 @@ final class QuestApp {
         var u = FrameUniforms()
         u.viewProj = (cam.viewProj[0], cam.viewProj.count > 1 ? cam.viewProj[1] : cam.viewProj[0])
         u.invViewProj = (u.viewProj.0.inverse, u.viewProj.1.inverse)
+        u.prevClip = SpaceWarpCam.clip(cam)
         let haze = V3(0.84, 0.74, 0.64)
         u.fogColor = V4(haze, 1000)
         u.params = V4(2000, 0.7, Float(now.truncatingRemainder(dividingBy: 1000)), 0)
@@ -808,6 +815,7 @@ final class FrameStats {
     private var badWindows = 0, lastCaptureAt = -1e9, prevLine = ""
     static let captureMissFrac = 0.15, captureGap = 120.0
     var viewGov: ViewGovernor?              // P425: Auto View Distance
+    static let viewFix = Env.all["BS_VIEWFIX"].flatMap { Int($0) }
     var dynResProbe: (() -> Double)?        // P403 step 2: DynamicResolution.lastProbe
     var dynResCounts: (() -> (Int, Int))?   // ledger 177: drops taken back, probes with no answer
     var dynResOn: (() -> Bool)?             // P499: dynamic resolution is running (Auto View Distance reads it)
@@ -867,6 +875,7 @@ final class FrameStats {
         if Explosion.worstMs > 2 { lastLine += String(format: " | slowest blast %.1f ms (", Explosion.worstMs) + Explosion.worstLaps + ")" }
         Explosion.worstMs = 0; Explosion.worstLaps = ""
         lastLine += " | far ticking \(FarTicks.lastSecond)"                  // P376: things ticking past the active distance (0)
+        lastLine += " | view \(w?.renderDistance ?? 0)"                                                   // ledger 285 (the headset gate)
         lastLine += " | eye resolution \(Int((scene.viewScale * 100).rounded()))%"                        // P403 7b (dynamic resolution)
         if let p = dynResProbe?(), p > 0 {                                                                 // P403 step 2: triangles or pixels
             lastLine += String(format: " (10%% fewer pixels gave %.0f%% less gpu: %@)", (1 - p) * 100, p < 0.95 ? "pixel-bound" : "triangle-bound")
@@ -921,7 +930,10 @@ final class FrameStats {
                 g.setActiveDistance(gov.chosen)          // the option was turned off: back to the player's choice
             }
             // P425: Auto View Distance: the view follows the GPU's frame time under the slider (ViewGovernor.swift).
-            if QuestSettings.autoViewDistance, var vg = viewGov, target > 0 {
+            // (ledger 231, headset trials: BS_VIEWFIX=N holds the view at N chunks, the governor left out)
+            if let fix = FrameStats.viewFix {
+                if g.world.renderDistance != fix { g.setRenderDistance(fix); g.setActiveDistance(Game.savedActiveDistance) }
+            } else if QuestSettings.autoViewDistance, var vg = viewGov, target > 0 {
                 if vg.chosen != QuestSettings.renderDistance { vg.setChosen(QuestSettings.renderDistance) }
                 // P499: with dynamic resolution on, its scale and its probe's pixel share (10 % fewer pixels gave N % less GPU).
                 let probe = dynResProbe?() ?? 0
