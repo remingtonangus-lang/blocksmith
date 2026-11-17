@@ -444,6 +444,8 @@ final class QuestApp {
     // MARK: Frame loop
 
     private var lastFrameTime = CFAbsoluteTimeGetCurrent()
+    private var handedAny = false
+    static let oldFirstStat = Env.all["BS_OLDFIRSTSTAT"] == "1"
     // Ledger 261: the frame's parts timed (questcheck --appsoak names them for a slow frame); off on the headset.
     static var lapsOn = false
     static var soakSeeds: [UInt64] = []           // (--appsoak --seeds A,B: the new worlds' seeds, for a run to repeat)
@@ -641,8 +643,14 @@ final class QuestApp {
             ComputeCost.frame(frameMs: (now - lastFrameTime) * 1000, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs,
                               gpu: scene.gpuMs, rate: Double(xr.refreshRate), stageNames: WorldRenderer.stageNames, stageMs: wr.stageFrame)
         }
-        stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
-                  target: f.period * (xr.spaceWarpOn ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
+        // (Store review, Nov 17: the first submitted frame's interval runs from QuestApp's construction: pipelines,
+        // targets and the OpenXR session start, before anything of ours is shown; it is not counted as a frame, or the
+        // first perf line reported a 1.9 s "worst frame" at every launch. BS_OLDFIRSTSTAT=1: counted as before.)
+        if handedAny || QuestApp.oldFirstStat {
+            stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
+                      target: f.period * (xr.spaceWarpOn ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
+        }
+        handedAny = true
         lastFrameTime = now
         if QuestApp.lapsOn { lapMs[7] = (CFAbsoluteTimeGetCurrent() - lapT) * 1000 }
         return !xr.exitRequested
@@ -983,9 +991,29 @@ final class FrameStats {
         PadManager.shared.haptic?(0.6, 0.25, 1)
     }
 
+    // Ledger 263: the playtest frame-rate warning (Sources/FpsWarning.swift), fed every frame he plays; a dip's capture
+    // goes beside the voice notes (vn-perf-*.txt) and the pulse to both hands.
+    private func fpsWarn(cpu: Double, tick: Double, gpu: Double, scene: SceneRenderer, game: Game?) {
+        let fw = FpsWarning.shared
+        guard let g = game else { if fw.showing { fw.reset() }; return }
+        if fw.onCapture == nil {
+            fw.onCapture = { BugNotes.shared.savePerfCapture($0) }
+            fw.onPulse = { PadManager.shared.haptic?(0.5, 0.08, 1) }
+        }
+        fw.add(at: CFAbsoluteTimeGetCurrent(), cpuMs: cpu, gpuMs: gpu, tickMs: tick) {
+            let p = g.player.pos, w = g.world
+            let biome = g.dim.dim == .overworld ? (w.gen as? WorldGen).map { "\($0.column(Int(p.x), Int(p.z)).biome)" } ?? "-" : "-"
+            let riding = g.riding.map { "\($0.kind)" } ?? (w.ships.pilot?.name ?? (w.ships.aboard.map { "aboard " + $0.name } ?? "no"))
+            return String(format: "where: %@ %.1f %.1f %.1f biome %@, view %d chunks, active %d, quads %d, draws %d, eye resolution %d%%, riding %@, %@",
+                          "\(g.dim.dim)" as NSString, p.x, p.y, p.z, biome as NSString, w.renderDistance, w.activeDistance, scene.drawnQuads, scene.drawCalls,
+                          Int((scene.viewScale * 100).rounded()), riding as NSString, (g.menu != nil ? "a menu open" : "playing") as NSString)
+        }
+    }
+
     func add(frame: Double, cpu: Double, tick: Double, record: Double, gpu: Double, target: Double, scene: SceneRenderer, game: Game?, rate: Float) {
         frames += 1
         PerfOverlay.shared.add(frameMs: frame * 1000)
+        fpsWarn(cpu: cpu, tick: tick, gpu: gpu, scene: scene, game: game)
         if let g = game { MainGunPerf.record(frameMs: frame * 1000, budget: target * 1000, clock: g.clock) }   // "perf: main gun blast" after an impact
         sumCPU += cpu; sumTick += tick; sumRecord += record; sumGPU += gpu
         sumQuads += scene.drawnQuads; quadSum += scene.drawnQuads; quadFrames += 1
