@@ -10,7 +10,8 @@ import simd
 //   combat legs (not in `all`; `combat` = all three): battle (the Ash Vault gate in the Deep at Total War, every
 //   garrison awake), siege (the crawler parked 40 blocks off the nearest military base's wall, main gun into it every
 //   5 s, its garrison fighting back), naval (two hostile frigates shelling him on a stone float at sea). Each prints
-//   "route: leg NAME-load" while it is set up and "route: leg NAME" for its 90 s of fighting, and every 5 s
+//   "route: leg NAME-stage" while it is set up (and 3 s after: not counted by the gate) and "route: leg NAME" for its
+//   90 s of fighting, and every 5 s
 //   "route: combat ..." with the mobs, ships and particles (the perf line's quads count only the land).
 // Each leg prints "route: leg NAME" (the gate tags every second after it with that leg); "route: done" at the end. The
 // legs play through the game's own input (the pad the Touch controllers fill: stick forward, looking about, the
@@ -344,7 +345,7 @@ final class QuestRoute {
             phase = 1; fightFrom = -1; lastCount = -1; crawler = nil; found = nil; target = nil
             if g.paused || g.menu != nil { g.paused = false; g.closeMenu() }     // (a fresh install's setup panel)
             if g.dim.dim == .overworld { before = g.player.pos }
-            mark("\(leg)-load")
+            mark("\(leg)-stage")
             if leg != "battle" {
                 // (the base or the sea found off the frame thread)
                 seeking = true
@@ -417,6 +418,8 @@ final class QuestRoute {
         }
         // Fighting.
         g.survival = true; g.difficulty = 2
+        if leg == "battle" { g.ashSpot = stand; g.ashSpotSeen = g.clock }
+        guard settled() else { return }
         let t = legTime - fightFrom
         switch leg {
         case "battle":
@@ -460,7 +463,16 @@ final class QuestRoute {
         ownDir = d.hasPrefix("Gate") ? d : nil
         print("route: world \(d)\(ownDir == nil ? " is NOT the route's own" : "")")
     }
-    private func fight() { phase = 2; fightFrom = legTime; lastCount = -5; mark(leg) }
+    // Staging done: held 3 s more in "-stage" (the frames after a set-up, a world loaded synchronously or ships built,
+    // are staging, not play: the gate leaves "-stage" seconds out of its totals), then the fight is counted.
+    private var settleFrom = -1.0
+    private func fight() { phase = 3; settleFrom = legTime }
+    private func settled() -> Bool {
+        guard phase == 3 else { return phase == 2 }
+        if legTime - settleFrom < 3 { return false }
+        phase = 2; fightFrom = legTime; lastCount = -5; mark(leg)
+        return true
+    }
 
     // The nearest middle of `biome` from `from` (QuestFrameSoak.findBiome's spiral, 48-block steps).
     static func findBiome(_ gen: TerrainGenerator, _ want: String, from: V3) -> V3? {

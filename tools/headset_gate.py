@@ -81,11 +81,16 @@ def pct(v, p):
 GPU_MAX_MHZ = 690          # Quest 3: 285 ... 690 MHz
 
 
-UNCOUNTED_LEGS = ("launch", "spotworld")
+UNCOUNTED_LEGS = ("launch", "spotworld", "combatworld")
+
+
+def uncounted_leg(g):
+    # (making the route's own worlds, and a combat leg's staging: a world loaded on the frame thread, ships built)
+    return g in UNCOUNTED_LEGS or g.endswith("-stage")
 
 
 def counted(r):
-    return r["phase"] != "launch" and r["leg"] not in UNCOUNTED_LEGS
+    return r["phase"] != "launch" and not uncounted_leg(r["leg"])
 
 
 def report(rows, other, info):
@@ -105,7 +110,7 @@ def report(rows, other, info):
         out.append(f"(not counted: {len(other)} VrApi lines from other processes, the system shell; min {min(other)}, median {pct(other, 50)})")
     stats("not counted", aside)
     if aside:
-        out.append("  (launch and the spotworld leg: the system splash and making the spot world; not in the totals)")
+        out.append("  (launch, spotworld/combatworld and -stage legs: the system splash, making the route's worlds, staging a fight; not in the totals)")
     for ph in ("loading", "play"):
         stats(ph, [r for r in rows if r["phase"] == ph])
     load = [r for r in rows if r["phase"] == "loading" and r["fps"] < r["target"]]
@@ -125,7 +130,7 @@ def report(rows, other, info):
                 v = [r[k] for r in rs if r[k] >= 0]
                 return pct(v, 50) if v else None
             gp, cp, q, mz, busy = med("pgpu"), med("pcpu"), med("quads"), med("mhz"), med("gpuraw")
-            out.append(f"  {g + ('' if g not in UNCOUNTED_LEGS else ' *'):<20} | {len(f):>4} | {min(f):>3}/{pct(f,50):>3} | {sum(x < 70 for x in f):>3} / {sum(x < 60 for x in f):>3} | "
+            out.append(f"  {g + ('' if not uncounted_leg(g) else ' *'):<20} | {len(f):>4} | {min(f):>3}/{pct(f,50):>3} | {sum(x < 70 for x in f):>3} / {sum(x < 60 for x in f):>3} | "
                        f"{'?' if gp is None else f'{gp:.2f}'} | {'?' if cp is None else f'{cp:.2f}'} | {'?' if q is None else q} | "
                        f"{rs[-1]['eye'] or '?'} | {rs[-1]['vd'] or '?'} | {'?' if mz is None else f'{mz} ({mz * 100 // GPU_MAX_MHZ}%)'} | "
                        f"{'?' if busy is None else f'{busy * 100:.0f}'}")
