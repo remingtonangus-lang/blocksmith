@@ -139,6 +139,30 @@ bool turnedLayer(float layer) {
     uint li = uint(layer + 0.5);
     return (u.turn[(li >> 7u) & 15u][(li >> 5u) & 3u] & (1u << (li & 31u))) != 0u;
 }
+// Ledger 235 (store review, Nov 17): the land's fragment shaders read the texture once per material. On the headset
+// the old shaders cost 10-13 ms of a 13.9 ms frame at full eye resolution where the same land with one plain read cost
+// 4 (BS_FXADD=2048 trial): they chose between several reads after the fact (turned or not, three projections, up to
+// four corner materials times three projections), and a mobile GPU runs every one of those reads for every fragment.
+// Now the coordinates are chosen first (arithmetic only) and one read follows. turnUV: the per-block turn of
+// texSharpTurnedGs as a change of coordinates (r = 0 leaves them alone). texAt: one read at the level its gradients
+// ask for (no gradient read, the slow kind; up to 2:1 of slant is read on the sharp side, as anisotropy did).
+void turnUV(int r, inout vec2 uv, inout vec2 gx, inout vec2 gy) {
+    vec2 c = floor(uv), f = uv - c;
+    if ((r & 4) != 0) { f.x = 1.0 - f.x; gx.x = -gx.x; gy.x = -gy.x; }
+    r &= 3;
+    if (r == 1) { f = vec2(f.y, 1.0 - f.x); gx = vec2(gx.y, -gx.x); gy = vec2(gy.y, -gy.x); }
+    else if (r == 2) { f = 1.0 - f; gx = -gx; gy = -gy; }
+    else if (r == 3) { f = vec2(1.0 - f.y, f.x); gx = vec2(-gx.y, gx.x); gy = vec2(-gy.y, gy.x); }
+    uv = c + f;
+}
+vec4 texAt(vec2 uv, float layer, vec2 gx, vec2 gy, vec2 sz) {
+    vec2 ax = gx * sz, ay = gy * sz;
+    float a2 = dot(ax, ax), b2 = dot(ay, ay);
+    float g2 = max(min(a2, b2), max(a2, b2) * 0.25);
+    vec2 o = sharpUVs(uv, abs(ax) + abs(ay), sz);
+    return textureLod(tex, vec3(o, layer), max(0.0, 0.5 * log2(max(g2, 1e-8))));
+}
+int turnOf(vec2 cell) { return int(hash21(cell * 1.618 + vec2(17.0, 5.0)) * 8.0) & 7; }
 #endif
 
 // Nov 11 (frame rate, the GPU side): in fragment shaders the four corner hashes come from a table in one fetch
