@@ -284,7 +284,7 @@ final class QuestControls {
     // Forget held and latched buttons (the Touch matrix starts each cell clean).
     func clearLatches() { sneakLatch = false; l3Rode = false; l3Hold = 0; bHold = 0; bPulse = 0; bBlock = false }
 
-    init(app: QuestHost, game: Game, panel: HudPanel?) {
+    init(app: QuestHost, game: Game, panel: HudPanel?, hint: HudPanel? = nil, ctrl: HudPanel? = nil) {
         self.app = app
         self.game = game
         hudHost = Renderer(game: game)
@@ -294,8 +294,11 @@ final class QuestControls {
         game.screen = V2(Float(QuestControls.panelW), Float(QuestControls.panelH))
         Renderer.questHideCrosshair = true
         self.panel = panel
-        if let p = panel { hintPanel = try? HudPanel(scene: p.scene, width: QuestControls.hintW, height: QuestControls.hintH, maxVerts: 4096) }
-        if let p = panel { ctrlPanel = try? HudPanel(scene: p.scene, width: 512, height: 192, maxVerts: 8192) }        // Q2c-console-70
+        // (ledger 261: QuestApp makes these once and passes them in; the harnesses still get their own)
+        hintPanel = hint
+        ctrlPanel = ctrl
+        if hint == nil, let p = panel { hintPanel = try? HudPanel(scene: p.scene, width: QuestControls.hintW, height: QuestControls.hintH, maxVerts: 4096) }
+        if ctrl == nil, let p = panel { ctrlPanel = try? HudPanel(scene: p.scene, width: 512, height: 192, maxVerts: 8192) }        // Q2c-console-70
         // Prompts name the Touch controls: the game's LT (use) is the left trigger, RT the right one.
         Glyphs.labelOverride = { g in
             switch g {

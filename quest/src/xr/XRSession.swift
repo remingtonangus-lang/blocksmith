@@ -116,6 +116,33 @@ final class XRSession {
 
     // MARK: Setup
 
+    // Ledger 261 (Fable, Nov 17: Meta's review saw the rate "fluctuate under and over 60 ... throughout"): a stand-in
+    // runtime on the host, so the real QuestApp.frame() runs headless (questcheck --appsoak, QuestAppSoak.swift).
+    // xrWaitFrame is a 72 Hz clock that, as the compositor does, starts a late frame on the next vsync, so each frame
+    // handed over reports the vsyncs it missed (shown twice on the headset) and its frame-thread time.
+    private(set) var headless = false
+    private var hlImages: [VkImg] = []
+    private var hlStart = 0.0, hlLastSlot = -1, hlSkipped = 0, hlEnded = 0.0
+    private(set) var hlSlept = 0.0
+    var hlHanded: ((_ skipped: Int, _ frameMs: Double) -> Void)?
+    var hlInput = [XRHand(), XRHand()]                  // the controllers the soak holds (stick, trigger, buttons)
+
+    init(headless ctx: VkContext, width w: Int, height h: Int) throws {
+        headless = true
+        vk = ctx
+        width = w; height = h
+        colorFormat = VK_FORMAT_R8G8B8A8_UNORM
+        state = XR_SESSION_STATE_FOCUSED
+        running = true
+        runtimeName = "host stand-in"
+        for i in 0..<2 {
+            views[i].fov = XrFovf(angleLeft: -0.9, angleRight: 0.9, angleUp: 0.9, angleDown: -0.9)
+            views[i].pose = XrPosef(orientation: XrQuaternionf(x: 0, y: 0, z: 0, w: 1),
+                                    position: XrVector3f(x: i == 0 ? -0.032 : 0.032, y: 1.6, z: 0))
+        }
+        headPos = V3(0, 1.6, 0)
+    }
+
     init(platform: XRPlatform) throws {
         #if os(Android)
         var initLoader: PFN_xrVoidFunction?
@@ -285,6 +312,12 @@ final class XRSession {
     // MARK: Swapchain
 
     func createSwapchain() throws {
+        if headless {
+            let usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_SRC_BIT.rawValue
+            hlImages = try (0..<3).map { _ in try VkImg(vk, width: width, height: height, layers: 2, format: colorFormat, usage: usage) }
+            swapImages = hlImages.map { $0.image }
+            return
+        }
         var n: UInt32 = 0
         try xrCheck(xrEnumerateViewConfigurationViews(instance, systemId, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 0, &n, nil), "xrEnumerateViewConfigurationViews")
         var vproto = XrViewConfigurationView()
@@ -422,6 +455,7 @@ final class XRSession {
 
     // Sets the fixed foveation level (1 low ... 3 high) on the swapchain.
     func applyFoveation(level: Int) {
+        if headless { return }
         guard foveated, let create = proc("xrCreateFoveationProfileFB", PFN_xrCreateFoveationProfileFB.self),
               let update = proc("xrUpdateSwapchainFB", PFN_xrUpdateSwapchainFB.self) else { return }
         var lp = XrFoveationLevelProfileCreateInfoFB()
@@ -583,6 +617,7 @@ final class XRSession {
 
     // Syncs the actions and reads both controllers for the predicted display time.
     func pollInput() {
+        if headless { hands = hlInput; return }
         guard running, focused else { hands[0] = XRHand(); hands[1] = XRHand(); return }   // (no allocation)
         var active = XrActiveActionSet(actionSet: actionSet, subactionPath: 0)
         var si = XrActionsSyncInfo()
@@ -610,6 +645,7 @@ final class XRSession {
 
     // Vibrates a controller (hand 0 left, 1 right): amplitude 0...1, seconds.
     func haptic(_ hand: Int, amplitude: Float, seconds: Float, frequency: Float) {
+        if headless { return }
         guard running, focused else { return }
         var gi = XrHapticActionInfo()
         gi.type = XR_TYPE_HAPTIC_ACTION_INFO
@@ -629,6 +665,7 @@ final class XRSession {
 
     // Drains the event queue; handles the session lifecycle. Returns false once the app should quit.
     func pollEvents() -> Bool {
+        if headless { return !exitRequested }
         var buf = XrEventDataBuffer()
         while true {
             buf.type = XR_TYPE_EVENT_DATA_BUFFER
@@ -692,6 +729,7 @@ final class XRSession {
 
     // Asks the runtime for a display refresh rate (the nearest offered one not above `want`); true when granted.
     func setRefreshRate(_ want: Float) -> Bool {
+        if headless { return false }
         guard let request = proc("xrRequestDisplayRefreshRateFB", PFN_xrRequestDisplayRefreshRateFB.self), !availableRates.isEmpty else { return false }
         let pick = availableRates.contains(want) ? want : (availableRates.filter { $0 <= want }.max() ?? 72)
         guard request(session, pick).rawValue >= 0 else { return false }
@@ -742,6 +780,20 @@ final class XRSession {
 
     // xrWaitFrame + xrBeginFrame + view poses; acquires the swapchain image when this frame is rendered.
     func beginFrame() throws -> Frame {
+        if headless {
+            let period = 1.0 / Double(refreshRate)
+            let now = CFAbsoluteTimeGetCurrent()
+            if hlStart == 0 { hlStart = now - period }
+            let slot = max(hlLastSlot + 1, Int(((now - hlStart) / period).rounded(.up)))
+            let wake = hlStart + Double(slot) * period
+            hlSlept = max(0, wake - now)
+            if wake > now { Thread.sleep(forTimeInterval: wake - now) }
+            if hlEnded == 0 { hlEnded = CFAbsoluteTimeGetCurrent(); hlSlept = 0 }
+            hlSkipped = hlLastSlot < 0 ? 0 : slot - hlLastSlot - 1
+            hlLastSlot = slot
+            predictedTime = XrTime(Double(slot + 2) * period * 1e9)
+            return Frame(shouldRender: true, displayTime: predictedTime, period: period, imageIndex: slot % max(1, swapImages.count))
+        }
         var wi = XrFrameWaitInfo()
         wi.type = XR_TYPE_FRAME_WAIT_INFO
         var fs = XrFrameState()
@@ -796,6 +848,14 @@ final class XRSession {
 
     // Releases the image (after the frame's commands were submitted) and ends the frame with the projection layer.
     func endFrame(_ f: Frame) throws {
+        if headless {
+            // (the frame thread's work since the last hand-over, the wait for this vsync left out: adoptLoaded runs
+            // before beginFrame, so it counts)
+            let now = CFAbsoluteTimeGetCurrent()
+            hlHanded?(hlSkipped, max(0, now - hlEnded - hlSlept) * 1000)
+            hlEnded = now
+            return
+        }
         let a = PtrArena()
         var layers: [UnsafePointer<XrCompositionLayerBaseHeader>?] = []
         if f.shouldRender && f.imageIndex >= 0 {
@@ -861,6 +921,7 @@ final class XRSession {
     }
 
     func requestExit() {
+        if headless { exitRequested = true; return }
         if let s = session { _ = xrRequestExitSession(s) }
     }
 }
