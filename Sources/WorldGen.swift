@@ -361,6 +361,7 @@ final class WorldGen: TerrainGenerator {
     // Per-phase generation time (bench gen only, single-threaded): columns, stone, surface+water, caves, ores and
     // cave decoration, trees, vegetation and freeze.
     static var timing = false
+    static var timingStarts = true          // (the bench's starts phase; the stream test's timing leaves the starts to the game)
     static var phaseMs = [Double](repeating: 0, count: 8)
     static let timingLock = NSLock()          // other worlds' workers may generate while the bench times (also startMs)
     static let phaseNames = ["columns", "stone", "surface", "caves", "ores", "trees", "plants", "starts"]
@@ -631,7 +632,7 @@ final class WorldGen: TerrainGenerator {
         mark(4)
         // Structure starts near the chunk (layouts computed on first use; trees keep out of them). Timed on their own:
         // they were counted as tree time.
-        if WorldGen.timing, let sc = structures { for t in sc.types { _ = sc.startsNear(cx: cx, cz: cz, t) }; mark(7) }
+        if WorldGen.timing && WorldGen.timingStarts, let sc = structures { for t in sc.types { _ = sc.startsNear(cx: cx, cz: cz, t) }; mark(7) }
         // 5. Trees and vegetation.
         placeTrees(&b, cx, cz, lat)
         mark(5)

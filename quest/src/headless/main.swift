@@ -3237,6 +3237,10 @@ if CommandLine.arguments.contains("--craterplace") {           // P507: blocks g
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--worldhash") {            // ledger 280: rail plans, nearest answers and chunks hashed (compare old and new)
+    WorldHashCheck.run { World(seed: $0, device: device, save: nil, dim: .overworld) }
+    exit(0)
+}
 if CommandLine.arguments.contains("--encounters") {            // P512: revenge raids, corsair sloops, the Corsair Cruiser
     TroopVanish.on = true
     EncounterCheck.run({ World(seed: $0, device: device, save: nil, dim: .overworld) }, check)

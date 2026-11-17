@@ -1,0 +1,22 @@
+# Ledger 260 (Nov 16 21:18-21:22, building on a dug beach, seed 7780452129890778212: "it thinks there's sand on top of it,
+# but there's not", "this block section is cursed", "That should fill in and remove the sand under it, but it doesn't").
+# His dig's shaping ball kept every cell it reached as ground at +1/32 while the drawn surface went under the cell's
+# middle: a cell drawn less than half full read as a whole block of sand (the aim, "Looking at", placing).
+# Fixed: passes. BS_OLDSLIVERCELL=1: the dug cells stay "sand" (2 FAILED).
+#   questcheck --scene quest/scenes/dug-cells.scene --headset --seed 7780452129890778212
+at -2619.3 65.0 680.7
+load 3
+tick 1
+fly on
+give pale_moss_block 64
+aimat -2620.5 64.6 679.5
+hit
+aimat -2621.5 64.6 679.5
+hit
+probe -2621 64 678
+probe -2622 64 679
+expect ground -2621 64 678 == false       # (the dig drew it under its middle: open, as it shows)
+expect ground -2622 64 679 == false
+aimat -2620.6 64.2 678.4
+use
+expect block -2621 64 678 == pale_moss_block   # (a block aimed into the dug cell fills it)

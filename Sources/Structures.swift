@@ -251,7 +251,11 @@ final class StructureCache {
     // headset). Now the least recently used quarter goes and the starts round the player stay.
     private var used: [StartKey: Int] = [:]
     private var useClock = 0
-    static var cap = 4096
+    // Ledger 280 (the frigate's arrival burst, Nov 16 evening: 10,922 starts planned in the first 10 s of the 39 b/s
+    // flight, 698 of them twice, the cache full and a quarter of it let go six times, then planned again as the rings
+    // were looked at once more): 16,384 keeps an arrival's rings (7,095 planned, none let go), for 6 MB more at the
+    // peak of that flight. BS_OLDSTARTCAP=1: 4,096, as before (BS_STARTCAP=N: N).
+    static var cap = Int(Env.all["BS_STARTCAP"] ?? "") ?? (Env.all["BS_OLDSTARTCAP"] == "1" ? 4096 : 16384)
     private(set) static var evictions = 0
     // Bench gen: time spent computing structure starts, per kind (ms).
     static var startMs: [String: Double] = [:]
@@ -492,6 +496,7 @@ final class StructureCache {
             let old = used.sorted { $0.value < $1.value }.prefix(cache.count / 4)
             for (k, _) in old { cache[k] = nil; used[k] = nil }
             StructureCache.evictions += 1
+            nearLock.lock(); nearMemo.removeAll(); nearLock.unlock()      // (ledger 280: its starts may be let go)
         }
         if WorldGen.timing {
             let ms: Double = (CFAbsoluteTimeGetCurrent() - t0) * 1000
@@ -511,7 +516,7 @@ final class StructureCache {
     // answer at once; HitchProbe turns it on.)
     static var plansOffThread = true
     private var planning = Set<StartKey>()
-    func nearestIfReady(_ kind: String, x: Int, z: Int, maxRegions: Int = 1, accept: (StructureStart) -> Bool = { _ in true }) -> StructureStart? {
+    func nearestIfReady(_ kind: String, x: Int, z: Int, maxRegions: Int = 1, accept: ((StructureStart) -> Bool)? = nil) -> StructureStart? {
         regionsReady(kind, x: x, z: z, maxRegions: maxRegions) ? nearest(kind, x: x, z: z, maxRegions: maxRegions, accept: accept) : nil
     }
     // Whether nearest(kind, ...) would find every region it looks at made (true in the host checks); the missing ones
@@ -693,8 +698,21 @@ final class StructureCache {
     }
 
     // Nearest structure start of a kind (searching regions outward), for locating / the snapshot harness.
-    func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6, accept: (StructureStart) -> Bool = { _ in true }) -> StructureStart? {
-        let fx = fixed.filter { $0.kind == kind && accept($0) }
+    // Ledger 280: with every start taken (no `accept`), which starts a search from a region looks at, and in what order,
+    // depends only on the region, the kind and the reach, not on the spot in the region: the ring walk's candidates are
+    // kept per (kind, region, reach), and the nearest to the spot is picked from them in the same order with the same
+    // test, so the answer is the one the walk gives. Railways.ends, the citadels', bases' and camps' crowding checks and
+    // the towns ask it thousands of times while new land comes in, each walk up to 169 cache lookups (a String key
+    // hashed, a lock, the use clock). Bounded: emptied past 8,192 entries; emptied with the start cache when it lets
+    // go. BS_OLDNEAREST=1: the walk every time.
+    static let oldNearest = Env.all["BS_OLDNEAREST"] == "1"
+    private struct NearKey: Hashable { let type: Int; let rx: Int; let rz: Int; let reach: Int }
+    private var nearMemo: [NearKey: [StructureStart]] = [:]
+    private let nearLock = NSLock()
+    private(set) static var nearHits = 0, nearMisses = 0
+
+    func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6, accept: ((StructureStart) -> Bool)? = nil) -> StructureStart? {
+        let fx = fixed.filter { $0.kind == kind && (accept?($0) ?? true) }
         if !fx.isEmpty {
             return fx.min { a, b in
                 let da = (a.anchor.x - x) * (a.anchor.x - x) + (a.anchor.z - z) * (a.anchor.z - z)
@@ -702,12 +720,41 @@ final class StructureCache {
                 return da < db
             }
         }
-        guard let t = types.first(where: { $0.name == kind }) else { return nil }
+        guard let ti = types.firstIndex(where: { $0.name == kind }) else { return nil }
+        let t = types[ti]
         let rx = floorDiv(floorDiv(x, CS), t.spacing), rz = floorDiv(floorDiv(z, CS), t.spacing)
+        if accept == nil && !StructureCache.oldNearest {
+            let key = NearKey(type: ti, rx: rx, rz: rz, reach: maxRegions)
+            nearLock.lock()
+            var list = nearMemo[key]
+            if list != nil { StructureCache.nearHits += 1 }
+            nearLock.unlock()
+            if list == nil {
+                var found: [StructureStart] = []
+                for r in 0...maxRegions {
+                    for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                        if let s = start(t, regionX: rx + dx, regionZ: rz + dz) { found.append(s) }
+                    } }
+                    if !found.isEmpty && r >= 1 { break }
+                }
+                list = found
+                nearLock.lock()
+                StructureCache.nearMisses += 1
+                if nearMemo.count >= 8192 { nearMemo.removeAll(keepingCapacity: true) }
+                nearMemo[key] = found
+                nearLock.unlock()
+            }
+            var best: StructureStart?, bd = Int.max
+            for s in list! {
+                let cx = (s.min.x + s.max.x) / 2 - x, cz = (s.min.z + s.max.z) / 2 - z
+                if cx * cx + cz * cz < bd { bd = cx * cx + cz * cz; best = s }
+            }
+            return best
+        }
         var best: StructureStart?, bd = Int.max
         for r in 0...maxRegions {
             for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
-                guard let s = start(t, regionX: rx + dx, regionZ: rz + dz), accept(s) else { continue }
+                guard let s = start(t, regionX: rx + dx, regionZ: rz + dz), accept?(s) ?? true else { continue }
                 let cx = (s.min.x + s.max.x) / 2 - x, cz = (s.min.z + s.max.z) / 2 - z
                 if cx * cx + cz * cz < bd { bd = cx * cx + cz * cz; best = s }
             } }
