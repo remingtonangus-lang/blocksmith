@@ -169,11 +169,36 @@ enum RoutCheck {
             g.player.pitch = atan2f(dc.y, sqrtf(dc.x * dc.x + dc.z * dc.z))
             let creeperSeen = MobManager.inPlainSight(cr, g)
             g.player.yaw = yaw0; g.player.pitch = pitch0
+            // (which of the spot's points he sees: the check's spot is the first that shows him the soldier's head or
+            // middle, and the ground under them as loaded decides which; ledger 219's run saw the head alone)
+            let pts = [("head", 1.75), ("body", 1.2), ("feet", 0.4)].map { (n, h) in "\(n) \(g.world.canSee(g.player.eye, w.pos + V3(0, Float(h), 0)) ? "seen" : "hidden")" }
             check(Game.oldSpawnSight ? spawnOK : !spawnOK,
-                  "spawn: a spot \(Int(d)) blocks ahead in plain sight \(spawnOK ? "takes a spawn (it pops in)" : "takes no spawn")")
+                  "spawn: a spot \(Int(d)) blocks ahead in plain sight \(spawnOK ? "takes a spawn (it pops in)" : "takes no spawn") (\(pts.joined(separator: ", ")))")
             check(seen && (MobManager.oldDespawn ? tookSeen : !tookSeen) && tookAway && creeperSeen,
                   String(format: "despawn: a wandering soldier %.0f blocks off in plain sight (%@) %@; turned away, %@; a monster 30 blocks ahead counts as seen (%@)",
                          d, seen ? "seen" : "not seen", tookSeen ? "is taken out" : "stays", tookAway ? "he goes" : "he stays", creeperSeen ? "yes" : "no"))
+        }
+        // Ledger 219: a spot whose head shows over a wall that hides its body and feet takes no spawn (the suite's spawn
+        // check above meets this only when the loaded ground puts a rise there: 1 whole run in 3).
+        do {
+            let w = g.world
+            let o = r.pos + V3(0, 60, 40)
+            let fx = Int(floor(o.x)), fy = Int(floor(o.y)), fz = Int(floor(o.z))
+            var placed: [IVec3] = []
+            func put(_ x: Int, _ y: Int, _ z: Int) { w.setBlock(x, y, z, STONE); placed.append(IVec3(x, y, z)) }
+            for x in 0...61 { put(fx + x, fy, fz) }                  // a stone strip in the air: he at its start, a step up
+            put(fx, fy + 1, fz)
+            for y in 1...2 { put(fx + 59, fy + y, fz) }              // a wall two high a block before the spot
+            let pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch
+            defer { for q in placed { w.setBlock(q.x, q.y, q.z, AIR) }; g.player.pos = pos0; g.player.yaw = yaw0; g.player.pitch = pitch0 }
+            g.player.pos = V3(Float(fx) + 0.5, Float(fy + 2), Float(fz) + 0.5)
+            let at = V3(Float(fx + 60) + 0.5, Float(fy + 1) + 0.5, Float(fz) + 0.5)       // (on a slab's height behind the wall)
+            let dv = at + V3(0, 1.75, 0) - g.player.eye
+            g.player.yaw = atan2f(-dv.x, -dv.z); g.player.pitch = atan2f(dv.y, sqrtf(dv.x * dv.x + dv.z * dv.z))
+            let head = w.canSee(g.player.eye, at + V3(0, 1.75, 0)), body = w.canSee(g.player.eye, at + V3(0, 1.2, 0)), feet = w.canSee(g.player.eye, at + V3(0, 0.4, 0))
+            let ok = g.spawnHidden(at, min: 32)
+            check(head && !body && !feet && (Game.oldSpawnHead ? ok : !ok),
+                  "spawn: a spot 60 blocks ahead whose head shows over a wall (head \(head ? "seen" : "hidden"), body \(body ? "seen" : "hidden"), feet \(feet ? "seen" : "hidden")) \(ok ? "takes a spawn (its head pops in)" : "takes no spawn")")
         }
         // A patrol of three losing two: no rout (under five).
         g.mobs.mobs = []; Rout.kills = [:]

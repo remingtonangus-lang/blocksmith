@@ -753,6 +753,7 @@ extension Game {
     // Item 71: `clear` was 96 blocks, but mobs are drawn out to the view (152-408 blocks), so a spawn 96-136 blocks off
     // came in in front of him; left out, it is the drawn distance (WorldRenderer.mobMaxDist). BS_OLDSPAWNSIGHT=1: 96.
     static let oldSpawnSight = Env.all["BS_OLDSPAWNSIGHT"] == "1"
+    static let oldSpawnHead = Env.all["BS_OLDSPAWNHEAD"] == "1"
     func spawnHidden(_ at: V3, min: Float, near: Float = 40, clear: Float? = nil) -> Bool {
         let clear = clear ?? (Game.oldSpawnSight ? 96 : Float(world.renderDistance * CS + 24))
         let body = at + V3(0, 1.2, 0)
@@ -768,6 +769,10 @@ extension Game {
             if d >= near && facing < 0.3 { continue }
             // (and its feet: a spider's or a rabbit's low body seen under a branch or over a ledge the 1.2 point missed)
             if world.canSee(eye, body) || (!Game.oldSpawnSight && world.canSee(eye, at + V3(0, 0.4, 0))) { return false }
+            // Ledger 219 (spawn check, 1 whole run in 3: a spot 143 blocks ahead whose head point he saw over a rise,
+            // its body and feet behind it, took a spawn): a man's head (and a tall mob's) stands at 1.75, over the 1.2
+            // point; a spawn there showed its head the moment it came. The head counts too. BS_OLDSPAWNHEAD=1: before.
+            if !Game.oldSpawnSight && !Game.oldSpawnHead && world.canSee(eye, at + V3(0, 1.75, 0)) { return false }
         }
         return true
     }
