@@ -9,6 +9,10 @@ import CVulkan
 // the "compositor" is counted against the 72 Hz vsyncs it missed and its frame-thread time; the headset estimate is
 // host ms x 1.7 (store-vrc-performance), so a frame over 8.2 host ms would miss the headset's 13.9 ms.
 //   questcheck --appsoak [--walk SECONDS] [--seeds FIRST,NEW] [--keep DIR]      (a fresh data folder each run, as a first launch)
+// Ledger 287 (the headset gate's slow load rows, jungle 50 fps and taiga 24-50 while the spot streams in): with the
+// route player on (BS_ROUTE=spots, the headset's QuestRoute), the soak plays that route instead, one phase per route
+// label (spot-jungle-load, spot-jungle ...), and prints each phase's mean ms per frame part and per record stage, so
+// the stage that holds the frame while land streams in is named. `--rd N` fixes the view (Auto View off).
 // GPU time is not measured (SceneRenderer.skipGPU): only the frame thread and what holds it.
 enum QuestAppSoak {
     static func arg(_ k: String) -> String? {
@@ -25,7 +29,19 @@ enum QuestAppSoak {
         var worstMs = 0.0, worstAt = 0.0
         var slow: [(Double, Double, String)] = []          // (seconds in, ms, what)
         var end = 0.0
+        var laps = [Double](repeating: 0, count: 8), stages = [Double](repeating: 0, count: 18), worstStages = [Double](repeating: 0, count: 18)
         init(_ name: String) { self.name = name }
+        func addParts(_ l: [Double], _ st: [Double]) {
+            for i in 0..<min(8, l.count) { laps[i] += l[i] }
+            for i in 0..<min(18, st.count) { stages[i] += st[i]; worstStages[i] = max(worstStages[i], st[i]) }
+        }
+        var partsLine: String {
+            let n = Double(max(1, frames))
+            let l = zip(QuestApp.lapNames, laps).filter { $0.1 / n >= 0.05 }.sorted { $0.1 > $1.1 }.map { String(format: "%@ %.2f", $0.0, $0.1 / n) }
+            let s = zip(WorldRenderer.stageNames, zip(stages, worstStages)).filter { $0.1.0 / n >= 0.05 }.sorted { $0.1.0 > $1.1.0 }
+                .map { String(format: "%@ %.2f (worst %.1f)", $0.0, $0.1.0 / n, $0.1.1) }
+            return "appsoak:    mean ms a frame: " + l.joined(separator: ", ") + "\nappsoak:    record stages: " + s.joined(separator: ", ")
+        }
         func add(skipped s: Int, ms: Double, what: () -> String) {
             frames += 1
             skipped += s; worstGap = max(worstGap, s)
@@ -51,6 +67,7 @@ enum QuestAppSoak {
         SceneRenderer.skipGPU = true
         QuestApp.lapsOn = true
         QuestApp.soakSeeds = (arg("--seeds") ?? "").split(separator: ",").compactMap { UInt64($0) }
+        if let rd = arg("--rd").flatMap({ Int($0) }) { QuestSettings.autoViewDistance = false; QuestSettings.renderDistance = rd }
         let xr: XRSession, app: QuestApp
         var phases: [Phase] = []
         var phase = Phase("start to the world")
@@ -60,6 +77,7 @@ enum QuestAppSoak {
             app = try QuestApp(xr: xr)
         } catch { print("FAIL appsoak: \(error)"); return 1 }
         xr.hlHanded = { s, ms in
+            phase.addParts(app.lapMs, app.recordStageMs)
             phase.add(skipped: s, ms: ms) {
                 (app.game == nil ? "loading" : "tick: " + TickProf.summary()) + " | frame: " + app.lapLine + (app.recordLine.isEmpty ? "" : " | record: " + app.recordLine)
             }
@@ -96,6 +114,25 @@ enum QuestAppSoak {
         }
 
         guard frames(until: { app.game != nil }, limit: 600) else { print("FAIL appsoak: the first world never arrived"); return 1 }
+        if let route = QuestRoute.shared {
+            // (the route plays itself through app.frame: one phase per label it marks)
+            closeMenus()
+            let t0 = CFAbsoluteTimeGetCurrent()
+            while !route.done && CFAbsoluteTimeGetCurrent() - t0 < 1800 {
+                if !route.label.isEmpty && route.label != phase.name { next(route.label) }
+                if !app.frame() { break }
+            }
+            phase.end = CFAbsoluteTimeGetCurrent()
+            print("")
+            for p in phases {
+                print(p.line); print(p.partsLine)
+                for (at, ms, what) in p.slow.prefix(6) { print(String(format: "appsoak:    %6.2f s  %6.1f ms  %@", at, ms, what)) }
+                if p.slow.count > 6 { print("appsoak:    (\(p.slow.count - 6) more)") }
+            }
+            print(route.done ? "ok   appsoak: route done" : "FAIL appsoak: the route did not finish in 30 minutes")
+            app.shutdown()
+            return route.done ? 0 : 1
+        }
         let pos0 = app.game.map { $0.player.pos } ?? .zero
         next("first-launch panel 3 s")
         _ = frames(until: { false }, limit: 3)

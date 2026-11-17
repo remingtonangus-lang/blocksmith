@@ -61,11 +61,15 @@ final class QuestRoute {
     init(_ legs: [String]) { self.legs = legs }
 
     var leg: String { index >= 0 && index < legs.count ? legs[index] : "" }
+    // What the gate tags seconds with now ("spot-jungle-load", "plains-arrive" ...); the host soak reads it too.
+    private(set) var label = ""
+    var done: Bool { index >= legs.count }
+    private func mark(_ s: String) { label = String(s.split(separator: " ").first ?? ""); print("route: leg " + s) }
 
     private func next(_ app: QuestApp?) {
         index += 1; legTime = 0; phase = 0; target = nil; seeking = false; ship = nil; drive = nil
         if index >= legs.count { print("route: done"); return }
-        print("route: leg \(leg)")
+        mark("\(leg)")
     }
 
     // Once a frame (QuestApp.frame), before the tick, after the controls filled the pad. `game` nil while loading.
@@ -211,7 +215,7 @@ final class QuestRoute {
                 target = V3(x, y + Float(YOFF), z); phase = 1
                 g.player.pos = target!; g.player.flying = true; g.player.vel = .zero
                 g.player.yaw = -sp.yaw * .pi / 180; g.player.pitch = -10 * .pi / 180
-                print("route: leg \(leg)-load")
+                mark("\(leg)-load")
             } else if sp.find == "village" {
                 if let st = g.world.gen.structures?.nearestIfReady("village", x: 0, z: 0, maxRegions: 8) {
                     target = V3(Float(st.min.x + st.max.x) / 2 + 0.5, 0, Float(st.min.z + st.max.z) / 2 + 0.5); phase = 1
@@ -220,7 +224,7 @@ final class QuestRoute {
             } else if let b = sp.find {
                 arrive(g, biome: b)                     // (phase 1: the search runs; placed below once found)
             }
-            if phase == 1, sp.x == nil { print("route: leg \(leg)-load") }
+            if phase == 1, sp.x == nil { mark("\(leg)-load") }
             return
         }
         if target == nil {
@@ -242,8 +246,8 @@ final class QuestRoute {
         }
         PadManager.shared.touch = PadSnapshot()
         if holdFrom < 0 {
-            if g.world.pendingJobs == 0 && legTime > 3 { holdFrom = legTime; print("route: leg \(leg)") }
-            else if legTime > 90 { holdFrom = legTime; print("route: leg \(leg) (jobs never reached 0: \(g.world.pendingJobs))") }
+            if g.world.pendingJobs == 0 && legTime > 3 { holdFrom = legTime; mark("\(leg)") }
+            else if legTime > 90 { holdFrom = legTime; mark("\(leg) (jobs never reached 0: \(g.world.pendingJobs))") }
         } else if legTime - holdFrom > QuestRoute.spotHold { next(nil) }
     }
 
@@ -272,7 +276,7 @@ final class QuestRoute {
     private func land(_ g: Game, then: () -> Void = {}) {
         guard let t = target else { phase = 2; return }
         if simd_length(V2(g.player.pos.x - t.x, g.player.pos.z - t.z)) > 1 {
-            print("route: leg \(leg)-arrive")
+            mark("\(leg)-arrive")
             g.player.pos = V3(t.x, Float(CH - 40), t.z)
         }
         g.player.flying = true; g.player.vel = .zero
@@ -283,7 +287,7 @@ final class QuestRoute {
         g.player.flying = false
         phase = 2
         then()
-        print("route: leg \(leg)")
+        mark("\(leg)")
     }
 
     // On foot, stick forward, looking about.
