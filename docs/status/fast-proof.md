@@ -91,7 +91,7 @@ note's facing and pitch in degrees.
 | `survival on\|off`, `fly on\|off`, `give ITEM [N]` | mode, flying, an item in his hand |
 | `block X Y Z` | the block there, or `ground(material)` for a field world's natural ground |
 | `set X Y Z KEY` | set a block (World.setBlock) |
-| `ground X0 Y0 Z0 X1 Y1 Z1 MAT\|air` | a box of natural ground (field density, as the weigh checks build fixtures) |
+| `ground X0 Y0 Z0 X1 Y1 Z1 MAT\|air [DENSITY]` | a box of natural ground (field density, as the weigh checks build fixtures); DENSITY the cells' centre density in blocks (default a whole cell, 1) |
 | `break X Y Z` | turn onto the cell and hold attack until it is gone (10 s at most) |
 | `place X Y Z` | turn onto the top of the cell under it and press use once with what he holds |
 | `blast X Y Z [POWER]` | Explosion.explode, half a second, then the ground's weighing played out (as `--blasts`) |
@@ -102,8 +102,12 @@ note's facing and pitch in degrees.
 | `train at station` | the nearest line's passenger train (within 3,000 blocks), its clock run on until it stands at the station nearest him; he is put beside it (classic worlds: no `--headset`) |
 | `stand in coach N`, `ride until step N MIN [SECONDS]` | in coach N's aisle, aboard; play on until the floors' step where coach N meets coach N-1 is MIN or more either way (a change of grade) |
 | `walk to coach N [SECONDS]` | walk toward coach N as ledger 141's check walks; sets `walk.there` (1/0), `walk.lowest` (least height over the rail in the coach he is in), `walk.step` |
+| `aimat X Y Z` | turn the eye onto a point (floats, display y) through the mouse path; prints the target: cell, face, the face's cell and its density, the drawn ground point and normal, where a block would go |
+| `use [SECONDS]`, `hit [SECONDS]` | one press of use / attack as he aims now, held one tick or SECONDS (a trigger pull); prints the target and every cell within 3 that changed; `use` counts `place.count` and `place.off` (a placed block neither in the aimed face's cell nor within half a block of the drawn point) |
+| `probe X Y Z` | the cell's built block, ground flag, material, centre density, the drawn (fine) density at its middle and the drawn surface over its column |
 | `print player\|train\|ship\|fps` | place, speed, held, aboard, hull; tick avg and worst over the last tick |
-| `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, ship.speed/blocks/y, train.speed, walk.there/lowest/step, fps.worst/avg |
+| `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, use.changed, place.count/off, ship.speed/blocks/y, train.speed, walk.there/lowest/step, fps.worst/avg |
+| `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, ship.speed/blocks/y, train.speed, walk.there/lowest/step, fps.worst/avg, felled.count/blocks/tilt/spin (the felled trees in the world: tilt 0 lying level, 1 upright or upside down) |
 
 Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 
@@ -113,5 +117,12 @@ Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 | `crater-settle.scene --headset` (ledgers 127, 216) | all passed | `BS_GROUNDWEIGH=0`: the stub and cap hang; `BS_OLDWEIGHSPARE=1`: 3 FAILED (the cap's ring hangs) |
 | `coach-to-coach.scene` (ledger 215) | all passed: there in 2.3 s, never lower than 0.95 | `BS_OLDGANGWAYSTEP=1`: 2 FAILED (falls through at the coupling, -3.35) |
 | `overhang-stays.scene --headset` (ledger 216's guard) | all passed: the ledge beside the blast stays | `BS_OLDWEIGHSPARE=1`: passes too (a guard, not a repro) |
+| `dug-pit-sweep.scene --headset --seed 7780452129890778212` (ledger 260) | 0 of 30 placements off where he aimed | `BS_OLDSLIVERCELL=1 BS_OLDPLACECELL=1 BS_OLDRAYORDER=1 BS_OLDHALFCELL=1`: 8 of 26 off |
+| `dug-pit-materials.scene --headset --seed 7780452129890778212` (ledger 260's bloom) | 0 of 53 off (earth, gravel, rock) | the same switches: 3 of 54 off |
+| `dug-cells.scene --headset --seed 7780452129890778212` (ledger 260) | all passed | `BS_OLDSLIVERCELL=1`: 2 FAILED (a cell drawn under its middle reads as sand) |
+| `place-pull.scene --headset --seed 7780452129890778212` (ledger 260) | a 0.3 s pull sets one block | `BS_OLDPLACEREPEAT=1`: 1 FAILED (two) |
+| `tree-stump-stays.scene --seed 7780452129890778212 --headset` (ledgers 226, 227) | all passed: stump and neighbour stand, one body of 144 | `BS_OLDFELLSTUMP=1`: 5 FAILED (246 blocks fall) |
+| `tree-lies-down.scene --seed 3084501862406496736 --headset` (ledger 228) | all passed: tilt 0.79, spin 0 | `BS_OLDCROWNWEIGHT=1`: 1 FAILED (upside down) |
+| `bush-on-the-ground.scene --seed 3084501862406496736 --headset` (ledger 229) | all passed; bush.png | `BS_OLDBUSHMOUND=1`: 3 FAILED |
 
 Each runs in about 15 s after the census is kept. `ride nearest train` needs a train in the loaded land.

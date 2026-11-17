@@ -854,7 +854,12 @@ extension ShipManager {
         if smallCar && simd_dot(up, desiredUp) < 0.2 && simd_length(err) < 0.5 { err = fwdW * (simd_length(err) < 0.05 ? 1 : simd_dot(err, fwdW) >= 0 ? 1 : -1) }
         let kr: Float = s.balloons > 0 ? 8 : (aircraft ? 5 : (smallCar ? 14 : (s.grounded ? 1.5 : (sub > 0 ? 1.2 : 2))))
         let wHoriz = s.angVel - up * simd_dot(s.angVel, up)
-        let damped: V3 = s.flight != nil ? .zero : (felled ? s.angVel * (s.contacts > 0 ? 0.4 : 0.05)
+        // Ledger 228 (found reproducing Nov 16 20:42:18): a felled tree leaning on its stump or a bough, all but still,
+        // kept turning about its point of rest at a third of a radian a second and never lay (the contacts' push fed
+        // it more than this drag took). One that touches something and is hardly moving loses its spin fast; a tree
+        // still going over moves faster than that and topples as before. BS_OLDFELLSPIN=1: as before.
+        let felledDrag: Float = s.contacts == 0 ? 0.05 : (Felling.spinRests && simd_length_squared(s.vel) < 0.25 ? 2.5 : 0.4)
+        let damped: V3 = s.flight != nil ? .zero : (felled ? s.angVel * felledDrag
                                                     : (aircraft ? fwdW * simd_dot(wHoriz, fwdW) : wHoriz))
         let kd: Float = iAvg * (s.balloons > 0 ? 3 : (smallCar ? 5 : 1.2))
         T += err * (kr * iAvg) - damped * kd
@@ -954,7 +959,7 @@ extension ShipManager {
                     standing = up1 && dn1 || up1 && CapitalBase.isLog(rd.get(x, y + 2, z)) || dn1 && CapitalBase.isLog(rd.get(x, y - 2, z))
                 }
                 if standing && s.slips { continue }
-                let mn = V3(Float(x), Float(y), Float(z))
+                var mn = V3(Float(x), Float(y), Float(z))
                 var mx = mn + 1
                 if !Blocks.fullCollide[Int(b)] {
                     var top: Float = 0
@@ -962,6 +967,12 @@ extension ShipManager {
                     mx.y = mn.y + max(0.125, min(1, top))
                 } else if let g = fieldGen, natural[Int(b)] && y + 1 < CH && !collide[Int(rd.get(x, y + 1, z))] {
                     mx.y = rd.w.groundTop(g, x, y, z)
+                }
+                // Ledger 228: a felled trunk met a standing trunk or a stump as a full block, a fifth of a block clear
+                // of the round wood he sees on every side: his jungle tree came to rest propped on the corner of its
+                // own stump's block, touching nothing. An upright log is as wide as it is drawn. BS_OLDTRUNKBOX=1.
+                if felled && Felling.slimTrunks && Felling.roundTrunks && ShapeTrunks.isLog[Int(b)] && ShapeTrunks.axisOf[Int(b)] == 1 {
+                    mn.x += 0.2; mn.z += 0.2; mx.x -= 0.2; mx.z -= 0.2
                 }
                 let q = simd_clamp(w, mn, mx)
                 let d = w - q

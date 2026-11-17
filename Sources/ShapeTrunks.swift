@@ -49,6 +49,7 @@ enum ShapeTrunks {
     // Nov 12: the foot ring's in-between points on the trunk's edge (BS_OLDFOOTSEAM=1: the lip and its crack, as before).
     static let footSeam = Env.all["BS_OLDFOOTSEAM"] != "1"
     static let farSides = Env.all["BS_FARSIDES"].flatMap { Int($0) } ?? 6     // (a trunk's sides there)
+    static let oneStem = Env.all["BS_OLDONESTEM"] != "1"          // ledger 229
     static let W = 16 + 2 * M
     // Nov 13 (ledger 111, 112, 115), each =1 for the code before: BS_OLDHANGTRUNK (a trunk whose foot log is gone, in
     // the moment before it falls, drawn as cut timber), BS_OLDWIDECUT (a four-log trunk with one log struck out drawn as
@@ -177,6 +178,10 @@ enum ShapeTrunks {
                         else if H <= 2 && rootBeside(g, x, bot, z) && !fallenRun(g, x, bot, z) { kind = 3 }
                         else if !vertical || H == 1 && lyingBeside(g, x, bot, z) { kind = 0 }
                         else if grounded && vertical && H == 2 { kind = 4 }             // a shrub's stem, a stump the land grew
+                        // Ledger 229: a bush's one log, and the one-log stump a felled tree leaves (ledger 227), were
+                        // no column: under leaves a thin bough pointed at both ends, hanging over the ground ("Looks
+                        // like a diamond. Levitating"). A stem on the ground like the two-log one. BS_OLDONESTEM=1.
+                        else if oneStem && grounded && vertical && H == 1 { kind = 4 }
                     }
                 } else if grounded || joined || hanging {
                     // A living tree has leaves round the top of its column (or where its lean carries the crown).

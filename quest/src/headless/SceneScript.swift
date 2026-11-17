@@ -93,6 +93,16 @@ enum SceneScript {
             let b = w.block(x, y, z), m = w.materialAt(x, y, z), gr = w.groundAt(x, y, z)
             return b != AIR ? key(b) : (gr ? "ground(\(key(m)))" : key(b))
         }
+        var lastChanged = 0, placedCount = 0, placedOff = 0
+        func targetText() -> String {
+            guard let tg = g.target else { return "aimed at nothing" }
+            var s = "aimed at \(tg.hit.x) \(tg.hit.y - YOFF) \(tg.hit.z) face \(tg.normal.x) \(tg.normal.y) \(tg.normal.z) (\(cellText(tg.hit.x, tg.hit.y, tg.hit.z)))"
+            if let gr = g.targetGround, gr.cell == tg.hit { s += ", ground point \(f1(gr.at.x)) \(f1(gr.at.y - Float(YOFF))) \(f1(gr.at.z)) normal \(f1(gr.normal.x)) \(f1(gr.normal.y)) \(f1(gr.normal.z))" }
+            let fc = tg.hit + tg.normal
+            s += ", face cell \(fc.x) \(fc.y - YOFF) \(fc.z) \(cellText(fc.x, fc.y, fc.z)) d \(f1(w.fieldDensity(fc.x, fc.y, fc.z)))"
+            if !g.held.isEmpty, let bi = g.held.def.block { let c = g.placeCell(tg, for: bi); s += ", a block would go in \(c.x) \(c.y - YOFF) \(c.z)" }
+            return s
+        }
         func value(_ name: String) -> Float? {
             let p = g.player
             switch name {
@@ -104,11 +114,20 @@ enum SceneScript {
             case "ship.speed": return ship.map { simd_length($0.vel) }
             case "ship.blocks": return ship.map { Float($0.blockCount) }
             case "ship.y": return ship.map { $0.pos.y - Float(YOFF) }
+            // (ledgers 226-228: the felled trees lying or falling in the world: how many, the blocks in them, how far
+            // from level the most tilted trunk is (0 lying flat, 1 standing or upside down), the fastest one's spin)
+            case "felled.count": return Float(w.ships.list.filter { Felling.isFelled($0) }.count)
+            case "felled.blocks": return Float(w.ships.list.filter { Felling.isFelled($0) }.reduce(0) { $0 + $1.blockCount })
+            case "felled.tilt": return w.ships.list.filter { Felling.isFelled($0) }.map { abs($0.rot.act(V3(0, 1, 0)).y) }.max()
+            case "felled.spin": return w.ships.list.filter { Felling.isFelled($0) }.map { simd_length($0.angVel) }.max()
             case "train.speed": return train?.blocksPerSec
             case "walk.there": return walkThere
             case "walk.lowest": return walkLowest
             case "walk.step": return walkStep
             case "fps.worst": return tickMs.max().map { Float($0) }
+            case "use.changed": return Float(lastChanged)
+            case "place.count": return Float(placedCount)
+            case "place.off": return Float(placedOff)
             case "fps.avg": return tickMs.isEmpty ? nil : Float(tickMs.reduce(0, +) / Double(tickMs.count))
             default: return Float(name)
             }
@@ -180,6 +199,52 @@ enum SceneScript {
                 var a = AgentAction(); a.use = true
                 step(a); step(AgentAction())
                 print("\(ln) \(cellText(x, y, z)) (aimed at \(g.target.map { "\($0.hit.x) \($0.hit.y - YOFF) \($0.hit.z)" } ?? "nothing"))")
+            case "aimat":
+                // aimat X Y Z: the eye turned onto a point (floats, display y), as the mouse turns it; prints the target.
+                guard t.count == 4, let x = Float(t[1]), let y = Float(t[2]), let z = Float(t[3]) else { bad(); continue }
+                aim(V3(x, y + Float(YOFF), z)); step(AgentAction())
+                print("\(ln) \(targetText())")
+            case "use", "hit":
+                // use: one press of use as he aims now (look / aimat); prints what was aimed at and every cell of the box
+                // round it that changed (block or ground).
+                var before: [IVec3: String] = [:]
+                let c0 = g.target?.hit ?? IVec3(Int(floor(g.player.eye.x)), Int(floor(g.player.eye.y)), Int(floor(g.player.eye.z)))
+                for dy in -3...3 { for dz in -3...3 { for dx in -3...3 { let c = c0 + IVec3(dx, dy, dz); before[c] = cellText(c.x, c.y, c.z) } } }
+                let tt = targetText()
+                // (where he pointed: the drawn ground's point, or the face of the block aimed at)
+                let tg0 = g.target, gp0 = g.targetGround.flatMap { gr in gr.cell == tg0?.hit ? gr.at : nil }
+                let heldKey = g.held.isEmpty ? "" : (g.held.def.block.map { key($0) } ?? "")
+                var a = AgentAction()
+                if t[0] == "hit" { a.attack = true } else { a.use = true }
+                // (use|hit [SECONDS]: held that long, as a trigger pull; one tick by default)
+                let holdTicks = t.count > 1 ? max(1, Int((Double(t[1]) ?? 0) * 72)) : 1
+                for _ in 0..<holdTicks { step(a) }
+                step(AgentAction())
+                var ch: [String] = []
+                for (c, was) in before.sorted(by: { ($0.key.y, $0.key.z, $0.key.x) < ($1.key.y, $1.key.z, $1.key.x) }) {
+                    let now = cellText(c.x, c.y, c.z)
+                    if now != was { ch.append("\(c.x) \(c.y - YOFF) \(c.z) \(was) -> \(now)") }
+                }
+                lastChanged = ch.count
+                // A placed block is off when it is neither the cell past the face aimed at nor within half a block of the drawn point
+                // he pointed at (ledger 260's sweep: the block went two cells along, or diagonal).
+                if t[0] == "use", let tg = tg0, !heldKey.isEmpty,
+                   let c = before.keys.sorted(by: { ($0.y, $0.z, $0.x) < ($1.y, $1.z, $1.x) }).first(where: { cellText($0.x, $0.y, $0.z) == heldKey && before[$0] != heldKey }) {
+                    var off = c != tg.hit + tg.normal
+                    if let p = gp0 {
+                        let lo = V3(Float(c.x), Float(c.y), Float(c.z))
+                        let e = simd_max(simd_max(lo - p, p - lo - 1), V3(repeating: 0)); let d = max(e.x, max(e.y, e.z))
+                        off = off && d > 0.5          // (ledger 131 lays a block at the nearest floor: up to half a block over the surface)
+                    }
+                    placedCount += 1
+                    if off { placedOff += 1; print("  (off: placed at \(c.x) \(c.y - YOFF) \(c.z))") }
+                }
+                print("\(ln) \(tt); \(ch.count) changed\(ch.isEmpty ? "" : ": " + ch.joined(separator: "; "))")
+            case "probe":
+                // probe X Y Z: the cell's two layers, its density, and the drawn surface over its column's middle.
+                guard t.count == 4, let x = Int(t[1]), let y = Y(t[2]), let z = Int(t[3]) else { bad(); continue }
+                let top = w.fieldRaySegment(V3(Float(x) + 0.5, Float(y) + 4, Float(z) + 0.5), V3(0, -1, 0), from: 0, to: 8)
+                print("\(ln) block \(key(w.block(x, y, z))), built \(key(w.builtBlock(x, y, z))), ground \(w.groundAt(x, y, z)), material \(key(w.materialAt(x, y, z))), density \(f1(w.fieldDensity(x, y, z))), at middle \(f1(w.fieldDensity(at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)))), surface \(top.map { f1($0.at.y - Float(YOFF)) } ?? "none") (cell \(top.map { "\($0.cell.x) \($0.cell.y - YOFF) \($0.cell.z)" } ?? "-"))")
             case "blast":
                 // As --blasts: the blast, then half a second of play, then the ground's weighings played out (a minute at most).
                 guard t.count >= 4, let x = Float(t[1]), let y = Float(t[2]), let z = Float(t[3]) else { bad(); continue }
@@ -193,7 +258,10 @@ enum SceneScript {
             case "ground":
                 // A box of natural ground (a field world's density, as the ground weigh checks make their fixtures) of
                 // a material (dirt, stone...) or `air` to clear it; meshed again after.
-                guard t.count == 8, let x0 = Int(t[1]), let y0 = Y(t[2]), let z0 = Int(t[3]),
+                // (ground X0 Y0 Z0 X1 Y1 Z1 MAT DENSITY: the cells' centre density in blocks, e.g. 0.03 for the sliver a dig
+                // used to leave; a whole cell, 1, by default)
+                let dv: Int8 = t.count == 9 ? FieldTerrain.q(Float(t[8]) ?? 1) : 32
+                guard t.count == 8 || t.count == 9, let x0 = Int(t[1]), let y0 = Y(t[2]), let z0 = Int(t[3]),
                       let x1 = Int(t[4]), let y1 = Y(t[5]), let z1 = Int(t[6]), w.fieldTerrain else { bad(); continue }
                 let mat: UInt8? = t[7] == "air" ? nil : (Blocks.has(String(t[7])) ? FieldMat.index[Int(Blocks.id(String(t[7])))] : nil)
                 guard t[7] == "air" || (mat ?? 0) != 0 else { print("FAIL \(ln) \(t[7]) is not a ground material"); fails += 1; continue }
@@ -201,7 +269,7 @@ enum SceneScript {
                 for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) {
                     guard let c = w.chunkAt(x, z) else { continue }
                     for y in min(y0, y1)...max(y0, y1) {
-                        c.blocks.setDensity(Chunk.index(mod(x, CS), y, mod(z, CS)), mat != nil ? 32 : -32, material: mat)
+                        c.blocks.setDensity(Chunk.index(mod(x, CS), y, mod(z, CS)), mat != nil ? dv : -32, material: mat)
                         if mat == nil, w.builtBlock(x, y, z) != AIR { w.setBlock(x, y, z, AIR) }
                         cells += 1
                     }

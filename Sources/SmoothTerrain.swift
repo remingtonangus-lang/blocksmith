@@ -20,6 +20,7 @@ import simd
 // A section owns the dual cells 0...16 of its own corner (vertices 0.5...17.5 blocks, never negative in the
 // unsigned 1/16 position bits), so it meshes quads that touch its +x/+y/+z neighbours' first block row.
 enum SmoothTerrain {
+    static let moundSeat = Env.all["BS_OLDMOUNDSEAT"] != "1"       // ledger 229 (Mesher.smoothQuads, the leaves pass)
     // A world option (Create New World > Terrain, saved as the world's extra "terrain" = "smooth"; Video > Smooth
     // Terrain switches the open world), or `--smooth` / `--cubic` on the command line, which win over the world's
     // choice (harness, bench, smoke).
@@ -377,6 +378,7 @@ extension Mesher {
                             _ emit: (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Void) {
         // (Nov 11, `canopy`: the far canopy tier's shell of the trees' logs, Mesher.canopyLogs)
         let leafT = canopy ? Mesher.canopyT : Mesher.leafT
+        let natG = SmoothTerrain.natural, seat = SmoothTerrain.moundSeat
         let nat = leaves ? leafT : SmoothTerrain.natural, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let texT = Blocks.tex, tintT = Blocks.tint, pinT = detailHoles ? SmoothTerrain.pinsDetail : SmoothTerrain.pins, rockSlot = SmoothTerrain.rockSlot
         let detT = Mesher.detailT, fkT = Blocks.fluidKind
@@ -402,6 +404,12 @@ extension Mesher {
         for y in 0..<N { for z in 0..<N { for x in 0..<N {
             let b = Int(R[ri(x - SO, y - SO, z - SO)])
             S[x + z * N + y * NN] = (leaves ? leafT[b] : opaqueT[b] && !(leafHoles && leafT[b]) && !(detailHoles && detT[b])) ? 1 : 0
+            // Ledger 229 (Nov 16 20:42, the jungle bush: "Levitating"; Oct 30's "the bush is floating too"): a leaf blob
+            // closed in a round underside at its lowest leaves, and the drawn ground lies up to half a block under the
+            // block it is rounded from, so a mound laid on the ground hung over it. Leaves lying on natural ground run
+            // on down into it: the ground block under them is part of the blob (drawn in their leaf, its underside
+            // left out). BS_OLDMOUNDSEAT=1: as before.
+            if leaves && seat && natG[b] && leafT[Int(R[ri(x - SO, y - SO + 1, z - SO)])] { S[x + z * N + y * NN] = 1 }
         } } }
         // P142: the generator's fields over the same box (SmoothField). A sample is "on field" when its block is what the
         // fields alone make there (and not being dug); only edges between two on-field samples take the field's crossing.
@@ -765,7 +773,11 @@ extension Mesher {
                 if sp == sq { continue }
                 let s = sp ? p : q
                 let si = ri(s[0], s[1], s[2])
-                let blockID = Int(R[si])
+                var blockID = Int(R[si])
+                if leaves && seat && !nat[blockID] && natG[blockID] {      // (ledger 229: the ground a mound lies on)
+                    if a == 1 { continue }
+                    blockID = Int(R[ri(s[0], s[1] + 1, s[2])])
+                }
                 if !nat[blockID] { continue }
                 if !leaves, let E = stored, E[si] <= 0 { continue }       // (field worlds: a built block of rock: a cube)
                 // Dual cells around the edge, counter-clockwise seen from the open side.

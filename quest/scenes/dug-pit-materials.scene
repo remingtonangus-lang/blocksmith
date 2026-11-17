@@ -1,0 +1,260 @@
+# Ledger 260's bloom: the dug-pit sweep (dug-pit-sweep.scene) on earth, gravel and rock, all faces: a pit dug a cell
+# deep in flat ground of each, then 25 presses of use at random points of the pit, its walls and what is placed.
+# Fixed: 0 off. BS_OLDSLIVERCELL=1 BS_OLDPLACECELL=1 BS_OLDRAYORDER=1 BS_OLDHALFCELL=1: 3 of 54 off (all on rock).
+#   questcheck --scene quest/scenes/dug-pit-materials.scene --headset --seed 7780452129890778212
+at -2600.5 70 640.5
+load 4
+tick 1
+fly on
+give pale_moss_block 64
+# dirt
+ground -2626 50 634 -2614 63 646 dirt
+ground -2626 64 634 -2614 72 646 air
+at -2619.5 66 640.5
+break -2622 63 638
+break -2622 63 639
+break -2622 63 640
+break -2622 63 641
+break -2622 63 642
+break -2621 63 638
+break -2621 63 639
+break -2621 63 640
+break -2621 63 641
+break -2621 63 642
+break -2620 63 638
+break -2620 63 639
+break -2620 63 640
+break -2620 63 641
+break -2620 63 642
+break -2619 63 638
+break -2619 63 639
+break -2619 63 640
+break -2619 63 641
+break -2619 63 642
+break -2618 63 638
+break -2618 63 639
+break -2618 63 640
+break -2618 63 641
+break -2618 63 642
+at -2619.5 63.0 640.5
+fly off
+tick 1
+aimat -2620.73 62.20 638.06
+use
+aimat -2622.49 63.00 640.75
+use
+aimat -2618.92 62.60 643.37
+use
+aimat -2622.74 62.20 640.04
+use
+aimat -2621.32 62.20 640.86
+use
+aimat -2617.21 62.60 637.87
+use
+aimat -2618.59 62.20 641.08
+use
+aimat -2618.96 62.60 639.78
+use
+aimat -2622.67 63.00 643.01
+use
+aimat -2620.07 63.90 640.78
+use
+aimat -2620.84 62.60 642.71
+use
+aimat -2622.28 62.60 641.00
+use
+aimat -2620.39 62.20 640.83
+use
+aimat -2619.05 63.40 641.33
+use
+aimat -2618.24 63.00 639.99
+use
+aimat -2619.74 63.00 643.46
+use
+aimat -2620.90 62.60 642.56
+use
+aimat -2622.43 63.40 639.10
+use
+aimat -2616.87 63.00 642.11
+use
+aimat -2618.74 63.90 637.51
+use
+aimat -2620.07 62.60 642.30
+use
+aimat -2616.47 62.20 639.95
+use
+aimat -2617.65 63.00 641.01
+use
+aimat -2620.62 63.40 639.45
+use
+aimat -2618.94 62.20 640.19
+use
+fly on
+# gravel
+ground -2606 50 634 -2594 63 646 gravel
+ground -2606 64 634 -2594 72 646 air
+at -2599.5 66 640.5
+break -2602 63 638
+break -2602 63 639
+break -2602 63 640
+break -2602 63 641
+break -2602 63 642
+break -2601 63 638
+break -2601 63 639
+break -2601 63 640
+break -2601 63 641
+break -2601 63 642
+break -2600 63 638
+break -2600 63 639
+break -2600 63 640
+break -2600 63 641
+break -2600 63 642
+break -2599 63 638
+break -2599 63 639
+break -2599 63 640
+break -2599 63 641
+break -2599 63 642
+break -2598 63 638
+break -2598 63 639
+break -2598 63 640
+break -2598 63 641
+break -2598 63 642
+at -2599.5 63.0 640.5
+fly off
+tick 1
+aimat -2596.39 62.20 640.32
+use
+aimat -2602.58 63.90 641.91
+use
+aimat -2596.05 63.00 642.75
+use
+aimat -2597.98 63.00 643.21
+use
+aimat -2602.84 62.60 640.23
+use
+aimat -2598.72 62.60 640.46
+use
+aimat -2597.62 62.60 637.91
+use
+aimat -2600.21 63.40 643.42
+use
+aimat -2602.44 63.90 640.14
+use
+aimat -2601.06 63.40 637.96
+use
+aimat -2596.95 63.40 638.95
+use
+aimat -2596.09 63.40 641.78
+use
+aimat -2596.30 62.60 638.06
+use
+aimat -2601.94 62.20 641.61
+use
+aimat -2599.61 63.00 641.12
+use
+aimat -2601.03 63.90 638.02
+use
+aimat -2600.42 62.60 640.96
+use
+aimat -2598.17 63.90 640.61
+use
+aimat -2598.42 63.40 642.18
+use
+aimat -2596.70 63.90 642.46
+use
+aimat -2600.25 62.20 639.79
+use
+aimat -2599.63 62.60 639.80
+use
+aimat -2602.53 62.60 638.46
+use
+aimat -2602.23 62.20 641.21
+use
+aimat -2603.00 62.20 638.06
+use
+fly on
+# stone
+ground -2586 50 634 -2574 63 646 stone
+ground -2586 64 634 -2574 72 646 air
+at -2579.5 66 640.5
+break -2582 63 638
+break -2582 63 639
+break -2582 63 640
+break -2582 63 641
+break -2582 63 642
+break -2581 63 638
+break -2581 63 639
+break -2581 63 640
+break -2581 63 641
+break -2581 63 642
+break -2580 63 638
+break -2580 63 639
+break -2580 63 640
+break -2580 63 641
+break -2580 63 642
+break -2579 63 638
+break -2579 63 639
+break -2579 63 640
+break -2579 63 641
+break -2579 63 642
+break -2578 63 638
+break -2578 63 639
+break -2578 63 640
+break -2578 63 641
+break -2578 63 642
+at -2579.5 63.0 640.5
+fly off
+tick 1
+aimat -2576.36 62.20 641.30
+use
+aimat -2576.88 62.60 641.30
+use
+aimat -2578.56 63.90 643.69
+use
+aimat -2580.45 63.40 637.86
+use
+aimat -2576.05 63.40 640.26
+use
+aimat -2580.82 63.00 638.01
+use
+aimat -2577.82 62.60 640.35
+use
+aimat -2579.39 63.90 638.44
+use
+aimat -2580.47 62.20 641.83
+use
+aimat -2577.69 62.20 639.09
+use
+aimat -2578.13 63.00 638.83
+use
+aimat -2576.64 62.60 639.49
+use
+aimat -2579.27 63.00 642.45
+use
+aimat -2578.54 62.60 641.29
+use
+aimat -2577.36 62.60 642.73
+use
+aimat -2581.60 62.20 640.45
+use
+aimat -2576.07 63.40 642.53
+use
+aimat -2581.19 63.00 641.85
+use
+aimat -2579.87 63.00 643.56
+use
+aimat -2576.31 62.60 639.55
+use
+aimat -2582.28 63.00 640.29
+use
+aimat -2581.57 63.90 641.37
+use
+aimat -2577.12 63.00 640.36
+use
+aimat -2577.40 62.20 637.59
+use
+aimat -2576.63 62.60 642.48
+use
+fly on
+expect place.count >= 30
+expect place.off == 0
