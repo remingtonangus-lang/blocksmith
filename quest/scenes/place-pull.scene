@@ -1,0 +1,15 @@
+# Ledger 260 (Nov 16 21:19:08, seed 7780452129890778212: "See, I put a block here, it places two... we don't want that").
+# The hold-to-repeat came 0.2 s after the press, and a headset trigger pull often lasts longer, so one pull set two
+# blocks. One pull held 0.3 s sets one block now; held a second it still lays a row.
+# Fixed: passes. BS_OLDPLACEREPEAT=1: FAILED (2 placed).
+#   questcheck --scene quest/scenes/place-pull.scene --headset --seed 7780452129890778212
+at -2620.1 65.0 682.1
+load 3
+tick 1
+give pale_moss_block 64
+aimat -2620.5 64.6 679.5
+use 0.3
+expect use.changed == 1
+aimat -2622.5 64.6 679.5
+use 1.0
+expect use.changed >= 2

@@ -568,6 +568,7 @@ extension World {
         let reach = Int(ceil(r + 1.5))
         let cxI = Int(floor(ctr.x)), cyI = Int(floor(ctr.y)), czI = Int(floor(ctr.z))
         var touched: [(Chunk, Int)] = []
+        var kept: [(Chunk, Int, IVec3)] = []
         // (store review, callgrind of the rocket craters: a dictionary lookup per cell was a fifth of a blast's carve; the
         // chunk is looked up when the row crosses into another)
         var lkx = Int.min, lkz = Int.min
@@ -604,7 +605,11 @@ extension World {
                     // playthrough's miner, stood in a dug cell at the bottom of the world, was shoved out every tick).
                     let unbreakable = carve && was && Blocks.hardness[Int(FieldMat.blocks[Int(c.blocks.material(i))])] < 0
                     if unbreakable { q = max(q, 8) }
-                    if keepSolid && was != (q > 0) { q = was ? 1 : -1 }
+                    if keepSolid && was != (q > 0) {
+                        q = was ? 1 : -1
+                        // (ledger 260: weighed against the drawn surface once the fine samples are carved, below)
+                        if openTaken && carve && !unbreakable && c.blocks.raw(i) == AIR { kept.append((c, i, IVec3(x, y, z))) }
+                    }
                     if q == c.blocks.density(i) { continue }
                     let now = q > 0
                     if let k = keepCell, k.x == x && k.y == y && k.z == z && was != now { continue }   // (setBlock decided it)
@@ -633,6 +638,21 @@ extension World {
                 c.modified = true
                 if !touched.contains(where: { $0.0 === c && $0.1 == sy }) { touched.append((c, sy)) }
             }
+        }
+        // Ledger 260: a cell the player's dig kept as ground whose drawn surface (the fine samples, as the mesher draws
+        // them) now lies at or under its middle opens: it showed half a cell or less, and read as a whole block.
+        for (c, i, p) in kept {
+            let fd = fieldDensity(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+            guard fd <= 0, c.blocks.density(i) > 0 else { continue }
+            GroundWeigh.note(self, p, FieldMat.blocks[Int(c.blocks.material(i))])
+            supportGone(p.x, p.y, p.z)
+            c.blocks.setDensity(i, min(FieldTerrain.q(fd), -1), material: nil, follow: false)
+            flipped.append(p)
+            c.recomputeHeight(mod(p.x, CS), mod(p.z, CS))
+            groundOpened(c, p.y)
+            noteChange(p.x, p.y, p.z)
+            c.modified = true
+            if !touched.contains(where: { $0.0 === c && $0.1 == p.y >> 4 }) { touched.append((c, p.y >> 4)) }
         }
         // A changed sample moves the surface in the dual cells round it: the sections on either side of a border remesh.
         var all: [(Chunk, Int)] = []
@@ -965,6 +985,19 @@ extension World {
         }
         var p = p0
         if let d {
+            // Ledger 260: where the point lies in a cell a dig left open (the surface is a remnant under its middle), the
+            // ground cell under that surface (straight into it, along the field's gradient), before the cells further
+            // along the aim: a low aim into his trench named, and broke, the next cell along instead of the floor he
+            // pointed at. BS_OLDRAYORDER=1: as before.
+            if !World.oldRayOrder && !ground(Int(floor(p0.x)), Int(floor(p0.y)), Int(floor(p0.z))) {
+                let g = fieldGradient(p0), l = simd_length(g)
+                if l > 1e-5 {
+                    for k in [Float(0.3), 0.6, 0.9] {
+                        let q = p0 + g / l * k
+                        if ground(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) }
+                    }
+                }
+            }
             for k in 0..<4 {
                 let q = p0 + d * (Float(k) * 0.2)
                 if ground(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) }

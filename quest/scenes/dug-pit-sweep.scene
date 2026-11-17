@@ -1,0 +1,186 @@
+# Ledger 260 (Nov 16 21:18-21:22, building on a beach he had dug, seed 7780452129890778212: "I am pointing here in a
+# block in the wrong place because the wrong spot gets placed", "it thinks there's sand on top of it, but there's not",
+# "it needs to know when you're trying to build a wall"). His spot: the top layer dug round him, then 60 presses of use
+# at random points of the pit, its walls and the blocks already placed. A block is 'off' when it is neither the cell
+# past the face aimed at nor within half a block of the drawn point aimed at.
+# Fixed: 0 off. BS_OLDSLIVERCELL=1 BS_OLDPLACECELL=1 BS_OLDRAYORDER=1 BS_OLDHALFCELL=1: 8 of 26 off.
+#   questcheck --scene quest/scenes/dug-pit-sweep.scene --headset --seed 7780452129890778212
+at -2619.3 65.0 680.7
+load 3
+tick 1
+give pale_moss_block 64
+fly on
+break -2623 64 676
+break -2623 64 677
+break -2623 64 678
+break -2623 64 679
+break -2623 64 680
+break -2623 64 681
+break -2623 64 682
+break -2623 64 683
+break -2622 64 676
+break -2622 64 677
+break -2622 64 678
+break -2622 64 679
+break -2622 64 680
+break -2622 64 681
+break -2622 64 682
+break -2622 64 683
+break -2621 64 676
+break -2621 64 677
+break -2621 64 678
+break -2621 64 679
+break -2621 64 680
+break -2621 64 681
+break -2621 64 682
+break -2621 64 683
+break -2620 64 676
+break -2620 64 677
+break -2620 64 678
+break -2620 64 679
+break -2620 64 680
+break -2620 64 681
+break -2620 64 682
+break -2620 64 683
+break -2619 64 676
+break -2619 64 677
+break -2619 64 678
+break -2619 64 679
+break -2619 64 680
+break -2619 64 681
+break -2619 64 682
+break -2619 64 683
+break -2618 64 676
+break -2618 64 677
+break -2618 64 678
+break -2618 64 679
+break -2618 64 680
+break -2618 64 681
+break -2618 64 682
+break -2618 64 683
+at -2619.3 64.0 680.7
+fly off
+tick 1
+aimat -2622.93 63.20 684.32
+use
+aimat -2621.96 64.40 680.45
+use
+aimat -2620.22 63.60 679.18
+use
+aimat -2623.25 64.40 675.31
+use
+aimat -2620.54 63.20 683.39
+use
+aimat -2618.43 63.60 677.93
+use
+aimat -2619.27 64.00 676.12
+use
+aimat -2623.76 64.90 675.28
+use
+aimat -2623.93 63.60 684.69
+use
+aimat -2616.25 64.90 682.98
+use
+aimat -2622.23 64.40 679.82
+use
+aimat -2619.58 63.60 678.80
+use
+aimat -2617.91 63.20 685.47
+use
+aimat -2620.67 63.20 685.08
+use
+aimat -2622.51 64.00 685.92
+use
+aimat -2623.03 64.90 678.66
+use
+aimat -2616.51 63.60 679.64
+use
+aimat -2621.57 64.40 681.46
+use
+aimat -2617.23 64.90 680.56
+use
+aimat -2617.17 64.40 680.28
+use
+aimat -2620.69 64.90 676.90
+use
+aimat -2616.94 64.00 683.53
+use
+aimat -2623.31 63.20 682.30
+use
+aimat -2617.77 64.40 680.73
+use
+aimat -2621.04 64.40 683.06
+use
+aimat -2623.65 64.90 682.74
+use
+aimat -2619.25 63.60 679.33
+use
+aimat -2622.65 63.20 677.50
+use
+aimat -2617.84 64.90 680.94
+use
+aimat -2622.14 64.90 680.65
+use
+aimat -2621.17 64.90 685.01
+use
+aimat -2619.13 64.40 683.02
+use
+aimat -2617.73 64.90 684.03
+use
+aimat -2617.53 64.90 680.71
+use
+aimat -2622.36 64.40 685.45
+use
+aimat -2617.04 63.60 681.27
+use
+aimat -2616.47 64.00 679.55
+use
+aimat -2620.68 64.90 675.02
+use
+aimat -2619.01 64.40 681.74
+use
+aimat -2619.20 63.60 683.85
+use
+aimat -2619.59 63.20 676.99
+use
+aimat -2617.61 64.00 683.77
+use
+aimat -2623.74 63.20 685.38
+use
+aimat -2623.33 63.20 675.18
+use
+aimat -2617.97 64.00 678.09
+use
+aimat -2623.12 64.00 681.87
+use
+aimat -2621.68 64.00 676.84
+use
+aimat -2619.78 64.00 676.85
+use
+aimat -2618.81 64.00 678.24
+use
+aimat -2620.03 64.00 676.26
+use
+aimat -2620.91 63.60 679.63
+use
+aimat -2621.93 64.90 677.79
+use
+aimat -2616.19 64.40 685.62
+use
+aimat -2617.46 63.20 675.23
+use
+aimat -2620.82 63.60 675.39
+use
+aimat -2620.43 64.40 680.57
+use
+aimat -2619.64 64.90 677.43
+use
+aimat -2620.39 63.20 680.76
+use
+aimat -2620.84 64.00 681.33
+use
+aimat -2618.72 64.00 679.69
+use
+print player
+expect place.count >= 20
+expect place.off == 0
