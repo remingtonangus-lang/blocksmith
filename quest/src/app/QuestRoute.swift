@@ -19,6 +19,7 @@ import simd
 final class QuestRoute {
     static let all = ["menu", "newworld", "plains", "forest", "jungle", "village", "fight", "frigate", "train", "reload"]
     static let combat = ["battle", "siege", "naval"]
+    static let combatSeed: UInt64 = 7653607216494784574        // (the host framesoak's crawler/citadel world)
     static let fightSeconds = 90.0
     static let seconds: [String: Double] = ["menu": 20, "newworld": 30, "plains": 90, "forest": 90, "jungle": 120,
                                             "village": 120, "fight": 120, "frigate": 120, "train": 120, "reload": 45]
@@ -50,8 +51,11 @@ final class QuestRoute {
                 .flatMap { $0 == "combat" ? combat : [$0] }
                 .filter { all.contains($0) || combat.contains($0) || $0 == "spotworld" || $0.hasPrefix("spot-") }
         guard !legs.isEmpty else { print("route: failed: no known leg in '\(s)'"); return nil }
-        print("route: legs \(legs.joined(separator: " "))")
-        return QuestRoute(legs)
+        // (Nov 17: the combat legs ran in the world the app opened, his own. They now get a world of their own first.)
+        var legs2 = legs
+        if let i = legs2.firstIndex(where: { combat.contains($0) }), !legs2[..<i].contains("combatworld") { legs2.insert("combatworld", at: i) }
+        print("route: legs \(legs2.joined(separator: " "))")
+        return QuestRoute(legs2)
     }()
 
     let legs: [String]
@@ -90,6 +94,23 @@ final class QuestRoute {
         guard let g = game else { return }                         // (a world loading: its time counts in its leg)
         g.health = max(g.health, 10); g.alive = true             // (the route never ends in death)
         let want = QuestRoute.seconds[leg] ?? 60
+        if leg == "combatworld" {
+            if phase == 0 {
+                phase = 1
+                worldName = "GateCombat\(Int(Date().timeIntervalSince1970) % 100000)"
+                g.paused = false; g.closeMenu()
+                app.routeAction("create:0:3:1:\(worldName):\(QuestRoute.combatSeed)")
+                return
+            }
+            if g.world.seed == QuestRoute.combatSeed && legTime > 5 { claim(g); next(app) }
+            return
+        }
+        // Never in a world the route did not make: the spots and combat legs change the world (mode, mobs, blocks).
+        if (leg.hasPrefix("spot-") || QuestRoute.combat.contains(leg)) && !ownWorld(g) {
+            print("route: failed: leg \(leg) refused: world '\(g.save?.dir.lastPathComponent ?? "?")' is not the route's own ('\(worldName)')")
+            index = legs.count
+            return
+        }
         if leg == "spotworld" {
             if phase == 0 {
                 phase = 1
@@ -98,7 +119,7 @@ final class QuestRoute {
                 app.routeAction("create:0:3:1:\(worldName):\(QuestRoute.spotSeed)")
                 return
             }
-            if g.world.seed == QuestRoute.spotSeed && legTime > 5 { next(app) }
+            if g.world.seed == QuestRoute.spotSeed && legTime > 5 { claim(g); next(app) }
             return
         }
         if leg.hasPrefix("spot-"), let sp = QuestRoute.spots.first(where: { "spot-" + $0.name == leg }) {
@@ -429,6 +450,15 @@ final class QuestRoute {
             if leg == "battle", let b = before { g.changeDimension(to: .overworld, at: b) }
             next(app)
         }
+    }
+    // The world the route made itself (spotworld, combatworld), by its save folder's name.
+    private var ownDir: String?
+    private func ownWorld(_ g: Game) -> Bool { ownDir != nil && g.save?.dir.lastPathComponent == ownDir }
+    // (the world just made: its folder, if it is one of the route's "Gate" worlds)
+    private func claim(_ g: Game) {
+        let d = g.save?.dir.lastPathComponent ?? ""
+        ownDir = d.hasPrefix("Gate") ? d : nil
+        print("route: world \(d)\(ownDir == nil ? " is NOT the route's own" : "")")
     }
     private func fight() { phase = 2; fightFrom = legTime; lastCount = -5; mark(leg) }
 
