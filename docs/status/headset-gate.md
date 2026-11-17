@@ -106,3 +106,15 @@ microphone permission dialog (Android keeps his grant per app, so a reviewer may
 builds compile voice notes out); the headset's own Guardian and account setup; real hands (the route drives the
 game's pad, not the Touch controllers' tracking); thermals of a long session off the charger (the headset is on USB
 power, at most 40 minutes).
+
+## Combat legs (Nov 17 evening, Fable's store confidence)
+
+`--route combat` (or `battle`, `siege`, `naval` by name) plays the heaviest fights the game has, each in a world the
+route makes first (leg `combatworld`: GateCombat<time>, seed 7653607216494784574). No spot or combat leg runs in a
+world the route did not make: the route checks the save folder and ends with "route: failed: leg X refused" otherwise
+(the first combat build ran in his playtest world). battle: the Ash Vault gate in the Deep at Total War (about 100
+mobs, two thirds aggro); siege: the crawler 40 blocks off the nearest military base, main gun into it every 5 s;
+naval: two frigates 90 blocks off a stone float at sea (hostile or not by where they are). Set-up frames (a world
+loaded on the frame thread, ships built) and 3 s after are "NAME-stage", left out of the totals with "combatworld";
+then 90 s of "NAME", with "route: combat ..." every 5 s giving mobs, ships and particles (drawn quads count land only).
+Headset, 0.133 base: all three held 72 once running.
