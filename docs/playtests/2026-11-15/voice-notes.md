@@ -1,6 +1,6 @@
 # Voice bug notes 2026-11-15 (Quest)
 
-Spoken while playing; transcribed by elevenlabs/scribe-v2. Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 283 notes.
+Spoken while playing; transcribed by whisper.cpp small.en (local). Written by `tools/quest-bugnotes.py` (rewritten each run; edit Status lines in a copy). 283 notes.
 
 ## 08:14:38 - This log was hovering and then it corrected to sitting down. That show
 
