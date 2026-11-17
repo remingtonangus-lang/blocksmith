@@ -107,6 +107,7 @@ note's facing and pitch in degrees.
 | `probe X Y Z` | the cell's built block, ground flag, material, centre density, the drawn (fine) density at its middle and the drawn surface over its column |
 | `print player\|train\|ship\|fps` | place, speed, held, aboard, hull; tick avg and worst over the last tick |
 | `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, use.changed, place.count/off, ship.speed/blocks/y, train.speed, walk.there/lowest/step, fps.worst/avg |
+| `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, ship.speed/blocks/y, train.speed, walk.there/lowest/step, fps.worst/avg, felled.count/blocks/tilt/spin (the felled trees in the world: tilt 0 lying level, 1 upright or upside down) |
 
 Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 
@@ -120,5 +121,8 @@ Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 | `dug-pit-materials.scene --headset --seed 7780452129890778212` (ledger 260's bloom) | 0 of 53 off (earth, gravel, rock) | the same switches: 3 of 54 off |
 | `dug-cells.scene --headset --seed 7780452129890778212` (ledger 260) | all passed | `BS_OLDSLIVERCELL=1`: 2 FAILED (a cell drawn under its middle reads as sand) |
 | `place-pull.scene --headset --seed 7780452129890778212` (ledger 260) | a 0.3 s pull sets one block | `BS_OLDPLACEREPEAT=1`: 1 FAILED (two) |
+| `tree-stump-stays.scene --seed 7780452129890778212 --headset` (ledgers 226, 227) | all passed: stump and neighbour stand, one body of 144 | `BS_OLDFELLSTUMP=1`: 5 FAILED (246 blocks fall) |
+| `tree-lies-down.scene --seed 3084501862406496736 --headset` (ledger 228) | all passed: tilt 0.79, spin 0 | `BS_OLDCROWNWEIGHT=1`: 1 FAILED (upside down) |
+| `bush-on-the-ground.scene --seed 3084501862406496736 --headset` (ledger 229) | all passed; bush.png | `BS_OLDBUSHMOUND=1`: 3 FAILED |
 
 Each runs in about 15 s after the census is kept. `ride nearest train` needs a train in the loaded land.

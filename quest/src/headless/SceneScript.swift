@@ -114,6 +114,12 @@ enum SceneScript {
             case "ship.speed": return ship.map { simd_length($0.vel) }
             case "ship.blocks": return ship.map { Float($0.blockCount) }
             case "ship.y": return ship.map { $0.pos.y - Float(YOFF) }
+            // (ledgers 226-228: the felled trees lying or falling in the world: how many, the blocks in them, how far
+            // from level the most tilted trunk is (0 lying flat, 1 standing or upside down), the fastest one's spin)
+            case "felled.count": return Float(w.ships.list.filter { Felling.isFelled($0) }.count)
+            case "felled.blocks": return Float(w.ships.list.filter { Felling.isFelled($0) }.reduce(0) { $0 + $1.blockCount })
+            case "felled.tilt": return w.ships.list.filter { Felling.isFelled($0) }.map { abs($0.rot.act(V3(0, 1, 0)).y) }.max()
+            case "felled.spin": return w.ships.list.filter { Felling.isFelled($0) }.map { simd_length($0.angVel) }.max()
             case "train.speed": return train?.blocksPerSec
             case "walk.there": return walkThere
             case "walk.lowest": return walkLowest
