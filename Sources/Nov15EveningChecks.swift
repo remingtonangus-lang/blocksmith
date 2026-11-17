@@ -6,6 +6,7 @@ import simd
 // laser press's in the suite (quest/src/headless/main.swift, PullAim).
 enum Nov15EveningChecks {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: a check's own world starts the trains over; they come back)
         attachPin(g, check)
         shipChair(g, check)
         fittings(check)

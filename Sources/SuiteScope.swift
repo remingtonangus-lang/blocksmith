@@ -36,7 +36,8 @@ final class SuiteScope {
         let hadMobs = Set(mobs.map { ObjectIdentifier($0) })
         g.mobs.mobs.removeAll { !hadMobs.contains(ObjectIdentifier($0)) }
         let hasMobs = Set(g.mobs.mobs.map { ObjectIdentifier($0) })
-        g.mobs.mobs.append(contentsOf: mobs.filter { !hasMobs.contains(ObjectIdentifier($0)) })
+        let back = mobs.filter { !hasMobs.contains(ObjectIdentifier($0)) }
+        g.mobs.mobs.append(contentsOf: back)
         g.world.pendingMobs = pending
         g.time = time
         Rand.snapshot = rand
