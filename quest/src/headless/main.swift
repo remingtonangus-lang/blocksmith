@@ -2556,6 +2556,46 @@ if CommandLine.arguments.contains("--modelcheck") { exit(ModelCheck.run()) }
 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questcheck-\(getpid())")
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)
+// Fast proof (docs/status/fast-proof.md): a run that names a check (`--X-only`) skips what only the whole run needs.
+let namedRun = CommandLine.arguments.contains { $0.hasPrefix("--") && $0.hasSuffix("-only") }
+// The natural census (Sources/NaturalCensus.swift: ~70 sample chunks generated, 10-20 s here) comes out the same every
+// time for one binary. A named run keeps it beside the temp dir under this executable's path, size and date and reads
+// it back the next time; the whole run still computes it. QC_KEEP_CENSUS=0: never keep; =1: keep on a whole run too.
+let censusKeep: URL? = {
+    let env = ProcessInfo.processInfo.environment["QC_KEEP_CENSUS"]
+    guard env == "1" || (namedRun && env != "0") else { return nil }
+    let exe = URL(fileURLWithPath: "/proc/self/exe").resolvingSymlinksInPath()
+    guard let a = try? FileManager.default.attributesOfItem(atPath: exe.path), let size = a[.size] as? Int,
+          let date = a[.modificationDate] as? Date else { return nil }
+    var h: UInt64 = 0xcbf29ce484222325
+    for u in exe.path.utf8 { h = (h ^ UInt64(u)) &* 0x100000001b3 }
+    return tmp.deletingLastPathComponent().appendingPathComponent("questcheck-census-\(String(h, radix: 16))-\(size)-\(Int(date.timeIntervalSince1970)).txt")
+}()
+if let k = censusKeep, FileManager.default.fileExists(atPath: k.path) {
+    try? FileManager.default.createDirectory(at: NaturalCensus.cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try? FileManager.default.copyItem(at: k, to: NaturalCensus.cacheURL)
+}
+// Named checks that need no shared world (they make their own, or none): run before it is made and loaded.
+func namedEnd(_ name: String) -> Never { print(failures == 0 ? "\(name): all checks passed" : "\(name): \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
+// P499: no held gun part or upgrade fitting floats clear of the gun (quest/src/test/GunFittingsCheck.swift).
+if CommandLine.arguments.contains("--gunfittings-only") { GunFittingsCheck.run(check); namedEnd("gunfittings") }
+// --factions-structures-only: the Mac --questbugs checks on where Capital cities and citadels stand from the spawn
+// (FactionTests.structures: findable, never at the spawn, the structure guard).
+if CommandLine.arguments.contains("--factions-structures-only") { FactionTests.structures(check); namedEnd("factions structures") }
+// --water-only: P44 surface water in new worlds (Sources/WaterTests.swift).
+if CommandLine.arguments.contains("--water-only") { WaterTests.run(check: check); namedEnd("water") }
+// --overlaps-only: structure piece overlaps over 12 seeds (Sources/OverlapTests.swift, Q2; OVERLAP_SEEDS=N).
+if CommandLine.arguments.contains("--overlaps-only") { OverlapTests.run(check: check); namedEnd("overlaps") }
+// --musiclevels-only: every mood's music through the leveller, loudness and peaks (Sources/MusicLevelTests.swift, Q2).
+if CommandLine.arguments.contains("--musiclevels-only") { MusicLevelTests.run(check: check); namedEnd("musiclevels") }
+// --settings-only: options persist across launches and Reset Options resets them all (SettingsCheck.swift, Q2).
+if CommandLine.arguments.contains("--settings-only") { SettingsCheck.run(check: check); namedEnd("settings") }
+// --savesoak-only: 100 save/load cycles (Sources/SaveSoakTests.swift, Q2; SOAK_CYCLES=N).
+if CommandLine.arguments.contains("--savesoak-only") { SaveSoakTests.run(device: device, check: check); namedEnd("savesoak") }
+// --capitals-only: just the Capital city checks (Sources/CapitalTownTests.swift), for quick iteration.
+if CommandLine.arguments.contains("--capitals-only") {
+    TownTests.capitals({ World(seed: UInt64(arg("--seed") ?? "") ?? seed, device: device, save: nil) }, check); namedEnd("capitals")
+}
 
 let t0 = CFAbsoluteTimeGetCurrent()
 let world = World(seed: seed, device: device, save: nil)
@@ -2602,10 +2642,11 @@ let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 // blocks off, so nothing near the player ticked: arrows hung in the air, a called horse never ran)
 world.activeCenter = spawn
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
+if let k = censusKeep, !FileManager.default.fileExists(atPath: k.path) { try? FileManager.default.copyItem(at: NaturalCensus.cacheURL, to: k) }
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
 // Ledger 84: every block with an "[x]" state, placed against a face along x, along z and on top, lands as a state of
 // its own group (the two-way cloth pieces asked for a missing "[z]" and stopped the game), and turns on a ship.
-do {
+if !namedRun {   // (the whole run's; a named run skips it)
     var groups = 0, twoWay = 0, wrong: [String] = []
     for i in 0..<Blocks.count {
         let b = BlockID(i)
@@ -2628,7 +2669,7 @@ do {
 // Ledger 89 (trailer item 5): a built block over the field's ground beside a dip draws a foot down into it; its lower
 // corners carried a v past the vertex's 5 bits into the layer (a snow block's foot drew cactus). Dig beside a stone
 // brick and a plank set on the ground of a small field world, remesh, and no vertex may carry a u or v past 31.
-do {
+if !namedRun {   // (the whole run's; a named run skips it)
     let fw = World(seed: seed, device: device, save: nil)
     fw.makeFieldWorld()
     fw.renderDistance = 2
@@ -2664,7 +2705,7 @@ do {
 // Ledger 90 (trailer item 5's dark hole): a cell a blast or a dig opened to the sky reads the sky's light at once, before
 // the edit's remesh lands (the light kept is the last mesh's: a crater's flying pieces read the rock's no light and drew
 // black). Dig a column's top 4 cells in a small world without remeshing; the lowest opened cell must read sky 15.
-do {
+if !namedRun {   // (the whole run's; a named run skips it)
     let lw = World(seed: seed, device: device, save: nil)
     lw.renderDistance = 2
     let at = V3(spawn.x - 40, spawn.y, spawn.z)
@@ -2688,7 +2729,7 @@ do {
 // Nov 12 playtest (driving the Ironback Crawler: the hull / rounds / fuel panel over the toolbar): at the headset's HUD
 // panel (1024 x 640, couch scale) a driver's toolbar is hidden and the vehicle panel sits in its place clear of the
 // hearts and hunger; a passenger keeps the toolbar and the panel clears it. BS_OLDDRIVEHUD=1 for before.
-do {
+if !namedRun {   // (the whole run's; a named run skips it)
     let couch0 = HudLayout.couch, scale0 = HudLayout.userScale, surv0 = game.survival, pos0 = game.player.pos
     HudLayout.couch = true; HudLayout.userScale = 0; game.survival = true
     defer { HudLayout.couch = couch0; HudLayout.userScale = scale0; game.survival = surv0; game.player.pos = pos0 }
@@ -3119,8 +3160,7 @@ if CommandLine.arguments.contains("--gunparts-only") {          // P372: emplace
     print(failures == 0 ? "gunparts: all checks passed" : "gunparts: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // P499: no held gun part or upgrade fitting floats clear of the gun (quest/src/test/GunFittingsCheck.swift).
-GunFittingsCheck.run(check)
-if CommandLine.arguments.contains("--gunfittings-only") { print(failures == 0 ? "gunfittings: all checks passed" : "gunfittings: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
+if !namedRun { GunFittingsCheck.run(check) }
 if CommandLine.arguments.contains("--dropflight") {           // P461: a taken dropship lands, sprints and crushes
     DropFlightCheck.run(game, check)
     print(failures == 0 ? "dropflight: all checks passed" : "dropflight: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -3597,12 +3637,6 @@ if let i = CommandLine.arguments.firstIndex(of: "--basetest-only") {
     }
     print("basetest: no citadel within 6 regions"); exit(1)
 }
-// --factions-structures-only: the Mac --questbugs checks on where Capital cities and citadels stand from the spawn
-// (FactionTests.structures: findable, never at the spawn, the structure guard).
-if CommandLine.arguments.contains("--factions-structures-only") {
-    FactionTests.structures(check)
-    print(failures == 0 ? "factions structures: all checks passed" : "factions structures: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
 // --p12pm-only [P1xx]: the Oct 12 afternoon playtest fixes (Sources/PlaytestOct12PMTests.swift, backlog P107-P139).
 if let i = CommandLine.arguments.firstIndex(of: "--p12pm-only") {
     let only = i + 1 < CommandLine.arguments.count && CommandLine.arguments[i + 1].hasPrefix("P") ? CommandLine.arguments[i + 1] : nil
@@ -3689,11 +3723,6 @@ if let i = CommandLine.arguments.firstIndex(of: "--oct14-only") {
     PlaytestOct14Tests.run(game, only: next.hasPrefix("P") ? next : nil, render: render, check: check)
     print(failures == 0 ? "oct14: all checks passed" : "oct14: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
-// --water-only: P44 surface water in new worlds (Sources/WaterTests.swift).
-if CommandLine.arguments.contains("--water-only") {
-    WaterTests.run(check: check)
-    print(failures == 0 ? "water: all checks passed" : "water: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
 if CommandLine.arguments.contains("--tower-only") { PlaytestOct13Tests.towers(game); exit(0) }
 // --freeze-only: the P169 gallop probe (Sources/PlaytestOct13Tests.swift).
 if CommandLine.arguments.contains("--freeze-only") {
@@ -3732,16 +3761,6 @@ if CommandLine.arguments.contains("--skyisle-only") {
     SkyIsleTests.run(device: device, game: game, check: check)
     print(failures == 0 ? "skyisle: all checks passed" : "skyisle: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
-// --overlaps-only: structure piece overlaps over 12 seeds (Sources/OverlapTests.swift, Q2; OVERLAP_SEEDS=N).
-if CommandLine.arguments.contains("--overlaps-only") {
-    OverlapTests.run(check: check)
-    print(failures == 0 ? "overlaps: all checks passed" : "overlaps: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
-// --musiclevels-only: every mood's music through the leveller, loudness and peaks (Sources/MusicLevelTests.swift, Q2).
-if CommandLine.arguments.contains("--musiclevels-only") {
-    MusicLevelTests.run(check: check)
-    print(failures == 0 ? "musiclevels: all checks passed" : "musiclevels: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
 // --touchmatrix-only: the Touch conflict matrix alone (needs Vulkan: lavapipe).
 if CommandLine.arguments.contains("--touchmatrix-only"), let ctx = vkctx {
     do { try QuestTouchMatrix.run(game: game, ctx: ctx, check: check) } catch { check(false, "touchmatrix: \(error)") }
@@ -3751,11 +3770,6 @@ if CommandLine.arguments.contains("--touchmatrix-only"), let ctx = vkctx {
 if CommandLine.arguments.contains("--vrtext-only") {
     VRTextCheck.run(game: game, check: check)
     print(failures == 0 ? "vrtext: all checks passed" : "vrtext: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
-// --settings-only: options persist across launches and Reset Options resets them all (SettingsCheck.swift, Q2).
-if CommandLine.arguments.contains("--settings-only") {
-    SettingsCheck.run(check: check)
-    print(failures == 0 ? "settings: all checks passed" : "settings: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --friendlyfire-only: soldier squads of the Capital, Greywall and the Meridian Navy never hurt their own
 // (Sources/FriendlyFireTests.swift, Q2).
@@ -3836,11 +3850,6 @@ if CommandLine.arguments.contains("--notext") {
 if CommandLine.arguments.contains("--balance-only") {
     BalanceTests.run(game: game, check: check)
     print(failures == 0 ? "balance: all checks passed" : "balance: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
-// --savesoak-only: 100 save/load cycles (Sources/SaveSoakTests.swift, Q2; SOAK_CYCLES=N).
-if CommandLine.arguments.contains("--savesoak-only") {
-    SaveSoakTests.run(device: device, check: check)
-    print(failures == 0 ? "savesoak: all checks passed" : "savesoak: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // --submarine-only: submarines, mines and sonar (Sources/SubmarineTests.swift, backlog C8).
 if CommandLine.arguments.contains("--submarine-only") {
@@ -3936,11 +3945,6 @@ L3GuardTests.g12(game, check: check)       // (G12 and old saves)
 VRCombatFeelTests.run(game, check: check)
 if CommandLine.arguments.contains("--workshop-only") {
     print(failures == 0 ? "workshop: all checks passed" : "workshop: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
-}
-// --capitals-only: just the Capital city checks (Sources/CapitalTownTests.swift), for quick iteration.
-if CommandLine.arguments.contains("--capitals-only") {
-    TownTests.capitals({ World(seed: UInt64(arg("--seed") ?? "") ?? seed, device: device, save: nil) }, check)
-    print(failures == 0 ? "capitals: all checks passed" : "capitals: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 // L3 ground: which plants sway, the mesher's marks for the shader, the rustle (Sources/PlantTests.swift); the look on the
 // Quest renderer is PlantRenderTest under --render (--ground-only stops after it, --ground-shots DIR keeps the frames).
