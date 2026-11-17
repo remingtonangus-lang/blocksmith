@@ -444,6 +444,8 @@ final class QuestApp {
     // MARK: Frame loop
 
     private var lastFrameTime = CFAbsoluteTimeGetCurrent()
+    private var handedAny = false
+    static let oldFirstStat = Env.all["BS_OLDFIRSTSTAT"] == "1"
     // Ledger 261: the frame's parts timed (questcheck --appsoak names them for a slow frame); off on the headset.
     static var lapsOn = false
     static var soakSeeds: [UInt64] = []           // (--appsoak --seeds A,B: the new worlds' seeds, for a run to repeat)
@@ -631,8 +633,14 @@ final class QuestApp {
             ComputeCost.frame(frameMs: (now - lastFrameTime) * 1000, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs,
                               gpu: scene.gpuMs, rate: Double(xr.refreshRate), stageNames: WorldRenderer.stageNames, stageMs: wr.stageFrame)
         }
-        stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
-                  target: f.period * (xr.spaceWarpOn ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
+        // (Store review, Nov 17: the first submitted frame's interval runs from QuestApp's construction: pipelines,
+        // targets and the OpenXR session start, before anything of ours is shown; it is not counted as a frame, or the
+        // first perf line reported a 1.9 s "worst frame" at every launch. BS_OLDFIRSTSTAT=1: counted as before.)
+        if handedAny || QuestApp.oldFirstStat {
+            stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
+                      target: f.period * (xr.spaceWarpOn ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
+        }
+        handedAny = true
         lastFrameTime = now
         if QuestApp.lapsOn { lapMs[7] = (CFAbsoluteTimeGetCurrent() - lapT) * 1000 }
         return !xr.exitRequested
