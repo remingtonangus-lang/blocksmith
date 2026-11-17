@@ -29,7 +29,7 @@ struct DynamicResolution {
     // (Store review, Nov 2, VRC.Quest.Performance.1: the frame must hold the display's rate. His Oct 30 captures were
     // pixel-bound at up to 26 ms, which 70 % of the eye (49 % of the pixels) brought only to the budget's edge; 60 %
     // gives the frame room. Only the heaviest views reach it, for as long as they are heavy.)
-    static let minScale: Float = 0.6, step: Float = 0.05, maxStep: Float = 0.15
+    static let minScale: Float = Env.all["BS_EYEMIN"].flatMap { Float($0) } ?? 0.6, step: Float = 0.05, maxStep: Float = 0.15
     private(set) var scale: Float = 1
     private(set) var drops = 0, takenBack = 0           // for the perf line
     private(set) var unjudged = 0                       // (ledger 177: probes that gave no answer)
