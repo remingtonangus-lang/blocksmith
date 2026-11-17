@@ -63,6 +63,7 @@ enum QuestStreamTest {
         g.smoothTerrain = true; SmoothTerrain.use(world: true, world: w)
         g.survival = false
         g.time = 0.3 * DAY_LENGTH
+        g.spawnPoint = V3(at[0], at[1], at[2])   // (a new world's spawn is settled before play: its one-off load is not the stream's)
         let p = g.player
         p.pos = V3(at[0], at[1], at[2]); p.flying = true
         let yaw = -look[0] * .pi / 180, pitch = look[1] * .pi / 180          // (the note's yaw, as --view)
@@ -97,6 +98,19 @@ enum QuestStreamTest {
         let t0 = CFAbsoluteTimeGetCurrent()
         var shift = 0.0
         var ticks: [Double] = [], allTicks: [Double] = []
+        // (Nov 17, the frigate notes: BS_STREAMHOLD=N holds N of the workers the whole run, as the frame governor
+        // does after late frames on the headset (FrameGovernor.workersHeld), to see what that costs the land coming in.)
+        let hold = Int(Env.all["BS_STREAMHOLD"] ?? "")
+        if let h = hold { JobPool.shared.setHeld(h); print("streamtest: \(JobPool.shared.heldNow) of \(JobPool.shared.workers) workers held") }
+        // (ledger 221: BS_STREAMLATE=K: K of every 72 frames late, spread evenly, as at 72 - K fps on the headset; the
+        // governor's late window and its worker hold run on them, BS_OLDWORKERHOLD=1 as before)
+        let lateK = Int(Env.all["BS_STREAMLATE"] ?? "") ?? 0
+        // (Nov 17, the making's share: BS_STREAMGENTIME=1 times chunk making by phase and structure starts planned by kind,
+        // printed every 10 s for the 10 s past)
+        let genTime = Env.all["BS_STREAMGENTIME"] == "1"
+        if genTime { WorldGen.timing = true; WorldGen.timingStarts = false }
+        var phase0 = WorldGen.phaseMs, startMs0 = StructureCache.startMs, made0 = StructureCache.startsMade, twice0 = StructureCache.startsTwice, evict0 = StructureCache.evictions
+        if lateK > 0 { print("streamtest: \(lateK) of every 72 frames late; worker hold \(FrameGovernor.oldHold ? "as before" : "land first (ledger 221)")") }
         for f in 0..<(secs * 72) {
             if g.menu != nil { g.closeMenu() }
             g.cine.active = false
@@ -155,6 +169,7 @@ enum QuestStreamTest {
             }
             if crawler == nil { p.vel = .zero }
             let tt = CFAbsoluteTimeGetCurrent()
+            if lateK > 0 { FrameGovernor.harnessFrame(late: (f * lateK) % 72 < lateK, now: Double(f) / 72) }
             g.tick(dt)
             ticks.append((CFAbsoluteTimeGetCurrent() - tt) * 1000)
             // (As the headset's frame does every frame: the middle ring follows him, built in the background.)
@@ -227,6 +242,16 @@ enum QuestStreamTest {
                 let wd = w.wrongDeferred()
                 wrongMost = max(wrongMost, wd.wrong.count); wrongSeen.formUnion(wd.wrong)
                 if !wd.wrong.isEmpty || sec % 10 == 0 {
+                    if genTime && sec % 10 == 0 {
+                        WorldGen.timingLock.lock()
+                        let ph = zip(WorldGen.phaseNames, zip(WorldGen.phaseMs, phase0)).map { String(format: "%@ %.0f", $0.0, $0.1.0 - $0.1.1) }.joined(separator: ", ")
+                        let st = StructureCache.startMs.map { ($0.key, $0.value - (startMs0[$0.key] ?? 0)) }.filter { $0.1 > 1 }.sorted { $0.1 > $1.1 }
+                            .prefix(8).map { String(format: "%@ %.0f", $0.0, $0.1) }.joined(separator: ", ")
+                        phase0 = WorldGen.phaseMs; startMs0 = StructureCache.startMs
+                        WorldGen.timingLock.unlock()
+                        print("streamtest: \(sec) s making, last 10 s, worker ms by phase: \(ph); starts planned \(StructureCache.startsMade - made0) (again \(StructureCache.startsTwice - twice0), evictions \(StructureCache.evictions - evict0)), ms by kind (nested counted in each): \(st)")
+                        made0 = StructureCache.startsMade; twice0 = StructureCache.startsTwice; evict0 = StructureCache.evictions
+                    }
                     print(String(format: "streamtest: %3d s: at %.0f %.0f %.0f; buried check: %d chunks, %d sections left unmeshed hold the surface%@", sec, p.pos.x, p.pos.y - Float(YOFF), p.pos.z, wd.checked, wd.wrong.count, wd.wrong.isEmpty ? "" : ": " + wd.wrong.prefix(4).joined(separator: "; ")))
                 }
                 World.handedOver = 0; World.handoverSpent = 0
@@ -302,6 +327,7 @@ enum QuestStreamTest {
         allTicks.sort()
         let p99 = allTicks.isEmpty ? 0 : allTicks[min(allTicks.count - 1, allTicks.count * 99 / 100)]
         if World.meshLog { print("streamtest: why chunks went to the front of the queue: \(World.urgentWhy.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))") }
+        if lateK > 0 { print("streamtest: governor: " + FrameGovernor.heldLine) }
         print(String(format: "streamtest: every surface in view drawn at %@, every chunk at %@; meshes for a changed section %d in all, %d drawn; ticks after the first 2 s: %.2f ms mean, %.1f ms at the 99th percentile, %.1f worst",
                      firstSurf.map { String(format: "%.1f s", $0) } ?? "never", firstAll.map { String(format: "%.1f s", $0) } ?? "never",
                      World.staleMeshes, World.staleDrawn, allTicks.reduce(0, +) / Double(max(1, allTicks.count)), p99, allTicks.last ?? 0))

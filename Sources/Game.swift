@@ -1916,7 +1916,11 @@ final class Game: LifeLinked {
         // Q2c-console-47: armour in hand goes on with use (not at a block that opens; armour stands took theirs above).
         if useNow && held.def.armorSlot != nil && !(target.map { isInteractive($0.hit) } ?? false) && wearHeld() { swing = 1; return }
         guard useNow || (useHeld && placeCooldown <= 0 && useRepeatItem == Int(held.item)) else { return }
-        placeCooldown = 0.2       // 4 ticks, like the reference's held right-click
+        // Ledger 260 (Nov 16 21:19:08, "See, I put a block here, it places two... we don't want that"): the hold repeat
+        // came 0.2 s after the press, and a headset trigger pull often lasts longer than that, so one pull set two
+        // blocks. The first repeat now waits 0.45 s (a held trigger still lays a row); the rest come every 0.2 s.
+        // BS_OLDPLACEREPEAT=1: as before.
+        placeCooldown = useNow && !Game.oldPlaceRepeat ? 0.45 : 0.2       // (4 ticks between repeats, like the reference's held right-click)
         if useNow && useBottleOrCauldron(target) { swing = 1; return }
         // P364 (b): a bucket used on a furnace, crafting table, chest... opens it (sneak to pour against it).
         let atBlockThatOpens = useNow && !(input.shift || p.b) && (target.map { isInteractive($0.hit) } ?? false)
@@ -1980,7 +1984,7 @@ final class Game: LifeLinked {
         // (cleared with the block's own write, below: on the edit lane together, and not at all when the block is refused)
         let sunkCell: IVec3? = rowCell.flatMap { r in
             r.cell == at && r.sunk && Blocks.hardness[Int(world.block(at.x, at.y, at.z))] >= 0 ? r.cell : nil
-        }
+        } ?? (rowCell == nil && Blocks.fullCollide[Int(blockItem)] ? groundOnlyCell(at) : nil)      // (ledger 260: every face)
         let existing = sunkCell != nil ? AIR : world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
@@ -2287,6 +2291,8 @@ final class Game: LifeLinked {
     // the cell, that row. `sunk`: the cell holds ground, which the placing clears (Game.place). BS_OLDPLACEROW=1: before.
     static let oldPlaceRow = Env.all["BS_OLDPLACEROW"] == "1"
     static let oldNotch = Env.all["BS_OLDNOTCH"] == "1"
+    static let oldHalfCell = Env.all["BS_OLDHALFCELL"] == "1"
+    static let oldPlaceRepeat = Env.all["BS_OLDPLACEREPEAT"] == "1"
     static var oldWetRow = Env.all["BS_OLDWETROW"] == "1"
     func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
         guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
@@ -2307,6 +2313,11 @@ final class Game: LifeLinked {
         let low = free(r0), high = free(r0 + 1)
         guard low || high else { return nil }
         var row = g.at.y - Float(r0) < 0.5 ? r0 : r0 + 1
+        // Ledger 260 (Nov 16 21:20:31, a block on a half cell he had dug: "That should fill in and remove the sand under
+        // it, but it doesn't... So I got a giant hole here"): a cell the surface cuts that his digging left at most a
+        // sliver at its middle (open, or +1 or +2 of 32 as a dig used to keep it) is a hole: the block fills it, whatever
+        // height the remnant shows. Untouched ground keeps the nearest row. BS_OLDHALFCELL=1: as before.
+        if !Game.oldHalfCell && world.fieldDensity(x, r0, z) <= 0.07 { row = r0 }
         if low && high {
             let a = beside(r0), c = beside(r0 + 1)
             if a != c { row = a ? r0 : r0 + 1 }
@@ -2326,12 +2337,38 @@ final class Game: LifeLinked {
     func placeCell(_ t: (hit: IVec3, normal: IVec3), for blockItem: BlockID) -> IVec3 {
         let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
         if let r = groundRowCell(t, for: blockItem) { return r.cell }
+        // Ledger 260: a full block aimed at a slope of ground goes into the open cell the drawn surface runs through where
+        // he points (the gap he sees), not the cell past the face of the ground cell the aim named, which can be under or
+        // beside it. BS_OLDPLACECELL=1: as before.
+        if !Game.oldPlaceCell, world.fieldTerrain, world.frame == nil, Blocks.fullCollide[Int(blockItem)], let g = targetGround, g.cell == t.hit {
+            let c = IVec3(Int(floor(g.at.x)), Int(floor(g.at.y)), Int(floor(g.at.z)))
+            let bb = world.builtBlock(c.x, c.y, c.z)
+            if c != t.hit, c.y >= 1, c.y < CH, !world.groundAt(c.x, c.y, c.z), bb == AIR || (Blocks.replaceable[Int(bb)] && !Blocks.isLiquid(bb)),
+               !player.intersectsBlock(c), !mobs.mobs.contains(where: { $0.health > 0 && $0.intersects(c) }) { return c }
+        }
         var at = floorAhead(t, for: blockItem) ?? groundCell(t, for: blockItem) ?? (Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal)
         // P507 (Nov 1 12:14, "I can't place blocks down in this crater", "a lot of my clicks are just getting ignored"): in a
         // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
         // (a cell drawn small, a slope's corner): the block goes in the last open cell the aim crossed before the ground.
-        if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))], let open = openCellBefore(t) { at = open }
+        if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))]
+            && (!Blocks.fullCollide[Int(blockItem)] || groundOnlyCell(at) == nil), let open = openCellBefore(t) { at = open }
         return at
+    }
+    // Ledger 260 (Nov 16 21:18-21:22, building a wall on a dug beach: "I am pointing here in a block in the wrong place";
+    // "it needs to know when you're trying to build a wall"): the face's cell held a remnant of ground (a dig leaves the
+    // cells round it partly full) and the block went to the last open cell along the aim, two cells off, diagonal or one
+    // up. His rule (question 739): a cell with a little ground in it takes the block, its ground cleared first. A face cell
+    // that holds a remnant of ground (its middle under half a block deep) and no built block now does, for every face (ledger 131 did it for ground aimed at from above);
+    // never a cell he or a creature stands in, or unbreakable ground. BS_OLDPLACECELL=1: as before.
+    static let oldPlaceCell = Env.all["BS_OLDPLACECELL"] == "1"
+    func groundOnlyCell(_ c: IVec3) -> IVec3? {
+        guard !Game.oldPlaceCell, world.fieldTerrain, world.frame == nil, c.y >= 1, c.y < CH, world.groundAt(c.x, c.y, c.z) else { return nil }
+        let bb = world.builtBlock(c.x, c.y, c.z)
+        guard bb == AIR || (Blocks.replaceable[Int(bb)] && !Blocks.isLiquid(bb)),
+              Blocks.hardness[Int(world.materialAt(c.x, c.y, c.z))] >= 0,
+              world.fieldDensity(c.x, c.y, c.z) <= 0.5,          // (a remnant: the surface runs through the cell, not buried ground)
+              !player.intersectsBlock(c), !mobs.mobs.contains(where: { $0.health > 0 && $0.intersects(c) }) else { return nil }
+        return c
     }
     func openCellBefore(_ t: (hit: IVec3, normal: IVec3)) -> IVec3? {
         let o = player.eye, d = player.look
@@ -2629,7 +2666,11 @@ final class Game: LifeLinked {
         let natural = SmoothTerrain.natural[Int(b)]
         func go() {
             breakBlock(p, b, drop: drop, toPack: toPack)
-            if natural { world.carve(at: ball, radius: Game.digRadius(b), mode: .shape, remesh: true) }
+            if natural {
+                world.openTaken = !World.oldSliverCell && world.fieldTerrain
+                world.carve(at: ball, radius: Game.digRadius(b), mode: .shape, remesh: true)
+                world.openTaken = false
+            }
         }
         if Game.oldDigMesh { go() } else { world.editBatch(go) }
     }
@@ -2641,7 +2682,11 @@ final class Game: LifeLinked {
     // drops). BS_OLDSLIVER=1: as before.
     static let oldSliver = Env.all["BS_OLDSLIVER"] == "1"
     func clearSliver(at p: V3) {
-        world.editBatch { world.carve(at: p + player.look * 0.2, radius: 0.72, mode: .shape, remesh: true) }
+        world.editBatch {
+            world.openTaken = !World.oldSliverCell && world.fieldTerrain       // (ledger 260: what it all but empties opens)
+            world.carve(at: p + player.look * 0.2, radius: 0.72, mode: .shape, remesh: true)
+            world.openTaken = false
+        }
         particles.dust(DIRT, at: p, count: 3, spread: 0.3)
     }
 
@@ -3346,9 +3391,10 @@ final class Game: LifeLinked {
         return true
     }
 
+    static var deathTrace = Env.all["BS_DEATH_TRACE"] == "1"   // (on in questcheck, off in the game unless asked)
     func die(_ cause: String) {
         guard !(menu is DeathMenu) else { return }
-        if Env.all["BS_DEATH_TRACE"] == "1" {         // (diagnosis: who died of what, where, among which mobs)
+        if Game.deathTrace {                            // (diagnosis: who died of what, where, among which mobs)
             let near = mobs.mobs.filter { simd_length($0.pos - player.pos) < 24 }.map { "\($0.kind) \(Int(simd_length($0.pos - player.pos)))" }
             print("death trace: \(cause) at \(Int(player.pos.x)) \(Int(player.pos.y) - YOFF) \(Int(player.pos.z)), time \(Int(time)), test mode \(Settings.shared.testMode), near: \(near.joined(separator: ", "))")
         }

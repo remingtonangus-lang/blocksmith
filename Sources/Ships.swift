@@ -460,6 +460,12 @@ final class Ship: LifeLinked {
         var m: Float = 0
         var c = V3(0, 0, 0)
         var n = 0
+        // Ledger 228 (Nov 16 20:42:18, a felled jungle tree: "Looks like a diamond. Levitating... physics failure"): a
+        // thin trunk under a big crown weighed less than its leaves, so the body's centre sat in the crown; the leaves
+        // give way on the ground, so it went over crown first and stood on its top log, trunk in the air, turning on
+        // that one point for good. A felled tree with wood in it weighs what its wood weighs (leaves a tenth of
+        // theirs): its centre is in the trunk and it lies down along it. BS_OLDCROWNWEIGHT=1: as before.
+        let lightCrown = Felling.crownLight && name == Felling.name && g.blocks.contains { ShapeTrunks.isLog[Int($0)] }
         props.removeAll(); wheels.removeAll(); wings.removeAll(); cannons.removeAll(); rotors.removeAll(); balloons = 0; engines = 0; sails = 0; ballast = 0
         let woolT = ShipParts.wool
         var lo = V3(Float(sx), Float(sy), Float(sz)), hi = V3(0, 0, 0)
@@ -476,7 +482,7 @@ final class Ship: LifeLinked {
             if b == AIR { continue }
             n += 1
             let p = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
-            let bm = massT[Int(b)]
+            let bm = lightCrown && CapitalBase.isLeaf(b) ? massT[Int(b)] * 0.1 : massT[Int(b)]
             m += bm
             c += p * bm
             lo = simd_min(lo, p - 0.5); hi = simd_max(hi, p + 0.5)
@@ -553,7 +559,7 @@ final class Ship: LifeLinked {
         for y in 0..<sy { for z in 0..<sz { for x in 0..<sx {
             let b = g.blocks[g.index(x, y, z)]
             if b == AIR { continue }
-            let bm = massT[Int(b)]
+            let bm = lightCrown && CapitalBase.isLeaf(b) ? massT[Int(b)] * 0.1 : massT[Int(b)]
             let r = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5) - com
             let rr = simd_dot(r, r)
             let own = bm / 6
