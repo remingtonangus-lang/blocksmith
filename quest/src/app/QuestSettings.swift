@@ -159,6 +159,7 @@ enum QuestSettings {
     // (quest.tex128); picking Medium again afterwards sticks.
     static var textureRes: Int {
         get {
+            if let t = Env.all["BS_TEXRES"].flatMap({ Int($0) }) { return t }      // (ledger 235, headset trials)
             if !d.bool(forKey: "quest.tex128") {
                 d.set(true, forKey: "quest.tex128"); d.set(true, forKey: "quest.tex64")
                 if d.object(forKey: "quest.textureRes") != nil && d.integer(forKey: "quest.textureRes") < 128 { store(128, "quest.textureRes") }
