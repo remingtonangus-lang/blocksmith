@@ -80,6 +80,7 @@ final class QuestRoute {
         if leg == "spotworld" {
             if phase == 0 {
                 phase = 1
+                g.paused = false; g.closeMenu()          // (a fresh install's first-launch setup panel)
                 worldName = "GateSpots\(Int(Date().timeIntervalSince1970) % 100000)"
                 app.routeAction("create:0:3:1:\(worldName):\(QuestRoute.spotSeed)")
                 return
