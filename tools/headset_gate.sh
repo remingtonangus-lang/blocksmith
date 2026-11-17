@@ -5,8 +5,9 @@
 # --route all (or a list such as "menu newworld plains jungle"): the on-device route player plays those legs (debug
 #   property debug.sunderfall.route, cleared at the end); without it the app is left alone (menu, then the world it
 #   loads) for --minutes (default 5).
-# --env "BS_A=1;BS_B=0": before/after switches for this run (debug.sunderfall.env, read at launch by builds with
-#   ledger 284; at most 91 characters; cleared at the end).
+# --env "BS_A=1;BS_B=0;QUEST_SKIP=sky,clouds": before/after switches for this run (read at launch by builds with
+#   ledger 284). Split over debug.sunderfall.env ... env6 here (a property holds 91 characters; a long value goes on
+#   as KEY+=more); all cleared at the end.
 # Records `adb logcat` VrApi (the source OVR Metrics shows: FPS=a/b, Stale, App/GPU ms, CPU/GPU levels) and the app's
 # own lines (tag Blocksmith: perf, load, route, xr), once a second, tagged by leg. Writes DIR/raw.log, DIR/seconds.tsv,
 # DIR/summary.txt. PASS = no second under 60 fps anywhere (menus and loading included) and under 2% of seconds below
@@ -41,7 +42,7 @@ echo "headset_gate: $(adb shell getprop ro.product.model | tr -d '\r'), build $(
 adb shell am broadcast -a com.oculus.vrpowermanager.prox_close >/dev/null
 cleanup() {
   adb shell setprop debug.sunderfall.route '""' >/dev/null 2>&1
-  adb shell setprop debug.sunderfall.env '""' >/dev/null 2>&1
+  for p in env env2 env3 env4 env5 env6; do adb shell setprop debug.sunderfall.$p '""' >/dev/null 2>&1; done
   adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable >/dev/null 2>&1
   [[ -n "${LOGPID:-}" ]] && kill "$LOGPID" 2>/dev/null
 }
@@ -54,7 +55,31 @@ echo "headset_gate: app version $(adb shell dumpsys package $PKG | grep -m1 vers
 adb shell am force-stop $PKG
 sleep 2
 adb shell setprop debug.sunderfall.route "${ROUTE:-\"\"}"
-adb shell setprop debug.sunderfall.env "${ENVS:-\"\"}"
+# (pairs packed into properties of at most 90 characters; a value too long is cut at commas into KEY+= pieces)
+i=0
+for chunk in $(python3 - "$ENVS" <<'PY'
+import sys
+pairs = []
+for p in filter(None, sys.argv[1].split(";")):
+    k, _, v = p.partition("=")
+    parts, cur = [], ""
+    for item in v.split(","):
+        if cur and len(k) + len(cur) + len(item) + 4 > 88: parts.append(cur); cur = item
+        else: cur = item if not cur else cur + "," + item
+    parts.append(cur)
+    pairs += [f"{k}={parts[0]}"] + [f"{k}+={q}" for q in parts[1:]]
+props, cur = [], ""
+for p in pairs:
+    if cur and len(cur) + len(p) + 1 > 90: props.append(cur); cur = p
+    else: cur = p if not cur else cur + ";" + p
+if cur: props.append(cur)
+print("\n".join(props))
+PY
+); do
+  i=$((i + 1)); suf=$([[ $i == 1 ]] && echo "" || echo $i)
+  (( i <= 6 )) || { echo "headset_gate: --env too long (6 properties)"; exit 2; }
+  adb shell setprop debug.sunderfall.env$suf "'$chunk'"
+done
 adb logcat -c
 adb logcat -v epoch -s VrApi:I Blocksmith:I > "$OUT/raw.log" 2>&1 &
 LOGPID=$!
