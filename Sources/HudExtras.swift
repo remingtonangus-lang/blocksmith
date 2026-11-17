@@ -334,7 +334,9 @@ enum HudExtras {
         TownLaw.tick(g)
         TickProf.mark("hud: town law")
         Hunting.tick(g)
+        TickProf.mark("hud: hunting")                    // (store review: his savanna arrival's 7.5 ms, split)
         Countries.tick(g)
+        TickProf.mark("hud: countries")
         ContextPrompts.tick(g)
         TickProf.mark("hud: hunting, countries, prompts")
     }
