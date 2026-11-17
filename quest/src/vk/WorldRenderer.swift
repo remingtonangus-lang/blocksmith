@@ -277,7 +277,8 @@ final class WorldRenderer {
         let biomeT: Float = max(-0.2, min(0.25, (game.audio.biomeHere.info.temp - 0.7) * 0.25))
         let grade: Float = hasSky && !underground && !underwater && game.dim.dim == .overworld ? max(-1, min(1, max(0, warmT) + nightT + biomeT)) : 0
         u.fx = V4(Float((WorldRenderer.fxMask ?? Settings.shared.shaderFX) | WorldRenderer.fxAdd | (WorldRenderer.oldCloudNoise ? 1024 : 0)), mist, Float(SEA + 8), grade)
-        if sheenBits.isEmpty { sheenBits = ShaderFX.sheenBits() }
+        // (ledger 261: the shared sets, built on the loading thread; BS_OLDFIRSTFRAME=1 builds them here as before)
+        if sheenBits.isEmpty { if WorldRenderer.oldFirstFrame { sheenBits = ShaderFX.sheenBits() } else { (sheenBits, turnBits) = ShaderFX.cachedBits() } }
         withUnsafeMutableBytes(of: &u.sheen) { raw in
             let p = raw.bindMemory(to: UInt32.self)
             for i in 0..<min(p.count, sheenBits.count) { p[i] = sheenBits[i] }
@@ -720,11 +721,16 @@ final class WorldRenderer {
     }
     // The cloud map (CloudMap.swift): made at the first frame with clouds; this frame's answer from its record.
     private(set) var cloudMap: CloudMap?
+    // Ledger 261 (Fable, Nov 17, the store's frame rate): each world's first frame built the cloud map (its images and
+    // pipeline: ~37 ms on the host) and the sheen and turn bits (20-60 ms). One cloud map now serves every world
+    // (SceneRenderer.prepareCloudMap, on the loading thread) and the bits are shared; BS_OLDFIRSTFRAME=1 restores both.
+    static let oldFirstFrame = Env.all["BS_OLDFIRSTFRAME"] == "1"
     private var cloudMapFailed = false
     private var cloudRead: (VkDescriptorSet, V4)?
     private func recordCloudMap(_ s: SceneRenderer.Slot, _ u: FrameUniforms, height: Int) {
         cloudRead = nil
         guard CloudMap.on, !cloudMapFailed, !SceneRenderer.overdraw, cloudsDrawn, !WorldRenderer.debugSkip.contains("sky") else { return }
+        if cloudMap == nil, !WorldRenderer.oldFirstFrame, let m = scene.sharedCloudMap { cloudMap = m }       // (ledger 261)
         if cloudMap == nil {
             do { cloudMap = try CloudMap(scene: scene) } catch { cloudMapFailed = true; print("cloud map: not made (\(error)); the clouds are drawn as before"); return }
         }

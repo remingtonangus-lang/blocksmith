@@ -126,3 +126,14 @@ Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 | `bush-on-the-ground.scene --seed 3084501862406496736 --headset` (ledger 229) | all passed; bush.png | `BS_OLDBUSHMOUND=1`: 3 FAILED |
 
 Each runs in about 15 s after the census is kept. `ride nearest train` needs a train in the loaded land.
+
+## The real app loop, frame by frame (`--appsoak`, ledger 261)
+
+`questcheck --appsoak [--walk SECONDS] [--seeds FIRST,NEW] [--keep DIR]` runs QuestApp.frame() itself on a host stand-in
+runtime (XRSession(headless:)): xrWaitFrame is a 72 Hz vsync clock that starts a late frame on the next vsync, as the
+compositor does. It goes through the app start (textures painted, the world made), the first-launch panel, a walk, Create
+New World and a walk, and prints per phase the vsyncs missed, the worst frame and the frames over 13.9 / 20.8 ms on the
+headset estimate (host ms x 1.7), with the slow frames' parts (adopt, tick, record, and the tick's and record's slowest
+stages). It fails if the start or Create New World holds a frame over 20.8 ms. A fresh data folder each run (a first launch:
+the textures are painted). Optimized builds only (`tools/qbuild.sh o`); about 70 s.
+

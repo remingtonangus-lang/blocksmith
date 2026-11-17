@@ -193,6 +193,19 @@ enum ShaderFX {
         for (i, n) in Tex.names.enumerated() where i < 2048 && turnedTops.contains(n) { bits[i >> 5] |= 1 << UInt32(i & 31) }
         return bits
     }
+    // Ledger 261 (Fable, Nov 17, the store's frame rate): both bit sets scan every texture name with substring tests
+    // (20-60 ms on the host), and each world's renderer built them on its first frame. Built once per texture count,
+    // on the loading thread (QuestApp.load), here.
+    private static let bitsLock = NSLock()
+    private static var bitsCache: (count: Int, sheen: [UInt32], turn: [UInt32])?
+    static func cachedBits() -> (sheen: [UInt32], turn: [UInt32]) {
+        bitsLock.lock(); defer { bitsLock.unlock() }
+        let n = Tex.names.count
+        if let c = bitsCache, c.count == n { return (c.sheen, c.turn) }
+        let c = (count: n, sheen: sheenBits(), turn: turnBits())
+        bitsCache = c
+        return (c.sheen, c.turn)
+    }
     static func sheenBits() -> [UInt32] {
         var bits = [UInt32](repeating: 0, count: 64)
         let metal = ["iron_block", "gold_block", "diamond_block", "netherite_block", "copper_block", "cut_copper", "copper_grate",

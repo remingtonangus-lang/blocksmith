@@ -179,7 +179,7 @@ final class QuestApp {
         let save = SaveManager(name: name)
         UserDefaults.standard.set(name, forKey: "lastWorld")
         let meta = save.loadMeta()
-        let seed = meta?.seed ?? req.seed ?? Rand.u64(in: 1...UInt64(Int64.max))
+        let seed = meta?.seed ?? req.seed ?? (QuestApp.soakSeeds.isEmpty ? Rand.u64(in: 1...UInt64(Int64.max)) : QuestApp.soakSeeds.removeFirst())
         let world = World(seed: seed, device: device, save: save)
         world.renderDistance = QuestSettings.startView
         let game = Game(world: world, save: save, persistent: true)
@@ -203,6 +203,15 @@ final class QuestApp {
         FarRing.shared.request(game, eye: game.player.eye)
         QuestWarmup.run()
         QuestWarmup.world(game)                      // (P400: the first ticks' rail and base plans)
+        if !WorldRenderer.oldFirstFrame {             // ledger 261: what each world's first frame used to build
+            _ = ShaderFX.cachedBits()
+            scene.prepareCloudMap()
+            // The world's first ticks here, before the hand-over (nothing else holds the game yet): the HUD's first
+            // pass, encounters and every system's first look round cost a held first world frame (10-18 ms on the host).
+            let a = CFAbsoluteTimeGetCurrent()
+            for _ in 0..<2 { game.tick(1.0 / 72) }
+            print(String(format: "load: first ticks on the loading thread %.1f ms", (CFAbsoluteTimeGetCurrent() - a) * 1000))
+        }
         handOver()
         status("Ready", 1)
         loadLock.lock(); loaded = (game, save, tex); loadLock.unlock()
@@ -212,6 +221,8 @@ final class QuestApp {
     // One step per frame (the loading scene keeps rendering in between, so the hand-over never freezes the view):
     // textures, then the HUD panel, then the game itself. Each step's time is logged.
     private var adoptStep = 0
+    private var texUpload: SceneRenderer.TextureUpload?
+    static let oldTexUpload = Env.all["BS_OLDTEXUPLOAD"] == "1"
     private var wasFocused = false
     private var awayFor = 0.0, savedAway = false, headLostFor = 0.0      // S8
     private var awayStart = 0.0                                          // Q2c-console-44: when the away pause began
@@ -223,6 +234,10 @@ final class QuestApp {
         (g.menu as? PauseMenu)?.build()
     }
     private var firstWorldFrames = 0
+    private var pendingRenderer: WorldRenderer?
+    private var pendingControls: QuestControls?
+    private var hintPanel: HudPanel?, ctrlPanel: HudPanel?
+    private var adoptedNow = false      // ledger 261: the hand-over's frame shows the loading scene; the world starts next frame
 
     private func adoptLoaded() {
         loadLock.lock(); let ready = loaded != nil; loadLock.unlock()
@@ -230,38 +245,88 @@ final class QuestApp {
         let t0 = CFAbsoluteTimeGetCurrent()
         func took(_ what: String) { print(String(format: "adopt: %@ %.1f ms", what, (CFAbsoluteTimeGetCurrent() - t0) * 1000)) }
         if adoptStep == 0 {
-            adoptStep = 1
             if !texturesUploaded {
-                loadLock.lock(); let tex = loaded?.2 ?? []; loaded?.2 = []; loadLock.unlock()
-                do { try scene.uploadTextures(pregenerated: tex); texturesUploaded = true } catch { print("textures: \(error)") }
-                took("textures uploaded")
+                // Ledger 261: one batch of layers a frame (the whole 170 MB in one frame held the loading scene ~250 ms on
+                // the host); BS_OLDTEXUPLOAD=1 uploads it all in one frame as before.
+                if QuestApp.oldTexUpload {
+                    adoptStep = 1
+                    loadLock.lock(); let tex = loaded?.2 ?? []; loaded?.2 = []; loadLock.unlock()
+                    do { try scene.uploadTextures(pregenerated: tex); texturesUploaded = true } catch { print("textures: \(error)") }
+                    took("textures uploaded")
+                    return
+                }
+                do {
+                    if texUpload == nil {
+                        loadLock.lock(); let tex = loaded?.2 ?? []; loaded?.2 = []; loadLock.unlock()
+                        texUpload = try scene.startTextureUpload(pregenerated: tex)
+                        took("texture upload begun")
+                        return
+                    }
+                    if let u = texUpload, try scene.stepTextureUpload(u) { texUpload = nil; texturesUploaded = true; adoptStep = 1; took("textures uploaded") }
+                } catch { print("textures: \(error)"); texUpload = nil; adoptStep = 1 }
                 return
             }
+            adoptStep = 1
         }
         if adoptStep == 1 {
-            adoptStep = 2
             if hudPanel == nil {
                 do { hudPanel = try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH) }
                 catch { print("hud panel: \(error)") }
                 took("HUD panel")
+                if WorldRenderer.oldFirstFrame { adoptStep = 2 }
                 return
             }
+            // Ledger 261: the controls' hint and controller panels, made once per app (each world's controls made two
+            // of their own), a frame each.
+            if !WorldRenderer.oldFirstFrame, hintPanel == nil {
+                hintPanel = try? HudPanel(scene: scene, width: QuestControls.hintW, height: QuestControls.hintH, maxVerts: 4096)
+                took("hint panel")
+                return
+            }
+            if !WorldRenderer.oldFirstFrame, ctrlPanel == nil {
+                ctrlPanel = try? HudPanel(scene: scene, width: 512, height: 192, maxVerts: 8192)
+                took("controller panel")
+                return
+            }
+            adoptStep = 2
+        }
+        // Ledger 261: the sound and the world's renderer each take a frame of their own (all three in one frame held
+        // it 8-15 ms on the host); BS_OLDFIRSTFRAME=1 does them in one as before.
+        if !WorldRenderer.oldFirstFrame && adoptStep == 2 {
+            adoptStep = 3
+            loadLock.lock(); let g = loaded?.0; loadLock.unlock()
+            if let g { g.sound = SoundEngine(); g.sound?.volume = g.volumeSetting; took("sound") }
+            return
+        }
+        if !WorldRenderer.oldFirstFrame && adoptStep == 3 {
+            adoptStep = 4
+            loadLock.lock(); let g = loaded?.0; loadLock.unlock()
+            if let g { pendingRenderer = WorldRenderer(scene: scene, game: g); took("world renderer") }
+            return
+        }
+        if !WorldRenderer.oldFirstFrame && adoptStep == 4 {
+            adoptStep = 5
+            loadLock.lock(); let g = loaded?.0; loadLock.unlock()
+            if let g { pendingControls = QuestControls(app: self, game: g, panel: hudPanel, hint: hintPanel, ctrl: ctrlPanel); took("controls") }
+            return
         }
         adoptStep = 0
         loadLock.lock(); let l = loaded; loaded = nil; loadLock.unlock()
         guard let (game, save, _) = l else { return }
-        defer { took("game, renderer, sound, controls"); firstWorldFrames = 4 }
+        defer { took("game, renderer, sound, controls"); firstWorldFrames = 4; adoptedNow = !WorldRenderer.oldFirstFrame }
         self.save = save
         self.game = game
         CrashGuard.world = save?.dir.lastPathComponent ?? ""        // (the session marker names the open world)
         game.paused = false
         game.hideHUD = false
-        game.sound = SoundEngine()
+        if game.sound == nil { game.sound = SoundEngine() }
         game.sound?.volume = game.volumeSetting
         QuestAudioOutput.shared.start(game.sound)
-        let wr = WorldRenderer(scene: scene, game: game)
+        let wr = pendingRenderer ?? WorldRenderer(scene: scene, game: game)
+        pendingRenderer = nil
         worldRenderer = wr
-        let ctl = QuestControls(app: self, game: game, panel: hudPanel)
+        let ctl = pendingControls ?? QuestControls(app: self, game: game, panel: hudPanel)
+        pendingControls = nil
         controls = ctl
         wr.extraOpaque = { [weak ctl] s, eye in ctl?.drawOpaque(s, eye: eye) }
         wr.extraOverlay = { [weak ctl] s, eye in ctl?.drawOverlay(s, eye: eye) }
@@ -360,6 +425,28 @@ final class QuestApp {
     // MARK: Frame loop
 
     private var lastFrameTime = CFAbsoluteTimeGetCurrent()
+    // Ledger 261: the frame's parts timed (questcheck --appsoak names them for a slow frame); off on the headset.
+    static var lapsOn = false
+    static var soakSeeds: [UInt64] = []           // (--appsoak --seeds A,B: the new worlds' seeds, for a run to repeat)
+    static let lapNames = ["adopt", "begin", "rig+controls", "audio+away", "tick", "after tick", "record", "end+stats"]
+    private(set) var lapMs = [Double](repeating: 0, count: 8)
+    private var lapT = 0.0
+    @inline(__always) private func lap(_ i: Int) {
+        guard QuestApp.lapsOn else { return }
+        let n = CFAbsoluteTimeGetCurrent()
+        // (-1 starts a frame; the last part, after the hand-over, is the previous frame's tail: the soak counts it in
+        // the next frame's time, so it stays until frame() ends again)
+        if i >= 0 { lapMs[i] += (n - lapT) * 1000 } else { for k in 0..<7 { lapMs[k] = 0 } }
+        lapT = n
+    }
+    // (this frame's record stages over a millisecond, for the soak)
+    var recordLine: String {
+        guard let wr = worldRenderer else { return "" }
+        return zip(WorldRenderer.stageNames, wr.stageFrame).filter { $0.1 >= 1 }.sorted { $0.1 > $1.1 }.map { String(format: "%@ %.1f", $0.0, $0.1) }.joined(separator: ", ")
+    }
+    var lapLine: String {
+        zip(QuestApp.lapNames, lapMs).filter { $0.1 >= 1 }.sorted { $0.1 > $1.1 }.map { String(format: "%@ %.1f", $0.0, $0.1) }.joined(separator: ", ")
+    }
 
     // One display frame. Returns false when the app should exit.
     static let eyeFix = Env.all["BS_EYEFIX"].flatMap { Float($0) }
@@ -368,6 +455,7 @@ final class QuestApp {
     static let fovDyn = Env.all["BS_FOVDYN"] == "1"
     static let swDelta = Env.all["BS_SWDELTA"] ?? ""
     func frame() -> Bool {
+        lap(-1)
         guard xr.pollEvents() else { return false }
         guard xr.running else {
             // S8: the session stopped (headset off long enough to sleep, the app sent to the background, Quit from the
@@ -389,16 +477,21 @@ final class QuestApp {
             loadLock.lock(); let done = saveDone; loadLock.unlock()
             if done { xr.requestExit() }
         } else if game == nil { adoptLoaded() }
+        let justAdopted = adoptedNow
+        adoptedNow = false
+        lap(0)
         let f: XRSession.Frame
         do { f = try xr.beginFrame() } catch { print("xr frame: \(error)"); return !xr.exitRequested }
+        lap(1)
+        if QuestApp.lapsOn { lapMs[1] = max(0, lapMs[1] - xr.hlSlept * 1000) }      // (the vsync wait is not work)
         let t0 = CFAbsoluteTimeGetCurrent()
         // Ledger 126: the frame's clock for the work that can wait (FrameGovernor), from here to the next frame.
         if game != nil { FrameGovernor.begin(period: (f.period > 0 ? f.period : 1.0 / 72) * (xr.spaceWarpOn ? 2 : 1), now: t0) }
         xr.pollInput()
         var tickMs = 0.0, recordMs = 0.0
-        if game == nil, f.shouldRender { rig.updateLoading(xr: xr) }
+        if game == nil || justAdopted, f.shouldRender { rig.updateLoading(xr: xr) }
         if game == nil { QuestRoute.shared?.step(self, nil, dt: 1.0 / 72) }
-        if let g = game {
+        if let g = game, !justAdopted {
             // The step is the time between the frames the game draws (P381 step 9: with space warp, every other
             // displayed frame). P510 (Nov 1 20:10, at 49 fps: "what the hell is slowing me down here?"): it was the
             // display's period whenever space warp was off, so a frame the game missed was time the world never had:
@@ -412,6 +505,7 @@ final class QuestApp {
             if abs(ShipManager.stepRate - rate) > 0.5 { ShipManager.stepRate = rate; ShipManager.stepSlack = 0.2 / rate }
             if f.shouldRender { rig.update(xr: xr, game: g) }
             controls?.update(dt: Float(dt))
+            lap(2)
             QuestRoute.shared?.step(self, g, dt: dt)             // ledger 285: the headset gate's route (debug property only)
             let a = CFAbsoluteTimeGetCurrent()
             // Input focus lost (headset off, the system menu or a dialog up): the world stops and the pause menu is up
@@ -448,11 +542,15 @@ final class QuestApp {
                 g.onToast?("Headset tracking lost: paused")
             }
             // Game.tick streams the world first thing; unfocused, keep chunks arriving without ticking.
+            lap(3)
             if xr.focused && xr.headTracked { g.tick(dt) } else { g.world.update(center: g.player.pos) }
+            lap(4)
             controls?.afterTick(dt: Float(dt))
+            lap(5)
             tickMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
             FrameGovernor.ticked()
         }
+        if game == nil { lap(2) }
         if f.shouldRender, f.imageIndex >= 0, f.imageIndex < targets.count {
             let a = CFAbsoluteTimeGetCurrent()
             let s = scene.beginFrame()
@@ -472,7 +570,7 @@ final class QuestApp {
             let cam = rig.camera(xr: xr, far: farPlane)
             if QuestApp.debugClearOnly {
                 scene.beginPass(s, target, clear: V3(0.2, 0.4, 0.8))
-            } else if let wr = worldRenderer {
+            } else if let wr = worldRenderer, !justAdopted {
                 wr.record(s, target, cam)
             } else {
                 recordLoading(s, target, cam)
@@ -506,6 +604,7 @@ final class QuestApp {
             recordMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
             FrameGovernor.recorded()
         }
+        lap(6)
         do { try xr.endFrame(f) } catch { print("xr end frame: \(error)") }
         if f.shouldRender { lastDisplayTime = f.displayTime }
         let now = CFAbsoluteTimeGetCurrent()
@@ -524,6 +623,7 @@ final class QuestApp {
         stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
                   target: f.period * (xr.spaceWarpOn ? 2 : 1), scene: scene, game: game, rate: xr.refreshRate)   // (the drawn frame's budget: P403 7b)
         lastFrameTime = now
+        if QuestApp.lapsOn { lapMs[7] = (CFAbsoluteTimeGetCurrent() - lapT) * 1000 }
         return !xr.exitRequested
     }
 
