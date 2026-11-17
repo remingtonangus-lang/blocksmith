@@ -3047,7 +3047,7 @@ extension ShipManager {
             // (Or once it has come round onto its bearing, on a hull pitched so that its plane never quite meets him.)
             // (Dropships as they were: "the aiming for the drop ship... it's actually working".)
             let laid: Float = s.role == "dropship" ? 0.12 : max(0.02, min(0.12, 2.5 / max(1, simd_length(d))))
-            let onBearing = tr.aimYaw.map { t in abs(remainderf(t - tr.turretYaw, 2 * .pi)) < 0.01 } ?? false
+            let onBearing = tr.aimYaw.map { t in abs(remainderf(t - tr.gunYaw0 - tr.turretYaw, 2 * .pi)) < 0.01 } ?? false
             if tr.reload > 0 { why("reloading") } else if !(aimErr < laid || (onBearing && aimErr < 0.12)) { why(onBearing ? "on bearing, off \(Int(aimErr * 100)) crad" : "turning") }
             if (aimErr < laid || (onBearing && aimErr < 0.12)) && tr.reload <= 0 {
                 why("fired")

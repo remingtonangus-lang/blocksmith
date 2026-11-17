@@ -3246,6 +3246,11 @@ if CommandLine.arguments.contains("--gunstations") {           // P512: a statio
     GunStationsCheck.run(game, check)
     print(failures == 0 ? "gunstations: all checks passed" : "gunstations: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--parkdrive") {             // Nov 16 evening notes: every park vehicle's view, guns and throttle
+    ParkDriveCheck.shot = CircuitWorkshopTests.shot
+    ParkDriveCheck.run(game, check)
+    print(failures == 0 ? "parkdrive: all checks passed" : "parkdrive: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--proving") {               // P512: the Proving Grounds (vehicles, circuits, guns)
     ProvingGroundsCheck.run(game, check)
     print(failures == 0 ? "proving: all checks passed" : "proving: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
