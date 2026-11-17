@@ -651,6 +651,8 @@ extension World {
             c.recomputeHeight(mod(p.x, CS), mod(p.z, CS))
             groundOpened(c, p.y)
             noteChange(p.x, p.y, p.z)
+            c.modified = true
+            if !touched.contains(where: { $0.0 === c && $0.1 == p.y >> 4 }) { touched.append((c, p.y >> 4)) }
         }
         // A changed sample moves the surface in the dual cells round it: the sections on either side of a border remesh.
         var all: [(Chunk, Int)] = []

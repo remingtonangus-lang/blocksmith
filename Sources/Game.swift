@@ -1981,7 +1981,7 @@ final class Game: LifeLinked {
         // (cleared with the block's own write, below: on the edit lane together, and not at all when the block is refused)
         let sunkCell: IVec3? = rowCell.flatMap { r in
             r.cell == at && r.sunk && Blocks.hardness[Int(world.block(at.x, at.y, at.z))] >= 0 ? r.cell : nil
-        } ?? (rowCell == nil && Blocks.collide[Int(blockItem)] ? groundOnlyCell(at) : nil)      // (ledger 260: every face)
+        } ?? (rowCell == nil && Blocks.fullCollide[Int(blockItem)] ? groundOnlyCell(at) : nil)      // (ledger 260: every face)
         let existing = sunkCell != nil ? AIR : world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else {
             if useNow && at.y >= CH { placeRefused("That's as high as you can build") }       // Q2c-console-39
@@ -2348,7 +2348,7 @@ final class Game: LifeLinked {
         // field world the face's cell (the drawn ground's normal, rounded to an axis) can be ground the eye sees past
         // (a cell drawn small, a slope's corner): the block goes in the last open cell the aim crossed before the ground.
         if world.fieldTerrain && !Blocks.replaceable[Int(world.block(at.x, at.y, at.z))]
-            && (!Blocks.collide[Int(blockItem)] || groundOnlyCell(at) == nil), let open = openCellBefore(t) { at = open }
+            && (!Blocks.fullCollide[Int(blockItem)] || groundOnlyCell(at) == nil), let open = openCellBefore(t) { at = open }
         return at
     }
     // Ledger 260 (Nov 16 21:18-21:22, building a wall on a dug beach: "I am pointing here in a block in the wrong place";

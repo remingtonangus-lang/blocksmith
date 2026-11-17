@@ -2902,7 +2902,7 @@ final class World: LifeLinked {
                 for (mn, mx) in selectionBoxes(b) {
                     if let h = World.rayBox(origin, dir, o + mn, o + mx), h.0 <= maxDist, h.0 < (best?.0 ?? inf) { best = h }
                 }
-                if let h = best { return (IVec3(x, y, z), h.1) }
+                if let h = best, pending == nil || h.0 < pending!.h.t { return (IVec3(x, y, z), h.1) }
             }
             if tmx < tmy && tmx < tmz {
                 x += sx; t = tmx; tmx += tdx; n = IVec3(-sx, 0, 0)
