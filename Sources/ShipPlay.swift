@@ -184,7 +184,9 @@ extension Game {
         if GunStationPlay.cur != nil { return gunStationChase() }       // (Nov 13: out behind the gun he works)
         if let s = world.ships.pilot {
             if let o = hullChase(s.root) { return o }
-            fwd = s.dirToWorld(V3(0, 0, -1)); back = thirdPersonDistance
+            // (ledger 240: behind the helm's forward, the way it drives; it sat off the hull's -Z, in front of or beside
+            // anything built facing south, east or west. BS_OLDCHASEFWD: as before)
+            fwd = s.dirToWorld(Game.oldChaseFwd ? V3(0, 0, -1) : s.root.fwd); back = thirdPersonDistance
         } else if let m = riding, m.kind == .boat {
             fwd = V3(-sinf(m.yaw), 0, -cosf(m.yaw)); back = 6
         } else if let m = riding, Trains.isCar(m), let (tr, _) = Trains.carOf[ObjectIdentifier(m)] {
@@ -233,7 +235,14 @@ extension Game {
         let midX: Float = (h.localMin.x + h.localMax.x) * 0.5
         let high: Float = h.localMax.y + 4 + span * 0.12
         let astern: Float = h.localMax.z + 6 + span * 0.2
-        let want = h.toWorld(V3(midX, high, astern)) - player.eye
+        var spot = V3(midX, high, astern)
+        if !Game.oldChaseFwd {
+            // (ledger 240: astern along the helm's forward: a hull built facing east has its stern at -x)
+            let c = (h.localMin + h.localMax) * 0.5, half = (h.localMax - h.localMin) * 0.5, f = h.fwd
+            let along: Float = abs(f.x) * half.x + abs(f.z) * half.z + 6 + span * 0.2
+            spot = V3(c.x - f.x * along, high, c.z - f.z * along)
+        }
+        let want = h.toWorld(spot) - player.eye
         // From the camera back toward the eye: the first world block on the way (outside the hull) stops it short.
         let len = simd_length(want), dir = want / max(len, 1e-3)
         let eye = player.eye
@@ -445,6 +454,8 @@ extension Game {
         return simd_length(s.toWorld(stand) - player.pos) > 2
     }
     static let oldCrawlerUse = Env.all["BS_OLDCRAWLERUSE"] == "1"
+    static let oldHelmFace = Env.all["BS_OLDHELMFACE"] == "1"          // ledger 240: taking a helm leaves his look as it was
+    static let oldChaseFwd = Env.all["BS_OLDCHASEFWD"] == "1"          // ledger 240: the chase view behind the hull's -Z, not its helm's forward
     func takeCommand(_ s: Ship) {
         let first = s.kinematic && !s.captured
         world.ships.aboard = s
@@ -488,6 +499,15 @@ extension Game {
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
+        // Nov 16 evening (21:01-21:09 at the Proving Grounds: "the follow camera is inverted", "the camera's not facing the
+        // correct way", "like 270 degrees, I should be at the 180"): he walked up to a vehicle from in front of it and took
+        // its helm still looking back at where he came from, or across it, for anything built facing other than north. He
+        // faces along the helm's forward on taking it now (the headset's body turns once: Game.faceYaw).
+        // BS_OLDHELMFACE: his look left as it was.
+        if !Game.oldHelmFace {
+            player.yaw = s.root.fwdYaw; player.pitch = 0
+            faceYaw = player.yaw
+        }
         sfx(s.name == AshCommandeer.tankName ? RecordedNov15.pick(.vehicleHatch, .helmTake) : .helmTake, 0.8, at: player.pos)
         // Controls show as prompts (VehicleControls.prompts); ships and aircraft hold their throttle.
         onToast?("Steering \(s.name)")
@@ -497,6 +517,7 @@ extension Game {
         let ships = world.ships
         guard let s = ships.pilot else { return }
         ships.pilot = nil
+        faceYaw = nil                                         // (ledger 240: a turn to the helm's forward not yet made)
         s.piloted = false
         s.throttle = 0; s.steer = 0; s.climb = 0; s.strafe = 0; s.boost = false
         ships.aboard = s

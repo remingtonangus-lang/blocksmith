@@ -46,7 +46,7 @@ extension Ship {
             if d.x * d.x + d.z * d.z > 0.01 { aimYaw = atan2f(-d.x, -d.z) }
         }
         if let target = aimYaw {
-            var d = target - turretYaw
+            var d = target - gunYaw0 - turretYaw          // (ledger 240: the guns onto the bearing, not the turret's -Z)
             while d > .pi { d -= 2 * .pi }
             while d < -.pi { d += 2 * .pi }
             let rate: Float = 0.9

@@ -157,6 +157,7 @@ final class Armory {
         let u1 = CFAbsoluteTimeGetCurrent()
         TickProf.mark("arms: breaches")
         let blast0 = Explosion.totalMs
+        defer { flushVolleys(g) }                                  // (ledger 245: a shooter's rounds this step, one blow)
         defer {
             let ms = (CFAbsoluteTimeGetCurrent() - u0) * 1000
             if ms > Armory.worstUpdateMs {
@@ -480,13 +481,39 @@ final class Armory {
             Explosion.heavyShell = false
         }
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at - dir * 0.3, g); return }
-        let whole = floorf(s.damage)
-        let n = Int(whole) + (Rand.float(in: 0..<1) < s.damage - whole ? 1 : 0)
-        g.bulletHit = true
         if !s.fromPlayer { Armory.foeHits &+= 1 }
+        // Ledger 245 (Nov 16 20:50:16-20:50:35 at a Greywall garrison, a Sturmbrecher's volley: "took 9, then 18 in one
+        // hit... Whatever gun he used was overpowered... a few shots, I'm dead"): each pellet landed as a blow of its own,
+        // at least a point through any armour and each under the level's cap on one blow (half his health on Normal,
+        // P413), so eight pellets took up to eight times the cap and armour stopped none of them (23 of his 20 through
+        // iron, questcheck --soldierguns). What one shooter's rounds land on him in one step is one blow: added up,
+        // rounded once, capped and armoured once (flushVolleys, at the end of the step). BS_OLDVOLLEY=1: a blow a round.
+        if !Armory.oldVolley, !s.fromPlayer, let id = s.shooter {
+            if volleys[id] == nil { volleys[id] = Volley(dmg: 0, at: at, dir: dir, by: s.by) }
+            volleys[id]?.dmg += s.damage
+            return
+        }
+        land(s.damage, at: at, dir: dir, by: s.by, g)
+    }
+    static let oldVolley = Env.all["BS_OLDVOLLEY"] == "1"
+    static let volleyLog = Env.all["BS_VOLLEYLOG"] == "1"
+    struct Volley { var dmg: Float; var at: V3; var dir: V3; var by: String }
+    private var volleys: [ObjectIdentifier: Volley] = [:]
+    private func land(_ dmg: Float, at: V3, dir: V3, by: String, _ g: Game) {
+        let whole = floorf(dmg)
+        let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
+        g.bulletHit = true
         g.sfx(.bulletFlesh, 0.8)
-        g.hurtPlayer(max(1, n), from: at - dir * 3, cause: "was shot by \(s.by)", knockback: 0.25, type: .projectile)
+        let h0 = g.health
+        g.hurtPlayer(max(1, n), from: at - dir * 3, cause: "was shot by \(by)", knockback: 0.25, type: .projectile)
+        if Armory.volleyLog { print(String(format: "volley: %.2f -> %d, health %d -> %d", dmg, n, h0, g.health)) }
         g.bulletHit = false
+    }
+    private func flushVolleys(_ g: Game) {
+        guard !volleys.isEmpty else { return }
+        let vs = volleys
+        volleys.removeAll(keepingCapacity: true)
+        for v in vs.values { land(v.dmg, at: v.at, dir: v.dir, by: v.by, g) }
     }
 
     static var detonations = 0                      // (harness)

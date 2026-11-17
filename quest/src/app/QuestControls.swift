@@ -989,6 +989,15 @@ final class QuestControls {
         carryYaw = ship?.yaw ?? 0
         carryRot = ship?.rot ?? simd_quatf()
         if let s = ship { carryLocal = s.toLocal(game.player.pos) }
+        // Ledger 240: taking a helm faces him along its forward once (Game.faceYaw): the body turns by what his head is off.
+        // (only while he is still at a helm: a request left by a helm taken and left without a frame between is dropped)
+        if let want = game.faceYaw {
+            game.faceYaw = nil
+            if game.world.ships.pilot != nil {
+                rig.bodyYaw = (rig.bodyYaw + remainderf(want - rig.headYaw, 2 * .pi)).truncatingRemainder(dividingBy: 2 * .pi)
+                turnFlash = 1
+            }
+        }
         rig.chaseTick(QuestSettings.chaseView && game.alive ? (game.chaseOffset ?? .zero) : .zero, dt: dt)      // P100
         rig.refresh(game: game)
         // Head inside a solid block (seated leaning, roomscale while flying, standing up under a low ceiling): the view

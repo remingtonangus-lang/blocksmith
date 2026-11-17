@@ -54,14 +54,26 @@ enum GarageDoorCheck {
         let t0 = w.ships.list.count
         GarageDoors.use(g, IVec3(X(13), S + 2, Z))
         var body = false, rose: Float = 0, frames = 0
+        var shownAt = -1, quarterAt = -1, rose0: Float = -1, stowedAt = -1
+        let stow0 = cells(12, 5...5, 2) + cells(11, 5...5, 2) + cells(10, 5...5, 2) + cells(9, 5...5, 2)
         while frames < 60 * 5 {
             g.tick(1.0 / 60); frames += 1
             g.mobs.mobs.removeAll()
+            if stowedAt < 0 && stow0.allSatisfy({ (6...9).contains(GarageDoors.state(w.block($0.x, $0.y, $0.z))) }) { stowedAt = frames }
             if let d = w.ships.list.first(where: { $0.name == GarageDoors.shipName }) {
                 body = true
-                if !d.hidden { rose = max(rose, d.worldMin.y - Float(S + 1)) }
+                if !d.hidden {
+                    rose = max(rose, d.worldMin.y - Float(S + 1))
+                    if shownAt < 0 { shownAt = frames; rose0 = d.worldMin.y }
+                    // (ledger 241: how soon it is seen to move: its foot a quarter block up, the panel 20 degrees out)
+                    if quarterAt < 0 && d.worldMin.y - rose0 >= 0.25 { quarterAt = frames }
+                }
             } else if body { break }
         }
+        let openS = Float(stowedAt) / 60
+        let startS = Float(quarterAt - shownAt) / 60
+        check(shownAt >= 0 && quarterAt >= 0 && startS <= 0.35,
+              String(format: "garagedoor: once shown it is seen to go up at once (its foot a quarter block up %.2f s after it shows, %d frames held hidden first)", startS, shownAt))
         let clear = opening.filter { !Blocks.collide[Int(w.block($0.x, $0.y, $0.z))] }.count
         let stow = cells(12, 5...5, 2) + cells(11, 5...5, 2) + cells(10, 5...5, 2) + cells(9, 5...5, 2)
         let lying = stow.filter { (6...9).contains(GarageDoors.state(w.block($0.x, $0.y, $0.z))) }.count
@@ -69,6 +81,8 @@ enum GarageDoorCheck {
         check(blockedShut && body && rose > 2.5 && clear == 20 && lying == 20 && drives && !w.ships.list.contains { $0.name == GarageDoors.shipName } && w.ships.list.count == t0,
               String(format: "garagedoor: used, the whole door swings up as one body (%@, its foot %.1f up) and lies under the crown (%d of 20 cells); the opening is clear (%d of 20) and a vehicle 4.4 wide drives through (%@, shut it %@)",
                      body ? "moved" : "no body", rose, lying, clear, drives ? "yes" : "no", blockedShut ? "couldn't" : "could"))
+        // (ledger 244: from his use to the panel lying stowed, the hidden hold included: about a third of the 2.6 s swing's)
+        check(body && stowedAt > 0 && openS <= 1.2, String(format: "garagedoor: used, it is open (the panel lying stowed) %.2f s later", openS))
         // He walks in and back out.
         func walk(_ dir: V3, _ secs: Float) {
             p.flying = false; p.vel = .zero; p.yaw = atan2f(-dir.x, -dir.z); p.pitch = 0
@@ -87,11 +101,15 @@ enum GarageDoorCheck {
         p.pos = V3(Float(X(11)) + 0.5, Float(S + 1), Float(Z) + 0.5)
         _ = g.useCircuit(btn)
         frames = 0; body = false
+        var shutAt = -1
         while frames < 60 * 5 {
             g.tick(1.0 / 60); frames += 1
             g.mobs.mobs.removeAll()
+            if shutAt < 0 && opening.allSatisfy({ (2...5).contains(GarageDoors.state(w.block($0.x, $0.y, $0.z))) }) { shutAt = frames }
             if w.ships.list.contains(where: { $0.name == GarageDoors.shipName }) { body = true } else if body { break }
         }
+        let shutS = Float(shutAt) / 60
+        check(body && shutAt > 0 && shutS <= 1.2, String(format: "garagedoor: the button pressed, it is shut (the panel back across the opening) %.2f s later", shutS))
         let shut = opening.filter { (2...5).contains(GarageDoors.state(w.block($0.x, $0.y, $0.z))) }.count
         let stowLeft = stow.filter { GarageDoors.isDoor(w.block($0.x, $0.y, $0.z)) }.count
         check(pressed && body && shut == 20 && stowLeft == 0 && !driveThrough(),

@@ -19,6 +19,7 @@ import simd
 enum VehicleZoo {
     enum Family: String, CaseIterable { case car, truck, odd, tank, boat, gunboat, airship, plane, heli, hybrid }
     enum Medium { case road, water, air }
+    static let oldBroadside = Env.all["BS_OLDBROADSIDE"] == "1"
 
     struct Plan {
         var name: String
@@ -169,7 +170,11 @@ enum VehicleZoo {
                 for y in 1...wallTop { put(W / 2, y, tz, trim) }
                 turret(W / 2, wallTop + 1, tz, wideOK: W >= 5)
                 if r(2) == 0 {                           // a broadside: cannons on both sides facing out
-                    for z in stride(from: 2, to: L - 3, by: 2) { put(-1, 1, z, key("ship_cannon[west]")); put(W, 1, z, key("ship_cannon[east]")); p.guns += 2 }
+                    // (ledger 240: a cannon's muzzle points away from the face its facing names, as a placed one's points
+                    // away from him: the port side's is "east". They were the other way round, both sides' muzzles into
+                    // the hull: "the cans are turned the wrong way". BS_OLDBROADSIDE: as before)
+                    let port = oldBroadside ? "west" : "east", star = oldBroadside ? "east" : "west"
+                    for z in stride(from: 2, to: L - 3, by: 2) { put(-1, 1, z, key("ship_cannon[\(port)]")); put(W, 1, z, key("ship_cannon[\(star)]")); p.guns += 2 }
                 }
             }
             p.medium = .water

@@ -713,6 +713,10 @@ if let out = arg("--view"), let ctx = vkctx {
         // (the builder writes cells raw: the sections round it mesh again)
         vw.remeshArea(x0: o.x - 2, z0: o.z - 5, x1: o.x + CircuitWorkshop.deckLength + 1, z1: o.z + CircuitWorkshop.deckDepth + 1, y0: max(1, o.y - 70), y1: o.y + 8)
         print("view: Sparkstone Workshop at \(o.x) \(o.y) \(o.z)")
+        // (--workshopat DX,DY,DZ: his feet there from the deck's origin, as a note's position on the in-game deck reads)
+        if let d = arg("--workshopat")?.split(separator: ",").compactMap({ Float($0) }), d.count == 3 {
+            vg.player.pos = V3(Float(o.x) + d[0], Float(o.y) + d[1], Float(o.z) + d[2])
+        }
     }
     // --provinggrounds DX,DY,DZ (Nov 13): the Proving Grounds built with its origin at the eye's column (its deck at
     // internal y 300), the eye then at its start plus the offset.
@@ -3254,6 +3258,19 @@ if CommandLine.arguments.contains("--gunstations") {           // P512: a statio
     GunStationsCheck.run(game, check)
     print(failures == 0 ? "gunstations: all checks passed" : "gunstations: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--nov16e") {                // Nov 16 evening playtest checks alone (ledger 241 on)
+    Nov16EveningChecks.run(game, check)
+    print(failures == 0 ? "nov16e: all checks passed" : "nov16e: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--soldierguns") {           // Nov 16 evening notes: a soldier gun far over its peers
+    SoldierGunCheck.run(game, check)
+    print(failures == 0 ? "soldierguns: all checks passed" : "soldierguns: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--parkdrive") {             // Nov 16 evening notes: every park vehicle's view, guns and throttle
+    ParkDriveCheck.shot = CircuitWorkshopTests.shot
+    ParkDriveCheck.run(game, check)
+    print(failures == 0 ? "parkdrive: all checks passed" : "parkdrive: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 if CommandLine.arguments.contains("--proving") {               // P512: the Proving Grounds (vehicles, circuits, guns)
     ProvingGroundsCheck.run(game, check)
     print(failures == 0 ? "proving: all checks passed" : "proving: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -5058,6 +5075,9 @@ do {
 
 // Fable's set from the Nov 15 evening playtest (Sources/Nov15EveningChecks.swift; ledger 190 on).
 leaves("nov15e") { Nov15EveningChecks.run(game, check) }
+
+// Fable's share of the Nov 16 evening playtest (Sources/Nov16EveningChecks.swift; ledger 241 on).
+leaves("nov16e") { Nov16EveningChecks.run(game, check) }
 
 // Fable's Nov 15 set: the bots riding the capital vehicles (Sources/RideCheck.swift; ledger 181-183), once it passed
 // twice in a row on its own. It runs as its own process (this program with --ridecheck): run in this one, after the
