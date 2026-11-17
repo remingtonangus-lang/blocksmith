@@ -115,7 +115,14 @@ enum QuestSettings {
     static var autoViewLast: Int { get { int("quest.autoViewLast", viewDistance) } set { store(newValue, "quest.autoViewLast") } }
     // P426: a launch starts no higher than 16 (where it settled under Space Warp's doubled budget, 24, was a minute
     // of missed frames at every launch until the governor had stepped down); with headroom it climbs from there.
-    static var startView: Int { autoViewDistance ? max(8, min(renderDistance, 16, autoViewLast / 2 * 2)) : renderDistance }
+    // Ledger 233 (store review, Nov 17): a launch starts at the floor. His Nov 16 session opened at view 14 where it
+    // had settled the evening before, in a jungle: 49.8 fps (GPU 18.7 ms) for the first half minute, which is the part
+    // a reviewer sees. From 8 it climbs only as the frame shows room. BS_OLDSTARTVIEW=1 = where it settled last.
+    static let startAtFloor = Env.all["BS_OLDSTARTVIEW"] != "1"
+    static var startView: Int {
+        guard autoViewDistance else { return renderDistance }
+        return startAtFloor ? min(renderDistance, 8) : max(8, min(renderDistance, 16, autoViewLast / 2 * 2))
+    }
     // How far below eye level the HUD panel sits, metres at 1.25 m (0.25 middle, 0.42 low, 0.6 lower).
     static var hudDrop: Float { get { float("quest.hudDrop", 0.42) } set { store(newValue, "quest.hudDrop") } }
     // Q2c-console-70: a card of a controller's buttons when it is held up and looked at.

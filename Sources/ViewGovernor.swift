@@ -34,7 +34,13 @@ struct ViewGovernor {
 
     static let floor = 8, ceiling = 24, step = 2, exponent = 1.2
     static let dropFrac = 0.92, severeFrac = 1.25, fitFrac = 0.8, missFrac = 0.05
-    static let badToDrop = 2, settle = 8.0, baseHold = 20.0, maxHold = 240.0, failWindow = 60.0, calmReset = 300.0
+    static let badToDrop = 2, settle = 8.0, maxHold = 240.0, failWindow = 60.0, calmReset = 300.0
+    // Ledger 233 (store review, Nov 17: "fluctuates under and over 60 frames per second"): steadier before farther.
+    // (a) a raise waits 45 s of room, not 20; (b) a view that had to come down is not tried again for ten minutes:
+    // raises stop one step under it (`lid`), so the frame does not see-saw at the edge of what the headset can draw.
+    // BS_OLDVIEWGOV=1 = before.
+    static let steady = Env.all["BS_OLDVIEWGOV"] != "1"
+    static let baseHold = steady ? 45.0 : 20.0, lidFor = 600.0
     // P440 (Oct 24 evening: 20-23 fps at view 16 flying into new land, "why isn't it auto rendering?"): the GPU had room,
     // the frames were lost to the CPU making land, and a loading window never counted. Two windows in a row missing
     // more than a quarter of their frames, loading or not, now take a step down whatever the GPU says.
@@ -52,6 +58,8 @@ struct ViewGovernor {
     private(set) var current: Int
     private(set) var hold = ViewGovernor.baseHold
     private var badStreak = 0, severeStreak = 0, heavyStreak = 0, good = 0.0, sinceChange = 1e9, sinceRaise = 1e9, sinceDrop = 1e9
+    private(set) var lid = ViewGovernor.ceiling          // (ledger 233: the highest view a raise may reach for now)
+    private var lidAge = 0.0
 
     static func even(_ rd: Int) -> Int { max(floor, min(ceiling, rd / step * step)) }
 
@@ -65,6 +73,7 @@ struct ViewGovernor {
     // The slider moved: the new ceiling, and the view the player asked for; history cleared.
     mutating func setChosen(_ rd: Int) {
         chosen = Self.even(rd); current = chosen
+        lid = Self.ceiling; lidAge = 0
         badStreak = 0; severeStreak = 0; heavyStreak = 0; good = 0; sinceChange = 1e9; sinceRaise = 1e9; sinceDrop = 1e9; hold = Self.baseHold
     }
 
@@ -114,6 +123,8 @@ struct ViewGovernor {
 
     mutating func observe(_ w: Window) -> Action {
         sinceChange += w.seconds; sinceRaise += w.seconds; sinceDrop += w.seconds
+        lidAge += w.seconds
+        if lidAge >= Self.lidFor { lid = Self.ceiling }
         if current == chosen && sinceDrop > Self.calmReset && sinceRaise > Self.calmReset { hold = Self.baseHold }
         severeStreak = !w.excused && Self.isSevere(w) ? severeStreak + 1 : 0
         if severeStreak >= (w.loading ? 2 : 1) && sinceChange >= Self.settle * 0.5 && current > Self.floor {
@@ -121,6 +132,7 @@ struct ViewGovernor {
             current = min(current - Self.step, fitting(w))
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
             sinceChange = 0; sinceDrop = 0
+            if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
         heavyStreak = !w.excused && w.frames > 0 && Double(w.missed) > Double(w.frames) * Self.heavyMissFrac ? heavyStreak + 1 : 0
@@ -130,6 +142,7 @@ struct ViewGovernor {
             current -= Self.step
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
             sinceChange = 0; sinceDrop = 0
+            if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
         if w.excused || w.loading || sinceChange < Self.settle { return .none }
@@ -141,11 +154,12 @@ struct ViewGovernor {
             current -= Self.step
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
             sinceChange = 0; sinceDrop = 0
+            if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
         badStreak = 0
         let next = current + Self.step
-        guard current < chosen, w.frames > 0, w.missed * 100 <= w.frames,
+        guard current < chosen, current < lid, w.frames > 0, w.missed * 100 <= w.frames,
               Self.roomFor(w, from: current, to: next) else { good = 0; return .none }
         good += w.seconds
         guard good >= hold else { return .none }
@@ -209,6 +223,18 @@ enum ViewGovernorTest {
             v4.append(g4.current)
         }
         check(v4.last ?? 16 <= 12 && (v4.firstIndex { $0 < 16 } ?? 99) <= 2, "viewgovernor: a triangle-bound view missing a fifth of its frames under dynamic resolution comes down at once (views \(v4))")
+        // 5. Ledger 233 (store review, Nov 17): a place that holds view 10 and misses a fifth of its frames at 12. In ten
+        // minutes it tries 12 once and stays at 10 (it tried again every minute or two before: frames lost each time).
+        var g5 = ViewGovernor(chosen: 16, current: 8)
+        var tries5 = 0, badWindows5 = 0
+        for _ in 0..<120 {
+            let at12 = g5.current >= 12
+            let w = ViewGovernor.Window(seconds: 5, frames: 360, missed: at12 ? 72 : 0, gpuMs: budget * (at12 ? 0.97 : 0.6), budgetMs: budget,
+                                        dynRes: true, scale: 1, pixelShare: 0.1)
+            if at12 { badWindows5 += 1 }
+            if case .raise(let rd) = g5.observe(w), rd == 12 { tries5 += 1 }
+        }
+        check(tries5 == 1 && g5.current == 10, "viewgovernor: a view that had to come down is left alone for ten minutes (12 tried \(tries5) times in 10 min, \(badWindows5 * 5) s of missed frames, ends at \(g5.current))")
         return fails
     }
 }

@@ -107,7 +107,7 @@ final class QuestApp {
         stats.recordStages = { [weak self] in self?.worldRenderer?.takeStages() ?? "" }
         stats.dynResProbe = { [weak self] in self?.dynRes.lastProbe ?? 0 }
         stats.dynResCounts = { [weak self] in (self?.dynRes.takenBack ?? 0, self?.dynRes.unjudged ?? 0) }      // ledger 177
-        stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && !(self?.xr.foveated ?? true) }      // P499
+        stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && (QuestApp.fovDyn || !(self?.xr.foveated ?? true)) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
         startLoading(WorldRequest(survival: true))       // (code reader Nov 10, batch 2.1: a buyer's first world was Creative: no camp, no goals)
     }
@@ -363,6 +363,9 @@ final class QuestApp {
 
     // One display frame. Returns false when the app should exit.
     static let eyeFix = Env.all["BS_EYEFIX"].flatMap { Float($0) }
+    // (ledger 231, headset trial: BS_FOVDYN=1 lets dynamic resolution run on a foveated swapchain; they were kept apart
+    // because the density map is laid over the whole image, not the drawn part: to be seen on the headset)
+    static let fovDyn = Env.all["BS_FOVDYN"] == "1"
     func frame() -> Bool {
         guard xr.pollEvents() else { return false }
         guard xr.running else {
@@ -458,7 +461,7 @@ final class QuestApp {
             scene.spaceWarpOn = xr.spaceWarpOn            // P426: the Options switch applies to this frame
             let budget = 1000.0 / Double(max(60, xr.refreshRate)) * (xr.spaceWarpOn ? 2 : 1)
             scene.viewScale = dynRes.observe(gpuMs: scene.gpuMs, budgetMs: budget,
-                                             enabled: QuestSettings.dynamicResolution && !xr.foveated && game != nil && worldRenderer != nil,
+                                             enabled: QuestSettings.dynamicResolution && (!xr.foveated || QuestApp.fovDyn) && game != nil && worldRenderer != nil,
                                              fps: Double(xr.refreshRate) / (xr.spaceWarpOn ? 2 : 1), quads: scene.drawnQuads)
             if let fix = QuestApp.eyeFix { scene.viewScale = fix }     // (ledger 231, headset trials: BS_EYEFIX=0.8)
             let (viewW, viewH) = scene.viewExtent(target)
