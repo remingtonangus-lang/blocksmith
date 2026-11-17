@@ -19,6 +19,8 @@ import simd
 //   stand in coach N / walk to coach N [SECONDS] (walk.there 1|0, walk.lowest: least height over the rail in the
 //                                                 coach he is in, walk.step: the floors' step at the coupling)
 //   print player|train|ship|fps
+//   time FRAC / hold sneak|jump|use|attack|sprint SECONDS / face train car N / ride train car N
+//   expect riding|aboard|player.ground|player.inblock|player.falling|train.dist|train.cars|coach OP N
 //   expect block X Y Z == KEY | expect ground X Y Z == true | expect player.y > N | expect fps.worst < N ...
 //
 // Notes: `load` loads round the player (the game's own streaming also runs during ticks). A field world (--headset)
@@ -129,6 +131,32 @@ enum SceneScript {
             case "place.count": return Float(placedCount)
             case "place.off": return Float(placedOff)
             case "fps.avg": return tickMs.isEmpty ? nil : Float(tickMs.reduce(0, +) / Double(tickMs.count))
+            // (round 1 of the bug hunt: riding, aboard, on the ground, stuck in blocks, the nearest car, the coach he is in)
+            case "riding": return g.riding == nil ? 0 : 1
+            case "aboard": return w.ships.aboard == nil ? 0 : 1
+            case "player.ground": return p.onGround ? 1 : 0
+            case "player.inblock": return w.collides(p.pos + V3(-0.25, 0.05, -0.25), p.pos + V3(0.25, 1.7, 0.25)) ? 1 : 0
+            case "player.falling": return p.vel.y < -6 ? 1 : 0
+            case "train.dist": return nearestTrain().map { simd_length($0.1.pos - p.pos) }
+            // hud.clash: on the HUD's vehicle panels (1280x800), words that a gauge bar covers, plus every panel past the
+            // first (two panels drawn at once)
+            case "hud.clash":
+                let L = HudLayout(1280, 800), s = L.s
+                let ls = CombatHUD.shared.lines(g, L)
+                let bars = ls.filter { $0.text.isEmpty && $0.item == nil && ($0.box?.y ?? 99 * s) <= 7 * s && ($0.box?.x ?? 0) > 0.5 }
+                let panels = ls.filter { $0.text.isEmpty && ($0.box?.y ?? 0) > 20 * s && ($0.bg?.w ?? 0) <= 0.55 }.count
+                var n = max(0, panels - 1)
+                for t in ls where !t.text.isEmpty {
+                    let x1 = t.x + Float(Font.width(t.text)) * t.scale, y1 = t.y + 7 * t.scale
+                    for b in bars { if let bb = b.box, b.x < x1 - 0.5, b.x + bb.x > t.x + 0.5, b.y < y1 - 0.5, b.y + bb.y > t.y + 0.5 { n += 1 } }
+                }
+                return Float(n)
+            case "train.cars": return train.map { Float($0.cars.count) }
+            case "coach": return Float(coachList().firstIndex { c in
+                    guard let h = TrainHulls.hull(c) else { return false }
+                    let l = h.toLocal(p.pos)
+                    return l.x > -0.2 && l.x < Float(h.grid.sx) + 0.2 && l.z > -0.2 && l.z < Float(h.grid.sz) + 0.2 && l.y > -0.5 && l.y < Float(h.grid.sy)
+                }.map { $0 + 1 } ?? 0)
             default: return Float(name)
             }
         }
@@ -332,7 +360,7 @@ enum SceneScript {
                 let st = coupling(sa, sb)
                 if abs(st) < mn { print("FAIL \(ln) no such step in \(f1(Float(secs))) s (most \(f1(most)))"); fails += 1; continue }
                 print("\(ln) step \(f1(st)) after \(f1(Float(i) / 72)) s; train \(f1(train?.blocksPerSec ?? 0)) b/s, aboard \(w.ships.aboard?.name ?? "none")")
-            case "ride":
+            case "ride" where t.count != 4 || t[1] != "train":
                 guard t.count == 3, t[1] == "nearest" else { bad(); continue }
                 if t[2] == "train" {
                     guard let tc = nearestTrain() else { print("FAIL \(ln) no train"); fails += 1; continue }
@@ -397,7 +425,9 @@ enum SceneScript {
                 guard t[2] == "coach", let k = Int(t[3]) else { bad(); continue }
                 let secs = t.count > 4 ? Double(t[4]) ?? 12 : 12
                 let cs = coachList()
-                guard k >= 2, k <= cs.count, let sb = TrainHulls.hull(cs[k - 1]), let sa = TrainHulls.hull(cs[k - 2]) else {
+                // (to coach 1: back from coach 2)
+                let ka = k >= 2 ? k - 2 : 1
+                guard k >= 1, k <= cs.count, ka < cs.count, let sb = TrainHulls.hull(cs[k - 1]), let sa = TrainHulls.hull(cs[ka]) else {
                     print("FAIL \(ln) the train has \(cs.count) coaches with hulls"); fails += 1; continue
                 }
                 walkStep = coupling(sa, sb)
@@ -420,6 +450,14 @@ enum SceneScript {
                 var a = AgentAction(); a.forward = 1
                 play(s, a)
                 print("\(ln) moved \(f1(simd_length(g.player.pos - p0))) blocks")
+            case "aboard" where t.count == 2 && t[1] == "engine":
+                // aboard engine: the locomotive's hull counts him aboard, as walking up into its cab before taking the
+                // regulator leaves it (ledger 243)
+                guard let tr = train, let eng = tr.cars.first(where: { Trains.isEngine($0) }), let h = TrainHulls.hull(eng) else {
+                    print("FAIL \(ln) no engine hull"); fails += 1; continue
+                }
+                w.ships.aboard = h
+                print("\(ln) aboard \(h.name)")
             case "print":
                 guard t.count == 2 else { bad(); continue }
                 let p = g.player
@@ -435,6 +473,31 @@ enum SceneScript {
                     print("\(ln) last \(tickMs.count) ticks: avg \(f1(Float(avg))) ms, worst \(f1(Float(tickMs.max() ?? 0))) ms")
                 default: bad()
                 }
+            case "time":
+                // time FRAC: the day's clock (0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight), the day kept
+                guard t.count == 2, let f = Double(t[1]) else { bad(); continue }
+                g.time = (floor(g.time / DAY_LENGTH) + f) * DAY_LENGTH
+                print("\(ln) day \(Int(g.time / DAY_LENGTH)) at \(f1(Float(f)))")
+            case "hold":
+                // hold sneak|jump|use|attack|sprint SECONDS: the key held through the input path, then let go
+                guard t.count == 3, let secs = Double(t[2]) else { bad(); continue }
+                var a = AgentAction()
+                switch t[1] { case "sneak": a.sneak = true; case "jump": a.jump = true; case "use": a.use = true
+                              case "attack": a.attack = true; case "sprint": a.sprint = true; a.forward = 1; default: bad(); continue }
+                play(secs, a); step(AgentAction())
+                print("\(ln) riding \(g.riding?.kind.key ?? "nothing"), aboard \(w.ships.aboard?.name ?? "none"), at \(f1(g.player.pos.x)) \(f1(g.player.pos.y - Float(YOFF))) \(f1(g.player.pos.z))")
+            case "face" where t.count == 4 && t[1] == "train" && t[2] == "car":
+                // face train car N: turn onto car N's middle (counted from 1 along the train), as he would to use it
+                guard let k = Int(t[3]), let tr = train ?? nearestTrain()?.0, k >= 1, k <= tr.cars.count else { bad(); continue }
+                train = tr
+                aim(tr.cars[k - 1].pos + V3(0, 1.2, 0))
+                print("\(ln) a \(tr.cars[k - 1].kind.key), \(f1(simd_length(tr.cars[k - 1].pos - g.player.pos))) blocks off")
+            case "ride" where t.count == 4 && t[1] == "train" && t[2] == "car":
+                // ride train car N: board car N as he boards (Trains.use: a coach's seat, the cab)
+                guard let k = Int(t[3]), let tr = train ?? nearestTrain()?.0, k >= 1, k <= tr.cars.count else { bad(); continue }
+                train = tr
+                let used = Trains.use(g, tr.cars[k - 1])
+                print("\(ln) \(used ? "used" : "nothing happened"): riding \(g.riding?.kind.key ?? "nothing")")
             case "expect":
                 // expect block X Y Z == KEY | expect ground X Y Z == true|false | expect NAME OP NUMBER
                 let ops = ["==", "!=", "<=", ">=", "<", ">"]

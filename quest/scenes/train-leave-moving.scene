@@ -1,0 +1,15 @@
+# Bug hunt round 1 (trains): he gets off a moving train with sneak, as a player would, in survival.
+train at station
+survival on
+ride nearest train
+tick 30
+print train
+hold sneak 0.1
+tick 0.05
+print player
+expect riding == 0
+expect player.inblock == 0  # not left inside the coach's walls or the ground
+tick 3
+print player
+expect player.health >= 18  # stepping off at train speed is no long fall
+expect player.y > -40

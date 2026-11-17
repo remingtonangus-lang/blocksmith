@@ -5,6 +5,7 @@ import Foundation
 // D-pad / stick to move, A to choose or step a setting forward, X (or D-pad left/right) to step it,
 // B to go back. The list scrolls when it is longer than the panel.
 final class PauseMenu: Menu {
+    static let oldMainPage = Env.all["BS_OLDPAUSEMENU"] == "1"      // ledger 242: Track a Target and Statistics on the page, buttons 22 tall
     // Controller option steps (Halo Infinite-style scales: sensitivity 1-10, dead zones in percent).
     static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
     static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
@@ -298,9 +299,14 @@ final class PauseMenu: Menu {
                 // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
                 subtitle = "Player 2"
                 rows = [("Back to Game", "resume"), ("Journal and Map...", "journal"), (PauseMenu.trackLabel(g), "track"), ("Leave Split Screen", "coop")]
+                if !PauseMenu.oldMainPage { rows.removeAll { $0.1 == "track" } }
             } else if g.coop.active {
                 rows.removeAll { $0.1 == "photo" || $0.1 == "worlds" }
             }
+            // Ledger 242 (Nov 16 21:15:34-21:15:59: "Remove the track a target thing from the menu. Remove stats... and make
+            // the menu bigger, that way the buttons can be bigger"): neither is on the page now (the pause page's style
+            // below is wider, its buttons taller). BS_OLDPAUSEMENU: as before.
+            if !PauseMenu.oldMainPage { rows.removeAll { $0.1 == "track" || $0.1 == "stats" } }
             if !g.cheatsAllowed { rows.removeAll { $0.1 == "commands" } }    // Q2c-console-15
             // P480: the bug and idea reporter (builds that know where to send reports).
             if Reporter.available && g.coop.current == 0, let at = rows.firstIndex(where: { $0.1 == "commands" || $0.1 == "mode" }) {
@@ -497,6 +503,14 @@ final class PauseMenu: Menu {
             // Difficulty row, Oct 18) made the page taller than half the headset's panel, so it was fitted at scale 1:
             // letters half a degree high (questcheck --vrtext-only). Lines of 24 with tighter gaps keep it at scale 2
             // (P421: 22 with gaps of 3 and 8, room for an eighth line with Messages).
+            if !PauseMenu.oldMainPage {
+                // (ledger 242: five lines at most of buttons 30 tall across a page 500 wide, still fitted at scale 2)
+                return Style(width: 500, btnH: 30, gapX: 12, gapY: 6, groupGap: 10, cols: 4, lines: 6, groups: [
+                    (["resume", "restorebackup"], 0),
+                    (["options", PauseMenu.distanceID, "mode", "difficulty"], 0),
+                    (["journal", "worlds", "photo", "report", "commands"], 3),
+                    (["totitle"], 0)])
+            }
             return Style(width: 440, btnH: 22, gapX: 12, gapY: 3, groupGap: 8, cols: 4, lines: 8, groups: [
                 (["resume", "restorebackup"], 0),
                 (["options", PauseMenu.distanceID, "mode", "difficulty"], 0),                    // settings

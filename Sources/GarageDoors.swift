@@ -19,9 +19,13 @@ import simd
 enum GarageDoors {
     static let shipName = "Garage Door"
     static let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
-    static let seconds: Float = 2.6                      // a whole opening or closing
+    // Ledger 244 (Nov 15 21:12:45 and 21:16:21 at a Greywall garrison: "Doors still don't open fast enough", "Takes way
+    // too long for the doors to open"): a whole opening or closing took 2.6 s; now a third of it. BS_OLDDOORTIME=1: 2.6 s.
+    static let oldTime = Env.all["BS_OLDDOORTIME"] == "1"
+    static let seconds: Float = oldTime ? 2.6 : 0.9      // a whole opening or closing
     static let maxCells = 96
     static var opened = 0, closed = 0, refused = 0         // (checks)
+    static let oldEase = Env.all["BS_OLDDOOREASE"] == "1"
 
     static func dirIndex(_ n: IVec3) -> Int { dirs.firstIndex(of: n) ?? 0 }
     static func upright(_ n: IVec3) -> BlockID { Blocks.id(Depots.shutter) + BlockID(2 + dirIndex(n)) }
@@ -150,13 +154,14 @@ enum GarageDoors {
         var wait: [(Chunk, Int, Int)] = []               // sections to be redrawn before the body shows (or goes)
         var phase = 0                                    // 0 held hidden, 1 moving, 2 written back, waiting to go
         var held: Float = 0
+        var u: Float = 0                                 // (ledger 241) the share of the swing's time gone
         init(door: Door, opening: Bool) { self.door = door; self.opening = opening; t = opening ? 0 : 1 }
 
         // The panel's pose at t: a quarter turn about the hinge (its top edge, on the panel's outer face) for the first
         // 85%, then a quarter-block slide in to where its stowed cells lie.
         func pose(_ t: Float) -> (V3, Quat) {
             let turn = min(1, t / 0.85), sl = max(0, (t - 0.85) / 0.15)
-            let e = turn * turn * (3 - 2 * turn)
+            let e = GarageDoors.oldEase ? turn * turn * (3 - 2 * turn) : turn
             let r = Quat(angle: e * .pi / 2, axis: axis)
             let arm: V3 = r.act(pos0 - pivot)
             let at: V3 = pivot + arm + slide * sl
@@ -281,7 +286,17 @@ enum GarageDoors {
                 m.phase = 1
                 fallthrough
             case 1:
-                m.t = max(0, min(1, m.t + (m.opening ? dt : -dt) / seconds))
+                if GarageDoors.oldEase {
+                    m.t = max(0, min(1, m.t + (m.opening ? dt : -dt) / seconds))
+                } else {
+                    // Ledger 241 (Nov 16 20:48:43, a garrison's garage door: "the thing... for about a quarter of a second
+                    // before actually going up like it should"): the swing eased in and out, so for its first quarter
+                    // second it turned 3 degrees and read as standing at its start. A motor's door starts at speed and
+                    // slows into its stop: eased out only. BS_OLDDOOREASE: as before.
+                    m.u = min(1, m.u + dt / seconds)
+                    let e: Float = 1 - (1 - m.u) * (1 - m.u)
+                    m.t = m.opening ? e : 1 - e
+                }
                 let (p, r) = m.pose(m.t)
                 if (m.opening && m.t >= 1) || (!m.opening && m.t <= 0) {
                     s.pos = p; s.rot = r; s.vel = .zero; s.angVel = .zero

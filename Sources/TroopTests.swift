@@ -167,6 +167,7 @@ enum TroopTests {
         let sp = h.soldierAI(0.05, g, dist: 12, canTarget: true)
         let r = Mob(.soldierRecruit, at: base + V3(12, 0, 0))
         r.setTroop(.regular)
+        r.soldierBrain.gun = Guns.rifle      // (a rifleman: a Regular dealt a shotgun at random rushes in faster, by design)
         r.aggro = true; r.soldierBrain.react = 0; r.soldierBrain.sees = true; r.soldierBrain.losTimer = 5
         let sr = r.soldierAI(0.05, g, dist: 12, canTarget: true)
         check(sp > 0.4 * h.spec.speed && sp >= sr, String(format: "troop behaviour: a Hannibal trooper pushes in at 12 blocks (%.2f, a Regular %.2f)", sp, sr))

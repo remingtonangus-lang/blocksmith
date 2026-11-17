@@ -113,6 +113,7 @@ final class SoldierBrain {
 }
 
 enum Soldier {
+    static let oldSturm = Env.all["BS_OLDSTURM"] == "1"          // ledger 246: the Sturmbrecher's long runs, short cycle and gap
 
     // P510 (Nov 1 20:11:03-20:11:08, near a Capital citadel in the snow: "Oh, please. I didn't even have a...", "I
     // didn't have my gun out"; after P499's cities, P501's garrison rows and P508's Greywall: "If no gun, they send
@@ -953,7 +954,12 @@ extension Mob {
         if b.burst <= 0 {
             // P510 (Nov 1 20:16:25, a Capital heavy with the Sturmbrecher: "That guy should be rapid firing shotgun
             // rounds"): the box-fed shotgun empties in long runs at its own cycle (it fired three to five at 0.34 s).
-            let bursts: ClosedRange<Int> = b.gun == Guns.rotary ? 24...40 : (b.gun == Guns.autoShotgun ? 6...10 : (b.gun == Guns.ashsaw ? 7...11 : (troop == 3 ? 6...10 : rank.burst)))
+            // Ledger 246 (Nov 16 20:50:16-20:50:35 at a Greywall garrison, the gun of ledger 245): with a volley one
+            // blow, the Sturmbrecher still dealt 2.9 times the middle soldier gun's damage a second through iron
+            // (questcheck --soldierguns), firing six to ten volleys a run at a short cycle and gap. Its runs are three
+            // to five at the common cycle and gap (2.2 times). BS_OLDSTURM=1: as before.
+            let sturm: ClosedRange<Int> = Soldier.oldSturm ? 6...10 : 3...5
+            let bursts: ClosedRange<Int> = b.gun == Guns.rotary ? 24...40 : (b.gun == Guns.autoShotgun ? sturm : (b.gun == Guns.ashsaw ? 7...11 : (troop == 3 ? 6...10 : rank.burst)))
             b.burst = Rand.int(in: bursts)
         }
         b.burst -= 1
@@ -963,8 +969,8 @@ extension Mob {
         }
         let rate: Float = enraged ? 0.6 : 1
         let pace: Float = Difficulty.row.pace                    // P302: slower fire on the easy levels
-        let cycle: Float = b.gun == Guns.ashsaw || b.gun == Guns.autoShotgun ? 1 : 1.4
-        let gapK: Float = b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : (b.gun == Guns.autoShotgun ? 0.7 : 1))
+        let cycle: Float = b.gun == Guns.ashsaw || (b.gun == Guns.autoShotgun && Soldier.oldSturm) ? 1 : 1.4
+        let gapK: Float = b.gun == Guns.ashsaw ? 1.3 : (b.gun == Guns.rotary ? 1.6 : (b.gun == Guns.autoShotgun && Soldier.oldSturm ? 0.7 : 1))
         b.shotTimer = b.burst > 0 ? gs.interval * cycle * rate / pace
                                   : Rand.float(in: rank.gap) * Soldier.burstGap * rate * gapK / pace
     }
