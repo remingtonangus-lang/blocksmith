@@ -327,10 +327,16 @@ enum TreeShapes {
             d.crown(0.5, 18, 0.5, 4.6, 2.0)
         },
     ]
+    static let bushLow = Env.all["BS_OLDBUSHMOUND"] != "1"
     static let jungleBushes: [TreeShape] = [
-        make("jungle bush", 56, bole: 0, stretch: 0) { d in d.trunk(1); d.crown(0, 1, 0, 2.4, 1.3) },
-        make("low jungle bush", 57, bole: 0, stretch: 0) { d in d.trunk(1); d.crown(0.5, 1, 0, 2.0, 1.1) },
-        make("wide jungle bush", 256, bole: 0, stretch: 0) { d in d.trunk(1); d.crown(0, 1, 0, 2.8, 1.2) },
+        // Ledger 229 (Nov 16 20:42:13-26, a jungle bush nobody had touched: "What the hell is this... Looks like a
+        // diamond. Levitating. Physics failure. Artifact failure"): the mound was centred a block over the foot, so it
+        // hung a block off the ground on its one log, and the log under it was drawn as a thin bough pointed at both
+        // ends. The mound sits on the ground round its log, as the shrubs' does (P499). New land only; the stem of a
+        // bush already in a world is drawn as a stem (ShapeTrunks). BS_OLDBUSHMOUND=1: as before.
+        make("jungle bush", 56, bole: 0, stretch: 0) { d in d.trunk(1); if bushLow { d.crown(0, 0.4, 0, 2.4, 1.7) } else { d.crown(0, 1, 0, 2.4, 1.3) } },
+        make("low jungle bush", 57, bole: 0, stretch: 0) { d in d.trunk(1); if bushLow { d.crown(0.5, 0.3, 0, 2.0, 1.4) } else { d.crown(0.5, 1, 0, 2.0, 1.1) } },
+        make("wide jungle bush", 256, bole: 0, stretch: 0) { d in d.trunk(1); if bushLow { d.crown(0, 0.4, 0, 2.8, 1.6) } else { d.crown(0, 1, 0, 2.8, 1.2) } },
     ]
     // Acacias: trunks that bend out under flat umbrella crowns.
     static let acacias: [TreeShape] = [

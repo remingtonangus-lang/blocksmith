@@ -95,6 +95,11 @@ enum Felling {
     //   BS_OLDFELLSEED     the body is the logs above the cut only (limbs at the cut's height abort the fall)
     //   BS_OLDLEAFREST     a felled tree rests on its crown's leaves, and hangs in the trunks beside it for good
     static let stumpGirth = Env.all["BS_OLDSTUMPGIRTH"] != "1"
+    static let stumpStays = Env.all["BS_OLDFELLSTUMP"] != "1"       // ledgers 226, 227 (Game.fellWhole)
+    static let crownLight = Env.all["BS_OLDCROWNWEIGHT"] != "1"   // ledger 228 (Ship.rebuild)
+    static let spinRests = Env.all["BS_OLDFELLSPIN"] != "1"       // ledger 228 (ShipPhysics, the felled tree's drag)
+    static let slimTrunks = Env.all["BS_OLDTRUNKBOX"] != "1"     // ledger 228 (ShipPhysics.terrainContacts)
+    static let trace = Env.all["BS_FELLTRACE"] == "1"          // (prints each cut's trunks and each falling body once a second)
     static let newSeed = Env.all["BS_OLDFELLSEED"] != "1"
     static let woodRests = Env.all["BS_OLDLEAFREST"] != "1"
     static var slipped = 0                       // (counter: bodies let through the trunks they hung in)
@@ -286,13 +291,22 @@ extension Game {
         }
         guard !comp.isEmpty else { return }
         // The trunks in it: feet (tree wood on the ground with two more upright logs over it), touching feet one trunk.
+        // Ledger 226 (Nov 16 21:16, "I just cut down one and two logs fell over from another tree entirely"): the struck
+        // log is already air when this runs, and it was read as air here: a trunk cut in its second or third log had no
+        // foot, so the cut tree was no trunk at all, and the first neighbour whose wood reached the cut was taken for
+        // it: the neighbour fell, with the cut tree's stump thrown in. The struck log now counts as the wood it was.
+        let fixed = Felling.stumpStays
+        @inline(__always) func treeAt(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            if fixed && x == p.x && y == p.y && z == p.z { return treeT[Int(cut)] }
+            return treeT[Int(w.block(x, y, z))]
+        }
         var feet: [IVec3] = []
-        for c in comp {
-            let b = w.block(c.x, c.y, c.z)
+        for c in (fixed ? comp + [p] : comp) {
+            let b = c == p ? cut : w.block(c.x, c.y, c.z)
             guard treeT[Int(b)], ShapeTrunks.axisOf[Int(b)] == 1 else { continue }
             let u = Int(w.block(c.x, c.y - 1, c.z))
             guard !treeT[u], !rootT[u], !leafT[u], Blocks.opaque[u] || Blocks.collide[u] || w.groundAt(c.x, c.y - 1, c.z) else { continue }
-            guard treeT[Int(w.block(c.x, c.y + 1, c.z))], treeT[Int(w.block(c.x, c.y + 2, c.z))] else { continue }
+            guard treeAt(c.x, c.y + 1, c.z), treeAt(c.x, c.y + 2, c.z) else { continue }
             feet.append(c)
         }
         var label: [IVec3: Int] = [:]
@@ -305,31 +319,92 @@ extension Game {
             }
             trunks += 1
         }
+        if Felling.trace {
+            print("fell trace: cut \(p.x) \(p.y - YOFF) \(p.z), wood \(comp.count), feet \(feet.map { "\($0.x) \($0.y - YOFF) \($0.z)" }), trunks \(trunks)")
+        }
         var logs = Set(comp)
-        if trunks > 1 {
-            // Each log to the trunk nearest through the wood (the trunks' own columns first).
+        if !fixed {
+            if trunks > 1 {
+                var q2: [IVec3] = []
+                for f in feet {
+                    var c = f
+                    let l = label[f]!
+                    while seen.contains(c) && c != p && treeT[Int(w.block(c.x, c.y, c.z))] {
+                        if label[c] == nil || c == f { label[c] = l; q2.append(c) }
+                        c = IVec3(c.x, c.y + 1, c.z)
+                    }
+                }
+                var h2 = 0
+                var mine = -1
+                while h2 < q2.count {
+                    let c = q2[h2]; h2 += 1
+                    let l = label[c]!
+                    for (dx, dy, dz) in ShapeTrunks.steps {
+                        let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
+                        if q == p { if mine < 0 { mine = l }; continue }
+                        guard seen.contains(q), label[q] == nil else { continue }
+                        label[q] = l; q2.append(q)
+                    }
+                }
+                if mine >= 0 { logs = Set(comp.filter { label[$0] == mine || label[$0] == nil }) }
+            }
+        } else if trunks > 0 {
+            // Each log to the trunk nearest through the wood (the trunks' own columns first, the struck log one of them).
             var q2: [IVec3] = []
             for f in feet {
                 var c = f
                 let l = label[f]!
-                while seen.contains(c) && c != p && treeT[Int(w.block(c.x, c.y, c.z))] {
+                while seen.contains(c) && treeAt(c.x, c.y, c.z) {
                     if label[c] == nil || c == f { label[c] = l; q2.append(c) }
                     c = IVec3(c.x, c.y + 1, c.z)
                 }
             }
             var h2 = 0
-            var mine = -1
             while h2 < q2.count {
                 let c = q2[h2]; h2 += 1
                 let l = label[c]!
                 for (dx, dy, dz) in ShapeTrunks.steps {
                     let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
-                    if q == p { if mine < 0 { mine = l }; continue }
                     guard seen.contains(q), label[q] == nil else { continue }
                     label[q] = l; q2.append(q)
                 }
             }
-            if mine >= 0 { logs = Set(comp.filter { label[$0] == mine || label[$0] == nil }) }
+            // (wood that reaches no trunk's label hangs in another tree's crown: it is not this tree)
+            if let mine = label[p] {
+                let own = Set(comp.filter { label[$0] == mine })
+                // Ledger 227 (Nov 16 20:42:58, "I cut above the stump and the stump came with it when it fell"; 21:16:25,
+                // "it falls as if the stump is still attached to it"): what stands under the cut stays standing. The
+                // cut goes through the trunk at its level (every log of a thick trunk's section there); the wood still
+                // joined to the tree's feet without crossing that section is the stump and stays, with any low bough of
+                // its own; the rest of the tree comes down as one body. A cut at the foot takes the whole tree.
+                var slab: Set<IVec3> = [p]
+                if ShapeTrunks.axisOf[Int(cut)] == 1 {
+                    var sq = [p]
+                    while let c = sq.popLast() {
+                        for dz in -1...1 { for dx in -1...1 where dx != 0 || dz != 0 {
+                            let q = IVec3(c.x + dx, c.y, c.z + dz)
+                            guard own.contains(q), !slab.contains(q), ShapeTrunks.axisOf[Int(w.block(q.x, q.y, q.z))] == 1 else { continue }
+                            // (a trunk's log, not a bough's upright tip beside it: wood under it or over it)
+                            guard own.contains(IVec3(q.x, q.y - 1, q.z)) || own.contains(IVec3(q.x, q.y + 1, q.z)) else { continue }
+                            slab.insert(q); sq.append(q)
+                        } }
+                    }
+                }
+                var stays = Set<IVec3>()
+                var stq: [IVec3] = feet.filter { label[$0] == mine && !slab.contains($0) }
+                for f in stq { stays.insert(f) }
+                while let c = stq.popLast() {
+                    for (dx, dy, dz) in ShapeTrunks.steps {
+                        let q = IVec3(c.x + dx, c.y + dy, c.z + dz)
+                        guard own.contains(q), !slab.contains(q), !stays.contains(q) else { continue }
+                        stays.insert(q); stq.append(q)
+                    }
+                }
+                logs = own.subtracting(stays)
+                logs.remove(p)
+            } else {
+                logs = Set(comp.filter { label[$0] == nil })
+            }
         }
         guard !logs.isEmpty, let low = logs.map({ $0.y }).min() else { return }
         Felling.roundTrunks = Felling.roundFor(world)
@@ -722,6 +797,12 @@ extension Game {
                 f.held = -1
             }
             f.age += dt
+            if Felling.trace, Int(f.age * 72) % 72 == 0 {
+                let up = s.rot.act(V3(0, 1, 0)).y
+                print(String(format: "fell trace: age %.1f at %.1f %.1f %.1f, up %.2f, speed %.2f spin %.2f, contacts %d, slips %@, hung %.2f, asleep %@, blocks %d, landed %@",
+                             f.age, s.pos.x, s.pos.y - Float(YOFF), s.pos.z, up, simd_length(s.vel), simd_length(s.angVel), s.contacts, s.slips ? "yes" : "no", s.hungT,
+                             s.asleep ? "yes" : "no", s.blockCount, f.landed ? "yes" : "no"))
+            }
             // P478 (Oct 27 18:46, "trees disappear when they hit another root"): at his spot the spruce cut at its foot
             // dropped onto the ground under the cut and stood there upright for good, 4 degrees over and a body: the
             // landing took the nudge's spin out and its round foot held it. A cut tree goes over: until it is 15 degrees

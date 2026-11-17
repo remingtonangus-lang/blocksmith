@@ -1,0 +1,16 @@
+# Ledger 229 (Nov 16 20:42:13-26, a jungle bush nobody had touched: "Looks like a diamond. Levitating... Physics
+# failure. Artifact failure"). The bush at 715 80 29: its one log was drawn as a thin bough pointed at both ends, and
+# its leaf mound hung a block over the ground.
+# questcheck --scene quest/scenes/bush-on-the-ground.scene --seed 3084501862406496736 --headset --out DIR
+# After: leaves lie on the ground round the log (the expects), and bush.png shows a mound that meets the grass.
+# Before: BS_OLDBUSHMOUND=1 (3 FAILED: the mound a block up). BS_OLDONESTEM=1 and BS_OLDMOUNDSEAT=1 are how it is drawn
+# (the log a bough again; the mound's round underside over the ground): see bush.png with each.
+at 718.0 80.4 30.7
+load 4
+expect block 715 80 29 == tree_jungle_log
+expect block 714 80 29 == oak_leaves
+expect block 716 80 29 == oak_leaves
+expect block 715 80 30 == oak_leaves
+at 718.0 79.4 30.7
+look 293 -12
+shot bush.png 700 700

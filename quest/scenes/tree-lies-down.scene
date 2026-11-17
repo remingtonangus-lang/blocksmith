@@ -1,0 +1,14 @@
+# Ledger 228 (found reproducing Nov 16 20:42:18): a thin jungle tree under a wide crown, cut in its second log, went
+# over crown first and stood upside down on its top log, turning on that one point and never coming to rest.
+# questcheck --scene quest/scenes/tree-lies-down.scene --seed 3084501862406496736 --headset
+# After: it lies across its stump, its top on the ground, still within 3 s (tilt 0.79, spin 0).
+# Before: BS_OLDCROWNWEIGHT=1 (upside down: tilt 0.9-1.0); BS_OLDFELLSPIN=1 (never still: spin 0.3);
+# BS_OLDTRUNKBOX=1 (propped on the corner of the stump's block, clear of the round stump: see the ledger).
+at 716.5 80.4 28.5
+load 4
+break 713 82 26
+tick 9
+expect block 713 80 26 == tree_jungle_log     # (ledger 227: the stump)
+expect felled.count == 1
+expect felled.tilt < 0.86                     # 0 lying level, 1 standing or upside down
+expect felled.spin < 0.05

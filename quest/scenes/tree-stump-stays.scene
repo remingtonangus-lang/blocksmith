@@ -1,0 +1,16 @@
+# Ledgers 226 and 227 (Nov 16 20:42:58, "I cut above the stump and the stump came with it when it fell"; 21:16:25-21:17:00,
+# two oaks whose crowns touch fell as one).
+# questcheck --scene quest/scenes/tree-stump-stays.scene --seed 7780452129890778212 --headset
+# An oak cut in its third log, its crown laced with the oak 5 blocks south of it. The two logs under the cut stay, the
+# neighbour stands, and one body falls: the cut tree from the cut up (144 blocks).
+# Before: BS_OLDFELLSTUMP=1 (the neighbour's trunk and the stump go with it: 4 FAILED).
+at -2604.5 64.3 569.0
+load 3
+break -2605 66 571
+tick 12
+expect block -2605 64 571 == tree_oak_log     # the stump
+expect block -2605 65 571 == tree_oak_log
+expect block -2604 66 576 == tree_oak_log     # the oak beside it
+expect block -2604 68 576 == tree_oak_log
+expect felled.count == 1
+expect felled.blocks < 160
