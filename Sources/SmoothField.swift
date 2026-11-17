@@ -248,8 +248,41 @@ final class SmoothField {
         let y = oy + i / nn_
         if y < 3 { return 4 }
         var d = fieldDist(0, i)
-        if y >= 6 { for k in 1...3 { d = min(d, fieldDist(k, i)) } }
+        // Ledger 282: the cave fields only lower d, and the answer is clamped to [-4, 4], so they change nothing where
+        //   (a) the terrain alone already says -4 or less (open air well above the ground), or
+        //   (b) this sample and every neighbour its gradient reads lie above their columns' cave roofs: there each cave
+        //       field is -1 exactly, its gradient 0, so its distance is 1 / 1e-4 (10,000), never under the clamp's 4.
+        // Then they are not made at all. Worlds are byte-identical (questcheck --worldhash). BS_OLDCAVEBOUND=1: always made.
+        if y >= 6 && (SmoothField.oldCaveBound || (d > -4 && !aboveRoofs(i))) { for k in 1...3 { d = min(d, fieldDist(k, i)) } }
         return max(-4, min(4, d))
+    }
+
+    static let oldCaveBound = Env.all["BS_OLDCAVEBOUND"] == "1"
+
+    // The cave roof of the column of sample i (P373 (b)): carve is -1 above it. Int.max where caves may open to the sky.
+    @inline(__always) private func roof(_ i: Int) -> Int {
+        let ci = i % nn_
+        if roofY[ci] == Int.min {
+            let x = ox + ci % n_, z = oz + ci / n_
+            let g = gen!
+            roofY[ci] = g.caveMouths(x, z, g.column(x, z).biome) ? Int.max : g.groundY(x, z) - 4
+        }
+        return roofY[ci]
+    }
+
+    // Whether sample i and the samples fieldDist reads round it (as its diff picks them) all lie above their roofs.
+    private func aboveRoofs(_ i: Int) -> Bool {
+        let N = n_, NN = nn_
+        let ix = i % N, iz = (i / N) % N, iy = i / NN
+        @inline(__always) func above(_ j: Int) -> Bool { max(0, min(CH - 1, oy + j / NN)) > roof(j) }
+        guard above(i) else { return false }
+        if ix > 0 && !above(i - 1) { return false }
+        if ix < N - 1 && !above(i + 1) { return false }
+        if iz > 0 && !above(i - N) { return false }
+        if iz < N - 1 && !above(i + N) { return false }
+        if iy > 0 && !above(i - NN) { return false }
+        if iy < N - 1 && !above(i + NN) { return false }
+        return true
     }
 
     private func fieldDist(_ which: Int, _ i: Int) -> Float {
@@ -371,12 +404,7 @@ final class SmoothField {
         let x = ox + ix, y = max(0, min(CH - 1, oy + iy)), z = oz + iz
         let yd = y - YOFF
         // P373 (b): outside the patches where caves may open to the sky, a 4-block roof under the ground (as carveCaves).
-        let ci0 = ix + iz * n_
-        if roofY[ci0] == Int.min {
-            let g = gen!
-            roofY[ci0] = g.caveMouths(x, z, g.column(x, z).biome) ? Int.max : g.groundY(x, z) - 4
-        }
-        if y > roofY[ci0] { sK[i * 3 + k] = -1; return -1 }
+        if y > roof(i) { sK[i * 3 + k] = -1; return -1 }
         let r: Float
         switch k {
         case 0:
