@@ -1,0 +1,299 @@
+import Foundation
+import Metal
+import simd
+
+// questcheck --scene FILE [--seed S] [--headset] [--out DIR]: a voice note's bug played back from a text file, one
+// command a line, against the game through the calls play uses (Game.tick at 72 Hz; the player's look, walk, break and
+// place go through the bot's input path, Agent.apply, the same InputState the window fills). One result line a
+// command; `expect` lines fail the run (exit 1). Blank lines and `#` comments are skipped.
+//
+// Coordinates are as the game shows them (a voice note's Position line): y is the displayed height (internal y - 64).
+// `look YAW PITCH` takes the note's facing and pitch in degrees, as --view --look does.
+//
+//   at X Y Z / look YAW PITCH / load R / tick SECONDS / survival on|off / fly on|off / give ITEM [N]
+//   block X Y Z / set X Y Z KEY / break X Y Z / place X Y Z / blast X Y Z [POWER] / dump X0 Y0 Z0 X1 Y1 Z1
+//   shot NAME.png [W H]                          (the --view render at the eye; into --out DIR, never the repo)
+//   spawn mob KIND / spawn vessel KIND / ride nearest train|ship / drive THROTTLE SECONDS / walk forward SECONDS
+//   print player|train|ship|fps
+//   expect block X Y Z == KEY | expect ground X Y Z == true | expect player.y > N | expect fps.worst < N ...
+//
+// Notes: `load` loads round the player (the game's own streaming also runs during ticks). A field world (--headset)
+// keeps natural ground as density, not blocks: `block` prints the block or the ground's material and whether a cell
+// holds ground; `expect ground X Y Z == false` checks a dug or blasted cell.
+enum SceneScript {
+    // A scene with a `shot` line needs the Vulkan device (lavapipe) set up before anything else is made.
+    static func wantsShots(_ path: String?) -> Bool {
+        guard let p = path, let t = try? String(contentsOfFile: p, encoding: .utf8) else { return false }
+        return t.split(separator: "\n").contains { $0.trimmingCharacters(in: .whitespaces).hasPrefix("shot ") }
+    }
+
+    static func run(path: String, device: MTLDevice, ctx: VkContext?) -> Int32 {
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { print("scene: can't read \(path)"); return 2 }
+        let args = CommandLine.arguments
+        func arg(_ n: String) -> String? { args.firstIndex(of: n).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
+        let seed = UInt64(arg("--seed") ?? "") ?? 12345
+        let headset = args.contains("--headset")
+        let outDir = arg("--out") ?? FileManager.default.temporaryDirectory.appendingPathComponent("scene-shots").path
+        // The world as --view makes it; --headset: a field world with polygon ground, as the headset makes new worlds.
+        if headset { FieldTerrain.newWorlds = true }
+        let w = World(seed: seed, device: device, save: nil)
+        w.renderDistance = Int(arg("--rd") ?? "") ?? 4
+        if headset { w.makeFieldWorld() }
+        let g = Game(world: w, save: nil, persistent: false)
+        if headset { g.smoothTerrain = true; SmoothTerrain.use(world: true, world: w) }
+        g.paused = false; g.survival = false
+        g.time = 0.25 * DAY_LENGTH
+        g.player.pos = g.findSpawn()
+        let bot = Agent(game: g, world: w)
+        var held = AgentAction()                      // what the bot holds down between ticks (walk, attack)
+        var tickMs: [Double] = []
+        var fails = 0
+        var ship: Ship?
+        var train: Trains.Train?
+
+        func Y(_ s: Substring) -> Int? { Int(s).map { $0 + YOFF } }
+        func key(_ b: BlockID) -> String { Blocks.key(b) }
+        func f1(_ v: Float) -> String { String(format: "%.2f", v) }
+        func step(_ a: AgentAction) {
+            bot.apply(a)
+            let t0 = CFAbsoluteTimeGetCurrent()
+            g.tick(1.0 / 72)
+            tickMs.append((CFAbsoluteTimeGetCurrent() - t0) * 1000)
+        }
+        func play(_ secs: Double, _ a: AgentAction? = nil) {
+            tickMs.removeAll(keepingCapacity: true)
+            for _ in 0..<max(1, Int(secs * 72)) { step(a ?? held) }
+        }
+        // Turn the eye onto a point through the mouse path (one tick of look), as a player would.
+        func aim(_ p: V3) {
+            let d = p - g.player.eye
+            let yaw = atan2f(-d.x, -d.z), pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
+            var a = AgentAction()
+            var dy = yaw - g.player.yaw
+            while dy > .pi { dy -= 2 * .pi }; while dy < -.pi { dy += 2 * .pi }
+            a.yaw = dy; a.pitch = pitch - g.player.pitch
+            step(a)
+            g.player.yaw = yaw; g.player.pitch = pitch      // (the mouse path clamps and scales: land exactly)
+        }
+        func cellText(_ x: Int, _ y: Int, _ z: Int) -> String {
+            let b = w.block(x, y, z), m = w.materialAt(x, y, z), gr = w.groundAt(x, y, z)
+            return b != AIR ? key(b) : (gr ? "ground(\(key(m)))" : key(b))
+        }
+        func value(_ name: String) -> Float? {
+            let p = g.player
+            switch name {
+            case "player.x": return p.pos.x
+            case "player.y": return p.pos.y - Float(YOFF)
+            case "player.z": return p.pos.z
+            case "player.speed": return simd_length(p.vel)
+            case "player.health": return Float(g.health)
+            case "ship.speed": return ship.map { simd_length($0.vel) }
+            case "ship.blocks": return ship.map { Float($0.blockCount) }
+            case "ship.y": return ship.map { $0.pos.y - Float(YOFF) }
+            case "train.speed": return train?.blocksPerSec
+            case "fps.worst": return tickMs.max().map { Float($0) }
+            case "fps.avg": return tickMs.isEmpty ? nil : Float(tickMs.reduce(0, +) / Double(tickMs.count))
+            default: return Float(name)
+            }
+        }
+        func nearestTrain() -> (Trains.Train, Mob)? {
+            var best: (Trains.Train, Mob)?, bd = Float.infinity
+            for t in Trains.trains.values { for c in t.cars {
+                let d = simd_length(c.pos - g.player.pos)
+                if d < bd { bd = d; best = (t, c) }
+            } }
+            return best
+        }
+
+        for (n, raw) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+            let line = raw.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+            if line.isEmpty { continue }
+            let t = line.split(separator: " ", omittingEmptySubsequences: true)
+            let ln = "scene \(n + 1): \(line):"
+            func bad() { print("FAIL \(ln) can't read it"); fails += 1 }
+            switch t[0] {
+            case "at":
+                guard t.count == 4, let x = Float(t[1]), let y = Float(t[2]), let z = Float(t[3]) else { bad(); continue }
+                g.player.pos = V3(x, y + Float(YOFF), z); g.player.vel = .zero
+                w.activeCenter = g.player.pos
+                print("\(ln) player at \(f1(x)) \(f1(y)) \(f1(z))")
+            case "look":
+                guard t.count == 3, let yd = Float(t[1]), let pd = Float(t[2]) else { bad(); continue }
+                g.player.yaw = -yd * .pi / 180; g.player.pitch = pd * .pi / 180
+                print("\(ln) facing \(yd), pitch \(pd)")
+            case "load":
+                guard t.count == 2, let r = Int(t[1]) else { bad(); continue }
+                let (gen, mesh) = w.loadSync(center: g.player.pos, radius: r)
+                w.activeCenter = g.player.pos
+                print("\(ln) \(w.chunks.count) chunks (gen \(f1(Float(gen))) s, mesh \(f1(Float(mesh))) s)")
+            case "tick":
+                guard t.count == 2, let s = Double(t[1]) else { bad(); continue }
+                play(s)
+                print("\(ln) \(tickMs.count) ticks, avg \(f1(Float(tickMs.reduce(0, +) / Double(max(1, tickMs.count))))) ms, worst \(f1(Float(tickMs.max() ?? 0))) ms")
+            case "survival", "fly":
+                guard t.count == 2 else { bad(); continue }
+                if t[0] == "survival" { g.survival = t[1] == "on" } else { g.player.flying = t[1] == "on" }
+                print("\(ln) \(t[0]) \(t[1])")
+            case "give":
+                guard t.count >= 2, Items.has(String(t[1])) else { bad(); continue }
+                let s = ItemStack(Items.id(String(t[1])), t.count > 2 ? Int(t[2]) ?? 1 : 1)
+                _ = g.inventory.add(g.inventory.held); g.inventory.held = s       // (in his hand; what he held goes to the pack)
+                print("\(ln) holding \(g.held.isEmpty ? "nothing" : Items.key(g.held.item))")
+            case "block":
+                guard t.count == 4, let x = Int(t[1]), let y = Y(t[2]), let z = Int(t[3]) else { bad(); continue }
+                print("\(ln) \(cellText(x, y, z))")
+            case "set":
+                guard t.count == 5, let x = Int(t[1]), let y = Y(t[2]), let z = Int(t[3]), Blocks.has(String(t[4])) else { bad(); continue }
+                w.setBlock(x, y, z, Blocks.id(String(t[4])))
+                print("\(ln) now \(cellText(x, y, z))")
+            case "break":
+                // The player's own break: the eye turned onto the cell's middle, the attack held until it is gone (10 s at most).
+                guard t.count == 4, let x = Int(t[1]), let y = Y(t[2]), let z = Int(t[3]) else { bad(); continue }
+                let was = cellText(x, y, z)
+                aim(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+                var a = AgentAction(); a.attack = true
+                var k = 0
+                while k < 720 && (w.block(x, y, z) != AIR || w.groundAt(x, y, z)) { step(a); k += 1 }
+                step(AgentAction())
+                print("\(ln) \(was) -> \(cellText(x, y, z)) after \(k) ticks (aimed at \(g.target.map { "\($0.hit.x) \($0.hit.y - YOFF) \($0.hit.z)" } ?? "nothing"))")
+            case "place":
+                // The held block placed as he places it: the eye on the top of the cell under X Y Z, one press of use.
+                guard t.count == 4, let x = Int(t[1]), let y = Y(t[2]), let z = Int(t[3]) else { bad(); continue }
+                aim(V3(Float(x) + 0.5, Float(y) - 0.02, Float(z) + 0.5))
+                var a = AgentAction(); a.use = true
+                step(a); step(AgentAction())
+                print("\(ln) \(cellText(x, y, z)) (aimed at \(g.target.map { "\($0.hit.x) \($0.hit.y - YOFF) \($0.hit.z)" } ?? "nothing"))")
+            case "blast":
+                // As --blasts: the blast, then half a second of play, then the ground's weighings played out (a minute at most).
+                guard t.count >= 4, let x = Float(t[1]), let y = Float(t[2]), let z = Float(t[3]) else { bad(); continue }
+                let p = t.count > 4 ? Float(t[4]) ?? 4 : 4
+                let f0 = GroundWeigh.fell
+                Explosion.explode(at: V3(x, y + Float(YOFF), z), power: p, game: g)
+                play(0.5)
+                var extra = 0
+                while w.groundWeigh.busy && extra < 60 * 72 { step(held); extra += 1 }
+                print("\(ln) power \(p); \(GroundWeigh.fell - f0) ground cells came down; \(extra) more ticks till still")
+            case "ground":
+                // A box of natural ground (a field world's density, as the ground weigh checks make their fixtures) of
+                // a material (dirt, stone...) or `air` to clear it; meshed again after.
+                guard t.count == 8, let x0 = Int(t[1]), let y0 = Y(t[2]), let z0 = Int(t[3]),
+                      let x1 = Int(t[4]), let y1 = Y(t[5]), let z1 = Int(t[6]), w.fieldTerrain else { bad(); continue }
+                let mat: UInt8? = t[7] == "air" ? nil : (Blocks.has(String(t[7])) ? FieldMat.index[Int(Blocks.id(String(t[7])))] : nil)
+                guard t[7] == "air" || (mat ?? 0) != 0 else { print("FAIL \(ln) \(t[7]) is not a ground material"); fails += 1; continue }
+                var cells = 0
+                for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) {
+                    guard let c = w.chunkAt(x, z) else { continue }
+                    for y in min(y0, y1)...max(y0, y1) {
+                        c.blocks.setDensity(Chunk.index(mod(x, CS), y, mod(z, CS)), mat != nil ? 32 : -32, material: mat)
+                        if mat == nil, w.builtBlock(x, y, z) != AIR { w.setBlock(x, y, z, AIR) }
+                        cells += 1
+                    }
+                } }
+                w.remeshArea(x0: min(x0, x1) - 1, z0: min(z0, z1) - 1, x1: max(x0, x1) + 1, z1: max(z0, z1) + 1, y0: min(y0, y1) - 1, y1: max(y0, y1) + 1)
+                print("\(ln) \(cells) cells of \(t[7])")
+            case "dump":
+                guard t.count == 7, let x0 = Int(t[1]), let y0 = Y(t[2]), let z0 = Int(t[3]),
+                      let x1 = Int(t[4]), let y1 = Y(t[5]), let z1 = Int(t[6]) else { bad(); continue }
+                let xs = min(x0, x1)...max(x0, x1), ys = min(y0, y1)...max(y0, y1), zs = min(z0, z1)...max(z0, z1)
+                guard xs.count * ys.count * zs.count <= 4096 else { print("FAIL \(ln) more than 4,096 cells"); fails += 1; continue }
+                print("\(ln)")
+                for y in ys.reversed() { for z in zs {
+                    // one row a line, runs of the same cell joined: "x0..x1 key"
+                    var runs: [String] = [], start = xs.lowerBound, last = cellText(start, y, z)
+                    for x in xs.dropFirst() { let c = cellText(x, y, z); if c != last { runs.append("\(start)..\(x - 1) \(last)"); start = x; last = c } }
+                    runs.append("\(start)..\(xs.upperBound) \(last)")
+                    print("  y \(y - YOFF) z \(z): " + runs.joined(separator: ", "))
+                } }
+            case "shot":
+                guard t.count >= 2 else { bad(); continue }
+                guard let c = ctx else { print("FAIL \(ln) no Vulkan device (lavapipe)"); fails += 1; continue }
+                try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
+                let out = (outDir as NSString).appendingPathComponent(String(t[1]))
+                let wd = t.count > 2 ? Int(t[2]) ?? 640 : 640, ht = t.count > 3 ? Int(t[3]) ?? 640 : 640
+                do {
+                    try RenderTest.render(game: g, ctx: c, path: out, width: wd, height: ht, yaw: g.player.yaw, pitch: g.player.pitch, fovDeg: 90)
+                    print("\(ln) wrote \(out)")
+                } catch { print("FAIL \(ln) \(error)"); fails += 1 }
+            case "spawn":
+                guard t.count == 3 else { bad(); continue }
+                let ahead = g.player.pos + V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw)) * 6
+                if t[1] == "mob" {
+                    guard let k = MobKind.named(String(t[2])) else { print("FAIL \(ln) no mob kind \(t[2])"); fails += 1; continue }
+                    g.mobs.mobs.append(Mob(k, at: w.freeSpawn(ahead)))
+                    print("\(ln) a \(k.key) at \(f1(ahead.x)) \(f1(ahead.z))")
+                } else if t[1] == "vessel" {
+                    let helm = ShipTest.place(w, String(t[2]), near: ahead)
+                    let (s, msg) = w.ships.assemble(at: helm, game: g)
+                    ship = s
+                    if let s = s { print("\(ln) \(s.name), \(s.blockCount) blocks, helm at \(helm.x) \(helm.y - YOFF) \(helm.z)") }
+                    else { print("FAIL \(ln) \(msg)"); fails += 1 }
+                } else { bad() }
+            case "ride":
+                guard t.count == 3, t[1] == "nearest" else { bad(); continue }
+                if t[2] == "train" {
+                    guard let tc = nearestTrain() else { print("FAIL \(ln) no train"); fails += 1; continue }
+                    let car = tc.1
+                    train = tc.0; _ = Trains.use(g, car)          // (boarding as he boards: a seat, the cab)
+                    print("\(ln) aboard a \(car.kind.key) \(f1(simd_length(car.pos - g.player.pos))) blocks off")
+                } else if t[2] == "ship" {
+                    guard let s = ship ?? w.ships.list.min(by: { simd_length($0.pos - g.player.pos) < simd_length($1.pos - g.player.pos) }) else {
+                        print("FAIL \(ln) no ship"); fails += 1; continue
+                    }
+                    ship = s; g.startPiloting(s)
+                    print("\(ln) at the helm of \(s.name)")
+                } else { bad() }
+            case "drive":
+                // The throttle held (the helm's or the cab's regulator) for SECONDS of play.
+                guard t.count == 3, let th = Float(t[1]), let s = Double(t[2]) else { bad(); continue }
+                if g.riding != nil, let tr = train { tr.throttle = th; play(s) }
+                else if ship != nil { var a = AgentAction(); a.forward = th; play(s, a) }
+                else { print("FAIL \(ln) not driving anything"); fails += 1; continue }
+                print("\(ln) \(ship.map { "ship speed \(f1(simd_length($0.vel)))" } ?? "train \(f1(train?.blocksPerSec ?? 0)) b/s")")
+            case "walk":
+                guard t.count == 3, t[1] == "forward", let s = Double(t[2]) else { bad(); continue }
+                let p0 = g.player.pos
+                var a = AgentAction(); a.forward = 1
+                play(s, a)
+                print("\(ln) moved \(f1(simd_length(g.player.pos - p0))) blocks")
+            case "print":
+                guard t.count == 2 else { bad(); continue }
+                let p = g.player
+                switch t[1] {
+                case "player":
+                    print("\(ln) at \(f1(p.pos.x)) \(f1(p.pos.y - Float(YOFF))) \(f1(p.pos.z)), speed \(f1(simd_length(p.vel))), health \(g.health), held \(g.held.isEmpty ? "nothing" : Items.key(g.held.item)), riding \(g.riding?.kind.key ?? "nothing"), helm \(w.ships.pilot?.name ?? "none"), aboard \(w.ships.aboard?.name ?? "none")")
+                case "train":
+                    print("\(ln) " + (train.map { "\(f1($0.blocksPerSec)) b/s, throttle \(f1($0.throttle)), brake \(f1($0.brake)), \($0.cars.count) cars" } ?? "none"))
+                case "ship":
+                    print("\(ln) " + (ship.map { "\($0.name) at \(f1($0.pos.x)) \(f1($0.pos.y - Float(YOFF))) \(f1($0.pos.z)), speed \(f1(simd_length($0.vel))), hull \($0.blockCount) blocks" } ?? "none"))
+                case "fps":
+                    let avg = tickMs.isEmpty ? 0 : tickMs.reduce(0, +) / Double(tickMs.count)
+                    print("\(ln) last \(tickMs.count) ticks: avg \(f1(Float(avg))) ms, worst \(f1(Float(tickMs.max() ?? 0))) ms")
+                default: bad()
+                }
+            case "expect":
+                // expect block X Y Z == KEY | expect ground X Y Z == true|false | expect NAME OP NUMBER
+                let ops = ["==", "!=", "<=", ">=", "<", ">"]
+                guard let oi = t.firstIndex(where: { ops.contains(String($0)) }), oi + 1 < t.count else { bad(); continue }
+                let op = String(t[oi]), rhs = t[(oi + 1)...].joined(separator: " "), lhs = Array(t[1..<oi])
+                var ok = false, got = ""
+                if lhs.first == "block" || lhs.first == "ground", lhs.count == 4, let x = Int(lhs[1]), let y = Y(lhs[2]), let z = Int(lhs[3]) {
+                    if lhs[0] == "ground" { got = w.groundAt(x, y, z) ? "true" : "false" }
+                    else { let b = w.block(x, y, z); got = b != AIR ? key(b) : (w.groundAt(x, y, z) ? key(w.materialAt(x, y, z)) : "air") }
+                    let base = got.split(separator: "[").first.map(String.init) ?? got
+                    let eq = got == rhs || base == rhs
+                    ok = op == "==" ? eq : op == "!=" ? !eq : false
+                } else if lhs.count == 1, let a = value(String(lhs[0])), let b = Float(rhs) {
+                    got = f1(a)
+                    switch op { case "==": ok = a == b; case "!=": ok = a != b; case "<": ok = a < b; case ">": ok = a > b
+                                case "<=": ok = a <= b; default: ok = a >= b }
+                } else { got = "nothing to read" }
+                print((ok ? "ok   " : "FAIL ") + "\(ln) (\(got))")
+                if !ok { fails += 1 }
+            default:
+                bad()
+            }
+        }
+        print(fails == 0 ? "scene: all checks passed" : "scene: \(fails) FAILED")
+        return fails == 0 ? 0 : 1
+    }
+}
