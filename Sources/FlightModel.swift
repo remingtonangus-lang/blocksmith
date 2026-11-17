@@ -41,12 +41,14 @@ final class FlightModel {
 
     static let rho: Float = 0.055       // Ka per airfoil cell: 0.5 * air density * area (blocks, tonnes, seconds)
     static let heliTmax: Float = 2.1    // rotor thrust at full collective, in hull weights
+    static let trialPlanes = Env.all["BS_PLANEFM"] == "1"   // (trial for Fable: a player's wing-and-propeller build flies the real model)
+    static let oldNose = Env.all["BS_OLDNOSE"] == "1"     // ledger 240: a helicopter's heading hold on the hull's -Z, not its helm's forward
 
     // Which model a ship gets (nil: the arcade one).
     static func attach(_ s: Ship) {
         if !s.rotors.isEmpty {
             if s.flight?.kind != .heli { s.flight = FlightModel(.heli) }
-        } else if s.role == "capplane" && s.wings.count >= 4 {
+        } else if (s.role == "capplane" || (FlightModel.trialPlanes && s.role == nil && !s.props.isEmpty && s.helm != nil)) && s.wings.count >= 4 {
             if s.flight?.kind != .plane { s.flight = FlightModel(.plane) }
         } else if s.flight != nil {
             s.flight = nil
@@ -230,15 +232,15 @@ final class FlightModel {
             // The cyclic asks for a tilt (full stick 0.4 rad), a tilt of a / g gives an acceleration a.
             let perA: Float = 1 / (g * 0.4)
             cyclic = V2(max(-0.8, min(0.8, simd_dot(ah, rh) * perA)), max(-0.8, min(0.8, simd_dot(ah, fh) * perA)))
-            let yawWant = holdYaw ?? (dist > 14 ? atan2f(-dh.x, -dh.y) : s.yaw)
-            var e = yawWant - s.yaw
+            let yawWant = holdYaw ?? (dist > 14 ? atan2f(-dh.x, -dh.y) : (FlightModel.oldNose ? s.yaw : s.fwdYaw))
+            var e = yawWant - (FlightModel.oldNose ? s.yaw : s.fwdYaw)
             while e > Float.pi { e -= 2 * Float.pi }
             while e < -Float.pi { e += 2 * Float.pi }
             pedal = max(-1, min(1, e * 1.4))                      // pedal > 0 turns left (yaw grows)
         case .plane:
             let dh = V2(to.x, to.z)
             let yawWant = holdYaw ?? atan2f(-dh.x, -dh.y)
-            var e = yawWant - s.yaw
+            var e = yawWant - (FlightModel.oldNose ? s.yaw : s.fwdYaw)
             while e > Float.pi { e -= 2 * Float.pi }
             while e < -Float.pi { e += 2 * Float.pi }
             // Bank to turn: the heading error asks for a bank (at most 0.6 rad), the ailerons fly it with roll damping.
@@ -290,7 +292,9 @@ final class FlightModel {
         let ah: V2 = (vw - V2(s.vel.x, s.vel.z)) * 0.6
         let perA: Float = 1 / (ShipTuning.g * 0.4)
         cyclic = V2(max(-1, min(1, simd_dot(ah, rh) * perA)), max(-1, min(1, simd_dot(ah, fh) * perA)))
-        var e = g.player.yaw - s.yaw
+        // (ledger 240: the nose is the helm's forward: one built facing south turned its tail to his look and "full ahead"
+        // flew it backwards. BS_OLDNOSE: the hull's -Z, as before)
+        var e = g.player.yaw - (FlightModel.oldNose ? s.yaw : s.fwdYaw)
         while e > Float.pi { e -= 2 * Float.pi }
         while e < -Float.pi { e += 2 * Float.pi }
         var ped = max(-1, min(1, e * 1.5))

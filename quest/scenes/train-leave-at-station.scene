@@ -1,0 +1,15 @@
+# Bug hunt round 1 (trains): on and straight off again at the station, twice in a row.
+train at station
+ride nearest train
+hold sneak 0.1
+expect riding == 0
+expect player.inblock == 0
+ride nearest train
+expect riding == 1
+expect train.dist < 3
+hold sneak 0.1
+tick 1
+print player
+expect riding == 0
+expect player.inblock == 0
+expect player.ground == 1

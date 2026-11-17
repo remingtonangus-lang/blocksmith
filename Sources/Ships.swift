@@ -380,6 +380,19 @@ final class Ship: LifeLinked {
         let f = rot.act(V3(0, 0, -1))
         return atan2f(-f.x, -f.z)
     }
+    // Ledger 221: the heading of a turret's guns in its own frame (its first cannon's muzzle), 0 for guns along -Z (every
+    // Capital turret). A turret's aimYaw is where its guns should point; it turns to aimYaw - gunYaw0. A player's turret
+    // built facing east, south or west fired 90 or 180 degrees off his look. BS_OLDGUNYAW: 0 always, as before.
+    static let oldGunYaw = Env.all["BS_OLDGUNYAW"] == "1"
+    var gunYaw0: Float {
+        guard !Ship.oldGunYaw, let d = cannons.first?.1, d.x * d.x + d.z * d.z > 0.01 else { return 0 }
+        return atan2f(-d.x, -d.z)
+    }
+    // Heading of the helm's forward (fwd), in the same convention: the way the vehicle drives, whichever way it was built.
+    var fwdYaw: Float {
+        let f = rot.act(fwd)
+        return atan2f(-f.x, -f.z)
+    }
     var prevYaw: Float {
         let f = prevRot.act(V3(0, 0, -1))
         return atan2f(-f.x, -f.z)

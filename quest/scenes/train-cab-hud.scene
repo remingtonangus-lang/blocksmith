@@ -1,0 +1,10 @@
+# Ledger 243 (Nov 16 20:53:38, "the speed regulator overlaps with some of the bars"): in a locomotive's cab, moving,
+# only the cab's panel shows and no gauge bar covers its words.
+train at station
+ride train car 1
+expect riding == 1
+drive 1 8
+print train
+expect hud.clash == 0
+aboard engine
+expect hud.clash == 0

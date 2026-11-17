@@ -1,0 +1,12 @@
+# Bug hunt round 1 (trains): on a moving train he walks from the first coach to the second and back again.
+train at station
+stand in coach 1
+tick 30
+walk to coach 2 12
+expect walk.there == 1
+expect walk.lowest > 0.6
+walk to coach 1 12
+print player
+expect walk.there == 1
+expect walk.lowest > 0.6
+expect aboard == 1

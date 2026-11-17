@@ -1,0 +1,13 @@
+# Bug hunt round 1 (trains): standing in a coach's aisle (not seated) through the departure and on.
+train at station
+stand in coach 1
+tick 40
+print train
+print player
+expect aboard == 1
+expect coach == 1
+expect player.inblock == 0
+tick 40
+print player
+expect aboard == 1
+expect coach == 1
