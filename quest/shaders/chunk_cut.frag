@@ -22,7 +22,17 @@ void main() {
     if (oAnim > 0.5 && oAnim < 1.5) { uv += vec2(0.0, fract(u.params.z * 0.04)); }
     // Grass tops: turned per block (texSharpTurned); the cell is the world block under this fragment.
     bool core = oAnim > 2.5;           // a leaf crown's core: no holes, darker (the clear texels are mid grey under the tint)
-    vec4 c = oAnim > 1.5 && !core ? texSharpTurned(uv, oLayer, floor(oRel.xz + u.eye.xz - fract(uv) + 0.5)) : texSharp(uv, oLayer);
+    vec4 c;
+    if (!fxOn(524288)) {
+        // Ledger 235: one read (common.glsl): the turn is a change of coordinates, not a choice between two reads.
+        vec2 sz = vec2(textureSize(tex, 0).xy);
+        vec2 gx = dFdx(uv), gy = dFdy(uv);
+        vec2 u1 = uv;
+        turnUV(oAnim > 1.5 && !core ? turnOf(floor(oRel.xz + u.eye.xz - fract(uv) + 0.5)) : 0, u1, gx, gy);
+        c = texAt(u1, oLayer, gx, gy, sz);
+    } else {
+        c = oAnim > 1.5 && !core ? texSharpTurned(uv, oLayer, floor(oRel.xz + u.eye.xz - fract(uv) + 0.5)) : texSharp(uv, oLayer);
+    }
     if (c.a < 0.5 && !core) { discard; }
     if (core) { c.rgb *= 0.62; }
     if (oAnim > 0.5 && oAnim < 1.5) { c.rgb = lavaGlow(c.rgb, oRel); }
