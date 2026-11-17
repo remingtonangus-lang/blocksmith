@@ -3101,6 +3101,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 y += 10 * s
             }
         }
+        // Ledger 263: the playtest frame-rate warning's mark (FpsWarning.swift; off unless he turned it on).
+        if let m = FpsWarning.mark() {
+            let tw = textWidth(m, s * 1.5)
+            let x = W - L.insetX - tw - 8 * s, y = H * 0.33
+            rect(x - 9 * s, y - 2 * s, tw + 12 * s, 15 * s, V4(0, 0, 0, 0.55))
+            rect(x - 7 * s, y + 1 * s, 5 * s, 5 * s, V4(0.95, 0.12, 0.1, 1))
+            text(m, x, y, s * 1.5, V4(1, 0.3, 0.25, 1), shadow: false)
+        }
         return v
     }
 
