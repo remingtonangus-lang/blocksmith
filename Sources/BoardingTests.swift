@@ -7,6 +7,7 @@ import simd
 // start fixture). Run by questcheck after the main gun checks.
 enum BoardingTests {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: what the group adds goes, what it takes comes back)
         guard g.dim.dim == .overworld else { check(false, "boarding: needs the overworld"); return }
         let w = g.world
         let pm = PadManager.shared

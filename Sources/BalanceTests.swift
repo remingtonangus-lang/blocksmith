@@ -28,6 +28,7 @@ enum BalanceTests {
     static let common = Set([MobKind.zombie, .husk, .drowned, .skeleton, .spider].map { $0.spec.name })
 
     static func run(game g: Game, check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: what the group adds goes, what it takes comes back)
         let w = g.world
         let pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, surv0 = g.survival, fly0 = g.player.flying
         let time0 = g.time, diff0 = g.difficulty, health0 = g.health, mobs0 = g.mobs.mobs
@@ -175,6 +176,7 @@ enum BalanceTests {
                 for n in 0..<(guardedKind ? 11 : (k.steelhold ? 7 : 1)) {
                     Rand.seed(0xBA1A_6000 + UInt64(k.rawValue) * 16 + UInt64(t) + UInt64(n) * 0x1000)
                     kr.append(kills(k, t))
+                    if Env.all["BALANCE_TRACE"] == "1" { print(String(format: "balance trace %@ tier %d seed %d: %@ s, rand at %llx", k.key, t, n, kr.last!.map { String(format: "%.2f", $0) } ?? "-", Rand.traceState)) }
                 }
                 r.kills.append(kr.contains { $0 == nil } ? nil : kr.compactMap { $0 }.sorted()[kr.count / 2])
             }

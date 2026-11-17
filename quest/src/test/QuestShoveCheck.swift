@@ -18,6 +18,9 @@ enum QuestShoveCheck {
         }
         let newWorlds0 = FieldTerrain.newWorlds, trace0 = Momentum.traceRest
         defer { FieldTerrain.newWorlds = newWorlds0; Momentum.traceRest = trace0 }
+        // (Job 6: its own Game's world load starts the trains over; the suite's are put back.)
+        let trains0 = Trains.trains, carOf0 = Trains.carOf, saved0 = Trains.saved
+        defer { Trains.trains = trains0; Trains.carOf = carOf0; Trains.saved = saved0 }
 
         let w = World(seed: 4797859299361840175, device: sharedSystemDevice, save: nil)
         FieldTerrain.newWorlds = true; w.makeFieldWorld()
