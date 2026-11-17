@@ -119,6 +119,19 @@ enum SceneScript {
             case "player.inblock": return w.collides(p.pos + V3(-0.25, 0.05, -0.25), p.pos + V3(0.25, 1.7, 0.25)) ? 1 : 0
             case "player.falling": return p.vel.y < -6 ? 1 : 0
             case "train.dist": return nearestTrain().map { simd_length($0.1.pos - p.pos) }
+            // hud.clash: on the HUD's vehicle panels (1280x800), words that a gauge bar covers, plus every panel past the
+            // first (two panels drawn at once)
+            case "hud.clash":
+                let L = HudLayout(1280, 800), s = L.s
+                let ls = CombatHUD.shared.lines(g, L)
+                let bars = ls.filter { $0.text.isEmpty && $0.item == nil && ($0.box?.y ?? 99 * s) <= 7 * s && ($0.box?.x ?? 0) > 0.5 }
+                let panels = ls.filter { $0.text.isEmpty && ($0.box?.y ?? 0) > 20 * s && ($0.bg?.w ?? 0) <= 0.55 }.count
+                var n = max(0, panels - 1)
+                for t in ls where !t.text.isEmpty {
+                    let x1 = t.x + Float(Font.width(t.text)) * t.scale, y1 = t.y + 7 * t.scale
+                    for b in bars { if let bb = b.box, b.x < x1 - 0.5, b.x + bb.x > t.x + 0.5, b.y < y1 - 0.5, b.y + bb.y > t.y + 0.5 { n += 1 } }
+                }
+                return Float(n)
             case "train.cars": return train.map { Float($0.cars.count) }
             case "coach": return Float(coachList().firstIndex { c in
                     guard let h = TrainHulls.hull(c) else { return false }
@@ -369,6 +382,14 @@ enum SceneScript {
                 var a = AgentAction(); a.forward = 1
                 play(s, a)
                 print("\(ln) moved \(f1(simd_length(g.player.pos - p0))) blocks")
+            case "aboard" where t.count == 2 && t[1] == "engine":
+                // aboard engine: the locomotive's hull counts him aboard, as walking up into its cab before taking the
+                // regulator leaves it (ledger 243)
+                guard let tr = train, let eng = tr.cars.first(where: { Trains.isEngine($0) }), let h = TrainHulls.hull(eng) else {
+                    print("FAIL \(ln) no engine hull"); fails += 1; continue
+                }
+                w.ships.aboard = h
+                print("\(ln) aboard \(h.name)")
             case "print":
                 guard t.count == 2 else { bad(); continue }
                 let p = g.player

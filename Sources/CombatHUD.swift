@@ -34,6 +34,7 @@ final class CombatHUD {
     // toolbar's bars when the two would meet (on the headset's panel, at its HUD scale, they did).
     // The panel's box: x - 3s, y0 - 4s, w + 6s wide, `rows` x s high.
     static let oldPanel = Env.all["BS_OLDDRIVEHUD"] == "1"      // (before: bottom left, over the toolbar)
+    static let oldCabHUD = Env.all["BS_OLDCABHUD"] == "1"       // (ledger 243: the hull's panel too in a locomotive's cab)
     static func panelOrigin(_ g: Game, _ L: HudLayout, rows: Float) -> (x: Float, y0: Float, w: Float) {
         let s = L.s
         if oldPanel { return (L.insetX + 6 * s, L.H - L.insetY - (rows + 6) * s, 104 * s) }
@@ -111,7 +112,11 @@ final class CombatHUD {
         out += Jetpack.gauge(g, L)
         out += g.radarLines(L)
         // Vehicle gauges while piloting (or riding aboard).
-        if let ship = g.world.ships.pilot ?? g.world.ships.aboard, g.menu == nil {
+        // Ledger 243 (Nov 16 20:53:38, in a locomotive's cab: "the speed regulator overlaps with some of the bars"): the
+        // engine's hull counts him aboard, so its hull/rounds/throttle panel was drawn too, a few rows off the cab's own
+        // (its green hull bar over the speed, its throttle over the brake). In the cab only the cab's panel shows.
+        // BS_OLDCABHUD=1: both panels, the bars under the cab's labels.
+        if let ship = g.world.ships.pilot ?? g.world.ships.aboard, g.menu == nil, CombatHUD.oldCabHUD || g.world.ships.pilot != nil || Trains.cab(g) == nil {
             // A Meridian frigate's panel has one more row: the Tidebreaker's gauge.
             let gun = g.world.ships.mainGunStatus(ship.root)
             let kind = VehicleControls.kind(ship)
@@ -202,7 +207,9 @@ final class CombatHUD {
             }
             let reg = tr.throttle < 0 ? "Reverse" : "Regulator"
             out.append(HudLine(text: reg, x: x, y: y0 + 22 * s, scale: s, color: V4(0.85, 0.85, 0.85, 1)))
-            let bx = x + 44 * s, bw = w - 44 * s, mid = bx + bw / 3
+            // (the bars start past the longest label: "Regulator" ran under its bar)
+            let lw = CombatHUD.oldCabHUD ? 44 * s : Float(max(Font.width("Regulator"), Font.width("Reverse"), Font.width("Brake")) + 5) * s
+            let bx = x + lw, bw = w - lw, mid = bx + bw / 3
             out.append(HudLine(text: "", x: bx, y: y0 + 23 * s, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(bw, 5 * s)))
             let t = max(-1, min(2, tr.throttle))
             out.append(HudLine(text: "", x: t >= 0 ? mid : mid + bw / 3 * t, y: y0 + 23 * s, scale: s, bg: V4(0.95, 0.75, 0.2, 1), box: V2(abs(t) * bw / 3, 5 * s)))

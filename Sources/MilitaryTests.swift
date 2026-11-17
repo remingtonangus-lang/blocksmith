@@ -408,6 +408,31 @@ extension MobTests {
                     game.health = 20; game.alive = true
                     t += 0.05
                 }
+                // Nov 15 evening (21:11:51-21:12:09, at a Greywall base in a captured Ironback Crawler: "That base isn't
+                // firing at me... maybe it's because they're the same faction"; he was in Creative): the rule, one line:
+                // a base's guns fire on him only in Survival, as hostile mobs do; there a Greywall gun fires once it
+                // sees him at any vehicle's helm, a captured Greywall crawler too (its faction shelters him nowhere).
+                var greyFired = [0, 0]
+                game.arms.slugs.removeAll()
+                cab.root.faction = Faction.greywall.rawValue
+                gun2.faction = Faction.greywall.rawValue; man2.faction = Faction.greywall.rawValue
+                man2.pos = gun2.pos + V3(0, 0, -5)                      // (a Greywall tower gun's lookout stands within 7)
+                for (k, surv) in [true, false].enumerated() {
+                    game.survival = surv
+                    gun2.aggro = false; gun2.soldierBrain.lastSeen = nil; gun2.soldierBrain.losTimer = 0
+                    var t2: Float = 0
+                    while t2 < 25 && greyFired[k] == 0 {
+                        gun2.updateDeckGun(0.05, game)
+                        greyFired[k] = game.arms.slugs.filter { $0.kind == .shell }.count
+                        game.health = 20; game.alive = true
+                        t2 += 0.05
+                    }
+                    game.arms.slugs.removeAll()
+                }
+                game.survival = true
+                cab.root.faction = 0
+                check(greyFired[0] > 0 && greyFired[1] == 0, "a Greywall base gun fires on him in a captured Greywall crawler in Survival, never in Creative",
+                      "\(greyFired[0]) shells in Survival, \(greyFired[1]) in Creative")
                 game.leaveHelm()
                 world.ships.remove(cab)
                 game.arms.slugs.removeAll()

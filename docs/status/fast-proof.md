@@ -102,8 +102,9 @@ note's facing and pitch in degrees.
 | `train at station` | the nearest line's passenger train (within 3,000 blocks), its clock run on until it stands at the station nearest him; he is put beside it (classic worlds: no `--headset`) |
 | `stand in coach N`, `ride until step N MIN [SECONDS]` | in coach N's aisle, aboard; play on until the floors' step where coach N meets coach N-1 is MIN or more either way (a change of grade) |
 | `walk to coach N [SECONDS]` | walk toward coach N as ledger 141's check walks; sets `walk.there` (1/0), `walk.lowest` (least height over the rail in the coach he is in), `walk.step` |
+| `aboard engine` | the train's locomotive hull counts him aboard (as walking into its cab leaves it; ledger 243) |
 | `print player\|train\|ship\|fps` | place, speed, held, aboard, hull; tick avg and worst over the last tick |
-| `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, ship.speed/blocks/y, train.speed, walk.there/lowest/step, fps.worst/avg |
+| `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, ship.speed/blocks/y, train.speed, walk.there/lowest/step, fps.worst/avg, hud.clash (words a gauge bar covers on the vehicle panels at 1280x800, plus any second panel) |
 
 Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 
@@ -112,6 +113,7 @@ Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 | `rock-place-break.scene --headset` (ledger 136) | all passed | `BS_OLDROCKLUMP=1`: 1 FAILED (the placed stone is ground) |
 | `crater-settle.scene --headset` (ledgers 127, 216) | all passed | `BS_GROUNDWEIGH=0`: the stub and cap hang; `BS_OLDWEIGHSPARE=1`: 3 FAILED (the cap's ring hangs) |
 | `coach-to-coach.scene` (ledger 215) | all passed: there in 2.3 s, never lower than 0.95 | `BS_OLDGANGWAYSTEP=1`: 2 FAILED (falls through at the coupling, -3.35) |
+| `train-cab-hud.scene` (ledger 243) | all passed: no clash in the cab, none aboard the engine's hull | `BS_OLDCABHUD=1`: 2 FAILED (1 clash, then 5) |
 | `overhang-stays.scene --headset` (ledger 216's guard) | all passed: the ledge beside the blast stays | `BS_OLDWEIGHSPARE=1`: passes too (a guard, not a repro) |
 
 Each runs in about 15 s after the census is kept. `ride nearest train` needs a train in the loaded land.
