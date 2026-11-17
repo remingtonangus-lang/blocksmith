@@ -42,6 +42,7 @@ layout(set = 0, binding = 1) uniform sampler2DArray tex;
 // d = texels per pixel (fwidth of uv * size), given so a caller that moves uv per block can pass the unmoved rate.
 // (sharpUVs: with the texture's size given, for a caller that has it already: P499)
 vec2 sharpUVs(vec2 uv, vec2 dt, vec2 sz) {
+    if (fxOn(65536)) { return uv; }         // (ledger 235, headset trial: the sharp texel maths left out)
     vec2 t = uv * sz;
     vec2 seam = floor(t + 0.5);
     vec2 d = clamp(dt, vec2(1e-4), vec2(1.0));
@@ -60,7 +61,9 @@ vec2 sharpUVd(vec2 uv, vec2 dt) { return sharpUVs(uv, dt, vec2(textureSize(tex, 
 // magnified at 128-texel blocks: about two thirds of the ground reads at his Oct 30 Tuff spot.
 vec4 texGradOrTop(vec3 p, vec2 gx, vec2 gy, vec2 sz) {
     vec2 ax = gx * sz, ay = gy * sz;
-    if (max(dot(ax, ax), dot(ay, ay)) <= 1.0) { return textureLod(tex, p, 0.0); }
+    float g2 = max(dot(ax, ax), dot(ay, ay));
+    if (g2 <= 1.0) { return textureLod(tex, p, 0.0); }
+    if (fxOn(32768)) { return textureLod(tex, p, 0.5 * log2(g2)); }     // (ledger 235, headset trial: a level read, no gradient read)
     return textureGrad(tex, p, gx, gy);
 }
 vec2 sharpUV(vec2 uv) { return sharpUVd(uv, fwidth(uv * vec2(textureSize(tex, 0).xy))); }
