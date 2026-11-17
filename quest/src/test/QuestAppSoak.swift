@@ -146,7 +146,7 @@ enum QuestAppSoak {
         next("first shot of each gun")
         if let g = app.game {
             let keep = g.inventory.held
-            for (gi, gs) in Guns.all.enumerated() {
+            for (gi, gs) in Guns.all.enumerated() where !Guns.isRetired(gi) {      // (retired guns have no item)
                 var st = ItemStack(Items.id(gs.key)); st.tag = gs.mag
                 g.inventory.held = st
                 _ = frames(until: { false }, limit: 0.25)
