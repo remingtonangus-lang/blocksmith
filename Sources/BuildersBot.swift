@@ -147,6 +147,10 @@ final class BuilderBot: AgentBot {
                 let s = c + d
                 let sb = w.block(s.x, s.y, s.z)
                 guard solid(w, s) || (sb != AIR && !Blocks.replaceable[Int(sb)]) else { continue }
+                // (never against a tree that isn't the build's: leaves hold nothing up, and the stilt cabin's corner
+                // plank, set against a crown before its post, fell four times down the post's cells and filled them.
+                // A block laid by the build beside it comes first. BS_OLDTREEFACE=1: any face)
+                if !BuilderBot.oldTreeFace && tree(w, s) && !Blocks.key(Blocks.groupBase[Int(sb)]).hasSuffix("_log") { continue }
                 if BuilderBot.clickable(sb, holding: j.want, vertical: d.y != 0) { continue }
                 let n = IVec3(-d.x, -d.y, -d.z)
                 if shape == "door" && n.y != 1 { continue }
@@ -278,6 +282,13 @@ final class BuilderBot: AgentBot {
     private func next(_ s: AgentState, ok: Bool, why: String = "") {
         if ok { successes += 1; if jobs[i].want == AIR { dug += 1 } else { placed += 1 } }
         else { missed.append("\(jobs[i].want == AIR ? "dig" : Blocks.key(jobs[i].want)) at \(jobs[i].cell.x) \(jobs[i].cell.y - YOFF) \(jobs[i].cell.z): \(why)") }
+        // (a dig put off behind the block laid in the same cell: the watchtower's plinth, its turf dig waiting on a
+        // spot, dug out six of the stones laid there since; a block laid ends the cell's digs. BS_OLDLATEDIG=1: kept)
+        if ok && jobs[i].want != AIR && !BuilderBot.oldLateDig && i + 1 < jobs.count && planned.contains(jobs[i].cell) && !scaffoldFor.values.contains(jobs[i].cell) {
+            let c = jobs[i].cell, head = jobs[...i]
+            jobs = Array(head) + jobs[(i + 1)...].filter { !($0.cell == c && $0.want == AIR) }
+        }
+        if BuilderBot.trace { print("  trace t\(s.tick) job \(i) \(ok ? "done" : "MISSED") \(jobs[i].want == AIR ? "dig" : Blocks.key(jobs[i].want)) at \(jobs[i].cell.x) \(jobs[i].cell.y - YOFF) \(jobs[i].cell.z)") }
         i += 1; phase = 0; ticks = 0; spots = []; ci = 0; path = []
     }
     // A job that can't be reached yet (nothing to click on, no spot) goes to the back, three times at most.
@@ -433,6 +444,9 @@ final class BuilderBot: AgentBot {
     static let oldFelled = Env.all["BS_OLDBOTFELLED"] == "1"
     // (ledger 213: the boathouse, its posts now set in the water, used its 120 props before the roof's top course, whose
     // stairs have no face but each other's: 400)
+    static let oldProps = Env.all["BS_OLDPROPS"] == "1"
+    static let oldLateDig = Env.all["BS_OLDLATEDIG"] == "1"
+    static let oldTreeFace = Env.all["BS_OLDTREEFACE"] == "1"
     static let scaffoldCap = BuilderBot.oldFelled ? 120 : 400
     private var lastDrop = ""
     // The spot didn't work: the next nearest, by a new route.
@@ -501,6 +515,9 @@ final class BuilderBot: AgentBot {
                     for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, -1, 0)] {
                         let q = j.cell + d
                         guard w.block(q.x, q.y, q.z) == AIR, !(w.fieldTerrain && w.groundAt(q.x, q.y, q.z)) else { continue }
+                        // (never in a cell the build fills later: the gate's top slab propped in its stair's cell hung
+                        // alone once the prop came out, and fell; it waits for the stair instead. BS_OLDPROPS=1: as before)
+                        guard BuilderBot.oldProps || !planned.contains(q) else { continue }
                         let backed = BuilderBot.dirs6.contains { e in let r = q + e; return r != j.cell && solid(w, r) && !tree(w, r) }
                         guard backed else { continue }
                         scaffolds += 1; scaffoldFor[j.cell] = q
