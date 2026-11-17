@@ -77,6 +77,8 @@ struct ViewGovernor {
     private(set) var lid = ViewGovernor.ceiling          // (ledger 233: the highest view a raise may reach for now)
     private var lidAge = 0.0
     private var sinceQuadDrop = 1e9
+    // Why the last window did not raise the view (the perf line prints it while the view is under the slider).
+    private(set) var note = ""
 
     static func even(_ rd: Int) -> Int { max(floor, min(ceiling, rd / step * step)) }
 
@@ -181,8 +183,12 @@ struct ViewGovernor {
             if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
-        if w.excused || w.loading || sinceChange < Self.settle { return .none }
+        if w.excused || w.loading || sinceChange < Self.settle {
+            note = w.excused ? "excused" : (w.loading ? "loading" : "settling")
+            return .none
+        }
         if Self.isBad(w) {
+            note = "bad window"
             good = 0
             badStreak += 1
             guard badStreak >= Self.badToDrop, current > Self.floor else { return .none }
@@ -198,8 +204,17 @@ struct ViewGovernor {
         let quadsNext = Double(w.quads) * pow(Double(next) / Double(max(1, current)), Self.exponent)
         let quadRoom = Self.quadCap <= 0 || w.quads <= 0 || quadsNext <= Double(Self.quadCap) * 0.9
         guard current < chosen, current < lid, w.frames > 0, w.missed * 100 <= w.frames, quadRoom,
-              Self.roomFor(w, from: current, to: next) else { good = 0; return .none }
+              Self.roomFor(w, from: current, to: next) else {
+            good = 0
+            if current >= chosen { note = "at the slider \(chosen)" }
+            else if current >= lid { note = "under the lid \(lid)" }
+            else if w.frames <= 0 || w.missed * 100 > w.frames { note = "missed \(w.missed) of \(w.frames)" }
+            else if !quadRoom { note = "quads \(w.quads) would be \(Int(quadsNext)) at \(next)" }
+            else { note = String(format: "no room: eye %.2f at %d (share %.2f, gpu %.1f)", Self.scaleAt(w, from: current, to: next), next, Self.share(w), w.gpuMs) }
+            return .none
+        }
         good += w.seconds
+        note = String(format: "room for %.0f of %.0f s", good, hold)
         guard good >= hold else { return .none }
         // Store review (Nov 2): one step at a time. Three at once (up to six chunks more of land to make and draw) was a
         // burst of new land on the workers and the frame, and when the model was wrong a dip as deep as the jump: the

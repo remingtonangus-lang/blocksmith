@@ -1092,7 +1092,9 @@ final class FrameStats {
                 case .raise(let rd):
                     g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
                     print(String(format: "perf: gpu %.1f ms, headroom: view distance up to %d (slider %d)", sumGPU / n, rd, vg.chosen))
-                default: break
+                default:
+                    // (headset trials: why the view stays where it is, once a window)
+                    print("perf: view \(vg.current) of \(vg.chosen) (world \(g.world.renderDistance)): \(vg.note)")
                 }
                 viewGov = vg
             }
