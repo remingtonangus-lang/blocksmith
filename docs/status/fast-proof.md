@@ -107,6 +107,7 @@ Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 | Scene | Fixed | With the switch |
 |---|---|---|
 | `rock-place-break.scene --headset` (ledger 136) | all passed | `BS_OLDROCKLUMP=1`: 1 FAILED (the placed stone is ground) |
-| `crater-settle.scene --headset` (ledger 127) | all passed | `BS_GROUNDWEIGH=0`: 2 FAILED (the stub and cap hang) |
+| `crater-settle.scene --headset` (ledgers 127, 216) | all passed | `BS_GROUNDWEIGH=0`: the stub and cap hang; `BS_OLDWEIGHSPARE=1`: 3 FAILED (the cap's ring hangs) |
+| `overhang-stays.scene --headset` (ledger 216's guard) | all passed: the ledge beside the blast stays | `BS_OLDWEIGHSPARE=1`: passes too (a guard, not a repro) |
 
 Each runs in about 15 s after the census is kept. `ride nearest train` needs a train in the loaded land.
