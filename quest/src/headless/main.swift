@@ -4750,7 +4750,7 @@ if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "bore
 // every later check (boarding, the Reckoning, roads, the sheriff, outlaws, countries) onto other ground.
 // Ledger 218-219 (job 5): what a group leaves behind, after leaves() has put back what it puts back: ships, mobs, the
 // trains, the player's place and mode, the factions' standing, the time of day, live Games, the random stream's mode.
-// Printed only ("left behind: NAME: ..."), never a failure (yet).
+// Printed ("left behind: NAME: ..."); since job 6 a change to ships, mobs, trains or the random stream's mode fails the group.
 func suiteFingerprint() -> [(String, String)] {
     let p = game.player.pos
     return [("ships", "\(game.world.ships.list.count)"), ("mobs", "\(game.mobs.mobs.count)"), ("pending mobs", "\(game.world.pendingMobs.count)"),
@@ -4765,6 +4765,9 @@ func leaves(_ name: String, _ body: () -> Void) {
         let now = suiteFingerprint()
         let diff = zip(print0, now).filter { $0.1 != $1.1 }.map { "\($0.0) \($0.1) -> \($1.1)" }
         if !diff.isEmpty { print("left behind: \(name): " + diff.joined(separator: "; ")) }
+        // (Job 6: ships, mobs, trains and the random stream's mode a group leaves fail it; the rest is printed only.)
+        let held = zip(print0, now).filter { $0.1 != $1.1 && ["ships", "mobs", "trains", "rand"].contains($0.0) }.map { "\($0.0) \($0.1) -> \($1.1)" }
+        if !held.isEmpty { check(false, "\(name): leaves no ships, mobs, trains or seeded random stream behind (" + held.joined(separator: "; ") + ")") }
     }
     let fly = game.player.flying, enc = game.world.ships.encounters, surv = game.survival, pos = game.player.pos, menu = game.menu == nil
     let menu0 = game.menu

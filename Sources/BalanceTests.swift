@@ -28,6 +28,7 @@ enum BalanceTests {
     static let common = Set([MobKind.zombie, .husk, .drowned, .skeleton, .spider].map { $0.spec.name })
 
     static func run(game g: Game, check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: what the group adds goes, what it takes comes back)
         let w = g.world
         let pos0 = g.player.pos, yaw0 = g.player.yaw, pitch0 = g.player.pitch, surv0 = g.survival, fly0 = g.player.flying
         let time0 = g.time, diff0 = g.difficulty, health0 = g.health, mobs0 = g.mobs.mobs

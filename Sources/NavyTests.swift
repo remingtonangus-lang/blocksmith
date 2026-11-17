@@ -7,6 +7,7 @@ import simd
 // with a shielded Aegis Marine; a captured frigate's pilot reads the radar.
 enum NavyTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: what the group adds goes, what it takes comes back)
         shield(g, check)
         pulse(g, check)
         radar(g, check)

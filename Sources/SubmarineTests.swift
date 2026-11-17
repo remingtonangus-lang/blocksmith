@@ -10,6 +10,7 @@ import simd
 //   mine     a sea mine goes off when a player comes within reach
 enum SubmarineTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: what the group adds goes, what it takes comes back)
         let w = g.world
         let enc0 = w.ships.encounters, fly0 = g.player.flying
         w.ships.encounters = false

@@ -9,6 +9,12 @@ enum Rand {
 
     static func seed(_ s: UInt64) { state = s &+ 0x9E3779B97F4A7C15; deterministic = true }
     static var traceState: UInt64 { state }          // (a check's run-to-run trace: where two runs part)
+    // (Job 6: a check that seeds the stream puts back the mode and place it found, so the checks after it draw what
+    // they would have drawn without it: SuiteScope.)
+    static var snapshot: (deterministic: Bool, state: UInt64) {
+        get { (deterministic, state) }
+        set { deterministic = newValue.deterministic; state = newValue.state }
+    }
 
     // Normal play on the main thread: its own SplitMix64 stream, seeded once from the system. The system generator is
     // a getrandom() syscall per draw on Linux and Android: a main gun impact's ~3,000 particle draws cost 10 ms of the

@@ -11,6 +11,7 @@ import simd
 //              (no fall damage); cast at a skiff it hooks the deck; cast at the empty sky it says so
 enum SkyIsleTests {
     static func run(device: MTLDevice, game g: Game, check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: what the group adds goes, what it takes comes back)
         placement(device, check)
         grapple(g, check)
     }

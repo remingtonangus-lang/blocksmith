@@ -5,6 +5,7 @@ import simd
 // `questcheck --p12-only` stops after them.
 enum PlaytestOct12Tests {
     static func run(_ game: Game, _ check: (Bool, String) -> Void) {
+        let scope = SuiteScope(game); defer { scope.putBack(game) }   // (job 6: what the group adds goes, what it takes comes back)
         gunOpensDoors(game, check)
         horseBond(game, check)
         tabHighlight(game, check)
