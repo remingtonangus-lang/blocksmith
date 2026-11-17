@@ -7,12 +7,19 @@ import simd
 // read the runtime's frame rate (VrApi) leg by leg. It is off unless the debug property debug.sunderfall.route is set
 // (`adb shell setprop debug.sunderfall.route all`; a player's headset can't set debug.* properties without adb):
 //   all, or legs by name: menu newworld plains forest jungle village fight frigate train reload
+//   combat legs (not in `all`; `combat` = all three): battle (the Ash Vault gate in the Deep at Total War, every
+//   garrison awake), siege (the crawler parked 40 blocks off the nearest military base's wall, main gun into it every
+//   5 s, its garrison fighting back), naval (two hostile frigates shelling him on a stone float at sea). Each prints
+//   "route: leg NAME-load" while it is set up and "route: leg NAME" for its 90 s of fighting, and every 5 s
+//   "route: combat ..." with the mobs, ships and particles (the perf line's quads count only the land).
 // Each leg prints "route: leg NAME" (the gate tags every second after it with that leg); "route: done" at the end. The
 // legs play through the game's own input (the pad the Touch controllers fill: stick forward, looking about, the
 // trigger), with moves the player makes by travelling (to a biome, a village, a frigate's helm, a train's cab) done as
 // a jump there with the land streaming in round him as it does on any arrival; those seconds are "NAME-arrive".
 final class QuestRoute {
     static let all = ["menu", "newworld", "plains", "forest", "jungle", "village", "fight", "frigate", "train", "reload"]
+    static let combat = ["battle", "siege", "naval"]
+    static let fightSeconds = 90.0
     static let seconds: [String: Double] = ["menu": 20, "newworld": 30, "plains": 90, "forest": 90, "jungle": 120,
                                             "village": 120, "fight": 120, "frigate": 120, "train": 120, "reload": 45]
 
@@ -38,8 +45,10 @@ final class QuestRoute {
         #endif
         let s = v.trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
         guard !s.isEmpty else { return nil }
-        let legs = s == "all" ? all : s == "spots" ? ["spotworld"] + spots.map { "spot-" + $0.name }
-            : s.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init).filter { all.contains($0) || $0 == "spotworld" || $0.hasPrefix("spot-") }
+        let legs = s == "all" ? all : s == "spots" ? ["spotworld"] + spots.map { "spot-" + $0.name } : s == "combat" ? combat
+            : s.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init)
+                .flatMap { $0 == "combat" ? combat : [$0] }
+                .filter { all.contains($0) || combat.contains($0) || $0 == "spotworld" || $0.hasPrefix("spot-") }
         guard !legs.isEmpty else { print("route: failed: no known leg in '\(s)'"); return nil }
         print("route: legs \(legs.joined(separator: " "))")
         return QuestRoute(legs)
@@ -94,6 +103,10 @@ final class QuestRoute {
         }
         if leg.hasPrefix("spot-"), let sp = QuestRoute.spots.first(where: { "spot-" + $0.name == leg }) {
             spot(g, sp)
+            return
+        }
+        if QuestRoute.combat.contains(leg) {
+            combatLeg(app, g)
             return
         }
         switch leg {
@@ -298,6 +311,127 @@ final class QuestRoute {
         PadManager.shared.touch = pad
     }
 
+    // MARK: Combat legs (Fable, Nov 17: the route's fight and frigate legs were thin: 10 vanilla mobs, a crewless
+    // frigate, nothing firing). The heaviest fights the game has, staged where they happen.
+    private var fightFrom = -1.0
+    private var lastCount = -1.0
+    private var stand = V3.zero, aim = V3.zero, before: V3?
+    private var crawler: Ship?
+    private func combatLeg(_ app: QuestApp, _ g: Game) {
+        g.health = 20; g.alive = true
+        if phase == 0 {
+            phase = 1; fightFrom = -1; lastCount = -1; crawler = nil; found = nil; target = nil
+            if g.paused || g.menu != nil { g.paused = false; g.closeMenu() }     // (a fresh install's setup panel)
+            if g.dim.dim == .overworld { before = g.player.pos }
+            mark("\(leg)-load")
+            if leg != "battle" {
+                // (the base or the sea found off the frame thread)
+                seeking = true
+                let gen = g.world.gen, from = g.player.pos, which = leg
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    var p: V3?
+                    if which == "siege" {
+                        if let st = gen.structures?.nearest("military_base", x: Int(from.x), z: Int(from.z), maxRegions: 24) {
+                            let cz = Float(st.min.z + st.max.z) / 2, cx = Float(st.min.x + st.max.x) / 2
+                            p = V3(Float(st.min.x) - 40, Float(st.pieces.first?.min.y ?? 140) + 12, cz)
+                            self?.lock.lock(); self?.aim = V3(cx, p!.y, cz); self?.lock.unlock()
+                        }
+                    } else {
+                        p = QuestRoute.findBiome(gen, "*ocean", from: from)
+                    }
+                    if p == nil { print("route: \(which): nothing found to fight at") }
+                    self?.lock.lock(); self?.found = p; self?.seeking = false; self?.lock.unlock()
+                }
+            }
+            return
+        }
+        if phase == 1 {
+            switch leg {
+            case "battle":
+                // (one long frame: the Deep loaded round the gate and its garrisons ticked in; counted in battle-load)
+                stand = AshVaultGapTests.battleScene(g)
+                g.player.yaw = .pi; g.player.pitch = 0.05
+                fight()
+            case "siege", "naval":
+                if target == nil {
+                    lock.lock(); let busy = seeking; if !busy { target = found }; lock.unlock()
+                    if busy { return }
+                    guard let t = target else { next(app); return }
+                    if g.dim.dim != .overworld, let b = before { g.changeDimension(to: .overworld, at: b) }
+                    g.player.pos = V3(t.x, Float(CH - 40), t.z); g.player.flying = true; g.player.vel = .zero
+                    g.world.ships.encounters = false
+                    return
+                }
+                let t = target!
+                g.player.flying = true; g.player.vel = .zero
+                let px = Int(floor(t.x)), pz = Int(floor(t.z))
+                guard let c = g.world.chunkAt(px, pz), g.world.pendingJobs < 8 || legTime > 45 else { return }
+                let w = g.world
+                if leg == "siege" {
+                    let gy = Int(c.height[mod(px, CS) + mod(pz, CS) * CS])
+                    stand = V3(t.x, Float(gy + 1), t.z)
+                    w.ships.spawnCapital("crawler", home: IVec3(px, 0, pz), yaw: -.pi / 2, region: nil, sync: true)
+                    guard let cr = w.ships.capitals.first(where: { $0.role == "crawler" }), let st = w.ships.capState[cr.id], let hc = cr.helm else {
+                        print("route: siege: no crawler could be spawned"); next(app); return
+                    }
+                    st.crewDone = Set(0..<st.crew.count); st.crewless = true; st.testTurn = 0; st.testSpeed = 0
+                    crawler = cr
+                    g.player.flying = false
+                    g.player.pos = cr.toWorld(V3(Float(hc.x) + 0.5, Float(hc.y) + 1.02, Float(hc.z) + 1.5))
+                    g.player.vel = cr.velocity(at: g.player.pos)
+                    g.player.yaw = -.pi / 2; g.player.pitch = -0.15
+                } else {
+                    let top = SEA
+                    for dz in -3...3 { for dx in -3...3 { w.setBlock(px + dx, top, pz + dz, STONE) } }
+                    stand = V3(Float(px) + 0.5, Float(top + 1), Float(pz) + 0.5)
+                    g.player.pos = stand; g.player.flying = false
+                    w.ships.spawnCapital("capfrigate", home: IVec3(px, 0, pz + 90), yaw: 0, region: nil, sync: true)
+                    w.ships.spawnCapital("capfrigate", home: IVec3(px - 85, 0, pz - 30), yaw: .pi / 2, region: nil, sync: true)
+                    g.player.yaw = .pi; g.player.pitch = -0.1
+                }
+                fight()
+            default: next(app)
+            }
+            return
+        }
+        // Fighting.
+        g.survival = true; g.difficulty = 2
+        let t = legTime - fightFrom
+        switch leg {
+        case "battle":
+            g.ashSpot = stand; g.ashSpotSeen = g.clock
+            g.player.yaw = .pi + 0.5 * sinf(Float(t) * 0.4)        // (looking along the wall and back)
+        case "siege":
+            if let cr = crawler, let st = g.world.ships.capState[cr.id] {
+                if let hc = cr.helm {
+                    let h = cr.toWorld(V3(Float(hc.x) + 0.5, Float(hc.y) + 1.02, Float(hc.z) + 1.5))
+                    if simd_length(g.player.pos - h) > 3 { g.player.pos = h; g.player.vel = cr.velocity(at: h) }
+                }
+                if frame % 360 == 180 {
+                    lock.lock(); let a = aim; lock.unlock()
+                    let mw = cr.toWorld(st.mainGunMuzzle)
+                    g.world.ships.fireMainGun(cr, st, dir: simd_normalize(a - mw + V3(1e-5, 0, 0)), game: g)
+                }
+            }
+        case "naval":
+            if simd_length(g.player.pos - stand) > 4 { g.player.pos = stand; g.player.vel = .zero }
+            g.player.yaw = .pi + 0.8 * sinf(Float(t) * 0.3)
+        default: break
+        }
+        if t - lastCount >= 5 {
+            lastCount = t
+            let mobs = g.mobs.mobs.filter { $0.health > 0 }
+            let hostile = mobs.filter { $0.aggro }.count
+            print("route: combat \(leg) \(Int(t)) s: \(mobs.count) mobs (\(hostile) aggro), \(g.world.ships.list.count) ships (\(g.world.ships.capitals.count) capital), \(g.particles.list.count) particles")
+        }
+        if t > QuestRoute.fightSeconds {
+            // (back to the overworld for the legs after)
+            if leg == "battle", let b = before { g.changeDimension(to: .overworld, at: b) }
+            next(app)
+        }
+    }
+    private func fight() { phase = 2; fightFrom = legTime; lastCount = -5; mark(leg) }
+
     // The nearest middle of `biome` from `from` (QuestFrameSoak.findBiome's spiral, 48-block steps).
     static func findBiome(_ gen: TerrainGenerator, _ want: String, from: V3) -> V3? {
         let r = 32
@@ -306,7 +440,7 @@ final class QuestRoute {
         let probes: [(Int, Int)] = [(0, 0), (r, 0), (-r, 0), (0, r), (0, -r)]
         for _ in 0..<40000 {
             let wx = ox + x * 48 + 8, wz = oz + z * 48 + 8
-            if probes.allSatisfy({ gen.column(wx + $0.0, wz + $0.1).biome.name == want }) {
+            if probes.allSatisfy({ want == "*ocean" ? gen.column(wx + $0.0, wz + $0.1).biome.isOcean : gen.column(wx + $0.0, wz + $0.1).biome.name == want }) {
                 return V3(Float(wx) + 0.5, 0, Float(wz) + 0.5)
             }
             if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
