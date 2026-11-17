@@ -336,6 +336,7 @@ final class SceneRenderer {
     }
 
     func allocSet(_ layout: VkDescriptorSetLayout) throws -> VkDescriptorSet {
+        buildLock.lock(); defer { buildLock.unlock() }        // (ledger 261: the loading thread makes the cloud map)
         let a = PtrArena()
         var ai = VkDescriptorSetAllocateInfo()
         ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO
@@ -435,7 +436,18 @@ final class SceneRenderer {
     }
 
     private var modules: [String: VkShaderModule] = [:]
+    // Ledger 261: the shader modules and the descriptor pool are also used by the loading thread (prepareCloudMap).
+    let buildLock = NSLock()
+    private(set) var sharedCloudMap: CloudMap?
+    // The cloud map every world's renderer takes (WorldRenderer.recordCloudMap), made on the loading thread once.
+    func prepareCloudMap() {
+        guard sharedCloudMap == nil, CloudMap.on, !SceneRenderer.overdraw else { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        do { sharedCloudMap = try CloudMap(scene: self) } catch { print("cloud map: not made ahead (\(error))"); return }
+        print(String(format: "cloud map: made on the loading thread (%.1f ms)", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+    }
     private func module(_ name: String) throws -> VkShaderModule {
+        buildLock.lock(); defer { buildLock.unlock() }
         if let m = modules[name] { return m }
         // P498 harness: BS_SPVDIR=DIR loads DIR/<name>.spv over the built-in module (shader experiments on lavapipe
         // without a rebuild).
@@ -680,11 +692,29 @@ final class SceneRenderer {
     // Block texture array: every layer TextureGen paints, with the CPU-built mip chain (uploaded in batches).
     // `pregenerated`: TextureGen.mipChain() for every layer, built on a loading thread (the queue stays on this one).
     func uploadTextures(pregenerated: [[UInt8]]? = nil) throws {
+        let u = try startTextureUpload(pregenerated: pregenerated, batch: pregenerated != nil && !TextureCache.lean ? Tex.count : 256)
+        while try !stepTextureUpload(u) {}
+    }
+
+    // Ledger 261 (Fable, Nov 17, the store's frame rate): the launch uploaded all 2,040 layers (170 MB with mips) in one
+    // frame of the loading scene: 230-270 ms on the host, a held frame on the headset. QuestApp now takes one batch of
+    // layers a frame (stepTextureUpload) while the loading scene keeps drawing; uploadTextures still does it all at once.
+    final class TextureUpload {
+        let img: VkImg, pregenerated: [[UInt8]]?, layers: Int, levels: Int, size: Int, filled: Int, batch: Int
+        var first = 0, bytes = 0, done = false
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var worstStepMs = 0.0, steps = 0
+        init(img: VkImg, pregenerated: [[UInt8]]?, layers: Int, levels: Int, size: Int, filled: Int, batch: Int) {
+            self.img = img; self.pregenerated = pregenerated; self.layers = layers; self.levels = levels; self.size = size
+            self.filled = filled; self.batch = batch
+        }
+    }
+
+    func startTextureUpload(pregenerated: [[UInt8]]? = nil, batch: Int = 48) throws -> TextureUpload {
         TextureGen.registerAll()
         let layers = Tex.count, size = TextureGen.size
         var levels = 1
         while (size >> (levels - 1)) > 1 { levels += 1 }
-        let t0 = CFAbsoluteTimeGetCurrent()
         let img = try VkImg(ctx, width: size, height: size, layers: layers, levels: levels, format: VK_FORMAT_R8G8B8A8_UNORM,
                             usage: VK_IMAGE_USAGE_SAMPLED_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_DST_BIT.rawValue)
         try ctx.oneShot { cb in
@@ -692,19 +722,23 @@ final class SceneRenderer {
                       srcAccess: 0, dstAccess: VK_ACCESS_TRANSFER_WRITE_BIT.rawValue,
                       srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue)
         }
-        var bytes = 0
-        // (BS_P401=0: a pregenerated chain staged whole, as before, for the before/after numbers)
-        let batch = pregenerated != nil && !TextureCache.lean ? layers : 256
-        var first = 0
-        // P401: the pregenerated chain is staged a batch of layers at a time too (it was staged whole: a second 166 MB
-        // copy beside the chain and the image at the launch's peak); each level's bytes for the batch are copied
-        // straight from the chain into a staging buffer of about 22 MB.
         // (a chain made before a late texture name was registered covers fewer layers than the image: those stay blank)
         let filled = pregenerated.map { min(layers, ($0.first?.count ?? 0) / (size * size * 4)) } ?? layers
-        while first < filled {
-            let range = first..<min(filled, first + batch)
+        return TextureUpload(img: img, pregenerated: pregenerated, layers: layers, levels: levels, size: size, filled: filled,
+                             batch: max(1, batch))
+    }
+
+    // One batch of layers staged and copied; the last call also makes the image readable and binds it. True when done.
+    func stepTextureUpload(_ u: TextureUpload) throws -> Bool {
+        if u.done { return true }
+        let a = CFAbsoluteTimeGetCurrent()
+        defer { u.steps += 1; u.worstStepMs = max(u.worstStepMs, (CFAbsoluteTimeGetCurrent() - a) * 1000) }
+        let size = u.size, levels = u.levels, layers = u.layers, img = u.img, pregenerated = u.pregenerated
+        if u.first < u.filled {
+            let range = u.first..<min(u.filled, u.first + u.batch)
             let painted = pregenerated == nil ? TextureGen.mipChain(layers: range) : []
             // Level lvl's bytes for the batch, from the chain (pregenerated: every layer; painted: this batch's).
+            // P401: each level's bytes for the batch are copied straight from the chain into a staging buffer.
             func levelBytes(_ lvl: Int, _ body: (UnsafeRawBufferPointer) -> Void) {
                 let sz = max(1, size >> lvl), per = sz * sz * 4
                 if let pre = pregenerated {
@@ -733,11 +767,12 @@ final class SceneRenderer {
                 regions.append(r)
                 off += n
             }
-            bytes += total
+            u.bytes += total
             try ctx.oneShot { cb in
                 vkCmdCopyBufferToImage(cb, staging.buffer, img.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, UInt32(regions.count), regions)
             }
-            first = range.upperBound
+            u.first = range.upperBound
+            if u.first < u.filled { return false }
         }
         try ctx.oneShot { cb in
             vkBarrier(cb, img.image, from: VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, to: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, levels: levels, layers: layers,
@@ -746,9 +781,11 @@ final class SceneRenderer {
         }
         waitIdle()                          // frames in flight may still sample the placeholder
         texture = img
-        print(String(format: "textures: %d layers at %d px, RGBA8, %.1f MB with mips (%.0f ms)", layers, size,
-                     Double(bytes) / 1_048_576, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+        u.done = true
+        print(String(format: "textures: %d layers at %d px, RGBA8, %.1f MB with mips (%.0f ms; %d steps, the longest %.1f ms)", layers, size,
+                     Double(u.bytes) / 1_048_576, (CFAbsoluteTimeGetCurrent() - u.t0) * 1000, u.steps + 1, max(u.worstStepMs, (CFAbsoluteTimeGetCurrent() - a) * 1000)))
         for s in slots { writeSet0(s) }
+        return true
     }
 
     private func makeSlot() throws -> Slot {

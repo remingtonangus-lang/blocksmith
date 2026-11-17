@@ -84,7 +84,7 @@ if let secs = Double(arg("--xr") ?? "") {
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
 let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? arg("--cine") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") || CommandLine.arguments.contains("--framesoak")
-    || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare")
+    || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--appsoak") || CommandLine.arguments.contains("--launch-prepare")
     || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") || CommandLine.arguments.contains("--streamtest") || SceneScript.wantsShots(arg("--scene")) ? "" : nil)
 Game.deathTrace = true                  // (Fable, Nov 17: every death in a run names its killer in the log)
 var vkctx: VkContext?
@@ -128,6 +128,9 @@ if CommandLine.arguments.contains("--triptest") { exit(TripCheck.run()) }
 if CommandLine.arguments.contains("--spacewarp"), let ctx = vkctx { exit(SpaceWarpCheck.run(ctx: ctx)) }
 // --launch DIR / --launch-prepare DIR [--rd 24]: the headset's launch path timed stage by stage (P400,
 // quest/src/test/QuestLaunch.swift).
+// --appsoak [--walk SECONDS]: ledger 261, a reviewer's first minutes through the real QuestApp.frame() on a host
+// stand-in runtime, frame by frame against 72 Hz vsyncs (quest/src/test/QuestAppSoak.swift).
+if CommandLine.arguments.contains("--appsoak"), let ctx = vkctx { exit(QuestAppSoak.run(ctx: ctx)) }
 if CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare"), let ctx = vkctx { exit(QuestLaunch.run(ctx: ctx)) }
 // --flytest DIR [--rd 24] [--seconds 60] [--walk]: flying flat out over a new world; the speed never drops while the
 // world loads (P414, quest/src/test/QuestFlyTest.swift).
