@@ -1,4 +1,5 @@
 # Bug hunt round 1 (trains): he gets off a moving train with sneak, as a player would, in survival.
+stream on
 train at station
 survival on
 ride nearest train

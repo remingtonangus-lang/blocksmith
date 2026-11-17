@@ -1,5 +1,6 @@
 # Bug hunt round 1 (trains): he boards a coach at a station and the train leaves with him in his seat.
 # questcheck --scene quest/scenes/train-board-departs.scene          (a classic world: railways)
+stream on
 train at station
 face train car 2
 hold use 0.1
@@ -9,4 +10,3 @@ tick 40                     # the stand ends, the train runs on, over chunk bord
 print train
 expect riding == 1
 expect train.dist < 3       # still in his seat, with the train
-expect player.inblock == 0

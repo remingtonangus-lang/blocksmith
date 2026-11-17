@@ -1,4 +1,5 @@
 # Bug hunt round 1 (trains): on a moving train he walks from the first coach to the second and back again.
+stream on
 train at station
 stand in coach 1
 tick 30

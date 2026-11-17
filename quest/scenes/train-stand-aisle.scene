@@ -1,4 +1,5 @@
 # Bug hunt round 1 (trains): standing in a coach's aisle (not seated) through the departure and on.
+stream on
 train at station
 stand in coach 1
 tick 40
