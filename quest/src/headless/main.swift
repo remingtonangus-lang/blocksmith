@@ -86,6 +86,7 @@ if let secs = Double(arg("--xr") ?? "") {
 let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? arg("--cine") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") || CommandLine.arguments.contains("--framesoak")
     || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare")
     || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") || CommandLine.arguments.contains("--streamtest") || SceneScript.wantsShots(arg("--scene")) ? "" : nil)
+Game.deathTrace = true                  // (Fable, Nov 17: every death in a run names its killer in the log)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -3235,6 +3236,10 @@ if CommandLine.arguments.contains("--builds") {                // Builders' Grou
 if CommandLine.arguments.contains("--craterplace") {           // P507: blocks go down in a rocket's bowl
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--worldhash") {            // ledger 280: rail plans, nearest answers and chunks hashed (compare old and new)
+    WorldHashCheck.run { World(seed: $0, device: device, save: nil, dim: .overworld) }
+    exit(0)
 }
 if CommandLine.arguments.contains("--encounters") {            // P512: revenge raids, corsair sloops, the Corsair Cruiser
     TroopVanish.on = true

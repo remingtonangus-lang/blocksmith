@@ -1978,6 +1978,8 @@ final class World: LifeLinked {
         // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist (round each centre).
         var meshed = 0
         var cutShort = false
+        var nearWant = 0, nearDrawn = 0                 // (ledger 221: the near ring's land, for FrameGovernor)
+        let nearR = min(renderDistance, 6)
         let centres: [ChunkKey] = extra.map { [center, $0] } ?? [center]
         scan: for (dx, dz, _) in orderedScan() {
         if sameCentres && jobs >= maxQueued { cutShort = true; break scan }
@@ -1985,6 +1987,7 @@ final class World: LifeLinked {
             let k = ChunkKey(x: cen.x + dx, z: cen.z + dz)
             if let c = chunks[k] {
                 if c.meshedOnce && ci == 0 { meshed += 1 }
+                if ci == 0 && dx * dx + dz * dz <= nearR * nearR + nearR { nearWant += 1; if c.meshedOnce { nearDrawn += 1 } }
                 let (ox, oz) = ci == 0 && extra == nil ? (dx, dz) : nearOff(k)
                 let wantLod = lodFor(ox, oz, current: c.lod)
                 if wantLod != c.lod && !c.meshInFlight { setLod(c, wantLod) }
@@ -1993,14 +1996,22 @@ final class World: LifeLinked {
                     c.dirty = false
                     scheduleMesh(k, c, nb, front: ci == 0 && abs(dx) <= 2 && abs(dz) <= 2 && c.meshedOnce && !worn(c))          // (P458; P511)
                 }
-            } else if jobs < maxQueued && !genInFlight.contains(k) {
-                // P376: inside the view past the active distance, a chunk with cached meshes comes back as a shell.
-                let (ox, oz) = ci == 0 && extra == nil ? (dx, dz) : nearOff(k)
-                startGen(k, shell: World.shells && inShellBand(ox, oz) && (meshCache?.has(k) ?? false))
+            } else {
+                if ci == 0 && dx * dx + dz * dz <= nearR * nearR + nearR { nearWant += 1 }
+                if jobs < maxQueued && !genInFlight.contains(k) {
+                    // P376: inside the view past the active distance, a chunk with cached meshes comes back as a shell.
+                    let (ox, oz) = ci == 0 && extra == nil ? (dx, dz) : nearOff(k)
+                    startGen(k, shell: World.shells && inShellBand(ox, oz) && (meshCache?.has(k) ?? false))
+                }
             }
         }
         }
-        if !cutShort { meshedCount = meshed }   // (F3 only: a cut-short walk keeps the last full count)
+        if !cutShort {
+            meshedCount = meshed    // (F3 only: a cut-short walk keeps the last full count)
+            let share = nearWant > 0 ? Double(nearDrawn) / Double(nearWant) : 1
+            FrameGovernor.landShare = share
+            FrameGovernor.landWanted = share < 0.95 || simd_length(V2(lead.x, lead.z)) > 15
+        }
         scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
         // The full scan handled what it could; keep only chunks still dirty and loaded listed (bounded by the chunk count,
         // and no unloaded chunk kept alive by the list).
