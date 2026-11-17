@@ -304,7 +304,7 @@ final class QuestApp {
     }
 
     // The pause menu's app-level actions (App.swift on the Mac).
-    private func appAction(_ id: String) {
+    func appAction(_ id: String) {
         switch id {
         case "quit":
             exitWhenSaved = true
@@ -397,6 +397,7 @@ final class QuestApp {
         xr.pollInput()
         var tickMs = 0.0, recordMs = 0.0
         if game == nil, f.shouldRender { rig.updateLoading(xr: xr) }
+        if game == nil { QuestRoute.shared?.step(self, nil, dt: 1.0 / 72) }
         if let g = game {
             // The step is the time between the frames the game draws (P381 step 9: with space warp, every other
             // displayed frame). P510 (Nov 1 20:10, at 49 fps: "what the hell is slowing me down here?"): it was the
@@ -411,6 +412,7 @@ final class QuestApp {
             if abs(ShipManager.stepRate - rate) > 0.5 { ShipManager.stepRate = rate; ShipManager.stepSlack = 0.2 / rate }
             if f.shouldRender { rig.update(xr: xr, game: g) }
             controls?.update(dt: Float(dt))
+            QuestRoute.shared?.step(self, g, dt: dt)             // ledger 285: the headset gate's route (debug property only)
             let a = CFAbsoluteTimeGetCurrent()
             // Input focus lost (headset off, the system menu or a dialog up): the world stops and the pause menu is up
             // when the user comes back, so nothing happens to them meanwhile.
@@ -881,6 +883,7 @@ final class FrameStats {
         if Explosion.worstMs > 2 { lastLine += String(format: " | slowest blast %.1f ms (", Explosion.worstMs) + Explosion.worstLaps + ")" }
         Explosion.worstMs = 0; Explosion.worstLaps = ""
         lastLine += " | far ticking \(FarTicks.lastSecond)"                  // P376: things ticking past the active distance (0)
+        lastLine += " | view \(w?.renderDistance ?? 0)"                                                   // ledger 285 (the headset gate)
         lastLine += " | eye resolution \(Int((scene.viewScale * 100).rounded()))%"                        // P403 7b (dynamic resolution)
         if let p = dynResProbe?(), p > 0 {                                                                 // P403 step 2: triangles or pixels
             lastLine += String(format: " (10%% fewer pixels gave %.0f%% less gpu: %@)", (1 - p) * 100, p < 0.95 ? "pixel-bound" : "triangle-bound")
