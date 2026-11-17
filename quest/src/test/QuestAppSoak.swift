@@ -119,6 +119,28 @@ enum QuestAppSoak {
         next("new world: walk \(Int(walk)) s")
         walkFor(walk)
 
+        // Item 5: the inventory and the map, opened and closed.
+        next("inventory open and close")
+        app.game?.openInventory()
+        _ = frames(until: { false }, limit: 1.5)
+        app.game?.closeMenu()
+        _ = frames(until: { false }, limit: 1)
+        next("map open and close")
+        if let g = app.game { g.openMenu(MapMenu(game: g)) }
+        _ = frames(until: { false }, limit: 1.5)
+        app.game?.closeMenu()
+        _ = frames(until: { false }, limit: 1)
+        // Item 6: a teleport 300 blocks off (the land there streams in), then a death and the respawn at his spawn.
+        next("teleport 300 blocks")
+        if let g = app.game { g.player.pos += V3(300, 30, 0); g.player.vel = .zero }
+        _ = frames(until: { false }, limit: 5)
+        next("death and respawn")
+        if let g = app.game { g.survival = true; g.die("appsoak") }
+        _ = frames(until: { false }, limit: 2)
+        app.game?.respawn()
+        if let g = app.game { g.survival = false; g.health = 20 }
+        _ = frames(until: { false }, limit: 5)
+
         // Item 4: the autosave (Game.tick's 60 s save, taken here between two frames, as inside one), standing.
         next("autosave")
         app.game?.saveNow(background: true)
@@ -168,10 +190,11 @@ enum QuestAppSoak {
         // The gate: the loading scene and the hand-overs (start, create) never hold a frame past 1.5x the headset's
         // budget; the walks are reported for the steady rate (Fable's view governor), not gated here.
         let gatedNames: Set<String> = ["start to the world", "create new world", "autosave", "pause menu open", "save and quit to title",
-                                       "quit game", "reopen the saved world"]
+                                       "quit game", "reopen the saved world", "inventory open and close", "map open and close",
+                                       "teleport 300 blocks", "death and respawn"]
         let gated = phases.filter { gatedNames.contains($0.name) }
         let held = gated.reduce(0) { $0 + $1.missed }
-        print(held == 0 ? "ok   appsoak: the app start, Create New World, saves, the pause menu, quit and reopening hold no frame (headset estimate under 20.8 ms)"
+        print(held == 0 ? "ok   appsoak: the app start, Create New World, menus, a teleport, a death, saves, quit and reopening hold no frame (headset estimate under 20.8 ms)"
                         : "FAIL appsoak: \(held) frames over 20.8 ms (headset estimate) in " + gated.filter { $0.missed > 0 }.map { $0.name }.joined(separator: ", "))
         app.shutdown()
         return held == 0 ? 0 : 1
