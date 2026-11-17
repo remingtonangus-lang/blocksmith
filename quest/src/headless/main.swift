@@ -4748,7 +4748,24 @@ if CommandLine.arguments.contains("--boreal-only") { print(failures == 0 ? "bore
 // Greywall Command bases (Sources/GreywallTests.swift, backlog A1): the faction, rarity, and a real base of every tier walked.
 // Each Lane A group must leave the player and world as it found them: a skiff check that left the player flying moved
 // every later check (boarding, the Reckoning, roads, the sheriff, outlaws, countries) onto other ground.
+// Ledger 218-219 (job 5): what a group leaves behind, after leaves() has put back what it puts back: ships, mobs, the
+// trains, the player's place and mode, the factions' standing, the time of day, live Games, the random stream's mode.
+// Printed only ("left behind: NAME: ..."), never a failure (yet).
+func suiteFingerprint() -> [(String, String)] {
+    let p = game.player.pos
+    return [("ships", "\(game.world.ships.list.count)"), ("mobs", "\(game.mobs.mobs.count)"), ("pending mobs", "\(game.world.pendingMobs.count)"),
+            ("trains", "\(Trains.trains.count)"), ("player", String(format: "%.0f %.0f %.0f", p.x, p.y - Float(YOFF), p.z)),
+            ("mode", "\(game.survival ? "survival" : "creative")\(game.player.flying ? " flying" : "")\(game.paused ? " paused" : "")\(game.alive ? "" : " dead")"),
+            ("factions", FactionRep.encode()), ("time", String(format: "%.0f", game.time)), ("games", "\(Game.alive)"),
+            ("rand", Rand.deterministic ? "seeded" : "free"), ("dim", "\(game.dim.dim)")]
+}
 func leaves(_ name: String, _ body: () -> Void) {
+    let print0 = suiteFingerprint()
+    defer {                                     // (runs last: after the put-back below)
+        let now = suiteFingerprint()
+        let diff = zip(print0, now).filter { $0.1 != $1.1 }.map { "\($0.0) \($0.1) -> \($1.1)" }
+        if !diff.isEmpty { print("left behind: \(name): " + diff.joined(separator: "; ")) }
+    }
     let fly = game.player.flying, enc = game.world.ships.encounters, surv = game.survival, pos = game.player.pos, menu = game.menu == nil
     let menu0 = game.menu
     // (P499: and at no helm and on no mount: a group that left him at a frigate's helm put every later aim and chase

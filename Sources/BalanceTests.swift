@@ -175,6 +175,7 @@ enum BalanceTests {
                 for n in 0..<(guardedKind ? 11 : (k.steelhold ? 7 : 1)) {
                     Rand.seed(0xBA1A_6000 + UInt64(k.rawValue) * 16 + UInt64(t) + UInt64(n) * 0x1000)
                     kr.append(kills(k, t))
+                    if Env.all["BALANCE_TRACE"] == "1" { print(String(format: "balance trace %@ tier %d seed %d: %@ s, rand at %llx", k.key, t, n, kr.last!.map { String(format: "%.2f", $0) } ?? "-", Rand.traceState)) }
                 }
                 r.kills.append(kr.contains { $0 == nil } ? nil : kr.compactMap { $0 }.sorted()[kr.count / 2])
             }
