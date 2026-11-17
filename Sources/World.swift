@@ -641,6 +641,14 @@ final class World: LifeLinked {
     }
 
     var placeCube = false                    // (ledger 136: the main thread, round one write)
+    // Ledger 260 (Nov 16 21:18-21:22, building on a dug beach: "it thinks there's sand on top of it, but there's not",
+    // "this block section is cursed"): his dig's shaping ball (Game.breakAndShape, a .shape carve) kept every cell it
+    // reached as ground at +1/32 (keepSolid) while the drawn surface (the fine samples) went below the cell's middle: a
+    // cell drawn less than half full read as a whole block of sand to the aim, "Looking at", placing and the rest.
+    // While this is set (the player's own dig, the main thread, round one carve) a cell whose middle the ball takes
+    // opens (no drop: it showed less than half). BS_OLDSLIVERCELL=1: as before.
+    var openTaken = false
+    static let oldSliverCell = Env.all["BS_OLDSLIVERCELL"] == "1"
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id0: BlockID) {
         guard y >= 0 && y < CH, let c0 = chunkAt(x, z) else { return }
         // P389: a struck object's cell changed by anything but the object itself (a blast, a bucket): the object is
@@ -2845,7 +2853,19 @@ final class World: LifeLinked {
             while fieldFrom < maxDist && fieldDensity(at: origin + dir * fieldFrom) > 0 { fieldFrom += 0.05 }
         }
         var cur = ChunkCursor(self)          // (item 7: one chunk find per chunk crossed, not per cell; BS_OLDLOOKUPS=1 per cell)
+        // Ledger 260 (Nov 16 21:20:14, "sometimes it's just putting a block where I didn't expect it"): the drawn ground
+        // can be met further on than the cell where the field crossed zero (the hit is moved onto the drawn triangles, up
+        // to 1.5 along), past a block he built: the aim named ground inside his block's cell and the block went beyond
+        // it. Such a hit waits until the ray has passed the cells before it; a built block met first is the target.
+        // BS_OLDRAYORDER=1: as before.
+        var pending: (hit: IVec3, normal: IVec3, h: (cell: IVec3, at: V3, t: Float))?
+        func takePending() -> (hit: IVec3, normal: IVec3)? {
+            guard let p = pending else { return nil }
+            fieldHit = p.h
+            return (p.hit, p.normal)
+        }
         while t <= maxDist {
+            if let p = pending, t >= p.h.t { return takePending() }
             var b: BlockID = AIR
             // PG2 rewrite: in a field world the ray meets the ground where the field crosses zero (the drawn surface), and
             // the cell it names is the ground cell there; built blocks are targeted as blocks. (P377 step 2: the cell
@@ -2854,18 +2874,21 @@ final class World: LifeLinked {
             else if let c = World.oldLookups ? chunkAt(x, z) : cur.chunk(x, z) {
                 let i = Chunk.index(mod(x, CS), y, mod(z, CS))
                 let end = min(tmx, tmy, tmz, maxDist)
-                if fieldNear(c, x, y, z, i), max(t, fieldFrom) <= end, var h = fieldRaySegment(origin, dir, from: max(t, fieldFrom), to: end) {
+                // (ledger 260: ground drawn inside a built cube's cell, the swell met round its foot, is hidden by the cube:
+                // the cube is the target)
+                let cubeHere = !World.oldRayOrder && Blocks.targetable(c.blocks.raw(i)) && Blocks.render[Int(c.blocks.raw(i))] == RenderType.cube.rawValue
+                if pending == nil, !cubeHere, fieldNear(c, x, y, z, i), max(t, fieldFrom) <= end, var h = fieldRaySegment(origin, dir, from: max(t, fieldFrom), to: end) {
                     // P386: the hit point on the drawn ground triangles near where the field crosses zero (they can sit
                     // a few tenths off it, more along a grazing ray), so digging and placing aim at the surface the eye sees.
                     if let r = drawnRay(origin, dir, from: max(fieldFrom, h.t - 1.5), to: min(maxDist, h.t + 1.5)) {
                         h = (fieldCell(r.at, along: dir), r.at, r.t)
                     }
-                    fieldHit = h
                     let g = fieldGradient(h.at)
                     let a = simd_abs(g)
                     let nrm = a.x >= a.y && a.x >= a.z ? IVec3(g.x > 0 ? -1 : 1, 0, 0)
                         : (a.y >= a.z ? IVec3(0, g.y > 0 ? -1 : 1, 0) : IVec3(0, 0, g.z > 0 ? -1 : 1))
-                    return (h.cell, nrm)
+                    if h.t > end + 0.001 && !World.oldRayOrder { pending = (h.cell, nrm, h) }
+                    else { fieldHit = h; return (h.cell, nrm) }
                 }
                 b = c.blocks.raw(i)
             } else { b = block(x, y, z) }
@@ -2888,10 +2911,11 @@ final class World: LifeLinked {
             } else {
                 z += sz; t = tmz; tmz += tdz; n = IVec3(0, 0, -sz)
             }
-            if y < -1 || y > CH { return nil }
+            if y < -1 || y > CH { return takePending() }
         }
-        return nil
+        return takePending()
     }
+    static let oldRayOrder = Env.all["BS_OLDRAYORDER"] == "1"
 
     // MARK: Fluids
     // Cellular fluids: sources (level 0) feed flowing levels 1...7 sideways, falling columns (8) downwards.
