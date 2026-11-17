@@ -161,7 +161,17 @@ final class QuestApp {
         t.stackSize = 8 << 20
         t.qualityOfService = .userInitiated
         t.name = "blocksmith.load"
+        // Ledger 262: the last loading thread's closure still held the world it saved (the one before), so replacing
+        // it freed that whole world here, on the frame thread (16-20 ms on the host at a Quit after one world switch,
+        // more for a bigger world). It is let go on a utility queue now; BS_OLDTHREADDROP=1 frees it here as before.
+        let prev = loadThread
         loadThread = t
+        // (held +1 and let go half a second later, after this frame's own references are long gone, so the last
+        // release, and the world's teardown with it, falls on the utility queue)
+        if !QuestApp.oldThreadDrop, let p = prev {
+            let u = Unmanaged.passRetained(p)
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.5) { u.release() }
+        }
         t.start()
     }
 
@@ -223,6 +233,7 @@ final class QuestApp {
     private var adoptStep = 0
     private var texUpload: SceneRenderer.TextureUpload?
     static let oldTexUpload = Env.all["BS_OLDTEXUPLOAD"] == "1"
+    static let oldThreadDrop = Env.all["BS_OLDTHREADDROP"] == "1"
     private var wasFocused = false
     private var awayFor = 0.0, savedAway = false, headLostFor = 0.0      // S8
     private var awayStart = 0.0                                          // Q2c-console-44: when the away pause began
@@ -411,15 +422,23 @@ final class QuestApp {
         let t0 = CFAbsoluteTimeGetCurrent()
         defer { print(String(format: "world: switch took %.1f ms on the frame thread", (CFAbsoluteTimeGetCurrent() - t0) * 1000)) }
         savingGame = game                    // saved on the loading thread (startLoading), behind "Saving the world"
+        var lt = t0, parts = ""
+        func part(_ n: String) { let t = CFAbsoluteTimeGetCurrent(); parts += String(format: "%@ %.1f, ", n, (t - lt) * 1000); lt = t }
         scene.waitIdle()
+        part("gpu idle")
         game?.sound?.stopAll()
         QuestAudioOutput.shared.stop()
+        part("sound")
         PadManager.shared.touch = nil
         controls = nil
+        part("controls")
         worldRenderer = nil
+        part("renderer")
         game = nil
         save = nil
         startLoading(req)
+        part("load started")
+        print("world: switch parts: " + parts)
     }
 
     // MARK: Frame loop
