@@ -133,8 +133,11 @@ Each runs in about 15 s after the census is kept. `ride nearest train` needs a t
 `questcheck --appsoak [--walk SECONDS] [--seeds FIRST,NEW] [--keep DIR]` runs QuestApp.frame() itself on a host stand-in
 runtime (XRSession(headless:)): xrWaitFrame is a 72 Hz vsync clock that starts a late frame on the next vsync, as the
 compositor does. It goes through the app start (textures painted, the world made), the first-launch panel, a walk, Create
-New World and a walk, and prints per phase the vsyncs missed, the worst frame and the frames over 13.9 / 20.8 ms on the
-headset estimate (host ms x 1.7), with the slow frames' parts (adopt, tick, record, and the tick's and record's slowest
-stages). It fails if the start or Create New World holds a frame over 20.8 ms. A fresh data folder each run (a first launch:
-the textures are painted). Optimized builds only (`tools/qbuild.sh o`); about 70 s.
+New World and a walk, the inventory and the map opened and closed, a 300-block teleport, a death and the respawn, the first
+shot of each gun, the first vehicle taken (a Cinder Tank) and left, the autosave, the pause menu, Save and Quit to the
+title, Quit Game, then the app started again on the same data (the saved world reopened) and a walk. Per phase it prints
+the vsyncs missed, the worst frame and the frames over 13.9 / 20.8 ms on the headset estimate (host ms x 1.7), with the
+slow frames' parts (adopt, tick, record, and the tick's and record's slowest stages). It fails if any phase but the walks
+and the first-launch panel holds a frame over 20.8 ms. A fresh data folder each run (a first launch: the textures are
+painted). Optimized builds only (`tools/qbuild.sh o`); about 70 s.
 

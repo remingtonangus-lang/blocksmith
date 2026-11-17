@@ -69,6 +69,11 @@ enum TickProf {
     // The time since the previous mark (or begin) is charged to `name`.
     @inline(__always) static func mark(_ name: StaticString) {
         let t = CFAbsoluteTimeGetCurrent()
+        // Ledger 286 (his Quest, Nov 17: "slowest tick ... world.results 816624124361.3 ms"): World.update runs without a
+        // tick while the headset is unfocused (QuestApp: no Game.tick, the world kept streaming), and before any tick
+        // had begun `last` was 0, so the mark charged the whole clock (seconds since 2001). A mark with no tick begun
+        // is now not charged.
+        guard start > 0 else { last = t; return }
         if count < cap { names[count] = name; times[count] = t - last; count += 1 }
         last = t
     }
