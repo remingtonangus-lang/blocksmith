@@ -52,6 +52,7 @@ enum GroundWeigh {
     static let noteOld = Env.all["BS_GWNOTEOLD"] != "0"
     static let propsOn = Env.all["BS_GWPROPS"] != "0"
     static let onPool = Env.all["BS_GWQUEUE"] != "dispatch"
+    static let oldSpare = Env.all["BS_OLDWEIGHSPARE"] == "1"      // (ledger 216)
     static let reach = 8                     // the box: the carve's cells and this far round them
     static let maxSide = 44                  // (at most this many cells a side: a naval crater and its surroundings)
     static let maxCarved = 60_000
@@ -77,6 +78,7 @@ enum GroundWeigh {
         let lock = NSLock()
         var falls: [IVec3]? = nil            // (the worker's answer, under the lock)
         var sparedCount = 0, solveMs = 0.0
+        var cutLoose = 0                     // (ledger 216: over their strength before too, but cut off from everything now)
         init(lo: IVec3, hi: IVec3, carved: [IVec3: BlockID], props: Set<IVec3>) { self.lo = lo; self.hi = hi; self.carved = carved; self.props = props; x = lo.x; z = lo.z }
         @inline(__always) func inside(_ p: IVec3) -> Bool { p.x >= lo.x && p.x <= hi.x && p.y >= lo.y && p.y <= hi.y && p.z >= lo.z && p.z <= hi.z }
     }
@@ -173,7 +175,8 @@ enum GroundWeigh {
                          j.cells.count, j.hi.x - j.lo.x + 1, j.hi.y - j.lo.y + 1, j.hi.z - j.lo.z + 1, j.carved.count + j.props.count,
                          j.readSeconds * 1000, worstSliceMs, j.solveMs,
                          live.isEmpty ? "stands" + (j.sparedCount > 0 ? " (\(j.sparedCount) cells had no way down before either: left)" : "")
-                                : "\(live.count) cells come down" + (j.sparedCount > 0 ? " (\(j.sparedCount) more had no way down before either: left)" : "")))
+                                : "\(live.count) cells come down" + (j.cutLoose > 0 ? " (\(j.cutLoose) of them over their strength before too, but cut off from everything now)" : "")
+                                  + (j.sparedCount > 0 ? " (\(j.sparedCount) more had no way down before either and still hang on: left)" : "")))
         }
         if live.isEmpty {
             // (it stands: these cells are done with)
@@ -365,14 +368,41 @@ enum GroundWeigh {
         var sparedCount = 0
         let now = StructureFlow.solve(piece(before: false))
         let down = now.falls.filter { !j.open[$0] }
+        var cutLoose = 0
         if !down.isEmpty {
             let was = StructureFlow.solve(piece(before: true))
             var hadNone = [Bool](repeating: false, count: n)
             for i in was.falls { hadNone[i] = true }
-            for i in down { if hadNone[i] { sparedCount += 1 } else { falls.append(j.cells[i]) } }
+            // Ledger 216 (Nov 17, the scene runner's crater: an 11 x 11 cap of earth on a 3 x 3 stem, the stem blasted
+            // through; the cap's middle came down and its outer ring hung on in the air): "no way down before" was the
+            // strength weighing's. Earth corbels one cell (Structure.soil, reach 1), so the ring 3 to 5 out was over its
+            // strength before the blast too, and was spared as if the world had made it that way, although it hung on
+            // the stem through the cap. A cell spared so must still hang on to something: one fill through the box's
+            // standing ground from what holds (the box's shell, footings, ground nothing breaks). A cell the carve cut
+            // off from all of it comes down; an overhang still joined to its hillside stays as the world made it.
+            // BS_OLDWEIGHSPARE=1: spared on the strength weighing alone, as before.
+            var linked = [Bool](repeating: true, count: n)
+            if !oldSpare {
+                linked = [Bool](repeating: false, count: n)
+                var stack: [Int] = []
+                for i in 0..<n where !j.open[i] && (j.held[i] || j.ground[i] != 0) { linked[i] = true; stack.append(i) }
+                while let i = stack.popLast() {
+                    let c = j.cells[i]
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                        let q = c + d
+                        guard j.inside(q) else { continue }
+                        let o = Int(grid[slot(q)])
+                        if o >= 0 && !linked[o] && !j.open[o] { linked[o] = true; stack.append(o) }
+                    }
+                }
+            }
+            for i in down {
+                if hadNone[i] && linked[i] { sparedCount += 1 }
+                else { falls.append(j.cells[i]); if hadNone[i] { cutLoose += 1 } }
+            }
         }
         j.lock.lock()
-        j.sparedCount = sparedCount
+        j.sparedCount = sparedCount; j.cutLoose = cutLoose
         j.solveMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         j.falls = falls
         j.lock.unlock()

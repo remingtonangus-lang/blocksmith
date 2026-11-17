@@ -1,0 +1,16 @@
+# Ledger 216's guard: an overhang the world made (a ledge of earth 5 out from a hillside, over its strength: earth
+# corbels one cell) stays when a blast opens the hillside beside it, because it still hangs on to the hillside.
+# Passes on the fix and with BS_OLDWEIGHSPARE=1; a fix that dropped everything "over its strength" would fail it.
+#   questcheck --scene quest/scenes/overhang-stays.scene --headset
+at 14 150 14
+fly on
+load 3
+ground -10 120 -10 10 175 10 air
+ground -8 40 -8 -4 165 8 dirt      # the hillside, from deep in the land
+ground -3 160 -1 1 161 1 dirt      # the ledge
+expect ground 1 160 0 == true
+blast -5 150 5 4                   # into the hillside under and beside the ledge, not through it
+tick 3
+expect ground -5 150 5 == false    # the blast's hole
+expect ground 1 160 0 == true      # the ledge's tip still there
+expect ground -3 161 0 == true
