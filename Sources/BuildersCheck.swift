@@ -156,7 +156,7 @@ enum BuildersCheck {
             Structure.fellTally = nil
             fflush(stdout)
             if BuildersCheck.stand == 1 {
-                // Ledger 216: laid piece by piece in the plan's order (a hand builder's: each course up from what holds
+                // Ledger 217: laid piece by piece in the plan's order (a hand builder's: each course up from what holds
                 // it), the load checks run out after every piece: no piece falls, half built or whole.
                 check(wrong.isEmpty && builtFell == 0, "builds-hand: the \(bp.key) goes up piece by piece and none of it falls (\(wrong.count) cells wrong, \(builtFell) of its blocks fell; BS_OLDORDER=1 BS_OLDHELD=1: the old order)")
                 continue
