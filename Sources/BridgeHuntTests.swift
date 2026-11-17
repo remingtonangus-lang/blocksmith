@@ -11,6 +11,7 @@ import simd
 //   hunt      riding a train over the bridge in survival a hunter comes, shoots a pier ahead, and deck falls
 enum BridgeHuntTests {
     static func run(game g: Game, check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: what the group adds goes, what it takes comes back)
         guard BridgeHunt.on else { return }
         defer { BridgeHunt.on = true }
         let w = g.world, ships = w.ships
@@ -185,6 +186,7 @@ extension BridgeHuntTests {
 
     // A sea trestle of an open-country line: the longest run over the ocean among the lines round the origin.
     static func seaTrestle(_ g0: Game, check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g0); defer { scope.putBack(g0) }   // (job 6)
         let field0 = FieldTerrain.newWorlds
         FieldTerrain.newWorlds = true
         defer { FieldTerrain.newWorlds = field0 }
@@ -223,6 +225,7 @@ extension BridgeHuntTests {
 // two spans it carried, and the spans beside them, untouched, stand. Both ways (before: BridgeHunt.anySpan).
 extension BridgeHuntTests {
     static func sparse(game g: Game, check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6)
         guard BridgeHunt.on else { return }
         let w = g.world, ships = w.ships
         let pos0 = g.player.pos, regions0 = ships.spawnedRegions, any0 = BridgeHunt.anySpan

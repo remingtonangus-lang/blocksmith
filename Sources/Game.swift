@@ -3345,6 +3345,10 @@ final class Game: LifeLinked {
 
     func die(_ cause: String) {
         guard !(menu is DeathMenu) else { return }
+        if Env.all["BS_DEATH_TRACE"] == "1" {         // (diagnosis: who died of what, where, among which mobs)
+            let near = mobs.mobs.filter { simd_length($0.pos - player.pos) < 24 }.map { "\($0.kind) \(Int(simd_length($0.pos - player.pos)))" }
+            print("death trace: \(cause) at \(Int(player.pos.x)) \(Int(player.pos.y) - YOFF) \(Int(player.pos.z)), time \(Int(time)), test mode \(Settings.shared.testMode), near: \(near.joined(separator: ", "))")
+        }
         // P463: Test Mode: no death in survival, the game turns to creative where he is with all he carries.
         if Settings.shared.testMode && survival {
             health = maxHealth; absorption = 0; hunger = max(hunger, 6)

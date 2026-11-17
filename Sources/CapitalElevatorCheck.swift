@@ -9,6 +9,7 @@ import simd
 // and those he left are shut. questcheck --capitallift, and the full suite.
 enum CapitalElevatorCheck {
     static func run(_ g: Game, _ check: (Bool, String) -> Void) {
+        let scope = SuiteScope(g); defer { scope.putBack(g) }   // (job 6: what the group adds goes, what it takes comes back)
         let w = g.world, p = g.player
         guard Elevators.has(), let st = w.gen.structures?.nearest("military_base", x: Int(p.pos.x), z: Int(p.pos.z), maxRegions: 16) else {
             check(false, "capital lift: no citadel within 16 regions"); return
