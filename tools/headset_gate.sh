@@ -30,7 +30,10 @@ while [[ $# -gt 0 ]]; do
 done
 OUT=${OUT:-headset-gate/$(date +%Y%m%d-%H%M%S)}
 mkdir -p "$OUT"
-command -v adb >/dev/null || { echo "headset_gate: adb not found (brew install android-platform-tools)"; exit 2; }
+# adb: $ADB, else on PATH, else ~/ClaudeTools/quest/platform-tools/adb (where the Mac keeps it).
+ADB=${ADB:-$(command -v adb || echo "$HOME/ClaudeTools/quest/platform-tools/adb")}
+[[ -x "$ADB" ]] || { echo "headset_gate: adb not found (set ADB=/path/to/adb)"; exit 2; }
+adb() { "$ADB" "$@"; }
 n=$(adb devices | awk 'NR>1 && $2=="device"' | wc -l | tr -d ' ')
 if [[ "$n" != 1 ]]; then
   adb devices
@@ -48,6 +51,19 @@ cleanup() {
 }
 trap cleanup EXIT
 if [[ -n "$APK" && "$INSTALL" == 1 ]]; then
+  # Never over an app signed with another key: that install fails and only an uninstall (which wipes the saves) gets
+  # past it. The new APK's certificate must match the installed one's, or nothing is installed.
+  have=$(adb shell pm path $PKG | tr -d '\r' | sed -n 's/^package://p' | head -1)
+  if [[ -n "$have" ]]; then
+    adb pull "$have" "$OUT/installed.apk" >/dev/null || { echo "headset_gate: could not read the installed app to compare signers"; exit 2; }
+    a=$(python3 "$(dirname "$0")/apk_signer.py" "$OUT/installed.apk"); b=$(python3 "$(dirname "$0")/apk_signer.py" "$APK")
+    rm -f "$OUT/installed.apk"
+    if [[ "$a" == unknown || "$a" != "$b" ]]; then
+      echo "headset_gate: REFUSED: $APK is signed with another key than the installed app (installed $a, new $b)."
+      echo "  Installing it would need an uninstall, which wipes the saves. Measure a build signed like the installed one."
+      exit 2
+    fi
+  fi
   echo "headset_gate: installing $APK"
   adb install -r "$APK" | tail -1 | grep -q Success || { echo "headset_gate: install failed"; exit 2; }
 fi

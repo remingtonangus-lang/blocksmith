@@ -16,6 +16,20 @@ final class QuestRoute {
     static let seconds: [String: Double] = ["menu": 20, "newworld": 30, "plains": 90, "forest": 90, "jungle": 120,
                                             "village": 120, "fight": 120, "frigate": 120, "train": 120, "reload": 45]
 
+    // The A/B route ("spots"): the same pictures every time, in a new creative world of a fixed seed (nothing of his
+    // touched), noon, clear weather. Each spot: placed there (flying when in the air), no input, held until the chunk
+    // jobs are 0 ("spot-NAME-load"), then held `hold` seconds ("spot-NAME"). x/z nil: found (biome or village).
+    struct Spot { let name: String; let x: Float?; let y: Float?; let z: Float?; let yaw: Float; let find: String? }
+    static let spotSeed: UInt64 = 3084501862406496736
+    static let spotHold = 20.0
+    static let spots: [Spot] = [
+        Spot(name: "jungle", x: 718, y: 143, z: 30, yaw: 299, find: nil),           // his 49.8 fps at view 14
+        Spot(name: "taiga", x: 148, y: 302, z: -3684, yaw: 0, find: nil),           // 56 fps at view 8
+        Spot(name: "savanna", x: 2139.7, y: 122.1, z: 827.3, yaw: 229, find: nil),  // the frigate spot
+        Spot(name: "beach", x: nil, y: nil, z: nil, yaw: 0, find: "beach"),         // water in view
+        Spot(name: "village", x: nil, y: nil, z: nil, yaw: 90, find: "village"),
+        Spot(name: "forest", x: nil, y: nil, z: nil, yaw: 0, find: "forest")]       // on the ground, eye height
+
     static let shared: QuestRoute? = {
         #if os(Android)
         let v = Env.androidProperty("debug.sunderfall.route")
@@ -24,7 +38,8 @@ final class QuestRoute {
         #endif
         let s = v.trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
         guard !s.isEmpty else { return nil }
-        let legs = s == "all" ? all : s.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init).filter { all.contains($0) }
+        let legs = s == "all" ? all : s == "spots" ? ["spotworld"] + spots.map { "spot-" + $0.name }
+            : s.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init).filter { all.contains($0) || $0 == "spotworld" || $0.hasPrefix("spot-") }
         guard !legs.isEmpty else { print("route: failed: no known leg in '\(s)'"); return nil }
         print("route: legs \(legs.joined(separator: " "))")
         return QuestRoute(legs)
@@ -47,7 +62,7 @@ final class QuestRoute {
 
     var leg: String { index >= 0 && index < legs.count ? legs[index] : "" }
 
-    private func next(_ app: QuestApp) {
+    private func next(_ app: QuestApp?) {
         index += 1; legTime = 0; phase = 0; target = nil; seeking = false; ship = nil; drive = nil
         if index >= legs.count { print("route: done"); return }
         print("route: leg \(leg)")
@@ -62,6 +77,20 @@ final class QuestRoute {
         guard let g = game else { return }                         // (a world loading: its time counts in its leg)
         g.health = max(g.health, 10); g.alive = true             // (the route never ends in death)
         let want = QuestRoute.seconds[leg] ?? 60
+        if leg == "spotworld" {
+            if phase == 0 {
+                phase = 1
+                worldName = "GateSpots\(Int(Date().timeIntervalSince1970) % 100000)"
+                app.routeAction("create:0:3:1:\(worldName):\(QuestRoute.spotSeed)")
+                return
+            }
+            if g.world.seed == QuestRoute.spotSeed && legTime > 5 { next(app) }
+            return
+        }
+        if leg.hasPrefix("spot-"), let sp = QuestRoute.spots.first(where: { "spot-" + $0.name == leg }) {
+            spot(g, sp)
+            return
+        }
         switch leg {
         case "menu":
             if phase == 0 { phase = 2; g.paused = true; (g.menu as? PauseMenu)?.build() }
@@ -168,6 +197,53 @@ final class QuestRoute {
         default:
             next(app)
         }
+    }
+
+    private var holdFrom = -1.0
+    private func spot(_ g: Game, _ sp: Spot) {
+        g.time = 0.25 * DAY_LENGTH
+        g.weather.raining = false; g.weather.thundering = false; g.weather.rain = 0
+        g.survival = false
+        if phase == 0 {
+            holdFrom = -1
+            if let x = sp.x, let y = sp.y, let z = sp.z {
+                target = V3(x, y + Float(YOFF), z); phase = 1
+                g.player.pos = target!; g.player.flying = true; g.player.vel = .zero
+                g.player.yaw = -sp.yaw * .pi / 180; g.player.pitch = -10 * .pi / 180
+                print("route: leg \(leg)-load")
+            } else if sp.find == "village" {
+                if let st = g.world.gen.structures?.nearestIfReady("village", x: 0, z: 0, maxRegions: 8) {
+                    target = V3(Float(st.min.x + st.max.x) / 2 + 0.5, 0, Float(st.min.z + st.max.z) / 2 + 0.5); phase = 1
+                }
+                if legTime > 30 && phase == 0 { print("route: no village planned near spawn"); next(nil); return }
+            } else if let b = sp.find {
+                arrive(g, biome: b)                     // (phase 1: the search runs; placed below once found)
+            }
+            if phase == 1, sp.x == nil { print("route: leg \(leg)-load") }
+            return
+        }
+        if target == nil {
+            lock.lock(); let busy = seeking; if !busy { target = found }; lock.unlock()
+            if busy { return }
+        }
+        guard let t = target else { next(nil); return }
+        if sp.x != nil {
+            g.player.pos = t; g.player.vel = .zero; g.player.flying = true
+        } else {
+            // (on the ground at eye height, once his chunk is in)
+            g.player.flying = true; g.player.vel = .zero
+            let px = Int(floor(t.x)), pz = Int(floor(t.z))
+            if let c = g.world.chunkAt(px, pz) {
+                g.player.pos = V3(t.x, Float(c.height[mod(px, CS) + mod(pz, CS) * CS]) + 1.01, t.z)
+                g.player.flying = false
+            } else { g.player.pos = V3(t.x, Float(CH - 40), t.z) }
+            g.player.yaw = -sp.yaw * .pi / 180; g.player.pitch = -5 * .pi / 180
+        }
+        PadManager.shared.touch = PadSnapshot()
+        if holdFrom < 0 {
+            if g.world.pendingJobs == 0 && legTime > 3 { holdFrom = legTime; print("route: leg \(leg)") }
+            else if legTime > 90 { holdFrom = legTime; print("route: leg \(leg) (jobs never reached 0: \(g.world.pendingJobs))") }
+        } else if legTime - holdFrom > QuestRoute.spotHold { next(nil) }
     }
 
     // A jump to the middle of `biome`: the search runs on a utility thread; then landing.
