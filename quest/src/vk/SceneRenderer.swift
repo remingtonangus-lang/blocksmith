@@ -27,7 +27,33 @@ struct FrameUniforms {
     // P496: a bit per texture layer whose tops turn per block like grass (ShaderFX.turnBits), 2048 bits.
     var turn: (U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4, U4) =
         (U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4(), U4())
+    // Ledger 232 (Space Warp): this frame's camera-relative point to the last drawn frame's clip space (SpaceWarpCam).
+    var prevClip: (float4x4, float4x4) = (matrix_identity_float4x4, matrix_identity_float4x4)
     typealias U4 = SIMD4<UInt32>
+}
+
+// Ledger 232 (store review, Nov 17). Application SpaceWarp shows a frame of the runtime's own between every two the
+// game draws, made from the drawn frame, its depth and its motion vectors: where each pixel was in the last drawn
+// frame, in clip space. The world's vectors were zero (P381 step 9), which says "nothing on screen moved"; with the
+// head turning or the player walking every pixel had moved, so the runtime's frames stood still and the picture
+// advanced on every second frame only: the vibration and double vision of Oct 24 (P426). The vectors now come from
+// the depth: each pixel's point is taken back through the last drawn frame's view-projection (swdepth.frag), and the
+// things that move on their own add their motion to the same (swmotion.vert). BS_SWCAM=0 = zero vectors, as before.
+enum SpaceWarpCam {
+    static let on = Env.all["BS_SWCAM"] != "0"
+    private static var last: (vp: [float4x4], eye: V3)?
+    /// The matrices for this frame's uniforms. With no last frame (or the old way) a point maps to where it is now.
+    static func clip(_ cam: EyeCamera) -> (float4x4, float4x4) {
+        let cur = (cam.viewProj[0], cam.viewProj.count > 1 ? cam.viewProj[1] : cam.viewProj[0])
+        guard on, let l = last, l.vp.count == cam.viewProj.count else { return cur }
+        let d = cam.center - l.eye
+        guard simd_length(d) < 8 else { return cur }          // a teleport, a respawn: no vectors across it
+        let t = translationMatrix(d)
+        return (l.vp[0] * t, (l.vp.count > 1 ? l.vp[1] : l.vp[0]) * t)
+    }
+    /// Once a drawn frame, after its passes are recorded.
+    static func drawn(_ cam: EyeCamera) { last = (cam.viewProj, cam.center) }
+    static func reset() { last = nil }
 }
 
 // One frame's camera: the head centre in world space and each eye's camera-relative view-projection.
@@ -1795,6 +1821,7 @@ final class SceneRenderer {
             for pass in 0..<2 {
                 let pending = pass == 0 ? pendingDraws : pendingCut, counts = pass == 0 ? batchCount : batchCut
                 if pending.isEmpty { continue }
+                if !WorldRenderer.debugSkip.isEmpty && WorldRenderer.debugSkip.contains(["solid", "cut", "detail", "detailCut"][half * 2 + pass]) { continue }
                 guard used + pending.count <= cap else { break }
                 vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(["solid", "cut", "detail", "detailCut"][half * 2 + pass]))
 
@@ -2815,6 +2842,7 @@ extension SceneRenderer {
             for pass in 0..<2 {
                 let pending = pass == 0 ? pendingDraws : pendingCut, counts = pass == 0 ? batchCount : batchCut
                 if pending.isEmpty { continue }
+                if !WorldRenderer.debugSkip.isEmpty && WorldRenderer.debugSkip.contains(["solid", "cut", "detail", "detailCut"][half * 2 + pass]) { continue }
                 guard used + pending.count <= cap else { break }
                 vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe(["solid", "cut", "detail", "detailCut"][half * 2 + pass]))
                 batchStart.removeAll(keepingCapacity: true)

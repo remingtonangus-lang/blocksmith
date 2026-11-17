@@ -35,6 +35,9 @@ vec4 triTex(float layer, bool turned) {
 
 void main() {
     vec2 uv = oUV;
+    // Ledger 231 (headset trials, BS_FXADD): what the land's pixels cost. Not a look to ship.
+    if (fxOn(4096)) { vec4 c0 = texture(tex, vec3(uv, oLayer)); outColor = vec4(applyFog(c0.rgb * oTint * oShade, oDist), 1.0); return; }
+    if (fxOn(2048)) { vec4 c0 = texture(tex, vec3(uv, oLayer)); outColor = worldColor(vec4(applyFogDir(c0.rgb * oTint * oShade, oRel, oDist), 1.0)); return; }
     if (oAnim > 0.5 && oAnim < 1.5) { uv += vec2(0.0, fract(u.params.z * 0.04)); }
     texSz = vec2(textureSize(tex, 0).xy);
     triOn = dot(oNrm, oNrm) > 0.25;

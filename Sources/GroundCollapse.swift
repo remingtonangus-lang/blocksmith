@@ -209,6 +209,7 @@ extension FieldTerrain {
     // overhang): a piece of under 400 cells touching neither the chunk's sides nor its floor is taken out. Larger pieces
     // and pieces reaching a side are left (they may be held up next door, and the sky islands are designed).
     static var floatersDropped = 0                          // (harness tally, cells; not thread-exact)
+    static let oldFloaters = Env.all["BS_OLDFLOATERS"] == "1"
     static func dropFloaters(_ f: inout FieldData) {
         let n = min(f.fd.count, CSQ * CH)
         guard n > 0 else { return }
@@ -221,6 +222,16 @@ extension FieldTerrain {
         // read checked it, about a tenth of the field split's time).
         let cs = CS, csq = CSQ
         f.fd.withUnsafeMutableBufferPointer { fd in mark.withUnsafeMutableBufferPointer { mk in
+        // Ledger 283: a column's unbroken run of ground from y 0 up is held by the floor (each cell rests on the one
+        // below, down to y 0), so it is marked 2 without a flood; a flood that meets a 2 is part of the floor's piece
+        // (held: nothing taken out, no border seed), exactly as when the floor's own flood reached it. Most of a
+        // chunk's ground is such runs. BS_OLDFLOATERS=1: every cell flooded, as before.
+        if !oldFloaters {
+            for c in 0..<csq {
+                var i = c
+                while i < n && fd[i] > 0 { mk[i] = 2; i += csq }
+            }
+        }
         for s in 0..<n where fd[s] > 0 && mk[s] == 0 {
             mk[s] = 1
             stack.removeAll(keepingCapacity: true); comp.removeAll(keepingCapacity: true)
@@ -242,7 +253,7 @@ extension FieldTerrain {
                     default: j = i - csq
                     }
                     guard j >= 0 && j < n else { continue }
-                    if fd[j] > 0 && mk[j] == 0 { mk[j] = 1; stack.append(j) }
+                    if fd[j] > 0 { if mk[j] == 0 { mk[j] = 1; stack.append(j) } else if mk[j] == 2 { anchored = true; held = true } }
                 }
             }
             if !anchored { for i in comp { fd[i] = outsideV; dropped += 1 } }

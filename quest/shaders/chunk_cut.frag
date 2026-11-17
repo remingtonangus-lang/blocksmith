@@ -12,6 +12,13 @@ layout(location = 8) flat in float oFace;
 layout(location = 0) out vec4 outColor;
 void main() {
     vec2 uv = oUV;
+    // Ledger 231 (headset trials, BS_FXADD): what the land's pixels cost. Not a look to ship.
+    if (fxOn(2048) || fxOn(4096)) {
+        vec4 c0 = texture(tex, vec3(uv, oLayer));
+        if (c0.a < 0.5 && oAnim < 2.5) { discard; }
+        outColor = fxOn(4096) ? vec4(applyFog(c0.rgb * oTint * oShade, oDist), 1.0) : worldColor(vec4(applyFogDir(c0.rgb * oTint * oShade, oRel, oDist), 1.0));
+        return;
+    }
     if (oAnim > 0.5 && oAnim < 1.5) { uv += vec2(0.0, fract(u.params.z * 0.04)); }
     // Grass tops: turned per block (texSharpTurned); the cell is the world block under this fragment.
     bool core = oAnim > 2.5;           // a leaf crown's core: no holes, darker (the clear texels are mid grey under the tint)
