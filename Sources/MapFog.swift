@@ -10,6 +10,7 @@ final class MapFog {
     static let tile = 32
     static let reveal = 96
     static let dark: UInt32 = 0x0C0D10
+    static let oldFogClock = Env.all["BS_OLDFOGCLOCK"] == "1"     // (ledger 252)
 
     private var tiles: [String: Set<Int64>] = [:]       // dimension -> explored tiles
     private var cur: Set<Int64> = []                    // tiles[dim], kept apart so the map's per-cell test hashes no String
@@ -71,6 +72,10 @@ final class MapFog {
         active = g.survival
         let d = g.dim.dim.rawValue                       // (the case name: the keys saved before)
         if d != dim { dim = d; cur = tiles[d] ?? []; version &+= 1 }
+        // (ledger 252: the timers hold the last game's clock, and a new Game's clock, a world switched to or opened in
+        // the same session, starts again at 0: nothing was revealed, so the minimap stayed black, nor saved, until the
+        // new clock passed the old one. A clock behind the timers starts them again. BS_OLDFOGCLOCK=1: as before.)
+        if !MapFog.oldFogClock && (g.clock < timer || g.clock < saveTimer) { timer = -10; saveTimer = g.clock }
         guard g.clock - timer >= 1 else { return }
         timer = g.clock
         for i in 0..<max(1, g.coop.seatCount) { reveal(around: g.coop.seatPlayer(i, g).pos) }

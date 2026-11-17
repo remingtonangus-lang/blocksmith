@@ -57,6 +57,9 @@ enum SceneScript {
         var ship: Ship?
         var train: Trains.Train?
         var walkThere: Float?, walkLowest: Float?, walkStep: Float?
+        // (`stream on`: every second of play the land round him is loaded before the next tick, as a headset's streaming
+        // keeps up in real time; the harness plays faster than real time and a train could run off the loaded land)
+        var streamSync = false
         let loops0 = Railways.loopsOn
         defer { Railways.loopsOn = loops0 }
         func coachList() -> [Mob] { train?.cars.filter { $0.variant == Trains.coach } ?? [] }
@@ -78,7 +81,10 @@ enum SceneScript {
         }
         func play(_ secs: Double, _ a: AgentAction? = nil) {
             tickMs.removeAll(keepingCapacity: true)
-            for _ in 0..<max(1, Int(secs * 72)) { step(a ?? held) }
+            for k in 0..<max(1, Int(secs * 72)) {
+                if streamSync && k % 72 == 0 { _ = w.loadSync(center: g.player.pos, radius: max(4, w.renderDistance)) }
+                step(a ?? held)
+            }
         }
         // Turn the eye onto a point through the mouse path (one tick of look), as a player would.
         func aim(_ p: V3) {
@@ -135,7 +141,16 @@ enum SceneScript {
             case "riding": return g.riding == nil ? 0 : 1
             case "aboard": return w.ships.aboard == nil ? 0 : 1
             case "player.ground": return p.onGround ? 1 : 0
-            case "player.inblock": return w.collides(p.pos + V3(-0.25, 0.05, -0.25), p.pos + V3(0.25, 1.7, 0.25)) ? 1 : 0
+            case "player.inblock":
+                // (aboard a hull, in its frame: the world's test counts the hull he stands in as a whole box round it,
+                // so standing in a coach's aisle read as stuck; seated, his body is in the seat by design: not read)
+                if g.riding != nil { return nil }
+                if let s = w.ships.aboard {
+                    let l = s.toLocal(p.pos)
+                    w.frame = s; defer { w.frame = nil }
+                    return w.collides(l + V3(-0.25, 0.05, -0.25), l + V3(0.25, 1.7, 0.25)) ? 1 : 0
+                }
+                return w.collides(p.pos + V3(-0.25, 0.05, -0.25), p.pos + V3(0.25, 1.7, 0.25)) ? 1 : 0
             case "player.falling": return p.vel.y < -6 ? 1 : 0
             case "train.dist": return nearestTrain().map { simd_length($0.1.pos - p.pos) }
             // hud.clash: on the HUD's vehicle panels (1280x800), words that a gauge bar covers, plus every panel past the
@@ -464,6 +479,16 @@ enum SceneScript {
                 switch t[1] {
                 case "player":
                     print("\(ln) at \(f1(p.pos.x)) \(f1(p.pos.y - Float(YOFF))) \(f1(p.pos.z)), speed \(f1(simd_length(p.vel))), health \(g.health), held \(g.held.isEmpty ? "nothing" : Items.key(g.held.item)), riding \(g.riding?.kind.key ?? "nothing"), helm \(w.ships.pilot?.name ?? "none"), aboard \(w.ships.aboard?.name ?? "none")")
+                    // (stuck: the cells whose boxes his body overlaps, with what is there)
+                    let mn = p.pos + V3(-0.25, 0.05, -0.25), mx = p.pos + V3(0.25, 1.7, 0.25)
+                    if w.collides(mn, mx) {
+                        var hits: [String] = []
+                        for y in Int(floor(mn.y))...Int(floor(mx.y)) { for z in Int(floor(mn.z))...Int(floor(mx.z)) { for x in Int(floor(mn.x))...Int(floor(mx.x)) {
+                            let c0 = V3(Float(x), Float(y), Float(z))
+                            if w.collides(simd_max(mn, c0), simd_min(mx, c0 + V3(1, 1, 1))) { hits.append("\(x) \(y - YOFF) \(z) \(cellText(x, y, z))") }
+                        } } }
+                        print("\(ln) in blocks: " + hits.joined(separator: "; "))
+                    }
                 case "train":
                     print("\(ln) " + (train.map { "\(f1($0.blocksPerSec)) b/s, throttle \(f1($0.throttle)), brake \(f1($0.brake)), \($0.cars.count) cars" } ?? "none"))
                 case "ship":
@@ -473,6 +498,9 @@ enum SceneScript {
                     print("\(ln) last \(tickMs.count) ticks: avg \(f1(Float(avg))) ms, worst \(f1(Float(tickMs.max() ?? 0))) ms")
                 default: bad()
                 }
+            case "stream" where t.count == 2:
+                streamSync = t[1] == "on"
+                print("\(ln) streaming kept up: \(streamSync)")
             case "time":
                 // time FRAC: the day's clock (0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight), the day kept
                 guard t.count == 2, let f = Double(t[1]) else { bad(); continue }

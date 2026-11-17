@@ -17,6 +17,10 @@ import Foundation
 // dir6: 0 down, 1 up, 2 north(-Z), 3 south(+Z), 4 west(-X), 5 east(+X). facing (4): 0 north, 1 south, 2 west, 3 east.
 extension BlockRegistry {
     static let oldSignalTorch = Env.all["BS_OLDSIGNALTORCH"] == "1"
+    // Ledger 247 (Nov 16 evening playtest at the workshop, "blocks hovering"): a repeater's and a comparator's torches
+    // were a dark 2 px stick under a glowing 3 px tip; lit, at a few blocks the dark stick vanished against the slab and
+    // the tips read as little cubes floating over it. Each torch is now its glowing tip alone, sitting on the slab.
+    static let oldCompTips = Env.all["BS_OLDCOMPTIPS"] == "1"
     static let oldPistonLook = Env.all["BS_OLDPISTONLOOK"] == "1"
     static let dir6 = [IVec3(0, -1, 0), IVec3(0, 1, 0), IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)]
     static let buttonWoods = ["oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "crimson", "warped", "pale_oak"]
@@ -208,6 +212,15 @@ extension BlockRegistry {
                     var h2 = Box(backC - 1, 4, backZ - 1, backC + 1, 7, backZ + 1); h2.tex = bulb
                     d.boxes += [t2, h2]
                 }
+                if !BlockRegistry.oldCompTips {
+                    // (ledger 247: the tips alone, on the slab)
+                    var s1 = Box(frontC - 1, 2, frontZ - 1, frontC + 1, 5, frontZ + 1); s1.tex = bulb
+                    d.boxes = [slab, s1]
+                    if locked { d.boxes.append(t2) } else {
+                        var s2 = Box(backC - 1, 2, backZ - 1, backC + 1, 5, backZ + 1); s2.tex = bulb
+                        d.boxes.append(s2)
+                    }
+                }
             }
             add(d)
         } } } }
@@ -231,6 +244,11 @@ extension BlockRegistry {
                 var h1 = Box(Int(b1.x0), 4, Int(b1.z0), Int(b1.x1), 7, Int(b1.z1)); h1.tex = bulb
                 var h2 = Box(Int(b2.x0), 4, Int(b2.z0), Int(b2.x1), 7, Int(b2.z1)); h2.tex = bulb
                 d.boxes = [Box(0, 0, 0, 16, 2, 16), fb, b1, h1, b2, h2]
+                if !BlockRegistry.oldCompTips {
+                    // (ledger 247: the back tips alone, 3 px on the slab; the front one stays 2 px, 4 in subtract mode)
+                    h1.y0 = 2; h1.y1 = 5; h2.y0 = 2; h2.y1 = 5
+                    d.boxes = [Box(0, 0, 0, 16, 2, 16), fb, h1, h2]
+                }
             }
             add(d)
         } } }

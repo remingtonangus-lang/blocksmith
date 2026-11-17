@@ -30,6 +30,7 @@ enum ProvingGrounds {
     static let oldChannel = Env.all["BS_OLDCHANNEL"] == "1"
     static let channelLead = 24, channelTail = 6
     static var park240: Bool { !VehicleZoo.oldBroadside || !oldChannel }      // (marker3: the park as ledger 240 lays it)
+    static var park249: Bool { !VehicleZoo.oldTruckCab || !VehicleZoo.oldAirWagon }   // (marker4: ledgers 249-250's trucks and air wagons)
 
     // Each vehicle's plot: rows by family, ten across, a walkway and the signs to the north of each row.
     static let park: (plots: [Plot], width: Int, depth: Int, rows: [(z: Int, water: Bool, x1: Int, z0: Int, z1: Int)]) = {
@@ -88,6 +89,9 @@ enum ProvingGrounds {
     // water ahead: grounds built before, broadsides into their hulls and boats a block from the channel's end, are built
     // again once; the deck's tiles clear what stood on the old layout)
     static func marker3(_ o: IVec3) -> IVec3 { IVec3(o.x, o.y - 1, o.z - 2) }
+    // (ledgers 249-250: a fourth, laid by builds whose trucks have cabs and whose flying cars rounded envelopes; the air
+    // wagon's envelope is wider than the old layer, so the park's plots move: older grounds are built again once)
+    static func marker4(_ o: IVec3) -> IVec3 { IVec3(o.x + 1, o.y - 1, o.z - 2) }
     // The deck's floor layer, held like bedrock (World.heldDeck): it stands on nothing the load checks count as ground.
     static func held(_ o: IVec3) -> HeldDeck {
         let d = deck
@@ -295,7 +299,7 @@ enum ProvingGrounds {
                 } } }
                 let shift = base - pl.lo
                 for (c, blk) in p.cells { _ = w.setBlockAsync(c.x + shift.x, c.y + shift.y, c.z + shift.z, blk) }
-                var lines = [String(format: "Vehicle %03d", pl.index + 1), familyNames[p.family] ?? p.family.rawValue]
+                var lines = [String(format: "Vehicle %03d", pl.index + 1), p.label ?? familyNames[p.family] ?? p.family.rawValue]
                 lines.append(p.drives ? (p.guns > 0 ? "\(p.guns) gun\(p.guns == 1 ? "" : "s")" : "") : "no drive")
                 // (a boat's sign on the walkway, at the channel's edge north of it)
                 let rowZ = park.rows.first(where: { $0.z0 == pl.at.z })?.z ?? (pl.at.z - 5)
@@ -364,6 +368,7 @@ enum ProvingGrounds {
             put(g.world, marker(o).x, marker(o).y, marker(o).z, key(markerBlock))
             if !HeldDeck.old { put(g.world, marker2(o).x, marker2(o).y, marker2(o).z, key(markerBlock)) }
             if park240 { put(g.world, marker3(o).x, marker3(o).y, marker3(o).z, key(markerBlock)) }
+            if park249 { put(g.world, marker4(o).x, marker4(o).y, marker4(o).z, key(markerBlock)) }
         }
         return b
     }
@@ -372,9 +377,10 @@ enum ProvingGrounds {
     static func origin(spawn: V3) -> IVec3 { IVec3(Int(floorf(spawn.x)) - 4, deckY, Int(floorf(spawn.z)) + 6) }
 
     static func built(_ w: World, _ o: IVec3) -> Bool {
-        let m = marker(o), m2 = marker2(o), m3 = marker3(o)
+        let m = marker(o), m2 = marker2(o), m3 = marker3(o), m4 = marker4(o)
         return w.block(m.x, m.y, m.z) == key(markerBlock) && (HeldDeck.old || w.block(m2.x, m2.y, m2.z) == key(markerBlock))
             && (!park240 || w.block(m3.x, m3.y, m3.z) == key(markerBlock))
+            && (!park249 || w.block(m4.x, m4.y, m4.z) == key(markerBlock))
     }
 }
 
