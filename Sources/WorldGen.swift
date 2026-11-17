@@ -117,6 +117,7 @@ final class WorldGen: TerrainGenerator {
 
     // Top solid internal y at a column (terrain only: no caves, trees or water), bit-identical to what
     // the chunk lattice produces, so structures can agree on ground height across chunks.
+    static let oldGroundY = Env.all["BS_OLDGROUNDY"] == "1"
     func groundY(_ x: Int, _ z: Int) -> Int {
         let x0 = floorDiv(x, 4) * 4, z0 = floorDiv(z, 4) * 4
         let fx = Float(x - x0) / 4, fz = Float(z - z0) / 4
@@ -128,10 +129,14 @@ final class WorldGen: TerrainGenerator {
         while y > 4 {
             let gy = min(gyTop, y >> 3)
             if gy != cachedGY {
+                // Ledger 281: walking down one lattice level, the new upper level is the old lower one (the same
+                // four densities): reuse them instead of making them again. BS_OLDGROUNDY=1: made again, as before.
+                if gy == cachedGY - 1 && !WorldGen.oldGroundY { L1 = L0 } else {
+                    let y1 = (gy + 1) * 8
+                    L1 = (density(c00, x0, y1, z0), density(c10, x0 + 4, y1, z0), density(c01, x0, y1, z0 + 4), density(c11, x0 + 4, y1, z0 + 4))
+                }
                 cachedGY = gy
                 L0 = (density(c00, x0, gy * 8, z0), density(c10, x0 + 4, gy * 8, z0), density(c01, x0, gy * 8, z0 + 4), density(c11, x0 + 4, gy * 8, z0 + 4))
-                let y1 = (gy + 1) * 8
-                L1 = (density(c00, x0, y1, z0), density(c10, x0 + 4, y1, z0), density(c01, x0, y1, z0 + 4), density(c11, x0 + 4, y1, z0 + 4))
             }
             let fy = Float(y - gy * 8) / 8
             let x00 = L0.0 + (L0.1 - L0.0) * fx, x10 = L1.0 + (L1.1 - L1.0) * fx
