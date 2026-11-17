@@ -54,6 +54,7 @@ enum ParkDriveCheck {
         }
         var bad = [String: [Int]]()
         var planesDown = 0, planes = 0
+        var sightBlocked = [String: [Int]]()
         var fails = 0
         for pl in ProvingGrounds.park.plots where only?.contains(pl.index) ?? true {
             let p = VehicleZoo.plan(pl.index)
@@ -87,6 +88,22 @@ enum ParkDriveCheck {
             if let c = g.chaseOffset, simd_length(V2(c.x, c.z)) > 0.5 {
                 let cam = off(yawOf(-c), yawOf(fwd))
                 if cam > 20 { fail("chase", String(format: "the chase view looks on %.0f degrees off its forward", cam)) }
+            }
+            // (ledger 249) Sight: from his eye at the helm, the hull's own solid blocks (glass aside) on his line ahead in the
+            // first 8 blocks. A truck's load box stood at its bow, over his eyes.
+            do {
+                let eyeL = s.toLocal(g.player.eye), fl = s.toLocal(g.player.eye + fwd) - eyeL
+                var t: Float = 0.3, hidden = false
+                while t < 8 && !hidden {
+                    let q = eyeL + fl * t
+                    let b = s.grid.get(Int(floorf(q.x)), Int(floorf(q.y)), Int(floorf(q.z)))
+                    if b != AIR && Blocks.opaque[Int(b)] { hidden = true }
+                    t += 0.2
+                }
+                if hidden {
+                    sightBlocked[p.family.rawValue, default: []].append(pl.index)
+                    if p.family == .truck { fail("sight", "the hull's own blocks stand over his eyes ahead of the helm") }
+                }
             }
             // Guns: muzzles out of the hull; looking ahead, the shells go where he looks.
             let centre = (s.localMin + s.localMax) * 0.5
@@ -153,6 +170,7 @@ enum ParkDriveCheck {
             check(ok, String(format: "parkdrive %03d ", pl.index) + p.name + ": " + notes.joined(separator: "; "))
         }
         print("parkdrive planes: \(planesDown) of \(planes) don't leave the deck at full ahead for 8 s")
+        print("parkdrive sight: his view ahead from the helm hidden by the hull's own blocks: " + (sightBlocked.isEmpty ? "none" : sightBlocked.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value.count) (\($0.value.map { String($0 + 1) }.joined(separator: ",")))" }.joined(separator: ", ")))
         let sum = bad.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value.count)" }.joined(separator: ", ")
         print("parkdrive: \(fails) vehicles flagged" + (sum.isEmpty ? "" : " (" + sum + ")"))
     }

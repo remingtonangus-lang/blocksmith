@@ -62,6 +62,7 @@ enum Cinema {
         let skip: [String]?         // render layers left out of this shot only (QUEST_SKIP names, e.g. "ships")
         let follow: Bool?           // false: the camera keeps its own keyframes while the frigate flies past (default true)
         let hold: String?           // first person: the VR hands drawn, holding this item (an item key; "" or "hands": empty hands)
+        let hud: Bool?              // with hold: the headset's in-play HUD panel and laser drawn as in play (store stills, ledger 251)
         let playerMount: String?    // "horse": the camera rides a saddled horse that gallops along the camera's heading
         let chase: [Float]?         // with playerMount: the game's behind view instead of the rider's eye, [side, up, back, ahead]
         let heldScale: Float?       // the game's Held Item Size option for this shot (default 0.8, its smallest)
@@ -122,6 +123,10 @@ enum Cinema {
         if field { w.makeFieldWorld() }
         World.lodNear = 99; World.leafNear = QuestApp.leafNear
         let g = Game(world: w, save: nil, persistent: false)
+        // (ledger 251: the HUD's damage marks are app-wide; a shot's own (the frigate's crew firing on him in her warm-up)
+        // showed as red strokes round the view in the shots after it, whose clocks start again under the marks' times)
+        CombatHUD.shared = CombatHUD()
+        let chase0 = QuestSettings.chaseView          // (a `board` turns Chase View off for its shot; the saved setting comes back after)
         if field { g.smoothTerrain = true; SmoothTerrain.use(world: true, world: w) }
         g.time = (s.time ?? 0.27) * DAY_LENGTH
         g.player.flying = true
@@ -210,6 +215,13 @@ enum Cinema {
             return y
         }
         // A point relative to the subject; `onGround`: its y over the ground there rather than over the subject.
+        // The top of what is built at a column (a wall walk, a tower roof): the first solid block down from 40 over the subject.
+        func builtTop(_ x: Float, _ z: Float) -> Float {
+            let ix = Int(floor(x)), iz = Int(floor(z))
+            var y = min(CH - 1, Int(origin.y) + 40)
+            while y > 0 && !Blocks.fullCollide[Int(w.block(ix, y, iz))] { y -= 1 }
+            return Float(y + 1)
+        }
         func rel(_ v: [Float], _ onGround: Bool) -> V3 {
             let p = origin + V3(v[0], 0, v[2])
             return V3(p.x, (onGround ? ground(p.x, p.z) : origin.y) + v[1], p.z)
@@ -241,13 +253,14 @@ enum Cinema {
             g.player.pos = eye - V3(0, g.player.eyeHeight, 0); g.player.vel = .zero; g.player.flying = true
             g.health = 20
         }
+        var keepFelled = false                     // (a shot that fells a tree keeps its body: the `fell` event)
         func calm() {
             // Nov 14 (v3d/v3e reviews: "a dark blade sweeps through the camera", "a sheared tarp of leaves"): a tree by
             // the farm plot was felled at load and came down across the view. No felled bodies in the footage.
             // (v3f still showed it with only Felling.falls cleared: a tree the warm-up had already let go of. Every
             // felled or toppled body goes.)
-            for sh in w.ships.list where sh.name == Felling.name || sh.name == Game.toppledName { print("cine: \(s.name): cleared a felled body (\(sh.blockCount) blocks)"); w.ships.remove(sh) }
-            Felling.falls.removeAll()
+            for sh in w.ships.list where !keepFelled && (sh.name == Felling.name || sh.name == Game.toppledName) { print("cine: \(s.name): cleared a felled body (\(sh.blockCount) blocks)"); w.ships.remove(sh) }
+            if !keepFelled { Felling.falls.removeAll() }
             guard s.peaceful == true else { return }
             let night: Set<MobKind> = [.zombie, .skeleton, .creeper, .spider, .enderman, .witch, .slime, .phantom, .drowned, .husk, .stray,
                                        .caveSpider, .zombieVillager, .silverfish, .endermite, .bogged, .parched]
@@ -260,7 +273,7 @@ enum Cinema {
         for i in 0..<warm { hold(start); g.tick(dt); calm(); if i % 144 == 143 { _ = w.loadSync(center: start, radius: w.renderDistance) } }
         MainGun.hideAim = true                     // shots look on from outside the helm; its aim ring reads as a stray line
         if s.hold != nil { QuestSettings.heldScale = s.heldScale ?? 0.8 }
-        let rig = try Rig(game: g, ctx: ctx, width: W, height: H, fovDeg: s.fov ?? 70, hold: s.hold)
+        let rig = try Rig(game: g, ctx: ctx, width: W, height: H, fovDeg: s.fov ?? 70, hold: s.hold, hud: s.hud ?? false)
         if let hs = s.hands, hs.count > 0, hs[0].count == 3 { rig.rest[1] = V3(hs[0][0], hs[0][1], hs[0][2]) }
         if let hs = s.hands, hs.count > 1, hs[1].count == 3 { rig.rest[0] = V3(hs[1][0], hs[1][1], hs[1][2]) }
         if let tl = s.handTilt { rig.tilt = tl * .pi / 180 }
@@ -294,6 +307,7 @@ enum Cinema {
         let baseTime = g.time
         print(String(format: "cine: %@: ready after %.1f s; %d frames at %dx%d", s.name, CFAbsoluteTimeGetCurrent() - t0, frames, W, H))
         var tick = 0
+        var boarded = false
         var cruiseFrom: V3?
         var cruiseRot: Quat?
         // Townsfolk and animals that wander up to the lens are walked off out of shot (scripted mobs stay put).
@@ -319,8 +333,13 @@ enum Cinema {
                     let goal = e.to.map { rel($0, true) }
                     for i in 0..<n {
                         let ang = Float(i) * 2.399, r = sp * sqrtf(Float(i) / Float(max(1, n)))
-                        let q = V3(p.x + cosf(ang) * r, 0, p.z + sinf(ang) * r)
-                        let at = V3(q.x, ground(q.x, q.z) + 0.05, q.z)
+                        var q = V3(p.x + cosf(ang) * r, 0, p.z + sinf(ang) * r)
+                        if e.ground == false {                    // (on the wall: in toward the subject until a built top stands over the ground)
+                            let d = simd_normalize(V3(origin.x - q.x, 0, origin.z - q.z))
+                            var k = 0
+                            while k < 40 && builtTop(q.x, q.z) - ground(q.x, q.z) < 3 { q += d * 0.5; k += 1 }
+                        }
+                        let at = V3(q.x, (e.ground ?? true) ? ground(q.x, q.z) + 0.05 : builtTop(q.x, q.z), q.z)     // (ground false: on the built top, a wall walk)
                         if let m = Mob.structureMob(e.mob ?? "soldier_trooper", at: at) ?? MobKind.named(e.mob ?? "").map({ Mob($0, at: at) }) {
                             if let y = e.yaw { m.yaw = -y * .pi / 180 }
                             m.persistent = true
@@ -412,6 +431,66 @@ enum Cinema {
                         let qy = (e.ground ?? true) ? ground(qx, qz) : p.y
                         w.setBlock(Int(floor(qx)), Int(floor(qy)), Int(floor(qz)), id)
                     }
+                case "board":                                // he takes his place: `mob` "cab" (the nearest train's engine),
+                    // "coach" (its `n`-th coach's seat) or "helm" (the shot's frigate); the camera is his eye from then on, the
+                    // keys giving only the look (store stills, ledger 251)
+                    let want = e.mob ?? "cab"
+                    g.player.flying = false
+                    if want == "deck", let fr = frigate {
+                        // (on her deck at `at`, in her own blocks' frame (x across, y up, z bow 0 to stern): her crew gone, as
+                        // for the helm; he stands aboard, carried with her)
+                        g.mobs.mobs.removeAll { simd_length($0.pos - fr.pos) < 70 }; g.mobs.rebuildIndex()
+                        CombatHUD.shared = CombatHUD()
+                        let a = e.at ?? [13, 14, 40]
+                        fr.captured = true      // (his, as after the fight in play: no foe's status bar across the top)
+                        g.player.pos = fr.toWorld(V3(a[0], a[1], a[2])); g.player.vel = .zero
+                        w.ships.aboard = fr; boarded = true
+                    } else if want == "helm", let fr = frigate {
+                        // (a frigate he has taken: her crew, who shot him at the wheel, are gone, as after the fight in play)
+                        g.mobs.mobs.removeAll { simd_length($0.pos - fr.pos) < 70 }; g.mobs.rebuildIndex()
+                        g.startPiloting(fr); boarded = w.ships.pilot != nil
+                        CombatHUD.shared = CombatHUD()       // (the fight for her is over: no marks from it on his panel)
+                    }
+                    else if let tr = Trains.trains.values.min(by: { simd_length(($0.cars.first?.pos ?? .zero) - p) < simd_length(($1.cars.first?.pos ?? .zero) - p) }) {
+                        let car = want == "cab" ? tr.cars.first(where: { Trains.isEngine($0) }) : tr.cars.filter { $0.variant == Trains.coach }.dropFirst(e.n ?? 0).first
+                        if let c = car { _ = Trains.use(g, c); boarded = g.riding != nil }
+                    }
+                    // (first person: his Chase View setting off, and the camera's look is his head's: no body turn)
+                    QuestSettings.chaseView = false; g.faceYaw = nil
+                    print("cine: \(s.name): board \(want): \(boarded ? "aboard" : "FAILED")")
+                case "fell":                                 // a tree at the spot cut at its foot, as his axe fells one: it goes
+                    // over and comes to rest as in play (its body kept in this shot; `calm` clears the warm-up's own falls)
+                    let ix = Int(floor(p.x)), iz = Int(floor(p.z))
+                    var y = Int(ground(p.x, p.z)) - 2
+                    while y < Int(ground(p.x, p.z)) + 4 && !Blocks.key(w.block(ix, y, iz)).hasSuffix("_log") { y += 1 }
+                    let id = w.block(ix, y, iz)
+                    if Blocks.key(id).hasSuffix("_log") {
+                        keepFelled = true
+                        // (`to`: where he stands as he cuts, which way it goes over: away from him)
+                        let stood = g.player.pos
+                        if let t = e.to { g.player.pos = rel(t, true) }
+                        w.setBlock(ix, y, iz, AIR)
+                        g.fellCheck(IVec3(ix, y, iz), id)
+                        g.player.pos = stood
+                        print("cine: \(s.name): felled the \(Blocks.key(id)) at \(ix) \(y - YOFF) \(iz): \(w.ships.list.filter { Felling.isFelled($0) }.count) felled")
+                    } else { print("cine: \(s.name): no log at \(ix) \(iz)") }
+                case "blueprint":                            // a Builders' Grounds build (`block`: its key) laid to `power` of its
+                    // cells in plan order (floor up, course by course), the hand aimed at the next one (store stills)
+                    guard let bp = BuildersGrounds.blueprints().first(where: { $0.key == (e.block ?? "cottage") }) else { print("cine: no blueprint \(e.block ?? "")"); break }
+                    let o = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+                    let cells = bp.draft.cells.sorted { a, b in a.key.y != b.key.y ? a.key.y < b.key.y : (a.key.z != b.key.z ? a.key.z < b.key.z : a.key.x < b.key.x) }
+                    let n = min(cells.count, Int(Float(cells.count) * (e.power ?? 0.6)))
+                    let hi = cells.map { $0.key }.reduce(IVec3(0, 0, 0)) { IVec3(max($0.x, $1.x), max($0.y, $1.y), max($0.z, $1.z)) }
+                    w.editBatch {
+                        for y in 0...(hi.y + 2) { for z in -1...(hi.z + 1) { for x in -1...(hi.x + 1) { w.setBlock(o.x + x, o.y + y, o.z + z, AIR) } } }
+                        for (c, id) in cells.prefix(n) { w.setBlock(o.x + c.x, o.y + c.y, o.z + c.z, id) }
+                    }
+                    if n < cells.count {
+                        let c = cells[n].key
+                        let at = V3(Float(o.x + c.x) + 0.5, Float(o.y + c.y) + 0.5, Float(o.z + c.z) + 0.5)
+                        aims.append((t, t + 999, { at }))
+                    }
+                    print("cine: \(s.name): \(bp.key) laid \(n) of \(cells.count) cells at \(o.x) \(o.y) \(o.z)")
                 case "lay", "reap":                          // the player's hand places (or cuts) each cell in turn
                     let cut = e.do == "reap"
                     let id: BlockID = cut ? AIR : (Blocks.has(e.block ?? "oak_planks") ? Blocks.id(e.block ?? "oak_planks") : Blocks.id("oak_planks"))
@@ -528,8 +607,12 @@ enum Cinema {
                 let off = fr.pos - cruiseFrom!
                 eye += off; look += off
             }
+            let lookOff = look - eye
             for _ in 0..<perFrame {
-                hold(eye)
+                if boarded {
+                    g.health = 20; g.onFire = 0
+                    if let fr = frigate, w.ships.aboard === fr { g.mobs.mobs.removeAll { simd_length($0.pos - fr.pos) < 70 }; w.pendingMobs.removeAll(); g.arms.slugs.removeAll() }
+                } else { hold(eye) }
                 for mr in marchers where mr.m.health > 0 {
                     let d = V3(mr.goal.x - mr.m.pos.x, 0, mr.goal.z - mr.m.pos.z), l = simd_length(d)
                     if l > 1.2 {
@@ -566,6 +649,22 @@ enum Cinema {
                 eye = sample(s.cam, t, camPos) + (fr.pos - c0); look = sample(s.cam, t, camLook) + (fr.pos - c0)
             }
             if let r = s.timeRate { g.time = baseTime + r * t * DAY_LENGTH }
+            if boarded {
+                // (his look: the keys' offset turned onto where he rides: a train's way of travel, a ship's bow)
+                eye = g.player.eye
+                var fwd: V3?
+                if let r = g.riding, let tr = Trains.trains.values.first(where: { $0.cars.contains { $0 === r } }), let a = tr.cars.first, let z = tr.cars.last {
+                    let v = V3(a.vel.x, 0, a.vel.z)
+                    fwd = simd_length(v) > 0.5 ? simd_normalize(v) : simd_normalize(V3(a.pos.x - z.pos.x, 0, a.pos.z - z.pos.z))
+                } else if let sh = w.ships.pilot ?? w.ships.aboard {
+                    let d = sh.dirToWorld(sh.fwd); fwd = simd_normalize(V3(d.x, 0, d.z))
+                }
+                if let f = fwd {
+                    // lookOff read in a frame where -z is ahead and +x to the right
+                    let right = V3(-f.z, 0, f.x)
+                    look = eye + right * lookOff.x + V3(0, lookOff.y, 0) - f * lookOff.z
+                } else { look = eye + lookOff }
+            }
             if f % 30 == 0 { _ = w.loadSync(center: eye, radius: min(w.renderDistance, 6)) }
             if still && f != frames / 2 { continue }
             let d = simd_normalize(look - eye)
@@ -589,6 +688,7 @@ enum Cinema {
             for m in g.mobs.mobs where simd_length(m.pos - origin) < Float(r) * 2 { print("cine: \(s.name): mob \(m.kind.key) at \(Int(m.pos.x)) \(Int(m.pos.y) - YOFF) \(Int(m.pos.z))") }
             for sh in w.ships.list where simd_length(sh.pos - origin) < Float(r) * 4 { print("cine: \(s.name): ship \(sh.name) (\(sh.role)) \(sh.blockCount) blocks") }
         }
+        QuestSettings.chaseView = chase0
         print(String(format: "cine: %@: done in %.0f s", s.name, CFAbsoluteTimeGetCurrent() - t0))
     }
 
@@ -666,8 +766,9 @@ enum Cinema {
             if let h = aimHandWorld { return h }
             return lastEye + lastHead.act(rest[1])
         }
-        init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, hold: String? = nil) throws {
-            self.game = game; self.width = width; self.height = height
+        let hud: Bool
+        init(game: Game, ctx: VkContext, width: Int, height: Int, fovDeg: Float, hold: String? = nil, hud: Bool = false) throws {
+            self.game = game; self.width = width; self.height = height; self.hud = hud && hold != nil
             scene = try SceneRenderer(ctx: ctx, device: sharedSystemDevice as! QuestDevice, views: 2, colorFormat: VK_FORMAT_R8G8B8A8_UNORM)
             try scene.uploadTextures()
             wr = WorldRenderer(scene: scene, game: game)
@@ -678,8 +779,19 @@ enum Cinema {
                 h.controls = c
                 host = h; controls = c
                 wr.extraOpaque = { s, eye in c.drawOpaque(s, eye: eye) }
+                if hud {
+                    // (ledger 251, Meta's VRC.Content.2: the store stills show what the headset shows: the HUD panel, the
+                    // hint beside the aim, the vignette, drawn by the game's own overlay pass)
+                    wr.prePass = { s in c.recordPanel(s) }
+                    wr.extraOverlay = { s, eye in c.drawOverlay(s, eye: eye) }
+                    game.hideHUD = false
+                }
                 game.inventory.selected = 0
-                if !item.isEmpty && item != "hands" && Items.has(item) { game.inventory.held = ItemStack(Items.id(item), 1) }
+                if !item.isEmpty && item != "hands" && Items.has(item) {
+                    game.inventory.held = ItemStack(Items.id(item), 1)
+                    // (a gun comes loaded, as one he carries: a fresh stack read EMPTY - reload on the HUD)
+                    if hud, let gi = Guns.index(game.inventory.held.item) { game.inventory.held.tag = Guns.all[gi].mag }
+                }
                 else {
                     if !item.isEmpty && item != "hands" { print("cine: no item \(item)") }
                     game.inventory.held = .empty                    // empty hands (the creative inventory's first slot showed a grass block)
@@ -745,7 +857,15 @@ enum Cinema {
                 // The tracking space stands on the camera's own feet: the game's collision can lift the player out of a
                 // slope the camera key dips into, and the hands then floated a metre over the view (v3 build shot).
                 if game.riding == nil { game.player.pos = eye - V3(0, game.player.eyeHeight, 0) }
+                host!.rig.bodyYaw = 0; game.faceYaw = nil      // (the camera's yaw is the head's own)
                 host!.rig.update(xr: sim, game: game)
+                if hud {
+                    // (the minimap knows the land round him, as after walking in: a still's spot was never walked to, and
+                    // the map's cells around it read black, a broken-looking panel)
+                    if n == 0 { MapCache.shared.prefill(game.world.gen, x: Int(game.player.pos.x), z: Int(game.player.pos.z), radius: 96, step: 4) }
+                    game.toastText = ""; game.toastQueue.removeAll()      // (a still is a moment with no message up)
+                    controls!.update(dt: 1.0 / 30); controls!.afterTick(dt: 1.0 / 30)
+                }   // (the laser's aim; the panel's place)
                 // the aiming hand where the game draws it (the rig's recentring maps tracking space onto the world)
                 aimHandWorld = host!.rig.toWorld(sim.hands[1].gripPos)
             }

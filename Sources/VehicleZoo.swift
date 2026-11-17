@@ -20,6 +20,15 @@ enum VehicleZoo {
     enum Family: String, CaseIterable { case car, truck, odd, tank, boat, gunboat, airship, plane, heli, hybrid }
     enum Medium { case road, water, air }
     static let oldBroadside = Env.all["BS_OLDBROADSIDE"] == "1"
+    // Ledger 249 (Nov 16 evening playtest, 21:02:23 at Vehicle 062: "This was supposed to be a truck"): a truck was a
+    // flatbed with its load box at the bow, right behind the windscreen and higher than his eyes, and the helm open at the
+    // stern. Now a cab at the bow (engines in the hood, a windscreen, side windows, a door, a roof) with the load box
+    // behind it. BS_OLDTRUCKCAB=1: as before.
+    static let oldTruckCab = Env.all["BS_OLDTRUCKCAB"] == "1"
+    // Ledger 250 (the same playtest, 21:10:13-21:10:48 at Vehicle 080: "This is supposed to be a bus... How can this
+    // thing fly?... Flying bus"): the flying car's balloons were one flat layer on four posts, a roof that flew. Now a
+    // rounded envelope, the posts up into it, and its sign says what it is, an Air Wagon. BS_OLDAIRWAGON=1: as before.
+    static let oldAirWagon = Env.all["BS_OLDAIRWAGON"] == "1"
 
     struct Plan {
         var name: String
@@ -32,6 +41,7 @@ enum VehicleZoo {
         var turrets = 0
         var launch: Float = 0           // a plane's speed when let go in the air
         var expectClimb = false         // airships and helicopters
+        var label: String? = nil        // its sign's kind line when its family's name doesn't fit it
     }
 
     static func key(_ n: String, _ f: String = "oak_planks") -> BlockID { Blocks.has(n) ? Blocks.id(n) : Blocks.id(f) }
@@ -111,6 +121,25 @@ enum VehicleZoo {
             case 1: if L >= 6 && !truck { turret(W / 2, fy + 1, L / 2 - 1, wideOK: W >= 5) }
             default: break
             }
+            if truck && !oldTruckCab {
+                // (ledger 249: the cab at the bow, the box behind it; laid over what the lines above laid, which keep
+                // their draws so every other build stays as it was)
+                let gun = p.cells.contains { $0.1 == cannon }
+                let boxTop = p.cells.filter { $0.1 == trim && $0.0.z >= 1 && $0.0.z <= max(1, L / 2 - 1) }.map { $0.0.y }.max() ?? fy + 2
+                p.cells.removeAll { $0.0.y > fy }
+                var left = engines
+                for x in 0..<W {                                      // the hood: engines, a gun on its nose
+                    if gun && x == W / 2 { put(x, fy + 1, 0, cannon) } else if left > 0 { put(x, fy + 1, 0, engine); left -= 1 } else { put(x, fy + 1, 0, trim) }
+                }
+                for x in 0..<W { put(x, fy + 1, 1, glass); put(x, fy + 2, 1, glass) }       // the windscreen
+                for z in 2...4 { for x in [0, W - 1] where !(x == 0 && z == 3) {             // the sides, a door on the left
+                    put(x, fy + 1, z, trim); put(x, fy + 2, z, glass)
+                } }
+                box(0, W - 1, fy + 3, fy + 3, 1, 4, trim)                                  // the roof
+                p.helm = IVec3(W / 2, fy + 1, 2); put(W / 2, fy + 1, 2, helmS)              // he stands at z 3, under it
+                box(0, W - 1, fy + 1, max(fy + 2, boxTop), 5, L - 2, trim)                 // the load box
+                for x in 0..<W { put(x, fy + 1, L - 1, hull) }                              // the tailboard
+            }
             if fam == .odd && r(5) == 0 {
                 // Made wrong: no engine (it shouldn't move, and nothing should break).
                 p.cells.removeAll { $0.1 == engine }
@@ -122,8 +151,24 @@ enum VehicleZoo {
                     // A flying car: balloons on a frame over it and a pusher propeller at the back (over a turret's
                     // cannons, with a block of air between: an envelope touching the turret made it part of the hull).
                     let ey = fy + (p.turrets > 0 ? 5 : 3)
-                    box(0, W - 1, ey, ey, 0, L - 1, balloon)
-                    for (x, z) in [(0, 0), (W - 1, 0), (0, L - 1), (W - 1, L - 1)] { for y in (fy + 1)..<ey { put(x, y, z, trim) } }
+                    if oldAirWagon {
+                        box(0, W - 1, ey, ey, 0, L - 1, balloon)
+                        for (x, z) in [(0, 0), (W - 1, 0), (0, L - 1), (W - 1, L - 1)] { for y in (fy + 1)..<ey { put(x, y, z, trim) } }
+                    } else {
+                        // (ledger 250: an envelope as the airships' rounded one, five high over the deck's footprint
+                        // and a block past it each way; the corner posts run up until they meet it)
+                        let ry = 2, cx = Float(W - 1) / 2, cz = Float(L - 1) / 2
+                        for y in ey...(ey + ry * 2) { for z in -1...L { for x in -1...W {
+                            let ex = (Float(x) - cx) / (cx + 1.6), ez = (Float(z) - cz) / (cz + 1.6)
+                            let eyy = (Float(y) - Float(ey + ry)) / (Float(ry) + 0.6)
+                            if ex * ex + eyy * eyy + ez * ez <= 1 { put(x, y, z, balloon) }
+                        } } }
+                        for (x, z) in [(0, 0), (W - 1, 0), (0, L - 1), (W - 1, L - 1)] {
+                            var y = fy + 1
+                            while y < ey + ry * 2 && !p.cells.contains(where: { $0.0 == IVec3(x, y, z) && $0.1 == balloon }) { put(x, y, z, trim); y += 1 }
+                        }
+                        p.label = "Air Wagon"
+                    }
                     put(W / 2, fy, L, prop)
                     p.medium = .air; p.expectClimb = true
                 case 1:

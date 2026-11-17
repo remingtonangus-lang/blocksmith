@@ -739,6 +739,7 @@ final class PauseMenu: Menu {
         scroll = 0
     }
 
+    static let oldTitleSave = Env.all["BS_OLDTITLESAVE"] == "1"
     func act(_ id: String, back: Bool) {
         let g = game
         let st = Settings.shared
@@ -849,7 +850,10 @@ final class PauseMenu: Menu {
             if page != .worlds { page = .worlds }
             resetCursor = true
         case "totitle":
-            g.saveNow()
+            // Ledger 262 (Fable, Nov 17, the store's frame rate): Save and Quit wrote every chunk on the frame thread (a
+            // held frame that grows with the world); it is now taken the autosave's way (snapshots now, the files written
+            // on the save queue), the explored map too. Quit Game and a world switch still put it all on disk first.
+            if PauseMenu.oldTitleSave { g.saveNow() } else { g.saveNow(background: true); MapFog.shared.save(g, background: true) }
             PauseMenu.savedNote = SaveBadge.failing ? "\(currentWorld) could not be saved: see the message" : "\(currentWorld) saved"
             stack = []
             page = .title

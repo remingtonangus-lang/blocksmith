@@ -1,4 +1,5 @@
 # Bug hunt round 1 (trains): on and straight off again at the station, twice in a row.
+stream on
 train at station
 ride nearest train
 hold sneak 0.1

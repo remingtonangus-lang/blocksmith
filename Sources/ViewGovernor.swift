@@ -29,16 +29,38 @@ struct ViewGovernor {
         var dynRes = false
         var scale = 1.0                 // the eye resolution at the window's end (1 = full)
         var pixelShare = 0.0            // the share of the GPU time that follows the pixels (its probe; 0 = not known)
+        var quads = 0                   // ledger 234: quads drawn a frame, the window's mean (0 = not known)
     }
     enum Action: Equatable { case none, lower(Int), raise(Int) }
 
     static let floor = 8, ceiling = 24, step = 2, exponent = 1.2
     static let dropFrac = 0.92, severeFrac = 1.25, fitFrac = 0.8, missFrac = 0.05
-    static let badToDrop = 2, settle = 8.0, baseHold = 20.0, maxHold = 240.0, failWindow = 60.0, calmReset = 300.0
+    static let badToDrop = 2, settle = 8.0, maxHold = 240.0, failWindow = 60.0, calmReset = 300.0
+    // Ledger 233 (store review, Nov 17: "fluctuates under and over 60 frames per second"): steadier before farther.
+    // (a) a raise waits 45 s of room, not 20; (b) a view that had to come down is not tried again for ten minutes:
+    // raises stop one step under it (`lid`), so the frame does not see-saw at the edge of what the headset can draw.
+    // BS_OLDVIEWGOV=1 = before.
+    static let steady = Env.all["BS_OLDVIEWGOV"] != "1"
+    static let baseHold = steady ? 45.0 : 20.0, lidFor = 600.0
     // P440 (Oct 24 evening: 20-23 fps at view 16 flying into new land, "why isn't it auto rendering?"): the GPU had room,
     // the frames were lost to the CPU making land, and a loading window never counted. Two windows in a row missing
     // more than a quarter of their frames, loading or not, now take a step down whatever the GPU says.
     static let heavyMissFrac = 0.25
+    // Ledger 234 (store review, Nov 17; his Quest on the six held views of the gate's spots route): the frame time
+    // follows the quads drawn and nothing else. 61k (savanna) and 88k (forest) held 72 fps at 12.2-12.5 ms of GPU;
+    // 143k (jungle at view 8) ran 67 fps at 14.5 ms, 229k (jungle at 16) 52 fps at 19.3 ms and 410k (taiga at 16)
+    // 24 fps at 42.7 ms, each with the eye resolution already at its 60 % floor and the GPU at 640 MHz, 98 % busy.
+    // Waiting for missed frames to say so (two 5 s windows, a step of two chunks at a time) is the fluctuation the
+    // review saw. So the view also keeps a budget of quads: over `quadCap` it comes down at once (FrameStats asks every
+    // second) to the view that fits, and a raise needs the next view's quads under 90 % of it. Quads grow slower than
+    // the view (the far copies thin them: 143k at 8, 229k at 16 = the 0.68th power), so a drop is sized by the 0.8th
+    // power (lands a little low) and a raise by the 1.2th (a little careful). BS_QUADCAP=0 = before.
+    // The same route at fixed views: at 6 every spot held 72 (jungle 102k quads at 12.7 ms, taiga 64k); at 8 the jungle
+    // (141k) and the taiga ran 68-69 fps; at 10, 57 and 48. So under the quad budget, and only under it, the view may
+    // go one step under the floor, to 6 (BS_QUADFLOOR=8 = not).
+    static let quadCap = Env.all["BS_QUADCAP"].flatMap { Int($0) } ?? 105_000
+    static let quadFloor = Env.all["BS_QUADFLOOR"].flatMap { Int($0) } ?? 6
+    static let quadSettle = 2.0
     // Store review (Meta, Nov 2, VRC.Quest.Performance.1: "fluctuates under and over 60 frames per second"): a frame
     // the headset misses shows twice (1.5x the budget or more), so 56 fps at 72 Hz is about a fifth of the frames missed.
     // With dynamic resolution on, a window was bad only once the eye had dropped to its floor, and the heavy rule
@@ -52,12 +74,15 @@ struct ViewGovernor {
     private(set) var current: Int
     private(set) var hold = ViewGovernor.baseHold
     private var badStreak = 0, severeStreak = 0, heavyStreak = 0, good = 0.0, sinceChange = 1e9, sinceRaise = 1e9, sinceDrop = 1e9
+    private(set) var lid = ViewGovernor.ceiling          // (ledger 233: the highest view a raise may reach for now)
+    private var lidAge = 0.0
+    private var sinceQuadDrop = 1e9
 
     static func even(_ rd: Int) -> Int { max(floor, min(ceiling, rd / step * step)) }
 
     init(chosen: Int, current: Int? = nil) {
         self.chosen = Self.even(chosen)
-        self.current = min(self.chosen, Self.even(current ?? chosen))
+        self.current = min(self.chosen, max(Self.quadCap > 0 ? min(Self.floor, Self.quadFloor) : Self.floor, min(Self.ceiling, (current ?? chosen) / Self.step * Self.step)))
     }
 
     var lowered: Bool { current < chosen }
@@ -65,6 +90,7 @@ struct ViewGovernor {
     // The slider moved: the new ceiling, and the view the player asked for; history cleared.
     mutating func setChosen(_ rd: Int) {
         chosen = Self.even(rd); current = chosen
+        lid = Self.ceiling; lidAge = 0
         badStreak = 0; severeStreak = 0; heavyStreak = 0; good = 0; sinceChange = 1e9; sinceRaise = 1e9; sinceDrop = 1e9; hold = Self.baseHold
     }
 
@@ -112,8 +138,29 @@ struct ViewGovernor {
         return rd
     }
 
+    // Ledger 234: the view that keeps `quads` (drawn at `view`) inside the budget.
+    static func viewFor(quads: Int, at view: Int) -> Int {
+        var rd = view
+        while rd > quadFloor && Double(quads) * pow(Double(rd) / Double(max(1, view)), 0.8) > Double(quadCap) { rd -= step }
+        return rd
+    }
+    // Ledger 234: asked about once a second with the quads drawn a frame over that second. Not a view that failed on
+    // its frames, so no lid: the raise's own quad test keeps it from coming straight back.
+    mutating func overQuads(_ quads: Int, seconds: Double) -> Action {
+        sinceQuadDrop += seconds
+        guard Self.quadCap > 0, quads > Self.quadCap, current > Self.quadFloor, sinceQuadDrop >= Self.quadSettle else { return .none }
+        let to = Self.viewFor(quads: quads, at: current)
+        guard to < current else { return .none }
+        current = to
+        good = 0; badStreak = 0; severeStreak = 0; heavyStreak = 0
+        sinceChange = 0; sinceDrop = 0; sinceQuadDrop = 0
+        return .lower(current)
+    }
+
     mutating func observe(_ w: Window) -> Action {
         sinceChange += w.seconds; sinceRaise += w.seconds; sinceDrop += w.seconds
+        lidAge += w.seconds
+        if lidAge >= Self.lidFor { lid = Self.ceiling }
         if current == chosen && sinceDrop > Self.calmReset && sinceRaise > Self.calmReset { hold = Self.baseHold }
         severeStreak = !w.excused && Self.isSevere(w) ? severeStreak + 1 : 0
         if severeStreak >= (w.loading ? 2 : 1) && sinceChange >= Self.settle * 0.5 && current > Self.floor {
@@ -121,6 +168,7 @@ struct ViewGovernor {
             current = min(current - Self.step, fitting(w))
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
             sinceChange = 0; sinceDrop = 0
+            if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
         heavyStreak = !w.excused && w.frames > 0 && Double(w.missed) > Double(w.frames) * Self.heavyMissFrac ? heavyStreak + 1 : 0
@@ -130,6 +178,7 @@ struct ViewGovernor {
             current -= Self.step
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
             sinceChange = 0; sinceDrop = 0
+            if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
         if w.excused || w.loading || sinceChange < Self.settle { return .none }
@@ -141,11 +190,14 @@ struct ViewGovernor {
             current -= Self.step
             if sinceRaise < Self.failWindow { hold = min(Self.maxHold, hold * 2) }
             sinceChange = 0; sinceDrop = 0
+            if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
         badStreak = 0
         let next = current + Self.step
-        guard current < chosen, w.frames > 0, w.missed * 100 <= w.frames,
+        let quadsNext = Double(w.quads) * pow(Double(next) / Double(max(1, current)), Self.exponent)
+        let quadRoom = Self.quadCap <= 0 || w.quads <= 0 || quadsNext <= Double(Self.quadCap) * 0.9
+        guard current < chosen, current < lid, w.frames > 0, w.missed * 100 <= w.frames, quadRoom,
               Self.roomFor(w, from: current, to: next) else { good = 0; return .none }
         good += w.seconds
         guard good >= hold else { return .none }
@@ -209,6 +261,40 @@ enum ViewGovernorTest {
             v4.append(g4.current)
         }
         check(v4.last ?? 16 <= 12 && (v4.firstIndex { $0 < 16 } ?? 99) <= 2, "viewgovernor: a triangle-bound view missing a fifth of its frames under dynamic resolution comes down at once (views \(v4))")
+        // 5. Ledger 233 (store review, Nov 17): a place that holds view 10 and misses a fifth of its frames at 12. In ten
+        // minutes it tries 12 once and stays at 10 (it tried again every minute or two before: frames lost each time).
+        var g5 = ViewGovernor(chosen: 16, current: 8)
+        var tries5 = 0, badWindows5 = 0
+        for _ in 0..<120 {
+            let at12 = g5.current >= 12
+            let w = ViewGovernor.Window(seconds: 5, frames: 360, missed: at12 ? 72 : 0, gpuMs: budget * (at12 ? 0.97 : 0.6), budgetMs: budget,
+                                        dynRes: true, scale: 1, pixelShare: 0.1)
+            if at12 { badWindows5 += 1 }
+            if case .raise(let rd) = g5.observe(w), rd == 12 { tries5 += 1 }
+        }
+        check(tries5 == 1 && g5.current == 10, "viewgovernor: a view that had to come down is left alone for ten minutes (12 tried \(tries5) times in 10 min, \(badWindows5 * 5) s of missed frames, ends at \(g5.current))")
+        // 6. Ledger 234 (store review, Nov 17): his jungle, 143k quads at view 8 and 229k at 16. Walking in at 16, the
+        // view comes down in the first second asked, before a frame window has ended; on open land (40k at 8) it climbs,
+        // and stops where the next step would pass the budget.
+        if ViewGovernor.quadCap > 0 {
+            var g6 = ViewGovernor(chosen: 16, current: 16)
+            func jungle(_ v: Int) -> Int { Int(143_000 * pow(Double(v) / 8, 0.68)) }
+            var secs6 = 0
+            for s in 1...10 { if case .lower = g6.overQuads(jungle(g6.current), seconds: 1) { secs6 = s; break } }
+            check(secs6 > 0 && secs6 <= 3 && g6.current == ViewGovernor.quadFloor, "viewgovernor: over the quad budget the view comes down at once (\(jungle(16)) quads at 16: view \(g6.current) after \(secs6) s)")
+            var g7 = ViewGovernor(chosen: 24, current: 8)
+            func plain(_ v: Int) -> Int { Int(40_000 * pow(Double(v) / 8, 1.0)) }
+            var top7 = 8, over7 = 0
+            for _ in 0..<240 {
+                let q = plain(g7.current)
+                if q > ViewGovernor.quadCap { over7 += 1 }
+                let w = ViewGovernor.Window(seconds: 5, frames: 360, missed: 0, gpuMs: budget * 0.5, budgetMs: budget,
+                                            dynRes: true, scale: 1, pixelShare: 0.5, quads: q)
+                _ = g7.observe(w); _ = g7.overQuads(q, seconds: 5)
+                top7 = max(top7, g7.current)
+            }
+            check(top7 >= 14 && over7 == 0, "viewgovernor: with room in the frame the view climbs only while the next step's quads fit (top view \(top7), \(plain(top7)) quads, \(over7) windows over the budget)")
+        }
         return fails
     }
 }

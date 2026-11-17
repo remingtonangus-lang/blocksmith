@@ -802,8 +802,9 @@ final class XRSession {
             if hlStart == 0 { hlStart = now - period }
             let slot = max(hlLastSlot + 1, Int(((now - hlStart) / period).rounded(.up)))
             let wake = hlStart + Double(slot) * period
-            hlSlept = max(0, wake - now)
+            // (the wait as it really went: a sleep the host woke from late is the stand-in's, not the frame's work)
             if wake > now { Thread.sleep(forTimeInterval: wake - now) }
+            hlSlept = max(0, CFAbsoluteTimeGetCurrent() - now)
             if hlEnded == 0 { hlEnded = CFAbsoluteTimeGetCurrent(); hlSlept = 0 }
             hlSkipped = hlLastSlot < 0 ? 0 : slot - hlLastSlot - 1
             hlLastSlot = slot

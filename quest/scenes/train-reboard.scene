@@ -1,0 +1,23 @@
+# Bug hunt round 1 (trains): off and straight back on at a station, twice, then away with it.
+stream on
+train at station
+survival on
+ride nearest train
+tick 1
+hold sneak 0.1
+tick 0.5
+expect riding == 0
+ride nearest train
+expect riding == 1
+tick 1
+hold sneak 0.1
+tick 0.5
+expect riding == 0
+ride nearest train
+expect riding == 1
+tick 40
+print train
+print player
+expect riding == 1
+expect train.cars >= 3
+expect player.inblock == 0

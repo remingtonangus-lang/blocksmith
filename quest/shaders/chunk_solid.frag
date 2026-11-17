@@ -27,6 +27,12 @@ vec4 texG(vec2 uv, vec2 gx, vec2 gy, float layer) {
 }
 vec4 triTex(float layer, bool turned) {
     vec4 c = vec4(0.0);
+    if (fxOn(131072)) { turned = false; }
+    if (fxOn(16384)) {                      // (ledger 235, headset trial: one projection a fragment, never a blend of two)
+        if (triW.y >= triW.x && triW.y >= triW.z) { return turned ? texSharpTurnedGs(triUV[1], layer, triCell, triGX[1], triGY[1], texSz) : texG(triUV[1], triGX[1], triGY[1], layer); }
+        if (triW.x >= triW.z) { return texG(triUV[0], triGX[0], triGY[0], layer); }
+        return texG(triUV[2], triGX[2], triGY[2], layer);
+    }
     if (triW.x > 0.0) c += triW.x * texG(triUV[0], triGX[0], triGY[0], layer);
     if (triW.y > 0.0) c += triW.y * (turned ? texSharpTurnedGs(triUV[1], layer, triCell, triGX[1], triGY[1], texSz) : texG(triUV[1], triGX[1], triGY[1], layer));
     if (triW.z > 0.0) c += triW.z * texG(triUV[2], triGX[2], triGY[2], layer);
@@ -56,14 +62,14 @@ void main() {
     }
     // Grass tops: turned per block (texSharpTurned); the cell is the world block under this fragment. P496: so are
     // the tops of the layers ShaderFX.turnBits lists (snow, soil, rock).
-    bool turn = oAnim > 1.5 || (uint(oFace + 0.5) == 2u && turnedLayer(oLayer));
+    bool turn = !fxOn(131072) && (oAnim > 1.5 || (uint(oFace + 0.5) == 2u && turnedLayer(oLayer)));
     vec4 c = triOn ? triTex(oLayer, oAnim > 1.5 || turnedLayer(oLayer))
         : turn ? texSharpTurned(uv, oLayer, floor(oRel.xz + u.eye.xz - fract(uv) + 0.5)) : texSharp(uv, oLayer);
     if (oAnim > 0.5 && oAnim < 1.5) { c.rgb = lavaGlow(c.rgb, oRel); }
     // Smooth terrain (P142): where the quad's corners are different materials (grass to dirt to stone to sand), blend
     // them by how near each corner is, sharpened and broken up by the texture's own brightness so the border wanders
     // like real ground instead of fading. One texture read where a quad is one material (most of them).
-    if (oLW.x + oLW.y + oLW.z + oLW.w > 0.5) {
+    if (!fxOn(8192) && oLW.x + oLW.y + oLW.z + oLW.w > 0.5) {
         vec4 L = floor(oLayers / max(oLW, vec4(1e-4)) + 0.5);
         vec4 diff = vec4(notEqual(L, vec4(oLayer))) * step(vec4(0.002), oLW);
         if (dot(diff, diff) > 0.0) {
@@ -88,6 +94,7 @@ void main() {
     vec3 t = (oOverlay > 0.5 && c.a > 0.95) ? vec3(1.0) : oTint;
     vec3 lit = c.rgb * t * oShade;
     // SH1 surface sheen: metal and ice catch the sun, and so do tops left wet by rain, as much as the sky lights them.
+    if (fxOn(262144)) { outColor = worldColor(vec4(applyFogDir(lit, oRel, oDist), 1.0)); return; }
     if (fxOn(16) && u.params.y > 0.05) {
         uint li = uint(oLayer + 0.5), f = uint(oFace + 0.5);
         bool metal = (u.sheen[(li >> 7u) & 15u][(li >> 5u) & 3u] & (1u << (li & 31u))) != 0u;

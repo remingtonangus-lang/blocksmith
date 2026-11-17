@@ -107,7 +107,7 @@ final class QuestApp {
         stats.recordStages = { [weak self] in self?.worldRenderer?.takeStages() ?? "" }
         stats.dynResProbe = { [weak self] in self?.dynRes.lastProbe ?? 0 }
         stats.dynResCounts = { [weak self] in (self?.dynRes.takenBack ?? 0, self?.dynRes.unjudged ?? 0) }      // ledger 177
-        stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && !(self?.xr.foveated ?? true) }      // P499
+        stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && (QuestApp.fovDyn || !(self?.xr.foveated ?? true)) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
         startLoading(WorldRequest(survival: true))       // (code reader Nov 10, batch 2.1: a buyer's first world was Creative: no camp, no goals)
     }
@@ -161,7 +161,17 @@ final class QuestApp {
         t.stackSize = 8 << 20
         t.qualityOfService = .userInitiated
         t.name = "blocksmith.load"
+        // Ledger 262: the last loading thread's closure still held the world it saved (the one before), so replacing
+        // it freed that whole world here, on the frame thread (16-20 ms on the host at a Quit after one world switch,
+        // more for a bigger world). It is let go on a utility queue now; BS_OLDTHREADDROP=1 frees it here as before.
+        let prev = loadThread
         loadThread = t
+        // (held +1 and let go half a second later, after this frame's own references are long gone, so the last
+        // release, and the world's teardown with it, falls on the utility queue)
+        if !QuestApp.oldThreadDrop, let p = prev {
+            let u = Unmanaged.passRetained(p)
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.5) { u.release() }
+        }
         t.start()
     }
 
@@ -223,6 +233,7 @@ final class QuestApp {
     private var adoptStep = 0
     private var texUpload: SceneRenderer.TextureUpload?
     static let oldTexUpload = Env.all["BS_OLDTEXUPLOAD"] == "1"
+    static let oldThreadDrop = Env.all["BS_OLDTHREADDROP"] == "1"
     private var wasFocused = false
     private var awayFor = 0.0, savedAway = false, headLostFor = 0.0      // S8
     private var awayStart = 0.0                                          // Q2c-console-44: when the away pause began
@@ -411,15 +422,23 @@ final class QuestApp {
         let t0 = CFAbsoluteTimeGetCurrent()
         defer { print(String(format: "world: switch took %.1f ms on the frame thread", (CFAbsoluteTimeGetCurrent() - t0) * 1000)) }
         savingGame = game                    // saved on the loading thread (startLoading), behind "Saving the world"
+        var lt = t0, parts = ""
+        func part(_ n: String) { let t = CFAbsoluteTimeGetCurrent(); parts += String(format: "%@ %.1f, ", n, (t - lt) * 1000); lt = t }
         scene.waitIdle()
+        part("gpu idle")
         game?.sound?.stopAll()
         QuestAudioOutput.shared.stop()
+        part("sound")
         PadManager.shared.touch = nil
         controls = nil
+        part("controls")
         worldRenderer = nil
+        part("renderer")
         game = nil
         save = nil
         startLoading(req)
+        part("load started")
+        print("world: switch parts: " + parts)
     }
 
     // MARK: Frame loop
@@ -452,6 +471,10 @@ final class QuestApp {
 
     // One display frame. Returns false when the app should exit.
     static let eyeFix = Env.all["BS_EYEFIX"].flatMap { Float($0) }
+    // (ledger 231, headset trial: BS_FOVDYN=1 lets dynamic resolution run on a foveated swapchain; they were kept apart
+    // because the density map is laid over the whole image, not the drawn part: to be seen on the headset)
+    static let fovDyn = Env.all["BS_FOVDYN"] == "1"
+    static let swDelta = Env.all["BS_SWDELTA"] ?? ""
     func frame() -> Bool {
         lap(-1)
         guard xr.pollEvents() else { return false }
@@ -560,7 +583,7 @@ final class QuestApp {
             scene.spaceWarpOn = xr.spaceWarpOn            // P426: the Options switch applies to this frame
             let budget = 1000.0 / Double(max(60, xr.refreshRate)) * (xr.spaceWarpOn ? 2 : 1)
             scene.viewScale = dynRes.observe(gpuMs: scene.gpuMs, budgetMs: budget,
-                                             enabled: QuestSettings.dynamicResolution && !xr.foveated && game != nil && worldRenderer != nil,
+                                             enabled: QuestSettings.dynamicResolution && (!xr.foveated || QuestApp.fovDyn) && game != nil && worldRenderer != nil,
                                              fps: Double(xr.refreshRate) / (xr.spaceWarpOn ? 2 : 1), quads: scene.drawnQuads)
             if let fix = QuestApp.eyeFix { scene.viewScale = fix }     // (ledger 231, headset trials: BS_EYEFIX=0.8)
             let (viewW, viewH) = scene.viewExtent(target)
@@ -582,7 +605,11 @@ final class QuestApp {
                 xr.swFar = cam.far > 0 ? cam.far : farPlane
                 let now = rig.appToWorld
                 if let was = lastAppToWorld {
-                    let q = was.rotation.inverse * now.rotation, p = was.rotation.inverse.act(now.translation - was.translation)
+                    var q = was.rotation.inverse * now.rotation, p = was.rotation.inverse.act(now.translation - was.translation)
+                    // (ledger 232, headset trial: which way round the runtime wants the delta cannot be told off the
+                    // headset. BS_SWDELTA=inv sends the opposite pose, BS_SWDELTA=0 none.)
+                    if QuestApp.swDelta == "inv" { q = now.rotation.inverse * was.rotation; p = now.rotation.inverse.act(was.translation - now.translation) }
+                    else if QuestApp.swDelta == "0" { q = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1); p = .zero }
                     xr.appSpaceDelta = XrPosef(orientation: XrQuaternionf(x: q.imag.x, y: q.imag.y, z: q.imag.z, w: q.real),
                                                position: XrVector3f(x: p.x, y: p.y, z: p.z))
                 }
@@ -922,6 +949,20 @@ final class FrameStats {
     var dynResCounts: (() -> (Int, Int))?   // ledger 177: drops taken back, probes with no answer
     var dynResOn: (() -> Bool)?             // P499: dynamic resolution is running (Auto View Distance reads it)
     var perfNotice: (() -> String)?         // P403 step 1: XRSession.perfNoticeLine
+    // Ledger 234: the view's quad budget, asked once a second (ViewGovernor.overQuads).
+    private var sumQuads = 0, quadSum = 0, quadFrames = 0, quadSince = CFAbsoluteTimeGetCurrent()
+    private func quadCheck(game: Game?, target: Double) {
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - quadSince >= 1 else { return }
+        let q = quadSum / max(1, quadFrames), dt = now - quadSince
+        quadSum = 0; quadFrames = 0; quadSince = now
+        guard FrameStats.viewFix == nil, QuestSettings.autoViewDistance, let g = game, var vg = viewGov, target > 0 else { return }
+        if case .lower(let rd) = vg.overQuads(q, seconds: dt) {
+            g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
+            print("perf: \(q) quads a frame, over the budget of \(ViewGovernor.quadCap): view distance \(rd) for now (slider \(vg.chosen))")
+        }
+        viewGov = vg
+    }
     private func capture(game: Game?, target: Double, now: Double) {
         defer { prevLine = lastLine }
         guard let g = game, target > 0, frames > 0 else { badWindows = 0; return }
@@ -947,6 +988,8 @@ final class FrameStats {
         PerfOverlay.shared.add(frameMs: frame * 1000)
         if let g = game { MainGunPerf.record(frameMs: frame * 1000, budget: target * 1000, clock: g.clock) }   // "perf: main gun blast" after an impact
         sumCPU += cpu; sumTick += tick; sumRecord += record; sumGPU += gpu
+        sumQuads += scene.drawnQuads; quadSum += scene.drawnQuads; quadFrames += 1
+        quadCheck(game: game, target: target)
         CostProbe.add(gpuMs: gpu)
         if frame * 1000 > worstFrame {
             worstFrame = frame * 1000
@@ -1042,7 +1085,8 @@ final class FrameStats {
                 let w = ViewGovernor.Window(seconds: now - since, frames: frames, missed: missed, gpuMs: sumGPU / n, budgetMs: target * 1000,
                                             loading: genRate > FrameStats.loadingChunksPerSecond, excused: excused,
                                             dynRes: dynResOn?() ?? false, scale: Double(scene.viewScale),
-                                            pixelShare: probe > 0 ? max(0, min(1, (1 - probe) * 10)) : 0)
+                                            pixelShare: probe > 0 ? max(0, min(1, (1 - probe) * 10)) : 0,
+                                            quads: sumQuads / max(1, frames))
                 switch vg.observe(w) {
                 case .lower(let rd):
                     g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
@@ -1060,6 +1104,7 @@ final class FrameStats {
             loggedRD = g.world.renderDistance
             print("perf: render distance \(loggedRD)")
         }
+        sumQuads = 0
         frames = 0; missed = 0; busyFrames = 0; sumCPU = 0; sumTick = 0; sumRecord = 0; sumGPU = 0; worstFrame = 0; worstTickAny = 0
         since = now
     }

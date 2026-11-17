@@ -68,7 +68,7 @@ enum QuestAppSoak {
         QuestApp.lapsOn = true
         QuestApp.soakSeeds = (arg("--seeds") ?? "").split(separator: ",").compactMap { UInt64($0) }
         if let rd = arg("--rd").flatMap({ Int($0) }) { QuestSettings.autoViewDistance = false; QuestSettings.renderDistance = rd }
-        let xr: XRSession, app: QuestApp
+        var xr: XRSession, app: QuestApp
         var phases: [Phase] = []
         var phase = Phase("start to the world")
         phases.append(phase)
@@ -98,10 +98,17 @@ enum QuestAppSoak {
             xr.hlInput[0] = hand
             let t0 = CFAbsoluteTimeGetCurrent()
             var f = 0
+            var lastPos = app.game?.player.pos ?? .zero
             while CFAbsoluteTimeGetCurrent() - t0 < secs {
                 if let g = app.game { g.survival = false; g.alive = true; g.health = 20 }       // (nothing ends the walk)
                 f += 1
-                var r = XRHand(); r.aimValid = true; r.gripValid = true; r.aimPos = V3(0.2, 1.2, -0.3); r.gripPos = r.aimPos; r.stick = V2(f % 720 < 360 ? 0.3 : -0.3, 0)               // (looking about as he walks)
+                // (looking about as he walks; stuck against something for 2 s: a full push of the stick, a snap turn)
+                var turn: Float = f % 720 < 360 ? 0.3 : -0.3
+                if f % 144 == 0, let g = app.game {
+                    if simd_distance(g.player.pos, lastPos) < 2 { turn = 1 }
+                    lastPos = g.player.pos
+                }
+                var r = XRHand(); r.aimValid = true; r.gripValid = true; r.aimPos = V3(0.2, 1.2, -0.3); r.gripPos = r.aimPos; r.stick = V2(turn, 0)
                 xr.hlInput[1] = r
                 if !app.frame() { break }
             }
@@ -140,6 +147,7 @@ enum QuestAppSoak {
         next("walk \(Int(walk)) s")
         walkFor(walk)
         let moved = simd_distance(app.game.map { $0.player.pos } ?? .zero, pos0)
+        print(String(format: "appsoak: view %d (render distance of the world)", app.game?.world.renderDistance ?? 0))
 
         next("create new world")
         app.game?.appAction?("newworld")
@@ -147,6 +155,88 @@ enum QuestAppSoak {
         closeMenus()
         next("new world: walk \(Int(walk)) s")
         walkFor(walk)
+
+        // Item 5: the inventory and the map, opened and closed.
+        next("inventory open and close")
+        app.game?.openInventory()
+        _ = frames(until: { false }, limit: 1.5)
+        app.game?.closeMenu()
+        _ = frames(until: { false }, limit: 1)
+        next("map open and close")
+        if let g = app.game { g.openMenu(MapMenu(game: g)) }
+        _ = frames(until: { false }, limit: 1.5)
+        app.game?.closeMenu()
+        _ = frames(until: { false }, limit: 1)
+        // Item 6: a teleport 300 blocks off (the land there streams in), then a death and the respawn at his spawn.
+        next("teleport 300 blocks")
+        if let g = app.game { g.player.pos += V3(300, 30, 0); g.player.vel = .zero }
+        _ = frames(until: { false }, limit: 5)
+        next("death and respawn")
+        if let g = app.game { g.survival = true; g.die("appsoak") }
+        _ = frames(until: { false }, limit: 2)
+        app.game?.respawn()
+        if let g = app.game { g.survival = false; g.health = 20 }
+        _ = frames(until: { false }, limit: 5)
+
+        // Item 7: the first shot of each gun (each held a moment first: its model is built as it comes to hand), then
+        // the first vehicle taken (a Cinder Tank parked beside him, its hull built as he climbs in) and left.
+        next("first shot of each gun")
+        if let g = app.game {
+            let keep = g.inventory.held
+            for (gi, gs) in Guns.all.enumerated() where !Guns.isRetired(gi) {      // (retired guns have no item)
+                var st = ItemStack(Items.id(gs.key)); st.tag = gs.mag
+                g.inventory.held = st
+                _ = frames(until: { false }, limit: 0.25)
+                g.fireHeldGun(gi)
+                _ = frames(until: { false }, limit: 0.35)
+            }
+            g.inventory.held = keep
+        }
+        next("first vehicle taken")
+        if let g = app.game {
+            let v = Mob(.ashTank, at: g.player.pos + V3(0, 1, 7))
+            v.ashSetup(); v.persistent = true
+            g.mobs.mobs.append(v)
+            _ = frames(until: { false }, limit: 1.5)
+            let took = g.ashCommandeer(v)
+            _ = frames(until: { false }, limit: 3)
+            if took, let s = g.world.ships.pilot { g.leaveHelm(); _ = s }
+            _ = frames(until: { false }, limit: 1.5)
+            print("appsoak: tank taken \(took)")
+        }
+
+        // Item 4: the autosave (Game.tick's 60 s save, taken here between two frames, as inside one), standing.
+        next("autosave")
+        app.game?.saveNow(background: true)
+        _ = frames(until: { false }, limit: 3)
+        // Item 5 (part): the pause menu opened, then Save and Quit to the title (PauseMenu "totitle").
+        next("pause menu open")
+        app.game?.paused = true
+        _ = frames(until: { false }, limit: 2)
+        next("save and quit to title")
+        (app.game?.menu as? PauseMenu)?.act("totitle", back: false)
+        _ = frames(until: { false }, limit: 3)
+        // Quit Game (the title's quit: saved on the loading thread behind "Saving the world", then the app exits).
+        next("quit game")
+        app.game?.appAction?("quit")
+        let quitStart = CFAbsoluteTimeGetCurrent()
+        while CFAbsoluteTimeGetCurrent() - quitStart < 120 { if !app.frame() { break } }
+        let quitSecs = CFAbsoluteTimeGetCurrent() - quitStart
+        app.shutdown()
+        // Item 3: the app started again on the same data: the world just saved opens.
+        next("reopen the saved world")
+        let app2: QuestApp
+        do {
+            let xr2 = try XRSession(headless: ctx, width: 64, height: 64)
+            xr2.hlHanded = xr.hlHanded
+            app2 = try QuestApp(xr: xr2)
+            app = app2
+            xr = xr2
+        } catch { print("FAIL appsoak: reopen \(error)"); return 1 }
+        guard frames(until: { app.game != nil }, limit: 600) else { print("FAIL appsoak: the saved world never reopened"); return 1 }
+        closeMenus()
+        next("reopened: walk \(Int(walk / 2)) s")
+        walkFor(walk / 2)
 
         phase.end = CFAbsoluteTimeGetCurrent()
         print("")
@@ -157,16 +247,19 @@ enum QuestAppSoak {
             }
             if p.slow.count > 12 { print("appsoak:    (\(p.slow.count - 12) more)") }
         }
-        print(String(format: "appsoak: walked %.0f blocks in the first world", moved))
+        print(String(format: "appsoak: walked %.0f blocks in the first world; quit took %.1f s", moved, quitSecs))
         let total = phases.reduce(0) { $0 + $1.missed }, all = phases.reduce(0) { $0 + $1.frames }
         print(String(format: "appsoak: all phases: %d frames, %d over 20.8 ms on the headset estimate (%.2f%%)", all, total,
                      all > 0 ? 100 * Double(total) / Double(all) : 0))
         // The gate: the loading scene and the hand-overs (start, create) never hold a frame past 1.5x the headset's
         // budget; the walks are reported for the steady rate (Fable's view governor), not gated here.
-        let gated = phases.filter { $0.name == "start to the world" || $0.name == "create new world" }
+        let gatedNames: Set<String> = ["start to the world", "create new world", "autosave", "pause menu open", "save and quit to title",
+                                       "quit game", "reopen the saved world", "inventory open and close", "map open and close",
+                                       "teleport 300 blocks", "death and respawn", "first shot of each gun", "first vehicle taken"]
+        let gated = phases.filter { gatedNames.contains($0.name) }
         let held = gated.reduce(0) { $0 + $1.missed }
-        print(held == 0 ? "ok   appsoak: the app start and Create New World hold no frame (headset estimate under 20.8 ms)"
-                        : "FAIL appsoak: \(held) frames over 20.8 ms (headset estimate) in the app start and Create New World")
+        print(held == 0 ? "ok   appsoak: the app start, Create New World, menus, a teleport, a death, saves, quit and reopening hold no frame (headset estimate under 20.8 ms)"
+                        : "FAIL appsoak: \(held) frames over 20.8 ms (headset estimate) in " + gated.filter { $0.missed > 0 }.map { $0.name }.joined(separator: ", "))
         app.shutdown()
         return held == 0 ? 0 : 1
     }
