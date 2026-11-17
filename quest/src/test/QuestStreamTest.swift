@@ -63,6 +63,7 @@ enum QuestStreamTest {
         g.smoothTerrain = true; SmoothTerrain.use(world: true, world: w)
         g.survival = false
         g.time = 0.3 * DAY_LENGTH
+        g.spawnPoint = V3(at[0], at[1], at[2])   // (a new world's spawn is settled before play: its one-off load is not the stream's)
         let p = g.player
         p.pos = V3(at[0], at[1], at[2]); p.flying = true
         let yaw = -look[0] * .pi / 180, pitch = look[1] * .pi / 180          // (the note's yaw, as --view)
@@ -97,6 +98,14 @@ enum QuestStreamTest {
         let t0 = CFAbsoluteTimeGetCurrent()
         var shift = 0.0
         var ticks: [Double] = [], allTicks: [Double] = []
+        // (Nov 17, the frigate notes: BS_STREAMHOLD=N holds N of the workers the whole run, as the frame governor
+        // does after late frames on the headset (FrameGovernor.workersHeld), to see what that costs the land coming in.)
+        let hold = Int(Env.all["BS_STREAMHOLD"] ?? "")
+        if let h = hold { JobPool.shared.setHeld(h); print("streamtest: \(JobPool.shared.heldNow) of \(JobPool.shared.workers) workers held") }
+        // (ledger 221: BS_STREAMLATE=K: K of every 72 frames late, spread evenly, as at 72 - K fps on the headset; the
+        // governor's late window and its worker hold run on them, BS_OLDWORKERHOLD=1 as before)
+        let lateK = Int(Env.all["BS_STREAMLATE"] ?? "") ?? 0
+        if lateK > 0 { print("streamtest: \(lateK) of every 72 frames late; worker hold \(FrameGovernor.oldHold ? "as before" : "land first (ledger 221)")") }
         for f in 0..<(secs * 72) {
             if g.menu != nil { g.closeMenu() }
             g.cine.active = false
@@ -155,6 +164,7 @@ enum QuestStreamTest {
             }
             if crawler == nil { p.vel = .zero }
             let tt = CFAbsoluteTimeGetCurrent()
+            if lateK > 0 { FrameGovernor.harnessFrame(late: (f * lateK) % 72 < lateK, now: Double(f) / 72) }
             g.tick(dt)
             ticks.append((CFAbsoluteTimeGetCurrent() - tt) * 1000)
             // (As the headset's frame does every frame: the middle ring follows him, built in the background.)
@@ -302,6 +312,7 @@ enum QuestStreamTest {
         allTicks.sort()
         let p99 = allTicks.isEmpty ? 0 : allTicks[min(allTicks.count - 1, allTicks.count * 99 / 100)]
         if World.meshLog { print("streamtest: why chunks went to the front of the queue: \(World.urgentWhy.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))") }
+        if lateK > 0 { print("streamtest: governor: " + FrameGovernor.heldLine) }
         print(String(format: "streamtest: every surface in view drawn at %@, every chunk at %@; meshes for a changed section %d in all, %d drawn; ticks after the first 2 s: %.2f ms mean, %.1f ms at the 99th percentile, %.1f worst",
                      firstSurf.map { String(format: "%.1f s", $0) } ?? "never", firstAll.map { String(format: "%.1f s", $0) } ?? "never",
                      World.staleMeshes, World.staleDrawn, allTicks.reduce(0, +) / Double(max(1, allTicks.count)), p99, allTicks.last ?? 0))

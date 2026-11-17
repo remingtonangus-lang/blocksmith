@@ -6,7 +6,8 @@ import Foundation
 // waiting on that lock while the workers finished meshes. Here a job is a closure appended under a lock the workers
 // hold only to take the next one. One pool for every world (the dimensions take turns streaming).
 final class JobPool {
-    static let shared = JobPool(workers: max(2, ProcessInfo.processInfo.activeProcessorCount - 2))
+    // (BS_WORKERS=N: N workers, for host runs that stand in for the headset's four: ledger 221's proof)
+    static let shared = JobPool(workers: Int(Env.all["BS_WORKERS"] ?? "") ?? max(2, ProcessInfo.processInfo.activeProcessorCount - 2))
 
     let workers: Int
     private let cond = NSCondition()           // guards everything below; workers wait on it for work
