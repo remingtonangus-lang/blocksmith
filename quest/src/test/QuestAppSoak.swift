@@ -141,6 +141,33 @@ enum QuestAppSoak {
         if let g = app.game { g.survival = false; g.health = 20 }
         _ = frames(until: { false }, limit: 5)
 
+        // Item 7: the first shot of each gun (each held a moment first: its model is built as it comes to hand), then
+        // the first vehicle taken (a Cinder Tank parked beside him, its hull built as he climbs in) and left.
+        next("first shot of each gun")
+        if let g = app.game {
+            let keep = g.inventory.held
+            for (gi, gs) in Guns.all.enumerated() {
+                var st = ItemStack(Items.id(gs.key)); st.tag = gs.mag
+                g.inventory.held = st
+                _ = frames(until: { false }, limit: 0.25)
+                g.fireHeldGun(gi)
+                _ = frames(until: { false }, limit: 0.35)
+            }
+            g.inventory.held = keep
+        }
+        next("first vehicle taken")
+        if let g = app.game {
+            let v = Mob(.ashTank, at: g.player.pos + V3(0, 1, 7))
+            v.ashSetup(); v.persistent = true
+            g.mobs.mobs.append(v)
+            _ = frames(until: { false }, limit: 1.5)
+            let took = g.ashCommandeer(v)
+            _ = frames(until: { false }, limit: 3)
+            if took, let s = g.world.ships.pilot { g.leaveHelm(); _ = s }
+            _ = frames(until: { false }, limit: 1.5)
+            print("appsoak: tank taken \(took)")
+        }
+
         // Item 4: the autosave (Game.tick's 60 s save, taken here between two frames, as inside one), standing.
         next("autosave")
         app.game?.saveNow(background: true)
@@ -191,7 +218,7 @@ enum QuestAppSoak {
         // budget; the walks are reported for the steady rate (Fable's view governor), not gated here.
         let gatedNames: Set<String> = ["start to the world", "create new world", "autosave", "pause menu open", "save and quit to title",
                                        "quit game", "reopen the saved world", "inventory open and close", "map open and close",
-                                       "teleport 300 blocks", "death and respawn"]
+                                       "teleport 300 blocks", "death and respawn", "first shot of each gun", "first vehicle taken"]
         let gated = phases.filter { gatedNames.contains($0.name) }
         let held = gated.reduce(0) { $0 + $1.missed }
         print(held == 0 ? "ok   appsoak: the app start, Create New World, menus, a teleport, a death, saves, quit and reopening hold no frame (headset estimate under 20.8 ms)"
