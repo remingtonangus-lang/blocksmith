@@ -14,6 +14,10 @@ import simd
 //   block X Y Z / set X Y Z KEY / break X Y Z / place X Y Z / blast X Y Z [POWER] / dump X0 Y0 Z0 X1 Y1 Z1
 //   shot NAME.png [W H]                          (the --view render at the eye; into --out DIR, never the repo)
 //   spawn mob KIND / spawn vessel KIND / ride nearest train|ship / drive THROTTLE SECONDS / walk forward SECONDS
+//   train at station                             (the nearest line's passenger train standing at its nearest station)
+//   ride until step N MIN [SECONDS]              (play on until the floors' step at coach N's coupling is MIN either way)
+//   stand in coach N / walk to coach N [SECONDS] (walk.there 1|0, walk.lowest: least height over the rail in the
+//                                                 coach he is in, walk.step: the floors' step at the coupling)
 //   print player|train|ship|fps
 //   expect block X Y Z == KEY | expect ground X Y Z == true | expect player.y > N | expect fps.worst < N ...
 //
@@ -50,6 +54,16 @@ enum SceneScript {
         var fails = 0
         var ship: Ship?
         var train: Trains.Train?
+        var walkThere: Float?, walkLowest: Float?, walkStep: Float?
+        let loops0 = Railways.loopsOn
+        defer { Railways.loopsOn = loops0 }
+        func coachList() -> [Mob] { train?.cars.filter { $0.variant == Trains.coach } ?? [] }
+        // The floors' step where coach b meets coach a: b's near end's aisle height in a's frame, less a's aisle (1.25).
+        func coupling(_ sa: Ship, _ sb: Ship) -> Float {
+            let e0 = sa.toLocal(sb.toWorld(V3(1.5, 1.25, 0))), e1 = sa.toLocal(sb.toWorld(V3(1.5, 1.25, Float(sb.grid.sz))))
+            let mid = Float(sa.grid.sz) / 2
+            return (abs(e0.z - mid) < abs(e1.z - mid) ? e0.y : e1.y) - 1.25
+        }
 
         func Y(_ s: Substring) -> Int? { Int(s).map { $0 + YOFF } }
         func key(_ b: BlockID) -> String { Blocks.key(b) }
@@ -91,6 +105,9 @@ enum SceneScript {
             case "ship.blocks": return ship.map { Float($0.blockCount) }
             case "ship.y": return ship.map { $0.pos.y - Float(YOFF) }
             case "train.speed": return train?.blocksPerSec
+            case "walk.there": return walkThere
+            case "walk.lowest": return walkLowest
+            case "walk.step": return walkStep
             case "fps.worst": return tickMs.max().map { Float($0) }
             case "fps.avg": return tickMs.isEmpty ? nil : Float(tickMs.reduce(0, +) / Double(tickMs.count))
             default: return Float(name)
@@ -228,6 +245,25 @@ enum SceneScript {
                     if let s = s { print("\(ln) \(s.name), \(s.blockCount) blocks, helm at \(helm.x) \(helm.y - YOFF) \(helm.z)") }
                     else { print("FAIL \(ln) \(msg)"); fails += 1 }
                 } else { bad() }
+            case "ride" where t.count >= 5 && t[1] == "until" && t[2] == "step":
+                // ride until step N MIN [SECONDS]: play on (standing where he is) until the floors' step between coach N-1 and
+                // coach N is MIN or more either way: the train on a change of grade.
+                guard let k = Int(t[3]), let mn = Float(t[4]) else { bad(); continue }
+                let secs = t.count > 5 ? Double(t[5]) ?? 120 : 120
+                let cs = coachList()
+                guard k >= 2, k <= cs.count, let sb = TrainHulls.hull(cs[k - 1]), let sa = TrainHulls.hull(cs[k - 2]) else {
+                    print("FAIL \(ln) the train has \(cs.count) coaches with hulls"); fails += 1; continue
+                }
+                var i = 0, most: Float = 0
+                while i < Int(secs * 72) {
+                    step(held); i += 1
+                    let st = coupling(sa, sb)
+                    if abs(st) > abs(most) { most = st }
+                    if abs(st) >= mn { break }
+                }
+                let st = coupling(sa, sb)
+                if abs(st) < mn { print("FAIL \(ln) no such step in \(f1(Float(secs))) s (most \(f1(most)))"); fails += 1; continue }
+                print("\(ln) step \(f1(st)) after \(f1(Float(i) / 72)) s; train \(f1(train?.blocksPerSec ?? 0)) b/s, aboard \(w.ships.aboard?.name ?? "none")")
             case "ride":
                 guard t.count == 3, t[1] == "nearest" else { bad(); continue }
                 if t[2] == "train" {
@@ -249,6 +285,67 @@ enum SceneScript {
                 else if ship != nil { var a = AgentAction(); a.forward = th; play(s, a) }
                 else { print("FAIL \(ln) not driving anything"); fails += 1; continue }
                 print("\(ln) \(ship.map { "ship speed \(f1(simd_length($0.vel)))" } ?? "train \(f1(train?.blocksPerSec ?? 0)) b/s")")
+            case "train":
+                // train at station: the nearest line's passenger train, its clock run on to when it stands at the station
+                // nearest him (as --rail-only's ledger 141 check sets it up; the line's own out-and-back timetable).
+                guard t.count == 3, t[1] == "at", t[2] == "station" else { bad(); continue }
+                guard let gen = w.gen as? WorldGen else { print("FAIL \(ln) no railways in this world (a field world? drop --headset)"); fails += 1; continue }
+                let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z))
+                var best: (Railways.Line, Int)?, bd = Int.max
+                for l in Railways.near(gen, x0: px - 3000, z0: pz - 3000, x1: px + 3000, z1: pz + 3000, pad: 0) where !l.cells.isEmpty {
+                    for (i, st) in l.stations.enumerated() where !st.site {
+                        let d = abs(st.x - px) + abs(st.z - pz)
+                        if d < bd { bd = d; best = (l, i) }
+                    }
+                }
+                guard let (l, si) = best else { print("FAIL \(ln) no line within 3000 blocks"); fails += 1; continue }
+                Railways.loopsOn = false
+                let st = l.stations[si], sc = l.cells[st.index]
+                g.player.pos = V3(Float(sc.x) + 0.5, Float(sc.y), Float(sc.z - 2) + 0.5); g.player.vel = .zero
+                _ = w.loadSync(center: g.player.pos, radius: max(4, w.renderDistance))
+                Trains.trains.removeAll()
+                let tk = Trains.track(l)
+                var found = false
+                for k in 0..<Int(tk.period) where tk.at(g.time + Double(k)).stop == si { g.time += Double(k) + 2; found = true; break }
+                Trains.forceKind = .passenger
+                Trains.tick(g)
+                Trains.forceKind = nil
+                train = Trains.trains[tk.id]
+                guard found, let tr = train else { print("FAIL \(ln) no train came to \(st.name)"); fails += 1; continue }
+                print("\(ln) \(l.name): at \(st.name) Station (\(sc.x) \(sc.y - YOFF) \(sc.z), \(bd) blocks off), \(tr.cars.count) cars, \(coachList().count) coaches")
+            case "stand":
+                // stand in coach N: in coach N's aisle (counted from 1 along the train), aboard it.
+                guard t.count == 4, t[1] == "in", t[2] == "coach", let k = Int(t[3]) else { bad(); continue }
+                let cs = coachList()
+                guard k >= 1, k <= cs.count, TrainHulls.hull(cs[k - 1]) != nil else { print("FAIL \(ln) the train has \(cs.count) coaches with hulls"); fails += 1; continue }
+                w.ships.aboard = nil
+                g.player.flying = false
+                g.player.pos = Trains.seat(cs[k - 1]) + V3(0, 0.05, 0); g.player.vel = .zero
+                play(6.0 / 72)
+                print("\(ln) aboard \(w.ships.aboard === TrainHulls.hull(cs[k - 1]) ? "it" : w.ships.aboard == nil ? "nothing" : "another hull"), on ground \(g.player.onGround)")
+            case "walk" where t.count >= 4 && t[1] == "to":
+                // walk to coach N [SECONDS]: forward toward coach N each tick (as ledger 141's check walks) until he is in its
+                // aisle; the least height over the rail in whichever coach he is in, and the floors' step at the coupling.
+                guard t[2] == "coach", let k = Int(t[3]) else { bad(); continue }
+                let secs = t.count > 4 ? Double(t[4]) ?? 12 : 12
+                let cs = coachList()
+                guard k >= 2, k <= cs.count, let sb = TrainHulls.hull(cs[k - 1]), let sa = TrainHulls.hull(cs[k - 2]) else {
+                    print("FAIL \(ln) the train has \(cs.count) coaches with hulls"); fails += 1; continue
+                }
+                walkStep = coupling(sa, sb)
+                var a = AgentAction(); a.forward = 1
+                var there = false, took = 0, lowest: Float = 9
+                for i in 0..<Int(secs * 72) {
+                    let d = cs[k - 1].pos - g.player.pos
+                    g.player.yaw = atan2f(-d.x, -d.z)
+                    step(a)
+                    let lb = sb.toLocal(g.player.pos)
+                    lowest = min(lowest, w.ships.aboard === sb ? lb.y : sa.toLocal(g.player.pos).y)
+                    if lb.x > 0.2 && lb.x < 2.8 && lb.z > 2 && lb.z < Float(sb.grid.sz) - 2 && lb.y > 1.15 && lb.y < 1.6 { there = true; took = i + 1; break }
+                }
+                step(AgentAction())
+                walkThere = there ? 1 : 0; walkLowest = lowest
+                print("\(ln) \(there ? "there in \(f1(Float(took) / 72)) s" : "not there"), never lower than \(f1(lowest)) over the rail; the floors' step at the coupling \(f1(walkStep ?? 0)); train \(f1(train?.blocksPerSec ?? 0)) b/s")
             case "walk":
                 guard t.count == 3, t[1] == "forward", let s = Double(t[2]) else { bad(); continue }
                 let p0 = g.player.pos

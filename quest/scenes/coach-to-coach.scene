@@ -1,0 +1,11 @@
+# Ledger 215 (Fable, found with ledger 141's check): walking from one coach into the next on a grade he fell through
+# the train. Where the grade changes, the next coach's floor is up to a block higher or lower at the coupling.
+# questcheck --scene quest/scenes/coach-to-coach.scene        (a classic world: railways; not --headset)
+# Before: BS_OLDGANGWAYSTEP=1 (he falls through at the coupling).
+train at station
+stand in coach 1
+ride until step 2 0.4 120    # aboard, until the train is on a change of grade
+walk to coach 2 12
+print player
+expect walk.there == 1
+expect walk.lowest > 0.6     # never under the floor of the coach he is in (the coupling's plate sits half a block lower on a grade)
