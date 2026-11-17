@@ -85,7 +85,7 @@ if let secs = Double(arg("--xr") ?? "") {
 // Quest renderer; otherwise meshes go to host memory.
 let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" } ?? arg("--view") ?? arg("--cine") ?? (CommandLine.arguments.contains("--touchmatrix-only") || CommandLine.arguments.contains("--batch-only") || CommandLine.arguments.contains("--perfscenes") || CommandLine.arguments.contains("--framesoak")
     || CommandLine.arguments.contains("--spacewarp") || CommandLine.arguments.contains("--launch") || CommandLine.arguments.contains("--launch-prepare")
-    || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") || CommandLine.arguments.contains("--streamtest") ? "" : nil)
+    || CommandLine.arguments.contains("--memscene") || CommandLine.arguments.contains("--memsim") || CommandLine.arguments.contains("--streamtest") || SceneScript.wantsShots(arg("--scene")) ? "" : nil)
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -2557,7 +2557,7 @@ let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questch
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)
 // Fast proof (docs/status/fast-proof.md): a run that names a check (`--X-only`) skips what only the whole run needs.
-let namedRun = CommandLine.arguments.contains { $0.hasPrefix("--") && $0.hasSuffix("-only") }
+let namedRun = CommandLine.arguments.contains { ($0.hasPrefix("--") && $0.hasSuffix("-only")) || $0 == "--scene" }
 // The natural census (Sources/NaturalCensus.swift: ~70 sample chunks generated, 10-20 s here) comes out the same every
 // time for one binary. A named run keeps it beside the temp dir under this executable's path, size and date and reads
 // it back the next time; the whole run still computes it. QC_KEEP_CENSUS=0: never keep; =1: keep on a whole run too.
@@ -2575,6 +2575,8 @@ if let k = censusKeep, FileManager.default.fileExists(atPath: k.path) {
     try? FileManager.default.createDirectory(at: NaturalCensus.cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
     try? FileManager.default.copyItem(at: k, to: NaturalCensus.cacheURL)
 }
+// --scene FILE [--seed S] [--headset] [--out DIR]: a bug played back from a scene file (SceneScript.swift, docs/status/fast-proof.md).
+if let f = arg("--scene"), arg("--view") == nil { exit(SceneScript.run(path: f, device: device, ctx: vkctx)) }
 // Named checks that need no shared world (they make their own, or none): run before it is made and loaded.
 func namedEnd(_ name: String) -> Never { print(failures == 0 ? "\(name): all checks passed" : "\(name): \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 // P499: no held gun part or upgrade fitting floats clear of the gun (quest/src/test/GunFittingsCheck.swift).

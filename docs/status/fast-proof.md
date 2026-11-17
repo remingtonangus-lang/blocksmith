@@ -72,3 +72,41 @@ Now, on a run that names a check (any `--X-only` argument):
 | `--rules-only` (full world, mid check) | 27 s | 9-10 s |
 
 The first named run of a new build still computes the census once (+18 s). The whole suite runs exactly as before.
+
+## Scene files: a voice note's bug played back (job 3, Nov 17)
+
+`questcheck --scene FILE [--seed S] [--headset] [--out DIR]` reads a text file, one command a line (`#` comments), and
+plays it against the game through the calls play uses: Game.tick at 72 Hz, and the player's look, walk, break and place
+through the bot's input path (Agent.apply, the same InputState the window fills). One result line a command;
+`expect` lines print `ok`/`FAIL` and a failed one makes the exit non-zero. `--headset` makes a field world with polygon
+ground, as the headset makes new worlds. Shots go to `--out DIR` (default the temp dir), never into the repo.
+
+Coordinates are as the game shows them (a voice note's Position line): y is the displayed height. `look` takes the
+note's facing and pitch in degrees.
+
+| Command | Does |
+|---|---|
+| `at X Y Z`, `look YAW PITCH`, `load R` | stand there, face there, load R chunks round him |
+| `tick SECONDS` | play on (prints tick avg and worst ms) |
+| `survival on\|off`, `fly on\|off`, `give ITEM [N]` | mode, flying, an item in his hand |
+| `block X Y Z` | the block there, or `ground(material)` for a field world's natural ground |
+| `set X Y Z KEY` | set a block (World.setBlock) |
+| `ground X0 Y0 Z0 X1 Y1 Z1 MAT\|air` | a box of natural ground (field density, as the weigh checks build fixtures) |
+| `break X Y Z` | turn onto the cell and hold attack until it is gone (10 s at most) |
+| `place X Y Z` | turn onto the top of the cell under it and press use once with what he holds |
+| `blast X Y Z [POWER]` | Explosion.explode, half a second, then the ground's weighing played out (as `--blasts`) |
+| `dump X0 Y0 Z0 X1 Y1 Z1` | every cell, a row a line, runs joined (4,096 cells at most) |
+| `shot NAME.png [W H]` | the `--view` render (both eyes) at his eye |
+| `spawn mob KIND`, `spawn vessel KIND` | a mob 6 ahead; a ShipTest vessel (car, airship, plane...) assembled ahead |
+| `ride nearest train\|ship`, `drive THROTTLE SECONDS`, `walk forward SECONDS` | board as he boards (Trains.use, the helm), hold the throttle or walk |
+| `print player\|train\|ship\|fps` | place, speed, held, aboard, hull; tick avg and worst over the last tick |
+| `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, ship.speed/blocks/y, train.speed, fps.worst/avg |
+
+Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
+
+| Scene | Fixed | With the switch |
+|---|---|---|
+| `rock-place-break.scene --headset` (ledger 136) | all passed | `BS_OLDROCKLUMP=1`: 1 FAILED (the placed stone is ground) |
+| `crater-settle.scene --headset` (ledger 127) | all passed | `BS_GROUNDWEIGH=0`: 2 FAILED (the stub and cap hang) |
+
+Each runs in about 15 s after the census is kept. `ride nearest train` needs a train in the loaded land.
