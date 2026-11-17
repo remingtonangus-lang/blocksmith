@@ -105,6 +105,11 @@ enum QuestStreamTest {
         // (ledger 221: BS_STREAMLATE=K: K of every 72 frames late, spread evenly, as at 72 - K fps on the headset; the
         // governor's late window and its worker hold run on them, BS_OLDWORKERHOLD=1 as before)
         let lateK = Int(Env.all["BS_STREAMLATE"] ?? "") ?? 0
+        // (Nov 17, the making's share: BS_STREAMGENTIME=1 times chunk making by phase and structure starts planned by kind,
+        // printed every 10 s for the 10 s past)
+        let genTime = Env.all["BS_STREAMGENTIME"] == "1"
+        if genTime { WorldGen.timing = true; WorldGen.timingStarts = false }
+        var phase0 = WorldGen.phaseMs, startMs0 = StructureCache.startMs, made0 = StructureCache.startsMade, twice0 = StructureCache.startsTwice, evict0 = StructureCache.evictions
         if lateK > 0 { print("streamtest: \(lateK) of every 72 frames late; worker hold \(FrameGovernor.oldHold ? "as before" : "land first (ledger 221)")") }
         for f in 0..<(secs * 72) {
             if g.menu != nil { g.closeMenu() }
@@ -237,6 +242,16 @@ enum QuestStreamTest {
                 let wd = w.wrongDeferred()
                 wrongMost = max(wrongMost, wd.wrong.count); wrongSeen.formUnion(wd.wrong)
                 if !wd.wrong.isEmpty || sec % 10 == 0 {
+                    if genTime && sec % 10 == 0 {
+                        WorldGen.timingLock.lock()
+                        let ph = zip(WorldGen.phaseNames, zip(WorldGen.phaseMs, phase0)).map { String(format: "%@ %.0f", $0.0, $0.1.0 - $0.1.1) }.joined(separator: ", ")
+                        let st = StructureCache.startMs.map { ($0.key, $0.value - (startMs0[$0.key] ?? 0)) }.filter { $0.1 > 1 }.sorted { $0.1 > $1.1 }
+                            .prefix(8).map { String(format: "%@ %.0f", $0.0, $0.1) }.joined(separator: ", ")
+                        phase0 = WorldGen.phaseMs; startMs0 = StructureCache.startMs
+                        WorldGen.timingLock.unlock()
+                        print("streamtest: \(sec) s making, last 10 s, worker ms by phase: \(ph); starts planned \(StructureCache.startsMade - made0) (again \(StructureCache.startsTwice - twice0), evictions \(StructureCache.evictions - evict0)), ms by kind (nested counted in each): \(st)")
+                        made0 = StructureCache.startsMade; twice0 = StructureCache.startsTwice; evict0 = StructureCache.evictions
+                    }
                     print(String(format: "streamtest: %3d s: at %.0f %.0f %.0f; buried check: %d chunks, %d sections left unmeshed hold the surface%@", sec, p.pos.x, p.pos.y - Float(YOFF), p.pos.z, wd.checked, wd.wrong.count, wd.wrong.isEmpty ? "" : ": " + wd.wrong.prefix(4).joined(separator: "; ")))
                 }
                 World.handedOver = 0; World.handoverSpent = 0
