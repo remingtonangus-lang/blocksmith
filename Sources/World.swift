@@ -1046,6 +1046,8 @@ final class World: LifeLinked {
     // and every search and body rebuilt the cells it read (a fine cell 20-40 us; one search node 4 ms).
     var groundStamps = [Int](repeating: 0, count: 4096)
     var groundShapesBuilt = 0                                   // fieldBoxes cache misses (framesoak prints them)
+    var groundStale = 0                                         // BS_GROUNDVERIFY: cache hits that were stale
+    static let groundVerify = Env.all["BS_GROUNDVERIFY"] == "1"
     var groundShapesSec: Double = 0                             // time in the fine ones
     static let oldGroundCache = Env.all["BS_OLDGROUNDCACHE"] == "1"     // ledger 306 off: one world-wide stamp, 2048 cells
     @inline(__always) func groundStamp(_ x: Int, _ z: Int) -> Int {
