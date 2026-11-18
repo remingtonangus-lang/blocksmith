@@ -567,14 +567,18 @@ enum TownLaw {
             if o.villager?.role == "sheriff" { sheriffs[town(of: o, g), default: []].append(o) }
         }
         oneSheriff(g, sheriffs)
+        TickProf.mark("town law: townsfolk, sheriffs")                 // (Nov 18: "hud: town law" 9-12 ms in a village, split)
         guard let near = nearest else {
             inTown = nil; Honour.tick(g, town: nil); TownConquest.tick(g, town: nil); TownBoard.posters(g, town: nil); return
         }
         let here = town(of: near, g)
         inTown = here
         TownBoard.posters(g, town: here)
+        TickProf.mark("town law: town of, posters")
         Honour.tick(g, town: here)
+        TickProf.mark("town law: honour")
         TownConquest.tick(g, town: here)
+        TickProf.mark("town law: conquest")
         let day = Int(g.time / DAY_LENGTH)
         if sheriffs[here] != nil { state.appointed[here] = day }
         else if day - (state.appointed[here] ?? -99) >= 3, squareLoaded(g, near) {
@@ -589,7 +593,9 @@ enum TownLaw {
                 o.town.anger = max(o.town.anger, 3)
             }
         }
+        TickProf.mark("town law: sheriff, outlaws, hostile")
         ambientChatter(g)
+        TickProf.mark("town law: chatter")
     }
 
     // One sheriff per town (Saved.sheriffs names him): another one loaded in the same town (a cured zombie sheriff,

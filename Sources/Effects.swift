@@ -464,6 +464,9 @@ extension Game {
         let rf = radio.savedFlight(clock)
         if !rf.0.isEmpty { d["radioAlert"] = rf.0 }
         if !rf.1.isEmpty { d["radioDrops"] = rf.1 }
+        let bst = bases.boreal                                                     // ledger 253
+        if !bst.mustered.isEmpty { d["borealMustered"] = bst.mustered.sorted().joined(separator: ";") }
+        if !bst.kills.isEmpty { d["borealKills"] = bst.kills.keys.sorted().map { "\($0)=\(bst.kills[$0]!)" }.joined(separator: ";") }
         if !stationOps.isEmpty, let e = try? JSONEncoder().encode(Array(stationOps.values)), let str = String(data: e, encoding: .utf8) { d["stationOps"] = str }
         // The charged rebirth anchor and the last death point (recovery compass): neither survived a reload.
         if let a = anchorSpawn { d["anchor"] = "\(a.x),\(a.y),\(a.z)" }
@@ -567,6 +570,13 @@ extension Game {
         Trophies.decode(d["trophies"] ?? "")
         radio.load(d["radioSus"] ?? "", d["radioBurned"] ?? "")
         radio.loadFlight(d["radioAlert"] ?? "", d["radioDrops"] ?? "", clock: clock)
+        bases.boreal.mustered = Set((d["borealMustered"] ?? "").split(separator: ";").map(String.init))      // ledger 253
+        bases.boreal.kills = [:]
+        for e in (d["borealKills"] ?? "").split(separator: ";") {
+            let kv = e.split(separator: "=")
+            if kv.count == 2, let n = Int(kv[1]) { bases.boreal.kills[String(kv[0])] = n }
+        }
+        bases.boreal.tally = [:]
         if let str = d["stationOps"], let data = str.data(using: .utf8), let ops = try? JSONDecoder().decode([StationOp].self, from: data) {
             for o in ops { stationOps[o.key] = o }
         }

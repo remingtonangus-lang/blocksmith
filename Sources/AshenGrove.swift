@@ -108,9 +108,18 @@ extension Game {
         guard heartTimer <= 0 else { return }
         heartTimer = 2
         heartScanAge += 2
-        if heartScanAge >= 10 {
-            heartScanAge = 0
-            hearts = scanHearts()
+        if Game.oldHeartScan {
+            if heartScanAge >= 10 { heartScanAge = 0; hearts = scanHearts() }
+        } else {
+            // Ledger 297 (Nov 18, the host spots soak: "ashen" 10-21 ms every 10 s on arrival anywhere, the 5 x 5 chunks'
+            // 160k blocks read on one frame): one row of five chunks every 2 s, a whole pass in 10 s as before.
+            // BS_OLDHEARTSCAN=1: the whole square on one frame.
+            let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
+            let row = heartRow % 5
+            heartRow &+= 1
+            for cx in (pcx - 2)...(pcx + 2) { let k = ChunkKey(x: cx, z: pcz - 2 + row); heartChunks[k] = scanHeartChunk(k) }
+            heartChunks = heartChunks.filter { abs($0.key.x - pcx) <= 2 && abs($0.key.z - pcz) <= 2 && !$0.value.isEmpty }
+            hearts = heartChunks.values.flatMap { $0 }
         }
         let base = Blocks.id("creaking_heart"), active = base + 1
         for h in hearts {
@@ -140,23 +149,28 @@ extension Game {
         }
     }
 
+    static let oldHeartScan = Env.all["BS_OLDHEARTSCAN"] == "1"
     func scanHearts() -> [IVec3] {
-        let base = Blocks.id("creaking_heart")
         var out: [IVec3] = []
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
+        for cz in (pcz - 2)...(pcz + 2) { for cx in (pcx - 2)...(pcx + 2) { out += scanHeartChunk(ChunkKey(x: cx, z: cz)) } }
+        return out
+    }
+
+    func scanHeartChunk(_ k: ChunkKey) -> [IVec3] {
         // Local copies of the tables: Blocks.groupBase / c.blocks inside the loop cost a class-property access per
         // voxel (160k a scan, every 10 s: a 6-26 ms hitch in an optimized build).
+        guard let c = world.chunks[k] else { return [] }
+        let base = Blocks.id("creaking_heart")
         let groupBase = Blocks.groupBase
-        for cz in (pcz - 2)...(pcz + 2) { for cx in (pcx - 2)...(pcx + 2) {
-            guard let c = world.chunks[ChunkKey(x: cx, z: cz)] else { continue }
-            let blocks = c.blocks, height = c.height
-            for lz in 0..<CS { for lx in 0..<CS {
-                let top = Int(height[lx + lz * CS])
-                guard top > 20 else { continue }
-                for y in thru(max(1, top - 24), top) where groupBase[Int(blocks.raw(Chunk.index(lx, y, lz)))] == base {
-                    out.append(IVec3(cx * CS + lx, y, cz * CS + lz))
-                }
-            } }
+        var out: [IVec3] = []
+        let blocks = c.blocks, height = c.height
+        for lz in 0..<CS { for lx in 0..<CS {
+            let top = Int(height[lx + lz * CS])
+            guard top > 20 else { continue }
+            for y in thru(max(1, top - 24), top) where groupBase[Int(blocks.raw(Chunk.index(lx, y, lz)))] == base {
+                out.append(IVec3(k.x * CS + lx, y, k.z * CS + lz))
+            }
         } }
         return out
     }

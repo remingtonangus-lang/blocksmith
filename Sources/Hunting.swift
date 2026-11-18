@@ -270,9 +270,12 @@ enum Hunting {
             for s in yield(b) { g.drops.spawn(s, at: b.mob.pos + V3(0, 0.5, 0)) }
             state.killed.insert(b.legend)
         }
+        TickProf.mark("hunting: bodies")
         refresh(g)
+        TickProf.mark("hunting: refresh")
         guard g.world.dim == .overworld else { return }
         legendTick(g)
+        TickProf.mark("hunting: legends")
     }
 
     // MARK: Saved state (world extra "hunting")
@@ -311,6 +314,40 @@ enum Hunting {
             denCache = s.map { IVec3($0[0], 0, $0[1]) }; denSeed = seed
             return denCache!
         }
+        let out = findDens(g.world.gen, seed: seed)
+        state.dens = out.map { [$0.x, $0.z] }
+        denCache = out; denSeed = seed
+        return out
+    }
+    // Ledger 292 (Nov 18, efficiency: a new world's first legend tick spent 32.7 ms on the frame (onone host) finding
+    // the dens, up to 121 generator columns each): the legends' tick looks for them on a worker and waits for them
+    // (legends don't come before). The Hunter's Map still asks for them at once. BS_OLDDENS=1: on the frame.
+    static let oldDens = Env.all["BS_OLDDENS"] == "1"
+    private static let denLock = NSLock()
+    private static var denFound: (UInt64, [IVec3])?
+    private static var denLooking: UInt64?
+    static func densReady(_ g: Game) -> [IVec3]? {
+        let seed = g.world.seed
+        if oldDens { return dens(g) }
+        if let d = denCache, denSeed == seed { return d }
+        if let s = state.dens, s.count == legends.count, s.allSatisfy({ $0.count == 2 }) { return dens(g) }
+        denLock.lock(); let found = denFound, looking = denLooking; denLock.unlock()
+        if let (fs, out) = found, fs == seed {
+            state.dens = out.map { [$0.x, $0.z] }
+            denCache = out; denSeed = seed
+            return out
+        }
+        if looking != seed {
+            denLock.lock(); denLooking = seed; denLock.unlock()
+            let gen = g.world.gen
+            DispatchQueue.global(qos: .utility).async {
+                let out = findDens(gen, seed: seed)
+                denLock.lock(); denFound = (seed, out); denLock.unlock()
+            }
+        }
+        return nil
+    }
+    static func findDens(_ gen: TerrainGenerator, seed: UInt64) -> [IVec3] {
         var out: [IVec3] = []
         for (i, l) in legends.enumerated() {
             let ang = hashf(7_331 + i, 91, 17, UInt32(truncatingIfNeeded: seed ^ (seed >> 32))) * 2 * .pi
@@ -321,14 +358,12 @@ enum Hunting {
                 let n = ring * 64
                 for dz in stride(from: -n, through: n, by: 64) {
                     for dx in stride(from: -n, through: n, by: 64) where max(abs(dx), abs(dz)) == n {
-                        if l.habitat.contains(g.world.gen.column(cx + dx, cz + dz).biome) { pick = IVec3(cx + dx, 0, cz + dz); break search }
+                        if l.habitat.contains(gen.column(cx + dx, cz + dz).biome) { pick = IVec3(cx + dx, 0, cz + dz); break search }
                     }
                 }
             }
             out.append(pick)
         }
-        state.dens = out.map { [$0.x, $0.z] }
-        denCache = out; denSeed = seed
         return out
     }
 
@@ -336,7 +371,7 @@ enum Hunting {
 
     static func legendTick(_ g: Game) {
         let p = g.player.pos
-        let d = dens(g)
+        guard let d = densReady(g) else { return }
         for (i, l) in legends.enumerated() where !state.killed.contains(i) && !bodies.contains(where: { $0.legend == i }) {
             let den = d[i]
             let dx = Float(den.x) + 0.5 - p.x, dz = Float(den.z) + 0.5 - p.z
