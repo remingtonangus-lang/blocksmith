@@ -173,6 +173,8 @@ enum Railways {
     static func sparseWorld(_ gen: WorldGen) -> Bool {
         sparseOn && !oldRailRows && wildWorld(gen) && (gen.structures?.legacyL230.isEmpty ?? false)
     }
+    static let railSwing: Float = Env.all["BS_RAILSWING"].flatMap { Float($0) } ?? 120
+    static let railPull: Float = max(1, Env.all["BS_RAILPULL"].flatMap { Float($0) } ?? 12)
     static let realFlip: Int64 = 1 << 59              // (the cache key of a stretch's town line alone)
     // A stretch's town line alone (nil: none, the stretch is open country), planned without the open-country track.
     static func townLine(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
@@ -982,11 +984,13 @@ enum Railways {
         // (the second picture from above: a slow field of easier and harder going moved the way a square or two off
         // its row and no more, a straight track with dents. So the way has a line to keep near, from its start to
         // its goal with two slow swings north and south, widest in the middle and none at the ends, inside the band;
-        // a square costs a point for every 24 blocks it lies off that line, up to 6, and the land still has its say.)
+        // a square costs a point for every 12 blocks it lies off that line, up to 10, and the land still has its say.
+        // (At a point for every 24 the track lagged the line by 50 to 70 blocks rather than pay for its steps, and
+        // swung half as far as the line. BS_RAILSWING / BS_RAILPULL: the swing in blocks and the blocks to a point.))
         let fieldA = hashf(s0.0, 0x230, 1, UInt32(truncatingIfNeeded: gen.seed)) * 6.283, fieldB = hashf(s0.0, 0x230, 2, UInt32(truncatingIfNeeded: gen.seed)) * 6.283
         let runX = Float(max(1, e0.0 - s0.0))
         let room: Float = band.map { Float($0.hi - $0.lo) / 3 } ?? 120
-        let swing: Float = min(120, room, runX / 6)
+        let swing: Float = min(railSwing, room, runX / 6)
         let bandLo = Float((band?.lo ?? Int.min / 2) + 24), bandHi = Float((band?.hi ?? Int.max / 2) - 24)
         func guide(_ x: Float) -> Float {
             let u = max(0, min(1, (x - Float(s0.0)) / runX))
@@ -998,9 +1002,9 @@ enum Railways {
         func landCost(_ i: Int, _ j: Int) -> Int32 {
             let climb = abs(height(j) - height(i))
             let x = Float((gx0 + j % nx) * G + G / 2), z = Float((gz0 + j / nx) * G + G / 2)
-            let away: Float = abs(z - guide(x)) / 24
+            let away: Float = abs(z - guide(x)) / railPull
             let steep: Int32 = min(14, max(0, climb - 2))
-            return steep + Int32(min(6, away).rounded())
+            return steep + Int32(min(10, away).rounded())
         }
         func h(_ i: Int) -> Int32 { hw * Int32(abs(i % nx - gxg) + abs(i / nx - gzg)) }
         var heap: [(Int32, Int32)] = []                    // (f, state)
