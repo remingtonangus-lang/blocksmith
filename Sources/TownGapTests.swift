@@ -134,6 +134,25 @@ extension TownTests {
             check(b.overflow().isEmpty, "town gap: the bank fits its panel" + (b.overflow().isEmpty ? "" : " (\(b.overflow().prefix(3)))"))
             g.closeMenu()
         }
+        // Ledger 331 (Nov 17 20:08:30: "depositing money in a bank would only make sense if it meant I lost money when
+        // I died"): a death takes the wallet; the bank keeps its savings.
+        do {
+            let test0 = Settings.shared.testMode, surv0 = g.survival, pos0 = g.player.pos, wallet0 = g.townWallet, bank0 = Bank.balance
+            defer {
+                Settings.shared.testMode = test0; g.survival = surv0; g.alive = true; g.health = g.maxHealth
+                if g.menu != nil { g.closeMenu() }
+                g.player.pos = pos0; g.townWallet = wallet0; Bank.balance = bank0
+            }
+            Settings.shared.testMode = false; g.survival = true
+            let inv0 = (0..<36).map { g.inventory.main[$0] }
+            defer { for i in 0..<36 { g.inventory.main[i] = inv0[i] } }
+            for i in 0..<36 { g.inventory.main[i] = .empty }
+            g.townWallet = 1250; Bank.balance = 3000
+            g.die("fell from a high place")
+            let detail = (g.menu as? DeathMenu)?.detailLines.joined(separator: " ") ?? ""
+            check(g.townWallet == 0 && Bank.balance == 3000 && detail.contains("$12.50") && detail.contains("$30.00"),
+                  "ledger 331: dying takes the $12.50 he carried (wallet now \(Money.format(g.townWallet))) and leaves $30.00 in the bank (\(Money.format(Bank.balance))): \"\(detail.prefix(90))\"")
+        }
         // Interest: 1% a day, capped a day and at a week.
         Bank.balance = 10_000; TownLaw.state.bankDay = 3
         g.time = 5.2 * DAY_LENGTH

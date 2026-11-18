@@ -20,6 +20,8 @@ enum Bank {
     // sell). Stores sell emeralds at a fixed $1.20 whatever the discounts (Economy.buyPrice), so no loop pays.
     static let buyEmerald = 120, sellEmerald = Exchange.rate
     static let rate: Float = 0.01, dailyCap = 200, maxDays = 7
+    static let oldDeathMoney = Env.all["BS_OLDDEATHMONEY"] == "1"     // ledger 331: the wallet kept through a death
+    static var lostOnDeath = 0                                           // (checks: cents lost from wallets on death)
 
     static var balance: Int {
         get { TownLaw.state.bank ?? 0 }
