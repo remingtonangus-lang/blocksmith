@@ -304,6 +304,33 @@ enum RideCheck {
                 let rv = s.dirToLocal(p.vel - s.velocity(at: p.pos))
                 print(String(format: "TRACE tick %ld: %.3f,%.3f,%.3f aboard %@ ground %@ deck vel %.2f,%.2f,%.2f ship y %.3f; ", ticks, l.x, l.y, l.z, aboard ? "yes" : "no", p.onGround ? "yes" : "no", rv.x, rv.y, rv.z, s.pos.y) + cells.joined(separator: " | "))
             }
+            if let tr = RideCheck.trace, ticks == tr.upperBound {
+                // (and at its last tick, the floor round the bot as the body meets it: per column of the frame, the top of
+                // each box over the ground's level (hull or ground, h/g) from 2 under the bot's cell to 3 over, a map)
+                w.frame = s
+                var bs: [(V3, V3)] = []
+                let fx = Int(floor(l.x)), fz = Int(floor(l.z)), fy = Int(floor(l.y))
+                print("FOOT map round the bot, ship space (rows z, columns x \(fx - 4)...\(fx + 4)); each: top of the boxes stacked from y \(fy - 2) (g ground, h hull, - nothing):")
+                for z in (fz - 5)...(fz + 4) {
+                    var row: [String] = []
+                    for x in (fx - 4)...(fx + 4) {
+                        var top: Float = -99, kind = "-", gaps = 0, lastTop: Float? = nil
+                        for y in (fy - 2)...(fy + 3) {
+                            bs.removeAll(keepingCapacity: true)
+                            w.collisionBoxes(x, y, z, &bs)
+                            for (a, b) in bs.sorted(by: { $0.0.y < $1.0.y }) {
+                                if let lt = lastTop, a.y > lt + 0.01 { gaps += 1 }
+                                lastTop = max(lastTop ?? -99, b.y)
+                                if b.y > top { top = b.y; kind = s.grid.get(x, y, z) != AIR ? "h" : "g" }
+                            }
+                        }
+                        row.append(kind == "-" ? "   -  " : String(format: "%@%5.2f%@", kind, top, gaps > 0 ? "*" : " "))
+                    }
+                    print(String(format: "FOOT z %3ld: ", z) + row.joined(separator: " "))
+                }
+                print("FOOT (* = a column with a gap between its boxes: something to fall through or stand in)")
+                w.frame = nil
+            }
             if aboard {
                 w.frame = s
                 let lo = V3(l.x - p.halfW + 0.05, l.y + 0.05, l.z - p.halfW + 0.05)

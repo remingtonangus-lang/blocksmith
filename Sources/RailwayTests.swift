@@ -796,6 +796,12 @@ enum RailwayTests {
         g.player.pos = V3(Float(sc.x) + 0.5, Float(sc.y), Float(sc.z - 2) + 0.5)
         _ = world.loadSync(center: g.player.pos, radius: 4)
         Trains.trains.removeAll()
+        // Ledger 304: the game makes a line's track on a worker (293); the frame never waits and the track comes.
+        if let gen = world.gen as? WorldGen {
+            let pr = Trains.workerTrackProof(l, gen: gen)
+            check(pr.firstEmpty && pr.track.map { $0.source == l.cells.count } == true,
+                  String(format: "Ledger 304: in the game the line's track is made on a worker: the first ask %@ (the frame never waits), ready %.0f ms later", pr.firstEmpty ? "held nothing" : "held a track already", pr.ms))
+        }
         // Run the clock to when the train stands at this station.
         guard let tr0 = Optional(Trains.Train(t)) else { return }
         var at: Double = g.time, found = false
