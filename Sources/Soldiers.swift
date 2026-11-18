@@ -1184,6 +1184,7 @@ extension Mob {
         }
         let rawPitch = wantPitch
         wantPitch = max(HeavyTurret.pitchLow(self), min(HeavyTurret.pitchTop(self), wantPitch))
+        if HeavyTurret.barrelsClear { wantPitch = HeavyTurret.clearPitch(self, g.world, yaw: wantYaw, from: wantPitch) }
         var dyaw = wantYaw - yaw
         while dyaw > .pi { dyaw -= 2 * .pi }
         while dyaw < -.pi { dyaw += 2 * .pi }
@@ -1192,6 +1193,8 @@ extension Mob {
         let elevate: Float = (flak ? 1.2 : (light && airShot ? 0.6 : (light ? 0.4 : 0.25))) * dt
         if GunParts.canTurn(self) { yaw += max(-turn, min(turn, dyaw)) }         // P372: a broken mount holds it
         b.pitch += max(-elevate, min(elevate, wantPitch - b.pitch))
+        // (ledger 270: turning with its barrels low, they rise over what is in their way rather than sweep through it)
+        if HeavyTurret.barrelsClear { b.pitch = HeavyTurret.clearPitch(self, g.world, yaw: yaw, from: b.pitch) }
         walkPhase += abs(max(-turn, min(turn, dyaw)))
         let tol: Float = airShot ? 0.05 : 0.04
         // (P504: a man at the wall's foot is close below, not far off: the shell must clear its own gun, 16 blocks for
@@ -1550,6 +1553,36 @@ enum HeavyTurret {
         case lightVariant: return 1.0
         default: return pitchMax
         }
+    }
+    // Ledger 270 (Nov 17 20:12:27 at the Greywall Garrison, -5046 102 -1670: "we still got the barrels ... glitching
+    // through blocks like that"): a tower gun laid its barrels wherever its aim said, so turned low they ran through the
+    // tower's merlons and walls. The lowest pitch at or over `pitch` at which both barrels (trunnion to muzzle) are clear
+    // of solid blocks and ground; the gun lays no lower, also while it turns. BS_OLDBARRELS=1: through them, as before.
+    static let barrelsClear = Env.all["BS_OLDBARRELS"] != "1"
+    static func barrelHits(_ m: Mob, _ w: World, yaw: Float, pitch p: Float) -> Bool {
+        let k = scale(m)
+        let fwd = V3(-sinf(yaw) * cosf(p), sinf(p), -cosf(yaw) * cosf(p))
+        let side = V3(cosf(yaw), 0, -sinf(yaw)), flat = V3(-sinf(yaw), 0, -cosf(yaw))
+        let len = barrel * k
+        let n = max(2, Int(len / 0.3))
+        for sx: Float in (isFlak(m) ? [0] : [-1, 1]) {
+            let t0 = m.pos + V3(0, trunnionY * k, 0) + flat * (-trunnionZ * k) + side * (sx * spacing * k)
+            for i in 1...n {
+                let q = t0 + fwd * (len * Float(i) / Float(n))
+                let x = Int(floor(q.x)), y = Int(floor(q.y)), z = Int(floor(q.z))
+                if Blocks.collide[Int(w.block(x, y, z))] || w.groundAt(x, y, z) { return true }
+            }
+        }
+        return false
+    }
+    static func clearPitch(_ m: Mob, _ w: World, yaw: Float, from pitch: Float) -> Float {
+        var p = pitch
+        let top = pitchTop(m)
+        for _ in 0..<30 {
+            if p >= top || !barrelHits(m, w, yaw: yaw, pitch: p) { return p }
+            p = min(top, p + 0.05)
+        }
+        return p
     }
     static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
         let p = m.brain?.pitch ?? 0
