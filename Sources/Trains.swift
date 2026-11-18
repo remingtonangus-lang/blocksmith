@@ -348,14 +348,48 @@ enum Trains {
         return t
     }
     private static var tracks: [Int64: Track] = [:]
+    // Ledger 293 (Nov 18, efficiency: a line first in reach made its track on the frame, 100-162 ms each on the onone
+    // host for the spots route's 2,500-cell lines, two in one tick): the trains' tick has a line's track made on a
+    // worker and runs that line's train once it is there (its old track meanwhile, when its loops changed it).
+    // BS_OLDTRACKMAKE=1: on the frame.
+    static let oldTrackMake = Env.all["BS_OLDTRACKMAKE"] == "1"
+    private static let trackLock = NSLock()
+    private static var trackMade: [Int64: Track] = [:]
+    private static var trackMaking = Set<Int64>()
+    static func readyTrack(_ l: Railways.Line, gen: WorldGen) -> Track? {
+        if oldTrackMake { return cachedTrack(l, gen: gen) }
+        trackLock.lock()
+        if !trackMade.isEmpty { for (k, t) in trackMade { tracks[k] = t }; trackMade.removeAll() }
+        trackLock.unlock()
+        if tracks.count > 64 { let keep = tracks[l.id]; tracks.removeAll(); tracks[l.id] = keep }
+        let loops = Railways.loops(gen, l, wait: false)
+        let want = loops.west != nil && loops.east != nil
+        let have = tracks[l.id]
+        if let t = have, t.source == l.cells.count, t.cyclic == want { return t }
+        trackLock.lock()
+        let busy = trackMaking.contains(l.id)
+        if !busy { trackMaking.insert(l.id) }
+        trackLock.unlock()
+        if !busy {
+            DispatchQueue.global(qos: .userInitiated).async {
+                var t = track(l)
+                if want, let lw = loops.west, let le = loops.east, let c = cyclicTrack(l, west: lw, east: le) { t = c }
+                trackLock.lock(); trackMade[l.id] = t; trackMaking.remove(l.id); trackLock.unlock()
+            }
+        }
+        return have.flatMap { $0.source == l.cells.count ? $0 : nil }
+    }
     // P511: with a loop planned at each end (RailLoops.swift), the line's track is its circuit (gen: nil, the line as
     // laid). A loop still being planned leaves the line's own track until it is.
     static func cachedTrack(_ l: Railways.Line, gen: WorldGen? = nil) -> Track {
         let loops = gen.map { Railways.loops($0, l, wait: false) }
         let want = loops?.west != nil && loops?.east != nil
         if let t = tracks[l.id], t.source == l.cells.count, t.cyclic == want { return t }
+        TickProf.mark("trains: track loops")
         var t = track(l)
+        TickProf.mark("trains: track made")
         if want, let lw = loops?.west, let le = loops?.east, let c = cyclicTrack(l, west: lw, east: le) { t = c }
+        TickProf.mark("trains: track circuit made")
         tracks[l.id] = t
         if tracks.count > 64 { tracks.removeAll(); tracks[l.id] = t }
         return t
@@ -378,7 +412,7 @@ enum Trains {
         case .overworld:
             guard let gen = g.world.gen as? WorldGen else { return [] }
             let x = Int(floor(p.x)), z = Int(floor(p.z))
-            return Railways.near(gen, x0: x - r, z0: z - r, x1: x + r, z1: z + r, pad: r, wait: false).map { cachedTrack($0, gen: gen) }   // (P440: never plans on the frame)
+            return Railways.near(gen, x0: x - r, z0: z - r, x1: x + r, z1: z + r, pad: r, wait: false).compactMap { readyTrack($0, gen: gen) }   // (P440: never plans on the frame)
         case .deep:
             guard DeepGen.inVault(p.y) else { return [] }
             return vaultTracks.filter { t in
@@ -427,7 +461,9 @@ enum Trains {
         var want: Set<Int64> = []
         let R = reach(g)
         let nearTracks = tracksNear(g, p, Int(R) + 12)
-        TrainArrivals.tick(g, near: nearTracks)          // P508: one in ten every ten minutes, a train comes his way
+        TickProf.mark("trains: tracks near")
+        TrainArrivals.tick(g, near: nearTracks)
+        TickProf.mark("trains: arrivals")          // P508: one in ten every ten minutes, a train comes his way
         // P510: a through train he rides runs on, line after line; the line it left has no train of its own meanwhile.
         if let r = g.riding, isCar(r), let (tr, _) = carOf[ObjectIdentifier(r)] { through(g, tr) }
         // Ledger 290 (Nov 18, host route at the cab's full regulator, 10-28 b/s: the train he rode was taken away under
@@ -435,7 +471,9 @@ enum Trains {
         // into ground not yet generated and failed the "head cell loaded and rail" test below. A train with a rider is
         // always kept and never built again under him; it brakes for land not yet loaded ahead instead (place()).
         // BS_OLDRIDDENTRAIN=1: as before.
-        let ridden: Int64? = oldRiddenTrain ? nil : g.riding.flatMap { r in isCar(r) ? carOf[ObjectIdentifier(r)]?.0.track.id : nil }
+        // (with him on it: the car he rides within 32 blocks; a harness that moves him away without getting off lets
+        // the train go as before, and him with it)
+        let ridden: Int64? = oldRiddenTrain ? nil : g.riding.flatMap { r in isCar(r) && simd_length(r.pos - p) < 32 ? carOf[ObjectIdentifier(r)]?.0.track.id : nil }
         for (id, tr) in trains where tr.track.through && !tr.cars.isEmpty {
             let aboard = g.riding.map { r in tr.cars.contains { $0 === r } } ?? false
             if aboard || simd_length(tr.track.point(tr.lastS) - p) < R + 32 { want.insert(id) }
@@ -470,6 +508,7 @@ enum Trains {
             }
         }
         if let id = ridden, trains[id]?.cars.isEmpty == false { want.insert(id) }   // (its line out of this second's plans)
+        TickProf.mark("trains: build")
         for (id, tr) in trains where !want.contains(id) && !tr.cars.isEmpty {
             remove(g, tr)
             if tr.track.through { trains[id] = nil; throughOut = throughOut.filter { $0.value != id } }

@@ -237,7 +237,7 @@ enum Countries {
 
     static func reset() {
         state = Saved(); lastTick = -10; lastKey = nil; lastTown = nil; owed = 0; owedTo = nil; owedPost = nil; paidPost = nil
-        crossings = 0; smuggled = 0; warNews = 0; annexes = 0; capitals = [:]; postSpots = [:]; lastPos = nil
+        crossings = 0; smuggled = 0; warNews = 0; annexes = 0; capitals = [:]; postSpots = [:]; lastPos = nil; pendingPost = []
         lastPostDistance = .infinity; hud = nil; WarFront.nextGun = 0
     }
     static func save(_ d: inout [String: String]) {
@@ -431,12 +431,15 @@ enum Countries {
     // MARK: Every second (HudExtras.tick)
 
     static func tick(_ g: Game) {
+        if !pendingPost.isEmpty { if g.dim.dim == .overworld && state.seed == g.world.seed { postBuildStep(g) } else { pendingPost.removeAll() }; TickProf.mark("countries: post laid") }
         guard g.clock - lastTick >= 1 || g.clock < lastTick else { return }
         lastTick = g.clock
+        TickProf.mark("countries: early")
         if state.seed == nil { state.seed = g.world.seed } else if state.seed != g.world.seed { reset(); state.seed = g.world.seed }
         guard g.dim.dim == .overworld, g.world.frame == nil else { lastKey = nil; lastPos = nil; return }
         let p = g.player.pos
         let c = at(g, p)
+        TickProf.mark("countries: at")
         if let was = lastKey, was != c.key {
             crossings += 1
             crossed(g, from: was, into: c)
@@ -447,12 +450,18 @@ enum Countries {
             if t != lastTown { arrived(g, town: t) }
         }
         lastTown = TownLaw.inTown
+        TickProf.mark("countries: towns")
         posts(g)
+        TickProf.mark("countries: posts")
         wars(g)
+        TickProf.mark("countries: wars")
         WarFront.ambience(g)
+        TickProf.mark("countries: front ambience")
         g.frontBattleTick()                                     // T12: battles you can join (FrontBattles.swift)
+        TickProf.mark("countries: front battles")
         lastPos = p
         hud = makeHud(g)
+        TickProf.mark("countries: hud")
     }
     static var lastPos: V3?
     // How close the path since the last tick came to a booth (the segment from the last position to here).
@@ -579,16 +588,20 @@ enum Countries {
             // Only borders within 200 blocks (the spot search reads structure starts: once, and only near).
             var nn = V2(Float(n.seatX - here.seatX), Float(n.seatZ - here.seatZ)); nn = nn / max(1, simd_length(nn))
             let mid = V2(Float(n.seatX + here.seatX) / 2, Float(n.seatZ + here.seatZ) / 2)
-            guard abs(simd_dot(V2(p.x, p.z) - mid, nn)) < 200, let s = postSpot(g, here, n) else { continue }
+            TickProf.mark("countries: posts: neighbours")
+            guard abs(simd_dot(V2(p.x, p.z) - mid, nn)) < 200, let s = postSpot(g, here, n) else { TickProf.mark("countries: posts: spot"); continue }
+            TickProf.mark("countries: posts: spot")
             let d = simd_length(V2(Float(s.0) - p.x, Float(s.1) - p.z))
             let k = warKey(here.key, n.key)
             if d < 96, d > 8, !state.posts.contains(k), g.world.isLoaded(s.0 - 2, s.1 - 2), g.world.isLoaded(s.0 + 4, s.1 + 2),
                g.world.isLoaded(s.0 - 2, s.1 + 2), g.world.isLoaded(s.0 + 4, s.1 - 2) {
                 if clear(g, at: s) { build(g, at: s, here, n) }
+                TickProf.mark("countries: posts: build")
                 state.posts.append(k)
                 MapCache.shared.discover(g, kind: "border_post", x: s.0, z: s.1, name: "\(here.name) - \(n.name) border post")
             }
             if d < 40 { near = (k, s, here, n); if !oldCustoms { officer(g, at: s, into: n) } }
+            TickProf.mark("countries: posts: officer")
         }
         guard let (k, s, _, target) = near, g.survival else {
             if near == nil { paidPost = nil; owed = 0; owedTo = nil; owedPost = nil; greetedPost = nil }
@@ -729,8 +742,14 @@ enum Countries {
     static func build(_ g: Game, at s: (Int, Int), _ a: Country, _ b: Country) {
         let w = g.world
         // Hundreds of edits: the mesh workers redraw the sections (synchronous remeshes stalled the Quest's frame).
-        w.deferRemesh = true
-        defer { w.deferRemesh = false }
+        // Ledger 294 (Nov 18, efficiency: a post built in one tick took 77.8 ms on the onone host): the edits are listed
+        // here and laid a few a frame, 1.5 ms at most (postBuildStep); BS_OLDPOSTBUILD=1: all in this tick.
+        var edits: [(Int, Int, Int, BlockID, BlockEntity?)] = []
+        func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, _ be: BlockEntity? = nil) { edits.append((x, y, z, b, be)) }
+        defer {
+            pendingPost += edits
+            if oldPostBuild { postBuildStep(g, all: true) }
+        }
         func id(_ n: String, _ fb: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : fb }
         let floorB = id("stone_bricks", STONE), log = id("spruce_log", STONE), roof = id("spruce_slab", id("spruce_planks", STONE))
         let fence = id("spruce_fence", log), fill = id("cobblestone", STONE)
@@ -738,34 +757,54 @@ enum Countries {
         let gy = w.gen.column(s.0, s.1).height
         for dz in 0..<5 { for dx in 0..<7 {
             let x = x0 + dx, z = z0 + dz
-            for y in (gy + 1)...(gy + 6) where !w.isAir(x, y, z) { w.setBlock(x, y, z, AIR) }
-            w.setBlock(x, gy, z, floorB)
+            for y in (gy + 1)...(gy + 6) where !w.isAir(x, y, z) { put(x, y, z, AIR) }
+            put(x, gy, z, floorB)
             var y = gy - 1
-            while y > gy - 5 && !w.opaqueAt(x, y, z) { w.setBlock(x, y, z, fill); y -= 1 }
+            while y > gy - 5 && !w.opaqueAt(x, y, z) { put(x, y, z, fill); y -= 1 }
         } }
         // Booth: four posts and a slab roof over the 3x3 middle.
         for (dx, dz) in [(0, 0), (2, 0), (0, 2), (2, 2)] {
-            for y in 1...3 { w.setBlock(x0 + 1 + dx, gy + y, z0 + 1 + dz, log) }
+            for y in 1...3 { put(x0 + 1 + dx, gy + y, z0 + 1 + dz, log) }
         }
-        for dz in 0..<5 { for dx in 0..<5 { w.setBlock(x0 + dx, gy + 4, z0 + dz, roof) } }
+        for dz in 0..<5 { for dx in 0..<5 { put(x0 + dx, gy + 4, z0 + dz, roof) } }
         // The pole and the two flags, one each side.
         let px = x0 + 6, pz = z0 + 2
-        for y in 1...6 { w.setBlock(px, gy + y, pz, fence) }
+        for y in 1...6 { put(px, gy + y, pz, fence) }
         let ca = dyes[a.flag.0].0, cb = dyes[a.flag.1].0, da = dyes[b.flag.0].0, db = dyes[b.flag.1].0
-        w.setBlock(px, gy + 6, pz - 1, id(ca + "_wool", fill)); w.setBlock(px, gy + 5, pz - 1, id(cb + "_wool", fill))
-        w.setBlock(px, gy + 6, pz + 1, id(da + "_wool", fill)); w.setBlock(px, gy + 5, pz + 1, id(db + "_wool", fill))
+        put(px, gy + 6, pz - 1, id(ca + "_wool", fill)); put(px, gy + 5, pz - 1, id(cb + "_wool", fill))
+        put(px, gy + 6, pz + 1, id(da + "_wool", fill)); put(px, gy + 5, pz + 1, id(db + "_wool", fill))
         // Signs at both ends of the booth saying what it is (Oct 11 playtest P21: a bare booth and two flags read as
         // "what the hell is this thing?"): one per direction, each naming the country you are entering.
         if Blocks.has("spruce_sign") {
             let sign = Blocks.id("spruce_sign")
             for (z, facing, into, from) in [(z0, BlockID(0), b, a), (z0 + 4, BlockID(1), a, b)] {
-                w.setBlock(x0 + 2, gy + 1, z, sign + facing)
                 let be = BlockEntity(.sign)
                 be.lines = oldCustoms ? ["BORDER POST", "Entering \(into.name)", "from \(from.name)", "Customs: pay here"]
                                       : signWords(into: into)
-                w.blockEntities[IVec3(x0 + 2, gy + 1, z)] = be
+                put(x0 + 2, gy + 1, z, sign + facing, be)
             }
         }
+    }
+
+    static let oldPostBuild = Env.all["BS_OLDPOSTBUILD"] == "1"
+    static var pendingPost: [(Int, Int, Int, BlockID, BlockEntity?)] = []
+    // Every frame (HudExtras, ahead of the once-a-second tick): a post's next edits.
+    static func postBuildStep(_ g: Game, all: Bool = false) {
+        guard !pendingPost.isEmpty else { return }
+        let w = g.world
+        w.deferRemesh = true
+        defer { w.deferRemesh = false }
+        // (by time, not count: the floor's cells replace ground, each a field edit of several ms on a slow build; at
+        // least one a frame, then on while under 1.5 ms)
+        let t0 = CFAbsoluteTimeGetCurrent()
+        var n = 0
+        while n < pendingPost.count && (all || n == 0 || CFAbsoluteTimeGetCurrent() - t0 < 0.0015) {
+            let (x, y, z, b, be) = pendingPost[n]
+            w.setBlock(x, y, z, b)
+            if let be { w.blockEntities[IVec3(x, y, z)] = be }
+            n += 1
+        }
+        pendingPost.removeFirst(n)
     }
 
     // MARK: Wars (once a day, around you)
