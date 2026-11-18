@@ -20,6 +20,7 @@ import simd
 final class QuestRoute {
     static let all = ["menu", "newworld", "plains", "forest", "jungle", "village", "fight", "frigate", "train", "reload"]
     static let combat = ["battle", "siege", "naval"]
+    static let ownWorldLegs = ["frigate", "train"]          // (they change the world too: a fixed one of the route's own)
     static let combatSeed: UInt64 = 7653607216494784574        // (the host framesoak's crawler/citadel world)
     static let fightSeconds = 90.0
     static let seconds: [String: Double] = ["menu": 20, "newworld": 30, "plains": 90, "forest": 90, "jungle": 120,
@@ -54,7 +55,7 @@ final class QuestRoute {
         guard !legs.isEmpty else { print("route: failed: no known leg in '\(s)'"); return nil }
         // (Nov 17: the combat legs ran in the world the app opened, his own. They now get a world of their own first.)
         var legs2 = legs
-        if let i = legs2.firstIndex(where: { combat.contains($0) }), !legs2[..<i].contains("combatworld") { legs2.insert("combatworld", at: i) }
+        if let i = legs2.firstIndex(where: { combat.contains($0) || ownWorldLegs.contains($0) }), !legs2[..<i].contains("combatworld") { legs2.insert("combatworld", at: i) }
         print("route: legs \(legs2.joined(separator: " "))")
         return QuestRoute(legs2)
     }()
@@ -78,22 +79,52 @@ final class QuestRoute {
     // What the gate tags seconds with now ("spot-jungle-load", "plains-arrive" ...); the host soak reads it too.
     private(set) var label = ""
     var done: Bool { index >= legs.count }
-    private func mark(_ s: String) { label = String(s.split(separator: " ").first ?? ""); print("route: leg " + s) }
+    private func mark(_ s: String) { frameLine(); label = String(s.split(separator: " ").first ?? ""); print("route: leg " + s) }
+
+    // Nov 18 (Fable): every leg's frames, ticked or not. A leg is measured only when the game ran: the gate fails a leg
+    // that ticked under 98 % of its frames. Counted after the step (QuestApp.frame).
+    private var menuSeen = ""
+    private var damageHooked = false
+    private var lastGame: Game?          // (never weak to Game: ground-weigh rule)
+    private var framesN = 0, tickedN = 0, pausedN = 0, headLostN = 0, unfocusedN = 0
+    func counted(ticked: Bool, paused: Bool, headLost: Bool, focused: Bool) {
+        guard index >= 0 && index < legs.count else { return }
+        if paused, let g = lastGame { menuSeen = g.menu.map { String(describing: type(of: $0)) } ?? (g.paused ? "paused" : "?") }
+        framesN += 1; if ticked { tickedN += 1 }; if paused { pausedN += 1 }; if headLost { headLostN += 1 }; if !focused { unfocusedN += 1 }
+    }
+    private func frameLine() {
+        guard index >= 0 && index < legs.count, framesN > 0 else { return }
+        print("route: ticked \(tickedN) of \(framesN) frames in \(label) (paused or menu \(pausedN)\(pausedN > 0 ? " [" + menuSeen + "]" : ""), head lost \(headLostN), unfocused \(unfocusedN))")
+        framesN = 0; tickedN = 0; pausedN = 0; headLostN = 0; unfocusedN = 0
+    }
 
     private func next(_ app: QuestApp?) {
-        index += 1; legTime = 0; phase = 0; target = nil; seeking = false; ship = nil; drive = nil
+        frameLine()
+        index += 1; legTime = 0; phase = 0; stillFor = 0; offFor = 0; stalled = nil; target = nil; seeking = false; ship = nil; drive = nil
         if index >= legs.count { print("route: done"); return }
-        mark("\(leg)")
+        // (a staged leg starts under its -stage label: its own label only once it really runs, which the gate's NOT RUN reads)
+        mark(QuestRoute.combat.contains(leg) || QuestRoute.ownWorldLegs.contains(leg) ? "\(leg)-stage" : "\(leg)")
     }
 
     // Once a frame (QuestApp.frame), before the tick, after the controls filled the pad. `game` nil while loading.
     func step(_ app: QuestApp, _ game: Game?, dt: Double) {
         frame += 1
+        lastGame = game
         if index < 0 { if game != nil { next(app) }; return }
         guard index < legs.count else { return }
         legTime += dt
         guard let g = game else { return }                         // (a world loading: its time counts in its leg)
         g.health = max(g.health, 10); g.alive = true             // (the route never ends in death)
+        // (Nov 18, host battle leg: the player died at once among ~100 mobs and the death screen stood for the whole leg,
+        // the game never ticking. Under the route nothing kills him: each hit is given back before it lands (the
+        // agents' damage hook, route only), and a death screen already up is a failed leg.)
+        if Game.onDamage == nil || !damageHooked {
+            damageHooked = true
+            Game.onDamage = { [unowned self] amount, _ in if let lg = self.lastGame { lg.health += amount } }
+        }
+        if g.menu is DeathMenu { notRun(app, "he died: the death screen is up"); g.closeMenu(); g.respawn(); return }
+        // (Nov 18: every leg but the menu's plays an unpaused game with no panel open: nobody wears the headset)
+        if leg != "menu" && (g.paused || g.menu != nil) { g.paused = false; g.closeMenu() }
         let want = QuestRoute.seconds[leg] ?? 60
         if leg == "combatworld" {
             if phase == 0 {
@@ -107,7 +138,7 @@ final class QuestRoute {
             return
         }
         // Never in a world the route did not make: the spots and combat legs change the world (mode, mobs, blocks).
-        if (leg.hasPrefix("spot-") || QuestRoute.combat.contains(leg)) && !ownWorld(g) {
+        if (leg.hasPrefix("spot-") || QuestRoute.combat.contains(leg) || QuestRoute.ownWorldLegs.contains(leg)) && !ownWorld(g) {
             print("route: failed: leg \(leg) refused: world '\(g.save?.dir.lastPathComponent ?? "?")' is not the route's own ('\(worldName)')")
             index = legs.count
             return
@@ -178,53 +209,102 @@ final class QuestRoute {
             PadManager.shared.touch = pad
             if legTime > want { next(app) }
         case "frigate":
+            // (Nov 18: the async spawn never arrived on the headset or the host, so the leg stood still. Built here,
+            // in its -stage, then boarded at the helm and flown at 10 b/s over new land.)
             if phase == 0 {
-                phase = 2
+                phase = 1
+                mark("frigate-stage")
                 let w = g.world
-                let n = w.ships.capitals.count
-                w.ships.spawnCapital("warfrigate", home: IVec3(Int(floor(g.player.pos.x)), 0, Int(floor(g.player.pos.z)) + 24), yaw: 0, region: nil)
-                print("route: frigate asked for (\(n) capitals before)")
-            }
-            if ship == nil, let s = g.world.ships.capitals.first(where: { $0.role == "warfrigate" }), let st = g.world.ships.capState[s.id],
-               let stand = g.helmStand(s) {
+                w.ships.encounters = false
+                w.ships.spawnCapital("warfrigate", home: IVec3(Int(floor(g.player.pos.x)), 0, Int(floor(g.player.pos.z)) + 24), yaw: 0, region: nil, sync: true)
+                guard let s = w.ships.capitals.first(where: { $0.role == "warfrigate" }), let st = w.ships.capState[s.id], let stand = g.helmStand(s) else {
+                    notRun(app, "no frigate could be spawned (\(w.ships.capitals.count) capitals)"); return
+                }
                 st.crewDone = Set(0..<st.crew.count); st.crewless = true
                 st.testTurn = 0; st.testSpeed = 10
                 ship = s
                 g.player.flying = false
                 g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos)
                 print(String(format: "route: aboard %@", s.name))
+                settleFrom = legTime
+                return
             }
-            if let s = ship, let stand = g.helmStand(s), simd_length(g.player.pos - s.toWorld(stand)) > 3 {
-                g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos)
+            guard let s = ship, g.world.ships.capitals.contains(where: { $0 === s }), let stand = g.helmStand(s) else {
+                notRun(app, "the frigate is gone"); return
             }
-            if legTime > want { next(app) }
+            if simd_length(g.player.pos - s.toWorld(stand)) > 3 { g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos) }
+            if phase == 1 && legTime - settleFrom > 3 { phase = 2; fightFrom = legTime; lastCount = -5; mark("frigate") }
+            if phase == 2 { travelLine(g, "frigate", s.pos); if let why = stalled { stalled = nil; notRun(app, why); return } }
+            if phase == 2 && legTime - fightFrom > QuestRoute.fightSeconds { next(app) }
         case "train":
+            // (Nov 18: "no line planned within 2,000 blocks yet" in every run: the lines were asked for without waiting.
+            // Now planned off the frame thread near the host framesoak's train spot in the route's own world, then the
+            // nearest station, a passenger train due there, boarded at its lead car, regulator open for the leg.)
             if phase == 0 {
-                phase = 2
-                if let gen = g.world.gen as? WorldGen {
-                    let ax = Int(g.player.pos.x), az = Int(g.player.pos.z)
-                    if let l = Railways.near(gen, x0: ax - 2000, z0: az - 2000, x1: ax + 2000, z1: az + 2000, pad: 0, wait: false)
-                        .filter({ $0.stations.count >= 1 })
-                        .min(by: { abs($0.minX - ax) + abs($0.minZ - az) < abs($1.minX - ax) + abs($1.minZ - az) }) {
-                        let c0 = l.cells[l.stations[0].index]
-                        g.player.pos = V3(Float(c0.x) + 0.5, Float(c0.y) + 1, Float(c0.z - 2) + 0.5)
-                        print("route: to the line \(l.name)")
-                    } else { print("route: no line planned within 2,000 blocks yet") }
+                phase = 1; mark("train-stage"); found = nil; target = nil; seeking = true
+                guard let gen = g.world.gen as? WorldGen else { notRun(app, "no generator"); return }
+                let ax = Int(QuestRoute.trainSpot.x), az = Int(QuestRoute.trainSpot.z)
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    let l = Railways.near(gen, x0: ax - 3000, z0: az - 3000, x1: ax + 3000, z1: az + 3000, pad: 0)
+                        .filter { $0.stations.count >= 2 }
+                        .min(by: { abs($0.minX - ax) + abs($0.minZ - az) < abs($1.minX - ax) + abs($1.minZ - az) })
+                    self?.lock.lock(); self?.line = l; self?.seeking = false; self?.lock.unlock()
                 }
+                return
             }
-            if g.riding == nil, frame % 72 == 0 {
-                // (into the nearest train's lead car once one comes by, then the regulator open)
-                if let tr = Trains.trains.values.min(by: { a, b in
-                    guard let ca = a.cars.first, let cb = b.cars.first else { return false }
-                    return simd_length(ca.pos - g.player.pos) < simd_length(cb.pos - g.player.pos) }),
-                   let lead = tr.cars.first, simd_length(lead.pos - g.player.pos) < 40 {
-                    _ = Trains.use(g, lead); tr.throttle = 2
-                    drive = { tr.throttle = 2 }
-                    print("route: aboard a train")
+            if phase == 1 {
+                lock.lock(); let busy = seeking, l = line; lock.unlock()
+                if busy { return }
+                guard let l else { notRun(app, "no line with two stations within 3,000 blocks"); return }
+                let c0 = l.cells[l.stations[0].index]
+                let at = V3(Float(c0.x) + 0.5, Float(c0.y), Float(c0.z - 2) + 0.5)
+                if target == nil { target = at; g.player.pos = at; g.player.flying = true; g.player.vel = .zero; print("route: to the line \(l.name)"); return }
+                g.player.pos = at; g.player.vel = .zero
+                guard g.world.chunkAt(c0.x, c0.z) != nil, g.world.pendingJobs < 8 || legTime > 45 else { return }
+                let t = Trains.track(l)
+                Trains.trains.removeAll()
+                var when = g.time
+                for k in 0..<Int(t.period) { let a = t.at(g.time + Double(k)); if a.stop == 0 && a.dir > 0 { when = g.time + Double(k) + 1; break } }
+                g.time = when
+                Trains.forceKind = .passenger
+                Trains.tick(g)
+                Trains.forceKind = nil
+                guard let tr = Trains.trains[t.id], let lead = tr.cars.first else { notRun(app, "no train built on \(l.name)"); return }
+                g.player.flying = false
+                _ = Trains.use(g, lead)
+                ride = Ride(); ride.lead = tr.cars.first
+                drive = { [unowned self] in
+                    tr.throttle = 2
+                    // (ledger 290's proof: every fall and every rebuild under him counted, and the braking for land)
+                    let on = self.phase == 2
+                    if on && g.riding == nil && self.ride.wasOn { self.ride.falls += 1; print(String(format: "route: thrown off the train at %.0f %.0f %.0f (%.0f s in, cars %d)", g.player.pos.x, g.player.pos.y, g.player.pos.z, self.legTime - self.fightFrom, tr.cars.count)) }
+                    if on && tr.cars.first !== self.ride.lead && self.ride.lead != nil { self.ride.rebuilds += 1; print("route: the train was taken away or built again under him (cars \(tr.cars.count))") }
+                    if on && tr.starved { if self.ride.braking == 0 { self.ride.brakes += 1 }; self.ride.braking += 1.0 / 72; self.ride.braked += 1.0 / 72; self.ride.longest = max(self.ride.longest, self.ride.braking) } else { self.ride.braking = 0 }
+                    if on { self.ride.speedSum += Double(tr.blocksPerSec) / 72; self.ride.top = max(self.ride.top, tr.blocksPerSec) }
+                    if g.riding == nil, let c = tr.cars.first { _ = Trains.use(g, c) }
+                    self.ride.lead = tr.cars.first; self.ride.wasOn = g.riding != nil
                 }
+                print("route: aboard a train on \(l.name) (\(l.cells.count) cells, \(tr.cars.count) cars)")
+                phase = 3; settleFrom = legTime
+                return
             }
             drive?()
-            if legTime > want { next(app) }
+            if phase == 3 && legTime - settleFrom > 3 { phase = 2; fightFrom = legTime; lastCount = -5; mark("train") }
+            if phase == 2 {
+                // (the cab's re-boarding above puts him back the next frame; off for 5 s on end: he is not on it)
+                if g.riding == nil && offFor == 0 { print(String(format: "route: off the train at %.0f %.0f %.0f (%.0f s in, %@, dead %@, train %@), boarding again", g.player.pos.x, g.player.pos.y, g.player.pos.z, legTime - fightFrom, "\(g.dim.dim)", "\(!g.alive)", "\(Trains.trains.values.map { $0.cars.count })")) }
+                offFor = g.riding == nil ? offFor + 1.0 / 72 : 0
+                if offFor > 5 { notRun(app, "off the train for 5 s at \(Int(g.player.pos.x)) \(Int(g.player.pos.z))"); return }
+                travelLine(g, "train", g.player.pos)
+                if let why = stalled { stalled = nil; notRun(app, why); return }
+                if legTime - fightFrom > QuestRoute.trainSeconds {
+                    let secs = legTime - fightFrom
+                    print(String(format: "route: train ride %.0f s: %d thrown off, %d taken away or built again under him; braked for land not loaded %d times, %.1f s in all (longest %.1f s); mean %.1f b/s, top %.1f b/s",
+                                 secs, ride.falls, ride.rebuilds, ride.brakes, ride.braked, ride.longest, ride.speedSum / max(1, secs), ride.top))
+                    if ride.falls > 0 || ride.rebuilds > 0 { notRun(app, "thrown off \(ride.falls) times, the train taken away or rebuilt \(ride.rebuilds) times"); return }
+                    next(app)
+                }
+            }
         case "reload":
             if phase == 0 {
                 phase = 1
@@ -454,6 +534,30 @@ final class QuestRoute {
             next(app)
         }
     }
+    static let trainSpot = V3(-5572, 141, 2813)              // (the host framesoak's train scene, seed combatSeed)
+    private var line: Railways.Line?
+    // A leg that could not do its job: never counted as passed (the gate reports it NOT RUN).
+    private func notRun(_ app: QuestApp, _ why: String) { print("route: failed: leg \(leg): \(why)"); next(app) }
+    // Every 5 s on a moving leg: where and how fast, with the counts the perf line's quads leave out.
+    private var lastPos = V3.zero
+    private var stalled: String?
+    private struct Ride { var falls = 0, rebuilds = 0, brakes = 0; var braked = 0.0, braking = 0.0, longest = 0.0, speedSum = 0.0; var top: Float = 0; var lead: Mob?; var wasOn = true }
+    private var ride = Ride()
+    static let trainSeconds = Double(Env.all["BS_ROUTETRAIN"] ?? "") ?? fightSeconds   // (the train leg's ride, s)
+    private var stillFor = 0.0, offFor = 0.0
+    private func travelLine(_ g: Game, _ name: String, _ p: V3) {
+        let t = legTime - fightFrom
+        guard t - lastCount >= 5 else { return }
+        let speed = lastCount < 0 ? 0 : simd_length(V2(p.x - lastPos.x, p.z - lastPos.z)) / Float(t - lastCount)
+        lastCount = t; lastPos = p
+        // (a riding leg that stands still did not do its job: under 2 b/s for 15 s on end (40 s on a train, which
+        // halts at its stations) fails it)
+        stillFor = t >= 5 && speed < 2 ? stillFor + 5 : 0
+        if stillFor >= (name == "train" ? 40 : 15) { stalled = "standing still at \(Int(p.x)) \(Int(p.y)) \(Int(p.z)) for \(Int(stillFor)) s" }
+        print(String(format: "route: %@ %d s: at %.0f %.0f %.0f, %.1f b/s; %d mobs, %d ships, %d particles", name, Int(t), p.x, p.y, p.z, speed,
+                     g.mobs.mobs.count, g.world.ships.list.count, g.particles.list.count))
+    }
+
     // The world the route made itself (spotworld, combatworld), by its save folder's name.
     private var ownDir: String?
     private func ownWorld(_ g: Game) -> Bool { ownDir != nil && g.save?.dir.lastPathComponent == ownDir }

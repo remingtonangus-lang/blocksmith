@@ -69,6 +69,35 @@ enum TreeProbeCheck {
             slice(w, p, leaf)
         }
         check(loose.isEmpty, "treeprobe: \(loose.count) of \(groups) log groups within \(r) of \(cx) \(Int(at.y) - 64) \(cz) hang free")
+
+        // Ledger 264 (Nov 17 evening, "every log I find is going to be floating"): a log the generator laid along the
+        // ground must be a tree's own wood, drawn bedded into the drawn ground (ShapeTrunks.timber, fallenRun); a plain
+        // log there is timber, drawn the whole block high (TreeWood.plainTimber), over ground that dips below the block
+        // tops. Lying logs on natural ground in generated land: how many are drawn as plain timber.
+        let (lying, plainLying, firstPlain) = lyingCensus(w, cx: cx, cz: cz, r: r)
+        check(plainLying == 0, "treeprobe: of \(lying) generated logs lying on the ground, \(plainLying) are plain timber drawn a block high over the bedded ground (floating)" + (firstPlain.map { " (first at \($0.x) \($0.y) \($0.z))" } ?? ""))
+    }
+
+    // Ledger 264: the generated logs lying on the ground within r of (cx, cz), and how many of them are plain timber
+    // (drawn a block high, unbedded) rather than a tree's own wood; stripped logs (worked timber: seats, rails) left out.
+    static func lyingCensus(_ w: World, cx: Int, cz: Int, r: Int) -> (Int, Int, IVec3?) {
+        func isLog(_ b: BlockID) -> Bool { ShapeTrunks.isLog[Int(b)] }
+        var lying = 0, plainLying = 0
+        var firstPlain: IVec3?
+        for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) {
+            guard w.isLoaded(x, z) else { continue }
+            for y in 64..<300 {
+                let b = Int(w.builtBlock(x, y, z))
+                guard isLog(BlockID(b)), ShapeTrunks.axisOf[b] != 1, w.groundAt(x, y - 1, z) || SmoothTerrain.natural[Int(w.builtBlock(x, y - 1, z))] else { continue }
+                lying += 1
+                if TreeWood.timber[b] && !Blocks.key(Blocks.groupBase[b]).hasPrefix("stripped_") {    // (stripped: worked timber, a seat or a rail)
+                    plainLying += 1; if firstPlain == nil { firstPlain = IVec3(x, y - 64, z) }
+                    let near = [(1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, 1, 0)].map { Blocks.key(w.builtBlock(x + $0.0, y + $0.1, z + $0.2)) }
+                    print("treeprobe: plain lying log \(Blocks.key(BlockID(b))) at \(x) \(y - 64) \(z), beside: \(near.joined(separator: ", "))")
+                }
+            }
+        } }
+        return (lying, plainLying, firstPlain)
     }
 
     // Side views (x across, y up) of the 3 rows of z round p: L log, r root, * leaves, # ground, b other built block.
