@@ -79,9 +79,23 @@ final class QuestRoute {
     // What the gate tags seconds with now ("spot-jungle-load", "plains-arrive" ...); the host soak reads it too.
     private(set) var label = ""
     var done: Bool { index >= legs.count }
-    private func mark(_ s: String) { label = String(s.split(separator: " ").first ?? ""); print("route: leg " + s) }
+    private func mark(_ s: String) { frameLine(); label = String(s.split(separator: " ").first ?? ""); print("route: leg " + s) }
+
+    // Nov 18 (Fable): every leg's frames, ticked or not. A leg is measured only when the game ran: the gate fails a leg
+    // that ticked under 98 % of its frames. Counted after the step (QuestApp.frame).
+    private var framesN = 0, tickedN = 0, pausedN = 0, headLostN = 0, unfocusedN = 0
+    func counted(ticked: Bool, paused: Bool, headLost: Bool, focused: Bool) {
+        guard index >= 0 && index < legs.count else { return }
+        framesN += 1; if ticked { tickedN += 1 }; if paused { pausedN += 1 }; if headLost { headLostN += 1 }; if !focused { unfocusedN += 1 }
+    }
+    private func frameLine() {
+        guard index >= 0 && index < legs.count, framesN > 0 else { return }
+        print("route: ticked \(tickedN) of \(framesN) frames in \(label) (paused \(pausedN), head lost \(headLostN), unfocused \(unfocusedN))")
+        framesN = 0; tickedN = 0; pausedN = 0; headLostN = 0; unfocusedN = 0
+    }
 
     private func next(_ app: QuestApp?) {
+        frameLine()
         index += 1; legTime = 0; phase = 0; stillFor = 0; offFor = 0; stalled = nil; target = nil; seeking = false; ship = nil; drive = nil
         if index >= legs.count { print("route: done"); return }
         // (a staged leg starts under its -stage label: its own label only once it really runs, which the gate's NOT RUN reads)
@@ -133,8 +147,8 @@ final class QuestRoute {
             combatLeg(app, g)
             return
         }
-        // (a riding leg must tick: nothing paused, no panel open)
-        if QuestRoute.ownWorldLegs.contains(leg) && (g.paused || g.menu != nil) { g.paused = false; g.closeMenu() }
+        // (Nov 18: every leg but the menu's plays an unpaused game with no panel open: nobody wears the headset)
+        if leg != "menu" && (g.paused || g.menu != nil) { g.paused = false; g.closeMenu() }
         switch leg {
         case "menu":
             if phase == 0 { phase = 2; g.paused = true; (g.menu as? PauseMenu)?.build() }

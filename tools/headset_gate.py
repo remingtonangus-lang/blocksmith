@@ -27,7 +27,7 @@ def parse(lines):
     leg, phase, routed = "launch", "launch", False
     perf, view, warp, rate = "", "", "unknown", ""
     rows, other = [], []
-    planned, seen, failed = [], set(), {}
+    planned, seen, failed, ticks = [], set(), {}, {}
     for l in lines:
         m = T.match(l)
         if not m:
@@ -38,6 +38,11 @@ def parse(lines):
                 planned = msg[len("route: legs "):].split()
             elif msg.startswith("route: leg "):
                 leg = msg[len("route: leg "):].split()[0]; routed = True; seen.add(leg)
+            elif msg.startswith("route: ticked "):
+                r = re.match(r"route: ticked (\d+) of (\d+) frames in (\S+)(.*)", msg)
+                if r:
+                    a = ticks.setdefault(r.group(3), [0, 0, ""])
+                    a[0] += int(r.group(1)); a[1] += int(r.group(2)); a[2] = r.group(4).strip()
             elif msg.startswith("route: failed: "):
                 why = msg[len("route: failed: "):]
                 name = why.split()[1].rstrip(":") if why.startswith("leg ") and len(why.split()) > 1 else leg
@@ -81,7 +86,12 @@ def parse(lines):
     # "route: failed", did not do its job: NOT RUN, and the gate fails rather than pass it.
     notrun = {g: failed.get(g, "only staged" if g + "-stage" in seen else "never started")
               for g in planned if not uncounted_leg(g) and (g in failed or g not in seen)}
-    return rows, other, dict(warp=warp, rate=rate, pids=sorted(game_pids), notrun=notrun)
+    # Nov 18 (Fable): a leg whose game did not tick (paused, a menu up, tracking lost) through 98 % of its frames was
+    # not measured: NOT RUN. The menu leg pauses on purpose.
+    for g, (n, m, why) in ticks.items():
+        if m > 0 and n < 0.98 * m and g != "menu" and not uncounted_leg(g) and g not in notrun:
+            notrun[g] = f"ticked {n} of {m} frames {why}".strip()
+    return rows, other, dict(warp=warp, rate=rate, pids=sorted(game_pids), notrun=notrun, ticks=ticks)
 
 
 def pct(v, p):
@@ -179,10 +189,12 @@ def selftest():
 1731850002.000  4000  4010 I Blocksmith: adopt: total 30.1 ms
 1731850003.000  4000  4010 I Blocksmith: perf: 71.0 fps (display 72 Hz), missed 3 | cpu 7.10 ms (tick 2.00, record 3.00) | gpu 11.20 ms | sections 9, draws 5, quads 500000, cull 0.1 ms | view 12 | eye resolution 90%
 1731850003.500  4000  4020 I VrApi   : FPS=72/72,Stale=0,CPU4/GPU=4/4,1785/545MHz,App=12.00ms,GPU%=0.95
+1731850003.900  4000  4010 I Blocksmith: route: ticked 140 of 144 frames in plains (paused 4, head lost 144, unfocused 0)
 1731850004.000  4000  4010 I Blocksmith: route: leg spot-jungle
 1731850004.500  4000  4020 I VrApi   : FPS=68/72,Stale=4,CPU4/GPU=4/4,1785/545MHz,App=13.00ms,GPU%=0.97
 1731850005.500  5000  5020 I VrApi   : FPS=72/72,Stale=0,App=9.00ms,GPU%=0.70
 1731850005.600  5000  5010 I Blocksmith: load: Starting (0.0 s)
+1731850005.900  4000  4010 I Blocksmith: route: ticked 10 of 144 frames in spot-jungle (paused 134, head lost 144, unfocused 0)
 1731850006.000  4000  4010 I Blocksmith: route: leg train-stage
 1731850006.100  4000  4010 I Blocksmith: route: failed: leg train: no line with two stations within 3,000 blocks
 """
@@ -205,8 +217,9 @@ def selftest():
     check(not ok and "1 s under 60" in txt, "verdict counts the game's 55 only")
     check("loading-screen seconds" in txt and "55/72" in txt, "loading-screen misses listed")
     check("spot-jungle" in txt and "545 (78%)" in txt, "leg table with gpu MHz")
-    check("leg train: NOT RUN (leg train: no line" in txt and "1 legs NOT RUN" in txt, f"failed leg reported NOT RUN:\n{txt}")
-    check(list(info["notrun"]) == ["train"], f"only the failed leg is NOT RUN: {info['notrun']}")
+    check("leg train: NOT RUN (leg train: no line" in txt and "3 legs NOT RUN" in txt, f"failed leg reported NOT RUN:\n{txt}")
+    check(sorted(info["notrun"]) == ["plains", "spot-jungle", "train"] and "ticked 10 of 144" in info["notrun"]["spot-jungle"],
+          f"the failed leg and the paused leg are NOT RUN, plains at 97% ticked is too: {info['notrun']}")
     print("\n".join(["headset_gate selftest: " + ("ok" if not fails else "FAILED")] + ["  " + f for f in fails]))
     return 0 if not fails else 1
 
