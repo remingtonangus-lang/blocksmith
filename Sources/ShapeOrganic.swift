@@ -20,7 +20,20 @@ enum ShapeOrganic {
         var ribDepth: Float = 0
         var bump: Float = 0     // world-stable lumps along the normal
         var squash: Float = 0   // gourds: the top sinks a little
+        var round = false       // ledger 267: a lone gourd is a ribbed ball, not a soft box
     }
+
+    // Ledger 267 (Nov 17 20:14:35 at -4569 90 -315: "We got some pumpkins here. These don't look very good. They should
+    // be actual circles"; 20:14:41 "I can't just have cutouts"): a pumpkin or melon was the soft box with 0.47 corners,
+    // square seen from above with flat sides, and at the far grid (one bevel round each edge) a box with its corners cut,
+    // which on the headset read as cut-out shells. A gourd with nothing of its kind beside it is now a ball: each face's
+    // grid is pushed out from the middle onto an oblate spheroid (round from above, a little flatter than wide, a flat
+    // seat), the ribs and the sunk top on it as before; every side is drawn (a ball does not fill its cell, so a block
+    // beside it no longer hides that side), only a seat on the ground is left out. A patch's gourds side by side were one
+    // fused drum (a side that continued into the next pumpkin stayed flat and open): each is its own ball now.
+    // BS_OLDGOURD=1: as before.
+    static let oldGourd = Env.all["BS_OLDGOURD"] == "1"
+    static let ballR = SIMD3<Float>(0.47, 0.43, 0.47), ballSeat: Float = 0.06
 
     static func emit(_ ctx: DetailContext) {
         var any = false
@@ -57,6 +70,7 @@ enum ShapeOrganic {
             let d = dirs[f]
             let nb = block(x + d.x, y + d.y, z + d.z)
             cont[f] = Blocks.groupBase[Int(nb)] == g || (fam == .blob && isOrganic[Int(nb)] && ShapeClass.family[Int(nb)] == .blob)
+            if fam == .gourd && !oldGourd { cont[f] = false }       // (ledger 267: two pumpkins side by side are two balls)
             // A bale continues only end to end along its own axis (a stack of hay drums, not a fused corner).
             if fam == .bale && cont[f] {
                 let a = Int(ShapeTrunks.axisOf[i])
@@ -69,6 +83,7 @@ enum ShapeOrganic {
         case .gourd:
             form.r = [0.47, 0.47, 0.45, covered[3] ? 0.14 : 0.35, 0.47, 0.47]
             form.ribs = 10; form.ribDepth = 0.035; form.squash = 0.09; form.bump = 0.01
+            form.round = !oldGourd
         case .bale:
             let a = Int(ShapeTrunks.axisOf[i])
             for f in 0..<6 { form.r[f] = f / 2 == a ? 0.07 : 0.46 }
@@ -108,7 +123,7 @@ enum ShapeOrganic {
             }
         }
         let tint = Int(Blocks.tint[i] == 3 ? 1 : Blocks.tint[i])
-        for f in 0..<6 where !cont[f] && !covered[f] {
+        for f in 0..<6 where !cont[f] && (!covered[f] || (form.round && f != 3)) {
             face(ctx, form, base: base, f: f, layer: Int(Blocks.tex[i * 6 + f]), tint: tint, grid: grid, cont: cont)
         }
     }
@@ -132,8 +147,17 @@ enum ShapeOrganic {
     }
 
     static func shape(_ ctx: DetailContext, _ q: SIMD3<Float>, _ form: Form, base: SIMD3<Float>) -> SIMD3<Float> {
-        var p = soft(q, form)
         let c = SIMD3<Float>(0.5, 0.5, 0.5)
+        var p: SIMD3<Float>
+        if form.round {
+            // (the ball's middle sits at its radius over the seat; the seat itself is flat)
+            let d = q - c
+            let l = simd_length(d)
+            let dir = l > 1e-6 ? d / l : SIMD3<Float>(0, 1, 0)
+            let mid = SIMD3<Float>(0.5, ballR.y + ballSeat * 0.5, 0.5)
+            p = mid + dir * ballR
+            p.y = max(p.y, ballSeat)
+        } else { p = soft(q, form) }
         if form.ribs > 0 {
             let o = p - c
             let th = atan2f(o.z, o.x)
@@ -178,7 +202,9 @@ enum ShapeOrganic {
             for v in t.sorted() where out.isEmpty || v - out.last! > 0.01 { out.append(v) }
             return out
         }
-        let tu = ticks(a1), tv = ticks(a2)
+        // (a ball: an even grid on each face, so the sphere's quads come out alike)
+        func even() -> [Float] { let n = grid <= 2 ? 3 : 5; return (0...n).map { Float($0) / Float(n) } }
+        let tu = form.round ? even() : ticks(a1), tv = form.round ? even() : ticks(a2)
         let nu = tu.count, nv = tv.count
         var pos = [SIMD3<Float>](repeating: .zero, count: nu * nv), nrm = pos
         var qs = pos
