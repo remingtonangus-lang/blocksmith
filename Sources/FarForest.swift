@@ -184,12 +184,15 @@ final class FarForest {
     // the layer, so a thick wood is whole trees near and one mass far, never a sparse scatter or a cut edge.
     private var lists: [[Tree]] = []
     private(set) var planReach: Float = FarForest.reach
-    private var full: Float = 0, thin: Float = 0, fine: Float = 0, far: Float = 0
-    private var kmin: Float = 0.25
-    private func keepAt(_ d: Float) -> Float { 1 - (1 - kmin) * min(1, max(0, (d - full) / (thin - full))) }
+    private var full: Float = 0, thin: Float = 0, fine: Float = 0, far: Float = 0, thin0: Float = 0, edge: Float = 0
+    private(set) var kmin: Float = 0.25               // the share of a wood's trees still standing at the far end
+    private func keepAt(_ d: Float) -> Float { 1 - (1 - kmin) * min(1, max(0, (d - thin0) / (thin - thin0))) }
+    // (under the loaded chunks a stand-in only shows while the view distance steps down: the second band's detail)
+    private func bandAt(_ d: Float) -> Int { d < edge ? 1 : (d < fine ? 0 : (d < full ? 1 : (d < far ? 2 : 3))) }
     private func cost(_ t: Tree, _ d: Float, _ m: Model) -> Int {
-        if d >= far { return (t.cone ? 3 : 6) + (m.trunk > 6 ? 3 : 0) }
-        return (d < fine ? 22 : (d < full ? 12 : 8)) + (d >= fine && m.trunk > 3.5 ? 3 : 0) + (d < fine && t.snowy ? 5 : 0)
+        let b = bandAt(d)
+        if b == 3 { return (t.cone ? 3 : 6) + (m.trunk > 6 ? 3 : 0) }
+        return (b == 0 ? 22 : (b == 1 ? 12 : 8)) + (b >= 1 && m.trunk > 3.5 ? 3 : 0) + (b == 0 && t.snowy ? 5 : 0)
     }
 
     func plan(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, from: Float) {
@@ -198,7 +201,7 @@ final class FarForest {
         let from = FarForest.deep ? from : max(from, rin - 40)
         let c = FarForest.cell
         let R = Int(FarForest.reach)
-        fine = rin + 40
+        fine = rin + 40; edge = rin
         let clear = FarTrack.clear(gen, cx: cx, cz: cz)
         lists.removeAll(keepingCapacity: true)
         var byRing = [Int](repeating: 0, count: R / 16 + 2)
@@ -219,8 +222,12 @@ final class FarForest {
         // How soon the wood thins, and to what share, is set by the budget: an open wood keeps every tree to 140
         // blocks past the edge and one in four beyond; a taiga thins from 40 blocks to one in ten, each drawn wider, so
         // its cover holds out to the full reach.
-        for (off, km) in [(Float(140), Float(0.4)), (100, 0.4), (60, 0.4), (60, 0.32), (60, 0.25), (40, 0.25), (40, 0.2), (40, 0.15)] {
-            full = rin + off; thin = full + 120; far = full + 60; kmin = km
+        // The ladder gives up detail before it gives up trees: a wood reads by how thick it stands, so the bands of
+        // finer stand-ins shorten first (a far conifer is 3 quads), and only then does the wood thin, late and little.
+        let ladder: [(Float, Float, Float, Float)] = [(140, 200, 200, 0.5), (100, 160, 200, 0.5), (60, 100, 200, 0.6), (40, 40, 200, 0.75),
+                                                      (40, 40, 120, 0.6), (40, 40, 60, 0.45), (40, 40, 40, 0.3), (40, 40, 40, 0.15)]
+        for (off, farOff, thinOff, km) in ladder {
+            full = rin + off; far = rin + farOff; thin0 = rin + thinOff; thin = thin0 + 160; kmin = km
             for i in byRing.indices { byRing[i] = 0 }
             for (d, t) in all where Float((t.hv >> 20) & 0xFF) / 256 < keepAt(d) { byRing[Int(d) / 16] += cost(t, d, model(t.kind, t.hv)) }
             if byRing.reduce(0, +) <= FarForest.maxQuads { break }
@@ -254,7 +261,7 @@ final class FarForest {
                 guard m.tiers.count == 3 else { continue }
                 // Four bands: 5 points and 5 sides near, 4 and 4, 3 and 4, and far off 3 sides (a conifer one cone from
                 // its widest tier to its tip), so a thick wood's every hill keeps trees to the full reach.
-                let band = d < fine ? 0 : (d < full ? 1 : (d < far ? 2 : 3))
+                let band = bandAt(d)
                 let pts = m.tiers[min(band, 2)]
                 let sides = band == 0 ? 5 : (band == 3 ? 3 : 4)
                 let k0 = band == 3 && t.cone ? 1 : 0
@@ -285,7 +292,7 @@ final class FarForest {
                             cap = (a.y + (b.y - a.y) * f, a.r * (1 - f), a.cx + (b.cx - a.cx) * f, a.cz + (b.cz - a.cz) * f)
                         } else {
                             let lit: Float = (t.hv >> 16) & 1 == 0 ? 0.6 : 0.3
-                            cb = V4(simd_mix(V3(cb.x, cb.y, cb.z), snow, V3(repeating: band == 3 ? lit * 0.55 : lit)), 0)
+                            cb = V4(simd_mix(V3(cb.x, cb.y, cb.z), snow, V3(repeating: band == 3 ? lit * 0.6 + 0.1 : lit)), 0)
                         }
                     }
                     for sd in 0..<sides {
@@ -349,7 +356,7 @@ final class FarForest {
                 let keep: Float = keepAt(d) * min(1, max(0.02, (reachNow - d) / 96))
                 if Float((t.hv >> 20) & 0xFF) / 256 < keep { by[Int(d) / 16] += 1 }
             } }
-            print("fardebug rin \(rin) from \(from) reach \(reachNow) full \(full) thin \(thin) kmin \(kmin) centre \(cx),\(cz)\n all \(all)\n drawn \(by)")
+            print("fardebug rin \(rin) from \(from) reach \(reachNow) full \(full) far \(far) thin \(thin0)-\(thin) kmin \(kmin) centre \(cx),\(cz)\n all \(all)\n drawn \(by)")
         }
         lastQuads = quads
     }

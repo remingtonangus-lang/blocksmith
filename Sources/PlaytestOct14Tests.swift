@@ -78,12 +78,13 @@ enum PlaytestOct14Tests {
         }
         let lifted = groundY(plain, plain.count), bare = groundY(with, plain.count)
         check(lifted - bare > 1, String(format: "ledger 361 (b): under the stand-ins the ring's ground is the ground (%.1f blocks lower than the canopy lift it had)", lifted - bare))
-        // (c) A thick snowy taiga (22,000 trees in reach) keeps stand-ins to the full reach: the budget is not spent
+        // (c) A thick snowy taiga (22,000 trees in reach) keeps stand-ins to the full reach, nearly half of them at its far end: the budget is not spent
         // under the loaded chunks (BS_FARDEEP=1: before).
         let tg = WorldGen(seed: 4259144782798118884)
         let thick = FarForest(seed: 2)
         thick.plan(tg, cx: -4416, cz: -960, rin: rin, from: max(0, min(rin - 100, rin * 0.55)))
-        check(thick.planReach >= FarForest.reach, "ledger 361 (c): a thick taiga's stand-in trees reach the full \(Int(FarForest.reach)) blocks (\(Int(thick.planReach)))")
+        check(thick.planReach >= FarForest.reach && thick.kmin >= 0.4,
+              "ledger 361 (c): a thick taiga's stand-in trees reach the full \(Int(FarForest.reach)) blocks (\(Int(thick.planReach))), \(Int(thick.kmin * 100))% of them standing at the far end")
     }
 
     // P251: (a) on foot in survival, the Capital's helicopter on its pad can be boarded and flown off; (b) its rotor turns.
