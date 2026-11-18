@@ -68,6 +68,10 @@ enum QuestTouchMatrix {
         defer { QuestSettings.leftHanded = keepLeft; QuestSettings.controlPreset = keepPreset }
         let w = g.world
         let keepSurvival = g.survival, keepPos = g.player.pos, keepSel = g.selected
+        // (Nov 18: a Meridian Gunner out of sight shot the player dead during R1 and S7 once the world's generation moved
+        // a little (ledger 265's log snow); these rows test the controls, so nothing lands on him while they run.)
+        let keepDiff = g.diffLevel; g.diffLevel = 0
+        defer { g.diffLevel = keepDiff }
         let keep0 = g.inventory.main[0]
         var placed: [(IVec3, BlockID)] = []
         func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) { placed.append((IVec3(x, y, z), w.block(x, y, z))); w.setBlock(x, y, z, b) }
