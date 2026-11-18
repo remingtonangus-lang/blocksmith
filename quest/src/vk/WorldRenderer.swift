@@ -84,6 +84,8 @@ final class WorldRenderer {
     // Ledger 231 (headset trials of what the pixels cost): BS_FXMASK=N replaces the shader effects mask, BS_FXADD=N adds
     // bits: 2048 = the land's pixels by one plain texture read with fog and the film curve, 4096 = the same without the
     // film curve and the mist (chunk_solid.frag, chunk_cut.frag). Neither is a look to ship; they measure.
+    // Ledger 266: BS_OLDGROUNDPROJ=1, ground steps take the projection their vertices' normals pick (chunk_solid.frag).
+    static let oldGroundProj = Env.all["BS_OLDGROUNDPROJ"] == "1"
     static let fxMask = Env.all["BS_FXMASK"].flatMap { Int($0) }, fxAdd = Env.all["BS_FXADD"].flatMap { Int($0) } ?? 0
     static var debugSkip = Set((Env.all["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
     // (and within the entities pass, QUEST_SKIPENT=drops,debris,particles,shadows,halos,weather,... leaves those writers out)
@@ -276,7 +278,7 @@ final class WorldRenderer {
         let nightT: Float = df > 0.52 && df < 0.98 ? -0.55 * min(1, min(df - 0.52, 0.98 - df) / 0.06) : 0
         let biomeT: Float = max(-0.2, min(0.25, (game.audio.biomeHere.info.temp - 0.7) * 0.25))
         let grade: Float = hasSky && !underground && !underwater && game.dim.dim == .overworld ? max(-1, min(1, max(0, warmT) + nightT + biomeT)) : 0
-        u.fx = V4(Float((WorldRenderer.fxMask ?? Settings.shared.shaderFX) | WorldRenderer.fxAdd | (WorldRenderer.oldCloudNoise ? 1024 : 0)), mist, Float(SEA + 8), grade)
+        u.fx = V4(Float((WorldRenderer.fxMask ?? Settings.shared.shaderFX) | WorldRenderer.fxAdd | (WorldRenderer.oldCloudNoise ? 1024 : 0) | (WorldRenderer.oldGroundProj ? 1048576 : 0)), mist, Float(SEA + 8), grade)
         // (ledger 261: the shared sets, built on the loading thread; BS_OLDFIRSTFRAME=1 builds them here as before)
         if sheenBits.isEmpty { if WorldRenderer.oldFirstFrame { sheenBits = ShaderFX.sheenBits() } else { (sheenBits, turnBits) = ShaderFX.cachedBits() } }
         withUnsafeMutableBytes(of: &u.sheen) { raw in
