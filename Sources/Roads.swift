@@ -239,8 +239,9 @@ enum Roads {
         let fa = s.phase, fb = s.phase * 1.7 + 1
         func going(_ k: Int) -> Float {
             let x = Float((gx0 + k % nx) * G), z = Float((gz0 + k / nx) * G)
-            let field: Float = 0.5 + 0.5 * sinf(x * 0.012 + fa) * cosf(z * 0.015 + fb)
-            return field * 10 + (wet[k] ? 70 : 0)
+            let wide: Float = 0.5 + 0.5 * sinf(x * 0.012 + fa) * cosf(z * 0.015 + fb)
+            let close: Float = 0.5 + 0.5 * sinf(x * 0.031 + fb) * cosf(z * 0.027 + fa)
+            return wide * 14 + close * 8 + (wet[k] ? 70 : 0)
         }
         var cost = [Float](repeating: .infinity, count: nx * nz), from = [Int32](repeating: -1, count: nx * nz)
         var done = [Bool](repeating: false, count: nx * nz)

@@ -1317,11 +1317,34 @@ enum Railways {
         var poly: [(Float, Float)] = [(Float(a.0 + 1), Float(a.1))]
         poly += keep.map { (Float($0.0), Float($0.1)) }
         poly.append((Float(b.0 - 1), Float(b.1)))
+        func laid(_ c: [(Int, Int)]) -> Bool {
+            guard let f = c.first, let l = c.last, f == (a.0 + 1, a.1), l == (b.0 - 1, b.1), c.count > 8, !touchesItself(c),
+                  !polylineBlocked(gen, sc, c, skipEnds: 2, except: []),
+                  sea || !stride(from: 0, to: c.count, by: 4).contains(where: { gen.column(c[$0].0, c[$0].1).biome.isOcean }) else { return false }
+            return true
+        }
+        if keepShape != nil {
+            // (ledger 230, the first picture from above: the way's squares run east with square steps north and
+            // south, and with each corner eased on its own the track read as terraces. Every corner is cut three
+            // times over, a quarter of the way along each leg from it, so a step becomes one long S and a long run
+            // between two steps a slow curve; the ends stay on their rows, heading east.)
+            var sm = poly
+            for _ in 0..<3 {
+                guard sm.count > 2 else { break }
+                var out: [(Float, Float)] = [sm[0]]
+                for k in 0..<(sm.count - 1) {
+                    let p = sm[k], q = sm[k + 1]
+                    if k > 0 { out.append((p.0 + (q.0 - p.0) * 0.25, p.1 + (q.1 - p.1) * 0.25)) }
+                    if k < sm.count - 2 { out.append((p.0 + (q.0 - p.0) * 0.75, p.1 + (q.1 - p.1) * 0.75)) }
+                }
+                out.append(sm[sm.count - 1])
+                sm = out
+            }
+            let c = rasterPolyline(sm)
+            if laid(c) { return c }
+        }
         let c = rasterPolyline(roundPolyline(poly, radius: keepShape != nil ? 40 : 14))
-        guard let f = c.first, let l = c.last, f == (a.0 + 1, a.1), l == (b.0 - 1, b.1), c.count > 8, !touchesItself(c),
-              !polylineBlocked(gen, sc, c, skipEnds: 2, except: []),
-              sea || !stride(from: 0, to: c.count, by: 4).contains(where: { gen.column(c[$0].0, c[$0].1).biome.isOcean }) else { return nil }
-        return c
+        return laid(c) ? c : nil
     }
 
     static func blocked(_ gen: WorldGen, _ sc: StructureCache, x0: Int, z0: Int, x1: Int, z1: Int, except: Set<Int64>) -> Bool {

@@ -1130,13 +1130,17 @@ final class WorldGen: TerrainGenerator {
     // too narrow and they won't be able to walk through them... it won't be obvious which ones have to break to
     // squeeze through"): the tunnels' widths. A tunnel is where two noises both sit inside a threshold; the wide
     // tunnels' threshold ran 0.025 to 0.075 (one to three or four blocks across) and the thin ones' was 0.022 (a
-    // block, often less: a slot nobody fits). Both are wider now, so a tunnel is somewhere a player walks.
-    // The wider tunnel holds the old one inside it, so new ground meets explored ground without a break.
+    // block, often less: a slot nobody fits). Counted on his world round that cave (--caveprobe, 169 chunks): 27% of the
+    // places to stand under ground had no headroom and 57% lay in a passage three or more across. Widening both made
+    // the thin ones into more two-wide squeezes (28% and 49%); the thin tunnels are the tight caves. So they are
+    // gone, and the wide tunnels run 0.05 to 0.1: 8% without headroom, 81% three or more across, 18% more cave air.
+    // A wide tunnel holds the old one inside it, so new ground meets explored ground without a break (a thin
+    // tunnel from explored ground ends at the edge of new ground).
     // BS_OLDCAVES=1: as before. (BS_CAVE_SPAG / BS_CAVE_NOODLE: the thresholds, for the census.)
     static let oldCaves = Env.all["BS_OLDCAVES"] == "1"
     static let spagBase: Float = Env.all["BS_CAVE_SPAG"].flatMap { Float($0) } ?? (oldCaves ? 0.05 : 0.075)
     static let spagVar: Float = 0.025
-    static let noodleT: Float = Env.all["BS_CAVE_NOODLE"].flatMap { Float($0) } ?? (oldCaves ? 0.022 : 0.05)
+    static let noodleT: Float = Env.all["BS_CAVE_NOODLE"].flatMap { Float($0) } ?? (oldCaves ? 0.022 : 0)
     static let oldWideFeet = Env.all["BS_OLDWIDEFEET"] == "1"
 
     // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
