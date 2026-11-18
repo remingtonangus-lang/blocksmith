@@ -54,6 +54,21 @@ void mainLean() {
     // of steep slopes before; the switch between two rough ground textures does not show).
     if (tri) {
         vec3 n = oNrm, an = abs(oNrm);
+        // Ledger 266 (Nov 17 19:58:28 by Selenwick, a village path's ground step: "this shouldn't be happening, I've seen
+        // it in other games"): texture stretching. A sharp ground step (a path terrace, a dug wall) shares its vertices
+        // with the flat ground at its top and foot, so their normals point up and the riser between them took the top
+        // projection: its texture smeared into long vertical streaks. Where the projection the normals pick lies along
+        // the drawn face (under 0.45 of it facing that axis), the face's own normal picks it instead. Elsewhere the
+        // per-position pick stands (P383: the quads round a vertex still agree). BS_OLDGROUNDPROJ=1: as before.
+        vec3 fn = cross(dx, dy);
+        float fl = length(fn);
+        if (!fxOn(1048576) && fl > 1e-12) {
+            fn /= fl;
+            if (dot(fn, n) < 0.0) { fn = -fn; }
+            vec3 af = abs(fn);
+            float along = (an.y >= an.x && an.y >= an.z) ? af.y : (an.x >= an.z ? af.x : af.z);
+            if (along < 0.45) { n = fn; an = af; }
+        }
         if (an.y >= an.x && an.y >= an.z) {
             float sg = n.y > 0.0 ? 1.0 : -1.0;
             U = vec2(wp.x, sg * wp.z); GX = vec2(dx.x, sg * dx.z); GY = vec2(dy.x, sg * dy.z); top = true;
