@@ -211,6 +211,18 @@ enum TownTests {
               "ledger 256: every shop buys gold, diamonds and emeralds (refused: \(refusers.isEmpty ? "none" : refusers.joined(separator: ", "))); "
               + "the general store paid \(Money.format(goldPaid)) for 3 gold ingots and 4 nuggets (face value $8.50: \(si.0) \(sn.0))")
         g.money = 0
+        // Ledger 259 (20:07:26, a clock in his hand: "it doesn't show me time or anything"): held, it reads the time out.
+        do {
+            let held0 = g.inventory.held, time0 = g.time
+            defer { g.inventory.held = held0; g.time = time0 }
+            g.inventory.held = ItemStack(Items.id("clock"), 1)
+            g.time = 2 * DAY_LENGTH + 0.3 * DAY_LENGTH          // day 3, 13:12 (the day starts at 6:00)
+            let L = HudLayout(1280, 720)
+            let shown = HudExtras.lines(g, L).map { $0.text }.filter { $0.hasPrefix("Day ") }
+            g.inventory.held = ItemStack(Items.id("compass"), 1)
+            let other = HudExtras.lines(g, L).contains { $0.text.hasPrefix("Day ") }
+            check(shown == ["Day 3  1:12 PM"] && !other, "ledger 259: a clock in hand reads \(shown.first ?? "nothing") (day 3, 13:12); a compass shows no time (\(!other))")
+        }
         // Worn and enchanted items aren't bought.
         var worn = ItemStack(Items.id("iron_sword"), 1); worn.damage = 10
         check(!Shop.sellable(worn), "trade: worn tools can't be sold")
