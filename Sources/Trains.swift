@@ -1219,7 +1219,7 @@ enum Trains {
         guard g.dim.dim == .overworld, let gen = g.world.gen as? WorldGen, let (l, _) = Railways.station(gen, near: g.player.pos, within: 40, wait: false) else { return }
         guard !MapCache.shared.marked(kind: "station", x: l.stations[0].x, z: l.stations[0].z) else { return }
         for s in l.stations { MapCache.shared.discover(g, kind: "station", x: s.x, z: s.z, name: "\(s.name) Station") }
-        g.onToast?("You found the \(l.name): \(l.stations.count) stations, marked on your map")
+        g.onToast?(l.stations.count == 1 ? "You found the \(l.name): its station is marked on your map" : "You found the \(l.name): \(l.stations.count) stations, marked on your map")
     }
 
     // MARK: Models (units 1/16 at scale 2: one unit is an eighth of a block; the car faces -Z)

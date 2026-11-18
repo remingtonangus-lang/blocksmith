@@ -13,7 +13,9 @@ enum Roads {
     static let maxLen: Float = 720
     static let halfWidth: Float = 1.3
 
-    struct Seg { let a: V2; let b: V2; let phase: Float; var bridges: [Bridge] = [] }
+    // `way` (ledger 237, new worlds): the road's own winding way over the land, a point every few blocks from a to b,
+    // and `cum` the length along it to each point. Nil: the straight road with a gentle bend, as before.
+    struct Seg { let a: V2; let b: V2; let phase: Float; var bridges: [Bridge] = []; var way: [V2]? = nil; var cum: [Float] = [] }
     // P510 (Nov 1 20:40, "roads and also bridges where needed for the roads"): a road met a river or a lake and simply
     // stopped at its bank. Where its line crosses water (up to `bridgeMax` across), it goes over on a stone bridge: a
     // deck clear of the water by a block or more, as high as the higher bank, stepping down a block a cell onto the
@@ -29,6 +31,7 @@ enum Roads {
                                                     // its plan serial: a freed generator's address comes back for the next, P510)
     private static let lock = NSLock()
     static var on: Bool { WorldRules.p44 }
+    static func forget() { lock.lock(); cache.removeAll(); lock.unlock() }      // (the checks: the same ground laid both ways)
 
     // The village region's town square (nil: no town there).
     static func square(_ gen: WorldGen, _ rx: Int, _ rz: Int) -> V2? {
@@ -56,7 +59,7 @@ enum Roads {
             }
             if fresh {
                 seg = Seg(a: a, b: b, phase: hashf(rx, rz, dx * 7 + dz, UInt32(truncatingIfNeeded: gen.seed) ^ 0x80AD) * 6.28)
-                seg!.bridges = bridges(gen, seg!)
+                wind(gen, &seg!); seg!.bridges = bridges(gen, seg!)
             }
         }
         lock.lock(); if cacheGen == gid { cache[key] = seg }; if cache.count > 16384 { cache.removeAll() }; lock.unlock()
@@ -93,7 +96,7 @@ enum Roads {
         if square(gen, rx + dx, rz + dz) == nil, let a = square(gen, rx, rz), let b = square(gen, rx + 2 * dx, rz + 2 * dz),
            simd_length(b - a) < farLen, freshP510(gen, a, b) {
             seg = Seg(a: a, b: b, phase: hashf(rx, rz, dx * 7 + dz + 50, UInt32(truncatingIfNeeded: gen.seed) ^ 0x80AD) * 6.28)
-            seg!.bridges = bridges(gen, seg!)
+            wind(gen, &seg!); seg!.bridges = bridges(gen, seg!)
         }
         lock.lock(); if cacheGen == gid { cache[key] = seg }; if cache.count > 16384 { cache.removeAll() }; lock.unlock()
         return seg
@@ -127,7 +130,7 @@ enum Roads {
                 let a = mid + dir * out
                 if simd_length(b - a) > 40 && freshP510(gen, a, b) {
                     seg = Seg(a: a, b: b, phase: hashf(rx, rz, ti + 90, UInt32(truncatingIfNeeded: gen.seed) ^ 0x80AD) * 6.28)
-                    seg!.bridges = bridges(gen, seg!)
+                    wind(gen, &seg!); seg!.bridges = bridges(gen, seg!)
                 }
             }
         }
@@ -137,7 +140,7 @@ enum Roads {
 
     // The bridges a road needs: its water crossings (from the generator's columns, so every chunk agrees).
     static func bridges(_ gen: WorldGen, _ s: Seg) -> [Bridge] {
-        let n = max(2, Int(simd_length(s.b - s.a)))
+        let n = max(2, Int(length(s)))
         var wet = [Bool](repeating: false, count: n + 1), land = [Int](repeating: 0, count: n + 1), top = [Int](repeating: 0, count: n + 1)
         for i in 0...n {
             let p = point(s, Float(i) / Float(n))
@@ -178,7 +181,8 @@ enum Roads {
         let rz0 = floorDiv(z0, span) - 2, rz1 = floorDiv(z1, span) + 1
         var out: [Seg] = []
         func take(_ s: Seg) {
-            let lo = simd_min(s.a, s.b) - V2(repeating: pad + 12), hi = simd_max(s.a, s.b) + V2(repeating: pad + 12)
+            let box = bounds(s)
+            let lo = box.0 - V2(repeating: pad + 12), hi = box.1 + V2(repeating: pad + 12)
             if Float(x1) < lo.x || Float(x0) > hi.x || Float(z1) < lo.y || Float(z0) > hi.y { return }
             out.append(s)
         }
@@ -202,8 +206,165 @@ enum Roads {
         return out
     }
 
-    // The road's centre line at t (0...1): a straight line with a gentle bend that vanishes at both ends.
+    // Ledger 237 (Nov 17 evening: "the roads are too straight", "path of least resistance", and on a mountainside at
+    // -4794 163 -1642 "road cannot go through here"): a road was the straight line between its two ends with a seven
+    // block wiggle, whatever lay between, so it ran up cliffs and over peaks. In a new world it finds its own way over
+    // 16-block squares of land: a climb costs it far more than distance, water more still (a short crossing is
+    // bridged as before), and a slow field of easier and harder going bends it on flat land too. Its way is thinned to
+    // its turns and rounded. Old worlds keep their roads as laid (the ledger 230 guard); BS_OLDROADS=1: as before.
+    static let oldRoads = Env.all["BS_OLDROADS"] == "1"
+    static var windOn = true                         // (a var so the checks can lay the same ground both ways)
+    static func winding(_ gen: WorldGen) -> Bool { windOn && !oldRoads && (gen.structures?.legacyL230.isEmpty ?? false) }
+    static func wind(_ gen: WorldGen, _ s: inout Seg) {
+        guard winding(gen) else { return }
+        let G = 16
+        let pad = 12
+        let gx0 = floorDiv(Int(min(s.a.x, s.b.x)), G) - pad, gx1 = floorDiv(Int(max(s.a.x, s.b.x)), G) + pad
+        let gz0 = floorDiv(Int(min(s.a.y, s.b.y)), G) - pad, gz1 = floorDiv(Int(max(s.a.y, s.b.y)), G) + pad
+        let nx = gx1 - gx0 + 1, nz = gz1 - gz0 + 1
+        guard nx * nz <= 40_000 else { return }
+        let si = floorDiv(Int(s.a.x), G) - gx0, sj = floorDiv(Int(s.a.y), G) - gz0
+        let ei = floorDiv(Int(s.b.x), G) - gx0, ej = floorDiv(Int(s.b.y), G) - gz0
+        guard si != ei || sj != ej else { return }
+        // Each square's land (looked up once, as the search reaches it) and whether it is under water.
+        var high = [Float](repeating: .nan, count: nx * nz), wet = [Bool](repeating: false, count: nx * nz)
+        func land(_ k: Int) -> Float {
+            if high[k].isNaN {
+                let c = gen.columnData((gx0 + k % nx) * G + G / 2, (gz0 + k / nx) * G + G / 2)
+                wet[k] = c.wl > c.h + 0.3
+                high[k] = wet[k] ? c.wl : c.h
+            }
+            return high[k]
+        }
+        let fa = s.phase, fb = s.phase * 1.7 + 1
+        func going(_ k: Int) -> Float {
+            let x = Float((gx0 + k % nx) * G), z = Float((gz0 + k / nx) * G)
+            let wide: Float = 0.5 + 0.5 * sinf(x * 0.012 + fa) * cosf(z * 0.015 + fb)
+            let close: Float = 0.5 + 0.5 * sinf(x * 0.031 + fb) * cosf(z * 0.027 + fa)
+            return wide * 14 + close * 8 + (wet[k] ? 70 : 0)
+        }
+        var cost = [Float](repeating: .infinity, count: nx * nz), from = [Int32](repeating: -1, count: nx * nz)
+        var done = [Bool](repeating: false, count: nx * nz)
+        var heap: [(Float, Int)] = []
+        func push(_ e: (Float, Int)) {
+            heap.append(e)
+            var i = heap.count - 1
+            while i > 0, heap[(i - 1) / 2].0 > heap[i].0 { heap.swapAt(i, (i - 1) / 2); i = (i - 1) / 2 }
+        }
+        func pop() -> (Float, Int) {
+            let top = heap[0]
+            let last = heap.removeLast()
+            if !heap.isEmpty {
+                heap[0] = last
+                var i = 0
+                while true {
+                    let l = 2 * i + 1, r = l + 1
+                    var m = i
+                    if l < heap.count && heap[l].0 < heap[m].0 { m = l }
+                    if r < heap.count && heap[r].0 < heap[m].0 { m = r }
+                    if m == i { break }
+                    heap.swapAt(i, m); i = m
+                }
+            }
+            return top
+        }
+        let start = si + sj * nx, end = ei + ej * nx
+        func ahead(_ k: Int) -> Float {
+            let dx = Float(k % nx - ei), dz = Float(k / nx - ej)
+            return (dx * dx + dz * dz).squareRoot() * Float(G)
+        }
+        cost[start] = 0
+        push((ahead(start), start))
+        var found = false
+        while !heap.isEmpty {
+            let (_, k) = pop()
+            if done[k] { continue }
+            done[k] = true
+            if k == end { found = true; break }
+            let i = k % nx, j = k / nx, h = land(k)
+            for dj in -1...1 { for di in -1...1 where di != 0 || dj != 0 {
+                let ni = i + di, nj = j + dj
+                guard ni >= 0, nj >= 0, ni < nx, nj < nz else { continue }
+                let q = ni + nj * nx
+                if done[q] { continue }
+                let step: Float = di != 0 && dj != 0 ? 22.6 : 16
+                let climb = abs(land(q) - h)
+                // (a block up in sixteen is nothing; a block in four is a hard road; steeper than one in two is a cliff)
+                let steep: Float = climb > 8 ? (climb - 8) * 40 : 0
+                let c = cost[k] + step + climb * 6 + steep + going(q) * step / 16
+                if c < cost[q] { cost[q] = c; from[q] = Int32(k); push((c + ahead(q), q)) }
+            } }
+        }
+        guard found else { return }
+        var sq: [Int] = []
+        var k = end
+        while k != start { sq.append(k); k = Int(from[k]); if k < 0 { return } }
+        sq.reverse()
+        var raw: [V2] = [s.a]
+        for q in sq.dropLast() { raw.append(V2(Float((gx0 + q % nx) * G + G / 2), Float((gz0 + q / nx) * G + G / 2))) }
+        raw.append(s.b)
+        // Thinned to its turns (anything within 9 blocks of the line between two kept points goes), then each corner cut
+        // round three times, then a point every 5 blocks or so.
+        var keep = [Bool](repeating: false, count: raw.count)
+        keep[0] = true; keep[raw.count - 1] = true
+        var stack = [(0, raw.count - 1)]
+        while let (i0, i1) = stack.popLast() {
+            guard i1 > i0 + 1 else { continue }
+            let p = raw[i0], d = raw[i1] - p, l2 = max(1, simd_length_squared(d))
+            var far: Float = 0, at = -1
+            for i in (i0 + 1)..<i1 {
+                let t = max(0, min(1, simd_dot(raw[i] - p, d) / l2))
+                let e = simd_length(raw[i] - (p + d * t))
+                if e > far { far = e; at = i }
+            }
+            if far > 9, at > 0 { keep[at] = true; stack.append((i0, at)); stack.append((at, i1)) }
+        }
+        var poly = raw.indices.filter { keep[$0] }.map { raw[$0] }
+        for _ in 0..<3 {
+            guard poly.count > 2 else { break }
+            var out: [V2] = [poly[0]]
+            for i in 0..<(poly.count - 1) {
+                let p = poly[i], q = poly[i + 1]
+                if i > 0 { out.append(p + (q - p) * 0.25) }
+                if i < poly.count - 2 { out.append(p + (q - p) * 0.75) }
+            }
+            out.append(poly[poly.count - 1])
+            poly = out
+        }
+        var way: [V2] = [poly[0]], cum: [Float] = [0]
+        var total: Float = 0
+        for i in 1..<poly.count {
+            let p = poly[i - 1], d = poly[i] - p, l = simd_length(d)
+            guard l > 0.01 else { continue }
+            let parts = max(1, Int((l / 5).rounded()))
+            for m in 1...parts {
+                way.append(p + d * (Float(m) / Float(parts)))
+                total += l / Float(parts)
+                cum.append(total)
+            }
+        }
+        guard way.count > 2 else { return }
+        s.way = way; s.cum = cum
+    }
+    // A road's length along its way, and the box it lies in.
+    static func length(_ s: Seg) -> Float { s.cum.last ?? simd_length(s.b - s.a) }
+    static func bounds(_ s: Seg) -> (V2, V2) {
+        guard let w = s.way else { return (simd_min(s.a, s.b), simd_max(s.a, s.b)) }
+        var lo = w[0], hi = w[0]
+        for p in w { lo = simd_min(lo, p); hi = simd_max(hi, p) }
+        return (lo, hi)
+    }
+
+    // The road's centre line at t (0...1): a straight line with a gentle bend that vanishes at both ends (or, with a
+    // way of its own, the point that share of the way along it).
     static func point(_ s: Seg, _ t: Float) -> V2 {
+        if let w = s.way {
+            let want = max(0, min(1, t)) * s.cum[s.cum.count - 1]
+            var lo = 0, hi = w.count - 1
+            while hi - lo > 1 { let m = (lo + hi) / 2; if s.cum[m] <= want { lo = m } else { hi = m } }
+            let l = s.cum[hi] - s.cum[lo]
+            return l > 0 ? w[lo] + (w[hi] - w[lo]) * ((want - s.cum[lo]) / l) : w[lo]
+        }
         let d = s.b - s.a, len = max(1, simd_length(d))
         let n = V2(-d.y, d.x) / len
         let bend = sinf(t * len / 90 + s.phase) * 7 * min(1, t * (1 - t) * 8)
@@ -211,6 +372,21 @@ enum Roads {
     }
     // Distance from p to the road and the t of the nearest point.
     static func distance(_ s: Seg, _ p: V2) -> (Float, Float) {
+        if let w = s.way {
+            var best = (Float.greatestFiniteMagnitude, Float(0))
+            let total = s.cum[s.cum.count - 1]
+            for i in 0..<(w.count - 1) {
+                let a = w[i], d = w[i + 1] - a
+                // (a point every 5 blocks: a leg whose start is 40 or more past the best so far can't be nearer)
+                let off = p - a
+                if abs(off.x) - 6 > best.0 || abs(off.y) - 6 > best.0 { continue }
+                let l2 = max(0.0001, simd_length_squared(d))
+                let u = max(0, min(1, simd_dot(off, d) / l2))
+                let e = simd_length(off - d * u)
+                if e < best.0 { best = (e, (s.cum[i] + (s.cum[i + 1] - s.cum[i]) * u) / total) }
+            }
+            return best
+        }
         let d = s.b - s.a, len2 = max(1, simd_length_squared(d))
         let t0 = max(0, min(1, simd_dot(p - s.a, d) / len2))
         // The bend moves the line by up to 7 blocks: refine near t0.

@@ -6,6 +6,62 @@ import simd
 // headset makes them), lists the roads within 1,500 blocks of his spot, loads the nearest one at 24 points along it and
 // counts the points where the road is drawn on the ground (the packed earth a field world's road is laid in).
 enum RoadsCheck {
+    // Ledger 237, `--roadprobe SEED,X,Z,R`: the roads within R blocks of (X, Z) on a field world of SEED, laid as before
+    // and with a way of their own: how long they are, how much they climb, and how much of them runs up ground steeper
+    // than a block in two or over water.
+    struct Measure { var roads = 0; var long: Float = 0; var crow: Float = 0; var climb: Float = 0; var steep: Float = 0; var worst: Float = 0; var wet: Float = 0
+        var text: String {
+            String(format: "%d roads, %.0f blocks (%.2f of the straight lines), climb %.1f a hundred blocks, steeper than one in two %.1f%%, steepest %.0f in 8, over water %.1f%%",
+                   roads, long, long / max(1, crow), 100 * climb / max(1, long), steep, worst, wet)
+        }
+    }
+    // The roads within r of (px, pz), sampled every 8 blocks along each.
+    static func measure(_ gen: WorldGen, _ px: Int, _ pz: Int, _ r: Int) -> Measure {
+        var m = Measure()
+        var steep = 0, wet = 0, steps = 0
+        for s in Roads.near(gen, x0: px - r, z0: pz - r, x1: px + r, z1: pz + r, pad: 0) {
+            let len = Roads.length(s)
+            m.roads += 1; m.long += len; m.crow += simd_length(s.b - s.a)
+            let n = max(2, Int(len / 8))
+            var last: Float = .nan
+            for i in 0...n {
+                let q = Roads.point(s, Float(i) / Float(n))
+                let c = gen.columnData(Int(floor(q.x)), Int(floor(q.y)))
+                let under = c.wl > c.h + 0.3
+                let h = under ? c.wl : c.h
+                if !last.isNaN {
+                    let d = abs(h - last)
+                    m.climb += d; steps += 1
+                    if d > 4 { steep += 1 }
+                    if under { wet += 1 }
+                    m.worst = max(m.worst, d)
+                }
+                last = h
+            }
+        }
+        m.steep = 100 * Float(steep) / Float(max(1, steps)); m.wet = 100 * Float(wet) / Float(max(1, steps))
+        return m
+    }
+    static func probe(_ a: String) -> Int32 {
+        let v = a.split(separator: ",").map { String($0) }
+        guard v.count >= 4 else { print("roadprobe: SEED,X,Z,R"); return 1 }
+        let seed = UInt64(v[0]) ?? 1, px = Int(v[1]) ?? 0, pz = Int(v[2]) ?? 0, r = Int(v[3]) ?? 1500
+        let p440 = WorldRules.p44
+        WorldRules.p44 = true
+        defer { WorldRules.p44 = p440 }
+        let gen = WorldGen(seed: seed)
+        gen.fieldWorld = true
+        gen.terrain.fewerLakes = World.fewerLakesUnsaved; gen.terrain.lessWater = World.lessWaterUnsaved
+        for wind in [false, true] {
+            Roads.windOn = wind
+            Roads.forget()
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let m = measure(gen, px, pz, r)
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            print((wind ? "roadprobe: own way: " : "roadprobe: as before: ") + m.text + String(format: ", planned and measured in %.0f ms", ms))
+        }
+        return 0
+    }
     static func run(_ g0: Game, _ check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds, p440 = WorldRules.p44
         FieldTerrain.newWorlds = true
@@ -63,7 +119,9 @@ enum RoadsCheck {
             while under > 1 && w.block(x, under, z) == AIR { under -= 1 }
             let wet = Blocks.isLiquid(w.block(x, under, z)) || w.block(x, under, z) == deckB
             // A parapet: along the deck's side, 2 out from the line.
-            let d = sg.b - sg.a, nrm = V2(-d.y, d.x) / max(1, simd_length(d))
+            // (the road's own heading there: with a way of its own it is not its ends' straight line)
+            let d = Roads.point(sg, Float(br.j0 + mid + 2) / Float(br.n)) - Roads.point(sg, Float(br.j0 + mid - 2) / Float(br.n))
+            let nrm = V2(-d.y, d.x) / max(1, simd_length(d))
             var walls = 0
             for side in [Float(-1), 1] {
                 let q = p + nrm * side * 2.0
@@ -74,6 +132,18 @@ enum RoadsCheck {
                   "roadscheck: a road over water (\(Roads.bridgesPlanned) bridges planned) crosses on a bridge \(br.ys.count) cells long at \(x) \(y - YOFF) \(z): its deck \(Blocks.key(w.block(x, y, z))), under it \(Blocks.key(w.block(x, under, z))) \(y - under) down, clear over it (\(Blocks.key(w.block(x, y + 1, z)))), parapets \(walls) of 2")
         } else {
             check(false, "roadscheck: no road with a bridge within 5,000 blocks of his spot (\(Roads.bridgesPlanned) bridges planned)")
+        }
+        // Ledger 237: the same roads as straight lines and with a way of their own.
+        do {
+            let on0 = Roads.windOn
+            Roads.windOn = false; Roads.forget()
+            let old = measure(gen, px, pz, 3000)
+            Roads.windOn = true; Roads.forget()
+            let own = measure(gen, px, pz, 3000)
+            Roads.windOn = on0; Roads.forget()
+            let rise0 = old.climb / max(1, old.long), rise1 = own.climb / max(1, own.long)
+            check(own.roads == old.roads && own.roads > 0 && rise1 < rise0 * 0.8 && own.steep <= old.steep * 0.5 + 0.05 && own.long < old.long * 1.6,
+                  "ledger 237: a road finds its own way over the land, round the steep ground (own way: \(own.text); as straight lines: \(old.text))")
         }
         // His Nov 1 20:40 flight (seed 6387856731608716243, Dry Bend to Belohold): the towns and roads under it.
         do {
