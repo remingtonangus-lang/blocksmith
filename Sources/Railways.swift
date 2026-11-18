@@ -135,7 +135,7 @@ enum Railways {
     // then. Planning one took 1.1 s of a frame in the debug harness (perfscenes forest24: "trains" 1164 ms flying into new
     // land), a long stall on the headset too.
     static func line(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
-        guard on else { return nil }
+        guard on, hasLine(gen, row, s) else { return nil }
         guard wildWorld(gen) else { return cached(gen, key(row, s), wait: wait) { plan(gen, row: row, stretch: s) } }
         return cached(gen, key(row, s), wait: wait) { townLine(gen, row: row, stretch: s) ?? planWild(gen, row: row, stretch: s) }
     }
@@ -158,10 +158,26 @@ enum Railways {
     static func wildWorld(_ gen: WorldGen) -> Bool {
         wildOn && !oldRailEnds && runOn && gen.fieldWorld && (gen.structures?.legacyL178.isEmpty ?? false)
     }
+    // Ledger 230 (Nov 17 evening, flying over a new world, 20:12:56-20:13:20: "reduce the amount of railroads there are
+    // by about half. This should be a bit more rare to find", "more twisty and turny", "less boring"; 19:57:01 of the
+    // roads: "they should also follow some sort of path of least resistance"): every row of village regions carried an
+    // unbroken track, one every 544 blocks north to south, and its open-country stretches ran dead straight along the
+    // row's z. In a world made on this build or later (structure-guard-l230.txt empty), field worlds only:
+    //   (a) only every second row carries track (the even rows: their town lines and open country, still unbroken);
+    //   (b) open-country track finds its way over the land: each 16-block square costs what the ground climbs or drops
+    //       into it, on top of a slow field of dearer and cheaper ground that keeps flat country from running
+    //       straight, and the way found keeps its bends (wide eased curves), where before corners were pulled straight.
+    // BS_OLDRAILROWS=1: every row and straight open country, as before.
+    static let oldRailRows = Env.all["BS_OLDRAILROWS"] == "1"
+    static var sparseOn = true                        // (a var so the checks can lay the same ground both ways)
+    static func sparseWorld(_ gen: WorldGen) -> Bool {
+        sparseOn && !oldRailRows && wildWorld(gen) && (gen.structures?.legacyL230.isEmpty ?? false)
+    }
     static let realFlip: Int64 = 1 << 59              // (the cache key of a stretch's town line alone)
     // A stretch's town line alone (nil: none, the stretch is open country), planned without the open-country track.
     static func townLine(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
-        cached(gen, key(row, s) ^ realFlip, wait: wait) { plan(gen, row: row, stretch: s) }
+        guard hasLine(gen, row, s) else { return nil }
+        return cached(gen, key(row, s) ^ realFlip, wait: wait) { plan(gen, row: row, stretch: s) }
     }
     static let wildPad = 240                          // an open-country track's ends, in from its stretch's edges
     static let wildEdge = 96                          // ...and its way, in from its row's edges (a town line of the next row stays clear)
@@ -250,7 +266,11 @@ enum Railways {
             return l
         }
         var out: Line? = nil, how = "straight"
-        if !blocked(gen, sc, x0: a.x, z0: a.z, x1: b.x, z1: b.z, except: []) { out = lay((a.x...b.x).map { ($0, a.z) }) }
+        if sparseWorld(gen) {
+            let band = wildBand(row)
+            if let w = route(gen, sc, from: (a.x - 1, a.z), to: (b.x + 1, b.z), diagonal: true, runOn: true, band: (band.lo, band.hi), seaMax: 400, easeEnds: true, land: true) { out = lay(w); how = "over the land" }
+        }
+        if out == nil, !blocked(gen, sc, x0: a.x, z0: a.z, x1: b.x, z1: b.z, except: []) { out = lay((a.x...b.x).map { ($0, a.z) }) }
         if out == nil {
             how = "found"
             let band = wildBand(row)
@@ -395,7 +415,8 @@ enum Railways {
         return cached(gen, linkKey(row, s), wait: wait) { planLink(gen, row: row, stretch: s) }
     }
     static func hasLine(_ gen: WorldGen, _ row: Int, _ s: Int) -> Bool {
-        hashf(s, row, 0xC1, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC1A1) < share
+        if row & 1 != 0 && sparseWorld(gen) { return false }
+        return hashf(s, row, 0xC1, UInt32(truncatingIfNeeded: gen.seed) ^ 0xC1A1) < share
     }
     // The line a link runs on to (nil for a line).
     static func linkTarget(_ gen: WorldGen, _ l: Line, wait: Bool = true) -> Line? {
@@ -862,7 +883,7 @@ enum Railways {
     static let oldRouteWeight = Env.all["BS_OLDROUTEWEIGHT"] == "1"
     // `band` (ledger 178, open-country track): the z the way is held between, in place of routeWander either side.
     static func route(_ gen: WorldGen, _ sc: StructureCache, from a: (Int, Int), to b: (Int, Int), diagonal: Bool = false, runOn: Bool = false,
-                      shut: Set<Int64> = [], band: (lo: Int, hi: Int)? = nil, seaMax: Int? = nil, easeEnds: Bool = false) -> [(Int, Int)]? {
+                      shut: Set<Int64> = [], band: (lo: Int, hi: Int)? = nil, seaMax: Int? = nil, easeEnds: Bool = false, land: Bool = false) -> [(Int, Int)]? {
         let G = routeCell
         // (the way's ends on the middles of their squares' columns: 9-24 blocks out from each line's end)
         let s0 = (floorDiv(a.0 + G, G) * G + G / 2, a.1), e0 = (floorDiv(b.0 - G, G) * G + G / 2, b.1)
@@ -940,7 +961,27 @@ enum Railways {
         // (a run-on way weighs the distance left four times over: the search over open sea, where every square costs
         // ten, looked at up to 600,000 squares' ground for one link, and land beside a link took 42 s to appear on the
         // host against 12 before; the way found is a little straighter, with a little more bridge)
-        let hw: Int32 = runOn && !oldRouteWeight ? 4 : 1
+        let hw: Int32 = land ? 1 : runOn && !oldRouteWeight ? 4 : 1
+        // Ledger 230 (`land`): a square's ground height, looked at once (water counts as the sea's level), and what
+        // stepping into it costs: the climb or drop past the two blocks the grade takes in a square's length, and
+        // a slow field of 0 to 3 that bends the way on flat ground.
+        var high = [Int16](repeating: .min, count: land ? nx * nz : 0)
+        func height(_ i: Int) -> Int32 {
+            if high[i] == .min {
+                let x = (gx0 + i % nx) * G + G / 2, z = (gz0 + i / nx) * G + G / 2
+                high[i] = Int16(looked[i] == 3 || looked[i] == 4 ? SEA : max(SEA, gen.groundY(x, z)))
+            }
+            return Int32(high[i])
+        }
+        let fieldA = hashf(gz0, 0x230, 1, UInt32(truncatingIfNeeded: gen.seed)) * 6.283, fieldB = hashf(gz0, 0x230, 2, UInt32(truncatingIfNeeded: gen.seed)) * 6.283
+        func landCost(_ i: Int, _ j: Int) -> Int32 {
+            let climb = abs(height(j) - height(i))
+            let x = Float((gx0 + j % nx) * G), z = Float((gz0 + j / nx) * G)
+            let wave: Float = sinf(x * 0.011 + fieldA) * cosf(z * 0.023 + fieldB)
+            let f: Float = 1.5 + 1.5 * wave
+            let steep: Int32 = min(14, max(0, climb - 2))
+            return steep + Int32(f.rounded())
+        }
         func h(_ i: Int) -> Int32 { hw * Int32(abs(i % nx - gxg) + abs(i / nx - gzg)) }
         var heap: [(Int32, Int32)] = []                    // (f, state)
         func push(_ f: Int32, _ st: Int32) {
@@ -977,7 +1018,8 @@ enum Railways {
                 let j = z2 * nx + x2
                 if runOn && (j == start || (j == goal && nd != 0)) { continue }
                 guard open(j) else { continue }
-                let c2 = cost[si] + 1 + (nd == d ? 0 : turnCost) + (looked[j] == 3 ? seaCost : looked[j] == 4 ? deepCost : 0)
+                var c2 = cost[si] + 1 + (nd == d ? 0 : turnCost) + (looked[j] == 3 ? seaCost : looked[j] == 4 ? deepCost : 0)
+                if land { c2 += landCost(i, j) }
                 let sj = j * 4 + nd
                 if c2 < cost[sj] { cost[sj] = c2; from[sj] = Int32(si); push(c2 + h(j), Int32(sj)) }
             }
@@ -1025,7 +1067,18 @@ enum Railways {
         pts.append(e0)
         // N12: the way's corners pulled straight where the straight is clear (a diagonal across the squares between),
         // then eased round, the whole way checked again; else the square way below.
-        if diagonal, let d = diagonalWay(gen, sc, pts, from: a, to: b, sea: runOn, open: { x, z in
+        // (ledger 230: over the land the way keeps its bends: every square's middle goes in, thinned to the points
+        // that hold its shape within 20 blocks, and the corners are eased wide)
+        var mids: [(Int, Int)] = []
+        if land {
+            mids.append(s0)
+            for q in squares.dropFirst().dropLast() {
+                let mx: Int = (gx0 + q % nx) * G + G / 2, mz: Int = (gz0 + q / nx) * G + G / 2
+                mids.append((mx, mz))
+            }
+            mids.append(e0)
+        }
+        if diagonal, let d = diagonalWay(gen, sc, land ? mids : pts, from: a, to: b, sea: runOn, keepShape: land ? 20 : nil, open: { x, z in
             let qx = floorDiv(x, G) - gx0, qz = floorDiv(z, G) - gz0
             guard qx >= 0 && qx < nx && qz >= 0 && qz < nz else { return false }
             let i = qz * nx + qx
@@ -1220,7 +1273,7 @@ enum Railways {
     // A link's routed way (route's corner points, `open` saying which ground a straight may cross) pulled straight
     // between corners where clear, eased round its turns, from just east of a to just west of b.
     static func diagonalWay(_ gen: WorldGen, _ sc: StructureCache, _ pts: [(Int, Int)], from a: (Int, Int), to b: (Int, Int),
-                            sea: Bool = false, open: (Int, Int) -> Bool) -> [(Int, Int)]? {
+                            sea: Bool = false, keepShape: Float? = nil, open: (Int, Int) -> Bool) -> [(Int, Int)]? {
         guard pts.count >= 2 else { return nil }
         func clear(_ p: (Int, Int), _ q: (Int, Int)) -> Bool {
             let n = max(1, Int(hypotf(Float(q.0 - p.0), Float(q.1 - p.1)) / 4))
@@ -1231,15 +1284,34 @@ enum Railways {
             return true
         }
         var keep = [pts[0]], i = 0
+        if let tol = keepShape {
+            // The points that hold the way's shape (the farthest from the chord, while any is over `tol` off it).
+            var mark = [Bool](repeating: false, count: pts.count)
+            mark[0] = true; mark[pts.count - 1] = true
+            var spans = [(0, pts.count - 1)]
+            while let (lo, hi) = spans.popLast() {
+                guard hi > lo + 1 else { continue }
+                let ax = Float(pts[lo].0), az = Float(pts[lo].1), bx = Float(pts[hi].0) - ax, bz = Float(pts[hi].1) - az
+                let len = max(1, hypotf(bx, bz))
+                var far = -1, off: Float = tol
+                for k in (lo + 1)..<hi {
+                    let d = abs((Float(pts[k].0) - ax) * bz - (Float(pts[k].1) - az) * bx) / len
+                    if d > off { off = d; far = k }
+                }
+                if far >= 0 { mark[far] = true; spans.append((lo, far)); spans.append((far, hi)) }
+            }
+            keep = pts.indices.filter { mark[$0] }.map { pts[$0] }
+        } else {
         while i < pts.count - 1 {
             var j = pts.count - 1
             while j > i + 1 && !clear(pts[i], pts[j]) { j -= 1 }
             keep.append(pts[j]); i = j
         }
+        }
         var poly: [(Float, Float)] = [(Float(a.0 + 1), Float(a.1))]
         poly += keep.map { (Float($0.0), Float($0.1)) }
         poly.append((Float(b.0 - 1), Float(b.1)))
-        let c = rasterPolyline(roundPolyline(poly, radius: 14))
+        let c = rasterPolyline(roundPolyline(poly, radius: keepShape != nil ? 40 : 14))
         guard let f = c.first, let l = c.last, f == (a.0 + 1, a.1), l == (b.0 - 1, b.1), c.count > 8, !touchesItself(c),
               !polylineBlocked(gen, sc, c, skipEnds: 2, except: []),
               sea || !stride(from: 0, to: c.count, by: 4).contains(where: { gen.column(c[$0].0, c[$0].1).biome.isOcean }) else { return nil }
