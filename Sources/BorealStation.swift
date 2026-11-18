@@ -874,12 +874,7 @@ enum BorealStation {
 
         // MARK: Garrison
         let tag = grey ? "@grey" : "@meridian"                  // (P504: the station's own side, the Meridian Navy)
-        // P504 (Nov 1 07:58, "make it so that they're full of [the navy's super-soldiers]... that's gonna be what's in the
-        // [Boreal] station"; 09:33, "Boreal station and frigate are their own troops"): a Meridian station's troopers on
-        // its floors are Aegis Marines (shielded heavies); recruits and marksmen stay marines, the roof gun's man a trooper.
-        func navy(_ k: String, _ ly: Int) -> String { !grey && k == "soldier_trooper" && ly == 1 ? "soldier_ironclad" : k }
-        for (k, dx, ly, dz) in garrison { w.mob(navy(k, ly) + tag, V3(Float(X(dx)) + 0.5, Float(F + ly), Float(Z(dz)) + 0.5)) }
-        for (k, dx, ly, dz) in surfaceGarrison { w.mob(navy(k, ly) + tag, V3(Float(X(dx)) + 0.5, Float(S + ly), Float(Z(dz)) + 0.5)) }
+        for (k, dx, y, dz) in garrisonPlan(grey: grey, S: S) { w.mob(k, V3(Float(X(dx)) + 0.5, Float(y), Float(Z(dz)) + 0.5)) }
         // Nov 12 (the trailer's snow base from the air, "a massive naval gun thing"): the roof gun was the full 42 cm
         // capital turret, its barrel some 30 blocks out past the fence, looming over the whole yard; a station's roof
         // takes the light quick-firer the other sites mount (still worked from the gun room). BS_OLDBOREALGUN=1 for the old.
@@ -893,6 +888,18 @@ enum BorealStation {
         }
     }
     static let oldRoofGun = Env.all["BS_OLDBOREALGUN"] == "1"
+
+    // The garrison's men at their posts: (structure mob name with its side's tag, dx, block row, dz) for a station whose
+    // blockhouse floor is row S. Generation writes them (build) and a station found empty musters them (BorealMuster).
+    static func garrisonPlan(grey: Bool, S: Int) -> [(String, Int, Int, Int)] {
+        let tag = grey ? "@grey" : "@meridian", F = S - depth
+        // P504 (Nov 1 07:58, "make it so that they're full of [the navy's super-soldiers]... that's gonna be what's in the
+        // [Boreal] station"; 09:33, "Boreal station and frigate are their own troops"): a Meridian station's troopers on
+        // its floors are Aegis Marines (shielded heavies); recruits and marksmen stay marines, the roof gun's man a trooper.
+        func navy(_ k: String, _ ly: Int) -> String { !grey && k == "soldier_trooper" && ly == 1 ? "soldier_ironclad" : k }
+        return garrison.map { (k, dx, ly, dz) in (navy(k, ly) + tag, dx, F + ly, dz) }
+            + surfaceGarrison.map { (k, dx, ly, dz) in (navy(k, ly) + tag, dx, S + ly, dz) }
+    }
     // (mob key, dx, dz) on the surface row.
     static let vehicles: [(String, Int, Int)] = [("ash_truck@boreal^270", 19, 9), ("ash_truck:fuel@boreal^0", -15, -9), ("ash_tank@boreal^180", 18, 22)]
 }

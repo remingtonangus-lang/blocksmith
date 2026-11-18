@@ -17,6 +17,7 @@ enum TroopVanish {
 
     // `rule`: what took it (despawn far, despawn random, dawn, rout, unload).
     static func note(_ m: Mob, _ rule: String, _ g: Game) {
+        BorealMuster.left(g, m, rule)                   // (ledger 253: always, for the station's count)
         guard on, troop(m) else { return }
         let d = simd_length(m.pos + V3(0, m.height * 0.9, 0) - g.player.eye)
         let seen = MobManager.inPlainSight(m, g)

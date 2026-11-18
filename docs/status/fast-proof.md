@@ -79,7 +79,8 @@ The first named run of a new build still computes the census once (+18 s). The w
 plays it against the game through the calls play uses: Game.tick at 72 Hz, and the player's look, walk, break and place
 through the bot's input path (Agent.apply, the same InputState the window fills). One result line a command;
 `expect` lines print `ok`/`FAIL` and a failed one makes the exit non-zero. `--headset` makes a field world with polygon
-ground, as the headset makes new worlds. Shots go to `--out DIR` (default the temp dir), never into the repo.
+ground, as the headset makes new worlds. Shots go to `--out DIR` (default the temp dir), never into the repo. `--save` keeps the world on disk in a temp folder (shells, saved chunks, stashed mobs,
+as the headset keeps one), `--rd N` and `--active N` set the view and active distances.
 
 Coordinates are as the game shows them (a voice note's Position line): y is the displayed height. `look` takes the
 note's facing and pitch in degrees.
@@ -107,6 +108,10 @@ note's facing and pitch in degrees.
 | `use [SECONDS]`, `hit [SECONDS]` | one press of use / attack as he aims now, held one tick or SECONDS (a trigger pull); prints the target and every cell within 3 that changed; `use` counts `place.count` and `place.off` (a placed block neither in the aimed face's cell nor within half a block of the drawn point) |
 | `probe X Y Z` | the cell's built block, ground flag, material, centre density, the drawn (fine) density at its middle and the drawn surface over its column |
 | `print player\|train\|ship\|fps` | place, speed, held, aboard, hull; tick avg and worst over the last tick |
+| `fly to X Z SECONDS [SPEED]` | fly toward a point through the input path (sprint held; at most SPEED b/s when given) |
+| `realtime on\|off` | each tick waits out its 1/72 s, so generation keeps the pace it keeps in play |
+| `reopen` | (with `--save`) save, close and open the world again as the headset does (World + Game on the save, WorldRequest.setUp) |
+| `print troops`, `print station` | soldiers within 96 by kind and side, stashed, what took any away, deaths; the nearest Boreal Station and its garrison (ledger 253) |
 | `expect block X Y Z == KEY`, `expect ground X Y Z == true\|false`, `expect NAME OP N` | NAME: player.x/y/z/speed/health, use.changed, place.count/off, ship.speed/blocks/y, train.speed, walk.there/lowest/step, fps.worst/avg, felled.count/blocks/tilt/spin (the felled trees in the world: tilt 0 lying level, 1 upright or upside down), hud.clash (words a gauge bar covers on the vehicle panels at 1280x800, plus any second panel) |
 
 Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
@@ -121,6 +126,7 @@ Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 | `dug-pit-sweep.scene --headset --seed 7780452129890778212` (ledger 260) | 0 of 30 placements off where he aimed | `BS_OLDSLIVERCELL=1 BS_OLDPLACECELL=1 BS_OLDRAYORDER=1 BS_OLDHALFCELL=1`: 8 of 26 off |
 | `dug-pit-materials.scene --headset --seed 7780452129890778212` (ledger 260's bloom) | 0 of 53 off (earth, gravel, rock) | the same switches: 3 of 54 off |
 | `dug-cells.scene --headset --seed 7780452129890778212` (ledger 260) | all passed | `BS_OLDSLIVERCELL=1`: 2 FAILED (a cell drawn under its middle reads as sand) |
+| `boreal-garrison.scene --headset --seed 4259144782798118884 --rd 12` (ledger 253) | all passed: 26 soldiers at his station | a guard: his empty station was not reproduced on the host |
 | `place-pull.scene --headset --seed 7780452129890778212` (ledger 260) | a 0.3 s pull sets one block | `BS_OLDPLACEREPEAT=1`: 1 FAILED (two) |
 | `tree-stump-stays.scene --seed 7780452129890778212 --headset` (ledgers 226, 227) | all passed: stump and neighbour stand, one body of 144 | `BS_OLDFELLSTUMP=1`: 5 FAILED (246 blocks fall) |
 | `tree-lies-down.scene --seed 3084501862406496736 --headset` (ledger 228) | all passed: tilt 0.79, spin 0 | `BS_OLDCROWNWEIGHT=1`: 1 FAILED (upside down) |
