@@ -26,10 +26,15 @@ extension Economy {
     static func buyPrice(_ item: ItemID, _ p: ShopPricing) -> Int {
         if isEmerald(item) { return emeraldBuy }
         let v = Int((Float(value(of: item) ?? 0) * Seasons.sellScale(item)).rounded())   // C9: pelts in season, crops in winter
-        return p.country.active ? p.country.buy(item, v, p) : p.buy(v)
+        let b = p.country.active ? p.country.buy(item, v, p) : p.buy(v)
+        // Ledger 256: gold is money now that every shop takes it at face value, so no shop lets a gold piece go under
+        // its face (a gold-rich country's discount made an ingot $2.13 to buy and $2.50 to spend or sell): a tenth over.
+        if !oldValuables, let face = Money.face(item) { return max(b, face + max(1, face / 10)) }
+        return b
     }
     static func sellPrice(_ item: ItemID, _ p: ShopPricing) -> Int {
         if isEmerald(item) { return emeraldSell }
+        if !oldValuables, let face = Money.face(item) { return face }      // ledger 256: gold is money, sold at face value
         let v = value(of: item) ?? 0
         return p.country.active ? p.country.sell(item, v, p) : p.sell(v)
     }
