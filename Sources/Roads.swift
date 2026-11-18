@@ -207,7 +207,7 @@ enum Roads {
     }
 
     // Ledger 237 (Nov 17 evening: "the roads are too straight", "path of least resistance", and on a mountainside at
-    // -4794 99 -1642 "road cannot go through here"): a road was the straight line between its two ends with a seven
+    // -4794 163 -1642 "road cannot go through here"): a road was the straight line between its two ends with a seven
     // block wiggle, whatever lay between, so it ran up cliffs and over peaks. In a new world it finds its own way over
     // 16-block squares of land: a climb costs it far more than distance, water more still (a short crossing is
     // bridged as before), and a slow field of easier and harder going bends it on flat land too. Its way is thinned to
