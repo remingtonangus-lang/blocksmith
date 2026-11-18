@@ -887,6 +887,14 @@ final class World: LifeLinked {
                 return
             }
             b = Int(s.frameBlock(x, y, z, self))
+            // Ledger 303 (the board bot's tick 3252: a lily pad by the crawler's ramp foot): a world block met through the
+            // frame lies in whichever hull cell holds its middle, so as the hull settles it jumps a cell at a time; a
+            // thin one (a quarter block or less: lily pads, carpets, thin snow) came into a body's shins that way for a
+            // tick. Only beside the hull's own blocks (Fable: the hull owns its cell) these are not met in the frame.
+            // BS_OLDGROUNDSLIVER=1: met.
+            if b != 0 && World.thinBlock[b] && !Ship.oldGroundSliver && s.grid.get(x, y, z) == AIR
+                && (s.grid.get(x, y - 1, z) != AIR || s.grid.get(x - 1, y, z) != AIR || s.grid.get(x + 1, y, z) != AIR
+                    || s.grid.get(x, y, z - 1) != AIR || s.grid.get(x, y, z + 1) != AIR) { return }
         } else {
             b = Int(block(x, y, z))
         }
@@ -1738,6 +1746,11 @@ final class World: LifeLinked {
     // Agent runs / replays: wait for last frame's jobs and apply every result in chunk order, so streaming (and
     // the light that meshing computes) never depends on timing.
     static var deterministic = false
+    // (ledger 303) Blocks whose collision is a slab of a quarter block or less on the cell's floor.
+    static let thinBlock: [Bool] = (0..<Blocks.count).map { i in
+        let bx = Blocks.collBoxes[i]
+        return Blocks.collide[i] && !bx.isEmpty && bx.allSatisfy { $0.y0 == 0 && $0.y1 <= 4 }
+    }
     // Frame-thread time for installing generated chunks and meshes (the rest wait a frame). 4 ms on the Mac (60 Hz);
     // QuestApp sets 1.5 ms: fast flight at rd 16 handed over results every frame, ~1 ms mean and 4-5 ms spikes on the
     // headset's slower cores, on top of a 9-10 ms CPU frame (Oct 10 playtest: frames missed while flying). 1.5 ms a
@@ -2584,6 +2597,24 @@ final class World: LifeLinked {
     }
 
     // Blocking load of everything around a point (used by --snapshot and first spawn).
+    // Ledger 301 (ride checks): the chunks in a disc round pos generated and installed now, unmeshed, where any is
+    // missing (a cheap no-op once they are all there). A headless scene ticks many times faster than real time and the
+    // streaming budget is real time, so a vehicle on the move could outrun its ground under load: the board bot then
+    // met the ground at different moments run to run (two lanes' suites, one tick inside the ramp's foot).
+    func genSync(center pos: V3, radius: Int) {
+        let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
+        var keys: [ChunkKey] = []
+        for dz in -radius...radius { for dx in -radius...radius where World.inDisc(dx, dz, radius, grow: 1) {
+            let k = ChunkKey(x: cx + dx, z: cz + dz)
+            if chunks[k]?.hollow ?? true { keys.append(k) }   // (a hollow shell has no ground to meet)
+        } }
+        if keys.isEmpty { return }
+        let res = UnsafeMutablePointer<Produced>.allocate(capacity: keys.count)
+        defer { res.deallocate() }
+        DispatchQueue.concurrentPerform(iterations: keys.count) { i in (res + i).initialize(to: produce(keys[i])) }
+        for (i, k) in keys.enumerated() { let p = (res + i).move(); if let c = chunks[k] { refill(c, p) } else { install(k, p) } }
+    }
+
     func loadSync(center pos: V3, radius: Int) -> (gen: Double, mesh: Double) {
         let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
         let r = radius + 1
