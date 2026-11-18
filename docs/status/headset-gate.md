@@ -118,3 +118,19 @@ naval: two frigates 90 blocks off a stone float at sea (hostile or not by where 
 loaded on the frame thread, ships built) and 3 s after are "NAME-stage", left out of the totals with "combatworld";
 then 90 s of "NAME", with "route: combat ..." every 5 s giving mobs, ships and particles (drawn quads count land only).
 Headset, 0.133 base: all three held 72 once running.
+
+## Frigate and train legs, and NOT RUN (Nov 18, ledger 289)
+
+Until Nov 18 neither leg did its job: the frigate was asked for off the frame thread and never arrived ("route:
+aboard" never printed), and the train asked for lines without waiting ("no line planned within 2,000 blocks yet"), so
+both legs measured someone standing still and the gate passed them. Now both run in the route's own world (the
+`combatworld` leg comes first, as for the combat legs):
+- frigate: "frigate-stage" builds a Stormwarden 24 blocks off on the frame thread, puts the player at its helm,
+  crewless, at 10 b/s; 3 s later "frigate" flies it for 90 s.
+- train: "train-stage" plans the lines within 3,000 blocks of the host framesoak's train spot (-5572, 2813) off the
+  frame thread, goes to the nearest line with two stations, waits for its ground, sets the clock to a passenger train
+  standing at station 0, boards the lead car and opens the regulator (throttle 2); 3 s later "train" rides it for 90 s.
+Both print "route: NAME N s: at x y z, S b/s; mobs, ships, particles" every 5 s, so the report shows the leg moved.
+A leg that cannot do its job prints "route: failed: leg NAME: why" and moves on. The report then lists
+"leg NAME: NOT RUN (why)", also for a leg of "route: legs" that never reached its own label (only staged, or never
+started), and the verdict is FAIL whatever the frame rate.

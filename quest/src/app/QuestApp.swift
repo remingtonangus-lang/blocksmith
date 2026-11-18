@@ -558,7 +558,11 @@ final class QuestApp {
             // S8: head tracking lost (XRSession.headTracked; the view holds the last tracked pose): no ticks, and after
             // a moment the pause menu, so nothing happens to the player in the dark.
             headLostFor = xr.headTracked ? 0 : headLostFor + dt
-            if headLostFor > 0.3 && !g.paused && g.menu == nil && g.credits == nil {
+            // (Nov 18, Fable: under the headset gate's route the headset lies on a desk with its tracking lost: it paused
+            // every leg and Game.tick never ran, so the gate measured a paused game. Only while a route plays: no
+            // head-lost pause and the game ticks whenever focused. Never in play: the route is a debug property.)
+            let routing = QuestRoute.shared != nil
+            if headLostFor > 0.3 && !routing && !g.paused && g.menu == nil && g.credits == nil {
                 g.paused = true
                 PauseMenu.autoReason = "Paused: the headset lost tracking (light the room or wipe its cameras)"   // Q2c-console-44
                 (g.menu as? PauseMenu)?.build()
@@ -566,7 +570,9 @@ final class QuestApp {
             }
             // Game.tick streams the world first thing; unfocused, keep chunks arriving without ticking.
             lap(3)
-            if xr.focused && xr.headTracked { g.tick(dt) } else { g.world.update(center: g.player.pos) }
+            let ticks = xr.focused && (xr.headTracked || routing)
+            if ticks { g.tick(dt) } else { g.world.update(center: g.player.pos) }
+            QuestRoute.shared?.counted(ticked: ticks && !g.paused && g.menu == nil, paused: g.paused || g.menu != nil, headLost: !xr.headTracked, focused: xr.focused)
             lap(4)
             controls?.afterTick(dt: Float(dt))
             lap(5)
@@ -1122,7 +1128,13 @@ final class FrameStats {
                 case .raise(let rd):
                     g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
                     print(String(format: "perf: gpu %.1f ms, headroom: view distance up to %d (slider %d)", sumGPU / n, rd, vg.chosen))
-                default: break
+                default:
+                    // (under the route: why the view held, each window, so the gate's log shows Auto View at work)
+                    if QuestRoute.shared != nil {
+                        print(String(format: "route: auto view held at %d (slider %d): gpu %.1f ms of %.1f, missed %d of %d, %@%@%@", g.world.renderDistance, vg.chosen,
+                                     sumGPU / n, target * 1000, missed, frames, excused ? "excused (busy or new world or saving) " : "",
+                                     genRate > FrameStats.loadingChunksPerSecond ? "loading " : "", "quads \(sumQuads / max(1, frames))"))
+                    }
                 }
                 viewGov = vg
             }
