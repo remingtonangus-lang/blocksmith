@@ -945,7 +945,8 @@ enum RailwayTests {
                 let stayed = MilitaryTrain.holding(mtr).count == troops0 && troops0 >= 4
                 // Ledger 205: from the troop car, the guard car is boarded the same way (before the train is his).
                 _ = Trains.use(g, gun)
-                let guardAboard = Trains.oldCarUse || g.riding === gun
+                // (ledger 254: used, the guard car is his gun now, taken train or not)
+                let guardAboard = Trains.oldCarUse || (MilitaryTrain.oldGun ? g.riding === gun : TrainGun.shared.car === gun)
                 _ = Trains.use(g, loco)
                 let refused = g.riding !== loco && !mtr.taken
                 for m in mtr.troops { m.health = 0 }
@@ -985,6 +986,50 @@ enum RailwayTests {
                       + "with them down he takes it (\(took)), its guard car's gun goes quiet on him (\(quiet)) and he works it (\(manned)), a shell a shot (\(fired))")
             } else { check(false, "P510 military train: no troop car, engine or guard car (\(mtr.cars.map { $0.variant }))") }
         } else { check(false, "P510 military train: no train could be put on the line") }
+        // Ledger 254 (Nov 17 19:57:26-51, a Greywall troop train: "Can't fire the gun on it"; "I really can't get out of
+        // here, can I?"): on a troop train nobody has taken, its soldiers all aboard, the guard car used from the ground
+        // is his gun (a shell a shot; its own fire stops while he works it), and getting down from a troop car or the
+        // guard car puts him beside the train on the ground, not shut in the compartment.
+        Trains.trains.removeAll()
+        if let mtr = TrainArrivals.arrive(g, [t], kind: .troop) {
+            Trains.build(g, mtr)
+            TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
+            let car = mtr.cars.first { $0.variant == Trains.troopCar }, gun = mtr.cars.first { $0.variant == Trains.gunCar }
+            if let car, let gun, let h = TrainHulls.hull(car) {
+                g.survival = true; g.alive = true; g.health = 20
+                if g.riding != nil { g.dismount() }
+                let held = MilitaryTrain.holding(mtr).count
+                g.player.pos = g.world.freeSpawn(gun.pos + V3(cosf(gun.yaw), 0, -sinf(gun.yaw)) * 4)
+                _ = Trains.use(g, gun)
+                let manned = TrainGun.shared.car === gun && !mtr.taken
+                let s0 = TrainGun.shared.shots
+                TrainGun.shared.reload = 0
+                TrainGun.shared.shoot(g, gun)
+                let fired = TrainGun.shared.shots == s0 + 1 && g.arms.slugs.last?.kind == .shell
+                mtr.gunCool = 0; mtr.roused = true
+                let n0 = g.arms.slugs.count
+                Trains.gunCar(g, mtr, 1.0 / 60)
+                let quiet = g.arms.slugs.count == n0
+                TrainGun.shared.leave(g)
+                // Aboard a troop car, then down from it (and from the guard car's deck, ledger 205's boarding).
+                func off(_ m: Mob) -> (Bool, String) {
+                    if g.riding !== m { MilitaryTrain.board(g, m) }
+                    g.dismount()
+                    let p = g.player.pos, hb = TrainHulls.hull(m) ?? h
+                    let out = g.world.ships.boundsDistance(hb, p) > 0.2 && g.riding == nil
+                    let free = !g.player.collides(at: p, g.world)
+                    let ground = g.world.solidAt(Int(floor(p.x)), Int(floor(p.y - 0.05)), Int(floor(p.z)))
+                    return (out && free && ground, String(format: "%.1f from its hull, %@, ground under %@", g.world.ships.boundsDistance(hb, p), free ? "free" : "in blocks", ground ? "yes" : "no"))
+                }
+                let (carOff, carNote) = off(car)
+                let (gunOff, gunNote) = off(gun)
+                print("rail: ledger 254: guard car manned with \(held) soldiers aboard \(manned), fired \(fired), its own fire quiet \(quiet); down from a troop car: \(carNote); from the guard car: \(gunNote)")
+                check(held >= 4 && manned && fired && quiet && carOff && gunOff,
+                      "ledger 254 troop train: its guard car's gun is his with \(held) soldiers still aboard (\(manned)), a shell a shot (\(fired)), its own fire stops (\(quiet)); "
+                      + "down from a troop car he is beside the train (\(carNote)), and from the guard car (\(gunNote))")
+            } else { check(false, "ledger 254 troop train: no troop car or guard car (\(mtr.cars.map { $0.variant }))") }
+            Trains.remove(g, mtr)
+        } else { check(false, "ledger 254 troop train: no train could be put on the line") }
         // Ledger 137: a train leaving a stop whistles once (it whistled on every frame of the stand's last two seconds).
         for old in Trains.trains.values where !old.cars.isEmpty { Trains.remove(g, old) }
         Trains.trains.removeAll()

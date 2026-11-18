@@ -211,6 +211,18 @@ extension Game {
             let p = world.freeSpawn(cart.pos, wide: true)
             if !cart.collides(p, world) { cart.pos = p }
         }
+        // Ledger 254 (Nov 17 19:57:51, got down in a Greywall troop car: "I really can't get out of here, can I?"): a troop
+        // car or the guard car let him down in its shut compartment, walls, firing slits and roof all round, no way out
+        // but flying through. Getting down from either is getting off the train: beside it, on the ground, clear of its
+        // hull (whichever side has ground first). BS_OLDTRAINLEAVE=1: in the compartment.
+        if !MilitaryTrain.oldLeave, Trains.isBig(cart), cart.variant == Trains.troopCar || cart.variant == Trains.gunCar,
+           let h = TrainHulls.hull(cart), let at = dismountSpot(h, out: [2, 3, 4, 6]) {
+            player.pos = at
+            player.vel = .zero
+            player.airPeak = player.pos.y
+            MilitaryTrain.leftBeside += 1
+            return
+        }
         player.pos = TrainHulls.exitPoint(self, cart) ?? cart.pos + V3(0, 1, 0)       // (FAILURES 3: in the cab, not in the boiler)
         player.vel = .zero
         player.airPeak = player.pos.y
