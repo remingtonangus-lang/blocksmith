@@ -3253,6 +3253,27 @@ func nov17Checks() {
         check(inCell > 0 && onFace == inCell,
               "fire on a wall: of \(inCell) flame corners in its cell, \(onFace) hang on the wall's face (ledger 269; BS_OLDFIRE=1: a fold in the middle)")
     }
+    // Ledger 270 (Nov 17 20:12:27, a garrison tower gun's barrels through its battlements): a light deck gun ringed by a
+    // one-block parapet 4 out, laid as low as it goes toward it, runs its barrels through it; clearPitch lays it at the
+    // lowest pitch whose barrels are clear (BS_OLDBARRELS=1: the AI lays it through, as before).
+    do {
+        let w = World(seed: 7, device: device, save: nil)
+        w.renderDistance = 2; w.activeDistance = 2
+        _ = w.loadSync(center: V3(0.5, 250, 0.5), radius: 1)
+        let stone = Blocks.id("stone")
+        for z in -4...4 { for x in -4...4 {
+            w.setBlock(x, 249, z, stone)                                            // (the roof, and its parapet)
+            if max(abs(x), abs(z)) == 4 { w.setBlock(x, 250, z, stone) }
+        } }
+        let m = Mob(.deckGun, at: V3(0.5, 250, 0.5))
+        m.variant = HeavyTurret.lightVariant
+        let yaw: Float = 0, low = HeavyTurret.pitchLow(m)
+        let through = HeavyTurret.barrelHits(m, w, yaw: yaw, pitch: low)
+        let laid = HeavyTurret.barrelsClear ? HeavyTurret.clearPitch(m, w, yaw: yaw, from: low) : low     // (as the gun's AI lays it)
+        let clear = !HeavyTurret.barrelHits(m, w, yaw: yaw, pitch: laid)
+        check(through && clear,
+              String(format: "deck gun barrels: laid at its lowest (%.2f) toward a parapet they run through it (%@); it lays at %.2f instead, clear (%@)", low, through ? "yes" : "no", laid, clear ? "yes" : "no"))
+    }
 }
 // --nov17-only: the Nov 17 evening playtest's checks (no snow on a log top in his taiga).
 if CommandLine.arguments.contains("--nov17-only") { nov17Checks(); namedEnd("nov17") }

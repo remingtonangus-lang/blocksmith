@@ -407,7 +407,11 @@ enum Greywall {
             for y in (W + 1)...(W + 2) { put(c.x - 3 * sx, y, c.z + sz, AIR); put(c.x + sx, y, c.z - 3 * sz, AIR) }
             wallLamp(alarmPanel, c.x - 2 * sx, 2, c.z + 2 * sz, wall: sz > 0 ? 1 : 0)
             wallLamp(alarm, c.x, R - 1, c.z + 4 * sz, wall: sz < 0 ? 1 : 0)
-            if t.deckGuns { w.mob("deck_gun:light@grey", V3(Float(cx + c.x) + 0.5, Float(S + R + 1), Float(cz + c.z) + 0.5)) }   // (P210)
+            // (ledger 270: the gun stands on a block of plinth, so laid level its barrels pass over the merlons, not
+            // through them; HeavyTurret.clearPitch keeps them out of the tower when it lays low. BS_OLDBARRELS=1: as before.)
+            let plinth = HeavyTurret.barrelsClear ? 1 : 0
+            if t.deckGuns && plinth > 0 { put(c.x, R + 1, c.z, con) }
+            if t.deckGuns { w.mob("deck_gun:light@grey", V3(Float(cx + c.x) + 0.5, Float(S + R + 1 + plinth), Float(cz + c.z) + 0.5)) }   // (P210)
             // P471 (Oct 26 19:53, at a tower's foot: "this should be a computer room right here. There should be a guy in
             // here, and you should have to get in the chair and operate the computer in order to control the gun"): on
             // ground no save had before, a gunned tower's foot is its gun room: a terminal and two server racks on the outer
