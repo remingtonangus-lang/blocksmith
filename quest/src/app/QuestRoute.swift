@@ -279,6 +279,7 @@ final class QuestRoute {
                     let on = self.phase == 2
                     if on && g.riding == nil && self.ride.wasOn { self.ride.falls += 1; print(String(format: "route: thrown off the train at %.0f %.0f %.0f (%.0f s in, cars %d)", g.player.pos.x, g.player.pos.y, g.player.pos.z, self.legTime - self.fightFrom, tr.cars.count)) }
                     if on && tr.cars.first !== self.ride.lead && self.ride.lead != nil { self.ride.rebuilds += 1; print("route: the train was taken away or built again under him (cars \(tr.cars.count))") }
+                    if on && tr.starved { if self.ride.braking == 0 { self.ride.brakes += 1 }; self.ride.braking += 1.0 / 72; self.ride.braked += 1.0 / 72; self.ride.longest = max(self.ride.longest, self.ride.braking) } else { self.ride.braking = 0 }
                     if on { self.ride.speedSum += Double(tr.blocksPerSec) / 72; self.ride.top = max(self.ride.top, tr.blocksPerSec) }
                     if g.riding == nil, let c = tr.cars.first { _ = Trains.use(g, c) }
                     self.ride.lead = tr.cars.first; self.ride.wasOn = g.riding != nil
