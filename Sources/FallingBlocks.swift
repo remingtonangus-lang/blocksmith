@@ -69,6 +69,7 @@ extension Game {
     static let gravityChecksPerTick = 1500
     static let oldLanding = Env.all["BS_OLDLAND"] == "1"
     static let oldReland = Env.all["BS_OLDRELAND"] == "1"
+    static let oldGroundCrush = Env.all["BS_OLDGROUNDCRUSH"] == "1"
     static var gravitySeconds = 0.0008
 
     // Concrete powder -> its concrete, per block state (0: not a powder). A table, not the key's suffix: this runs
@@ -110,7 +111,12 @@ extension Game {
                 continue
             }
             // P388 (3): a heavy block falling hard on a weaker built one breaks through it and falls on.
-            if !ground, Blocks.collide[Int(b)], Structure.crushes(f.block, fell: f.start - next.y, onto: b) {
+            // Ledger 302: never the ground's own blocks. A field world's soil cells over the drawn surface (`ground` false
+            // there) counted as weak built blocks: a felled log dropping on the crawler's track went down through
+            // three cells of dirt and left a shaft one block wide and three deep (the ride check's board bot fell in and
+            // never got out; a player would have to dig). BS_OLDGROUNDCRUSH=1: crushed, as before.
+            if !ground, Blocks.collide[Int(b)], Game.oldGroundCrush || !SmoothTerrain.natural[Int(b)],
+               Structure.crushes(f.block, fell: f.start - next.y, onto: b) {
                 world.setBlock(cell.x, cell.y, cell.z, AIR)
                 for s in Explosion.blastDrops(b) { drops.spawn(s, at: next) }                       // (P452: crushed is gone)
                 sfx(.place(soundMat(b)), 1, at: next)

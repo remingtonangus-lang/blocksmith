@@ -47,6 +47,23 @@ enum RideCheck {
 
     struct Scene { let agent: Agent; let game: Game; let world: World; let ship: Ship; let st: CapitalState }
 
+    // One game tick of a scene, with the ground under the vehicle and the bot there first (ledger 301). The scene runs
+    // many times faster than real time, and streaming keeps to real time: under load (the full suite) the crawler
+    // outran its ground, so a run met the ground at its own moments: the board bot stuck behind the crawler for good in
+    // two of four loaded runs, and once a tick inside the ramp's foot. BS_OLDRIDEGROUND=1: streaming only, as before.
+    static let oldRideGround = Env.all["BS_OLDRIDEGROUND"] == "1"
+    static let trace: ClosedRange<Int>? = { let v = (Env.all["BS_RIDETRACE"] ?? "").split(separator: "-").compactMap { Int($0) }; return v.count == 2 && v[0] <= v[1] ? v[0]...v[1] : nil }()
+    static var tickN = 0
+    static func tick(_ sc: Scene, _ bot: AgentBot) {
+        tickN &+= 1
+        if !oldRideGround && tickN % 10 == 1 {
+            let r = Int(ceil(max(sc.ship.worldMax.x - sc.ship.worldMin.x, sc.ship.worldMax.z - sc.ship.worldMin.z) / Float(2 * CS))) + 1
+            sc.world.genSync(center: sc.ship.pos, radius: r)
+            sc.world.genSync(center: sc.game.player.pos, radius: 2)
+        }
+        sc.agent.step(bot)
+    }
+
     static func run(into outer: ((Bool, String) -> Void)? = nil) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)            // a CI timeout still shows how far it got
         guard let device = MTLCreateSystemDefaultDevice() else { print("ridecheck: no Metal device"); outer?(false, "ridecheck: no Metal device"); return 2 }
@@ -236,6 +253,33 @@ enum RideCheck {
         var spikeLimit: Float = 3                   // b/s in a tick (a bot walking into a wall stops dead: 4.3)
         init(_ sc: Scene, deckY: Float) { self.sc = sc; self.deckY = deckY }
 
+        // Why a body box lo...hi (ship space) at l counts as inside: each box it overlaps, then the motion that put it there.
+        func insideWhy(_ l: V3, _ lo: V3, _ hi: V3) -> String {
+            let p = sc.game.player, s = sc.ship, w = sc.world
+            var hits: [String] = []
+            w.frame = s
+            var bs: [(V3, V3)] = []
+            for y in Int(floor(lo.y))...Int(floor(hi.y)) { for z in Int(floor(lo.z))...Int(floor(hi.z)) { for x in Int(floor(lo.x))...Int(floor(hi.x)) {
+                bs.removeAll(keepingCapacity: true)
+                w.collisionBoxes(x, y, z, &bs)
+                let inHull = s.grid.inside(x, y, z) ? Blocks.key(s.grid.get(x, y, z)) : "outside the grid"
+                for (a, c) in bs where a.x < hi.x && c.x > lo.x && a.y < hi.y && c.y > lo.y && a.z < hi.z && c.z > lo.z {
+                    let what = s.grid.inside(x, y, z) && s.grid.get(x, y, z) != AIR ? inHull : "ground (" + inHull + " in the hull)"
+                    hits.append(String(format: "%@ cell %ld,%ld,%ld box %.2f,%.2f,%.2f-%.2f,%.2f,%.2f, by %.2f up %.2f along z",
+                                       what, x, y, z, a.x, a.y, a.z, c.x, c.y, c.z, min(c.y, hi.y) - max(a.y, lo.y), min(c.z, hi.z) - max(a.z, lo.z)))
+                }
+            } } }
+            let own = p.collides(at: l, w)             // (the game's own test of the body, as its next move starts)
+            w.frame = nil
+            var out = "; overlaps " + (hits.isEmpty ? "nothing" : hits.joined(separator: "; ")) + "; the game's own body test: " + (own ? "inside" : "clear")
+            if let pl = prevL { out += String(format: "; a tick before at %.3f,%.3f,%.3f, aboard %@", pl.x, pl.y, pl.z, prevAboard ? "yes" : "no") }
+            let rv = s.dirToLocal(p.vel - s.velocity(at: p.pos))
+            out += String(format: "; vel on the deck %.2f,%.2f,%.2f, ground %@, jumped %@, flying %@; ship vel %.2f,%.2f,%.2f, turn %.3f,%.3f,%.3f rad/s, ramp %@",
+                          rv.x, rv.y, rv.z, p.onGround ? "yes" : "no", p.jumped ? "yes" : "no", p.flying ? "yes" : "no",
+                          s.vel.x, s.vel.y, s.vel.z, s.angVel.x, s.angVel.y, s.angVel.z, sc.st.rampDown ? "down" : "up")
+            return out
+        }
+
         // After a tick. standing: the bot gives no input (its drift over the deck is measured); aboard: it should be.
         func sample(standing: Bool, aboard expect: Bool, flatDeck: Bool) {
             let p = sc.game.player, s = sc.ship, w = sc.world
@@ -246,6 +290,20 @@ enum RideCheck {
             let where_ = String(format: "tick %ld, ship-space %.2f %.2f %.2f", ticks, l.x, l.y, l.z)
             if expect && !aboard { offTicks += 1; if firstOff.isEmpty { firstOff = where_ } }
             if expect && l.y < deckY - 0.5 { belowTicks += 1; if firstOff.isEmpty { firstOff = where_ + " (below the deck)" } }
+            if let tr = RideCheck.trace, tr.contains(ticks) {
+                // (BS_RIDETRACE=FROM-TO: the bot each tick, with the frame's boxes in the cells its feet and shins are in)
+                w.frame = s
+                var bs: [(V3, V3)] = [], cells: [String] = []
+                let fx = Int(floor(l.x)), fz = Int(floor(l.z)), fy = Int(floor(l.y))
+                for y in (fy - 1)...(fy + 1) { for z in (fz - 1)...(fz + 1) {
+                    bs.removeAll(keepingCapacity: true)
+                    w.collisionBoxes(fx, y, z, &bs)
+                    if !bs.isEmpty { cells.append("\(fx),\(y),\(z) " + Blocks.key(s.grid.get(fx, y, z)) + " " + bs.map { String(format: "%.3f-%.3f z %.2f-%.2f", $0.0.y, $0.1.y, $0.0.z, $0.1.z) }.joined(separator: ",")) }
+                } }
+                w.frame = nil
+                let rv = s.dirToLocal(p.vel - s.velocity(at: p.pos))
+                print(String(format: "TRACE tick %ld: %.3f,%.3f,%.3f aboard %@ ground %@ deck vel %.2f,%.2f,%.2f ship y %.3f; ", ticks, l.x, l.y, l.z, aboard ? "yes" : "no", p.onGround ? "yes" : "no", rv.x, rv.y, rv.z, s.pos.y) + cells.joined(separator: " | "))
+            }
             if aboard {
                 w.frame = s
                 let lo = V3(l.x - p.halfW + 0.05, l.y + 0.05, l.z - p.halfW + 0.05)
@@ -253,7 +311,16 @@ enum RideCheck {
                 let inside = w.collides(lo, hi)
                 let b = w.block(Int(floor(l.x)), Int(floor(l.y + 0.5)), Int(floor(l.z)))
                 w.frame = nil
-                if inside { insideTicks += 1; if firstInside.isEmpty { firstInside = where_ + " in " + Blocks.key(b) } }
+                if inside {
+                    insideTicks += 1
+                    if firstInside.isEmpty {
+                        // (Nov 18, lane 2, Fable's job 2: the board scene's one tick "in air" at the ramp's foot, seen by two
+                        // lanes in one night and never alone. What the body met, and how it got there: the boxes it overlaps
+                        // (hull cells, or the ground as the frame meets it), where it was a tick before and whether it was
+                        // aboard then, its velocity, ground and jump, and the deck's own motion.)
+                        firstInside = where_ + " in " + Blocks.key(b) + insideWhy(l, lo, hi)
+                    }
+                }
             }
             // (In the air the deck turns and pitches under him without carrying him: his deck-relative velocity changes
             // with its motion, not a shove. An auto-jump at a step sets no `jumped`, so airborne ticks count as jumpy.)
@@ -380,7 +447,7 @@ enum RideCheck {
             if turnEvery > 0 && i > 0 && i % (60 * turnEvery) == 0 { st.testTurn = (i / (60 * turnEvery)) % 2 == 0 ? 1 : -1 }
             g.health = 20
             g.hunger = 20
-            sc.agent.step(bot)
+            tick(sc, bot)
             standT = standing ? standT + 1.0 / 60 : 0
             mon.sample(standing: standing && standT > 1.5, aboard: true, flatDeck: true)
             odo.tick()
@@ -441,7 +508,7 @@ enum RideCheck {
             if i > 0 && i % 600 == 0 { st.testTurn = (i / 600) % 2 == 0 ? 1 : -1 }
             g.health = 20
             g.hunger = 20
-            sc.agent.step(bot)
+            tick(sc, bot)
             mon.sample(standing: false, aboard: true, flatDeck: true)
         }
         let l = s.toLocal(g.player.pos)
@@ -462,7 +529,7 @@ enum RideCheck {
         st.testTurn = 0
         st.testSpeed = 1.2
         // Let it get going (the ramp folds up only above a creep; at 1.2 b/s it stays down).
-        for _ in 0..<120 { sc.agent.step(Bot()) }
+        for _ in 0..<120 { tick(sc, Bot()) }
         let foot = s.toWorld(V3(4.3, 0, 29.5))
         let fx = Int(floor(foot.x)), fz = Int(floor(foot.z))
         _ = w.loadSync(center: foot, radius: 3)
@@ -480,7 +547,7 @@ enum RideCheck {
         mon.spikeLimit = 6                           // hatches, ladders and stairs: walking into a wall stops the bot
         let bot = Bot()
         var phase = 0
-        var stuckT: Float = 0
+        var stuckT: Float = 0, stuckTimes = 0
         var lastPos = g.player.pos
         var wp = 0
         var reached: [String] = []
@@ -563,7 +630,21 @@ enum RideCheck {
                 stuckT = a.forward > 0 && moved < 0.02 ? stuckT + 1.0 / 60 : 0
                 if stuckT > 0.5 { a.jump = true }
                 if stuckT > 1.5 { a.strafe = Int(stuckT * 2) % 2 == 0 ? 1 : -1 }
-                if stuckT > 3 { stuckT = 0 }
+                if stuckT > 3 {
+                    stuckT = 0
+                    stuckTimes += 1
+                    if stuckTimes <= 2 {
+                        // (What stops it, in the world: the cells round its feet and body ahead, the ground's height.)
+                        let bx = Int(floor(stt.pos.x)), by = Int(floor(stt.pos.y)), bz = Int(floor(stt.pos.z))
+                        var cells: [String] = []
+                        for dz in -1...1 { for dx in -1...1 {
+                            let col = (0...2).map { dy in Blocks.key(w.block(bx + dx, by + dy, bz + dz)) }.joined(separator: "/")
+                            cells.append("\(dx),\(dz): \(col)")
+                        } }
+                        r.note(String(format: "stuck 3 s at world %.2f,%.2f,%.2f (ship-space %.2f,%.2f,%.2f), ground %@, heading for %.1f,%.1f; feet up: ", stt.pos.x, stt.pos.y, stt.pos.z,
+                                      l.x, l.y, l.z, stt.onGround ? "yes" : "no", tw.x, tw.z) + cells.joined(separator: "; "))
+                    }
+                }
                 return a
             default:
                 return AgentAction.idle
@@ -575,7 +656,7 @@ enum RideCheck {
             st.testSpeed = phase >= 4 ? 0.8 : 1.2
             g.health = 20
             g.hunger = 20
-            sc.agent.step(bot)
+            tick(sc, bot)
             mon.sample(standing: false, aboard: false, flatDeck: false)
             if phase >= 6 { break }
             if i % (60 * 20) == 0 {
@@ -600,7 +681,7 @@ enum RideCheck {
         g.survival = false
         st.testTurn = 0.6
         st.testSpeed = 5
-        for _ in 0..<60 { sc.agent.step(Bot()) }
+        for _ in 0..<60 { tick(sc, Bot()) }
         let p = g.player
         p.pos = s.toWorld(V3(13.5, 32, 112))
         p.vel = s.velocity(at: p.pos) * 0.5
@@ -657,7 +738,7 @@ enum RideCheck {
         for i in 0..<(seconds * 60) {
             phaseT += 1.0 / 60
             g.hunger = 20
-            sc.agent.step(bot)
+            tick(sc, bot)
             mon.sample(standing: false, aboard: phase == 1 || phase == 2, flatDeck: true)
             if phase >= 4 { break }
             if i % (60 * 20) == 0 {
@@ -683,7 +764,7 @@ enum RideCheck {
         // Driving on patrol first (whatever its AI would chase near the spawn), then left to its own AI with the foes.
         st.testTurn = 0
         st.testSpeed = 3
-        for _ in 0..<(10 * 60) { sc.agent.step(idle) }
+        for _ in 0..<(10 * 60) { tick(sc, idle) }
         st.testTurn = nil
         st.testSpeed = nil
         let rampAtStart = st.rampDown
@@ -711,7 +792,7 @@ enum RideCheck {
         var t: Float = 0
         while t < 80 {
             for m in foes { m.health = max(m.health, 10_000) }    // they must outlast the crawler's guns for the test (ledger 183: at 50 a hit swept them out)
-            sc.agent.step(idle)
+            tick(sc, idle)
             t += 1.0 / 60
             if Int(t * 60) % 300 == 0 {
                 let walking = st.crewMobs.values.filter { !$0.crewRoute.isEmpty && $0.deck === s }
@@ -856,7 +937,7 @@ enum RideCheck {
         let n = seconds * 60
         for i in 0..<n {
             if i > 0 && i % 1200 == 0 { st.testTurn = (i / 1200) % 2 == 0 ? 1 : -1 }
-            sc.agent.step(idle)
+            tick(sc, idle)
             if i > 300 { crewCheck(i, posts: true) }
         }
         let spawned = st.crewMobs.count
@@ -893,7 +974,7 @@ enum RideCheck {
         var foeGone: [String] = [], foeSpots: [V3] = [], replaced = 0
         let limit = frigate ? 120 * 60 : 60 * 60
         for i in 0..<limit {
-            sc.agent.step(idle)
+            tick(sc, idle)
             let fw = s.dirToWorld(V3(0, 0, -1))
             let v = simd_dot(s.vel, fw)
             worstDecel = max(worstDecel, (lastV - v) * 60)
@@ -992,7 +1073,7 @@ enum RideCheck {
         let idle = Bot()
         for _ in 0..<(15 * 60) {
             g.hunger = 20
-            sc.agent.step(idle)
+            tick(sc, idle)
             mon.sample(standing: false, aboard: true, flatDeck: true)
         }
         let h0 = g.health
@@ -1005,7 +1086,7 @@ enum RideCheck {
         var after: Float = 0
         while t < 150 {
             g.hunger = 20
-            sc.agent.step(idle)
+            tick(sc, idle)
             t += 1.0 / 60
             mon.sample(standing: t > 1, aboard: true, flatDeck: true)
             if st.settled { after += 1.0 / 60; if after > 5 { break } }

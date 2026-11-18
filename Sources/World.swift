@@ -2584,6 +2584,24 @@ final class World: LifeLinked {
     }
 
     // Blocking load of everything around a point (used by --snapshot and first spawn).
+    // Ledger 301 (ride checks): the chunks in a disc round pos generated and installed now, unmeshed, where any is
+    // missing (a cheap no-op once they are all there). A headless scene ticks many times faster than real time and the
+    // streaming budget is real time, so a vehicle on the move could outrun its ground under load: the board bot then
+    // met the ground at different moments run to run (two lanes' suites, one tick inside the ramp's foot).
+    func genSync(center pos: V3, radius: Int) {
+        let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
+        var keys: [ChunkKey] = []
+        for dz in -radius...radius { for dx in -radius...radius where World.inDisc(dx, dz, radius, grow: 1) {
+            let k = ChunkKey(x: cx + dx, z: cz + dz)
+            if chunks[k]?.hollow ?? true { keys.append(k) }   // (a hollow shell has no ground to meet)
+        } }
+        if keys.isEmpty { return }
+        let res = UnsafeMutablePointer<Produced>.allocate(capacity: keys.count)
+        defer { res.deallocate() }
+        DispatchQueue.concurrentPerform(iterations: keys.count) { i in (res + i).initialize(to: produce(keys[i])) }
+        for (i, k) in keys.enumerated() { let p = (res + i).move(); if let c = chunks[k] { refill(c, p) } else { install(k, p) } }
+    }
+
     func loadSync(center pos: V3, radius: Int) -> (gen: Double, mesh: Double) {
         let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
         let r = radius + 1
