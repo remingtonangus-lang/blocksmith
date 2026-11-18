@@ -35,7 +35,7 @@ enum Railways {
     static var on = true                   // (the host checks turn lines off to compare)
     static var tally: ((String) -> Void)?  // (questcheck --railprobe: why a stretch has no line)
 
-    struct Station { let name: String; let index: Int; let x: Int; let z: Int; var halt = false; var site = false }   // halt: a hamlet's (C13); site: P379
+    struct Station { let name: String; let index: Int; let x: Int; let z: Int; var halt = false; var site = false; var weight = 1 }   // halt: a hamlet's (C13); site: P379
     final class Line {
         let id: Int64                      // row and stretch
         let name: String
@@ -173,6 +173,16 @@ enum Railways {
     static func sparseWorld(_ gen: WorldGen) -> Bool {
         sparseOn && !oldRailRows && wildWorld(gen) && (gen.structures?.legacyL230.isEmpty ?? false)
     }
+    // Ledger 239 (Nov 17 20:13: "they gotta go to villages more", "If I find a village, if it's big enough, it should
+    // have a railroad on it"): with every second row empty (ledger 230) half the towns, big or small, lay in a row
+    // no line runs in, and a line took the longest run of stations it could lay whatever their size. In a new world a
+    // stretch's town line now serves its own row and the empty one south of it: of the towns of both it takes the
+    // chain, west to east, that has the most town in it (a hamlet counts 1, a village 2, a town 4, a large town 8, a
+    // city 16; each leg at least half as long as it is wide), and if that can't be laid, the better of the two rows alone.
+    // Its open-country track and its links are as they were and meet its ends wherever they lie. BS_OLDTOWNROW=1: its
+    // own row, the longest run.
+    static var oldTownRow = Env.all["BS_OLDTOWNROW"] == "1"
+    static func bothRows(_ gen: WorldGen) -> Bool { !oldTownRow && sparseWorld(gen) }
     static let railSwing: Float = Env.all["BS_RAILSWING"].flatMap { Float($0) } ?? 120
     static let railPull: Float = max(1, Env.all["BS_RAILPULL"].flatMap { Float($0) } ?? 12)
     static let realFlip: Int64 = 1 << 59              // (the cache key of a stretch's town line alone)
@@ -350,7 +360,8 @@ enum Railways {
     static func near(_ gen: WorldGen, x0: Int, z0: Int, x1: Int, z1: Int, pad: Int = 2, wait: Bool = true, wild: Bool = false) -> [Line] {
         guard on else { return [] }
         // A line stays inside its row's band give or take a town's box and the south gap (half a region is plenty).
-        let r0 = floorDiv(z0 - pad - span / 2, span), r1 = floorDiv(z1 + pad + span / 2, span)
+        // (ledger 239: in a new world a row's town line may lie in the row south of its own)
+        let r0 = floorDiv(z0 - pad - span / 2, span) - (bothRows(gen) ? 1 : 0), r1 = floorDiv(z1 + pad + span / 2, span)
         let w = stretch * span
         let s0 = floorDiv(x0 - pad - span, w), s1 = floorDiv(x1 + pad + span, w)
         var out: [Line] = []
@@ -491,7 +502,9 @@ enum Railways {
         guard pb.x - pa.x >= 5 * routeCell else { tally?("row link: lines overlap"); return nil }
         // The 16-block squares a town line of a row beside this one lies in, and three squares out from each of its ends.
         var shut = Set<Int64>()
-        for r in [row - 1, row + 1] { for t in [s, s + 1] where hasLine(gen, r, t) {
+        // (ledger 239: in a new world the rows beside it are empty and the next lines lie two rows off)
+        let beside = bothRows(gen) ? [row - 2, row + 2] : [row - 1, row + 1]
+        for r in beside { for t in [s, s + 1] where hasLine(gen, r, t) {
             guard let o = townLine(gen, row: r, stretch: t) else { continue }
             for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
             if let f = o.cells.first { for k in 1...3 { shut.insert(colKey(floorDiv(f.x, routeCell) - k, floorDiv(f.z, routeCell))) } }
@@ -1382,7 +1395,7 @@ enum Railways {
         return false
     }
 
-    struct Town { let name: String; let box: (IVec3, IVec3); let sq: IVec3; var halt = false; var site = false }
+    struct Town { let name: String; let box: (IVec3, IVec3); let sq: IVec3; var halt = false; var site = false; var weight = 1 }
 
     // P379 step 1 (P337 (b)): the major sites a line also calls at when one stands in its row's band: the Capital's
     // citadels, its cities, Greywall bases and Boreal stations. A site the line can't reach (no room for the dog-leg,
@@ -1441,6 +1454,17 @@ enum Railways {
     // `avoid`: chunks no part of the line may come within 3 chunks of (a town or leg there ends the run).
     // `need`: stations a line needs (P470: with two, the major sites count toward it before the towns are counted).
     static func plan(_ gen: WorldGen, row: Int, stretch s: Int, avoid: Set<Int64>?, need: Int, diagonal: Bool = false) -> Line? {
+        guard bothRows(gen) else { return plan(gen, row: row, stretch: s, rows: [row], avoid: avoid, need: need, diagonal: diagonal) }
+        // (ledger 239: the chain through both rows, then each row alone; the one with the most town at its stations)
+        var best: Line? = nil, most = 0
+        for rows in [[row, row + 1], [row], [row + 1]] {
+            guard let l = plan(gen, row: row, stretch: s, rows: rows, avoid: avoid, need: need, diagonal: diagonal) else { continue }
+            let w = l.stations.reduce(0) { $0 + $1.weight }
+            if w > most { best = l; most = w }
+        }
+        return best
+    }
+    static func plan(_ gen: WorldGen, row: Int, stretch s: Int, rows: [Int], avoid: Set<Int64>?, need: Int, diagonal: Bool = false) -> Line? {
         guard let sc = gen.structures, let vt = sc.types.first(where: { $0.name == "village" }) else { return nil }
         func fresh(_ cells: [(Int, Int)]) -> Bool {
             guard let avoid, !avoid.isEmpty else { return true }
@@ -1449,24 +1473,42 @@ enum Railways {
             return true
         }
         // The towns along the stretch, west to east.
+        let weigh = bothRows(gen)
         var towns: [Town] = []
-        for rx in (s * stretch)..<((s + 1) * stretch) {
-            guard let v = sc.start(vt, regionX: rx, regionZ: row) else { continue }
+        for trow in rows { for rx in (s * stretch)..<((s + 1) * stretch) {
+            guard let v = sc.start(vt, regionX: rx, regionZ: trow) else { continue }
             if v.max.y < SEA { continue }
             // C13: a hamlet gets a halt (a short platform and a name board), villages and up a station.
             towns.append(Town(name: Townsfolk.townName(v.anchor.x, v.anchor.z, seed: gen.seed), box: (v.min, v.max), sq: v.anchor,
-                              halt: v.info["size"] == TownSize.hamlet.rawValue))
+                              halt: v.info["size"] == TownSize.hamlet.rawValue, weight: weigh ? 1 << min(4, max(0, v.info["size"] ?? 1)) : 1))
+        } }
+        if rows.count > 1 {
+            // (the chain with the most town: each town after the one before it by at least the way it lies north or south)
+            towns.sort { $0.sq.x < $1.sq.x }
+            var sum = towns.map { $0.weight }, prev = [Int](repeating: -1, count: towns.count)
+            for i in towns.indices { for j in 0..<i {
+                let gap = (towns[i].box.0.x - stationRun) - (towns[j].box.1.x + stationRun)
+                let dz = abs(towns[i].box.1.z - towns[j].box.1.z)
+                if gap >= max(64, dz / 2), sum[j] + towns[i].weight > sum[i] { sum[i] = sum[j] + towns[i].weight; prev[i] = j }
+            } }
+            var chain: [Town] = []
+            var k = towns.indices.max(by: { sum[$0] < sum[$1] }) ?? -1
+            while k >= 0 { chain.append(towns[k]); k = prev[k] }
+            towns = chain.reversed()
         }
-        if need < oldMinStations && gen.railSites { towns += sites(gen, sc, row: row, stretch: s) }
+        let trow = rows[0]
+        if need < oldMinStations && gen.railSites { towns += sites(gen, sc, row: trow, stretch: s) }
         guard towns.count >= need else { tally?("fewer than \(need) towns in the stretch"); return nil }
-        if need >= oldMinStations && gen.railSites { towns += sites(gen, sc, row: row, stretch: s) }
+        if need >= oldMinStations && gen.railSites { towns += sites(gen, sc, row: trow, stretch: s) }
         towns.sort { $0.sq.x < $1.sq.x }
         // Ground saved before railways: no line (checked along the whole run below).
         let legacy = sc.legacyC1
         var best: [IVec3] = [], bestStations: [Station] = []
         var cur: [IVec3] = [], curSt: [Station] = []
         func flush() {
-            if curSt.count >= need && curSt.count > bestStations.count { best = cur; bestStations = curSt }
+            // (ledger 239: in a new world the run with the most town in it, not the most stations)
+            let more = weigh ? curSt.reduce(0) { $0 + $1.weight } > bestStations.reduce(0) { $0 + $1.weight } : curSt.count > bestStations.count
+            if curSt.count >= need && more { best = cur; bestStations = curSt }
             cur = []; curSt = []
         }
         // (a site is passed over only by its own straight: a leg never runs through a citadel or a base)
@@ -1484,6 +1526,11 @@ enum Railways {
         }
         // A dog-leg from the last town's straight to this one.
         func dogLeg(_ pe: (x: Int, z: Int), _ xa: Int, _ z: Int) -> [(Int, Int)]? {
+            // (ledger 239: in a new world a leg finds its way over the land first, as open-country track does: the
+            // chain's legs run from row to row, and a ruled diagonal 600 blocks long between two towns looked drawn)
+            if weigh, diagonal, xa - pe.x >= 6 * routeCell,
+               let l = route(gen, sc, from: pe, to: (xa, z), diagonal: true, band: (min(pe.z, z) - 160, max(pe.z, z) + 160), easeEnds: true, land: true),
+               l.count > 8, fresh(l) { return l }
             // (N12: a diagonal leg with eased turns where one fits)
             if diagonal, let l = smoothDogLeg(gen, sc, from: pe, to: (xa, z), lead: 8, except: except), fresh(l) { return l }
             var leg: [(Int, Int)]?
@@ -1532,7 +1579,7 @@ enum Railways {
             }
             let i0 = cur.count
             for x in xa...xb { cur.append(IVec3(x, 0, z)) }
-            curSt.append(Station(name: t.name, index: i0 + (t.sq.x - xa), x: t.sq.x, z: z, halt: t.halt, site: t.site))
+            curSt.append(Station(name: t.name, index: i0 + (t.sq.x - xa), x: t.sq.x, z: z, halt: t.halt, site: t.site, weight: t.weight))
             prevEnd = (xb, z)
             if ti == towns.count - 1 { flush() }
         }
