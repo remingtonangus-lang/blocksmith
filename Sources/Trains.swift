@@ -356,8 +356,11 @@ enum Trains {
     private static let trackLock = NSLock()
     private static var trackMade: [Int64: Track] = [:]
     private static var trackMaking = Set<Int64>()
+    // (Nov 18, Fable: --rail-only lost its trains with 293, "0 cars built": a check ticks once and looks for its train.
+    // Where planning runs on the frame (the host checks: StructureCache.plansOffThread false) the track is made at once,
+    // as before; the game's worker path keeps its own proof, workerTrackProof.)
     static func readyTrack(_ l: Railways.Line, gen: WorldGen) -> Track? {
-        if oldTrackMake { return cachedTrack(l, gen: gen) }
+        if oldTrackMake || !StructureCache.plansOffThread { return cachedTrack(l, gen: gen) }
         trackLock.lock()
         if !trackMade.isEmpty { for (k, t) in trackMade { tracks[k] = t }; trackMade.removeAll() }
         trackLock.unlock()
@@ -372,12 +375,33 @@ enum Trains {
         trackLock.unlock()
         if !busy {
             DispatchQueue.global(qos: .userInitiated).async {
-                var t = track(l)
+                // (ledger 238: a line of one station runs a long window; none yet, no train rather than a shuttle)
+                let pass = passes(l, gen: gen)
+                let window: Track? = pass ? passingTrack(l, gen: gen, wait: true) : track(l)
+                guard let made = window else {
+                    trackLock.lock(); trackMaking.remove(l.id); trackLock.unlock()
+                    return
+                }
+                var t = made
                 if want, let lw = loops.west, let le = loops.east, let c = cyclicTrack(l, west: lw, east: le) { t = c }
                 trackLock.lock(); trackMade[l.id] = t; trackMaking.remove(l.id); trackLock.unlock()
             }
         }
         return have.flatMap { $0.source == l.cells.count ? $0 : nil }
+    }
+    // (checks) The game's path for a line not yet made: the first ask returns nothing and sets a worker on it, and the
+    // track is there on a later ask. Returns whether the first ask held nothing and the ms until the track was ready.
+    static func workerTrackProof(_ l: Railways.Line, gen: WorldGen) -> (firstEmpty: Bool, ms: Double, track: Track?) {
+        let off0 = StructureCache.plansOffThread
+        StructureCache.plansOffThread = true
+        defer { StructureCache.plansOffThread = off0 }
+        trackLock.lock(); trackMade[l.id] = nil; trackLock.unlock()
+        tracks[l.id] = nil
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let first = readyTrack(l, gen: gen)
+        var t = first
+        while t == nil && CFAbsoluteTimeGetCurrent() - t0 < 20 { usleep(1000); t = readyTrack(l, gen: gen) }
+        return (first == nil, (CFAbsoluteTimeGetCurrent() - t0) * 1000, t)
     }
     // P511: with a loop planned at each end (RailLoops.swift), the line's track is its circuit (gen: nil, the line as
     // laid). A loop still being planned leaves the line's own track until it is.
@@ -386,7 +410,7 @@ enum Trains {
         let want = loops?.west != nil && loops?.east != nil
         if let t = tracks[l.id], t.source == l.cells.count, t.cyclic == want { return t }
         TickProf.mark("trains: track loops")
-        var t = track(l)
+        var t = gen.flatMap { passingTrack(l, gen: $0, wait: true) } ?? track(l)      // (ledger 238)
         TickProf.mark("trains: track made")
         if want, let lw = loops?.west, let le = loops?.east, let c = cyclicTrack(l, west: lw, east: le) { t = c }
         TickProf.mark("trains: track circuit made")

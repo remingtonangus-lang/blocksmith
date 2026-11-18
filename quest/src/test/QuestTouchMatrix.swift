@@ -68,6 +68,10 @@ enum QuestTouchMatrix {
         defer { QuestSettings.leftHanded = keepLeft; QuestSettings.controlPreset = keepPreset }
         let w = g.world
         let keepSurvival = g.survival, keepPos = g.player.pos, keepSel = g.selected
+        // (Nov 18: a Meridian Gunner out of sight shot the player dead during R1 and S7 once the world's generation moved
+        // a little (ledger 265's log snow); these rows test the controls, so nothing lands on him while they run.)
+        let keepDiff = g.diffLevel; g.diffLevel = 0
+        defer { g.diffLevel = keepDiff }
         let keep0 = g.inventory.main[0]
         var placed: [(IVec3, BlockID)] = []
         func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) { placed.append((IVec3(x, y, z), w.block(x, y, z))); w.setBlock(x, y, z, b) }
@@ -97,6 +101,10 @@ enum QuestTouchMatrix {
             sim.hands[0] = l; sim.hands[1] = r
             rig.update(xr: sim, game: g)
             qc.update(dt: dt)
+            // (Nov 18 suite, lane 2: a Meridian frigate's gunner left over from an earlier check shot the harness from out
+            // of sight in the middle of R1, and every row after it measured a death screen: "A: close DeathMenu". The
+            // matrix measures the controls, not the world: the body is kept whole while it runs.)
+            g.health = g.maxHealth
             g.tick(Double(dt))
             qc.afterTick(dt: dt)
         }
@@ -301,7 +309,7 @@ enum QuestTouchMatrix {
                 sim.hands[0] = l; sim.hands[1] = r
                 rig.update(xr: sim, game: g); let z2 = g.player.pos.z
                 qc.update(dt: dt); let z3 = g.player.pos.z
-                g.tick(Double(dt)); let z4 = g.player.pos.z
+                g.health = g.maxHealth; g.tick(Double(dt)); let z4 = g.player.pos.z
                 qc.afterTick(dt: dt); let z5 = g.player.pos.z
                 steps += 1
                 if abs(z5 - z1) > 0.01 && pulls < 5 {

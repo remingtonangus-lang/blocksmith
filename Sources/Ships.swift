@@ -704,8 +704,16 @@ final class Ship: LifeLinked {
         // more than the 0.05 a body's box is let sink into the ground: full ride checks, the board bot at the ramp's foot.)
         var lo: Float = 0, hi: Float = 1
         for _ in 0..<6 { let m = (lo + hi) * 0.5; if ground(m) { lo = m } else { hi = m } }
+        // Ledger 303 (ride check board, tick 3252; Fable: the hull owns its cell): ground left thinner than a quarter
+        // block beside a hull cell (over it or at its side) is dropped. Over the crawler's sunk ramp foot such a crust
+        // came and went as the hull settled a hair, and a body falling past met it from inside for a tick.
+        // BS_OLDGROUNDSLIVER=1: kept.
+        if hi < 0.25 && !Ship.oldGroundSliver
+            && (grid.get(x, y - 1, z) != AIR || grid.get(x - 1, y, z) != AIR || grid.get(x + 1, y, z) != AIR
+                || grid.get(x, y, z - 1) != AIR || grid.get(x, y, z + 1) != AIR) { return 0 }
         return hi
     }
+    static let oldGroundSliver = Env.all["BS_OLDGROUNDSLIVER"] == "1"
 
     func frameBlock(_ x: Int, _ y: Int, _ z: Int, _ w: World) -> BlockID {
         var hullCol = false
