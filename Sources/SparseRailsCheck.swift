@@ -95,8 +95,10 @@ extension RailwayTests {
             check(false, "ledger 238: \(l.name) (one station, \(l.cells.count) cells) has no window to run"); return
         }
         let st = l.stations[0]
-        let own = t.stops.first.map { t.cells[$0] }
-        let atStation = own.map { $0.x == l.cells[st.index].x && $0.z == l.cells[st.index].z } ?? false
+        // (the window's stops are every station on its parts: the line's own among them, and a neighbour stretch's if
+        // that is a town line too)
+        let ownAt = t.parts[0].cells.count + t.parts[1].cells.count + st.index
+        let atStation = t.stops.contains(ownAt) && t.cells[ownAt].x == l.cells[st.index].x && t.cells[ownAt].z == l.cells[st.index].z
         // One whole timetable, a tenth of a second a step: it stands at the station, never leaps, reaches both ends.
         var stood = 0.0, leap: Float = 0, lo = Float.infinity, hi: Float = 0, u = 0.0
         var prev = t.at(0).s
@@ -108,9 +110,9 @@ extension RailwayTests {
             u += 0.1
         }
         let n = Float(t.cells.count - 1)
-        let ok = t.stops.count == 1 && atStation && t.cells.count > 8 * l.cells.count && stood >= Trains.dwell && leap < 4 && lo < 8 && hi > n - 8
+        let ok = t.parts.count == 5 && atStation && t.cells.count > 8 * l.cells.count && stood >= Trains.dwell && leap < 4 && lo < 8 && hi > n - 8
             && turns(t, over: 600) <= 2
-        check(ok, String(format: "ledger 238: a line of one station runs its train through, not along its platform and back (%@: its own track %d cells, a train on it would turn %d times in ten minutes; its window %d cells over %d parts, turns %d times, stands %.0f s at %@ a round of %.0f min, never moves more than %.1f cells in a tenth of a second, runs cells %.0f to %.0f)",
-                         l.name, l.cells.count, turns(stub, over: 600), t.cells.count, t.parts.count, turns(t, over: 600), stood, t.stopNames.first ?? "no stop", t.period / 60, leap, lo, hi))
+        check(ok, String(format: "ledger 238: a line of one station runs its train through, not along its platform and back (%@: its own track %d cells, a train on it would turn %d times in ten minutes; its window %d cells over %d parts, turns %d times, stands %.0f s at its %d stations (%@ among them) a round of %.0f min, never moves more than %.1f cells in a tenth of a second, runs cells %.0f to %.0f)",
+                         l.name, l.cells.count, turns(stub, over: 600), t.cells.count, t.parts.count, turns(t, over: 600), stood, t.stops.count, st.name, t.period / 60, leap, lo, hi))
     }
 }
