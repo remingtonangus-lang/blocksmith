@@ -172,7 +172,8 @@ enum CartTrack { static var laid = 0 }
 
 // Goats ramming a log, stone, ore or packed ice drop a goat horn (two per goat; tag = horn variant).
 enum GoatHorns {
-    static let names = ["Ponder", "Sing", "Seek", "Feel", "Admire", "Call", "Yearn", "Dream"]
+    // (the calls are Blocksmith's own names; the tag, 0-7, is what a save keeps: ledger 334)
+    static let names = ["Hollow Cry", "Hearthsong", "Far Seeker", "Low Thunder", "Herald", "Rally", "Lament", "Dreamwind"]
 }
 
 extension Mob {
