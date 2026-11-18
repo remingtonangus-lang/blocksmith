@@ -3071,7 +3071,10 @@ final class MobManager {
     }
 
     // Reference spawn weights per biome (creature category).
+    static var forcedRolls = 0
+    static var forceAnimal: MobKind? = nil          // (checks: every animal roll comes out this kind; BearCheck)
     static func pickAnimal(_ b: Biome) -> (MobKind, Int, Int)? {
+        if let k = forceAnimal { forcedRolls += 1; return (k, 1, 1) }
         let std: [(MobKind, Int, Int, Int)] = [(.sheep, 12, 4, 4), (.pig, 10, 4, 4), (.chicken, 10, 4, 4), (.cow, 8, 4, 4)]
         var t: [(MobKind, Int, Int, Int)]
         switch b {

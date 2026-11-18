@@ -73,7 +73,7 @@ enum MobVoice {
         case .ironGolem: return Profile(family: .rumble, f0: 90, size: 1.6)
         case .snowGolem: return Profile(family: .snow, f0: 900, size: 1)
         case .ravager: return Profile(family: .growl, f0: 110, size: 1.8)
-        case .polarBear: return Profile(family: .growl, f0: 130, size: 1.5)
+        case .polarBear: return FierceBear.old ? Profile(family: .growl, f0: 130, size: 1.5) : Profile(family: .growl, f0: 78, size: 2.1)   // ledger 342: low and big
         case .wolf: return Profile(family: .bark, f0: 520, size: 1)
         case .cat, .ocelot: return Profile(family: .meow, f0: 620, size: 1)
         case .horse: return Profile(family: .neigh, f0: 700, size: 1)

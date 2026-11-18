@@ -699,6 +699,25 @@ struct Synth {
         case .fizz: out = burst(0.6, lp: 8000, hp: 3000, attack: 0.02, decay: 0.25, gain: 0.9)
         // Walking through plants (L3): a short leafy swish with a flutter, a few dry ticks of stems.
         case .plantBrush: out = Synth.window(Synth.mix(swishNoise(rnd(0.32, 0.45), lo: 1400 * p, hi: 6500 * p, attack: 0.04, decay: 0.12, gain: 0.55), grains(4, spread: 0.3, lp: 7000, hp: 2500, decay: 0.004, gain: 0.25)))
+        // Ledger 342: the fierce polar bear. The warning: two hard huffs and a jaw pop, then a long low roar that swells and
+        // tears. The charge: a short explosive bellow over a chest rumble and pounding breath.
+        case .bearWarn:
+            let huffs = repeated({ g in g.burst(0.16, lp: 700 * p, hp: 60, attack: 0.01, decay: 0.06, gain: 1.6) }, times: 2, interval: 0.26, jitter: 0.15)
+            let pop = modes(0.08, [(420 * p, 0.5, 0.02), (980 * p, 0.25, 0.012)])
+            let d = rnd(1.7, 2.1)
+            let voice = formant(d, f0: 92 * p, f1: 64 * p, formants: [(210, 4, 1), (520, 5, 0.75), (1150, 7, 0.35), (2300, 9, 0.12)],
+                                breath: 0.35, vib: 0.07, vibRate: 4, attack: 0.18, release: 0.45, growl: 0.85, gain: 1.7)
+            let body = Synth.mix(voice, rumble(d, f: 38, attack: 0.2, decay: d * 0.6, gain: 2.2))
+            let rasp = burst(d, lp: 2200, hp: 350, attack: 0.25, decay: d * 0.5, gain: 0.35)
+            out = Synth.mix(Synth.mix(huffs, pop, at: frames(0.5)), Synth.mix(body, rasp), at: frames(0.6))
+        case .bearCharge:
+            let d = rnd(0.9, 1.15)
+            let voice = formant(d, f0: 118 * p, f1: 72 * p, formants: [(240, 4, 1), (600, 5, 0.8), (1350, 7, 0.4), (2600, 9, 0.15)],
+                                breath: 0.45, vib: 0.05, vibRate: 5, attack: 0.03, release: 0.3, growl: 0.95, gain: 1.9)
+            let chest = rumble(d + 0.3, f: 34, attack: 0.02, decay: d * 0.7, gain: 2.6)
+            let blast = burst(0.35, lp: 1800 * p, hp: 120, attack: 0.005, decay: 0.12, gain: 1.2)
+            let breaths = repeated({ g in g.burst(0.12, lp: 600 * p, hp: 50, attack: 0.01, decay: 0.05, gain: 1.1) }, times: 3, interval: 0.22, jitter: 0.2)
+            out = Synth.mix(Synth.mix(Synth.mix(blast, voice), chest), breaths, at: frames(d))
         case .meleeWindUp:
             // A drawn breath and the scrape of a weapon going back: a rising whoosh over a low growl.
             let breath = Synth.window(wash(rnd(0.38, 0.5), lp: 1100 * p, hp: 140, wobble: 0.5, rate: 6, gain: 0.7))
