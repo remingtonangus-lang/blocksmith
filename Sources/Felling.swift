@@ -96,6 +96,8 @@ enum Felling {
     //   BS_OLDLEAFREST     a felled tree rests on its crown's leaves, and hangs in the trunks beside it for good
     static let stumpGirth = Env.all["BS_OLDSTUMPGIRTH"] != "1"
     static let stumpStays = Env.all["BS_OLDFELLSTUMP"] != "1"       // ledgers 226, 227 (Game.fellWhole)
+    static let treeRiders = Env.all["BS_OLDTREERIDERS"] != "1"      // ledger 265: what sat on a felled tree comes down with it
+    static let riderTrace = Env.all["BS_RIDERTRACE"] == "1"         // (each thing on a felled tree, whether it rides and why)
     static let crownLight = Env.all["BS_OLDCROWNWEIGHT"] != "1"   // ledger 228 (Ship.rebuild)
     static let spinRests = Env.all["BS_OLDFELLSPIN"] != "1"       // ledger 228 (ShipPhysics, the felled tree's drag)
     static let slimTrunks = Env.all["BS_OLDTRUNKBOX"] != "1"     // ledger 228 (ShipPhysics.terrainContacts)
@@ -554,6 +556,38 @@ extension Game {
     // The logs come loose with their crown as one body.
     // (P441, Oct 24 20:50: "this log is floating... it should be able to sit on whatever's under it": a spruce's top of
     // one or two logs in its crown stayed in the air; with its leaves any part of a tree comes down)
+    // Ledger 265 (Nov 17 evening, 20:01:26: "snow and a pumpkin just hovering right here"; "nothing falls in squares
+    // anymore"): a felled tree left what sat on its crown and its wood in the air: the snow the generator lays on every
+    // leaf top, a plant or a carpet on a log, a block set on it (taken out quietly, nothing checked them). Now they ride
+    // the tree down: anything that sits (a snow layer, a plant, a carpet: PlantSupport rule 1, or a rider) or that rests
+    // on the body and on nothing else (a pumpkin on a bough). BS_OLDTREERIDERS=1: left in the air, as before.
+    func treeRiders(_ body: Set<IVec3>) -> [IVec3] {
+        var out: [IVec3] = [], seen = Set<IVec3>()
+        for c in body {
+            let up = IVec3(c.x, c.y + 1, c.z)
+            guard !body.contains(up), seen.insert(up).inserted else { continue }
+            let ub = world.block(up.x, up.y, up.z)
+            guard ub != AIR, !Blocks.isLiquid(ub), !Mesher.leafT[Int(ub)], !CapitalBase.isLog(ub) else { continue }
+            let under = IVec3(up.x, up.y - 1, up.z)
+            let sits = PlantSupport.ruleOf(ub) == 1 || Game.rides[Int(ub)]
+            // (a snow layer or a carpet beside it is no prop: it sits on the crown too and comes down with it)
+            let restsOnlyOnIt = body.contains(under) && !World.allDirs.contains(where: { e in
+                let q = up + e
+                guard e.y <= 0, !body.contains(q) else { return false }
+                let qb = world.block(q.x, q.y, q.z)
+                if PlantSupport.ruleOf(qb) == 1 || Game.rides[Int(qb)] { return false }
+                return Blocks.collide[Int(qb)] || world.groundAt(q.x, q.y, q.z)
+            })
+            if sits || restsOnlyOnIt { out.append(up) }
+            if Felling.riderTrace {
+                let props = World.allDirs.filter { $0.y <= 0 && !body.contains(up + $0) }.map { e -> String in
+                    let q = up + e; return "\(e.x),\(e.y),\(e.z) \(Blocks.key(world.block(q.x, q.y, q.z)))\(world.groundAt(q.x, q.y, q.z) ? " ground" : "")" }
+                print("treeriders: \(Blocks.key(ub)) at \(up.x) \(up.y - YOFF) \(up.z): sits \(sits), on the body \(body.contains(under)), rides \(sits || restsOnlyOnIt); beside: \(props.joined(separator: "; "))")
+            }
+        }
+        return out
+    }
+
     func fellLoose(_ p: IVec3, _ logs: Set<IVec3>, whole: (at: IVec3, block: BlockID)? = nil) {
         let start = IVec3(p.x, p.y + 1, p.z)
         // The crown: leaves joined to the logs (6-connected through leaves, within 5 of a log), and only its own.
@@ -580,10 +614,12 @@ extension Game {
             }
         }
         if whole == nil { Felling.noteStumps(world, logs: logs, cut: p) }
+        let riders = Felling.treeRiders ? Set(treeRiders(logs.union(leaves))) : []
+        Game.ridersTaken += riders.count
         // The body: its cells relative to the block above the cut, then out of the world.
         let bp = Blueprint()
         var lo = IVec3(Int.max, Int.max, Int.max)
-        for c in logs.union(leaves) {
+        for c in logs.union(leaves).union(riders) {
             bp.cells[ivSub(c, start)] = world.block(c.x, c.y, c.z)
             lo = IVec3(min(lo.x, c.x - start.x), min(lo.y, c.y - start.y), min(lo.z, c.z - start.z))
         }
@@ -594,6 +630,7 @@ extension Game {
         // the tree is measured as it stood)
         let snap = Felling.shapeSnap(world, logs: logs, cut: whole == nil ? p : nil, struck: whole.map { [$0.at: $0.block] } ?? [:])
         if whole == nil { world.treeGhosts.note(world, Array(logs)) }   // (ledger 123: read while the crown is still on)
+        for c in riders { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in leaves { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         for c in logs { world.setBlockAsync(c.x, c.y, c.z, AIR) }
         world.circuitQuiet = quiet0
@@ -612,7 +649,7 @@ extension Game {
         s.angVel = simd_cross(V3(0, 1, 0), away) * 0.35
         s.vel = away * 0.4
         Felling.girth[s.id] = Felling.girthOf(logs)
-        Felling.falls.append(hold(s, cells: logs.union(leaves)))
+        Felling.falls.append(hold(s, cells: logs.union(leaves).union(riders)))
         Felling.felled += 1
         let mid = s.pos
         sfx(.hullCreak, 1.3, at: mid)
@@ -690,6 +727,7 @@ extension Game {
                 }
             }
         }
+        if !logs.isEmpty && logs.count == cells.count && Felling.treeRiders { riders += treeRiders(Set(cells).union(leaves)) }     // (a tree only: a trestle of logs keeps its rails as before)
         // (ledger 125: wire and torches are parts of the piece now and come down in it: counted as riding too)
         Game.ridersTaken += riders.count + (logs.isEmpty ? cells.filter { Game.rides[Int(world.block($0.x, $0.y, $0.z))] }.count : 0)
         let bp = Blueprint()

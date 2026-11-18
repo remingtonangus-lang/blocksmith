@@ -578,6 +578,22 @@ enum TreeProbeCheck {
             let cutAt: IVec3
             if cutUp >= 0 { cutAt = IVec3(foot.x, foot.y + cutUp, foot.z) }
             else { cutAt = cells.max(by: { ($0.y, $0.x, $0.z) < ($1.y, $1.x, $1.z) }) ?? foot }
+            // Ledger 265 (Nov 17 evening, "snow and a pumpkin just hovering right here"): a snow layer on the crown's top
+            // leaf and a pumpkin set on a leaf beside it come down with the tree, not left in the air.
+            var sitters: [(IVec3, BlockID)] = []
+            if cutUp == 0 {
+                func topLeaf(_ x: Int, _ z: Int) -> IVec3? {
+                    for y in stride(from: foot.y + 40, through: foot.y + 2, by: -1) where Mesher.leafT[Int(w.builtBlock(x, y, z))] {
+                        let a = w.builtBlock(x, y + 1, z)
+                        return a == AIR || a == Blocks.id("snow") ? IVec3(x, y + 1, z) : nil   // (or the generator's snow on it)
+                    }
+                    return nil
+                }
+                if let a = topLeaf(foot.x, foot.z) { w.setBlock(a.x, a.y, a.z, Blocks.id("snow")); sitters.append((a, Blocks.id("snow"))) }
+                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    if let b = topLeaf(foot.x + dx, foot.z + dz) { w.setBlock(b.x, b.y, b.z, Blocks.id("pumpkin")); sitters.append((b, Blocks.id("pumpkin"))); break }
+                }
+            }
             let cut = w.builtBlock(cutAt.x, cutAt.y, cutAt.z), n0 = Felling.felled, ships0 = w.ships.list.count
             let made0 = Felling.shapesMade
             w.setBlock(cutAt.x, cutAt.y, cutAt.z, AIR)
@@ -590,6 +606,11 @@ enum TreeProbeCheck {
                 let logsIn = w.ships.list.last(where: { Felling.isFelled($0) }).map { $0.grid.blocks.filter { treeT[Int($0)] }.count } ?? 0
                 check(Felling.oldFellShape ? true : (logsIn > 0 && (sh?.quads.count ?? 0) >= logsIn * 4 && (sh?.cells.count ?? 0) >= logsIn * 3 / 4),
                       "fellwhole: the falling tree is drawn with its own round shape (\(sh?.quads.count ?? 0) quads over \(sh?.cells.count ?? 0) of its \(logsIn) logs, after \(waited * 10) ms)")
+            }
+            if cutUp == 0 {
+                let stayed = sitters.filter { w.builtBlock($0.0.x, $0.0.y, $0.0.z) == $0.1 }
+                check(Felling.treeRiders ? (sitters.count == 2 && stayed.isEmpty) : true,
+                      "fellwhole: a snow layer on the crown and a pumpkin on a leaf come down with the tree (\(sitters.count) set, \(stayed.count) left in the air: \(stayed.map { Blocks.key($0.1) }))")
             }
             let left = cells.filter { treeT[Int(w.builtBlock($0.x, $0.y, $0.z))] }.count
             let bodies = w.ships.list.count - ships0

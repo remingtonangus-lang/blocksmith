@@ -3168,6 +3168,34 @@ if CommandLine.arguments.contains("--difficulty-only") {          // P358: hits 
     DifficultyCheck.run(game, check)
     print(failures == 0 ? "difficulty: all checks passed" : "difficulty: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// The Nov 17 evening playtest's checks (ledger 265; more join it): in the suite, and alone with --nov17-only.
+func nov17Checks() {
+    // Ledger 265 (b) (Nov 17 20:01:33, "square snow on a stump"): in his snowy taiga by 1137 75 -1587 no snow layer lies on a
+    // log's round top (stumps, cut and fallen trunks); before, the generator laid a square layer on every log top
+    // (BS_OLDLOGSNOW=1).
+    do {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        let w = World(seed: 4259144782798118884, device: device, save: nil)
+        w.makeFieldWorld()
+        w.renderDistance = 3; w.activeDistance = 3
+        _ = w.loadSync(center: V3(1137.5, 75 + 64, -1587.5), radius: 3)
+        FieldTerrain.newWorlds = field0
+        let snowL = Blocks.id("snow")
+        var onLog = 0, snowy = 0
+        for z in -1627...(-1547) { for x in 1097...1177 {
+            guard w.chunkAt(x, z) != nil else { continue }
+            for y in (40 + 64)...(110 + 64) where w.block(x, y, z) == snowL {
+                snowy += 1
+                if WorldGen.logTop[Int(w.block(x, y - 1, z))] { onLog += 1 }
+            }
+        } }
+        check(snowy > 100 && (!WorldGen.noLogSnow || onLog == 0),
+              "log snow: of \(snowy) snow layers round his stump at 1137 -1587, \(onLog) lie on a log's round top (ledger 265; BS_OLDLOGSNOW=1 lays them)")
+    }
+}
+// --nov17-only: the Nov 17 evening playtest's checks (no snow on a log top in his taiga).
+if CommandLine.arguments.contains("--nov17-only") { nov17Checks(); namedEnd("nov17") }
 if CommandLine.arguments.contains("--throw-only") {             // P371: thrown held things
     ThrownHeldCheck.run(game, check)
     print(failures == 0 ? "throw: all checks passed" : "throw: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -3998,6 +4026,7 @@ do {
     check(TreePlacer.oldFallenGen || (lying > 0 && plain == 0),
           "fallen trunks: of \(lying) generated logs lying on the ground in his taiga (1012 -1580), \(plain) are plain timber drawn a block high over the bedded ground" + (first.map { " (first at \($0.x) \($0.y) \($0.z))" } ?? ""))
 }
+nov17Checks()
 // Ledger 263: the playtest frame-rate warning (Sources/FpsWarning.swift) on synthetic frame traces.
 do {
     let fw = FpsWarning.shared, st = Settings.shared, was = st.fpsWarning
