@@ -57,6 +57,7 @@ enum PathFinder {
     static var boxes: [(V3, V3)] = []        // scratch for collision boxes (main thread only)
     static var doors = false                 // the current search may walk through wooden doors
     static var lastExpanded = 0              // nodes expanded by the last search (harness)
+    static var oldDropScan = Env.all["BS_OLDDROPSCAN"] == "1"   // ledger 307 off: every drop level re-reads its whole column
     static let slowTrace = Env.all["BS_PATHSLOW"] == "1"                // prints resumed searches over 1 ms (ledger 306)
     static var slowLast: Double = 0, slowWorst: Double = 0, slowField = 0, slowFieldT: Double = 0
 
@@ -398,7 +399,14 @@ enum PathFinder {
                     // Off a ladder or out of water the body rises from the cell itself, not from a floor (path ladder climb /
                     // swimmer mobtests failed after this rule came in with the capital cities).
                     if dy == 1 && !lifted && 1 + solidTop(w, qx, p.y, qz) - solidTop(w, p.x, p.y - 1, p.z) > 1.25 { continue }
-                    if dy < 0 && !open(w, qx, qz, q.y + pr.tall, p.y + pr.tall, span: pr.span) { continue }             // clear drop column
+                    // Clear drop column. Ledger 307: the levels above were checked on the way down (a blocked level
+                    // blocks every deeper drop too), so each level reads its one new cell. Re-reading the whole column
+                    // made a node O(drop^2), and a full-health soldier's drop limit is 25-79 (lost = health - a third of
+                    // its spec health, up to 76 for an ironclad).
+                    if dy < 0 {
+                        if PathFinder.oldDropScan { if !open(w, qx, qz, q.y + pr.tall, p.y + pr.tall, span: pr.span) { continue } }
+                        else if !open(w, qx, qz, q.y + pr.tall, q.y + pr.tall + 1, span: pr.span) { break }
+                    }
                     guard let c = standCost(w, qx, q.y, qz, pr) else {
                         // A solid cell at this level ends the search downwards (can't drop through it).
                         if dy < 0 && !open(w, qx, qz, q.y, q.y + 1, span: pr.span) { break }

@@ -200,8 +200,12 @@ extension World {
     func groundTop(_ g: WorldGen, _ x: Int, _ y: Int, _ z: Int) -> Float {
         let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) | ((groundStamp(x, z) & 0x1FFF) << 50)
         let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 52)
-        if groundTopKey[slot] == key { return groundTopVal[slot] }
         let t = max(Float(y) + 0.5, min(Float(y) + 1, drawnTop(g, x, y, z)))
+        if World.groundVerify && groundTopKey[slot] == key && groundTopVal[slot] != t {
+            groundStale &+= 1
+            if groundStale <= 8 { print("GROUNDSTALE top cell \(x) \(y) \(z): cached \(groundTopVal[slot]) now \(t)") }
+        }
+        if groundTopKey[slot] == key { return groundTopVal[slot] }
         groundTopKey[slot] = key; groundTopVal[slot] = t
         return t
     }
@@ -211,8 +215,12 @@ extension World {
     func ceilingBottom(_ g: WorldGen, _ x: Int, _ y: Int, _ z: Int) -> Float {
         let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | (((y | 512) & 0x3FF) << 40) | ((groundStamp(x, z) & 0x1FFF) << 50)
         let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 52)
-        if groundTopKey[slot] == key { return groundTopVal[slot] }
         let t = min(Float(y) + 0.45, max(Float(y), drawnBottom(g, x, y, z)))
+        if World.groundVerify && groundTopKey[slot] == key && groundTopVal[slot] != t {
+            groundStale &+= 1
+            if groundStale <= 8 { print("GROUNDSTALE bottom cell \(x) \(y) \(z): cached \(groundTopVal[slot]) now \(t)") }
+        }
+        if groundTopKey[slot] == key { return groundTopVal[slot] }
         groundTopKey[slot] = key; groundTopVal[slot] = t
         return t
     }

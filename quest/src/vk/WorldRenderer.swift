@@ -66,13 +66,35 @@ final class WorldRenderer {
         mobPending = b
         Mob.settleLooks(mobs, world)                                                       // P411
         MobMotion.on = scene.spaceWarpOn; MobMotion.ranges.removeAll(keepingCapacity: true)    // P403 7b
+        let tq = CFAbsoluteTimeGetCurrent()
         mobWork.start { [self] in
+            let t0 = CFAbsoluteTimeGetCurrent(), c0 = WorldRenderer.mobWaitTrace ? WorldRenderer.threadCPU() : 0
             mobCount = writeMobVertices(mobs, eye: eye, daylight: daylight, world: world, into: ptr, capacity: cap,
                                         cull: frustum, maxDist: maxD, corpses: corpses, ragdolls: rag)
+            if WorldRenderer.mobWaitTrace {
+                mobTrace = (t0 - tq, CFAbsoluteTimeGetCurrent() - t0, WorldRenderer.threadCPU() - c0, mobs.count)
+            }
         }
     }
     private func joinMobs() {
-        if mobPending != nil { mobWork.finish() }
+        guard mobPending != nil else { return }
+        let t0 = WorldRenderer.mobWaitTrace ? CFAbsoluteTimeGetCurrent() : 0
+        mobWork.finish()
+        if WorldRenderer.mobWaitTrace {
+            let wait = CFAbsoluteTimeGetCurrent() - t0
+            if wait > 0.003 {
+                print(String(format: "MOBWAIT frame waited %.1f ms: worker began %.1f ms after the hand-off, ran %.1f ms wall, %.1f ms CPU, %d mobs",
+                             wait * 1000, mobTrace.0 * 1000, mobTrace.1 * 1000, mobTrace.2 * 1000, mobTrace.3))
+            }
+        }
+    }
+    // BS_MOBWAIT=1: a frame that waits over 3 ms for the mobs' vertices prints why (ledger 307).
+    static let mobWaitTrace = Env.all["BS_MOBWAIT"] == "1"
+    private var mobTrace: (Double, Double, Double, Int) = (0, 0, 0, 0)
+    static func threadCPU() -> Double {
+        var ts = timespec()
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts)
+        return Double(ts.tv_sec) + Double(ts.tv_nsec) * 1e-9
     }
     private var camYaw: Float = 0, camPitch: Float = 0
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
