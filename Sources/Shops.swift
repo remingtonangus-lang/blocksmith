@@ -24,6 +24,7 @@ enum Money {
 // takes the smallest pieces first and the change goes into the wallet. Selling and earning still fill the wallet.
 extension Money {
     static let gold: [(String, Int)] = [("gold_nugget", 25), ("gold_ingot", 250), ("gold_block", 2250)]
+    static func face(_ item: ItemID) -> Int? { let k = Items.key(item); return gold.first { $0.0 == k }?.1 }
     static func goldValue(_ g: Game) -> Int {
         var v = 0
         for (k, c) in gold where Items.has(k) {
@@ -291,9 +292,17 @@ enum Economy {
         (stock[k] ?? []).compactMap { Items.has($0.0) && value[$0.0] != nil ? (Items.id($0.0), $0.1) : nil }
     }
     static func buysItem(_ k: ShopKind, _ item: ItemID) -> Bool {
+        if !oldValuables && valuables.contains(Items.key(item)) { return true }       // ledger 256
         guard value(of: item) != nil else { return false }
         return buys[k]?.contains(Items.key(item)) ?? false
     }
+    // Ledger 256 (Nov 17 20:06:37-47, at a town's general store: "Let me sell gold to it. That's like crucial."): only the
+    // blacksmith bought gold, at half its worth, though gold in the pack pays at face value (P245); the general store
+    // bought diamonds and emeralds but not one gold piece. Every shop buys valuables now: gold (nuggets, ingots and
+    // blocks at their face value as money; raw gold at the shop's price), diamonds and emeralds (the exchange's dollar).
+    // BS_OLDVALUABLES=1: as before.
+    static let oldValuables = Env.all["BS_OLDVALUABLES"] == "1"
+    static let valuables: Set<String> = ["gold_nugget", "gold_ingot", "gold_block", "raw_gold", "diamond", "emerald"]
 }
 
 // MARK: Prices for one shopkeeper
@@ -702,7 +711,7 @@ enum Shop {
     }
 
     static func sell(_ g: Game, _ m: Mob, _ k: ShopKind, item: ItemID, count want: Int) -> (String, Bool) {
-        guard var v = m.villager, Economy.buysItem(k, item), Economy.value(of: item) != nil else { return ("", false) }
+        guard var v = m.villager, Economy.buysItem(k, item), Economy.value(of: item) != nil || Money.face(item) != nil else { return ("", false) }
         var have = 0
         for j in 0..<36 where g.inventory.main[j].item == item && sellable(g.inventory.main[j]) { have += g.inventory.main[j].count }
         let name = ItemStack(item, 1).def.display
