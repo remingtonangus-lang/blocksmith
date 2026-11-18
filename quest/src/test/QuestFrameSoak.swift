@@ -947,6 +947,7 @@ enum QuestFrameSoak {
             let detail = byPhase.isEmpty ? "" : ": " + byPhase.joined(separator: ", ")
             print("    bowl steps that made fine sections past a prefetch: \(CraterJob.stepsUnfetched) (\(CraterJob.finesUnfetched) sections\(detail))")
         }
+        print(String(format: "    ground shapes rebuilt (cache misses, ledger 306): %d, fine ones %.0f ms", g.world.groundShapesBuilt, g.world.groundShapesSec * 1000)); g.world.groundShapesBuilt = 0; g.world.groundShapesSec = 0
         if worstMob.0 > 0 { print(String(format: "    slowest mob update: %.1f ms (%@)", worstMob.0, worstMob.1)) }
         if RandomTickRng.worstMs > 0 && mobProf { print(String(format: "    slowest random tick: %.1f ms (%@)", RandomTickRng.worstMs, RandomTickRng.worstWhat)) }
         print("    " + govLine)

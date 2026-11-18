@@ -1040,13 +1040,37 @@ final class World: LifeLinked {
     var dirtyChunks: [Chunk] = []
     // PG2: bumped by every terrain field change (TerrainField), so cached drawn ground heights (mobs, items) refresh.
     var fieldStamp = 0
+    // Ledger 306: a crater (fieldSphere) bumps only the areas round itself, 16 x 16 columns each, folded 64 x 64 (a
+    // fold shares a bump, never misses one). A cached ground shape holds while groundStamp at its column does. Before,
+    // every crater bumped fieldStamp and threw away the whole world's cached ground: in the battle soak ~4 a second,
+    // and every search and body rebuilt the cells it read (a fine cell 20-40 us; one search node 4 ms).
+    var groundStamps = [Int](repeating: 0, count: 4096)
+    var groundShapesBuilt = 0                                   // fieldBoxes cache misses (framesoak prints them)
+    var groundShapesSec: Double = 0                             // time in the fine ones
+    static let oldGroundCache = Env.all["BS_OLDGROUNDCACHE"] == "1"     // ledger 306 off: one world-wide stamp, 2048 cells
+    @inline(__always) func groundStamp(_ x: Int, _ z: Int) -> Int {
+        fieldStamp &+ groundStamps[((x >> 4) & 63) | (((z >> 4) & 63) << 6)]
+    }
+    // A chunk's ground came or changed: its columns and those within 3 of it.
+    func groundChanged(chunk k: ChunkKey) {
+        groundChanged(x0: k.x * CS - 3, z0: k.z * CS - 3, x1: k.x * CS + CS + 2, z1: k.z * CS + CS + 2)
+    }
+    // The cached ground of columns x0...x1, z0...z1 is stale.
+    func groundChanged(x0: Int, z0: Int, x1: Int, z1: Int) {
+        if World.oldGroundCache || x1 - x0 > 63 * 16 || z1 - z0 > 63 * 16 { fieldStamp &+= 1; return }
+        for cz in (z0 >> 4)...(z1 >> 4) { for cx in (x0 >> 4)...(x1 >> 4) { groundStamps[(cx & 63) | ((cz & 63) << 6)] &+= 1 } }
+    }
     // PG2: drawn ground tops for collision (groundTop), direct-mapped by cell; an entry holds while fieldStamp does.
     // Main thread only, like sweep's scratch.
     var groundTopKey = [Int](repeating: Int.min, count: 4096)
     var groundTopVal = [Float](repeating: 0, count: 4096)
     // PG2 rewrite: the field's collision columns per cell (World.fieldBoxes), direct-mapped like groundTop: 16 (lo, hi).
-    var fieldColKey = [Int](repeating: Int.min, count: 2048)
-    var fieldColVal = [Float](repeating: 0, count: 2048 * 32)
+    // (ledger 306: 16384 cells, 2 MB; 2048 were evicted by each other with 100+ soldiers, debris and searches reading
+    // the ground at once: the battle soak rebuilt 70-80k shapes in 40 s)
+    static let groundCacheBits = oldGroundCache ? 11 : 14
+    let groundCacheShift = UInt(64 - World.groundCacheBits)
+    var fieldColKey = [Int](repeating: Int.min, count: 1 << World.groundCacheBits)
+    var fieldColVal = [Float](repeating: 0, count: (1 << World.groundCacheBits) * 32)
     func sweep(_ mn: V3, _ mx: V3, axis a: Int, _ d: Float) -> Float {
         if d == 0 { return 0 }
         var lo = mn, hi = mx
@@ -2561,7 +2585,7 @@ final class World: LifeLinked {
     private func install(_ k: ChunkKey, _ p: Produced) {
         let prof = World.resultsProfile
         let t0 = prof ? CFAbsoluteTimeGetCurrent() : 0
-        if p.ground != nil { fieldStamp &+= 1 }              // (cached field collision at its border reads it now)
+        if p.ground != nil { groundChanged(chunk: k) }        // (cached field collision at its border reads it now; ledger 306: there only)
         let c = Chunk(cx: k.x, cz: k.z, store: World.store(of: p), height: p.height, tint: p.tint)
         c.world = self
         c.modified = p.fromDisk

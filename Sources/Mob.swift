@@ -1464,7 +1464,7 @@ final class Mob {
         } else {
             onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
             if onGround && vel.x == 0 && vel.z == 0 && TickProf.lighter, let c = w.chunkAt(Int(floor(pos.x)), Int(floor(pos.z))) {
-                restPos = pos; restVer = c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version; restStamp = w.fieldStamp
+                restPos = pos; restVer = c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version; restStamp = w.groundStamp(Int(floor(pos.x)), Int(floor(pos.z)))
             } else { restPos.x = .nan }
         }
         if chute && onGround { chute = false }             // (his parachute folds as he lands)
@@ -3167,7 +3167,7 @@ extension Mob {
     // P283 (restPos): still, on the ground, on land, and nothing round it changed since it last landed here. (Every
     // block edit bumps the versions of the sections within two blocks of it at least; a ship near could carry it.)
     func resting(_ w: World, onLadder: Bool, inWater: Bool) -> Bool {
-        guard TickProf.lighter, onGround, vel.x == 0, vel.z == 0, vel.y <= 0, pos == restPos, w.fieldStamp == restStamp, jet <= 0, !inWater,
+        guard TickProf.lighter, onGround, vel.x == 0, vel.z == 0, vel.y <= 0, pos == restPos, w.groundStamp(Int(floor(pos.x)), Int(floor(pos.z))) == restStamp, jet <= 0, !inWater,
               !onLadder, !spec.flying, halfW <= 1.2,
               let c = w.chunkAt(Int(floor(pos.x)), Int(floor(pos.z))),
               c.sections[max(0, min(NSEC - 1, Int(floor(pos.y)) >> 4))].version == restVer else { return false }

@@ -47,7 +47,7 @@ extension World {
         // air). Drawn, it goes to the surface under its middle; recomputed when it moves an eighth of a block.
         if fieldTerrain {
             let q = (Int((pos.x * 8).rounded()) & 0xFFFFF) | ((Int((pos.z * 8).rounded()) & 0xFFFFF) << 20)
-                | ((Int((pos.y * 8).rounded()) & 0x3FFF) << 40) | ((fieldStamp & 0x3FF) << 54)
+                | ((Int((pos.y * 8).rounded()) & 0x3FFF) << 40) | ((groundStamp(Int(floor(pos.x)), Int(floor(pos.z))) & 0x3FF) << 54)
             // (P386: the drawn ground triangles where the section has them: the body stands on those)
             if q != key { key = q; h.x = drawnGround(pos.x, pos.z, lo: pos.y - 0.6, hi: pos.y + 0.6).map { $0 - pos.y } ?? fieldSurfaceOffset(pos) }
             return h.x
@@ -59,7 +59,7 @@ extension World {
         else { return 0 }
         let bx = floor(pos.x - 0.5), bz = floor(pos.z - 0.5)
         let tx = pos.x - 0.5 - bx, tz = pos.z - 0.5 - bz
-        let ck = (Int(bx) & 0xFFFFF) | ((Int(bz) & 0xFFFFF) << 20) | ((fy & 0x3FF) << 40) | ((fieldStamp & 0x1FFF) << 50)
+        let ck = (Int(bx) & 0xFFFFF) | ((Int(bz) & 0xFFFFF) << 20) | ((fy & 0x3FF) << 40) | ((groundStamp(Int(bx), Int(bz)) & 0x1FFF) << 50)
         if ck != key { key = ck; for k in 0..<4 {
             let x = Int(bx) + (k & 1), z = Int(bz) + (k >> 1)
             var top = Float(fy + 1)
