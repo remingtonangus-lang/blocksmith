@@ -435,7 +435,9 @@ enum Trains {
         // into ground not yet generated and failed the "head cell loaded and rail" test below. A train with a rider is
         // always kept and never built again under him; it brakes for land not yet loaded ahead instead (place()).
         // BS_OLDRIDDENTRAIN=1: as before.
-        let ridden: Int64? = oldRiddenTrain ? nil : g.riding.flatMap { r in isCar(r) ? carOf[ObjectIdentifier(r)]?.0.track.id : nil }
+        // (with him on it: the car he rides within 32 blocks; a harness that moves him away without getting off lets
+        // the train go as before, and him with it)
+        let ridden: Int64? = oldRiddenTrain ? nil : g.riding.flatMap { r in isCar(r) && simd_length(r.pos - p) < 32 ? carOf[ObjectIdentifier(r)]?.0.track.id : nil }
         for (id, tr) in trains where tr.track.through && !tr.cars.isEmpty {
             let aboard = g.riding.map { r in tr.cars.contains { $0 === r } } ?? false
             if aboard || simd_length(tr.track.point(tr.lastS) - p) < R + 32 { want.insert(id) }
