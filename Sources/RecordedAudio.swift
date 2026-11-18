@@ -6,6 +6,28 @@ import simd
 // from state the game already keeps (a train's speed and stop, a falling body's landing, a contract's state, a paid
 // customs post), so the systems they belong to are untouched; the rest are a line where the moment happens.
 // BS_OLDNOV15SOUNDS=1: none of them play, the old sounds do (each call site keeps its old sound).
+// Ledger 330 (Nov 17 20:07:15, a town street between its shops: "Some sound keeps playing over and over again.
+// Someone's shouting. It would work if it was way less frequent."): the market street's recording (take 62, 8 s, played
+// as a loop while two shopkeepers are within 24 blocks) has a trader's call 4.0-4.8 s in, 18 dB over the street's murmur,
+// so the call came round every 8 seconds for as long as he stood among the shops. The market street is heard now one
+// pass at a time (its call once), then rests 90-180 s; the town's murmur (townLoop) and a square's crowd go on under it.
+// BS_OLDMARKETCALL=1: the loop all the while.
+enum MarketCalls {
+    static let old = Env.all["BS_OLDMARKETCALL"] == "1"
+    static let pass: Double = 8.4                // one pass of the 8 s take, and its fade
+    static var until: Double = -1, next: Double = 0
+    static var passes = 0                        // (checks)
+    static func heard(_ clock: Double) -> Bool {
+        if old { return true }
+        if clock < until { return true }
+        guard clock >= next else { return false }
+        until = clock + pass
+        next = clock + 90 + 90 * Double(hashf(Int(clock), 62, passes, 0x6E7))      // (not Rand: the game's streams stay as they were)
+        passes += 1
+        return true
+    }
+}
+
 enum RecordedNov15 {
     static let oldDeskDrawer = Env.all["BS_OLDDESKDRAWER"] == "1"
     static let oldWellReach = Env.all["BS_OLDWELLREACH"] == "1"
@@ -161,7 +183,7 @@ extension Game {
             }
             let day = max(0, min(1, (0.55 - abs(dayFraction - 0.25)) * 3))
             if people >= 12 { ask("citycrowd", .cityCrowdLoop, min(1, Float(people) / 30) * 0.7 * Float(day), nil) }
-            if keepers >= 2 { ask("market", .marketLoop, 0.6 * Float(day), nil) }
+            if keepers >= 2 && MarketCalls.heard(clock) { ask("market", .marketLoop, 0.6 * Float(day), nil) }
             if panic >= 3 { ask("panic", .crowdPanicLoop, min(1, Float(panic) / 8), nil) }
             if fight { ask("cityfight", .cityFightLoop, 0.6, nil) }
         }
