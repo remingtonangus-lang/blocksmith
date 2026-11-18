@@ -2606,6 +2606,8 @@ if CommandLine.arguments.contains("--settings-only") { SettingsCheck.run(check: 
 if CommandLine.arguments.contains("--savesoak-only") { SaveSoakTests.run(device: device, check: check); namedEnd("savesoak") }
 // --garrison-only: ledger 253, Boreal Stations on five headset worlds keep their garrison (Sources/BorealMusterCheck.swift).
 if CommandLine.arguments.contains("--garrison-only") { BorealMusterCheck.run(device: device, check: check); namedEnd("garrison") }
+// --shipleave-only: ledger 255, off the helm of a stopped or wrecked Stormwarden he gets off her (Sources/ShipLeaveCheck.swift).
+if CommandLine.arguments.contains("--shipleave-only") { ShipLeaveCheck.run(device: device, check: check); namedEnd("shipleave") }
 // --capitals-only: just the Capital city checks (Sources/CapitalTownTests.swift), for quick iteration.
 if CommandLine.arguments.contains("--capitals-only") {
     TownTests.capitals({ World(seed: UInt64(arg("--seed") ?? "") ?? seed, device: device, save: nil) }, check); namedEnd("capitals")
@@ -3193,6 +3195,20 @@ func nov17Checks() {
         } }
         check(snowy > 100 && (!WorldGen.noLogSnow || onLog == 0),
               "log snow: of \(snowy) snow layers round his stump at 1137 -1587, \(onLog) lie on a log's round top (ledger 265; BS_OLDLOGSNOW=1 lays them)")
+    }
+    // Ledger 267 (Nov 17 20:14:35: "They should be actual circles"): a lone pumpkin is a ball, and two side by side are two
+    // balls, not one fused drum with a flat open side between them (BS_OLDGOURD=1: soft boxes that continue).
+    do {
+        let pk = Blocks.id("pumpkin"), grass = Blocks.id("grass_block")
+        func world(_ two: Bool) -> (Int, Int, Int) -> BlockID {
+            { x, y, z in y < 0 ? grass : (y == 0 && z == 0 && (x == 0 || two && x == 1)) ? pk : AIR }
+        }
+        let (lone, _, _) = ShapeOrganic.formAt(pk, 0, 0, 0, block: world(false))
+        let (pair, contP, _) = ShapeOrganic.formAt(pk, 0, 0, 0, block: world(true))
+        let fused = contP.contains(true)
+        let ok = lone.round && pair.round && !fused
+        check(ok,
+              "gourds: a lone pumpkin is a ball (\(lone.round)), one beside another is its own ball (\(pair.round)) and doesn't run into it (fused side: \(fused)) (ledger 267)")
     }
 }
 // --nov17-only: the Nov 17 evening playtest's checks (no snow on a log top in his taiga).
@@ -4859,6 +4875,7 @@ if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deepte
 
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
 if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check); BorealMusterCheck.run(device: device, check: check) }
+ShipLeaveCheck.run(device: device, check: check)                // ledger 255
 WeakLinkTests.run(check: check)       // (ledger 128: a link read while its object is let go)
 PlaceRowTests.run(game, check: check) // (ledgers 130, 131: where a placed block goes on the ground)
 check(!LifeLink.sideTable(game.world) && !LifeLink.sideTable(game) && !LifeLink.sideTable(game.world.ships),
