@@ -414,10 +414,10 @@ final class SmoothField {
         case 1:
             let ci = ix + iz * n_
             var t = spagT[ci]
-            if t.isNaN { t = 0.05 + 0.025 * gen!.spagMod.noise2(Float(x) / 40, Float(z) / 40); spagT[ci] = t }
+            if t.isNaN { t = WorldGen.spagBase + WorldGen.spagVar * gen!.spagMod.noise2(Float(x) / 40, Float(z) / 40); spagT[ci] = t }
             r = t - max(abs(caveSample(1, x, y, z)), abs(caveSample(2, x, y, z)))
         default:
-            r = yd < 40 ? 0.022 - max(abs(caveSample(3, x, y, z)), abs(caveSample(4, x, y, z))) : -1
+            r = yd < 40 ? WorldGen.noodleT - max(abs(caveSample(3, x, y, z)), abs(caveSample(4, x, y, z))) : -1
         }
         sK[i * 3 + k] = r
         return r
