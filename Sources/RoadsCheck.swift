@@ -6,6 +6,53 @@ import simd
 // headset makes them), lists the roads within 1,500 blocks of his spot, loads the nearest one at 24 points along it and
 // counts the points where the road is drawn on the ground (the packed earth a field world's road is laid in).
 enum RoadsCheck {
+    // Ledger 237, `--roadprobe SEED,X,Z,R`: the roads within R blocks of (X, Z) on a field world of SEED, laid as before
+    // and with a way of their own: how long they are, how much they climb, and how much of them runs up ground steeper
+    // than a block in two or over water.
+    static func probe(_ a: String) -> Int32 {
+        let v = a.split(separator: ",").map { String($0) }
+        guard v.count >= 4 else { print("roadprobe: SEED,X,Z,R"); return 1 }
+        let seed = UInt64(v[0]) ?? 1, px = Int(v[1]) ?? 0, pz = Int(v[2]) ?? 0, r = Int(v[3]) ?? 1500
+        let p440 = WorldRules.p44
+        WorldRules.p44 = true
+        defer { WorldRules.p44 = p440 }
+        let gen = WorldGen(seed: seed)
+        gen.fieldWorld = true
+        gen.terrain.fewerLakes = World.fewerLakesUnsaved; gen.terrain.lessWater = World.lessWaterUnsaved
+        for wind in [false, true] {
+            Roads.windOn = wind
+            Roads.forget()
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let segs = Roads.near(gen, x0: px - r, z0: pz - r, x1: px + r, z1: pz + r, pad: 0)
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            var long: Float = 0, crow: Float = 0, climb: Float = 0, steep = 0, wet = 0, steps = 0, worst: Float = 0
+            for s in segs {
+                let len = Roads.length(s)
+                long += len; crow += simd_length(s.b - s.a)
+                let n = max(2, Int(len / 8))
+                var last: Float = .nan
+                for i in 0...n {
+                    let q = Roads.point(s, Float(i) / Float(n))
+                    let c = gen.columnData(Int(floor(q.x)), Int(floor(q.y)))
+                    let under = c.wl > c.h + 0.3
+                    let h = under ? c.wl : c.h
+                    if !last.isNaN {
+                        let d = abs(h - last)
+                        climb += d; steps += 1
+                        if d > 4 { steep += 1 }
+                        if under { wet += 1 }
+                        worst = max(worst, d)
+                    }
+                    last = h
+                }
+            }
+            let per = Float(max(1, steps))
+            print(String(format: "roadprobe: %@: %d roads, %.0f blocks (%.2f of the straight lines), climb %.0f (%.1f a hundred blocks), steeper than one in two %.1f%%, steepest %.0f in 8, over water %.1f%%, planned in %.0f ms",
+                         wind ? "own way" : "as before", segs.count, long, long / max(1, crow), climb, 100 * climb / max(1, long),
+                         100 * Float(steep) / per, worst, 100 * Float(wet) / per, ms))
+        }
+        return 0
+    }
     static func run(_ g0: Game, _ check: (Bool, String) -> Void) {
         let field0 = FieldTerrain.newWorlds, p440 = WorldRules.p44
         FieldTerrain.newWorlds = true

@@ -2831,6 +2831,8 @@ if let dir = arg("--treesheet"), let ctx = vkctx {
     do { try TreeShots.run(game: game, ctx: ctx, dir: dir, designs: true) } catch { print("FAIL treesheet: \(error)"); failures += 1 }
     print(failures == 0 ? "trees: all checks passed" : "trees: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if let a = arg("--planmap") { exit(PlanMap.run(a, CommandLine.arguments.last ?? "planmap.ppm")) }   // ledger 230, 237 (Sources/PlanMap.swift)
+if let a = arg("--roadprobe") { exit(RoadsCheck.probe(a)) }   // ledger 237 (Sources/RoadsCheck.swift)
 if let a = arg("--caveprobe") { exit(CaveProbe.run(a)) }   // ledger 236 (Sources/CaveProbe.swift)
 // --railprobe SEED,X,Z,R (P470): every stretch a line may run in round (X, Z) on a field world of SEED: the lines planned
 // and, for the rest, why none.
