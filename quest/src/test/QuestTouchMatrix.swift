@@ -101,6 +101,10 @@ enum QuestTouchMatrix {
             sim.hands[0] = l; sim.hands[1] = r
             rig.update(xr: sim, game: g)
             qc.update(dt: dt)
+            // (Nov 18 suite, lane 2: a Meridian frigate's gunner left over from an earlier check shot the harness from out
+            // of sight in the middle of R1, and every row after it measured a death screen: "A: close DeathMenu". The
+            // matrix measures the controls, not the world: the body is kept whole while it runs.)
+            g.health = g.maxHealth
             g.tick(Double(dt))
             qc.afterTick(dt: dt)
         }
@@ -305,7 +309,7 @@ enum QuestTouchMatrix {
                 sim.hands[0] = l; sim.hands[1] = r
                 rig.update(xr: sim, game: g); let z2 = g.player.pos.z
                 qc.update(dt: dt); let z3 = g.player.pos.z
-                g.tick(Double(dt)); let z4 = g.player.pos.z
+                g.health = g.maxHealth; g.tick(Double(dt)); let z4 = g.player.pos.z
                 qc.afterTick(dt: dt); let z5 = g.player.pos.z
                 steps += 1
                 if abs(z5 - z1) > 0.01 && pulls < 5 {
