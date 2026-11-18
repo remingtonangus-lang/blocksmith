@@ -3274,6 +3274,49 @@ func nov17Checks() {
         check(through && clear,
               String(format: "deck gun barrels: laid at its lowest (%.2f) toward a parapet they run through it (%@); it lays at %.2f instead, clear (%@)", low, through ? "yes" : "no", laid, clear ? "yes" : "no"))
     }
+    // Ledger 271 (Nov 17 19:53:56, Taiga by -2398 67 -3300: "something went wrong for leaves in this one"): every tree
+    // round where he stood is cut at its foot, one after another; no leaf is left hanging in the air with no log near it.
+    do {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        let w = World(seed: 4259144782798118884, device: device, save: nil)
+        w.makeFieldWorld()
+        w.renderDistance = 3; w.activeDistance = 3
+        let g = Game(world: w, save: nil, persistent: false)
+        g.paused = false; g.survival = false
+        g.player.pos = V3(-2398.5, 67 + 64, -3300.5)
+        _ = w.loadSync(center: g.player.pos, radius: 3)
+        FieldTerrain.newWorlds = field0
+        let xs = (-2418)...(-2378), zs = (-3320)...(-3280), ys = (50 + 64)...(110 + 64)
+        func orphans() -> [IVec3] {
+            var out: [IVec3] = []
+            for z in zs { for x in xs { for y in ys where CapitalBase.isLeaf(w.block(x, y, z)) {
+                var near = false
+                scan: for dy in -6...6 { for dz in -6...6 { for dx in -6...6 where dx * dx + dy * dy + dz * dz <= 36 {
+                    if CapitalBase.isLog(w.block(x + dx, y + dy, z + dz)) { near = true; break scan }
+                } } }
+                if !near { out.append(IVec3(x, y, z)) }
+            } } }
+            return out
+        }
+        let before = orphans().count
+        var feet: [IVec3] = []
+        for z in (-3314)...(-3286) { for x in (-2412)...(-2384) { for y in ys {
+            let b = w.block(x, y, z)
+            if CapitalBase.isLog(b) && TreeWood.isTree[Int(b)] && !CapitalBase.isLog(w.block(x, y - 1, z)) && w.groundAt(x, y - 1, z) { feet.append(IVec3(x, y, z)) }
+        } } }
+        var cut = 0
+        for p in feet {
+            let b = w.block(p.x, p.y, p.z)
+            guard CapitalBase.isLog(b) else { continue }
+            w.setBlock(p.x, p.y, p.z, AIR); g.fellCheck(p, b); cut += 1
+            for s in w.ships.list where Felling.isFelled(s) { w.ships.remove(s) }
+        }
+        let after = orphans()
+        let sample = after.prefix(4).map { "\($0.x) \($0.y - 64) \($0.z)" }.joined(separator: ", ")
+        check(cut >= 4 && after.count <= before,
+              "felled crowns: \(cut) trees cut at the foot round his Taiga spot; leaves with no log within 6: \(before) before, \(after.count) after (\(sample)) (ledger 271)")
+    }
 }
 // --nov17-only: the Nov 17 evening playtest's checks (no snow on a log top in his taiga).
 if CommandLine.arguments.contains("--nov17-only") { nov17Checks(); namedEnd("nov17") }
