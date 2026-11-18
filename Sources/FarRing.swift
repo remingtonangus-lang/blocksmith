@@ -67,6 +67,8 @@ final class FarRing {
     private var forest = FarForest(seed: 0)        // (the same)
     private(set) var lastBuildMs = 0.0
     private(set) var lastForest: (quads: Int, squeeze: Float) = (0, 1)     // ledger 361: the last build's stand-ins
+    private(set) var lastTrack = 0
+    private var trackWarm = Set<Int64>()           // cells whose railway plans were asked for (FarTrack.warm)
 
     func current() -> Mesh? {
         lock.lock(); defer { lock.unlock() }
@@ -117,7 +119,7 @@ final class FarRing {
             if self.memoSeed != sd || self.memo.count > 150_000 { self.memo.removeAll(keepingCapacity: true); self.memoSeed = sd }
             var out = Mesh(seed: sd, cx: cx, cz: cz, rd: rd, gen: n, blocky: blocky)
             var inner: [ChunkKey: [SimpleVert]] = [:]
-            if self.forest.seed != sd { self.forest = FarForest(seed: sd) }
+            if self.forest.seed != sd { self.forest = FarForest(seed: sd); self.trackWarm.removeAll() }
             out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: blocky,
                                       inner: &inner, wantInner: FarRing.gapCover, forest: layer ? self.forest : nil)
             out.innerVerts.reserveCapacity(inner.values.reduce(0) { $0 + $1.count })
@@ -131,8 +133,23 @@ final class FarRing {
             if sd == self.seed { self.mesh = out } else { self.want = (Int.min, Int.min, -1, false) }
             self.lastBuildMs = ms
             self.lastForest = layer ? (self.forest.lastQuads, self.forest.lastSqueeze) : (0, 1)
+            self.lastTrack = layer ? self.forest.lastTrack : 0
+            // Ledger 361: the railways in reach are planned after the cell's first build, off this thread; when that
+            // made a plan the build had not seen, the ring is built again with it.
+            let cellKey = (Int64(kx) << 32) | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: kz)))
+            let warm = layer && !FarTrack.waitInBuild && sd == self.seed && self.trackWarm.insert(cellKey).inserted
             self.building = false
             self.lock.unlock()
+            if warm {
+                DispatchQueue.global(qos: .utility).async {
+                    let before = FarTrack.lines(gen, cx: cx, cz: cz, wait: false).count
+                    FarTrack.warm(gen, cx: cx, cz: cz)
+                    guard FarTrack.lines(gen, cx: cx, cz: cz, wait: false).count != before else { return }
+                    self.lock.lock()
+                    if self.seed == sd { self.want = (Int.min, Int.min, -1, false) }
+                    self.lock.unlock()
+                }
+            }
         }
         // The first ring of a world is built here and now (at load, like HorizonRing); later ones in the background
         // while the old ring stays up.
@@ -402,7 +419,10 @@ final class FarRing {
             }
         }
         // (After the ground: when the draw is cut at the quad limit, it is trees that go.)
-        if let forest { forest.emit(gen, cx: cx, cz: cz, rin: rin, from: max(0, skip), into: &out) }
+        if let forest {
+            forest.emit(gen, cx: cx, cz: cz, rin: rin, from: max(0, skip), into: &out)
+            forest.lastTrack = FarTrack.emit(gen, cx: cx, cz: cz, from: max(0, skip), into: &out)
+        }
         return out
     }
 }

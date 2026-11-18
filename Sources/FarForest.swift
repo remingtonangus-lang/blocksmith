@@ -119,11 +119,13 @@ final class FarForest {
         let full: Float = rin + 140, thin: Float = rin + 260, fine: Float = rin + 80
         func keepAt(_ d: Float) -> Float { 1 - 0.75 * min(1, max(0, (d - full) / (thin - full))) }
         func cost(_ t: Tree, _ d: Float) -> Int { (t.cone ? (d < fine && t.snowy ? 8 : 4) : 5) + (d < fine ? 2 : 0) }
+        let clear = FarTrack.clear(gen, cx: cx, cz: cz)
         var lists: [[Tree]] = []
         var nearCost = 0, farCost = 0
         for kz in floorDiv(cz - R, c)...floorDiv(cz + R, c) {
             for kx in floorDiv(cx - R, c)...floorDiv(cx + R, c) {
-                let l = trees(gen, kx, kz)
+                var l = trees(gen, kx, kz)
+                if !clear.isEmpty { l.removeAll { clear.contains(FarTrack.key(Int($0.x) >> 2, Int($0.z) >> 2)) } }
                 for t in l {
                     let x = Float(Int(t.x) - cx) + 0.5, z = Float(Int(t.z) - cz) + 0.5
                     let d: Float = (x * x + z * z).squareRoot()
@@ -198,5 +200,6 @@ final class FarForest {
         lastQuads = quads
     }
     private(set) var lastQuads = 0
+    var lastTrack = 0                              // (FarTrack's quads in the same build)
     private(set) var lastSqueeze: Float = 1
 }
