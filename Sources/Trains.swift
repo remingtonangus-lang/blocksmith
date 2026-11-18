@@ -289,6 +289,7 @@ enum Trains {
         var stoppedFor: Float = 0
         var holdUp: Float = 0
         var heldBy = false                      // the player stopped it (a hold-up or a block on the line)
+        var starved = false                     // ledger 290: ridden, with the track ahead not loaded yet: it brakes
         var heldWay: Float = 0                  // driven: the way it was going when his block stopped it (0: both ways)
         var cars: [Mob] = []
         var cracks = 0
@@ -371,6 +372,7 @@ enum Trains {
     }
 
     // Tracks within `r` blocks of p in this dimension.
+    static let oldRiddenTrain = Env.all["BS_OLDRIDDENTRAIN"] == "1"
     static func tracksNear(_ g: Game, _ p: V3, _ r: Int) -> [Track] {
         switch g.dim.dim {
         case .overworld:
@@ -428,6 +430,12 @@ enum Trains {
         TrainArrivals.tick(g, near: nearTracks)          // P508: one in ten every ten minutes, a train comes his way
         // P510: a through train he rides runs on, line after line; the line it left has no train of its own meanwhile.
         if let r = g.riding, isCar(r), let (tr, _) = carOf[ObjectIdentifier(r)] { through(g, tr) }
+        // Ledger 290 (Nov 18, host route at the cab's full regulator, 10-28 b/s: the train he rode was taken away under
+        // him once or twice in 25 s and built again, and he was left standing on the line): a fast train's head ran
+        // into ground not yet generated and failed the "head cell loaded and rail" test below. A train with a rider is
+        // always kept and never built again under him; it brakes for land not yet loaded ahead instead (place()).
+        // BS_OLDRIDDENTRAIN=1: as before.
+        let ridden: Int64? = oldRiddenTrain ? nil : g.riding.flatMap { r in isCar(r) ? carOf[ObjectIdentifier(r)]?.0.track.id : nil }
         for (id, tr) in trains where tr.track.through && !tr.cars.isEmpty {
             let aboard = g.riding.map { r in tr.cars.contains { $0 === r } } ?? false
             if aboard || simd_length(tr.track.point(tr.lastS) - p) < R + 32 { want.insert(id) }
@@ -445,6 +453,7 @@ enum Trains {
                 tr.track = t; tr.fresh = true; tr.carS = []
             }
             if tr.wrecked { continue }
+            if t.id == ridden && !tr.cars.isEmpty && tr.track === t { want.insert(t.id); continue }
             tr.time = g.time - tr.delay
             let at = now(tr)
             let head = t.point(at.s)
@@ -460,6 +469,7 @@ enum Trains {
                 build(g, tr)
             }
         }
+        if let id = ridden, trains[id]?.cars.isEmpty == false { want.insert(id) }   // (its line out of this second's plans)
         for (id, tr) in trains where !want.contains(id) && !tr.cars.isEmpty {
             remove(g, tr)
             if tr.track.through { trains[id] = nil; throughOut = throughOut.filter { $0.value != id } }
@@ -720,7 +730,22 @@ enum Trains {
                 brushFoliage(g, c)
             }
         }
-        tr.brake += ((tr.heldBy ? 1 : 0) - tr.brake) * min(1, dt * 1.2)
+        if dt > 0 && !oldRiddenTrain {
+            let rider = g.riding.map { r in tr.cars.contains { $0 === r } } ?? false
+            if rider {
+                // (from its front, about 3 s at its pace, 24 blocks at least, every 8 blocks)
+                let (s1, d1, _) = now(tr)
+                let front = tr.layout.isEmpty ? s1 : t.advance(tr.lastS, by: d1 * tr.length / 2)
+                let look = max(24, tr.blocksPerSec * 3)
+                var bare = false
+                for k in stride(from: Float(0), through: look, by: 8) {
+                    let c = t.cell(t.advance(front, by: d1 * k))
+                    if !g.world.isLoaded(c.x, c.z) { bare = true; break }
+                }
+                if bare != tr.starved { tr.starved = bare; print(bare ? "trains: \(t.name): land ahead not loaded, braking (\(Int(tr.blocksPerSec)) b/s)" : "trains: \(t.name): land ahead loaded, running on") }
+            } else { tr.starved = false }
+        }
+        tr.brake += ((tr.heldBy || tr.starved ? 1 : 0) - tr.brake) * min(1, dt * 1.2)
         // P337 step 3: riding the locomotive is driving it. Forward opens the regulator, back closes it, through stop
         // into reverse; the train runs its timetable's track at that rate (late or early: the timetable's time is the
         // train's own). Left alone it eases back to the timetable's pace.

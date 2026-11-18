@@ -572,7 +572,7 @@ final class QuestApp {
             lap(3)
             let ticks = xr.focused && (xr.headTracked || routing)
             if ticks { g.tick(dt) } else { g.world.update(center: g.player.pos) }
-            QuestRoute.shared?.counted(ticked: ticks && !g.paused, paused: g.paused || g.menu != nil, headLost: !xr.headTracked, focused: xr.focused)
+            QuestRoute.shared?.counted(ticked: ticks && !g.paused && g.menu == nil, paused: g.paused || g.menu != nil, headLost: !xr.headTracked, focused: xr.focused)
             lap(4)
             controls?.afterTick(dt: Float(dt))
             lap(5)
