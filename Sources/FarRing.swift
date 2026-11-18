@@ -307,10 +307,10 @@ final class FarRing {
                 let bump: Float = (h - 0.5) * min(6, s.lift) * 0.9
                 s.y -= s.lift * (1 - k) - bump * k
                 let snowy = s.c0.x > 0.7 && s.c0.y > 0.7
-                let tone: Float = 0.7 + 0.5 * h2
+                let tone: Float = 0.85 + 0.3 * h2
                 // (snowy woods are conifers: their dark green, FarForest's own, under the white flecks)
                 var crown: V3 = (snowy ? FarForest.darkConifer : s.leaf * 0.8) * tone
-                if snowy && h2 > 0.72 { crown = simd_mix(crown, FarRing.snow, V3(repeating: 0.7)) }
+                if snowy { crown = simd_mix(crown, FarRing.snow, V3(repeating: 0.12 + (h2 > 0.72 ? 0.2 : 0))) }
                 let mass = simd_mix(s.c0, crown, V3(repeating: min(1, s.cover * 1.5)))
                 let under = simd_mix(s.c0, s.c, V3(repeating: 0.3))             // the ground under the stand-ins
                 s.c = simd_mix(under, mass, V3(repeating: k)); s.side = simd_mix(simd_mix(s.side0, s.side, V3(repeating: 0.3)), crown * 0.9, V3(repeating: k))
