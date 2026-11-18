@@ -2945,6 +2945,7 @@ final class Game: LifeLinked {
         if m.kind.hellOwn { hellDied(m) }
         if m.kind == .deckGun { gunWrecked(m) }                // P459: a gun destroyed comes apart
         Rout.died(self, m)                                     // P511: four in five of a garrison dead: the rest run
+        BorealMuster.died(self, m)                             // ledger 253: a station's garrison counted
         // What a mount wore drops with it (reference): the saddle and horse armour (a saddle vanished with its horse).
         if m.saddled && m.kind != .happyGhast && Items.has("saddle") { drops.spawn(ItemStack(Items.id("saddle"), 1), at: at) }
         if m.kind == .horse, let k = MountMenu.armorItems[m.armorTier], Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
@@ -3833,7 +3834,7 @@ final class Game: LifeLinked {
         }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
-                if let m = Mob.structureMob(name, at: p) { mobs.admit(m, world) }       // (P292: hell's own, no guns in hell)
+                if let m = Mob.structureMob(name, at: p) { mobs.admit(m, world); BorealMuster.admitted(self, m) }       // (P292: hell's own, no guns in hell; ledger 253)
             }
             world.pendingMobs.removeAll()
             TickProf.mark("structure mobs")
