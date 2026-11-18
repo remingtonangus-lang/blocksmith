@@ -322,6 +322,15 @@ extension Mob {
 
 // MARK: Trading
 
+// Ledger 257 (Nov 17 20:09:41-20:10:37, a town's craftsfolk: "The barring system might be a little too Minecrafty ...
+// delete the bar ring ... Our own system does the same thing, so it's no need for it."): the emerald barter screen
+// (MerchantMenu) is gone from play. Every trader takes money at a shop counter: townsfolk at their trade's (the Barter
+// button is gone from it), a wandering trader at a general store's. BS_OLDBARTER=1: the barter screen as before.
+enum Barter {
+    static let old = Env.all["BS_OLDBARTER"] == "1"
+    static var opened = 0                        // (checks: barter screens opened)
+}
+
 extension Game {
     // Right-click on a villager with a profession: open the trading screen.
     func openTrading(_ m: Mob) -> Bool {
@@ -329,6 +338,11 @@ extension Game {
         var v = m.vdata
         if v.profession == "none" || v.profession == "nitwit" {
             sfx(.villagerNo, 0.8, at: m.pos + V3(0, 1.6, 0))       // shakes head
+            return true
+        }
+        // Ledger 257: no barter; a craftsperson's counter is their trade's shop (a trade with no shop: a greeting).
+        if !Barter.old {
+            if let k = v.tradeKind { openMenu(ShopMenu(game: self, keeper: m, kind: k)) } else { m.face(player.pos); townGreet(m, v) }
             return true
         }
         if v.offers.isEmpty { Villagers.addOffers(&v, level: 1); m.villager = v }
@@ -355,6 +369,7 @@ final class MerchantMenu: Menu {
 
     init(game: Game, villager: Mob) {
         mob = villager
+        Barter.opened += 1
         let v = villager.vdata
         let prof = v.profession.prefix(1).uppercased() + v.profession.dropFirst()
         super.init(prof, game: game)

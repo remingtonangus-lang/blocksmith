@@ -108,6 +108,7 @@ extension Game {
             return true
         case .wanderingTrader:
             if m.villager == nil { m.villager = WanderingTrader.data() }
+            if !Barter.old { openMenu(ShopMenu(game: self, keeper: m, kind: .general)); return true }      // ledger 257
             openMenu(MerchantMenu(game: self, villager: m))
             return true
         default: break
