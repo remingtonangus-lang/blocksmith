@@ -21,9 +21,14 @@ enum BorealMusterCheck {
         // and a station sits elsewhere under them: his seed's is at 1128 -1784 there, not 1192 -1704).
         let rules0 = (WorldRules.p44, TownSizes.on, World.fewerLakesUnsaved, World.lessWaterUnsaved)
         WorldRules.p44 = true; TownSizes.on = true; World.fewerLakesUnsaved = true; World.lessWaterUnsaved = true
+        // (His kills at the first station move the factions' standing and his honour, which the checks after this one
+        // fight under: put back. The full suite's troop behaviour and soldier gun checks found no fighting once.)
+        let rep0 = FactionRep.rep, hunters0 = FactionRep.nextHunters, honour0 = TownLaw.state.honour, repText0 = FactionRep.encode()
         defer {
             FieldTerrain.newWorlds = newWorlds0
             (WorldRules.p44, TownSizes.on, World.fewerLakesUnsaved, World.lessWaterUnsaved) = rules0
+            if FactionRep.encode() != repText0 { print("garrison: left the factions' standing at \(FactionRep.encode()) (was \(repText0)); put back") }
+            FactionRep.rep = rep0; FactionRep.nextHunters = hunters0; TownLaw.state.honour = honour0
         }
         for (i, (seed, sx, sz)) in seeds.enumerated() {
             let w = World(seed: seed, device: device, save: nil)
@@ -68,12 +73,27 @@ enum BorealMusterCheck {
             check(there >= 20 && !g.bases.boreal.mustered.contains(key),
                   "garrison \(seed): flown in to the station at \(cx),\(cz), \(there) of its soldiers are there (admitted \(t?.admitted ?? 0)); none mustered")
             // Gone with no death and no stash (the station he found empty): mustered once from its plan.
-            let gone = Set(garrison().map { ObjectIdentifier($0) })
-            g.mobs.mobs.removeAll { gone.contains(ObjectIdentifier($0)) }
-            g.mobs.rebuildIndex()
-            // (3 s empty, then the muster; up to 15 s, as a soldier's stashed record holds it off until it is restored:
-            // in the full suite his station's took 6-12 s once)
-            for _ in 0..<15 where BorealMuster.musters == m0 { play(1) }
+            // (twice, a second apart: a soldier's stashed record restored in that second, or one who had stepped outside
+            // the fence and back, is taken too: the station must stand empty, as he found it)
+            func empty() {
+                let gone = Set(garrison().map { ObjectIdentifier($0) })
+                g.mobs.mobs.removeAll { gone.contains(ObjectIdentifier($0)) }
+                for (k, rs) in g.mobs.stored {
+                    g.mobs.stored[k] = rs.filter { r in
+                        guard r.p.count == 3, let mk = MobKind.named(r.k), mk.steelhold, Soldier.rank(mk) != nil else { return true }
+                        return !BorealStation.insideSite(site, V3(r.p[0], r.p[1], r.p[2]))
+                    }
+                }
+                g.mobs.rebuildIndex()
+            }
+            // (cleared again each second until the muster: a stray who walks in, or a stashed record restored, would keep
+            // the station from standing empty, as he found it)
+            var strays: [String] = []
+            empty()
+            for _ in 0..<15 where BorealMuster.musters == m0 {
+                play(1)
+                if BorealMuster.musters == m0 { strays += garrison().map { $0.kind.key }; empty() }
+            }
             play(1)
             let back = garrison().count
             let line = BorealMuster.lines.last ?? ""
@@ -84,7 +104,7 @@ enum BorealMusterCheck {
             }.count }
             let st = g.bases.boreal
             let why = "stashed \(stashed), site known \(st.sites[key] != nil), mustered \(st.mustered.contains(key)), kills \(st.kills[key] ?? 0), "
-                + "op \(st.ops[key].map { "cleared \($0.cleared) blown \($0.blown)" } ?? "none"), empty for \(st.tally[key]?.empty ?? -1) s"
+                + "op \(st.ops[key].map { "cleared \($0.cleared) blown \($0.blown)" } ?? "none"), empty for \(st.tally[key]?.empty ?? -1) s, strays taken \(strays.isEmpty ? "none" : strays.joined(separator: ", "))"
             check(back >= 20 && BorealMuster.musters == m0 + 1 && line.contains(key),
                   "garrison \(seed): emptied, the station is garrisoned again: \(back) soldiers (\(line); \(why))")
             play(4)
