@@ -1120,7 +1120,7 @@ enum Trains {
             g.sfx(.levelUp, 0.6)
             g.onToast?("The guard car falls silent")
         }
-        guard gun.health > 0, g.alive, g.survival, !tr.taken, tr.bullion || tr.kind == .troop || !g.ashVictory else { return }
+        guard gun.health > 0, g.alive, g.survival, !tr.taken, TrainGun.shared.car !== gun, tr.bullion || tr.kind == .troop || !g.ashVictory else { return }
         // P508: a military arrival in his town shells it, its troops roused from the start.
         if TrainArrivals.wreckers.contains(tr.track.id) {
             tr.roused = true
