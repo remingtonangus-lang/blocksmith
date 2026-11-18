@@ -787,6 +787,8 @@ final class ShipManager: LifeLinked {
     private var nextId = 1
     var pilot: Ship?                 // the ship the player steers
     var meltClock: Float = 0         // P461: time since the last lava check (ShipMelt.swift)
+    var meltTop: [Int: Int] = [:], meltShip = 0, meltBucket = 0   // ledger 299: the lava test's pass a share a frame
+    var insideClears: [InsideClear] = []   // ledger 300: settled hulls' insides being cleared (CapitalShips.clearInside)
     var aboard: Ship?                // the ship whose frame the player moved in last frame
     // The player's motion relative to the deck it rides (ShipPlay.shipPlayerUpdate): kept in the ship's frame from
     // tick to tick so the deck's own acceleration and turning never leak into it (riders slid and were shoved as a

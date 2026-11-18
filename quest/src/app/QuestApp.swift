@@ -81,11 +81,16 @@ final class QuestApp {
         device = QuestDevice(xr.vk)
         sharedSystemDevice = device
         xr.resolutionScale = QuestSettings.resolutionScale
+        var l0: Double = CFAbsoluteTimeGetCurrent()          // (ledger 296: the launch's swapchain-to-session gap, by step)
+        func took(_ what: String) { let t = CFAbsoluteTimeGetCurrent(); print(String(format: "launch: %@ %.0f ms", what, (t - l0) * 1000)); l0 = t }
         try xr.createSwapchain()
+        took("swapchain")
         scene = try SceneRenderer(ctx: xr.vk, device: device, views: 2, colorFormat: xr.colorFormat, foveated: xr.foveated, spaceWarp: xr.spaceWarp)
+        took("scene renderer")
         if xr.spaceWarp {
             spaceWarpPass = try SpaceWarpPass(scene: scene, mvImages: xr.mvImages, depthImages: xr.swDepthImages,
                                               width: xr.mvWidth, height: xr.mvHeight, depthFormat: xr.swDepthFormat)
+            took("space warp pass")
         }
         scene.linearOutput = SceneRenderer.isSRGB(xr.colorFormat)
         for (i, img) in xr.swapImages.enumerated() {
@@ -109,7 +114,9 @@ final class QuestApp {
         stats.dynResCounts = { [weak self] in (self?.dynRes.takenBack ?? 0, self?.dynRes.unjudged ?? 0) }      // ledger 177
         stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && (QuestApp.fovDyn || !(self?.xr.foveated ?? true)) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
+        took("targets, hooks")
         startLoading(WorldRequest(survival: true))       // (code reader Nov 10, batch 2.1: a buyer's first world was Creative: no camp, no goals)
+        took("loading started")
     }
 
     // MARK: Loading
@@ -959,6 +966,7 @@ final class FrameStats {
     static let captureMissFrac = 0.15, captureGap = 120.0
     var viewGov: ViewGovernor?              // P425: Auto View Distance
     static let viewFix = Env.all["BS_VIEWFIX"].flatMap { Int($0) }
+    static let manualHeld = Env.all["BS_OLDMANUALVIEW"] != "1"      // ledger 298: Auto View off still keeps the quad budget
     var dynResProbe: (() -> Double)?        // P403 step 2: DynamicResolution.lastProbe
     var dynResCounts: (() -> (Int, Int))?   // ledger 177: drops taken back, probes with no answer
     var dynResOn: (() -> Bool)?             // P499: dynamic resolution is running (Auto View Distance reads it)
@@ -970,7 +978,26 @@ final class FrameStats {
         guard now - quadSince >= 1 else { return }
         let q = quadSum / max(1, quadFrames), dt = now - quadSince
         quadSum = 0; quadFrames = 0; quadSince = now
-        guard FrameStats.viewFix == nil, QuestSettings.autoViewDistance, let g = game, var vg = viewGov, target > 0 else { return }
+        guard FrameStats.viewFix == nil, QuestSettings.autoViewDistance || FrameStats.manualHeld, let g = game, var vg = viewGov, target > 0 else { return }
+        if !QuestSettings.autoViewDistance {
+            // Ledger 298 (Fable, his Nov 17 19:56 flight over taiga at view 22, 69 fps with Auto View off): the slider is the
+            // ceiling and the quad budget alone holds the view under it: over the budget it comes down at once, and it
+            // goes back up a step once the next step's quads fit 90 % of it, never past the slider. No frame-time rule:
+            // his choice stays as far as the budget lets. BS_OLDMANUALVIEW=1: always the slider.
+            if vg.chosen != ViewGovernor.even(QuestSettings.renderDistance) { vg.setChosen(QuestSettings.renderDistance) }
+            switch vg.overQuads(q, seconds: dt) {
+            case .lower(let rd):
+                g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance)
+                print("perf: \(q) quads a frame, over the budget of \(ViewGovernor.quadCap): view distance \(rd) for now (slider \(vg.chosen), Auto View off)")
+            default:
+                if case .raise(let rd) = vg.quadRaise(q, seconds: dt) {
+                    g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance)
+                    print("perf: \(q) quads a frame, room under the budget: view distance up to \(rd) (slider \(vg.chosen), Auto View off)")
+                }
+            }
+            viewGov = vg
+            return
+        }
         if case .lower(let rd) = vg.overQuads(q, seconds: dt) {
             g.setRenderDistance(rd); g.setActiveDistance(Game.savedActiveDistance); QuestSettings.autoViewLast = rd
             print("perf: \(q) quads a frame, over the budget of \(ViewGovernor.quadCap): view distance \(rd) for now (slider \(vg.chosen))")

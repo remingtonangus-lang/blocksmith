@@ -134,3 +134,12 @@ Both print "route: NAME N s: at x y z, S b/s; mobs, ships, particles" every 5 s,
 A leg that cannot do its job prints "route: failed: leg NAME: why" and moves on. The report then lists
 "leg NAME: NOT RUN (why)", also for a leg of "route: legs" that never reached its own label (only staged, or never
 started), and the verdict is FAIL whatever the frame rate.
+
+## The route never reaches his launches (ledger 291, Nov 18)
+
+His Nov 17 evening playtest started with the gate's route still set: it moved him about for 7 minutes. The gate now
+sets `debug.sunderfall.stamp` (the headset's own clock) just before it starts the app, and on any exit (also Ctrl-C,
+TERM, HUP) clears the stamp, route and switches and stops the app when it set a route or switches. The app takes the
+debug properties only on a launch within 15 minutes of the stamp that has not used it yet (`<data>/gate-stamp-used`),
+and reads the environment and the route again at every launch (Android may keep the process). Otherwise it prints
+"gate: debug properties ignored (...)" and plays as any player's headset does.

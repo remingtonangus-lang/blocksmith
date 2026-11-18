@@ -7,7 +7,12 @@ import Foundation
 // block state read it thousands of times. The environment is read once here. (A variable the game itself sets after
 // launch, BLOCKSMITH_TEXRES, is still read from the process.)
 enum Env {
-    static let all: [String: String] = {
+    static var all: [String: String] = load()
+    // Ledger 291 (Nov 18, his Nov 17 evening playtest: a route left set by the gate ran on a launch he made, and moved
+    // him about for 7 minutes): the debug properties count only for the launch the headset gate made (AndroidMain
+    // checks its stamp: set within 15 minutes, used once). Not allowed, `all` is the process environment alone.
+    static var propsAllowed = true
+    static func load() -> [String: String] {
         var e = ProcessInfo.processInfo.environment
         #if os(Android)
         // Ledger 284 (store review, the headset gate): the headset app has no environment to set, so its before/after
@@ -17,7 +22,8 @@ enum Env {
         // with "+=" (QUEST_SKIP=sky,clouds in one, QUEST_SKIP+=far,trans in the next: joined with a comma); env4-env6 too. Unset (every player's headset: debug.*
         // properties take adb), nothing changes.
         var set: [String] = []
-        for p in ["debug.sunderfall.env"] + (2...6).map({ "debug.sunderfall.env\($0)" }) {
+        let props = ["debug.sunderfall.env"] + (2...6).map { "debug.sunderfall.env\($0)" }
+        for p in propsAllowed ? props : [] {
             for pair in androidProperty(p).split(separator: ";") {
                 let kv = pair.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
                 guard kv.count == 2, !kv[0].isEmpty else { continue }
@@ -30,7 +36,7 @@ enum Env {
         if !set.isEmpty { print("env: from debug properties: " + set.joined(separator: " ")) }
         #endif
         return e
-    }()
+    }
 
     #if os(Android)
     // An Android system property's value ("" when unset).

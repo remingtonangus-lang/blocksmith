@@ -18,27 +18,66 @@ extension ShipManager {
         return min(60, 6 + 4 * h)
     }
 
+    // Ledger 299 (Nov 18, the host crash leg: "ships.melt" 35-56 ms twice a second on the onone host beside a crewless
+    // frigate and its turrets, nowhere near lava): the cheap test read every buoyancy bucket of every awake hull on one
+    // frame. The buckets are now read a share a frame (a whole pass in meltEvery, as before), the highest lava cell
+    // kept per ship; a pass that found lava under a hull runs the melt as before. BS_OLDMELTSCAN=1: all on one frame.
+    static let oldMeltScan = Env.all["BS_OLDMELTSCAN"] == "1"
+    private func bucketLava(_ s: Ship, _ b: ShipBucket, _ rd: inout ShipBlockReader, _ fk: [UInt8]) -> Int {
+        var top = Int.min
+        let c = s.toWorld(b.centre)
+        let x = Int(floor(c.x)), z = Int(floor(c.z))
+        let y0 = Int(floor(c.y - b.height * 0.5)) - 1, y1 = Int(floor(c.y))
+        for y in thru(y0, max(y0, y1)) where fk[Int(rd.raw(x, y, z))] == 2 { top = max(top, y) }
+        return top
+    }
+
     func meltTick(_ dt: Float, game: Game?) {
         meltClock += dt
+        var rd = ShipBlockReader(world)
+        let fk = Blocks.fluidKind
+        if !ShipManager.oldMeltScan {
+            var total = 0
+            for s in list where !s.asleep && s.blockCount > 0 { total += s.buckets.count }
+            var budget = max(32, Int(Float(total) * dt / ShipManager.meltEvery) + 1)
+            var wrapped = false
+            while budget > 0 && !list.isEmpty {
+                if meltShip >= list.count { meltShip = 0; meltBucket = 0; wrapped = true; break }
+                let s = list[meltShip]
+                if s.asleep || s.blockCount == 0 || meltBucket >= s.buckets.count { meltShip += 1; meltBucket = 0; continue }
+                let top = bucketLava(s, s.buckets[meltBucket], &rd, fk)
+                if top != Int.min { meltTop[s.id] = max(meltTop[s.id] ?? Int.min, top) }
+                meltBucket += 1; budget -= 1
+            }
+            guard wrapped || list.isEmpty, meltClock >= ShipManager.meltEvery * 0.5 else { return }
+            let step = meltClock
+            meltClock = 0
+            let found = meltTop
+            meltTop.removeAll(keepingCapacity: true)
+            for s in list where !s.asleep && s.blockCount > 0 {
+                guard let top = found[s.id] else { continue }
+                meltHull(s, top: top, step: step, game: game, &rd, fk)
+            }
+            return
+        }
         guard meltClock >= ShipManager.meltEvery else { return }
         let step = meltClock
         meltClock = 0
-        var rd = ShipBlockReader(world)
-        let fk = Blocks.fluidKind
         for s in list where !s.asleep && s.blockCount > 0 {
             // Cheap first: a bucket's centre or bottom (or the cell under it) in lava; the highest such cell.
             var top = Int.min
-            for b in s.buckets {
-                let c = s.toWorld(b.centre)
-                let x = Int(floor(c.x)), z = Int(floor(c.z))
-                let y0 = Int(floor(c.y - b.height * 0.5)) - 1, y1 = Int(floor(c.y))
-                for y in thru(y0, max(y0, y1)) where fk[Int(rd.raw(x, y, z))] == 2 { top = max(top, y) }
-            }
+            for b in s.buckets { top = max(top, bucketLava(s, b, &rd, fk)) }
             guard top != Int.min else { continue }
+            meltHull(s, top: top, step: step, game: game, &rd, fk)
+        }
+    }
+
+    private func meltHull(_ s: Ship, top: Int, step: Float, game: Game?, _ rd: inout ShipBlockReader, _ fk: [UInt8]) {
+        do {
             // Then every lava cell in the hull's bounds up to there, and the hull cells beside or in it.
             let lo = simd_int3(Int32(floor(s.worldMin.x)) - 1, Int32(floor(s.worldMin.y)) - 1, Int32(floor(s.worldMin.z)) - 1)
             let hi = simd_int3(Int32(floor(s.worldMax.x)) + 1, Int32(min(Float(top + 1), s.worldMax.y)), Int32(floor(s.worldMax.z)) + 1)
-            guard lo.y <= hi.y else { continue }
+            guard lo.y <= hi.y else { return }
             let g = s.grid
             var hot = Set<IVec3>()
             // Only the hull's faces open to lava heat: an empty cell of the hull's grid (or one past its edge) that
@@ -53,7 +92,7 @@ extension ShipManager {
                     if g.get(n.x, n.y, n.z) != AIR { hot.insert(n) }
                 }
             } } }
-            guard !hot.isEmpty else { continue }
+            guard !hot.isEmpty else { return }
             var gone = Set<IVec3>(), cracked: [IVec3] = []
             for cell in hot {
                 guard let t = ShipManager.meltTime(g.get(cell.x, cell.y, cell.z)) else { continue }
@@ -72,7 +111,7 @@ extension ShipManager {
             }
             if gone.isEmpty {
                 if !cracked.isEmpty { s.mesh.rebuildAround(s, cracked, device: world.device, queue: meshQueue) }
-                continue
+                return
             }
             ShipManager.melted += gone.count
             removeCells(s, gone, chipped: cracked, center: s.pos, power: 0, game: nil)    // (nothing drops)
