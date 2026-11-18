@@ -40,8 +40,11 @@ final class QuestRoute {
         Spot(name: "village", x: nil, y: nil, z: nil, yaw: 90, find: "village"),
         Spot(name: "forest", x: nil, y: nil, z: nil, yaw: 0, find: "forest")]       // on the ground, eye height
 
-    static let shared: QuestRoute? = {
+    // (a var: AndroidMain makes it again at every launch, as Android may keep the process for the next one; ledger 291)
+    static var shared: QuestRoute? = make()
+    static func make() -> QuestRoute? {
         #if os(Android)
+        guard Env.propsAllowed else { return nil }
         let v = Env.androidProperty("debug.sunderfall.route")
         #else
         let v = Env.all["BS_ROUTE"] ?? ""
@@ -58,7 +61,7 @@ final class QuestRoute {
         if let i = legs2.firstIndex(where: { combat.contains($0) || ownWorldLegs.contains($0) }), !legs2[..<i].contains("combatworld") { legs2.insert("combatworld", at: i) }
         print("route: legs \(legs2.joined(separator: " "))")
         return QuestRoute(legs2)
-    }()
+    }
 
     let legs: [String]
     private var index = -1
