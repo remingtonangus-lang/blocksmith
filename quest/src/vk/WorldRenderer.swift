@@ -215,7 +215,8 @@ final class WorldRenderer {
         // beyond) and the rim melts into the horizon shell.
         let baseEnd: Float = rd * 16 - 12
         // (P472: at a big hull's helm, or flying, the ring shows under Auto View Distance too: Game.helmFarView.)
-        farRingOn = FarRing.enabled && (!autoView || game.helmFarView) && game.dim.dim == .overworld && !underwater && !p.headInLava && !vaultSky && !underground
+        FarRing.layer = FarRing.layerEnv || QuestSettings.farLayer
+        farRingOn = FarRing.enabled && (!autoView || game.helmFarView || FarRing.layer) && game.dim.dim == .overworld && !underwater && !p.headInLava && !vaultSky && !underground
             && game.blindFog == nil && fogEnd >= baseEnd - 0.01 && game.world.gen is WorldGen
         // (Only once a ring is up: until its first build lands the loaded edge keeps the usual fog.)
         if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * clearStart }
@@ -234,7 +235,8 @@ final class WorldRenderer {
         let fogNow = CFAbsoluteTimeGetCurrent()
         let fogDt = Float(min(0.1, max(0, fogNow - fogClock)))
         fogClock = fogNow
-        if fogEase < 0 || underwater || p.headInLava || game.blindFog != nil || game.inVaultHaze || game.dim.dim != fogDim {
+        // (BS_FOGSNAP=1: no easing, for one-frame harness pictures of the far layer.)
+        if fogEase < 0 || WorldRenderer.fogSnap || underwater || p.headInLava || game.blindFog != nil || game.inVaultHaze || game.dim.dim != fogDim {
             fogEase = fogEnd; fogStartEase = fogStart; fogDim = game.dim.dim
         } else {
             let k = 1 - expf(-fogDt / 3)
@@ -401,6 +403,7 @@ final class WorldRenderer {
 
     // F4: the middle ring after the opaque terrain (the loaded chunks win the depth test; far.vert sinks the ring under
     // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
+    static let fogSnap = Env.all["BS_FOGSNAP"] == "1"
     private func drawFarRing(_ s: SceneRenderer.Slot, _ eye: V3) {
         farFrame += 1
         farRingQuads = 0

@@ -35,6 +35,49 @@ enum PlaytestOct14Tests {
         let green = fs.c.y / max(0.01, (fs.c.x + fs.c.y + fs.c.z) / 3)
         check(fUp > 4 && pUp < 0.5, String(format: "P250 (b, c): a forest far off stands %.1f blocks over its ground as canopy (open plains %.1f)", fUp, pUp))
         check(fs.c.y < ps.c.y && green > 1.05, String(format: "P250 (b): in leaf colours, darker than the plains' grass (green %.2f vs %.2f)", fs.c.y, ps.c.y))
+        farForest(gen, f, check: check)
+    }
+
+    // Ledger 361: the far layer's stand-in trees. (a) A stand-in is where the chunk grows a tree: of the sites
+    // FarForest.site names in nine chunks of forest, nearly all have the trunk's wood in their column. (b) A ring built
+    // with the layer carries stand-ins, within its quad budget, and its ground under them is the ground, not the canopy
+    // lift; without the layer the ring is as before (no stand-ins, the lift).
+    static func farForest(_ gen: WorldGen, _ f: (Int, Int), check: (Bool, String) -> Void) {
+        var sites = 0, grown = 0
+        let fcx = floorDiv(f.0, CS), fcz = floorDiv(f.1, CS)
+        for cz in (fcz - 1)...(fcz + 1) { for cx in (fcx - 1)...(fcx + 1) {
+            let b = gen.generate(cx: cx, cz: cz)
+            for gz in floorDiv(cz * CS + 2, 3)...floorDiv(cz * CS + CS - 1, 3) { for gx in floorDiv(cx * CS + 2, 3)...floorDiv(cx * CS + CS - 1, 3) {
+                guard let t = FarForest.site(gen, gx, gz) else { continue }
+                let lx = Int(t.x) - cx * CS, lz = Int(t.z) - cz * CS
+                guard lx >= 0, lx < CS, lz >= 0, lz < CS else { continue }
+                sites += 1
+                let y = Int(t.y)
+                var wood = false
+                for dy in -2...4 where y + dy > 0 && y + dy < CH {
+                    let key = Blocks.key(b[Chunk.index(lx, y + dy, lz)])
+                    if key.contains("_log") || key.contains("_wood") || key.contains("stem") { wood = true; break }
+                }
+                if wood { grown += 1 }
+            } }
+        } }
+        check(sites >= 20 && grown * 10 >= sites * 8, "ledger 361 (a): a far stand-in is where the chunk grows a tree (\(grown) of \(sites) sites in nine forest chunks have a trunk)")
+        var memo: [Int64: FarRing.Sample] = [:], inner: [ChunkKey: [SimpleVert]] = [:]
+        let rin = FarRing.loadedRadius(8)
+        let plain = FarRing.build(gen, cx: f.0, cz: f.1, rin: rin, memo: &memo, inner: &inner)
+        let forest = FarForest(seed: 1)
+        let with = FarRing.build(gen, cx: f.0, cz: f.1, rin: rin, memo: &memo, inner: &inner, forest: forest)
+        let more = (with.count - plain.count) / 4
+        check(forest.lastQuads > 500 && more == forest.lastQuads && forest.lastQuads <= FarForest.maxQuads + 4096,
+              "ledger 361 (b): a ring at view 8 over a forest carries stand-ins within the budget (\(forest.lastQuads) quads of \(FarForest.maxQuads), far thinning x\(String(format: "%.2f", forest.lastSqueeze)); 0 without the layer)")
+        // The ground 200 blocks out: lifted to the canopy without the layer, the ground's own height with it.
+        func groundY(_ v: [SimpleVert], _ n: Int) -> Float {
+            var sum: Float = 0, c: Float = 0
+            for i in 0..<min(n, v.count) where abs(v[i].pos.x) > 150 && abs(v[i].pos.x) < 260 && abs(v[i].pos.z) < 60 && v[i].color.w == 0 { sum += v[i].pos.y; c += 1 }
+            return c > 0 ? sum / c : 0
+        }
+        let lifted = groundY(plain, plain.count), bare = groundY(with, plain.count)
+        check(lifted - bare > 1, String(format: "ledger 361 (b): under the stand-ins the ring's ground is the ground (%.1f blocks lower than the canopy lift it had)", lifted - bare))
     }
 
     // P251: (a) on foot in survival, the Capital's helicopter on its pad can be boarded and flown off; (b) its rotor turns.
