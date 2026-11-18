@@ -501,9 +501,15 @@ enum Railways {
             return false
         }
         let band = rowLinkBand(row, pa.z, pb.z)
-        var way = pb.x - pa.x > 1200 ? nil : smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
-        if let w = way, crosses(w) || w.contains(where: { $0.1 < band.lo || $0.1 > band.hi }) { way = nil }
-        var how = "straight or dog-leg"
+        // (ledger 230: in a new world the link winds over the land first, like the open-country track it joins)
+        let sparse = sparseWorld(gen)
+        var how = "over the land"
+        var way = sparse ? route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut, band: band, seaMax: 400, easeEnds: true, land: true) : nil
+        if way == nil {
+            how = "straight or dog-leg"
+            way = pb.x - pa.x > 1200 ? nil : smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
+            if let w = way, crosses(w) || w.contains(where: { $0.1 < band.lo || $0.1 > band.hi }) { way = nil }
+        }
         if way == nil { how = "found"; way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut, band: band, seaMax: 400, easeEnds: true) }
         guard let run = way, run.count > 8 else { tally?("row link: no way"); return nil }
         if crosses(run) { tally?("row link: way over a town line"); return nil }
@@ -1384,7 +1390,11 @@ enum Railways {
         // P470 ("the trains were never added": over his playtests he never met one; 64 of 80 stretches round his
         // Capital City had fewer than three towns): two stations (towns or major sites) make a line, on ground no save
         // had generated before P470 (structure-guard-p470.txt), so explored land never grows half a railway.
-        return plan(gen, row: row, stretch: s, avoid: sc.legacyP470.isEmpty ? nil : sc.legacyP470, need: minStations, diagonal: diagonal)
+        // Ledger 230 ("they gotta go to villages more", "If it's big enough, it should have a railroad on it"; on his
+        // world 66 of 72 stretches had fewer than two towns and so no station at all): in a new world one town makes a
+        // line, a station on the track that runs on both ways through open country.
+        let need = sparseWorld(gen) ? 1 : minStations
+        return plan(gen, row: row, stretch: s, avoid: sc.legacyP470.isEmpty ? nil : sc.legacyP470, need: need, diagonal: diagonal)
     }
 
     // `avoid`: chunks no part of the line may come within 3 chunks of (a town or leg there ends the run).
@@ -1495,7 +1505,7 @@ enum Railways {
         }
         for i in stride(from: 0, to: best.count, by: 4) where gen.column(best[i].x, best[i].z).biome.isOcean { tally?("over the sea"); return nil }
         let first = bestStations.first!.name, last = bestStations.last!.name
-        let name = lineName(first, last, gen.seed, row, s)
+        let name = bestStations.count == 1 ? lineName(first, gen.seed, row, s) : lineName(first, last, gen.seed, row, s)
         if gen.fieldWorld {
             guard let h = gentleProfile(gen, best, bestStations, diagonal: diagonal) else { tally?("field grade"); return nil }
             let cells = best.indices.map { IVec3(best[$0].x, Int(h[$0].rounded()), best[$0].z) }
@@ -1508,6 +1518,12 @@ enum Railways {
         return Line(id: key(row, s), name: name, cells: cells, stations: bestStations)
     }
 
+    // (ledger 230: a line of one station is named for its town alone)
+    static func lineName(_ a: String, _ seed: UInt64, _ row: Int, _ s: Int) -> String {
+        let kinds = ["Railway", "Rail Road", "Line", "Overland", "Western"]
+        let k = kinds[Int(hashf(row, s, 0xC1B, UInt32(truncatingIfNeeded: seed)) * Float(kinds.count)) % kinds.count]
+        return "\(String(a.split(separator: " ").first ?? Substring(a))) \(k)"
+    }
     static func lineName(_ a: String, _ b: String, _ seed: UInt64, _ row: Int, _ s: Int) -> String {
         let firstWord = { (n: String) in String(n.split(separator: " ").first ?? Substring(n)) }
         let kinds = ["Railway", "Rail Road", "Line", "Railway", "Western"]
