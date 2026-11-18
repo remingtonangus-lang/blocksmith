@@ -15,7 +15,7 @@ import simd
 final class FarForest {
     static let reach: Float = 560                  // blocks from the ring's centre
     static let cell = 128
-    static let maxQuads = 48_000                   // of the ring's draw (SceneRenderer.maxQuads is 131,072)
+    static let maxQuads = 80_000                   // of the ring's draw (SceneRenderer.maxQuads is 131,072)
 
     struct Tree {
         var x: Int32, z: Int32
@@ -26,6 +26,8 @@ final class FarForest {
         var leaf: V3, top: V3, bark: V3
         var hv: UInt32
         var snowy = false
+        var kind: TreeKind = .oak
+        var size: Float = 1
     }
 
     let seed: UInt64
@@ -79,7 +81,7 @@ final class FarForest {
         func rgb(_ v: UInt32) -> V3 { V3(Float((v >> 16) & 255), Float((v >> 8) & 255), Float(v & 255)) / 255 }
         // Leaf art is darker than its tint (FarRing.canopy); each tree a little lighter or darker than the next.
         let vary: Float = 0.9 + 0.2 * Float((hv >> 24) & 0xFF) / 255
-        let leaf = rgb(sh.leaf != 0 ? sh.leaf : biome.info.foliage) * ((sh.cone ? 0.5 : 0.6) * vary)
+        let leaf = sh.cone ? darkConifer * (1.05 * vary) : rgb(sh.leaf != 0 ? sh.leaf : biome.info.foliage) * (0.5 * vary)
         var top = leaf * 1.12
         let t = gen.terrain.temperature(k, k.h + 1)
         let cold = k.lava <= 0 && k.flow <= 0.3 && k.vol <= 0.3 && (t < -0.25 || (biome.snows(at: gy + 1) && t < -0.15))
@@ -88,7 +90,7 @@ final class FarForest {
         let bark: V3 = pale ? V3(0.74, 0.74, 0.7) * 0.8 : V3(0.36, 0.27, 0.18) * 0.8
         let size: Float = 0.9 + 0.2 * Float((hv >> 12) & 0xFF) / 255
         return Tree(x: Int32(tx), z: Int32(tz), y: Float(YOFF) + floorf(k.h) + 1, h: sh.h * size, r: sh.r, base: sh.base,
-                    cone: sh.cone, leaf: leaf, top: top, bark: bark, hv: hv, snowy: cold)
+                    cone: sh.cone, leaf: leaf, top: top, bark: bark, hv: hv, snowy: cold, kind: kind, size: 1)
     }
 
     private func trees(_ gen: WorldGen, _ kx: Int, _ kz: Int) -> [Tree] {
@@ -107,21 +109,103 @@ final class FarForest {
         return out
     }
 
-    // The stand-ins between `from` and `reach` blocks of the centre, as quads relative to it. All of them to 140 blocks
-    // past the loaded edge, then fewer and wider: one in four from 260 blocks past it on. Trunks and snow caps only in
-    // the first 80 blocks. A wood too thick for `maxQuads` thins further past the full band (never cut off part way).
-    func emit(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, from: Float, into out: inout [SimpleVert]) {
+    // The real tree's own outline. A kind's crown is baked once per variant from the blocks the tree builder lays
+    // (TreePlacer.build): layer by layer, the leaves' centre and the radius of a disc of their area. A stand-in is that
+    // outline turned about its axis with a few sides, reduced to the points that matter most (the widest tier, the
+    // waist, the tip), so a far spruce keeps its tiers and a far oak its round head.
+    struct Model {
+        var rings: [(y: Float, r: Float, cx: Float, cz: Float)] = []      // y over the ground, every leaf layer
+        var trunk: Float = 0                                              // the lowest leaf layer
+        var tiers: [[(y: Float, r: Float, cx: Float, cz: Float)]] = []    // reduced to 5, 4 and 3 points
+    }
+    static let variants = 4
+    static let deep = Env.all["BS_FARDEEP"] != nil          // (before: stand-ins all the way in under the loaded chunks)
+    // A conifer's needles as the near trees draw them in shade (measured off a render: darker and yellower than the tint).
+    static let darkConifer = V3(0.115, 0.175, 0.1)
+    private var models: [Int: Model] = [:]
+    private var scratch: [BlockID] = []
+
+    private func model(_ kind: TreeKind, _ hv: UInt32) -> Model {
+        let v = Int((hv >> 8) % UInt32(FarForest.variants))
+        let key = kind.hashValue &* 31 &+ v
+        if let m = models[key] { return m }
+        let m = FarForest.bake(kind, variant: v, scratch: &scratch)
+        models[key] = m
+        return m
+    }
+
+    static func bake(_ kind: TreeKind, variant: Int, scratch b: inout [BlockID]) -> Model {
+        let y0 = 80, top = 150
+        if b.count != CS * CS * CH { b = [BlockID](repeating: AIR, count: CS * CS * CH) }
+        for i in Chunk.index(0, y0, 0)..<Chunk.index(0, top, 0) { b[i] = AIR }
+        let dirt = Blocks.id("dirt")
+        for z in 0..<CS { for x in 0..<CS { b[Chunk.index(x, y0, z)] = dirt } }
+        var rng = SRng(UInt64(variant) &* 0x9E37 &+ 77)
+        b.withUnsafeMutableBufferPointer { buf in
+            TreePlacer.build(TreeWriter(b: buf.baseAddress!, bx: 0, bz: 0), kind, 8, y0 + 1, 8, &rng)
+        }
+        var m = Model()
+        let leafT = Mesher.leafT
+        for y in (y0 + 1)..<top {
+            var n: Float = 0, sx: Float = 0, sz: Float = 0
+            for z in 0..<CS { for x in 0..<CS where leafT[Int(b[Chunk.index(x, y, z)])] { n += 1; sx += Float(x); sz += Float(z) } }
+            guard n > 0 else { continue }
+            // (a leaf blob rounds its blocks' corners off: a disc of the layer's area, a little proud)
+            m.rings.append((Float(y - y0 - 1) + 0.5, (n / .pi).squareRoot() * 1.06, sx / n - 8, sz / n - 8))
+        }
+        guard let first = m.rings.first, let last = m.rings.last else { return m }
+        m.trunk = first.y - 0.5
+        // The outline's points, closed at both ends; then the reduced tiers: the point farthest from the outline so
+        // far (as a polyline in y and r) is added until there are enough.
+        let all = [(first.y - 0.7, Float(0), first.cx, first.cz)] + m.rings.map { ($0.y, $0.r, $0.cx, $0.cz) } + [(last.y + 0.8, Float(0), last.cx, last.cz)]
+        for want in [5, 4, 3] {
+            var keep = [0, all.count - 1]
+            while keep.count < min(want, all.count) {
+                var best = -1, err: Float = -1
+                for i in 0..<all.count where !keep.contains(i) {
+                    let k = keep.firstIndex { $0 > i }!
+                    let a = all[keep[k - 1]], c = all[keep[k]]
+                    let t = (all[i].0 - a.0) / max(0.001, c.0 - a.0)
+                    let e = abs(all[i].1 - (a.1 + (c.1 - a.1) * t))
+                    if e > err { err = e; best = i }
+                }
+                guard best >= 0 else { break }
+                keep.append(best); keep.sort()
+            }
+            m.tiers.append(keep.map { (y: all[$0].0, r: all[$0].1, cx: all[$0].2, cz: all[$0].3) })
+        }
+        return m
+    }
+
+    // The stand-ins between `from` and the planned reach, as quads relative to the centre. Three bands past the loaded
+    // edge: to 80 blocks the outline at 5 points and 5 sides over a trunk, to 140 at 4 points and 4 sides, then the
+    // same while the wood thins to one in four, drawn wider. `plan` (before the ground is built) finds how far the
+    // quad budget carries them: `planReach`, at most `reach`. Past it the ring's canopy lift is the wood, as before
+    // the layer, so a thick wood is whole trees near and one mass far, never a sparse scatter or a cut edge.
+    private var lists: [[Tree]] = []
+    private(set) var planReach: Float = FarForest.reach
+    private var full: Float = 0, thin: Float = 0, fine: Float = 0, far: Float = 0, thin0: Float = 0, edge: Float = 0
+    private(set) var kmin: Float = 0.25               // the share of a wood's trees still standing at the far end
+    private func keepAt(_ d: Float) -> Float { 1 - (1 - kmin) * min(1, max(0, (d - thin0) / (thin - thin0))) }
+    // (under the loaded chunks a stand-in only shows while the view distance steps down: the second band's detail)
+    private func bandAt(_ d: Float) -> Int { d < edge ? 1 : (d < fine ? 0 : (d < full ? 1 : (d < far ? 2 : 3))) }
+    private func cost(_ t: Tree, _ d: Float, _ m: Model) -> Int {
+        let b = bandAt(d)
+        if b == 3 { return (t.cone ? 3 : 6) + (m.trunk > 6 ? 3 : 0) }
+        return (b == 0 ? 22 : (b == 1 ? 12 : 8)) + (b >= 1 && m.trunk > 3.5 ? 3 : 0) + (b == 0 && t.snowy ? 5 : 0)
+    }
+
+    func plan(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, from: Float) {
+        // (No stand-ins deep under the loaded chunks: a dense taiga spent half the budget where nobody sees them, and
+        // its woods ended 96 blocks past the edge. 40 blocks in covers the view distance stepping down.)
+        let from = FarForest.deep ? from : max(from, rin - 40)
         let c = FarForest.cell
         let R = Int(FarForest.reach)
-        let up: Float = 512 + 512 * 1024
-        func nq(_ nx: Float, _ nz: Float) -> Float { ((nx * 0.5 + 0.5) * 1023).rounded() + ((nz * 0.5 + 0.5) * 1023).rounded() * 1024 }
-        let dirs: [(Float, Float)] = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-        let full: Float = rin + 140, thin: Float = rin + 260, fine: Float = rin + 80
-        func keepAt(_ d: Float) -> Float { 1 - 0.75 * min(1, max(0, (d - full) / (thin - full))) }
-        func cost(_ t: Tree, _ d: Float) -> Int { (t.cone ? (d < fine && t.snowy ? 8 : 4) : 5) + (d < fine ? 2 : 0) }
+        fine = rin + 40; edge = rin
         let clear = FarTrack.clear(gen, cx: cx, cz: cz)
-        var lists: [[Tree]] = []
-        var nearCost = 0, farCost = 0
+        lists.removeAll(keepingCapacity: true)
+        var byRing = [Int](repeating: 0, count: R / 16 + 2)
+        var all: [(Float, Tree)] = []
         for kz in floorDiv(cz - R, c)...floorDiv(cz + R, c) {
             for kx in floorDiv(cx - R, c)...floorDiv(cx + R, c) {
                 var l = trees(gen, kx, kz)
@@ -130,64 +214,128 @@ final class FarForest {
                     let x = Float(Int(t.x) - cx) + 0.5, z = Float(Int(t.z) - cz) + 0.5
                     let d: Float = (x * x + z * z).squareRoot()
                     if d < from || d > FarForest.reach { continue }
-                    let keep = keepAt(d)
-                    if Float((t.hv >> 20) & 0xFF) / 256 >= keep { continue }
-                    if d < full { nearCost += cost(t, d) } else { farCost += cost(t, d) }
+                    all.append((d, t))
                 }
                 lists.append(l)
             }
         }
-        let room = Float(max(0, FarForest.maxQuads - nearCost))
-        let squeeze: Float = farCost > 0 ? min(1, max(0.15, room / Float(farCost))) : 1
-        lastSqueeze = squeeze
+        // How soon the wood thins, and to what share, is set by the budget: an open wood keeps every tree to 140
+        // blocks past the edge and one in four beyond; a taiga thins from 40 blocks to one in ten, each drawn wider, so
+        // its cover holds out to the full reach.
+        // The ladder gives up detail before it gives up trees: a wood reads by how thick it stands, so the bands of
+        // finer stand-ins shorten first (a far conifer is 3 quads), and only then does the wood thin, late and little.
+        let ladder: [(Float, Float, Float, Float)] = [(140, 200, 200, 0.5), (100, 160, 200, 0.5), (60, 100, 200, 0.6), (40, 40, 200, 0.75),
+                                                      (40, 40, 120, 0.6), (40, 40, 60, 0.45), (40, 40, 40, 0.3), (40, 40, 40, 0.15)]
+        for (off, farOff, thinOff, km) in ladder {
+            full = rin + off; far = rin + farOff; thin0 = rin + thinOff; thin = thin0 + 160; kmin = km
+            for i in byRing.indices { byRing[i] = 0 }
+            for (d, t) in all where Float((t.hv >> 20) & 0xFF) / 256 < keepAt(d) { byRing[Int(d) / 16] += cost(t, d, model(t.kind, t.hv)) }
+            if byRing.reduce(0, +) <= FarForest.maxQuads { break }
+        }
+        var sum = 0
+        planReach = FarForest.reach
+        for (i, n) in byRing.enumerated() {
+            sum += n
+            if sum > FarForest.maxQuads { planReach = max(rin + 96, Float(i * 16)); break }
+        }
+    }
+
+    func emit(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, from: Float, into out: inout [SimpleVert]) {
+        func nq(_ nx: Float, _ nz: Float) -> Float { ((nx * 0.5 + 0.5) * 1023).rounded() + ((nz * 0.5 + 0.5) * 1023).rounded() * 1024 }
+        lastSqueeze = planReach / FarForest.reach
+        let from = FarForest.deep ? from : max(from, rin - 40)
+        let reachNow = planReach
         var quads = 0
-        out.reserveCapacity(out.count + 4 * min(FarForest.maxQuads + 4096, nearCost + farCost))
+        out.reserveCapacity(out.count + 4 * (FarForest.maxQuads + 4096))
+        let snow = FarRing.snow
         for l in lists {
             for t in l {
                 let x = Float(Int(t.x) - cx) + 0.5, z = Float(Int(t.z) - cz) + 0.5
                 let d: Float = (x * x + z * z).squareRoot()
-                if d < from || d > FarForest.reach { continue }
-                let keep: Float = keepAt(d) * (d < full ? 1 : squeeze)
+                if d < from || d > reachNow { continue }
+                // (over the last 96 blocks of the reach the trees thin away as the ring's canopy mass rises)
+                let keep: Float = keepAt(d) * min(1, max(0.02, (reachNow - d) / 96))
                 if Float((t.hv >> 20) & 0xFF) / 256 >= keep { continue }
-                if quads >= FarForest.maxQuads + 4096 { return }
-                let wide: Float = min(2.4, 1 / keep.squareRoot())
-                let near = d < fine
-                let r = t.r * wide
-                // (Past the trunks the crown comes most of the way down.)
-                let y0: Float = t.y + t.h * (near ? t.base : t.base * 0.4), y1: Float = t.y + t.h
-                let lo = V4(t.leaf * 0.7, 0), hi = V4(t.leaf, 0), cap = V4(t.top, 0)
-                // A snowy conifer near the loaded edge is two tiers: green boughs, then a white cap.
-                let capped = t.cone && near && t.snowy
-                let ym: Float = y0 + (y1 - y0) * 0.6
-                let rt: Float = t.cone ? (capped ? r * 0.4 : 0) : r * 0.62
-                let tc = !t.cone || capped ? hi : (t.snowy ? V4(simd_mix(t.leaf, t.top, V3(repeating: 0.5)), 0) : cap)
-                let ys: Float = capped ? ym : y1
-                for (dx, dz) in dirs {
-                    // The side facing (dx, dz): from corner a to corner b along it, up to the top's edge (a point on
-                    // a cone).
-                    let px = -dz, pz = dx
-                    let ax = x + dx * r - px * r, az = z + dz * r - pz * r
-                    let bx = x + dx * r + px * r, bz = z + dz * r + pz * r
-                    let tax = x + dx * rt - px * rt, taz = z + dz * rt - pz * rt
-                    let tbx = x + dx * rt + px * rt, tbz = z + dz * rt + pz * rt
-                    let q = nq(dx * 0.75, dz * 0.75)
-                    out.append(SimpleVert(pos: V4(ax, y0, az, q), color: lo)); out.append(SimpleVert(pos: V4(bx, y0, bz, q), color: lo))
-                    out.append(SimpleVert(pos: V4(tbx, ys, tbz, q), color: tc)); out.append(SimpleVert(pos: V4(tax, ys, taz, q), color: tc))
-                    if capped {
-                        out.append(SimpleVert(pos: V4(tax, ym, taz, q), color: cap)); out.append(SimpleVert(pos: V4(tbx, ym, tbz, q), color: cap))
-                        out.append(SimpleVert(pos: V4(x, y1, z, q), color: cap)); out.append(SimpleVert(pos: V4(x, y1, z, q), color: cap))
+                if quads >= FarForest.maxQuads + 4096 { lastQuads = quads; return }
+                let m = model(t.kind, t.hv)
+                guard m.tiers.count == 3 else { continue }
+                // Four bands: 5 points and 5 sides near, 4 and 4, 3 and 4, and far off 3 sides (a conifer one cone from
+                // its widest tier to its tip), so a thick wood's every hill keeps trees to the full reach.
+                let band = bandAt(d)
+                let pts = m.tiers[min(band, 2)]
+                let sides = band == 0 ? 5 : (band == 3 ? 3 : 4)
+                let k0 = band == 3 && t.cone ? 1 : 0
+                let wide: Float = min(1.5, 1 / keepAt(d).squareRoot())
+                let turn: Float = Float(t.hv & 0xFF) / 256 * 2 * .pi
+                let hTop: Float = max(1, pts[pts.count - 1].y)
+                // One ring of vertices per outline point; a quad between each pair of neighbours on two rings.
+                for k in k0..<(pts.count - 1) {
+                    let a = pts[k], b = pts[k + 1]
+                    // The surface's lean: up where the outline widens downward (a snow-catching top), down under it.
+                    let dy: Float = (b.y - a.y) * t.size, dr: Float = (b.r - a.r) * wide
+                    let ln: Float = max(0.001, (dy * dy + dr * dr).squareRoot())
+                    let ny: Float = -dr / ln, nr: Float = dy / ln
+                    func colour(_ p: (y: Float, r: Float, cx: Float, cz: Float)) -> V4 {
+                        // Darker under the crown and inside, as the real leaves' own shade; snow where it faces up.
+                        let shade: Float = 0.74 + 0.26 * min(1, max(0, p.y / hTop))
+                        let c = t.leaf * shade
+                        return V4(c, 0)
                     }
+                    var ca = colour(a), cb = colour(b)
+                    // Snow on the crown's top: the last segment, up to the tip. A real snowy conifer is dark needles with
+                    // white lying on top, so near (band 0) the cap is its own ring with a hard edge, and far off only the
+                    // tip lightens: white blended down the whole segment read as a grey tree.
+                    var cap: (y: Float, r: Float, cx: Float, cz: Float)? = nil
+                    if t.snowy && (k > 0 || band == 3) && b.r == 0 {
+                        if band == 0 {
+                            let f: Float = pts.count > 3 ? 0.28 : 0.55
+                            cap = (a.y + (b.y - a.y) * f, a.r * (1 - f), a.cx + (b.cx - a.cx) * f, a.cz + (b.cz - a.cz) * f)
+                        } else {
+                            let lit: Float = (t.hv >> 16) & 1 == 0 ? 0.6 : 0.3
+                            cb = V4(simd_mix(V3(cb.x, cb.y, cb.z), snow, V3(repeating: band == 3 ? lit * 0.6 + 0.1 : lit)), 0)
+                        }
+                    }
+                    for sd in 0..<sides {
+                        let a0: Float = turn + Float(sd) / Float(sides) * 2 * .pi, a1: Float = turn + Float(sd + 1) / Float(sides) * 2 * .pi
+                        let c0 = cosf(a0), s0 = sinf(a0), c1 = cosf(a1), s1 = sinf(a1)
+                        let am: Float = (a0 + a1) * 0.5
+                        let q = nq(cosf(am) * nr * 0.9, sinf(am) * nr * 0.9)
+                        let ra = a.r * wide, rb = b.r * wide
+                        let ya: Float = t.y + a.y * t.size, yb: Float = t.y + b.y * t.size
+                        out.append(SimpleVert(pos: V4(x + a.cx + c0 * ra, ya, z + a.cz + s0 * ra, q), color: ca))
+                        out.append(SimpleVert(pos: V4(x + a.cx + c1 * ra, ya, z + a.cz + s1 * ra, q), color: ca))
+                        out.append(SimpleVert(pos: V4(x + b.cx + c1 * rb, yb, z + b.cz + s1 * rb, q), color: cb))
+                        out.append(SimpleVert(pos: V4(x + b.cx + c0 * rb, yb, z + b.cz + s0 * rb, q), color: cb))
+                        if let m = cap {
+                            // (the cap: the same faces from the snow line to the tip, white, a hair proud of the needles)
+                            let rm = m.r * wide + 0.08, ym: Float = t.y + m.y * t.size
+                            let w0 = V4(simd_mix(V3(ca.x, ca.y, ca.z), snow, V3(repeating: 0.8)), 0), w1 = V4(simd_mix(V3(cb.x, cb.y, cb.z), snow, V3(repeating: 0.9)), 0)
+                            out.append(SimpleVert(pos: V4(x + m.cx + c0 * rm, ym, z + m.cz + s0 * rm, q), color: w0))
+                            out.append(SimpleVert(pos: V4(x + m.cx + c1 * rm, ym, z + m.cz + s1 * rm, q), color: w0))
+                            out.append(SimpleVert(pos: V4(x + b.cx + c1 * rb, yb + 0.08, z + b.cz + s1 * rb, q), color: w1))
+                            out.append(SimpleVert(pos: V4(x + b.cx + c0 * rb, yb + 0.08, z + b.cz + s0 * rb, q), color: w1))
+                        }
+                    }
+                    quads += sides + (cap != nil ? sides : 0)
                 }
-                quads += capped ? 8 : 4
-                if !t.cone {
-                    out.append(SimpleVert(pos: V4(x - rt, y1, z - rt, up), color: cap)); out.append(SimpleVert(pos: V4(x + rt, y1, z - rt, up), color: cap))
-                    out.append(SimpleVert(pos: V4(x + rt, y1, z + rt, up), color: cap)); out.append(SimpleVert(pos: V4(x - rt, y1, z + rt, up), color: cap))
-                    quads += 1
+                if band >= 1 && m.trunk > (band == 3 ? 6 : 3.5) {
+                    // A tall bare trunk under a far crown: three sides, or the crown hangs in the air.
+                    let w: Float = (t.h > 15 ? 1.0 : 0.5) * wide
+                    let bc = V4(t.bark, 0)
+                    let yb: Float = t.y - 3, y0: Float = t.y + m.trunk + 1
+                    for sd in 0..<3 {
+                        let a0: Float = turn + Float(sd) / 3 * 2 * .pi, a1: Float = turn + Float(sd + 1) / 3 * 2 * .pi
+                        let am: Float = (a0 + a1) * 0.5
+                        let q = nq(cosf(am) * 0.9, sinf(am) * 0.9)
+                        out.append(SimpleVert(pos: V4(x + cosf(a0) * w, yb, z + sinf(a0) * w, q), color: bc)); out.append(SimpleVert(pos: V4(x + cosf(a1) * w, yb, z + sinf(a1) * w, q), color: bc))
+                        out.append(SimpleVert(pos: V4(x + cosf(a1) * w, y0, z + sinf(a1) * w, q), color: bc)); out.append(SimpleVert(pos: V4(x + cosf(a0) * w, y0, z + sinf(a0) * w, q), color: bc))
+                    }
+                    quads += 3
                 }
-                if near {
+                if band == 0 {
                     let w: Float = t.h > 15 ? 0.9 : 0.45
                     let bc = V4(t.bark, 0)
-                    let yb: Float = t.y - 3
+                    let yb: Float = t.y - 3, y0: Float = t.y + (m.trunk + 1) * t.size
                     let qx = nq(0.6, 0), qz = nq(0, 0.6)
                     out.append(SimpleVert(pos: V4(x - w, yb, z, qz), color: bc)); out.append(SimpleVert(pos: V4(x + w, yb, z, qz), color: bc))
                     out.append(SimpleVert(pos: V4(x + w, y0, z, qz), color: bc)); out.append(SimpleVert(pos: V4(x - w, y0, z, qz), color: bc))
@@ -196,6 +344,19 @@ final class FarForest {
                     quads += 2
                 }
             }
+        }
+        if Env.all["BS_FARDEBUG"] != nil {
+            var by = [Int](repeating: 0, count: 40), all = [Int](repeating: 0, count: 40)
+            for l in lists { for t in l {
+                let x = Float(Int(t.x) - cx) + 0.5, z = Float(Int(t.z) - cz) + 0.5
+                let d: Float = (x * x + z * z).squareRoot()
+                if d >= 640 { continue }
+                all[Int(d) / 16] += 1
+                if d < from || d > reachNow { continue }
+                let keep: Float = keepAt(d) * min(1, max(0.02, (reachNow - d) / 96))
+                if Float((t.hv >> 20) & 0xFF) / 256 < keep { by[Int(d) / 16] += 1 }
+            } }
+            print("fardebug rin \(rin) from \(from) reach \(reachNow) full \(full) far \(far) thin \(thin0)-\(thin) kmin \(kmin) centre \(cx),\(cz)\n all \(all)\n drawn \(by)")
         }
         lastQuads = quads
     }

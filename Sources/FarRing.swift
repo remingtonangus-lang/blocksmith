@@ -53,7 +53,7 @@ final class FarRing {
     // kind: 0 ground, 1 water, 2 lava. `side`: the colour of the ground's flanks seen from the side in a block world
     // (dirt under grass, rock on cliffs: P250 b).
     // `lift`, `c0`, `side0` (ledger 361): how far the woods' canopy raised `y`, and the ground's own colours under it.
-    struct Sample { var y: Float; var c: V3; var kind: Float; var side: V3 = V3(0, 0, 0); var lift: Float = 0; var c0 = V3(0, 0, 0); var side0 = V3(0, 0, 0) }
+    struct Sample { var y: Float; var c: V3; var kind: Float; var side: V3 = V3(0, 0, 0); var lift: Float = 0; var c0 = V3(0, 0, 0); var side0 = V3(0, 0, 0); var leaf = V3(0, 0, 0); var cover: Float = 0 }
 
     private let lock = NSLock()
     private var mesh: Mesh?
@@ -221,7 +221,7 @@ final class FarRing {
         c = simd_mix(c, w.leaf, V3(repeating: w.cover * (1 - rw)))
         side = simd_mix(side, w.leaf * 0.9, V3(repeating: w.cover * (1 - rw)))     // a wood's terrace walls are leaves
         let lift: Float = w.height * (1 - rw)
-        return Sample(y: Float(YOFF) + k.h + 1 + lift, c: c, kind: 0, side: side, lift: lift, c0: c0, side0: side0)
+        return Sample(y: Float(YOFF) + k.h + 1 + lift, c: c, kind: 0, side: side, lift: lift, c0: c0, side0: side0, leaf: w.leaf, cover: w.cover * (1 - rw))
     }
 
     // P250: a column's woods as seen from afar: how much of the ground the crowns cover (0 ... 1), how far the canopy's
@@ -288,6 +288,9 @@ final class FarRing {
         // that before the next build lands: a chunk of his loaded disc lies within rin + 91 + 181 + 23 of it. At the
         // dropship's 60 b/s a strip of gaps ahead showed the sky where the ring was built for the cell behind him.)
         let innerReach: Float = rin + 296
+        // Ledger 361: how far the stand-in trees go in this build (FarForest.plan: the quad budget decides).
+        var forestReach: Float = 0
+        if let forest { forest.plan(gen, cx: cx, cz: cz, rin: rin, from: max(0, skip)); forestReach = forest.planReach }
         func S(_ x: Int, _ z: Int) -> Sample {
             let key = (Int64(x) << 32) | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: z)))
             var s: Sample
@@ -297,10 +300,20 @@ final class FarRing {
             if forest != nil && s.lift > 0 {
                 let dx = Float(x - cx), dz = Float(z - cz)
                 let d: Float = (dx * dx + dz * dz).squareRoot()
-                let k: Float = min(1, max(0, (d - (FarForest.reach - 96)) / 96))
-                s.y -= s.lift * (1 - k)
-                let m = V3(repeating: 0.3 + 0.7 * k)
-                s.c = simd_mix(s.c0, s.c, m); s.side = simd_mix(s.side0, s.side, m)
+                let k: Float = min(1, max(0, (d - (forestReach - 96)) / 96))
+                // Past them the wood is one mass again, but a mass of crowns: each vertex a little higher or lower
+                // and lighter or darker than the next, as treetops are, not a smooth green hill.
+                let h = hashf(x, 7, z, 0x7EEA), h2 = hashf(x, 8, z, 0x7EEB)
+                let bump: Float = (h - 0.5) * min(6, s.lift) * 0.9
+                s.y -= s.lift * (1 - k) - bump * k
+                let snowy = s.c0.x > 0.7 && s.c0.y > 0.7
+                let tone: Float = 0.85 + 0.3 * h2
+                // (snowy woods are conifers: their dark green, FarForest's own, under the white flecks)
+                var crown: V3 = (snowy ? FarForest.darkConifer : s.leaf * 0.8) * tone
+                if snowy { crown = simd_mix(crown, FarRing.snow, V3(repeating: 0.12 + (h2 > 0.72 ? 0.2 : 0))) }
+                let mass = simd_mix(s.c0, crown, V3(repeating: min(1, s.cover * 1.5)))
+                let under = simd_mix(s.c0, s.c, V3(repeating: snowy ? 0.08 : 0.38))             // the ground under the stand-ins
+                s.c = simd_mix(under, mass, V3(repeating: k)); s.side = simd_mix(simd_mix(s.side0, s.side, V3(repeating: snowy ? 0.08 : 0.38)), crown * 0.9, V3(repeating: k))
             }
             return s
         }
