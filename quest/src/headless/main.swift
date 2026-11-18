@@ -3333,6 +3333,7 @@ if CommandLine.arguments.contains("--borealcars") {            // P460: a Boreal
 }
 if CommandLine.arguments.contains("--borealops") {             // P475: Boreal Station checks alone (ceiling guns, gate, ops)
     BorealTests.run(device: device, check: check)
+    BorealMusterCheck.run(device: device, check: check)        // (ledger 253: after them, as the full run has it)
     print(failures == 0 ? "borealops: all checks passed" : "borealops: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--planeparts") {             // P459: aircraft parts from steel

@@ -6,8 +6,8 @@ import simd
 // five headset (field) worlds, his Nov 17 one first. Each is reached as he reaches one: from 220 blocks out, flown in at
 // 8 blocks a second at view 6 through Game.tick (the land streamed as he goes), and stood in at the gate: its garrison is
 // there (20 or more inside the fence and bunker) and nothing was mustered. Then the garrison is taken out of the world
-// without a death or a stash (the empty station he found): within seconds the station holds its planned garrison
-// again, once, and the log line names what the count saw. On the first world: a station whose men he killed stays empty.
+// without a death or a stash (the empty station he found): within seconds (15 at most) the station holds its planned
+// garrison again, once, and the log line names what the count saw. On the first world: a station whose men he killed stays empty.
 // BS_OLDMUSTER=1: the emptied station stays empty (the check fails).
 enum BorealMusterCheck {
     static let seeds: [(UInt64, Int, Int)] = [(4259144782798118884, 1191, -1687), (12345, 0, 0), (3084501862406496736, 0, 0),
@@ -71,11 +71,22 @@ enum BorealMusterCheck {
             let gone = Set(garrison().map { ObjectIdentifier($0) })
             g.mobs.mobs.removeAll { gone.contains(ObjectIdentifier($0)) }
             g.mobs.rebuildIndex()
-            play(6)
+            // (3 s empty, then the muster; up to 15 s, as a soldier's stashed record holds it off until it is restored:
+            // in the full suite his station's took 6-12 s once)
+            for _ in 0..<15 where BorealMuster.musters == m0 { play(1) }
+            play(1)
             let back = garrison().count
             let line = BorealMuster.lines.last ?? ""
+            // (what the count saw, when it fails: soldiers' records stashed inside the station, its ground loaded, its state)
+            let stashed = g.mobs.stored.values.reduce(0) { $0 + $1.filter { r in
+                guard r.hp > 0, r.p.count == 3, let k = MobKind.named(r.k), k.steelhold, Soldier.rank(k) != nil else { return false }
+                return BorealStation.insideSite(site, V3(r.p[0], r.p[1], r.p[2]))
+            }.count }
+            let st = g.bases.boreal
+            let why = "stashed \(stashed), site known \(st.sites[key] != nil), mustered \(st.mustered.contains(key)), kills \(st.kills[key] ?? 0), "
+                + "op \(st.ops[key].map { "cleared \($0.cleared) blown \($0.blown)" } ?? "none"), empty for \(st.tally[key]?.empty ?? -1) s"
             check(back >= 20 && BorealMuster.musters == m0 + 1 && line.contains(key),
-                  "garrison \(seed): emptied, the station is garrisoned again: \(back) soldiers (\(line))")
+                  "garrison \(seed): emptied, the station is garrisoned again: \(back) soldiers (\(line); \(why))")
             play(4)
             check(BorealMuster.musters == m0 + 1, "garrison \(seed): mustered once (\(BorealMuster.musters - m0))")
             if i == 0 {
