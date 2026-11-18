@@ -309,11 +309,135 @@ enum ClockFace {
         return cache.1
     }
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        guard let t = text(g) else { return [] }
+        guard let t = text(g) ?? HeldReadout.text(g) else { return [] }      // (ledger 334: every reading in hand)
         let s = L.s, w = Float(Font.width(t)) * s
         let x = (L.W - w) / 2, y = L.hotbarY0 - 30 * s
         return [HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 8 * s, 14 * s)),
                 HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.93, 0.7, 1))]
+    }
+}
+
+// MARK: Readings in hand
+
+// Ledger 334 (Nov 17 20:07:26, the clock: "Again, there's no interface support"; Fable's audit of every item whose point
+// is information when held, in the headset view). Before, held:
+//   compass, recovery compass  a needle on the hotbar icon (a few pixels on the headset's panel), no reading
+//   clock                      the time over the hotbar (ledger 259)
+//   filled map                 drawn over the hotbar, his place and its mark on it (both HUDs)
+//   explorer and treasure maps nothing until used (then a filled map)
+//   Hunter's Map               nothing until read (ledger 258: then a toast, the journal and the bar)
+//   spyglass                   the zoomed view while raised, no reading of how far
+//   goat horn                  its call only in the inventory's tooltip (the headset has none)
+//   radar set                  a toast when used
+//   Greywall Dispatch, Naval Orders, Chancellor's Ledger, Intercepted Orders: nothing until read (then a toast and the pages)
+//   (tickets, contract and bounty papers are not items: contracts and bounties are the board's, on the bar and the map)
+// Now each reads out over the hotbar, in both HUDs, the line the clock has: where its needle points and how far, where
+// a map leads, the den a Hunter's Map has marked, the range to what the spyglass looks at, the horn's call, the radar's
+// nearest contact, what the papers name. Never a hint: only the reading. BS_OLDREADOUTS=1: the clock alone.
+enum HeldReadout {
+    static let old = Env.all["BS_OLDREADOUTS"] == "1"
+    // (the readings that search for places are kept a second, and while he stays within 8 blocks)
+    static var cache: (key: String, cell: IVec3, t: Double, text: String?) = ("", IVec3(0, 0, 0), -9, nil)
+
+    static func way(_ g: Game, _ x: Float, _ z: Float) -> String {
+        let dx = x - g.player.pos.x, dz = z - g.player.pos.z
+        let d = Int((dx * dx + dz * dz).squareRoot().rounded())
+        if d < 3 { return "here" }
+        return "\(fmt.string(from: NSNumber(value: d)) ?? "\(d)") blocks \(TownBoard.direction(dx, dz))"
+    }
+    static let fmt: NumberFormatter = { let f = NumberFormatter(); f.numberStyle = .decimal; return f }()
+
+    static func text(_ g: Game) -> String? {
+        guard !old, g.menu == nil, g.alive, !g.held.isEmpty else { return nil }
+        let st = g.held, k = Items.key(st.item)
+        // (each reading made a few times a second, not each frame; the searches once a second, or when he moves on)
+        let every: Double, quickOne: Bool
+        switch k {
+        case "spyglass": every = 0.1; quickOne = true
+        case "compass", "recovery_compass", "goat_horn", "hunters_map": every = 0.25; quickOne = true
+        case "greywall_dispatch", "naval_orders", "chancellor_ledger", "intercepted_orders", "radar_set": every = 1; quickOne = false
+        default:
+            guard ExplorerMaps.kinds.contains(where: { $0.item == k }) else { return nil }
+            every = 1; quickOne = false
+        }
+        let p = g.player.pos
+        let cell = quickOne ? IVec3(st.tag, g.dim.dim == .overworld ? 0 : 1, 0)
+                            : IVec3(Int(floor(p.x / 8)), g.dim.dim == .overworld ? 0 : 1, Int(floor(p.z / 8)))
+        let age = g.clock - cache.t
+        if cache.key == k && cache.cell == cell && age >= 0 && age < every { return cache.text }
+        cache = (k, cell, g.clock, quickOne ? quick(g, st, k) : searched(g, k))
+        return cache.text
+    }
+
+    // The readings that need no search (each frame).
+    static func quick(_ g: Game, _ st: ItemStack, _ k: String) -> String? {
+        switch k {
+        case "compass":
+            if g.dim.dim == .deep {
+                if DeepGen.inHell(g.player.pos.y), let kp = g.nearestKeep() {
+                    return "Brimstone Keep: " + way(g, Float(kp.anchor.x) + 0.5, Float(kp.anchor.z) + 0.5)
+                }
+                return "Ashguard citadel: " + way(g, 0.5, 0.5)
+            }
+            guard g.dim.dim == .overworld else { return "The needle spins" }
+            let t = g.compassTarget(st)
+            return "Spawn: " + way(g, t.x, t.z)
+        case "recovery_compass":
+            guard let d = g.lastDeath else { return "The needle rests: no fall to point to" }
+            return "Where you fell: " + way(g, d.x, d.z)
+        case "spyglass":
+            let eye = g.player.eye, dir = g.player.look
+            var t: Float = 1
+            while t < 512 {
+                let q = eye + dir * t
+                if g.world.solidAt(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { return "Range: \(Int(t.rounded())) blocks" }
+                t += t < 64 ? 0.5 : 1
+            }
+            return "Range: past 512 blocks"
+        case "goat_horn":
+            return "Call: " + GoatHorns.names[max(0, min(7, st.tag))]
+        default:                                                          // hunters_map
+            let dens = Hunting.dens(g)
+            let live = Hunting.state.revealed.filter { $0 < dens.count && !Hunting.state.killed.contains($0) }
+            guard g.dim.dim == .overworld,
+                  let i = live.min(by: { simd_length(V2(Float(dens[$0].x), Float(dens[$0].z)) - V2(g.player.pos.x, g.player.pos.z))
+                                         < simd_length(V2(Float(dens[$1].x), Float(dens[$1].z)) - V2(g.player.pos.x, g.player.pos.z)) }) else {
+                return "No den marked"
+            }
+            return "\(Hunting.legends[i].name.capitalizedFirst)'s den: " + way(g, Float(dens[i].x) + 0.5, Float(dens[i].z) + 0.5)
+        }
+    }
+
+    // The readings that look for a place (once a second at most).
+    static func searched(_ g: Game, _ k: String) -> String? {
+        guard g.dim.dim == .overworld else { return "Its marks are of the surface" }
+        switch k {
+        case "greywall_dispatch":
+            guard let t = Spine.dispatchTarget(g) else { return "Names no Greywall base within reach" }
+            return "The \(t.name): " + way(g, Float(t.x), Float(t.z))
+        case "naval_orders":
+            guard let w = g.nearestWarship() else { return "The fleet is at sea, beyond this coast" }
+            return "The \(w.name): " + way(g, Float(w.x), Float(w.z))
+        case "chancellor_ledger":
+            guard let t = Spine.capitalTarget(g) else { return "Names no citadel within reach" }
+            return "A Capital citadel: " + way(g, Float(t.x), Float(t.z))
+        case "intercepted_orders":
+            return "Coded, seal unbroken"                                  // (what they name is chosen as they are read)
+        case "radar_set":
+            let p = V2(g.player.pos.x, g.player.pos.z)
+            guard let c = g.radarContacts().min(by: { simd_length(V2(Float($0.x), Float($0.z)) - p) < simd_length(V2(Float($1.x), Float($1.z)) - p) }) else {
+                return "No contacts"
+            }
+            return "\(c.name): " + way(g, Float(c.x), Float(c.z))
+        default:
+            guard let e = ExplorerMaps.kinds.first(where: { $0.item == k }), let sc = g.world.gen.structures,
+                  let s = sc.nearest(e.structure, x: Int(floor(g.player.pos.x)), z: Int(floor(g.player.pos.z)), maxRegions: e.structure == "buried_treasure" ? 40 : 10) else {
+                return "Shows nothing nearby"
+            }
+            let name = ["buried_treasure": "Buried treasure", "military_base": "Capital Citadel"][e.structure]
+                ?? e.name.replacingOccurrences(of: " Explorer Map", with: "")
+            return "\(name): " + way(g, Float(s.min.x + s.max.x) / 2, Float(s.min.z + s.max.z) / 2)
+        }
     }
 }
 
