@@ -417,8 +417,56 @@ enum Hunting {
             g.onToast?("This map shows nothing you haven't hunted"); return false
         }
         state.revealed.insert(i)
-        MapCache.shared.discover(g, kind: "legend", x: d[i].x, z: d[i].z, name: "\(legends[i].name.capitalizedFirst)'s den")
+        let name = "\(legends[i].name.capitalizedFirst)'s den"
+        guard !oldDenMap else {
+            MapCache.shared.discover(g, kind: "legend", x: d[i].x, z: d[i].z, name: name)
+            return true
+        }
+        // Ledger 258: a den this far from him is no hunt from here: it lies within a day's ride of where the map is read.
+        var den = d[i]
+        let p = g.player.pos
+        if simd_length(V2(Float(den.x) - p.x, Float(den.z) - p.z)) > denReach {
+            den = denNear(g, i, Int(floor(p.x)), Int(floor(p.z)))
+            var all = d
+            all[i] = den
+            state.dens = all.map { [$0.x, $0.z] }
+            denCache = all; denSeed = g.world.seed
+        }
+        MapCache.shared.discover(g, kind: "legend", x: den.x, z: den.z, name: name, silent: true)
+        let dx = Float(den.x) + 0.5 - p.x, dz = Float(den.z) + 0.5 - p.z
+        let far = Int(simd_length(V2(dx, dz)).rounded()), way = TownBoard.direction(dx, dz)
+        g.onToast?("\(name) marked on the map: \(far) blocks \(way)")
+        g.logDocument("Hunter's Map: \(name)", ["\(name) is at \(den.x), \(den.z), \(far) blocks \(way) of where the map was read (\(Int(floor(p.x))), \(Int(floor(p.z))))."],
+                      cat: .notes, id: "hunters_map_den_\(i)")
+        Waymarks.track(g, Waymarks.Target(kind: "legend", key: "\(i)", name: name, pos: V3(Float(den.x) + 0.5, p.y, Float(den.z) + 0.5)))
         return true
+    }
+
+    // Ledger 258 (Nov 17 20:08:49-20:09:22, a Hunter's Map bought at a town 5,000 blocks out: "The Ashen Wolf's den
+    // marked on the map" ... "There ain't no map." ... "There's no map for the wolf den. You can't see it anywhere."):
+    // the dens lie 700 to 1,600 blocks from the world's centre, so the den went on the map thousands of blocks off the
+    // part of it he had open, with nothing in the journal and nothing on the bar to follow. Read now, a Hunter's Map
+    // marks a den within denReach of him (an unread den further off moves: a fitting spot 300-640 blocks out, on a
+    // bearing seeded per legend), says how far and which way, files the den with its place in the journal (Notes), and
+    // the den is the target on the bar at the top of the view (Waymarks: its own entry while it lives).
+    // BS_OLDDENMAP=1: the den where it was seeded, only the map mark.
+    static let oldDenMap = Env.all["BS_OLDDENMAP"] == "1"
+    static let denReach: Float = 900
+    static func denNear(_ g: Game, _ i: Int, _ px: Int, _ pz: Int) -> IVec3 {
+        let seed = g.world.seed
+        let ang = hashf(7_331 + i, px >> 9, pz >> 9, UInt32(truncatingIfNeeded: seed ^ (seed >> 32)) &+ 0x51D) * 2 * .pi
+        let cx = px + Int(cosf(ang) * 400), cz = pz + Int(sinf(ang) * 400)
+        for ring in 0...4 {
+            let n = ring * 60
+            for dz in stride(from: -n, through: n, by: 60) {
+                for dx in stride(from: -n, through: n, by: 60) where max(abs(dx), abs(dz)) == n {
+                    let x = cx + dx, z = cz + dz
+                    let r = simd_length(V2(Float(x - px), Float(z - pz)))
+                    if r >= 300 && r <= 640 && legends[i].habitat.contains(g.world.gen.column(x, z).biome) { return IVec3(x, 0, z) }
+                }
+            }
+        }
+        return IVec3(cx, 0, cz)
     }
 
     // MARK: Study line (the crosshair line, like the townsfolk glance: steady aim 0.4 s, lingers 0.5 s)
