@@ -533,6 +533,7 @@ extension Game {
             ships.aboard = nil
             ships.riderShip = nil
         }
+        if capitalLeave(s) { helmLeft = s; helmLeftT = 1.5; return }        // ledger 255: off a stopped capital
         guard !Game.oldPlaneExit else { return }
         helmLeft = s; helmLeftT = 1.5
         // Nov 13 playtest (12:32:39, Salvaged Fighter: "Can't get out of the plane once I eject from it or exit from it"):
@@ -553,6 +554,7 @@ extension Game {
                 player.pos = seat + lift * 3.4 + (up.y > 0.3 ? .zero : side * 3)
                 player.vel = s.velocity(at: player.pos) + V3(0, 7, 0)
                 player.airPeak = player.pos.y
+                player.onGround = false                           // (ledger 255: a canopy opened "on the ground" folds at once)
                 // (a canopy: the drop down, not a fall; Nov 14, a parachute he sees over him, steered: Parachute.swift)
                 if Parachute.old { applyEffect(.slowFalling, amp: 0, seconds: 40) } else { deployParachute() }
             }
@@ -561,6 +563,98 @@ extension Game {
         }
     }
     static let oldPlaneExit = Env.all["BS_OLDPLANEEXIT"] == "1"
+
+    // Ledger 255 (Nov 17 19:52:15-33, the Stormwarden Frigate flown into the ground: "The Stormwarden Frigate's engines
+    // shook loose and stopped" ... "Why can't I move? Let me out of here." ... "if I only got out of it, I couldn't
+    // leave"): leaving the helm left him on her bridge, a glass room in the tower fifty blocks over her keel, and the only
+    // way off her is the hangar deck's flank openings, 26 blocks over the ground: no way down on foot. Off the helm of a
+    // capital (Stormwarden, Meridian, crawler) that can't go (wrecked, her engines stopped) or stands still on the ground,
+    // he is put off her: on the ground beside her hull, on the side nearest him; one that hangs in the air with her drive
+    // gone, he bails out over her side under his parachute. Under way, or hovering with her drive, he stays on her bridge.
+    // BS_OLDSHIPLEAVE=1: on the bridge, always.
+    static let oldShipLeave = Env.all["BS_OLDSHIPLEAVE"] == "1"
+    static var shipLeft: (ground: Int, chute: Int) = (0, 0)       // (checks)
+
+    func capitalLeave(_ s: Ship) -> Bool {
+        let ships = world.ships
+        guard !Game.oldShipLeave, s.parent == nil, let role = s.role, role == "warfrigate" || role == "capfrigate" || role == "crawler" else { return false }
+        let st = ships.capState[s.id]
+        let drive = st.map { $0.engines0 == 0 || s.engines > 0 } ?? true
+        let still = simd_length(s.vel) < 1
+        let air = keelClearance(s)
+        let grounded = air < 6
+        guard s.wrecked || !drive || (still && grounded) else { return false }
+        if grounded || !s.isFlyingCapital, let at = groundBeside(s) {
+            player.pos = at
+            player.vel = .zero
+            player.flying = false
+            player.airPeak = at.y
+            Game.shipLeft.ground += 1
+        } else if s.isFlyingCapital && !grounded {
+            // Over her side at his deck's height, clear of the hull, carried on with her and under the canopy.
+            let l = s.toLocal(player.pos)
+            let sx = Float(s.grid.sx)
+            let left = l.x < sx / 2
+            let out = V3(left ? -4 : sx + 4, l.y, l.z)
+            player.pos = s.toWorld(out)
+            player.vel = s.velocity(at: player.pos)
+            player.flying = false
+            player.onGround = false                               // (he stood at the helm: the canopy folds on the ground)
+            player.airPeak = player.pos.y
+            deployParachute()
+            Game.shipLeft.chute += 1
+        } else { return false }
+        ships.aboard = nil
+        ships.riderShip = nil
+        return true
+    }
+
+    // Air under her keel: the least, over her middle and four corners.
+    func keelClearance(_ s: Ship) -> Float {
+        var below: Float = -.greatestFiniteMagnitude
+        for (i, j) in [(1, 1), (0, 0), (2, 0), (0, 2), (2, 2)] {
+            let x = Int(floor(s.worldMin.x + (s.worldMax.x - s.worldMin.x) * Float(i) * 0.5))
+            let z = Int(floor(s.worldMin.z + (s.worldMax.z - s.worldMin.z) * Float(j) * 0.5))
+            below = max(below, Float(world.isLoaded(x, z) ? world.topY(x, z) : world.gen.column(x, z).height) + 1)
+        }
+        return s.worldMin.y - below
+    }
+
+    // Standing room on the ground beside a hull of any size and heading: out from the side of her grid nearest him (her
+    // own frame, so a long hull at an angle is left by its flank, not by the corner of its world box), sliding along it
+    // and further out until there is dry ground with room for him that no part of her footprint covers.
+    func groundBeside(_ s: Ship) -> V3? {
+        let w = world, half = player.halfW
+        let l = s.toLocal(player.pos)
+        let sx = Float(s.grid.sx), sz = Float(s.grid.sz)
+        func outside(_ p: V3) -> Bool {
+            let q = s.toLocal(p)
+            return q.x < -half || q.x > sx + half || q.z < -half || q.z > sz + half
+        }
+        // (point on the side at his place along it, outward, along)
+        var sides: [(V3, V3, V3, Float)] = [
+            (V3(0, 0, l.z), V3(-1, 0, 0), V3(0, 0, 1), l.x), (V3(sx, 0, l.z), V3(1, 0, 0), V3(0, 0, 1), sx - l.x),
+            (V3(l.x, 0, 0), V3(0, 0, -1), V3(1, 0, 0), l.z), (V3(l.x, 0, sz), V3(0, 0, 1), V3(1, 0, 0), sz - l.z)]
+        sides.sort { $0.3 < $1.3 }
+        for (o, n, along, _) in sides {
+            for out: Float in [1.5, 2.5, 4, 6, 9, 13, 18] {
+                for slide: Float in [0, 3, -3, 6, -6, 10, -10, 16, -16, 24, -24] {
+                    let q = s.toWorld(o + n * out + along * slide)
+                    let x = Int(floor(q.x)), z = Int(floor(q.z))
+                    guard w.isLoaded(x, z) else { continue }
+                    let top = w.topY(x, z)
+                    guard top > 0, w.solidAt(x, top, z) else { continue }
+                    for up: Float in [1, 1.5, 2] {
+                        let at = V3(q.x, Float(top) + up, q.z)
+                        if w.collides(V3(at.x - half + 0.02, at.y + 0.02, at.z - half + 0.02), V3(at.x + half - 0.02, at.y + player.height - 0.02, at.z + half - 0.02)) { continue }
+                        guard outside(at), outside(at + V3(0, player.height, 0)) else { break }
+                        return at
+                    }
+                }
+            }
+        }
+        return nil
+    }
 
     // Standing room on the ground beside a small vehicle: off its left side first (a sidecar's car is on the right),
     // then behind it, then off the car's side; a block and a half to four out from its middle, with the ground found
