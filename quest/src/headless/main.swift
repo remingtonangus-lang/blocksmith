@@ -3227,6 +3227,53 @@ func nov17Checks() {
         check(held == 1 && lost == 0 && backPressed == 0 && pressedAgain == 1,
               "lost controller: a trigger held when it is put down and still pressed when it comes back counts \(backPressed) (0: nothing until let go; BS_OLDLOSTARM=1 counts it), a fresh press after counts \(pressedAgain)")
     }
+    // Ledger 269 (Nov 17 20:14:06-28, "it has to be properly hanging off the side of blocks"): fire burning beside a wall
+    // with nothing under it is a sheet of flame on the wall's face (its foot 1/16 off the face, its top leaning out to 4/16),
+    // not a crossed fold standing in the middle of its cell (BS_OLDFIRE=1: the fold).
+    do {
+        let w = World(seed: 7, device: device, save: nil)
+        w.renderDistance = 2; w.activeDistance = 2
+        _ = w.loadSync(center: V3(4.5, 250, 4.5), radius: 1)
+        let x0 = 4, y0 = 250, z0 = 4
+        w.setBlock(x0 + 1, y0, z0, Blocks.id("stone"))
+        w.setBlock(x0, y0, z0, Blocks.id("fire"))
+        var onFace = 0, inCell = 0
+        if let c = w.chunkAt(x0, z0), let nb = w.neighbourhood(c) {
+            let m = Mesher.buildSection(nb.0, nb.1, sy: y0 >> 4)
+            let lx = (x0 & 15) * 16, ly = (y0 & 15) * 16, lz = (z0 & 15) * 16
+            for buf in [m.opaque, m.trans] {
+                for i in stride(from: 0, to: buf.count, by: 2) where (buf[i] >> 27) & 7 == 6 {
+                    let x16 = Int(buf[i] & 511) - lx, y16 = Int((buf[i] >> 9) & 511) - ly, z16 = Int((buf[i] >> 18) & 511) - lz
+                    guard (0...16).contains(x16), (0...16).contains(y16), (0...16).contains(z16) else { continue }
+                    inCell += 1
+                    if x16 >= 12 && x16 <= 15 { onFace += 1 }
+                }
+            }
+        }
+        check(inCell > 0 && onFace == inCell,
+              "fire on a wall: of \(inCell) flame corners in its cell, \(onFace) hang on the wall's face (ledger 269; BS_OLDFIRE=1: a fold in the middle)")
+    }
+    // Ledger 270 (Nov 17 20:12:27, a garrison tower gun's barrels through its battlements): a light deck gun ringed by a
+    // one-block parapet 4 out, laid as low as it goes toward it, runs its barrels through it; clearPitch lays it at the
+    // lowest pitch whose barrels are clear (BS_OLDBARRELS=1: the AI lays it through, as before).
+    do {
+        let w = World(seed: 7, device: device, save: nil)
+        w.renderDistance = 2; w.activeDistance = 2
+        _ = w.loadSync(center: V3(0.5, 250, 0.5), radius: 1)
+        let stone = Blocks.id("stone")
+        for z in -4...4 { for x in -4...4 {
+            w.setBlock(x, 249, z, stone)                                            // (the roof, and its parapet)
+            if max(abs(x), abs(z)) == 4 { w.setBlock(x, 250, z, stone) }
+        } }
+        let m = Mob(.deckGun, at: V3(0.5, 250, 0.5))
+        m.variant = HeavyTurret.lightVariant
+        let yaw: Float = 0, low = HeavyTurret.pitchLow(m)
+        let through = HeavyTurret.barrelHits(m, w, yaw: yaw, pitch: low)
+        let laid = HeavyTurret.barrelsClear ? HeavyTurret.clearPitch(m, w, yaw: yaw, from: low) : low     // (as the gun's AI lays it)
+        let clear = !HeavyTurret.barrelHits(m, w, yaw: yaw, pitch: laid)
+        check(through && clear,
+              String(format: "deck gun barrels: laid at its lowest (%.2f) toward a parapet they run through it (%@); it lays at %.2f instead, clear (%@)", low, through ? "yes" : "no", laid, clear ? "yes" : "no"))
+    }
 }
 // --nov17-only: the Nov 17 evening playtest's checks (no snow on a log top in his taiga).
 if CommandLine.arguments.contains("--nov17-only") { nov17Checks(); namedEnd("nov17") }

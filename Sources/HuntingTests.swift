@@ -150,6 +150,29 @@ extension TownTests {
         hold("hunters_map")
         let read1 = Hunting.readMap(g), read2 = Hunting.readMap(g)
         check(read1 && read2 && Hunting.state.revealed == [0, 1], "hunting: each Hunter's Map marks the next legend's den on the map (\(Hunting.state.revealed.sorted()))")
+        // Ledger 258 (Nov 17 20:08:49-20:09:22, a map read in a town 5,000 blocks out: "There's no map for the wolf den"):
+        // read far from the world's centre, the den it shows lies within reach of him, how far and which way is said, the
+        // journal holds it with its place, and it is the target on the bar.
+        do {
+            let p0 = g.player.pos, st0 = Hunting.state, dc0 = Hunting.denCache, ds0 = Hunting.denSeed
+            defer { g.player.pos = p0; Hunting.state = st0; Hunting.denCache = dc0; Hunting.denSeed = ds0 }   // (the save check below counts two dens read)
+            g.player.pos = V3(-4225.5, p0.y, -2971.5)
+            let j0 = g.journal.count
+            var said: [String] = []
+            let toast0 = g.onToast
+            g.onToast = { said.append($0) }
+            let read3 = Hunting.readMap(g)
+            g.onToast = toast0
+            let den = Hunting.dens(g)[2]
+            let far = simd_length(V2(Float(den.x) + 0.5 - g.player.pos.x, Float(den.z) + 0.5 - g.player.pos.z))
+            let filed = g.journal.dropFirst(j0).first { $0.pages?.joined().contains("\(den.x), \(den.z)") == true }
+            let tracked = Waymarks.trackedKey == "legend|2" && Waymarks.current(g)?.kind == "legend"
+            let marked = MapCache.shared.marks.contains { $0.kind == "legend" && $0.x == den.x && $0.z == den.z }
+            check(read3 && far >= 250 && far <= Hunting.denReach && filed != nil && tracked && marked && said.contains { $0.contains("blocks") },
+                  "ledger 258: a Hunter's Map read 5,000 blocks out marks a den \(Int(far)) blocks off (\(den.x) \(den.z)), on the map \(marked), in the journal (\(filed?.title ?? "nothing")), "
+                  + "followed on the bar \(tracked) (\(said.joined(separator: " / ")))")
+            Waymarks.track(g, nil)
+        }
         let ash = Hunting.spawnLegend(g, 0, at: base + V3(0, 0, -4))
         check(ash.scale > 1.4 && ash.health == 60 && Hunting.isGame(ash) && Hunting.describe(ash).contains("legendary") && Hunting.live(g, 0) === ash,
               "hunting: \(Hunting.describe(ash)) (x\(ash.scale), \(ash.health) health)")
