@@ -16,10 +16,11 @@ extension Trains {
     static func passingTrack(_ l: Railways.Line, gen: WorldGen, wait: Bool) -> Track? {
         guard passes(l, gen: gen) else { return nil }
         let (row, st) = Railways.rowStretch(l.id)
-        guard let (a, lkIn) = Railways.incoming(gen, row, st, wait: wait),
-              let lkOut = Railways.link(gen, row: row, stretch: st, wait: wait),
-              let b = Railways.linkTarget(gen, lkOut, wait: wait) else { return nil }
-        let parts = [a, lkIn, l, lkOut, b]
+        // (ledger 360: a railway may end at this town; then the window is the line and the side that runs on)
+        var parts: [Railways.Line] = [l]
+        if let (a, lkIn) = Railways.incoming(gen, row, st, wait: wait) { parts = [a, lkIn] + parts }
+        if let lkOut = Railways.link(gen, row: row, stretch: st, wait: wait), let b = Railways.linkTarget(gen, lkOut, wait: wait) { parts += [lkOut, b] }
+        guard parts.count >= 3, Railways.shoreRule(gen) || parts.count == 5 else { return nil }
         let cells = parts.flatMap { $0.cells }
         // (joined cell to cell, or it is no track to run)
         for i in 1..<cells.count where abs(cells[i].x - cells[i - 1].x) + abs(cells[i].z - cells[i - 1].z) != 1 { return nil }

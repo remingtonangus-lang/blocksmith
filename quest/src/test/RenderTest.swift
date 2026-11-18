@@ -82,6 +82,8 @@ enum RenderTest {
         if wr.farRingQuads > 0 || scene.deepSeaSkipped > 0 || scene.batchedWater > 0 {
             print(String(format: "rendertest: far ring %d quads (build %.0f ms), deep-sea sections skipped %d, far water sections batched %d",
                          wr.farRingQuads, FarRing.shared.lastBuildMs, scene.deepSeaSkipped, scene.batchedWater))
+            let ff = FarRing.shared.lastForest
+            if ff.quads > 0 { print(String(format: "rendertest: far forest %d quads of the ring (far thinning x%.2f), far track %d", ff.quads, ff.squeeze, FarRing.shared.lastTrack)) }
         }
         // Side by side, left eye first.
         let src = readback.mapped!.bindMemory(to: UInt8.self, capacity: width * height * 8)

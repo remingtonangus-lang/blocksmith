@@ -137,7 +137,7 @@ enum Railways {
     static func line(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
         guard on, hasLine(gen, row, s) else { return nil }
         guard wildWorld(gen) else { return cached(gen, key(row, s), wait: wait) { plan(gen, row: row, stretch: s) } }
-        return cached(gen, key(row, s), wait: wait) { townLine(gen, row: row, stretch: s) ?? planWild(gen, row: row, stretch: s) }
+        return cached(gen, key(row, s), wait: wait) { shoreRule(gen) ? (townRaw(gen, row, s) != nil ? townLine(gen, row: row, stretch: s) : wildKept(gen, row, s)) : (townLine(gen, row: row, stretch: s) ?? planWild(gen, row: row, stretch: s)) }
     }
 
     // MARK: Ledger 178 open-country track
@@ -189,6 +189,15 @@ enum Railways {
     // A stretch's town line alone (nil: none, the stretch is open country), planned without the open-country track.
     static func townLine(_ gen: WorldGen, row: Int, stretch s: Int, wait: Bool = true) -> Line? {
         guard hasLine(gen, row, s) else { return nil }
+        if shoreRule(gen) {
+            // (ledger 360: a line of one station that nothing joins is not laid)
+            return cached(gen, key(row, s) ^ realFlip, wait: wait) {
+                guard let t = townRaw(gen, row, s) else { return nil }
+                if t.stations.count > 1 || leadsToTown(gen, row, s, -1, townReach) || leadsToTown(gen, row, s, 1, townReach) { return t }
+                tally?("a lone station nothing joins")
+                return nil
+            }
+        }
         return cached(gen, key(row, s) ^ realFlip, wait: wait) { plan(gen, row: row, stretch: s) }
     }
     static let wildPad = 240                          // an open-country track's ends, in from its stretch's edges
@@ -235,11 +244,73 @@ enum Railways {
     // Whether stretch (row, s) holds open-country track that keeps clear of z0...z1 whatever its way (its band is clear).
     static func wildClearOf(_ gen: WorldGen, _ row: Int, _ s: Int, z0: Int, z1: Int) -> Bool {
         guard wildWorld(gen), townLine(gen, row: row, stretch: s) == nil else { return false }
-        let b = wildBand(row)
+        let b = wideBand(gen, row)
         return z1 < b.lo - 2 * routeCell || z0 > b.hi + 2 * routeCell
     }
     static let wildWords = ["Long Mile", "Far Country", "Open Range", "High Plains", "Lone Pine", "Dry Fork", "Wind Gap", "Stony Ford",
                             "Grey Heron", "Salt Flat", "Elk Meadow", "Cold Spring", "Black Brush", "Hawk Ridge", "Tall Grass", "Red Bluff"]
+    // Ledger 360 (Nov 17 19:54:40, of a railway bridge 2,040 blocks long over the sea: "what is this thing?... I guess
+    // we never did remove that"; Nov 18: "they need to be drawn realistically... no one builds a 400m bridge across an
+    // ocean unless absolutely necessary"). In a new world:
+    //   - a railway bridges the sea only across a strait (`strait` blocks of open water at a stretch, BS_RAILSEA).
+    //     Open-country track and links look for a way round the water inside a wider band (their own row and the
+    //     empty row south of it); where there is none, no track is laid there;
+    //   - open-country track is laid only between towns: a stretch of it is kept when, both west and east, the
+    //     stretches on from it lead to a town's line within `townReach` stretches with no gap. So a railway runs
+    //     from town to town and ends at a town, never in a field or on a beach;
+    //   - a town line of one station that nothing joins is not laid (a platform on a hundred blocks of track).
+    // BS_OLDSEABRIDGE=1: as before.
+    static var oldSeaBridge = Env.all["BS_OLDSEABRIDGE"] == "1"
+    static let strait = max(16, Env.all["BS_RAILSEA"].flatMap { Int($0) } ?? 96)
+    static let townReach = 4
+    static func shoreRule(_ gen: WorldGen) -> Bool { !oldSeaBridge && sparseWorld(gen) }
+    static func wideBand(_ gen: WorldGen, _ row: Int) -> (lo: Int, hi: Int) {
+        shoreRule(gen) ? (row * span + wildEdge, (row + 2) * span - 1 - wildEdge) : wildBand(row)
+    }
+    // The runs of a way's cells over the sea longer than a strait.
+    static func seaRuns(_ gen: WorldGen, _ run: [(Int, Int)]) -> [(from: Int, to: Int)] {
+        var out: [(from: Int, to: Int)] = []
+        var i = 0
+        func wet(_ k: Int) -> Bool { gen.column(run[k].0, run[k].1).biome.isOcean }
+        while i < run.count {
+            guard wet(i) else { i += 4; continue }
+            var a = i, b = i
+            while a > 0 && wet(a - 1) { a -= 1 }
+            while b + 1 < run.count && wet(b + 1) { b += 1 }
+            if b - a + 1 > strait { out.append((a, b)) }
+            i = b + 4
+        }
+        return out
+    }
+    // (cache keys: a stretch's town line as planned, and its open-country track as planned, before they are weighed)
+    static let townRawFlip: Int64 = 1 << 57, rawFlip: Int64 = 1 << 58
+    static func townRaw(_ gen: WorldGen, _ row: Int, _ s: Int) -> Line? {
+        guard hasLine(gen, row, s) else { return nil }
+        return cached(gen, key(row, s) ^ townRawFlip, wait: true) { plan(gen, row: row, stretch: s) }
+    }
+    static func wildRaw(_ gen: WorldGen, _ row: Int, _ s: Int) -> Line? {
+        guard hasLine(gen, row, s) else { return nil }
+        return cached(gen, key(row, s) ^ rawFlip, wait: true) { townRaw(gen, row, s) == nil ? planWild(gen, row: row, stretch: s) : nil }
+    }
+    static func planned(_ gen: WorldGen, _ row: Int, _ s: Int) -> Line? { townRaw(gen, row, s) ?? wildRaw(gen, row, s) }
+    // (the link from stretch s east to s + 1 between the lines as planned)
+    static func linkRaw(_ gen: WorldGen, _ row: Int, _ s: Int) -> Line? {
+        guard linksOn else { return nil }
+        return cached(gen, linkKey(row, s) ^ rawFlip, wait: true) { planRowLink(gen, row: row, stretch: s) }
+    }
+    // Does the track on from stretch s (west: dir -1, east: 1) lead to a town's line with no gap, within n stretches?
+    static func leadsToTown(_ gen: WorldGen, _ row: Int, _ s: Int, _ dir: Int, _ n: Int) -> Bool {
+        let t = s + dir
+        guard planned(gen, row, t) != nil, linkRaw(gen, row, dir > 0 ? s : t) != nil else { return false }
+        if townRaw(gen, row, t) != nil { return true }
+        return n > 1 && leadsToTown(gen, row, t, dir, n - 1)
+    }
+    static func wildKept(_ gen: WorldGen, _ row: Int, _ s: Int) -> Line? {
+        guard let me = wildRaw(gen, row, s) else { return nil }
+        if leadsToTown(gen, row, s, -1, townReach) && leadsToTown(gen, row, s, 1, townReach) { return me }
+        tally?("open country: leads to no town")
+        return nil
+    }
     static func planWild(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
         guard wildWorld(gen), hasLine(gen, row, s), let sc = gen.structures else { return nil }
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -256,7 +327,8 @@ enum Railways {
         }
         func endHeight(_ p: (x: Int, z: Int), toward t: Int, edge: Int) -> Float {
             let own = railGround(p.x, p.z)
-            if hasLine(gen, row, t), let o = townLine(gen, row: row, stretch: t), let c = t < s ? o.cells.last : o.cells.first {
+            // (ledger 360: the town line as planned; asking whether it is kept would ask for this track again)
+            if hasLine(gen, row, t), let o = shoreRule(gen) ? townRaw(gen, row, t) : townLine(gen, row: row, stretch: t), let c = t < s ? o.cells.last : o.cells.first {
                 let meet = (t < s ? o.heights?.last : o.heights?.first) ?? Float(c.y)
                 let allow = grade * Float(abs(p.x - c.x)) * 0.8
                 return max(meet - allow, min(meet + allow, own))
@@ -278,6 +350,16 @@ enum Railways {
             return l
         }
         var out: Line? = nil, how = "straight"
+        if shoreRule(gen) {
+            // (ledger 360: round the water inside the wide band, or not at all)
+            let band = wideBand(gen, row)
+            how = "the sea"
+            if let w = route(gen, sc, from: (a.x - 1, a.z), to: (b.x + 1, b.z), diagonal: true, runOn: true, band: (band.lo, band.hi),
+                             seaMax: strait / routeCell, easeEnds: true, land: true), seaRuns(gen, w).isEmpty { out = lay(w); how = "over the land" }
+            tally?("open country: \(how)")
+            if railTime { print(String(format: "railtime: open country %d %d: %.0f ms (%@)", row, s, (CFAbsoluteTimeGetCurrent() - t0) * 1000, how)) }
+            return out
+        }
         if sparseWorld(gen) {
             let band = wildBand(row)
             if let w = route(gen, sc, from: (a.x - 1, a.z), to: (b.x + 1, b.z), diagonal: true, runOn: true, band: (band.lo, band.hi), seaMax: 400, easeEnds: true, land: true) { out = lay(w); how = "over the land" }
@@ -361,7 +443,7 @@ enum Railways {
         guard on else { return [] }
         // A line stays inside its row's band give or take a town's box and the south gap (half a region is plenty).
         // (ledger 239: in a new world a row's town line may lie in the row south of its own)
-        let r0 = floorDiv(z0 - pad - span / 2, span) - (bothRows(gen) ? 1 : 0), r1 = floorDiv(z1 + pad + span / 2, span)
+        let r0 = floorDiv(z0 - pad - span / 2, span) - (bothRows(gen) || shoreRule(gen) ? 1 : 0), r1 = floorDiv(z1 + pad + span / 2, span)
         let w = stretch * span
         let s0 = floorDiv(x0 - pad - span, w), s1 = floorDiv(x1 + pad + span, w)
         var out: [Line] = []
@@ -376,7 +458,7 @@ enum Railways {
             }
             if wild, wildWorld(gen), townLine(gen, row: row, stretch: s, wait: wait) == nil {
                 // (open country: its track lies inside its ends and its row's band, so most boxes are clear unplanned)
-                let e = wildEnds(gen, row, s), b = wildBand(row)
+                let e = wildEnds(gen, row, s), b = wideBand(gen, row)
                 if e.east.x + pad < x0 || e.west.x - pad > x1 || b.hi + 2 * routeCell + pad < z0 || b.lo - 2 * routeCell - pad > z1 { continue }
             }
             guard let l = line(gen, row: row, stretch: s, wait: wait) else { continue }
@@ -483,6 +565,10 @@ enum Railways {
     }
 
     static func planLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        if shoreRule(gen) {
+            guard line(gen, row: row, stretch: s) != nil, line(gen, row: row, stretch: s + 1) != nil else { tally?("row link: no line on"); return nil }
+            return linkRaw(gen, row, s)
+        }
         if wildWorld(gen) { return planRowLink(gen, row: row, stretch: s) }
         return oldLink(gen, row: row, stretch: s) ?? planRunOn(gen, row: row, stretch: s)
     }
@@ -496,8 +582,10 @@ enum Railways {
     // 478 plans and 5.3 s for one link. Here a link asks for its two lines and the town lines of the rows beside it,
     // and is held to its own row's band, so no other row's link is in its way.)
     static func planRowLink(_ gen: WorldGen, row: Int, stretch s: Int) -> Line? {
+        // (ledger 360: in a new world the link is planned between the lines as planned, and laid if both are kept)
+        let raw = shoreRule(gen)
         guard hasLine(gen, row, s), hasLine(gen, row, s + 1), let sc = gen.structures,
-              let a = line(gen, row: row, stretch: s), let b = line(gen, row: row, stretch: s + 1),
+              let a = raw ? planned(gen, row, s) : line(gen, row: row, stretch: s), let b = raw ? planned(gen, row, s + 1) : line(gen, row: row, stretch: s + 1),
               let pa = a.cells.last, let pb = b.cells.first else { tally?("row link: no line on"); return nil }
         guard pb.x - pa.x >= 5 * routeCell else { tally?("row link: lines overlap"); return nil }
         // The 16-block squares a town line of a row beside this one lies in, and three squares out from each of its ends.
@@ -505,7 +593,7 @@ enum Railways {
         // (ledger 239: in a new world the rows beside it are empty and the next lines lie two rows off)
         let beside = bothRows(gen) ? [row - 2, row + 2] : [row - 1, row + 1]
         for r in beside { for t in [s, s + 1] where hasLine(gen, r, t) {
-            guard let o = townLine(gen, row: r, stretch: t) else { continue }
+            guard let o = raw ? townRaw(gen, r, t) : townLine(gen, row: r, stretch: t) else { continue }
             for c in o.cells { shut.insert(colKey(floorDiv(c.x, routeCell), floorDiv(c.z, routeCell))) }
             if let f = o.cells.first { for k in 1...3 { shut.insert(colKey(floorDiv(f.x, routeCell) - k, floorDiv(f.z, routeCell))) } }
             if let e = o.cells.last { for k in 1...3 { shut.insert(colKey(floorDiv(e.x, routeCell) + k, floorDiv(e.z, routeCell))) } }
@@ -515,11 +603,16 @@ enum Railways {
             for q in run where shut.contains(colKey(floorDiv(q.0, routeCell), floorDiv(q.1, routeCell))) { return true }
             return false
         }
-        let band = rowLinkBand(row, pa.z, pb.z)
+        var band = rowLinkBand(row, pa.z, pb.z)
         // (ledger 230: in a new world the link winds over the land first, like the open-country track it joins)
         let sparse = sparseWorld(gen)
         var how = "over the land"
-        var way = sparse ? route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut, band: band, seaMax: 400, easeEnds: true, land: true) : nil
+        if shoreRule(gen) {
+            // (ledger 360: none over more water than a strait, with the wide band to go round it in)
+            let wide = wideBand(gen, row)
+            band = (min(band.lo, wide.lo), max(band.hi, wide.hi))
+        }
+        var way = sparse ? route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut, band: band, seaMax: shoreRule(gen) ? strait / routeCell : 400, easeEnds: true, land: true) : nil
         if way == nil {
             how = "straight or dog-leg"
             way = pb.x - pa.x > 1200 ? nil : smoothDogLeg(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), lead: 12, except: [])
@@ -528,6 +621,7 @@ enum Railways {
         if way == nil { how = "found"; way = route(gen, sc, from: (pa.x, pa.z), to: (pb.x, pb.z), diagonal: true, runOn: true, shut: shut, band: band, seaMax: 400, easeEnds: true) }
         guard let run = way, run.count > 8 else { tally?("row link: no way"); return nil }
         if crosses(run) { tally?("row link: way over a town line"); return nil }
+        if shoreRule(gen), !seaRuns(gen, run).isEmpty { tally?("row link: the sea"); return nil }
         let flat = run.map { IVec3($0.0, 0, $0.1) }
         let h0 = a.heights?.last ?? Float(pa.y), h1 = b.heights?.first ?? Float(pb.y)
         guard let h = gentleProfile(gen, flat, [], ends: (h0, h1), diagonal: true, maxOff: 128)
