@@ -595,7 +595,7 @@ enum Countries {
             let k = warKey(here.key, n.key)
             if d < 96, d > 8, !state.posts.contains(k), g.world.isLoaded(s.0 - 2, s.1 - 2), g.world.isLoaded(s.0 + 4, s.1 + 2),
                g.world.isLoaded(s.0 - 2, s.1 + 2), g.world.isLoaded(s.0 + 4, s.1 - 2) {
-                if clear(g, at: s) { build(g, at: s, here, n) }
+                if clear(g, at: s) { build(g, at: s, here, n, spread: true) }
                 TickProf.mark("countries: posts: build")
                 state.posts.append(k)
                 MapCache.shared.discover(g, kind: "border_post", x: s.0, z: s.1, name: "\(here.name) - \(n.name) border post")
@@ -739,7 +739,8 @@ enum Countries {
     }
 
     // A small guard post: a stone-brick floor, a roofed booth on log posts and a flag on a fence pole.
-    static func build(_ g: Game, at s: (Int, Int), _ a: Country, _ b: Country) {
+    // (`spread`: the game's own post, laid over frames; a direct build, as the checks make, is laid at once.)
+    static func build(_ g: Game, at s: (Int, Int), _ a: Country, _ b: Country, spread: Bool = false) {
         let w = g.world
         // Hundreds of edits: the mesh workers redraw the sections (synchronous remeshes stalled the Quest's frame).
         // Ledger 294 (Nov 18, efficiency: a post built in one tick took 77.8 ms on the onone host): the edits are listed
@@ -748,7 +749,7 @@ enum Countries {
         func put(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, _ be: BlockEntity? = nil) { edits.append((x, y, z, b, be)) }
         defer {
             pendingPost += edits
-            if oldPostBuild { postBuildStep(g, all: true) }
+            if oldPostBuild || !spread { postBuildStep(g, all: true) }
         }
         func id(_ n: String, _ fb: BlockID) -> BlockID { Blocks.has(n) ? Blocks.id(n) : fb }
         let floorB = id("stone_bricks", STONE), log = id("spruce_log", STONE), roof = id("spruce_slab", id("spruce_planks", STONE))
