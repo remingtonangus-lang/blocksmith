@@ -1617,6 +1617,33 @@ enum Mesher {
                     }
                     if far && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
+                        // Ledger 269 (Nov 17 20:14:06-20:14:28, setting a camp alight: "Fire is not sophisticated enough",
+                        // "it can be a fold like that but it has to be properly hanging off the side of blocks"): fire was
+                        // one crossed fold in its cell, wherever it burned. Now a sheet of flame stands against each solid
+                        // side it burns beside, leaning out a little as it rises, so a burning wall or log wears its fire
+                        // on its face; the fold stays only where the fire stands on something. BS_OLDFIRE=1: the fold alone.
+                        if Mesher.fireSides && (b == Mesher.fireID || b == Mesher.soulFireID) {
+                            let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                            let layer = Int(texT[bi * 6 + 2])
+                            // (+x, -x, +z, -z: the neighbour's offset in R, the axis, its side)
+                            for side in 0..<4 {                                         // (no array: this runs per block)
+                                let off = side == 0 ? 1 : side == 1 ? -1 : side == 2 ? RW : -RW
+                                let ax = side < 2 ? 0 : 2, sg = side & 1 == 0 ? 1 : -1
+                                guard collideT[Int(R[i + off])] || opaqueT[Int(R[i + off])] else { continue }
+                                let at0 = sg > 0 ? 15 : 1, at1 = sg > 0 ? 12 : 4            // (its foot on the face, its top leaning out)
+                                for backI in 0..<2 {
+                                    let back = backI == 1
+                                    for k in 0..<4 {
+                                        let along = (k == 1 || k == 2) != back ? 16 : 0, top = k >= 2
+                                        let a = top ? at1 : at0
+                                        let px = ax == 0 ? a : along, pz = ax == 0 ? along : a
+                                        vert(isTrans, bx16 + px, by16 + (top ? 16 : 0), bz16 + pz, 6, tintV, Mesher.cornerU[k], Mesher.cornerV[k], layer, 3, l, false)
+                                    }
+                                }
+                            }
+                            let below = Int(R[i - RL])
+                            if !(collideT[below] || opaqueT[below]) { continue }
+                        }
                         // R22 (Oct 13, "floating grass in the polygon world"): vertex heights can't go under the section's
                         // floor, so a plant in its first row over a dip stayed up to 3/4 block over the drawn ground: the
                         // section below draws it (after the main loop).
@@ -2645,6 +2672,9 @@ enum Mesher {
     static let cubeEdges: [(Int, Int)] = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)]
     static var farDarkCull = true
     static let pointedDrip: BlockID = Blocks.has("pointed_dripstone") ? Blocks.id("pointed_dripstone") : 0
+    static let fireID: BlockID = Blocks.has("fire") ? Blocks.id("fire") : 0
+    static let soulFireID: BlockID = Blocks.has("soul_fire") ? Blocks.id("soul_fire") : 0
+    static let fireSides = Env.all["BS_OLDFIRE"] != "1"         // ledger 269
     static let iceT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)) == "ice" }
     static let sheetT: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]) == "sea_ice" && !Game.oldIce }
     static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
