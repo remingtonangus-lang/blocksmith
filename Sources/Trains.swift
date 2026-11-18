@@ -375,7 +375,14 @@ enum Trains {
         trackLock.unlock()
         if !busy {
             DispatchQueue.global(qos: .userInitiated).async {
-                var t = track(l)
+                // (ledger 238: a line of one station runs a long window; none yet, no train rather than a shuttle)
+                let pass = passes(l, gen: gen)
+                let window: Track? = pass ? passingTrack(l, gen: gen, wait: true) : track(l)
+                guard let made = window else {
+                    trackLock.lock(); trackMaking.remove(l.id); trackLock.unlock()
+                    return
+                }
+                var t = made
                 if want, let lw = loops.west, let le = loops.east, let c = cyclicTrack(l, west: lw, east: le) { t = c }
                 trackLock.lock(); trackMade[l.id] = t; trackMaking.remove(l.id); trackLock.unlock()
             }
@@ -403,7 +410,7 @@ enum Trains {
         let want = loops?.west != nil && loops?.east != nil
         if let t = tracks[l.id], t.source == l.cells.count, t.cyclic == want { return t }
         TickProf.mark("trains: track loops")
-        var t = track(l)
+        var t = gen.flatMap { passingTrack(l, gen: $0, wait: true) } ?? track(l)      // (ledger 238)
         TickProf.mark("trains: track made")
         if want, let lw = loops?.west, let le = loops?.east, let c = cyclicTrack(l, west: lw, east: le) { t = c }
         TickProf.mark("trains: track circuit made")
