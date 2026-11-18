@@ -3274,6 +3274,49 @@ func nov17Checks() {
         check(through && clear,
               String(format: "deck gun barrels: laid at its lowest (%.2f) toward a parapet they run through it (%@); it lays at %.2f instead, clear (%@)", low, through ? "yes" : "no", laid, clear ? "yes" : "no"))
     }
+    // Ledger 271 (Nov 17 19:53:56, Taiga by -2398 67 -3300: "something went wrong for leaves in this one"): every tree
+    // round where he stood is cut at its foot, one after another; no leaf is left hanging in the air with no log near it.
+    do {
+        let field0 = FieldTerrain.newWorlds
+        FieldTerrain.newWorlds = true
+        let w = World(seed: 4259144782798118884, device: device, save: nil)
+        w.makeFieldWorld()
+        w.renderDistance = 3; w.activeDistance = 3
+        let g = Game(world: w, save: nil, persistent: false)
+        g.paused = false; g.survival = false
+        g.player.pos = V3(-2398.5, 67 + 64, -3300.5)
+        _ = w.loadSync(center: g.player.pos, radius: 3)
+        FieldTerrain.newWorlds = field0
+        let xs = (-2418)...(-2378), zs = (-3320)...(-3280), ys = (50 + 64)...(110 + 64)
+        func orphans() -> [IVec3] {
+            var out: [IVec3] = []
+            for z in zs { for x in xs { for y in ys where CapitalBase.isLeaf(w.block(x, y, z)) {
+                var near = false
+                scan: for dy in -6...6 { for dz in -6...6 { for dx in -6...6 where dx * dx + dy * dy + dz * dz <= 36 {
+                    if CapitalBase.isLog(w.block(x + dx, y + dy, z + dz)) { near = true; break scan }
+                } } }
+                if !near { out.append(IVec3(x, y, z)) }
+            } } }
+            return out
+        }
+        let before = orphans().count
+        var feet: [IVec3] = []
+        for z in (-3314)...(-3286) { for x in (-2412)...(-2384) { for y in ys {
+            let b = w.block(x, y, z)
+            if CapitalBase.isLog(b) && TreeWood.isTree[Int(b)] && !CapitalBase.isLog(w.block(x, y - 1, z)) && w.groundAt(x, y - 1, z) { feet.append(IVec3(x, y, z)) }
+        } } }
+        var cut = 0
+        for p in feet {
+            let b = w.block(p.x, p.y, p.z)
+            guard CapitalBase.isLog(b) else { continue }
+            w.setBlock(p.x, p.y, p.z, AIR); g.fellCheck(p, b); cut += 1
+            for s in w.ships.list where Felling.isFelled(s) { w.ships.remove(s) }
+        }
+        let after = orphans()
+        let sample = after.prefix(4).map { "\($0.x) \($0.y - 64) \($0.z)" }.joined(separator: ", ")
+        check(cut >= 4 && after.count <= before,
+              "felled crowns: \(cut) trees cut at the foot round his Taiga spot; leaves with no log within 6: \(before) before, \(after.count) after (\(sample)) (ledger 271)")
+    }
 }
 // --nov17-only: the Nov 17 evening playtest's checks (no snow on a log top in his taiga).
 if CommandLine.arguments.contains("--nov17-only") { nov17Checks(); namedEnd("nov17") }
@@ -3355,6 +3398,9 @@ if CommandLine.arguments.contains("--builds") {                // Builders' Grou
     BuildersCheck.shot = CircuitWorkshopTests.shot          // (with --render: pictures of the six from four sides)
     BuildersCheck.run(game, check)
     print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
+if CommandLine.arguments.contains("--placeslope") {            // bug hunt a: every placeable class on sloped field ground
+    PlaceSlopeCheck.run(game, check); namedEnd("placeslope")
 }
 if CommandLine.arguments.contains("--craterplace") {           // P507: blocks go down in a rocket's bowl
     CraterPlaceCheck.run(game, check)
@@ -4036,6 +4082,7 @@ HellWildTests.run(game, check: check)                  // P506: hell's wildlife 
 if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+PlaceSlopeCheck.run(game, check)                       // bug hunt a: placing on sloped field ground
 CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft
@@ -5051,6 +5098,39 @@ do {
         let th = CFAbsoluteTimeGetCurrent()
         let snap = HorizonRing.sample(wg, seed: world.seed, x0: Int(spawn.x) - 1280, z0: Int(spawn.z) - 1280, n: HorizonRing.cells * 2 + 1, s: HorizonRing.spacing)
         print(String(format: "horizon ring: %d samples in %.0f ms", snap.h.count, (CFAbsoluteTimeGetCurrent() - th) * 1000))
+    }
+    // Ledger 307: the drop scan reads one new cell a level instead of the whole column; both give the same searches.
+    // Soldiers' drop limits (25-79 at full health), both footprints, starts on the ground and on high places.
+    do {
+        var r = SRng(307)
+        var nodes = 0, searches = 0, differ = 0, msOld = 0.0, msNew = 0.0
+        let keep = PathFinder.oldDropScan
+        for i in 0..<240 {
+            var pr = PathProfile()
+            pr.tall = 2
+            pr.span = i % 4 == 3 ? 2 : 1
+            pr.maxDrop = [3, 25, 39, 79][i % 4]
+            pr.climbs = pr.span == 1
+            let ax = Int(spawn.x) + r.int(64) - 32, az = Int(spawn.z) + r.int(64) - 32
+            let bx = ax + r.int(48) - 24, bz = az + r.int(48) - 24
+            let lift = i % 3 == 0 ? Float(8 + r.int(20)) : 0               // (some starts up in the air: long drops)
+            let a = V3(Float(ax) + 0.5, Float(world.topY(ax, az) + 1) + lift, Float(az) + 0.5)
+            let b = V3(Float(bx) + 0.5, Float(world.topY(bx, bz) + 1), Float(bz) + 0.5)
+            PathFinder.oldDropScan = true
+            var t = CFAbsoluteTimeGetCurrent()
+            let p0 = PathFinder.find(world, from: a, to: b, profile: pr, maxNodes: 1500)
+            let e0 = PathFinder.lastExpanded
+            msOld += CFAbsoluteTimeGetCurrent() - t
+            PathFinder.oldDropScan = false
+            t = CFAbsoluteTimeGetCurrent()
+            let p1 = PathFinder.find(world, from: a, to: b, profile: pr, maxNodes: 1500)
+            let e1 = PathFinder.lastExpanded
+            msNew += CFAbsoluteTimeGetCurrent() - t
+            searches += 1; nodes += e1
+            if e0 != e1 || (p0 ?? []) != (p1 ?? []) || (p0 == nil) != (p1 == nil) { differ += 1 }
+        }
+        PathFinder.oldDropScan = keep
+        check(differ == 0 && nodes > 2000, String(format: "ledger 307: the one-cell drop scan gives the same searches as the whole-column one (%d searches, %d nodes, %d differ; %.1f ms -> %.1f ms)", searches, nodes, differ, msOld * 1000, msNew * 1000))
     }
     if CommandLine.arguments.contains("--pathfind-only") { exit(0) }      // (profiling)
 }

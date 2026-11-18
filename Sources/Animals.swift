@@ -805,6 +805,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         if m.saddled { p.append(box(-6, 38.5, -3, 12, 1.5, 10, V3(0.35, 0.2, 0.1))) }
         return p
     case .goat:
+        if !WildLooks.old { return goatParts(m) }                          // ledger 333 (WildLooks.swift)
         let c = V3(0.92, 0.9, 0.85)
         var p = quadruped(.zero, V3(8, 9, 14), legH: 10, head: V3(0, 16, -7), headSize: V3(5, 6, 6), c)
         p.append(box(-3, 22, -8, 1.5, 5, 1.5, V3(0.6, 0.55, 0.45))); p.append(box(1.5, 22, -8, 1.5, 5, 1.5, V3(0.6, 0.55, 0.45)))
@@ -819,6 +820,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(box(-6, 21, -13, 3, 3, 2, b)); p.append(box(3, 21, -13, 3, 3, 2, b))
         return p
     case .polarBear:
+        if !WildLooks.old { return polarBearParts(m) }                     // ledger 332 (WildLooks.swift)
         let c = V3(0.95, 0.95, 0.92)
         var p = quadruped(.zero, V3(14, 14, 22), legH: 10, head: V3(0, 14, -11), headSize: V3(8, 7, 7), c, legW: 5)
         p.append(box(-2, 14, -21, 4, 3, 3, c * 0.9))

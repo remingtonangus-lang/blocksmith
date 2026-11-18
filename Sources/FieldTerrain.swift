@@ -723,6 +723,20 @@ extension World {
         let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) | ((groundStamp(x, z) & 0x1FFF) << 50)
         let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> groundCacheShift)
         let base = slot * 32
+        // BS_GROUNDVERIFY=1: every cache hit is built again and compared (a stale shape counts in groundStale).
+        var kept: [Float] = []
+        if World.groundVerify && fieldColKey[slot] == key {
+            kept = Array(fieldColVal[base..<(base + 32)])
+            fieldColKey[slot] = Int.min
+        }
+        defer {
+            if !kept.isEmpty && Array(fieldColVal[base..<(base + 32)]) != kept {
+                groundStale &+= 1
+                if groundStale <= 8 {
+                    print("GROUNDSTALE cell \(x) \(y) \(z) (chunk \(floorDiv(x, CS)) \(floorDiv(z, CS))): cached \(kept[0..<8]) now \(Array(fieldColVal[base..<(base + 8)])) stamp \(groundStamp(x, z))")
+                }
+            }
+        }
         if fieldColKey[slot] != key, FineField.enabled, let fc = chunkAt(x, z), !fc.blocks.fine.isEmpty,
            fineNear(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) {
             fieldColKey[slot] = key
