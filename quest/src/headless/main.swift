@@ -2604,6 +2604,8 @@ if CommandLine.arguments.contains("--musiclevels-only") { MusicLevelTests.run(ch
 if CommandLine.arguments.contains("--settings-only") { SettingsCheck.run(check: check); namedEnd("settings") }
 // --savesoak-only: 100 save/load cycles (Sources/SaveSoakTests.swift, Q2; SOAK_CYCLES=N).
 if CommandLine.arguments.contains("--savesoak-only") { SaveSoakTests.run(device: device, check: check); namedEnd("savesoak") }
+// --garrison-only: ledger 253, Boreal Stations on five headset worlds keep their garrison (Sources/BorealMusterCheck.swift).
+if CommandLine.arguments.contains("--garrison-only") { BorealMusterCheck.run(device: device, check: check); namedEnd("garrison") }
 // --capitals-only: just the Capital city checks (Sources/CapitalTownTests.swift), for quick iteration.
 if CommandLine.arguments.contains("--capitals-only") {
     TownTests.capitals({ World(seed: UInt64(arg("--seed") ?? "") ?? seed, device: device, save: nil) }, check); namedEnd("capitals")
@@ -3336,6 +3338,7 @@ if CommandLine.arguments.contains("--borealcars") {            // P460: a Boreal
 }
 if CommandLine.arguments.contains("--borealops") {             // P475: Boreal Station checks alone (ceiling guns, gate, ops)
     BorealTests.run(device: device, check: check)
+    BorealMusterCheck.run(device: device, check: check)        // (ledger 253: after them, as the full run has it)
     print(failures == 0 ? "borealops: all checks passed" : "borealops: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
 if CommandLine.arguments.contains("--planeparts") {             // P459: aircraft parts from steel
@@ -4825,7 +4828,7 @@ game.mobs.mobs.removeAll()
 if CommandLine.arguments.contains("--deep-only") { print(failures == 0 ? "deeptest: all checks passed" : "deeptest: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 
 // Boreal Station (Sources/BorealTests.swift): real stations from three seeds, walked, lit and looked over.
-if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check) }
+if !CommandLine.arguments.contains("--no-boreal") { BorealTests.run(device: device, check: check); BorealMusterCheck.run(device: device, check: check) }
 WeakLinkTests.run(check: check)       // (ledger 128: a link read while its object is let go)
 PlaceRowTests.run(game, check: check) // (ledgers 130, 131: where a placed block goes on the ground)
 check(!LifeLink.sideTable(game.world) && !LifeLink.sideTable(game) && !LifeLink.sideTable(game.world.ships),

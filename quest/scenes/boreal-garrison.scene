@@ -1,0 +1,25 @@
+# Nov 17 evening, 20:00:56-20:03:31 (seed 4259144782798118884, headset world): "Why is there no one here? ... No one's in
+# this Boreal station ... there's just no troops there ... that's a big one for store release". He came by the map to
+# 979 -1509 in Creative, flew east to the station's gate (1184 -1624), switched to Survival and walked down to the bunker
+# floor (1190 51 -1690): the alarm sounded, the ceiling guns hit him, not one soldier.
+at 979.4 100 -1509.9
+fly on
+load 12
+tick 3
+print troops
+fly to 1184 -1624 90
+tick 2
+print troops
+survival on
+fly off
+at 1197.4 67.0 -1697.7
+tick 3
+print troops
+at 1191.9 51.0 -1687.0
+tick 5
+print troops
+expect troops.near > 10
+expect troops.vanished == 0
+tick 20
+print troops
+print station

@@ -18,7 +18,10 @@ import simd
 //   ride until step N MIN [SECONDS]              (play on until the floors' step at coach N's coupling is MIN either way)
 //   stand in coach N / walk to coach N [SECONDS] (walk.there 1|0, walk.lowest: least height over the rail in the
 //                                                 coach he is in, walk.step: the floors' step at the coupling)
-//   print player|train|ship|fps
+//   print player|train|ship|fps|troops        (troops: soldiers within 96, stashed, taken away, died)
+//   fly to X Z SECONDS [SPEED]                   (flying toward a point through the input path, at most SPEED b/s)
+//   realtime on|off                              (each tick waits out its 1/72 s: generation keeps play's pace)
+//   (--save: the world kept on disk as the headset keeps it; --active N: the active distance)
 //   time FRAC / hold sneak|jump|use|attack|sprint SECONDS / face train car N / ride train car N
 //   expect riding|aboard|player.ground|player.inblock|player.falling|train.dist|train.cars|coach OP N
 //   expect block X Y Z == KEY | expect ground X Y Z == true | expect player.y > N | expect fps.worst < N ...
@@ -42,15 +45,20 @@ enum SceneScript {
         let outDir = arg("--out") ?? FileManager.default.temporaryDirectory.appendingPathComponent("scene-shots").path
         // The world as --view makes it; --headset: a field world with polygon ground, as the headset makes new worlds.
         if headset { FieldTerrain.newWorlds = true }
-        let w = World(seed: seed, device: device, save: nil)
+        // --save: a world kept on disk as the headset keeps one (a fresh temp folder): chunks past the active distance
+        // become shells, edited chunks are saved, mobs leaving the loaded land are stashed in mobs.json's table
+        let save: SaveManager? = args.contains("--save") ? SaveManager(dir: FileManager.default.temporaryDirectory.appendingPathComponent("scene-world-\(getpid())")) : nil
+        var w = World(seed: seed, device: device, save: save)
         w.renderDistance = Int(arg("--rd") ?? "") ?? 4
+        if let a = Int(arg("--active") ?? "") { w.activeDistance = a }
         if headset { w.makeFieldWorld() }
-        let g = Game(world: w, save: nil, persistent: false)
+        var g = Game(world: w, save: save, persistent: save != nil)
         if headset { g.smoothTerrain = true; SmoothTerrain.use(world: true, world: w) }
         g.paused = false; g.survival = false
         g.time = 0.25 * DAY_LENGTH
         g.player.pos = g.findSpawn()
-        let bot = Agent(game: g, world: w)
+        var bot = Agent(game: g, world: w)
+        TroopVanish.on = true; TroopVanish.reset()
         var held = AgentAction()                      // what the bot holds down between ticks (walk, attack)
         var tickMs: [Double] = []
         var fails = 0
@@ -73,11 +81,28 @@ enum SceneScript {
         func Y(_ s: Substring) -> Int? { Int(s).map { $0 + YOFF } }
         func key(_ b: BlockID) -> String { Blocks.key(b) }
         func f1(_ v: Float) -> String { String(format: "%.2f", v) }
+        // Every soldier seen in the world, and those that died (where, and how far from him then): `print troops`.
+        var seenTroops: [ObjectIdentifier: Mob] = [:]
+        var troopDeaths: [String] = []
+        func watchTroops() {
+            for m in g.mobs.mobs where m.kind.steelhold && m.kind != .deckGun && !m.kind.ashVehicle {
+                if seenTroops[ObjectIdentifier(m)] == nil { seenTroops[ObjectIdentifier(m)] = m }
+            }
+            for (id, m) in seenTroops where m.health <= 0 {
+                seenTroops.removeValue(forKey: id)
+                troopDeaths.append(String(format: "%@ at %.0f %.0f %.0f (%.0f from him)", m.kind.key, m.pos.x, m.pos.y - Float(YOFF), m.pos.z, simd_length(m.pos - g.player.pos)))
+            }
+        }
+        // (`realtime on`: each tick waits out its 1/72 s, so the workers' generation keeps the pace it keeps in play)
+        var realtime = false
         func step(_ a: AgentAction) {
             bot.apply(a)
             let t0 = CFAbsoluteTimeGetCurrent()
             g.tick(1.0 / 72)
-            tickMs.append((CFAbsoluteTimeGetCurrent() - t0) * 1000)
+            let el = CFAbsoluteTimeGetCurrent() - t0
+            tickMs.append(el * 1000)
+            watchTroops()
+            if realtime && el < 1.0 / 72 { usleep(useconds_t((1.0 / 72 - el) * 1_000_000)) }
         }
         func play(_ secs: Double, _ a: AgentAction? = nil) {
             tickMs.removeAll(keepingCapacity: true)
@@ -167,6 +192,12 @@ enum SceneScript {
                 }
                 return Float(n)
             case "train.cars": return train.map { Float($0.cars.count) }
+            // troops.near: soldiers (not vehicles or deck guns) within 96 blocks of him; troops.stored: soldiers stashed
+            // with unloaded ground within 96 blocks (they come back when it loads); troops.vanished: soldiers taken out
+            // of the world without dying since the scene began (TroopVanish, every rule)
+            case "troops.near": return Float(troops(96).count)
+            case "troops.stored": return Float(storedTroops(96))
+            case "troops.vanished": return Float(TroopVanish.counts.values.reduce(0) { $0 + $1.all })
             case "coach": return Float(coachList().firstIndex { c in
                     guard let h = TrainHulls.hull(c) else { return false }
                     let l = h.toLocal(p.pos)
@@ -174,6 +205,18 @@ enum SceneScript {
                 }.map { $0 + 1 } ?? 0)
             default: return Float(name)
             }
+        }
+        func isTroop(_ k: MobKind) -> Bool { k.steelhold && k != .deckGun && !k.ashVehicle }
+        func troops(_ r: Float) -> [Mob] {
+            g.mobs.mobs.filter { isTroop($0.kind) && $0.health > 0 && simd_length(V2($0.pos.x - g.player.pos.x, $0.pos.z - g.player.pos.z)) < r }
+        }
+        func storedTroops(_ r: Float) -> Int {
+            var n = 0
+            for (_, rs) in g.mobs.stored { for rec in rs where rec.p.count == 3 {
+                guard let k = MobKind.named(rec.k), isTroop(k), simd_length(V2(rec.p[0] - g.player.pos.x, rec.p[2] - g.player.pos.z)) < r else { continue }
+                n += 1
+            } }
+            return n
         }
         func nearestTrain() -> (Trains.Train, Mob)? {
             var best: (Trains.Train, Mob)?, bd = Float.infinity
@@ -209,6 +252,29 @@ enum SceneScript {
                 guard t.count == 2, let s = Double(t[1]) else { bad(); continue }
                 play(s)
                 print("\(ln) \(tickMs.count) ticks, avg \(f1(Float(tickMs.reduce(0, +) / Double(max(1, tickMs.count))))) ms, worst \(f1(Float(tickMs.max() ?? 0))) ms")
+            case "fly" where (t.count == 5 || t.count == 6) && t[1] == "to":
+                // fly to X Z SECONDS: flying flat out (sprint held) toward a point through the input path, the eye kept
+                // on it each tick, as he flies across the land in Creative; stops there or after SECONDS
+                guard let tx = Float(t[2]), let tz = Float(t[3]), let secs = Double(t[4]) else { bad(); continue }
+                let cap = t.count == 6 ? Float(t[5]) ?? .infinity : .infinity      // (SPEED: blocks a second at most, as he flew)
+                g.player.flying = true
+                let p0 = g.player.pos
+                var k = 0
+                tickMs.removeAll(keepingCapacity: true)
+                while k < Int(secs * 72) {
+                    let d = V2(tx - g.player.pos.x, tz - g.player.pos.z)
+                    if simd_length(d) < 2 { break }
+                    if streamSync && k % 72 == 0 { _ = w.loadSync(center: g.player.pos, radius: max(4, w.renderDistance)) }
+                    let yaw = atan2f(-d.x, -d.y)
+                    var a = AgentAction(); a.forward = simd_length(V2(g.player.vel.x, g.player.vel.z)) < cap ? 1 : 0; a.sprint = cap.isInfinite
+                    var dy = yaw - g.player.yaw
+                    while dy > .pi { dy -= 2 * .pi }; while dy < -.pi { dy += 2 * .pi }
+                    a.yaw = dy; a.pitch = -g.player.pitch
+                    step(a); g.player.yaw = yaw
+                    k += 1
+                }
+                step(AgentAction())
+                print("\(ln) flew \(f1(simd_length(g.player.pos - p0))) blocks in \(f1(Float(k) / 72)) s, at \(f1(g.player.pos.x)) \(f1(g.player.pos.y - Float(YOFF))) \(f1(g.player.pos.z)); \(w.chunks.count) chunks loaded")
             case "survival", "fly":
                 guard t.count == 2 else { bad(); continue }
                 if t[0] == "survival" { g.survival = t[1] == "on" } else { g.player.flying = t[1] == "on" }
@@ -493,11 +559,43 @@ enum SceneScript {
                     print("\(ln) " + (train.map { "\(f1($0.blocksPerSec)) b/s, throttle \(f1($0.throttle)), brake \(f1($0.brake)), \($0.cars.count) cars" } ?? "none"))
                 case "ship":
                     print("\(ln) " + (ship.map { "\($0.name) at \(f1($0.pos.x)) \(f1($0.pos.y - Float(YOFF))) \(f1($0.pos.z)), speed \(f1(simd_length($0.vel))), hull \($0.blockCount) blocks" } ?? "none"))
+                case "station":
+                    // the Boreal Station nearest him: its centre, how far, the soldiers inside its fence and bunker
+                    if let sc = w.gen.structures, let st = sc.nearest(BorealStation.kind, x: Int(p.pos.x), z: Int(p.pos.z), maxRegions: 4) {
+                        let cx = (st.min.x + st.max.x) / 2, cz = (st.min.z + st.max.z) / 2
+                        let site = BorealAlarmState.Site(cx: cx, cz: cz, S: st.min.y + BorealStation.depth + 4)
+                        let n = g.mobs.mobs.filter { BorealMuster.soldier($0) && $0.health > 0 && BorealStation.insideSite(site, $0.pos) }.count
+                        print("\(ln) station at \(cx) \(site.S - YOFF) \(cz), \(f1(simd_length(V2(Float(cx) - p.pos.x, Float(cz) - p.pos.z)))) away, \(BorealStation.insideSite(site, p.pos) ? "he is inside" : "he is outside"); \(n) soldiers inside; \(g.bases.boreal.log.suffix(3).joined(separator: "; "))")
+                    } else { print("\(ln) no station") }
+                case "troops":
+                    // every soldier within 96 blocks by kind and side, the stashed ones, and what took any away
+                    var by: [String: Int] = [:]
+                    for m in troops(96) { by["\(m.kind.key)/\(m.factionValue)", default: 0] += 1 }
+                    let guns = g.mobs.mobs.filter { $0.kind == .deckGun && simd_length(V2($0.pos.x - p.pos.x, $0.pos.z - p.pos.z)) < 96 }.count
+                    print("\(ln) \(troops(96).count) soldiers within 96 (\(by.keys.sorted().map { "\($0) \(by[$0]!)" }.joined(separator: ", "))), \(guns) deck guns, \(storedTroops(96)) stashed; pending \(w.pendingMobs.count); gone: \(TroopVanish.line); died \(troopDeaths.count)\(troopDeaths.isEmpty ? "" : ": " + troopDeaths.prefix(8).joined(separator: "; "))")
                 case "fps":
                     let avg = tickMs.isEmpty ? 0 : tickMs.reduce(0, +) / Double(tickMs.count)
                     print("\(ln) last \(tickMs.count) ticks: avg \(f1(Float(avg))) ms, worst \(f1(Float(tickMs.max() ?? 0))) ms")
                 default: bad()
                 }
+            case "reopen" where t.count == 1:
+                // reopen: the world saved and closed, then opened again from its save as the headset opens a world
+                // (QuestApp.load: World + Game on the save, WorldRequest.setUp with its meta); needs --save
+                guard let sv = save else { print("FAIL \(ln) no --save"); fails += 1; continue }
+                g.saveNow(); SaveIO.flush()
+                let rd = w.renderDistance, ad = w.activeDistance
+                let w2 = World(seed: seed, device: device, save: sv)
+                w2.renderDistance = rd
+                let g2 = Game(world: w2, save: sv, persistent: true)
+                WorldRequest(name: nil, seed: nil, survival: nil, difficulty: nil).setUp(g2, meta: sv.loadMeta())
+                g2.world.renderDistance = rd; g2.world.activeDistance = ad
+                g2.paused = false
+                w = w2; g = g2; bot = Agent(game: g2, world: w2)
+                seenTroops.removeAll()
+                print("\(ln) reopened at \(f1(g.player.pos.x)) \(f1(g.player.pos.y - Float(YOFF))) \(f1(g.player.pos.z)); field world \(w.fieldTerrain); \(g.mobs.stored.values.reduce(0) { $0 + $1.count }) mobs stashed")
+            case "realtime" where t.count == 2:
+                realtime = t[1] == "on"
+                print("\(ln) real time: \(realtime)")
             case "stream" where t.count == 2:
                 streamSync = t[1] == "on"
                 print("\(ln) streaming kept up: \(streamSync)")
