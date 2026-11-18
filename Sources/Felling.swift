@@ -46,6 +46,51 @@ enum Felling {
     static func sameTrunk(_ a: IVec3, _ b: IVec3) -> Bool { abs(a.x - b.x) <= 1 && abs(a.z - b.z) <= 1 }
     // P478: whether a leaf is this tree's: no log of another tree (outside `logs`, above `above`, within 6 of them) is
     // nearer to it than the nearest of `logs`.
+    // Ledger 271 (Nov 17 19:53:56, Taiga: "something went wrong for leaves in this one"): ownLeaf leaves a leaf to a
+    // nearer trunk, but in a close wood that trunk's crown often doesn't reach it (a gap of air between), so cut one
+    // after the other the trees left single leaves hanging in the air. A leaf beside the felled crown that no log
+    // still standing holds (none within 6 steps through leaves, the leaf-decay rule) goes down with it.
+    // BS_OLDCROWN=1: left hanging.
+    static let crownStrays = Env.all["BS_OLDCROWN"] != "1"
+    static func strays(_ w: World, logs: Set<IVec3>, taken: Set<IVec3>, above: Int, cap: Int) -> [IVec3] {
+        guard crownStrays, cap > 0 else { return [] }
+        var out: [IVec3] = [], gone = taken, checked = Set<IVec3>()
+        var queue: [IVec3] = []
+        func edge(_ c: IVec3) {
+            for d in World.allDirs {
+                let q = c + d
+                guard q.y > above, !gone.contains(q), !logs.contains(q), checked.insert(q).inserted,
+                      CapitalBase.isLeaf(w.block(q.x, q.y, q.z)) else { continue }
+                queue.append(q)
+            }
+        }
+        for c in taken { edge(c) }
+        // (still: what stands after the cut holds it; else: any log did before, so a leaf pile on the ground with no
+        // tree, a bush, is never taken)
+        func held(_ p: IVec3, still: Bool = true) -> Bool {
+            var seen: Set<IVec3> = [p], front = [p]
+            for _ in 0..<6 {
+                var next: [IVec3] = []
+                for c in front { for d in World.allDirs {
+                    let q = c + d
+                    guard !(still && gone.contains(q)), seen.insert(q).inserted else { continue }
+                    let b = w.block(q.x, q.y, q.z)
+                    if CapitalBase.isLog(b) && !(still && logs.contains(q)) { return true }
+                    if CapitalBase.isLeaf(b) { next.append(q) }
+                } }
+                front = next
+            }
+            return false
+        }
+        var head = 0
+        while head < queue.count && out.count < cap {
+            let q = queue[head]; head += 1
+            guard !held(q), held(q, still: false) else { continue }
+            out.append(q); gone.insert(q); edge(q)
+        }
+        return out
+    }
+
     static func ownLeaf(_ w: World, logs: Set<IVec3>, above: Int) -> (IVec3) -> Bool {
         guard let f = logs.first else { return { _ in true } }
         var lo = f, hi = f
@@ -613,6 +658,7 @@ extension Game {
                 leaves.insert(q); lq.append(q)
             }
         }
+        for q in Felling.strays(world, logs: logs, taken: leaves, above: p.y, cap: Felling.maxLeaves - leaves.count) { leaves.insert(q) }
         if whole == nil { Felling.noteStumps(world, logs: logs, cut: p) }
         let riders = Felling.treeRiders ? Set(treeRiders(logs.union(leaves))) : []
         Game.ridersTaken += riders.count
