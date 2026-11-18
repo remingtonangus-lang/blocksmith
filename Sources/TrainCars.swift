@@ -119,6 +119,7 @@ extension Trains {
 
     static func buildBig(_ g: Game, _ tr: Train, day: Int, keep: Kind? = nil) {
         tr.kind = keep ?? (tr.bullion ? .bullion : (TrainArrivals.kindFor(tr.track.id) ?? kind(tr.track, day: day)))
+        tr.halted = false
         tr.fresh = true
         var cars = consist(tr.kind)
         // A short line: cars come out of the middle until the train fits between the buffers.
@@ -146,6 +147,7 @@ extension Trains {
                 : [loco: tr.kind == .cargo ? "\(name) Freight Locomotive" : "\(name) Locomotive", tender: "Tender", coach: "\(name) Coach",
                    express: "\(name) Express Car", boxcar: "Boxcar", tankWagon: "Tank Wagon", flatcar: "Flatcar"][v]
             if troops { m.health = v == gunCar ? 160 : (v == express ? m.spec.health : 240) }
+            if tr.kind == .troop && !TroopWrecks.old { m.health = TroopWrecks.strength(v) }       // ledger 335
             carOf[ObjectIdentifier(m)] = (tr, k)
             tr.cars.append(m)
             g.mobs.mobs.append(m)
