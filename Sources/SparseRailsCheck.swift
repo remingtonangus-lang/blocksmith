@@ -8,8 +8,10 @@ extension RailwayTests {
     static func sparseCountry(_ check: (Bool, String) -> Void) {
         guard Railways.wildOn, !Railways.oldRailRows else { print("sparse rails: off"); return }
         let t0 = CFAbsoluteTimeGetCurrent()
-        let on0 = Railways.sparseOn
-        defer { Railways.sparseOn = on0 }
+        let on0 = Railways.sparseOn, sea0 = Railways.oldSeaBridge
+        defer { Railways.sparseOn = on0; Railways.oldSeaBridge = sea0 }
+        // (ledger 230 is counted on the rows as it left them, every even stretch with track; ledger 360 below)
+        Railways.oldSeaBridge = true
         let rows = -2...2, sts = -2...2
         var cells = [0, 0], stations = [0, 0], tracked = [0, 0], spread = [0, 0], wilds = [0, 0], oneStop = 0
         var oddTrack = 0, evenBare = 0, links = 0, linked = 0, steps = 0, jumps = 0, crossings = 0
@@ -63,14 +65,60 @@ extension RailwayTests {
             }
         }
         Railways.sparseOn = true
-        passingTrain(check)
         bothRows(check)
+        Railways.oldSeaBridge = sea0
+        passingTrain(check)
+        townToTown(check)
         for b in bad.prefix(12) { print("sparse rails: " + b) }
         print(String(format: "sparse rails: %.1f s", CFAbsoluteTimeGetCurrent() - t0))
         let wind0 = spread[0] / max(1, wilds[0]), wind1 = spread[1] / max(1, wilds[1])
         let ok = oddTrack == 0 && evenBare == 0 && linked * 100 >= links * 95 && steps == 0 && jumps == 0 && crossings == 0
             && cells[1] * 100 <= cells[0] * 70 && wind1 >= 60 && wind1 > 2 * wind0 && stations[1] > 0
         check(ok, "ledger 230: in a new world every second row carries track, it winds over the land and a lone town has its station (3 worlds, 25 stretches each: track in \(tracked[1]) stretches, \(tracked[0]) before; \(cells[1]) cells of track and links, \(cells[0]) before; open-country track strays \(wind1) blocks north to south on average, \(wind0) before; \(stations[1]) town stations on those rows, \(oneStop) lines of one station, \(stations[0]) stations on all rows before; \(oddTrack) odd rows with track, \(evenBare) even stretches bare, \(linked) of \(links) joins laid, \(steps) broken steps, \(jumps) grade jumps, \(crossings) cells on another track)")
+    }
+
+    // Ledger 360: in a new world no track crosses more open sea than a strait, and every railway runs from town to
+    // town: each end of every line is joined by a link or stands at a station, none in a field or on a beach.
+    static func townToTown(_ check: (Bool, String) -> Void) {
+        guard !Railways.oldSeaBridge else { print("ledger 360: off"); return }
+        var cells = [0, 0], wet = [0, 0], longest = [0, 0], loose = 0, ends = 0, lone = 0, lines = 0, shared = 0
+        var bad: [String] = []
+        for k in 0..<4 {
+            let seed = k == 3 ? UInt64(4259144782798118884) : UInt64(1000 + k * 7919)
+            for (wi, old) in [true, false].enumerated() {
+                Railways.oldSeaBridge = old
+                defer { Railways.oldSeaBridge = false }
+                let gen = WorldGen(seed: seed)
+                gen.fieldWorld = true
+                let all = Railways.near(gen, x0: -4400, z0: -4400, x1: 4400, z1: 4400, pad: 0, wild: true)
+                    + Railways.linksNear(gen, x0: -4400, z0: -4400, x1: 4400, z1: 4400, pad: 0)
+                var owner: [Int64: Int64] = [:]
+                for l in all {
+                    cells[wi] += l.cells.count
+                    var run = 0
+                    for i in stride(from: 0, to: l.cells.count, by: 4) {
+                        if gen.column(l.cells[i].x, l.cells[i].z).biome.isOcean { run += 4; wet[wi] += 4; longest[wi] = max(longest[wi], run) } else { run = 0 }
+                    }
+                    guard !old else { continue }
+                    for c in l.cells.dropFirst(2).dropLast(2) {
+                        let ck = Railways.colKey(c.x, c.z)
+                        if let o = owner[ck], o != l.id { shared += 1 } else { owner[ck] = l.id }
+                    }
+                    guard !Railways.isLink(l.id) else { continue }
+                    lines += 1
+                    let (row, st) = Railways.rowStretch(l.id)
+                    let o = Railways.openEnds(gen, l)
+                    if l.stations.count == 1 && !o.west && !o.east { lone += 1; bad.append("seed \(seed): \(l.name) is one station nothing joins") }
+                    for (joined, name) in [(o.west, "west"), (o.east, "east")] {
+                        ends += 1
+                        if !joined && l.wild { loose += 1; bad.append("seed \(seed) row \(row) stretch \(st): open-country track's \(name) end joins nothing") }
+                    }
+                }
+            }
+        }
+        for b in bad.prefix(8) { print("ledger 360: " + b) }
+        let ok = longest[1] <= Railways.strait + 8 && loose == 0 && lone == 0 && shared == 0 && cells[1] > 0 && cells[1] < cells[0] && lines > 0
+        check(ok, "ledger 360: no railway over the sea beyond a strait, and every one runs from town to town (4 new worlds, 8,800 blocks square: the longest run of track over the sea \(longest[1]) blocks, \(longest[0]) before; \(wet[1]) blocks of track over the sea in all, \(wet[0]) before; \(cells[1]) blocks of track, \(cells[0]) before; \(lines) lines, \(loose) open-country ends that join nothing, \(lone) lone stations, \(shared) columns shared by two tracks)")
     }
 
     // Ledger 239: a stretch's line serves the towns of its own row and of the empty row south of it (the chain with
@@ -97,14 +145,15 @@ extension RailwayTests {
     // the next stretch), not out and back along its own hundred-odd cells.
     static func passingTrain(_ check: (Bool, String) -> Void) {
         var one: (WorldGen, Railways.Line)?
-        search: for k in 0..<3 {
+        // (ledger 360 lays a line of one station only where a railway runs on from it, so they are fewer: look further)
+        search: for k in 0..<5 {
             let gen = WorldGen(seed: UInt64(1000 + k * 7919))
             gen.fieldWorld = true
-            for row in [-2, 0, 2] { for st in -2...2 {
+            for row in stride(from: -6, through: 6, by: 2) { for st in -3...3 {
                 if let l = Railways.line(gen, row: row, stretch: st), !l.wild, l.stations.count == 1 { one = (gen, l); break search }
             } }
         }
-        guard let (gen, l) = one else { check(false, "ledger 238: no line of one station in 45 stretches of 3 worlds"); return }
+        guard let (gen, l) = one else { check(false, "ledger 238: no line of one station in 245 stretches of 5 worlds"); return }
         let stub = Trains.track(l)
         // (the stub's train: how often it turns)
         func turns(_ t: Trains.Track, over secs: Double) -> Int {
@@ -118,7 +167,8 @@ extension RailwayTests {
         let st = l.stations[0]
         // (the window's stops are every station on its parts: the line's own among them, and a neighbour stretch's if
         // that is a town line too)
-        let ownAt = t.parts[0].cells.count + t.parts[1].cells.count + st.index
+        let before = t.parts.firstIndex(where: { $0 === l }) ?? 0
+        let ownAt = t.parts[..<before].reduce(0) { $0 + $1.cells.count } + st.index
         let atStation = t.stops.contains(ownAt) && t.cells[ownAt].x == l.cells[st.index].x && t.cells[ownAt].z == l.cells[st.index].z
         // One whole timetable, a tenth of a second a step: it stands at the station, never leaps, reaches both ends.
         var stood = 0.0, leap: Float = 0, lo = Float.infinity, hi: Float = 0, u = 0.0
@@ -131,7 +181,7 @@ extension RailwayTests {
             u += 0.1
         }
         let n = Float(t.cells.count - 1)
-        let ok = t.parts.count == 5 && atStation && t.cells.count > 8 * l.cells.count && stood >= Trains.dwell && leap < 4 && lo < 8 && hi > n - 8
+        let ok = t.parts.count >= 3 && atStation && t.cells.count > 8 * l.cells.count && stood >= Trains.dwell && leap < 4 && lo < 8 && hi > n - 8
             && turns(t, over: 600) <= 2
         check(ok, String(format: "ledger 238: a line of one station runs its train through, not along its platform and back (%@: its own track %d cells, a train on it would turn %d times in ten minutes; its window %d cells over %d parts, turns %d times, stands %.0f s at its %d stations (%@ among them) a round of %.0f min, never moves more than %.1f cells in a tenth of a second, runs cells %.0f to %.0f)",
                          l.name, l.cells.count, turns(stub, over: 600), t.cells.count, t.parts.count, turns(t, over: 600), stood, t.stops.count, st.name, t.period / 60, leap, lo, hi))

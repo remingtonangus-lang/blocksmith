@@ -61,7 +61,7 @@ enum QuestOptions {
             if !S.autoViewDistance && FrameStats.manualHeld && now < S.renderDistance { return ("View Distance: \(S.renderDistance) (drawing \(now) here)", "q_view") }   // ledger 298
             return ("View Distance: \(S.renderDistance)" + (S.autoViewDistance && now != S.renderDistance ? " (now \(now))" : ""), "q_view")
         }
-        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_body", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_active", "q_autord", "q_hud", "q_bright", "q_diff"]
+        PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_body", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_farlayer", "q_active", "q_autord", "q_hud", "q_bright", "q_diff"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
             "host:setup": "Play position, comfort, dominant hand, controls and your height: the first-launch setup again.",
@@ -95,6 +95,7 @@ enum QuestOptions {
             "q_diff": "How hard the enemies hit, aim and come at you in this world. It changes at once.",
             "q_active": "How far round you the world lives: crops grow, water flows, animals and soldiers move. Never past the View Distance.",
             "q_view": "How far the land is drawn, 8 to 24 chunks. Lower it when the game isn't keeping up; it applies at once.",
+            "q_farlayer": "The land and its woods are drawn in simple shapes far past your View Distance, instead of haze at its edge.",
             "q_autoview": "The land is drawn as far as the headset keeps up with, 8 to 24 chunks under your View Distance, and the edge fades into haze. Off: your View Distance, drawn nearer only where the land is too thick to draw at full speed.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
@@ -157,6 +158,7 @@ enum QuestOptions {
                 ("Brightness: \(PauseMenu.brightnessName(S.brightness))", "q_bright"),
                 ("View Distance: \(S.renderDistance) chunks", "q_view"),                                              // P415
                 ("Auto View Distance: \(S.autoViewDistance ? "On (now \(hooks.game()?.world.renderDistance ?? S.startView))" : "Off")", "q_autoview"),   // P425
+                ("Far Scenery: \(on(S.farLayer))", "q_farlayer"),                                                   // ledger 361
                 (hooks.game().map { PauseMenu.adLabel($0) } ?? "Active Distance", "q_active"),                       // P463: on the headset's page too
                 ("Auto Render Distance: \(on(S.autoRenderDistance))", "q_autord"),
                 ("Clouds: \(on(S.clouds))", "q_clouds"),
@@ -301,6 +303,7 @@ enum QuestOptions {
             let c = PauseMenu.activeChoice(g)
             g.setActiveDistance(step(World.activeOptions, World.activeOptions.contains(c) ? c : 8, back))
         case "q_autord": S.autoRenderDistance.toggle()
+        case "q_farlayer": S.farLayer.toggle()
         case "q_clouds": S.clouds.toggle()
         case "q_hudfade": S.hudFade.toggle()
         case "q_tex": S.textureRes = S.textureRes >= 128 ? 64 : 128

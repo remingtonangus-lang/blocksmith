@@ -112,6 +112,8 @@ enum QuestSettings {
     // P425: Auto View Distance (ViewGovernor): the view distance follows the GPU's frame time, 8 to 24, under the slider;
     // the far ring gives way to fog at the drawn edge. `autoViewLast` is where it settled, so a launch starts there.
     static var autoViewDistance: Bool { get { bool("quest.autoView", true) } set { store(newValue, "quest.autoView") } }
+    // Ledger 361: the far layer (FarRing.layer): land and woods past the drawn chunks instead of haze at the edge.
+    static var farLayer: Bool { get { bool("quest.farLayer", false) } set { store(newValue, "quest.farLayer") } }
     static var autoViewLast: Int { get { int("quest.autoViewLast", viewDistance) } set { store(newValue, "quest.autoViewLast") } }
     // P426: a launch starts no higher than 16 (where it settled under Space Warp's doubled budget, 24, was a minute
     // of missed frames at every launch until the governor had stepped down); with headroom it climbs from there.
@@ -180,7 +182,7 @@ extension QuestSettings {
          ("quest.blastShake", blastShake), ("quest.chaseView", chaseView), ("quest.teleport", teleport), ("quest.headLocomotion", headLocomotion), ("quest.seated", seated),
          ("quest.reclined", reclined), ("quest.swingMode", swingMode), ("quest.buttonReload", buttonReload), ("quest.swingBeforeReclined", swingBeforeReclined),
          ("quest.leftHanded", leftHanded), ("quest.controlPreset", controlPreset), ("quest.standHeight", standHeight), ("quest.heldScale", heldScale), ("quest.deckRing", deckRing), ("quest.clouds", clouds),
-         ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.autoView", autoViewDistance), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
+         ("quest.hudFade", hudFade), ("quest.autoRenderDistance", autoRenderDistance), ("quest.autoView", autoViewDistance), ("quest.farLayer", farLayer), ("quest.hudDrop", hudDrop), ("quest.menuScale", menuScale), ("quest.hudScale", hudScale), ("quest.knockback", knockback), ("quest.mineToggle", mineToggle), ("quest.ctrlHints", ctrlHints),
          ("quest.foveation", foveation), ("quest.spaceWarp3", spaceWarp), ("quest.dynRes3", dynamicResolution), ("quest.textureRes", textureRes)]
     }
     // The headset's own defaults for shared options: the TV-style HUD scale (bigger text), since the panel is read at

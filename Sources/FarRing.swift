@@ -23,6 +23,14 @@ final class FarRing {
     static var enabled = Env.all["BS_FARRING"] != "0"
     // P484: the ring's ground drawn over chunks inside the loaded disc that are not drawn yet (BS_GAPCOVER=0: off).
     static var gapCover = Env.all["BS_GAPCOVER"] != "0"
+    // Ledger 361 (Nov 18, Remington: "build our own compression models for far distance that balances detail with
+    // simplicity"): the far layer. The ring shows under Auto View Distance too, and woods past the loaded chunks stand
+    // as one low-poly stand-in per real tree (FarForest.swift: the tree pass's own lattice, so a stand-in is where the
+    // chunk will grow the tree), out to `FarForest.reach` blocks; the ground under them keeps its true height there
+    // instead of the canopy lift. BS_FARLAYER=1 turns it on (off = before).
+    // On the headset it is Options > Far Scenery (QuestSettings.farLayer, off until measured there).
+    static let layerEnv = Env.all["BS_FARLAYER"] == "1"
+    static var layer = layerEnv
     static let outer: Float = 1024                 // blocks: the rim (64 chunks)
     static let cell = 128                          // rebuild cell
     static let spacings = [8, 16, 32]
@@ -44,17 +52,23 @@ final class FarRing {
 
     // kind: 0 ground, 1 water, 2 lava. `side`: the colour of the ground's flanks seen from the side in a block world
     // (dirt under grass, rock on cliffs: P250 b).
-    struct Sample { var y: Float; var c: V3; var kind: Float; var side: V3 = V3(0, 0, 0) }
+    // `lift`, `c0`, `side0` (ledger 361): how far the woods' canopy raised `y`, and the ground's own colours under it.
+    struct Sample { var y: Float; var c: V3; var kind: Float; var side: V3 = V3(0, 0, 0); var lift: Float = 0; var c0 = V3(0, 0, 0); var side0 = V3(0, 0, 0) }
 
     private let lock = NSLock()
     private var mesh: Mesh?
     private var building = false
     private var want = (Int.min, Int.min, -1, false)
+    private var wantLayer = false
     private var seed: UInt64 = 0
     private var builds = 0
     private var memo: [Int64: Sample] = [:]        // touched only by the one build running (`building`)
     private var memoSeed: UInt64 = 0
+    private var forest = FarForest(seed: 0)        // (the same)
     private(set) var lastBuildMs = 0.0
+    private(set) var lastForest: (quads: Int, squeeze: Float) = (0, 1)     // ledger 361: the last build's stand-ins
+    private(set) var lastTrack = 0
+    private var trackWarm = Set<Int64>()           // cells whose railway plans were asked for (FarTrack.warm)
 
     func current() -> Mesh? {
         lock.lock(); defer { lock.unlock() }
@@ -86,10 +100,12 @@ final class FarRing {
         // never blocks). Part of the key (P250 b): toggling Smooth Terrain, or another world with the same seed, rebuilds.
         let blocky = !SmoothTerrain.enabled && !g.world.fieldTerrain
         lock.lock()
-        let same = want == (kx, kz, rd, blocky) && seed == g.world.seed
+        let layer = FarRing.layer
+        let same = want == (kx, kz, rd, blocky) && seed == g.world.seed && wantLayer == layer
         if same || building { lock.unlock(); return }
         building = true
         want = (kx, kz, rd, blocky)
+        wantLayer = layer
         seed = g.world.seed
         let fresh = mesh?.seed != seed || mesh?.blocky != blocky
         let sd = seed
@@ -103,8 +119,9 @@ final class FarRing {
             if self.memoSeed != sd || self.memo.count > 150_000 { self.memo.removeAll(keepingCapacity: true); self.memoSeed = sd }
             var out = Mesh(seed: sd, cx: cx, cz: cz, rd: rd, gen: n, blocky: blocky)
             var inner: [ChunkKey: [SimpleVert]] = [:]
+            if self.forest.seed != sd { self.forest = FarForest(seed: sd); self.trackWarm.removeAll() }
             out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: blocky,
-                                      inner: &inner, wantInner: FarRing.gapCover)
+                                      inner: &inner, wantInner: FarRing.gapCover, forest: layer ? self.forest : nil)
             out.innerVerts.reserveCapacity(inner.values.reduce(0) { $0 + $1.count })
             for (k, v) in inner {
                 out.inner[k] = out.innerVerts.count..<(out.innerVerts.count + v.count)
@@ -115,8 +132,24 @@ final class FarRing {
             // A build for a world left meanwhile is dropped (the next request starts the new world's).
             if sd == self.seed { self.mesh = out } else { self.want = (Int.min, Int.min, -1, false) }
             self.lastBuildMs = ms
+            self.lastForest = layer ? (self.forest.lastQuads, self.forest.lastSqueeze) : (0, 1)
+            self.lastTrack = layer ? self.forest.lastTrack : 0
+            // Ledger 361: the railways in reach are planned after the cell's first build, off this thread; when that
+            // made a plan the build had not seen, the ring is built again with it.
+            let cellKey = (Int64(kx) << 32) | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: kz)))
+            let warm = layer && !FarTrack.waitInBuild && sd == self.seed && self.trackWarm.insert(cellKey).inserted
             self.building = false
             self.lock.unlock()
+            if warm {
+                DispatchQueue.global(qos: .utility).async {
+                    let before = FarTrack.lines(gen, cx: cx, cz: cz, wait: false).count
+                    FarTrack.warm(gen, cx: cx, cz: cz)
+                    guard FarTrack.lines(gen, cx: cx, cz: cz, wait: false).count != before else { return }
+                    self.lock.lock()
+                    if self.seed == sd { self.want = (Int.min, Int.min, -1, false) }
+                    self.lock.unlock()
+                }
+            }
         }
         // The first ring of a world is built here and now (at load, like HorizonRing); later ones in the background
         // while the old ring stays up.
@@ -184,9 +217,11 @@ final class FarRing {
         // P250 (b, c): woods stand as their canopy, in leaf colours (a forest was a bare green slope past the chunks,
         // and the trees stopped at the loaded edge).
         let w = canopy(gen, b, x, z, ground: k.h)
+        let c0 = c, side0 = side
         c = simd_mix(c, w.leaf, V3(repeating: w.cover * (1 - rw)))
         side = simd_mix(side, w.leaf * 0.9, V3(repeating: w.cover * (1 - rw)))     // a wood's terrace walls are leaves
-        return Sample(y: Float(YOFF) + k.h + 1 + w.height * (1 - rw), c: c, kind: 0, side: side)
+        let lift: Float = w.height * (1 - rw)
+        return Sample(y: Float(YOFF) + k.h + 1 + lift, c: c, kind: 0, side: side, lift: lift, c0: c0, side0: side0)
     }
 
     // P250: a column's woods as seen from afar: how much of the ground the crowns cover (0 ... 1), how far the canopy's
@@ -238,7 +273,7 @@ final class FarRing {
     // `inner`: also every 8- or 16-block quad (or block column) within reach of the loaded disc, under its chunk (the
     // gap cover), including the ones left out of the ring itself because the chunks always cover them.
     static func build(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, memo: inout [Int64: Sample], blocky: Bool = false,
-                      inner: inout [ChunkKey: [SimpleVert]], wantInner: Bool = false) -> [SimpleVert] {
+                      inner: inout [ChunkKey: [SimpleVert]], wantInner: Bool = false, forest: FarForest? = nil) -> [SimpleVert] {
         func a32(_ v: Float) -> Int { (Int(v.rounded(.up)) + 31) / 32 * 32 }
         let e0 = a32(rin + 64)
         let e1 = max(e0 + 128, a32(rin + 320), 640)
@@ -255,9 +290,18 @@ final class FarRing {
         let innerReach: Float = rin + 296
         func S(_ x: Int, _ z: Int) -> Sample {
             let key = (Int64(x) << 32) | Int64(UInt32(bitPattern: Int32(truncatingIfNeeded: z)))
-            if let s = memo[key] { return s }
-            let s = sample(gen, x, z)
-            memo[key] = s
+            var s: Sample
+            if let m = memo[key] { s = m } else { s = sample(gen, x, z); memo[key] = s }
+            // Ledger 361: where the stand-in trees are drawn the ground is the ground (its own height, shaded a little
+            // by the wood over it); the canopy lift comes back over the last 96 blocks of their reach.
+            if forest != nil && s.lift > 0 {
+                let dx = Float(x - cx), dz = Float(z - cz)
+                let d: Float = (dx * dx + dz * dz).squareRoot()
+                let k: Float = min(1, max(0, (d - (FarForest.reach - 96)) / 96))
+                s.y -= s.lift * (1 - k)
+                let m = V3(repeating: 0.3 + 0.7 * k)
+                s.c = simd_mix(s.c0, s.c, m); s.side = simd_mix(s.side0, s.side, m)
+            }
             return s
         }
         var out: [SimpleVert] = []
@@ -373,6 +417,11 @@ final class FarRing {
                     }
                 }
             }
+        }
+        // (After the ground: when the draw is cut at the quad limit, it is trees that go.)
+        if let forest {
+            forest.emit(gen, cx: cx, cz: cz, rin: rin, from: max(0, skip), into: &out)
+            forest.lastTrack = FarTrack.emit(gen, cx: cx, cz: cz, from: max(0, skip), into: &out)
         }
         return out
     }

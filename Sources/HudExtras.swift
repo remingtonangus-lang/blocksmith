@@ -288,6 +288,35 @@ enum ContextPrompts {
     }
 }
 
+// MARK: The clock in hand
+
+// Ledger 259 (Nov 17 20:07:26, a clock in his hand: "it doesn't show me time or anything. Again, there's no interface
+// support. It's useless."): a clock showed the time only as a needle on its hotbar icon on the Mac, and on the headset
+// nothing at all. Held, it reads out the day and the time, over the hotbar, in both HUDs (HudExtras.lines); away from
+// the sun (the Emberdeep, the Hollow) its hands spin. BS_OLDCLOCK=1: nothing.
+enum ClockFace {
+    static let old = Env.all["BS_OLDCLOCK"] == "1"
+    static var cache: (Int, String) = (-1, "")
+    static func text(_ g: Game) -> String? {
+        guard !old, g.menu == nil, g.alive, Items.key(g.held.item) == "clock" else { return nil }
+        guard g.dim.dim == .overworld else { return "The hands spin" }
+        let (d, h, m) = g.journalStamp
+        let key = (d * 24 + h) * 60 + m
+        if key != cache.0 {
+            let h12 = h % 12 == 0 ? 12 : h % 12
+            cache = (key, "Day \(d)  \(h12):\(m < 10 ? "0" : "")\(m) \(h < 12 ? "AM" : "PM")")
+        }
+        return cache.1
+    }
+    static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
+        guard let t = text(g) else { return [] }
+        let s = L.s, w = Float(Font.width(t)) * s
+        let x = (L.W - w) / 2, y = L.hotbarY0 - 30 * s
+        return [HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 8 * s, 14 * s)),
+                HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.93, 0.7, 1))]
+    }
+}
+
 // MARK: Tutorial
 
 // P300 (b): the first-steps tips ("Look around with...", "Tip 1/7") are gone: the world and the controls reference in
@@ -368,6 +397,7 @@ enum HudExtras {
             if bn.recording { out.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
         }
         out += SaveBadge.lines(g, L, below: bn.listening)                 // Q2c-console-2
+        out += ClockFace.lines(g, L)                                        // ledger 259
         out += NowPlaying.lines(g, L)                                       // Q2c-console-14
         // (Not on the headset: the grips step the hotbar there, and he wanted the labels gone: P85, Oct 12 playtest.)
         if ContextPrompts.shown && Prompt.pad && g.menu == nil && g.vrHead == nil && !g.drivingHUD {
