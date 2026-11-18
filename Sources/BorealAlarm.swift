@@ -12,6 +12,9 @@ final class BorealAlarmState {
     var log: [String] = []                       // harness: what happened, in order
     var vehicleSightings = 0                     // harness: alarms raised by a vehicle he drives (Nov 15)
     var ops: [String: StationOp] = [:]           // infiltration operations (BorealOps.swift), saved
+    var tally: [String: BorealMuster.Tally] = [:]   // ledger 253: each station's garrison counted (BorealMuster.swift)
+    var mustered = Set<String>()                 // ledger 253: stations garrisoned again (saved)
+    var kills: [String: Int] = [:]               // ledger 253: his kills of each station's soldiers (saved)
     static let blareEvery: Float = 4
     static let standDown: Float = 45
 }
@@ -51,6 +54,7 @@ extension Game {
         }
         for key in Array(st.sites.keys) {
             guard var site = st.sites[key], world.isLoaded(site.cx, site.cz) else { continue }
+            BorealMuster.tick(self, key, site, (0..<max(1, coop.seatCount)).map { coop.seatPlayer($0, self).pos }, dt)     // ledger 253
             // P288 (d): with the generator dead the alarm has no power: no klaxon, nothing to rouse the garrison with.
             if st.ops[key]?.blown == true {
                 if site.on { site.on = false; st.log.append("\(key) alarm off (power out)"); st.sites[key] = site }
