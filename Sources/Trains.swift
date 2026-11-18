@@ -733,16 +733,17 @@ enum Trains {
         if dt > 0 && !oldRiddenTrain {
             let rider = g.riding.map { r in tr.cars.contains { $0 === r } } ?? false
             if rider {
-                // (from its front, about 3 s at its pace, 24 blocks at least, every 8 blocks)
+                // (the loaded track ahead of its front, every 4 blocks out to 96: it may run at what stops it 8 short of the
+                // first unloaded cell in 2 s, and brakes only when faster than that)
                 let (s1, d1, _) = now(tr)
                 let front = tr.layout.isEmpty ? s1 : t.advance(tr.lastS, by: d1 * tr.length / 2)
-                let look = max(24, tr.blocksPerSec * 3)
-                var bare = false
-                for k in stride(from: Float(0), through: look, by: 8) {
+                var room: Float = 96
+                for k in stride(from: Float(0), through: 96, by: 4) {
                     let c = t.cell(t.advance(front, by: d1 * k))
-                    if !g.world.isLoaded(c.x, c.z) { bare = true; break }
+                    if !g.world.isLoaded(c.x, c.z) { room = k; break }
                 }
-                if bare != tr.starved { tr.starved = bare; print(bare ? "trains: \(t.name): land ahead not loaded, braking (\(Int(tr.blocksPerSec)) b/s)" : "trains: \(t.name): land ahead loaded, running on") }
+                let bare = tr.blocksPerSec > max(0, (room - 8) / 2) + (tr.starved ? 0 : 1)
+                if bare != tr.starved { tr.starved = bare; print(bare ? "trains: \(t.name): land ahead not loaded, braking (\(Int(tr.blocksPerSec)) b/s, \(Int(room)) blocks loaded ahead)" : "trains: \(t.name): land ahead loaded, running on") }
             } else { tr.starved = false }
         }
         tr.brake += ((tr.heldBy || tr.starved ? 1 : 0) - tr.brake) * min(1, dt * 1.2)
