@@ -2033,6 +2033,7 @@ final class Game: LifeLinked {
             }
             world.setBlock(at.x, at.y + 1, at.z, blockItem + BlockID(facing + 8))
             world.setBlock(at.x, at.y, at.z, blockItem + BlockID(facing))
+            meetFloor(at, blockItem + BlockID(facing))                  // (ledger 273: the ground meets its foot)
             sfx(.place(soundMat(blockItem)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             consumeHeld(); swing = 1
             return
@@ -2141,7 +2142,10 @@ final class Game: LifeLinked {
                     // P387: the ground rises to a placed block's floor. (Ledger 130: only under a block set down on
                     // the ground itself, not one built out from another block over it.)
                     let onBuilt = Blocks.collide[Int(world.builtBlock(t.hit.x, t.hit.y, t.hit.z))]
-                    if World.oldMeet || (!onBuilt && (t.normal.y == 1 || rowCell?.cell == at)) { world.meetGround(at.x, at.y, at.z, id) }
+                    if World.oldMeet || (!onBuilt && (t.normal.y == 1 || rowCell?.cell == at)) {
+                        world.floorPad(at.x, at.y, at.z, id)        // (ledger 273: a door, post or rail: the ground in its cell falls to its floor)
+                        world.meetGround(at.x, at.y, at.z, id)
+                    }
                     world.groundBack(at.x, at.y, at.z, id)      // (ledger 160: the bowl of a dig closes round the block)
                 }
             }
@@ -2333,6 +2337,14 @@ final class Game: LifeLinked {
             return (up, world.groundAt(up.x, up.y, up.z))
         }
         return (cell, sunk)
+    }
+
+    // Ledger 273: what goes down on field ground by its own path (a door, a bed) has the ground meet its floor as a
+    // block placed the usual way does (World.floorPad, World.meetGround). BS_OLDFLOORMEET=1: nothing.
+    func meetFloor(_ c: IVec3, _ id: BlockID) {
+        guard !World.oldFloorMeet, world.fieldTerrain, world.frame == nil else { return }
+        world.floorPad(c.x, c.y, c.z, id)
+        world.meetGround(c.x, c.y, c.z, id)
     }
 
     func placeCell(_ t: (hit: IVec3, normal: IVec3), for blockItem: BlockID) -> IVec3 {
