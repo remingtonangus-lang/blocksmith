@@ -1075,6 +1075,7 @@ final class FrameStats {
             // A menu glance doesn't excuse the window (Oct 11 P15: map and pause menus every few seconds kept 22 fps at
             // distance 22 from ever counting); a window mostly in menus does.
             let excused = busyFrames * 2 > frames || newWorld || (lastSaves >= 0 && saves != lastSaves)
+            let excuse = "busy \(busyFrames) of \(frames) (menu \(g.menu != nil), paused \(g.paused)), new world \(newWorld), saves \(lastSaves) to \(saves)"
             lastGen = gen; lastSaves = saves; lastWorld = g.world
             if QuestSettings.autoRenderDistance, var gov = g.rdGovernor, target > 0 {
                 let w = RenderDistanceGovernor.Window(seconds: now - since, frames: frames, missed: missed, cpuMs: sumCPU / n,
@@ -1124,7 +1125,7 @@ final class FrameStats {
                     print(String(format: "perf: gpu %.1f ms, headroom: view distance up to %d (slider %d)", sumGPU / n, rd, vg.chosen))
                 default:
                     // (headset trials: why the view stays where it is, once a window)
-                    print("perf: view \(vg.current) of \(vg.chosen) (world \(g.world.renderDistance)): \(vg.note)")
+                    print("perf: view \(vg.current) of \(vg.chosen) (world \(g.world.renderDistance)): \(vg.note)" + (excused ? " [\(excuse)]" : ""))
                 }
                 viewGov = vg
             }
