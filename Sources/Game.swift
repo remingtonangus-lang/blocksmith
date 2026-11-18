@@ -3447,13 +3447,20 @@ final class Game: LifeLinked {
         if !lost.isEmpty && !stashed {
             for st in lost { drops.spawn(st, at: at, vel: V3(Rand.float(in: -2...2), Rand.float(in: 1...4), Rand.float(in: -2...2)), delay: 1) }
         }
+        // Ledger 331 (Nov 17 20:08:30, after a bank: "depositing money in a bank would only make sense if it meant I
+        // lost money when I died"): the wallet came through every death whole, so the bank kept nothing safe. The money
+        // he carries is lost where he falls; what is in the bank stays. BS_OLDDEATHMONEY=1: the wallet kept.
+        let walletLost = Bank.oldDeathMoney ? 0 : max(0, townWallet)      // (his gold went with his things, above)
+        townWallet -= walletLost
+        Bank.lostOnDeath += walletLost
         if menu != nil { closeMenu() }
         riding = nil
         alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
         calmMobs()
         // Q2c-console-4: in his words ("You were slain by...", "You drowned"), with where his things are.
         let said = cause.hasPrefix("was ") ? "You were " + cause.dropFirst(4) : "You " + cause
-        openMenu(DeathMenu(game: self, message: said, detail: deathDetail(lost: !lost.isEmpty, stashed: stashed)))
+        let moneyLine = walletLost > 0 ? "The \(Money.format(walletLost)) you carried is gone" + (Bank.balance > 0 ? "; your \(Money.format(Bank.balance)) in the bank is safe. " : ". ") : ""
+        openMenu(DeathMenu(game: self, message: said, detail: moneyLine + deathDetail(lost: !lost.isEmpty, stashed: stashed)))
     }
 
     // Ledger 84 (Nov 11, the VR fuzz started at a Brigand Roost: "Fatal error: unknown block ash_standard_2[z]"): a

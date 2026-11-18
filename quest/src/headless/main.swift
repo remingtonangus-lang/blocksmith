@@ -5099,6 +5099,39 @@ do {
         let snap = HorizonRing.sample(wg, seed: world.seed, x0: Int(spawn.x) - 1280, z0: Int(spawn.z) - 1280, n: HorizonRing.cells * 2 + 1, s: HorizonRing.spacing)
         print(String(format: "horizon ring: %d samples in %.0f ms", snap.h.count, (CFAbsoluteTimeGetCurrent() - th) * 1000))
     }
+    // Ledger 307: the drop scan reads one new cell a level instead of the whole column; both give the same searches.
+    // Soldiers' drop limits (25-79 at full health), both footprints, starts on the ground and on high places.
+    do {
+        var r = SRng(307)
+        var nodes = 0, searches = 0, differ = 0, msOld = 0.0, msNew = 0.0
+        let keep = PathFinder.oldDropScan
+        for i in 0..<240 {
+            var pr = PathProfile()
+            pr.tall = 2
+            pr.span = i % 4 == 3 ? 2 : 1
+            pr.maxDrop = [3, 25, 39, 79][i % 4]
+            pr.climbs = pr.span == 1
+            let ax = Int(spawn.x) + r.int(64) - 32, az = Int(spawn.z) + r.int(64) - 32
+            let bx = ax + r.int(48) - 24, bz = az + r.int(48) - 24
+            let lift = i % 3 == 0 ? Float(8 + r.int(20)) : 0               // (some starts up in the air: long drops)
+            let a = V3(Float(ax) + 0.5, Float(world.topY(ax, az) + 1) + lift, Float(az) + 0.5)
+            let b = V3(Float(bx) + 0.5, Float(world.topY(bx, bz) + 1), Float(bz) + 0.5)
+            PathFinder.oldDropScan = true
+            var t = CFAbsoluteTimeGetCurrent()
+            let p0 = PathFinder.find(world, from: a, to: b, profile: pr, maxNodes: 1500)
+            let e0 = PathFinder.lastExpanded
+            msOld += CFAbsoluteTimeGetCurrent() - t
+            PathFinder.oldDropScan = false
+            t = CFAbsoluteTimeGetCurrent()
+            let p1 = PathFinder.find(world, from: a, to: b, profile: pr, maxNodes: 1500)
+            let e1 = PathFinder.lastExpanded
+            msNew += CFAbsoluteTimeGetCurrent() - t
+            searches += 1; nodes += e1
+            if e0 != e1 || (p0 ?? []) != (p1 ?? []) || (p0 == nil) != (p1 == nil) { differ += 1 }
+        }
+        PathFinder.oldDropScan = keep
+        check(differ == 0 && nodes > 2000, String(format: "ledger 307: the one-cell drop scan gives the same searches as the whole-column one (%d searches, %d nodes, %d differ; %.1f ms -> %.1f ms)", searches, nodes, differ, msOld * 1000, msNew * 1000))
+    }
     if CommandLine.arguments.contains("--pathfind-only") { exit(0) }      // (profiling)
 }
 

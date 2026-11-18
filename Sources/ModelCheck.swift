@@ -69,6 +69,67 @@ enum ModelCheck {
             let low = mouthLow(built(m, 0), j)
             check(low < 3.0, String(format: "\(k.key): grazes with its mouth %.1f px off the ground", low))
         }
+        // Ledger 332-333 (WildLooks.swift): the polar bear and the mountain goat, to the farm animals' standard.
+        for k in [MobKind.goat, .polarBear] {
+            let m = Mob(k, at: .zero)
+            m.coatSeed = 7; m.walkAmount = 0; m.walkPhase = 0; m.callTimer = 15; m.aggro = false
+            while WildLooks.snarl(m) > 0 { m.animT += 0.5 }
+            let c = (0..<3).map { built(m, $0).count }
+            let (lo, hi, finite) = PoseCheck.extent(built(m, 0))
+            var walkOK = true, worst = ""
+            m.walkAmount = 1
+            for i in 0..<12 {
+                m.walkPhase = Float(i) * Float.pi / 6
+                let (wl, _, wok) = PoseCheck.extent(built(m, 0))
+                if !wok || wl < -0.6 || wl > 1.2 { walkOK = false; worst = String(format: " (walk phase %d lowest %.2f)", i, wl) }
+            }
+            m.walkAmount = 0; m.walkPhase = 0
+            check(finite && !WildLooks.old && c[0] <= 64 && c[0] >= 30 && c[0] > c[1] && c[1] > c[2] && abs(lo) <= 0.35 && walkOK,
+                  String(format: "\(k.key): a jointed model, parts near %d, middle %d, far %d; stands on its feet (%.2f) at rest and through the walk%@",
+                         c[0], c[1], c[2], lo, worst))
+            let ps = built(m, 0)
+            guard let j = MobAnim.headJoint(m) else { check(false, "\(k.key): has a head joint (its head turns to look)"); continue }
+            var front = 0
+            for (i, p) in ps.enumerated() where p.place(p.mn, p.rotation).z < ps[front].place(ps[front].mn, ps[front].rotation).z { front = i }
+            let held = ps.filter { j.holds($0) }
+            let legHeld = held.contains { (($0.mn.y + $0.mx.y) * 0.5) < 4 }
+            check(j.holds(ps[front]) && held.count >= 8 && !legHeld, "\(k.key): the head turn takes \(held.count) head parts, no leg")
+            if k == .goat {
+                let horn = V3(0.1, 0.09, 0.09), shag = V3(0.9, 0.89, 0.83)
+                let horns = ps.filter { $0.color == horn }
+                let hornTop = horns.map { PoseCheck.extent([$0]).1 }.max() ?? 0
+                let beardLow = ps.filter { $0.color == shag && $0.pivot != .zero && j.holds($0) }.map { PoseCheck.extent([$0]).0 }.min() ?? 99
+                check(horns.count == 4 && hornTop > hi - 0.5 && beardLow < 13, String(format: "goat: two black horns in two pieces (%d) reaching the top of it (%.1f of %.1f px), a beard down to %.1f px",
+                                                                                    horns.count, hornTop, hi, beardLow))
+                m.callTimer = 3.5
+                let low = mouthLow(built(m, 0), j)
+                check(low < 3.0, String(format: "goat: grazes with its mouth %.1f px off the ground", low))
+            } else {
+                let skin = V3(0.07, 0.07, 0.08), tooth = V3(0.93, 0.91, 0.82)
+                let claws = ps.filter { $0.color == skin && PoseCheck.extent([$0]).1 < 1.5 }.count
+                let coat = V3(0.94, 0.93, 0.86)
+                // The jaw's opening: how far its lowest point hangs under the muzzle's; the body's top (the hackles).
+                func opening(_ q: [Part]) -> Float {
+                    guard let mz = q.first(where: { $0.color == coat && $0.mn.x == -2.5 && $0.mx.x == 2.5 }),
+                          let jw = q.first(where: { $0.color == coat && $0.mn.x == -2.3 && $0.mx.x == 2.3 }) else { return -99 }
+                    return PoseCheck.extent([mz]).0 - PoseCheck.extent([jw]).0
+                }
+                func bodyTop(_ q: [Part]) -> Float { q.filter { $0.pivot == .zero && !j.holds($0) }.map { $0.mx.y }.max() ?? 0 }
+                let calm = opening(ps), calmTeeth = ps.filter { $0.color == tooth }.count, calmTop = bodyTop(ps)
+                m.aggro = true
+                let mad = built(m, 0)
+                let madTeeth = mad.filter { $0.color == tooth }.count
+                check(hi >= 23 && claws == 12, String(format: "polar bear: %.1f px tall (was 24 in boxes), black claws on its four paws (%d)", hi, claws))
+                check(calmTeeth == 0 && madTeeth == 4 && opening(mad) > calm + 2 && bodyTop(mad) > calmTop,
+                      String(format: "polar bear: angry, it opens its jaws %.1f px (shut %.1f) on %d fangs (shut %d) with its hackles up (%.1f px, calm %.1f)",
+                             opening(mad), calm, madTeeth, calmTeeth, bodyTop(mad), calmTop))
+                // Now and then it bares its teeth unprovoked.
+                m.aggro = false
+                var bared = 0
+                for i in 0..<400 { m.animT = Float(i) * 0.25; if WildLooks.snarl(m) > 0.5 { bared += 1 } }
+                check(bared > 0 && bared < 80, "polar bear: bares its teeth now and then at rest (\(bared) of 400 quarter-seconds)")
+            }
+        }
         // People: a neck and a smaller head; hands; near detail.
         let w = Mob(.villager, at: .zero)
         var v = VillagerData(); v.role = "worker"; v.look = 14; v.person = "Amos Hale"

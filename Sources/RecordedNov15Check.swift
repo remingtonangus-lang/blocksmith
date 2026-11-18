@@ -54,6 +54,31 @@ enum RecordedNov15Check {
         check(resolved == withTake && missing.isEmpty && unplayed.isEmpty && bad.isEmpty,
               "Nov 15 sounds: every entry with a usable take resolves to a recording the game plays (\(resolved) of \(withTake); missing \(missing.count), not in the bank \(unplayed.count), unreadable or short loops \(bad.count))")
 
+        // Ledger 330 (Nov 17 20:07:15: "Someone's shouting. It would work if it was way less frequent."): the market
+        // street's take holds a trader's call; it is heard one pass at a time, 90-180 s apart, not every 8 s.
+        do {
+            var call = "no take"
+            if let t = RealSounds.load(.marketLoop)?.first, t.count > 4410 {
+                let win = Int(SoundBank.rate / 10)
+                var db: [Float] = []
+                for i in stride(from: 0, to: t.count - win, by: win) {
+                    var e: Float = 0
+                    for j in i..<(i + win) { e += Float(t[j]) * Float(t[j]) }
+                    db.append(10 * log10f(max(e / Float(win), 1e-12)))
+                }
+                let med = db.sorted()[db.count / 2]
+                if let k = db.indices.max(by: { db[$0] < db[$1] }) { call = String(format: "a call %.1f dB over the street at %.1f s", db[k] - med, Double(k) / 10) }
+            }
+            let saved = (MarketCalls.until, MarketCalls.next, MarketCalls.passes)
+            defer { (MarketCalls.until, MarketCalls.next, MarketCalls.passes) = saved }
+            MarketCalls.until = -1; MarketCalls.next = 0; MarketCalls.passes = 0
+            var heard: Double = 0
+            var clock: Double = 1000
+            for _ in 0..<(600 * 20) { if MarketCalls.heard(clock) { heard += 0.05 }; clock += 0.05 }
+            let calls = MarketCalls.passes
+            check(MarketCalls.old ? false : (calls >= 3 && calls <= 7 && heard <= 8.5 * Double(calls) + 0.1),
+                  String(format: "ledger 330: the market street (%@) heard %d times in 10 minutes among the shops, %.0f s in all (was every 8 s: 75 calls)", call, calls, heard))
+        }
         // The two new uses: a well's bucket and a desk's drawer.
         let w = g.world, p = g.player
         let home = p.pos, survival0 = g.survival, fly0 = p.flying, yaw0 = p.yaw, pitch0 = p.pitch
