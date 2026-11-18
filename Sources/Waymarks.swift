@@ -59,6 +59,13 @@ enum Waymarks {
             out.append(Target(kind: land ? "my_vehicle" : "my_ship", key: "\(s.id)", name: (land ? "Vehicle: " : "Ship: ") + s.name, pos: s.pos))
         }
         out += Director.targets(g)                                  // P266: the Director's events
+        // Ledger 258: a den a Hunter's Map showed him, while its legend lives.
+        if !Hunting.oldDenMap {
+            let dens = Hunting.dens(g)
+            for i in Hunting.state.revealed.sorted() where i < dens.count && !Hunting.state.killed.contains(i) {
+                out.append(Target(kind: "legend", key: "\(i)", name: "\(Hunting.legends[i].name.capitalizedFirst)'s den", pos: v(dens[i].x, dens[i].z, py)))
+            }
+        }
         for m in MapCache.shared.marks where m.kind == "note" || m.kind == "pin" {
             out.append(Target(kind: m.kind, key: "\(m.x),\(m.z)", name: (m.kind == "note" ? "Note: " : "Waypoint: ") + (m.name ?? "\(m.x), \(m.z)"), pos: v(m.x, m.z, py)))
         }
