@@ -979,14 +979,28 @@ enum Railways {
             }
             return Int32(high[i])
         }
-        let fieldA = hashf(gz0, 0x230, 1, UInt32(truncatingIfNeeded: gen.seed)) * 6.283, fieldB = hashf(gz0, 0x230, 2, UInt32(truncatingIfNeeded: gen.seed)) * 6.283
+        // (the second picture from above: a slow field of easier and harder going moved the way a square or two off
+        // its row and no more, a straight track with dents. So the way has a line to keep near, from its start to
+        // its goal with two slow swings north and south, widest in the middle and none at the ends, inside the band;
+        // a square costs a point for every 24 blocks it lies off that line, up to 6, and the land still has its say.)
+        let fieldA = hashf(s0.0, 0x230, 1, UInt32(truncatingIfNeeded: gen.seed)) * 6.283, fieldB = hashf(s0.0, 0x230, 2, UInt32(truncatingIfNeeded: gen.seed)) * 6.283
+        let runX = Float(max(1, e0.0 - s0.0))
+        let room: Float = band.map { Float($0.hi - $0.lo) / 3 } ?? 120
+        let swing: Float = min(120, room, runX / 6)
+        let bandLo = Float((band?.lo ?? Int.min / 2) + 24), bandHi = Float((band?.hi ?? Int.max / 2) - 24)
+        func guide(_ x: Float) -> Float {
+            let u = max(0, min(1, (x - Float(s0.0)) / runX))
+            let straight = Float(s0.1) + Float(e0.1 - s0.1) * u
+            let slow: Float = sinf(x * 0.0045 + fieldA), quick: Float = sinf(x * 0.0118 + fieldB)
+            let off: Float = sinf(u * .pi) * swing * (0.75 * slow + 0.35 * quick)
+            return max(bandLo, min(bandHi, straight + off))
+        }
         func landCost(_ i: Int, _ j: Int) -> Int32 {
             let climb = abs(height(j) - height(i))
-            let x = Float((gx0 + j % nx) * G), z = Float((gz0 + j / nx) * G)
-            let wave: Float = sinf(x * 0.011 + fieldA) * cosf(z * 0.023 + fieldB)
-            let f: Float = 1.5 + 1.5 * wave
+            let x = Float((gx0 + j % nx) * G + G / 2), z = Float((gz0 + j / nx) * G + G / 2)
+            let away: Float = abs(z - guide(x)) / 24
             let steep: Int32 = min(14, max(0, climb - 2))
-            return steep + Int32(f.rounded())
+            return steep + Int32(min(6, away).rounded())
         }
         func h(_ i: Int) -> Int32 { hw * Int32(abs(i % nx - gxg) + abs(i / nx - gzg)) }
         var heap: [(Int32, Int32)] = []                    // (f, state)
@@ -1024,7 +1038,7 @@ enum Railways {
                 let j = z2 * nx + x2
                 if runOn && (j == start || (j == goal && nd != 0)) { continue }
                 guard open(j) else { continue }
-                var c2 = cost[si] + 1 + (nd == d ? 0 : turnCost) + (looked[j] == 3 ? seaCost : looked[j] == 4 ? deepCost : 0)
+                var c2 = cost[si] + 1 + (nd == d ? 0 : land ? 1 : turnCost) + (looked[j] == 3 ? seaCost : looked[j] == 4 ? deepCost : 0)
                 if land { c2 += landCost(i, j) }
                 let sj = j * 4 + nd
                 if c2 < cost[sj] { cost[sj] = c2; from[sj] = Int32(si); push(c2 + h(j), Int32(sj)) }
