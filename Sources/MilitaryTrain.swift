@@ -10,10 +10,12 @@ import simd
 //   The cab    the armoured engine can't be taken while a soldier still rides the train ("N soldiers still hold the
 //              train"). Once they are down it is his: used, he takes the regulator and drives it (Trains' cab
 //              controls), and the guard car's gun no longer fires on him.
-//   The gun    on a train he has taken, the guard car is used to work its gun: he stands at the turret behind the
+//   The gun    (ledger 254: any troop train, taken or not) the guard car is used to work its gun: he stands at the turret behind the
 //              breech, the turret follows his view, and the trigger fires a high-explosive shell (a field gun's, half
 //              a deck gun's blast) every 1.5 s. Sneak leaves it.
 enum MilitaryTrain {
+    static let oldGun = Env.all["BS_OLDTRAINGUN"] == "1"            // ledger 254
+    static let oldLeave = Env.all["BS_OLDTRAINLEAVE"] == "1"        // ledger 254
     static func isTroopTrain(_ tr: Trains.Train) -> Bool { tr.kind == .troop && !tr.track.armoured && !tr.layout.isEmpty }
 
     // He rides one of its cars (or works its gun).
@@ -48,7 +50,10 @@ enum MilitaryTrain {
             return true
         case Trains.gunCar:
             guard m.health > 0 else { g.onToast?("The guard car's gun is wrecked"); return true }
-            guard tr.taken else {
+            // Ledger 254 (Nov 17 19:57:26, on a Greywall troop train: "Can't fire the gun on it, unfortunately"): the gun
+            // was his only once the train was taken (every soldier down, then the engine). Used, the guard car's gun is
+            // his now, its soldiers still aboard or not (they fight him for it). BS_OLDTRAINGUN=1: the train first.
+            guard tr.taken || !MilitaryTrain.oldGun else {
                 let left = holding(tr).count
                 // Ledger 205: boarded like a troop car (he rides its deck by the gun), the gun his once the train is.
                 // BS_OLDCARUSE=1: refused.
@@ -78,6 +83,7 @@ enum MilitaryTrain {
         boarded += 1
     }
     static var boarded = 0                       // (checks)
+    static var leftBeside = 0                    // (checks: got down beside the train, ledger 254)
 }
 
 // The guard car's gun worked by him (a taken troop train).
