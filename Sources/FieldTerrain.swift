@@ -673,7 +673,9 @@ extension World {
         if remesh && !deferRemesh && box.lo.x <= box.hi.x {
             for (n, s) in all where World.near(n, s, box, grow: 1) { remeshSync(n, s) }
         }
-        fieldStamp &+= 1
+        // (ledger 306: the cells this sphere can change, the cells whose cached shapes read them, and a body's width)
+        let m = reach + 3
+        groundChanged(x0: cxI - m, z0: czI - m, x1: cxI + m, z1: czI + m)
         if carve && !flipped.isEmpty && !collapsing { collapseQueue.append((IVec3(cxI, cyI, czI), min(6, Int(ceil(r)) + 1))) }   // P351 (GroundCollapse)
         return flipped
     }
@@ -718,16 +720,20 @@ extension World {
     // mesh draws it) is inside the ground. A buried cell is one box; under open air the columns' tops follow the drawn
     // slope to within an eighth of a block, so bodies stand on the surface they see. Cached per cell (fieldStamp).
     func fieldBoxes(_ x: Int, _ y: Int, _ z: Int, _ out: inout [(V3, V3)]) {
-        let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) | ((fieldStamp & 0x1FFF) << 50)
-        let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> 53)
+        let key = (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) | ((groundStamp(x, z) & 0x1FFF) << 50)
+        let slot = Int(UInt(bitPattern: key &* -0x61C8864680B583EB) >> groundCacheShift)
         let base = slot * 32
         if fieldColKey[slot] != key, FineField.enabled, let fc = chunkAt(x, z), !fc.blocks.fine.isEmpty,
            fineNear(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) {
             fieldColKey[slot] = key
+            groundShapesBuilt &+= 1
+            let t0 = CFAbsoluteTimeGetCurrent()
             fieldColVal.withUnsafeMutableBufferPointer { fineColumns(x, y, z, $0.baseAddress! + base) }      // P377 step 1
+            groundShapesSec += CFAbsoluteTimeGetCurrent() - t0
         }
         if fieldColKey[slot] != key {
             fieldColKey[slot] = key
+            groundShapesBuilt &+= 1
             withUnsafeTemporaryAllocation(of: Float.self, capacity: 27) { D in
                 for dz in -1...1 { for dx in -1...1 {
                     let c = chunkAt(x + dx, z + dz)

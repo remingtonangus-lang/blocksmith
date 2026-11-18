@@ -120,7 +120,7 @@ extension World {
         // (P401: only a refill the cached collision columns can have read clears them: refills stream in the shell band
         // all the time at view 24, and clearing the whole cache with each one made every mob's moves and path searches
         // rebuild their ground columns, 20-28 ms ticks by Stone Gulch)
-        if p.ground != nil && shellNearActive(c) { fieldStamp &+= 1 }
+        if p.ground != nil && shellNearActive(c) { groundChanged(chunk: k0) }     // (ledger 306: round it only)
         c.fieldEdits = p.field
         c.modified = c.modified || p.fromDisk
         c.markSaved()

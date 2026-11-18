@@ -370,7 +370,7 @@ extension World {
                 guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
                 for s in thru(max(0, sy - 1), min(NSEC - 1, sy + 1)) { n.sections[s].version += 1 }
             } }
+            groundChanged(chunk: ChunkKey(x: c.cx, z: c.cz))        // (ledger 306: round the settled chunks only)
         }
-        fieldStamp &+= 1
     }
 }
