@@ -3207,6 +3207,23 @@ func nov17Checks() {
         check(ok,
               "gourds: a lone pumpkin is a ball (\(lone.round)), one beside another is its own ball (\(pair.round)) and doesn't run into it (fused side: \(fused)) (ledger 267)")
     }
+    // Ledger 268 (Nov 17 19:49-19:50, "Why is it still breaking stuff?"): a controller back from lost with its trigger still
+    // pressed (put down on a cushion) counts nothing until it is let go; then a press counts again. The aim hand's latch
+    // lets go when it is lost.
+    do {
+        let sim = SimXR(), hi = HandedInput(raw: sim)
+        func pose(_ tracked: Bool, _ trig: Float) {
+            var h = XRHand(); h.aimValid = tracked; h.gripValid = tracked; h.trigger = trig
+            sim.hands[1] = h; sim.hands[0] = { var l = XRHand(); l.aimValid = true; l.gripValid = true; return l }()
+        }
+        func run(_ secs: Float, _ tracked: Bool, _ trig: Float) { for _ in 0..<Int(secs * 72) { pose(tracked, trig); hi.refresh(dt: 1 / 72) } }
+        run(0.5, true, 1); let held = hi.hands[1].trigger
+        run(1.0, false, 1); let lost = hi.hands[1].trigger
+        run(2.0, true, 1); let backPressed = hi.hands[1].trigger
+        run(0.2, true, 0); run(0.2, true, 1); let pressedAgain = hi.hands[1].trigger
+        check(held == 1 && lost == 0 && backPressed == 0 && pressedAgain == 1,
+              "lost controller: a trigger held when it is put down and still pressed when it comes back counts \(backPressed) (0: nothing until let go; BS_OLDLOSTARM=1 counts it), a fresh press after counts \(pressedAgain)")
+    }
 }
 // --nov17-only: the Nov 17 evening playtest's checks (no snow on a log top in his taiga).
 if CommandLine.arguments.contains("--nov17-only") { nov17Checks(); namedEnd("nov17") }
