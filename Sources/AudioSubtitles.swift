@@ -191,6 +191,8 @@ extension Snd {
         case .railClick: return "Rail clicks"
         case .plantBrush: return "Leaves rustle"
         case .meleeWindUp: return "Enemy winds up"
+        case .bearWarn: return "Polar bear roars a warning"
+        case .bearCharge: return "Polar bear charges"
         case .parryClang: return "Blades clash"
         case .bowCreak: return "Bow creaks"
         case .bowNock: return "Arrow nocked"

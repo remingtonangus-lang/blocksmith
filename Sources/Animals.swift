@@ -31,7 +31,7 @@ extension MobKind {
         case .copperGolem: return a("Copper Golem", 0.3, 1.0, 12, 2.6, drops: [("copper_ingot", 1, 3)], xp: 0, call: .step(.metal))
         case .goat: return a("Goat", 0.45, 1.3, 10, 2.5, xp: 2, call: .mobSheep, attack: 2)
         case .panda: return a("Panda", 0.65, 1.25, 20, 1.8, drops: [("bamboo", 0, 1)], xp: 2, call: .mobPig, attack: 6)
-        case .polarBear: return a("Polar Bear", 0.7, 1.4, 30, 3, drops: [("cod", 0, 2), ("salmon", 0, 2)], xp: 2, call: .mobRavager, attack: 6)
+        case .polarBear: return a("Polar Bear", 0.7, 1.4, FierceBear.old ? 30 : FierceBear.health, 3, drops: [("cod", 0, 2), ("salmon", 0, 2)], xp: 2, call: FierceBear.old ? .mobRavager : .mob(.polarBear, .ambient), attack: 6)
         case .turtle: return a("Turtle", 0.6, 0.4, 30, 1, drops: [("seagrass", 0, 2)], xp: 2, call: .mobSlime)
         case .frog: return a("Frog", 0.25, 0.5, 10, 2, xp: 2, call: .mobSlime)
         case .tadpole: return a("Tadpole", 0.2, 0.3, 6, 2, xp: 0, call: .mobSlime, aquatic: true)
@@ -111,6 +111,7 @@ extension Mob {
             if dist > 3 { face(player); return spec.speed }
             wander(); return moving ? spec.speed * 0.3 : 0
         }
+        if let sp = fierceBearAI(dt, g, dist: dist) { return sp }                  // ledger 342 (FierceBear.swift)
         if kind == .panda, let sp = pandaAI(dt, g) { return sp }
         // Foxes sleep through the day unless disturbed (a player close by and not sneaking, danger, a hit).
         if kind == .fox {

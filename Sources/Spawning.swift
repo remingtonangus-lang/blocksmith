@@ -293,6 +293,7 @@ extension MobManager {
             guard rng.float() < 0.035 * MobManager.surfaceSpawnScale else { continue }
             let x = c.cx * CS + rng.int(16), z = c.cz * CS + rng.int(16)
             guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { continue }
+            if kind == .polarBear && FierceBear.nearSpawn(game, x, z) { continue }      // ledger 342: none near spawn
             let n = Rand.int(in: lo...hi)
             if !hiddenSpot(x, z) { packsLater[k] = (kind, x, z, n); continue }
             spawnAnimalPack(w, kind, x, z, n, chunk: k, why: "chunk")
@@ -399,6 +400,7 @@ extension MobManager {
         let biome = w.gen.column(x, z).biome
         guard Rand.float(in: 0..<1) < Seasons.animalChance(biome) else { return }        // C9: fewer in winter
         guard case let (kind, lo, hi)? = MobManager.pickAnimal(biome) else { return }
+        if kind == .polarBear && FierceBear.nearSpawn(game, x, z) { return }          // ledger 342: none near spawn
         // Item 71: a pack 32-136 blocks off came in wherever the roll fell, in front of him too: it comes in out of sight.
         if !Game.oldSpawnSight && !game.spawnHidden(V3(Float(x) + 0.5, Float(w.topY(x, z) + 1), Float(z) + 0.5), min: 24) { return }
         spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: ChunkKey(x: c.cx, z: c.cz), why: "passive")

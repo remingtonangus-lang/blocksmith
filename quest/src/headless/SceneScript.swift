@@ -13,7 +13,7 @@ import simd
 //   at X Y Z / look YAW PITCH / load R / tick SECONDS / survival on|off / fly on|off / give ITEM [N]
 //   block X Y Z / set X Y Z KEY / break X Y Z / place X Y Z / blast X Y Z [POWER] / dump X0 Y0 Z0 X1 Y1 Z1
 //   shot NAME.png [W H]                          (the --view render at the eye; into --out DIR, never the repo)
-//   spawn mob KIND / spawn vessel KIND / ride nearest train|ship / drive THROTTLE SECONDS / walk forward SECONDS
+//   spawn mob KIND [DIST] / spawn vessel KIND / ride nearest train|ship / drive THROTTLE SECONDS / walk forward SECONDS
 //   train at station                             (the nearest line's passenger train standing at its nearest station)
 //   ride until step N MIN [SECONDS]              (play on until the floors' step at coach N's coupling is MIN either way)
 //   stand in coach N / walk to coach N [SECONDS] (walk.there 1|0, walk.lowest: least height over the rail in the
@@ -409,8 +409,8 @@ enum SceneScript {
                     print("\(ln) wrote \(out)")
                 } catch { print("FAIL \(ln) \(error)"); fails += 1 }
             case "spawn":
-                guard t.count == 3 else { bad(); continue }
-                let ahead = g.player.pos + V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw)) * 6
+                guard t.count == 3 || (t.count == 4 && t[1] == "mob") else { bad(); continue }
+                let ahead = g.player.pos + V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw)) * (t.count == 4 ? Float(t[3]) ?? 6 : 6)
                 if t[1] == "mob" {
                     guard let k = MobKind.named(String(t[2])) else { print("FAIL \(ln) no mob kind \(t[2])"); fails += 1; continue }
                     g.mobs.mobs.append(Mob(k, at: w.freeSpawn(ahead)))

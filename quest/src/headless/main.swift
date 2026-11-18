@@ -4046,6 +4046,11 @@ if CommandLine.arguments.contains("--balance-only") {
     BalanceTests.run(game: game, check: check)
     print(failures == 0 ? "balance: all checks passed" : "balance: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+// --bear-only: ledger 342, the fierce polar bear: iron loses, steel wins, its charge, the spawn gap, its sounds (Sources/BearCheck.swift).
+if CommandLine.arguments.contains("--bear-only") {
+    BearCheck.run(game: game, check: check)
+    print(failures == 0 ? "bear: all checks passed" : "bear: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
+}
 // --submarine-only: submarines, mines and sonar (Sources/SubmarineTests.swift, backlog C8).
 if CommandLine.arguments.contains("--submarine-only") {
     SubmarineTests.run(game: game, check: check)
@@ -5055,6 +5060,7 @@ leaves("submarine") { SubmarineTests.run(game: game, check: check) }
 leaves("bridgehunt") { BridgeHuntTests.run(game: game, check: check); BridgeHuntTests.sparse(game: game, check: check); BridgeHuntTests.seaTrestle(game, check: check) }
 leaves("savesoak") { SaveSoakTests.run(device: device, cycles: 5, check: check) }     // the full 100 in --savesoak-only (about 9 s a cycle)
 leaves("balance") { BalanceTests.run(game: game, check: check) }
+leaves("bear") { BearCheck.run(game: game, check: check) }               // ledger 342 (Sources/BearCheck.swift)
 MusicLevelTests.run(check: check)
 OverlapTests.run(check: check)
 SettingsCheck.run(check: check)
