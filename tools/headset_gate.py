@@ -27,14 +27,21 @@ def parse(lines):
     leg, phase, routed = "launch", "launch", False
     perf, view, warp, rate = "", "", "unknown", ""
     rows, other = [], []
+    planned, seen, failed = [], set(), {}
     for l in lines:
         m = T.match(l)
         if not m:
             continue
         t, pid, tag, msg = float(m.group(1)), m.group(2), m.group(4), m.group(5)
         if tag == "Blocksmith":
-            if msg.startswith("route: leg "):
-                leg = msg[len("route: leg "):].split()[0]; routed = True
+            if msg.startswith("route: legs "):
+                planned = msg[len("route: legs "):].split()
+            elif msg.startswith("route: leg "):
+                leg = msg[len("route: leg "):].split()[0]; routed = True; seen.add(leg)
+            elif msg.startswith("route: failed: "):
+                why = msg[len("route: failed: "):]
+                name = why.split()[1].rstrip(":") if why.startswith("leg ") and len(why.split()) > 1 else leg
+                failed.setdefault(name.removesuffix("-stage"), why)
             elif msg.startswith("load:") or msg.startswith("world: switching"):
                 if phase != "loading" and not msg.startswith("load: first ticks"):
                     phase = "loading"
@@ -70,7 +77,11 @@ def parse(lines):
                          app=num("App"), gpuraw=num("GPU%"), mhz=int(mhz.group(1)) if mhz else -1,
                          pgpu=float(pg.group(1)) if pg else -1, pcpu=float(pcpu.group(1)) if pcpu else -1,
                          quads=int(pq.group(1)) if pq else -1, eye=eye.group(1) if eye else "", vd=vd.group(1) if vd else ""))
-    return rows, other, dict(warp=warp, rate=rate, pids=sorted(game_pids))
+    # Nov 18 (Fable): a leg that never reached its own label (only its -stage, or not at all), or printed
+    # "route: failed", did not do its job: NOT RUN, and the gate fails rather than pass it.
+    notrun = {g: failed.get(g, "only staged" if g + "-stage" in seen else "never started")
+              for g in planned if not uncounted_leg(g) and (g in failed or g not in seen)}
+    return rows, other, dict(warp=warp, rate=rate, pids=sorted(game_pids), notrun=notrun)
 
 
 def pct(v, p):
@@ -137,19 +148,25 @@ def report(rows, other, info):
     f = [r["fps"] for r in rows]
     under60 = sum(x < 60 for x in f); under70 = sum(x < 70 for x in f)
     ok = bool(f) and under60 == 0 and under70 < 0.02 * len(f)
+    notrun = info.get("notrun", {})
+    for g, why in notrun.items():
+        out.append(f"leg {g}: NOT RUN ({why})")
+    ok = ok and not notrun
     bad = [r for r in rows if r["fps"] < 70]
     if bad:
         out.append("seconds under 70 (t, phase, leg, fps, stale, app ms, eye %, view):")
         for r in bad[:80]:
             out.append(f"  {r['t']:.0f} {r['phase']} {r['leg']} {r['fps']} stale {r['stale']:.0f} app {r['app']:.1f} eye {r['eye'] or '?'} view {r['vd'] or '?'}")
         if len(bad) > 80: out.append(f"  ... {len(bad) - 80} more in seconds.tsv")
-    out.append(f"headset gate: {'PASS' if ok else 'FAIL'} ({under60} s under 60, {under70} s under 70 of {len(f)}; pass = 0 under 60 and under 2% under 70)")
+    out.append(f"headset gate: {'PASS' if ok else 'FAIL'} ({under60} s under 60, {under70} s under 70 of {len(f)}; pass = 0 under 60 and under 2% under 70"
+               f"{f'; {len(notrun)} legs NOT RUN' if notrun else ''})")
     return "\n".join(out), ok
 
 
 def selftest():
     log = """\
 1731849999.500  4000  4020 I VrApi   : FPS=30/72,Stale=0,App=5.00ms,GPU%=0.10
+1731849999.800  4000  4010 I Blocksmith: route: legs spotworld plains spot-jungle train
 1731849999.900  4000  4010 I Blocksmith: route: leg spotworld
 1731849999.950  4000  4020 I VrApi   : FPS=45/72,Stale=0,App=5.00ms,GPU%=0.10
 1731849999.990  4000  4010 I Blocksmith: route: leg plains
@@ -166,6 +183,8 @@ def selftest():
 1731850004.500  4000  4020 I VrApi   : FPS=68/72,Stale=4,CPU4/GPU=4/4,1785/545MHz,App=13.00ms,GPU%=0.97
 1731850005.500  5000  5020 I VrApi   : FPS=72/72,Stale=0,App=9.00ms,GPU%=0.70
 1731850005.600  5000  5010 I Blocksmith: load: Starting (0.0 s)
+1731850006.000  4000  4010 I Blocksmith: route: leg train-stage
+1731850006.100  4000  4010 I Blocksmith: route: failed: leg train: no line with two stations within 3,000 blocks
 """
     rows, other, info = parse(log.splitlines())
     fails = []
@@ -186,6 +205,8 @@ def selftest():
     check(not ok and "1 s under 60" in txt, "verdict counts the game's 55 only")
     check("loading-screen seconds" in txt and "55/72" in txt, "loading-screen misses listed")
     check("spot-jungle" in txt and "545 (78%)" in txt, "leg table with gpu MHz")
+    check("leg train: NOT RUN (leg train: no line" in txt and "1 legs NOT RUN" in txt, f"failed leg reported NOT RUN:\n{txt}")
+    check(list(info["notrun"]) == ["train"], f"only the failed leg is NOT RUN: {info['notrun']}")
     print("\n".join(["headset_gate selftest: " + ("ok" if not fails else "FAILED")] + ["  " + f for f in fails]))
     return 0 if not fails else 1
 
