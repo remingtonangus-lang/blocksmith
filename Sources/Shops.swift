@@ -388,7 +388,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         button(74, 26, 62, 16, ShopMenu.tabSell)
         button(196, 26, 64, 16, ShopMenu.qtyButton)
         // Craftsfolk keep their emerald trades behind a Barter button (Wallet.swift).
-        if keeper.villager?.shopKind == nil && keeper.villager?.tradeKind != nil { button(140, 26, 52, 16, ShopMenu.barter) }
+        if Barter.old && keeper.villager?.shopKind == nil && keeper.villager?.tradeKind != nil { button(140, 26, 52, 16, ShopMenu.barter) }
         // The gunsmith's Upgrade, the stable's Horses and the blacksmith's Repair (TownServices.swift).
         if extraTitle != nil { button(140, 26, 52, 16, ShopMenu.extra) }
         button(264, ShopMenu.rowY, 14, 40, ShopMenu.scrollUp)
