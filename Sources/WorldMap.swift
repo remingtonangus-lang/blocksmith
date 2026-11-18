@@ -325,6 +325,7 @@ final class MapCache {
     func tick(_ g: Game) {
         loadMarks(g)
         use(g.world.gen)
+        TickProf.mark("map cache: marks loaded")          // (store review: his taiga arrival's 19 ms "hud: map cache", split)
         guard g.clock - scanTimer > 1, g.dim.dim == .overworld, let sc = g.world.gen.structures else { return }
         scanTimer = g.clock
         // Towns marked before they had names on the map: one a second gets its name.
@@ -332,8 +333,9 @@ final class MapCache {
             marks[i].name = Townsfolk.town(g, at: V3(Float(marks[i].x), 64, Float(marks[i].z)))
             saveMarks(g)
         }
+        TickProf.mark("map cache: town named")
         // Round every player (split screen: player 2 passing a citadel or village alone discovered nothing).
-        for i in 0..<max(1, g.coop.seatCount) { scan(g, sc, g.coop.seatPlayer(i, g).pos); SkyIsle.discover(g, sc, at: g.coop.seatPlayer(i, g).pos) }
+        for i in 0..<max(1, g.coop.seatCount) { scan(g, sc, g.coop.seatPlayer(i, g).pos); TickProf.mark("map cache: vessel patrols"); SkyIsle.discover(g, sc, at: g.coop.seatPlayer(i, g).pos) }
     }
 
     private func scan(_ g: Game, _ sc: StructureCache, _ at: V3) {
@@ -348,6 +350,7 @@ final class MapCache {
                 }
             }
         }
+        TickProf.mark("map cache: bases and towns found")
         // Vessel patrols (ShipVessels): their home point counts once you come within 200 blocks of it.
         let rx = floorDiv(px, Vessels.region), rz = floorDiv(pz, Vessels.region)
         for dz in -1...1 { for dx in -1...1 {

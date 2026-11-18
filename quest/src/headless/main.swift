@@ -3975,6 +3975,48 @@ BlastWearCheck.run(game, check)                // ledger 172: a blast in a vehic
 CircuitZoo.run(game, check)
 // L3 perf overlay (Sources/PerfOverlayTests.swift): its window, lines, option and HUD drawing on the Quest's HUD host.
 PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count }, check: check)
+// Ledger 263: the playtest frame-rate warning (Sources/FpsWarning.swift) on synthetic frame traces.
+do {
+    let fw = FpsWarning.shared, st = Settings.shared, was = st.fpsWarning
+    var caps: [String] = [], pulses = 0
+    fw.onCapture = { caps.append($0); return true }
+    fw.onPulse = { pulses += 1 }
+    // (seconds at a rate) -> warnings, captures, pulses, the mark seen mid-run, the mark at the end
+    func trace(_ legs: [(Double, Double)]) -> (Int, Int, Int, Bool, Bool) {
+        fw.reset(); caps = []; pulses = 0
+        var t = 1000.0, seen = false
+        for (secs, fps) in legs {
+            let end = t + secs
+            while t < end { t += 1 / fps; fw.add(at: t, cpuMs: 9, gpuMs: 11, tickMs: 3) { "where: test" }; if FpsWarning.mark() != nil { seen = true } }
+        }
+        return (fw.warnings, caps.count, pulses, seen, FpsWarning.mark() != nil)
+    }
+    st.fpsWarning = true
+    let steady = trace([(6, 72)])
+    let dip = trace([(3, 72), (2, 50), (4, 72)])
+    let hudDip: Int = {
+        _ = trace([(3, 72), (2, 50)])
+        return Renderer(game: game).buildHUD(1280, 720).count
+    }()
+    let twoDips = trace([(3, 72), (2, 50), (3, 72), (2, 50), (3, 72)])
+    let capText = caps.first ?? ""
+    st.fpsWarning = false
+    let off = trace([(3, 72), (2, 50), (4, 72)])
+    let hudOff = Renderer(game: game).buildHUD(1280, 720).count
+    check(FpsWarning.old || (steady.0 == 0 && steady.1 == 0 && steady.2 == 0 && !steady.3),
+          "frame rate warning: a steady 72 fps for 6 s raises nothing (warnings \(steady.0), captures \(steady.1), pulses \(steady.2))")
+    check(FpsWarning.old || (dip.0 == 1 && dip.1 == 1 && dip.2 == 1 && dip.3 && !dip.4),
+          "frame rate warning: a 2 s dip to 50 fps raises one warning, one capture and one pulse, and the mark clears once back over 70 for 2 s (warnings \(dip.0), captures \(dip.1), pulses \(dip.2), shown \(dip.3), still shown \(dip.4))")
+    check(FpsWarning.old || hudDip > hudOff,
+          "frame rate warning: the mark is drawn on the HUD during a dip (\(hudDip) HUD vertices, \(hudOff) with the setting off)")
+    check(FpsWarning.old || (twoDips.0 == 2 && twoDips.1 == 2 && twoDips.2 == 1),
+          "frame rate warning: two dips 5 s apart: two warnings and two captures, one pulse (at most one every 10 s) (\(twoDips.0), \(twoDips.1), \(twoDips.2))")
+    check(FpsWarning.old || (capText.contains("fps: ") && capText.contains("where: test") && capText.contains("slowest tick") && capText.contains("gpu 11.00 ms")),
+          "frame rate warning: the capture has the rate, where, CPU and GPU ms and the slowest tick stage")
+    check(off.0 == 0 && off.1 == 0 && off.2 == 0 && !off.3, "frame rate warning: with the setting off a dip shows nothing, writes nothing, pulses nothing")
+    st.fpsWarning = was
+    fw.onCapture = nil; fw.onPulse = nil; fw.reset()
+}
 // L3 volcano eruptions (Sources/EruptionTests.swift): rarity, bursts near and far, the boom, the sound.
 EruptionTests.run(game, check: check)
 // L3 placement rules keep old saves (Sources/L3GuardTests.swift).
