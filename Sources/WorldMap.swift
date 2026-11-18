@@ -156,6 +156,7 @@ final class MapCache {
         guard w != marksWorld else { return }
         marksWorld = w
         marks = []
+        if !MapCache.oldMarkSave { MapCache.markQueue.sync {} }          // (a write still queued lands first)
         if let u = marksURL(g), let d = try? Data(contentsOf: u), let m = try? JSONDecoder().decode([Mark].self, from: d) { marks = m }
     }
 
@@ -165,14 +166,24 @@ final class MapCache {
     func discover(_ g: Game, kind: String, x: Int, z: Int, name given: String? = nil, silent: Bool = false) {
         guard !marks.contains(where: { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 }) else { return }
         // A town goes on the map under its name (the gap pass: "a name on a sign and the map").
+        TickProf.mark("map cache: scan")
         let name = kind == "village" ? Townsfolk.town(g, at: V3(Float(x), 64, Float(z))) : given
+        TickProf.mark("map cache: discover: town name")
         marks.append(Mark(kind: kind, x: x, z: z, name: name))
         saveMarks(g)
+        TickProf.mark("map cache: discover: save marks")
         if !silent { g.onToast?("\(name ?? MapCache.style(kind).name) marked on the map") }
     }
 
+    // Ledger 295 (Nov 18, efficiency: a discovery wrote the map's marks file on the frame, 9-15 ms on the onone host):
+    // encoded here, written on the save queue in order. BS_OLDMARKSAVE=1: written here.
+    static let oldMarkSave = Env.all["BS_OLDMARKSAVE"] == "1"
+    private static let markQueue = DispatchQueue(label: "blocksmith.mapmarks", qos: .utility)
     private func saveMarks(_ g: Game) {
-        if let u = marksURL(g), let d = try? JSONEncoder().encode(marks) { try? d.write(to: u, options: .atomic) }
+        guard let u = marksURL(g) else { return }
+        if MapCache.oldMarkSave { if let d = try? JSONEncoder().encode(marks) { try? d.write(to: u, options: .atomic) }; return }
+        let m = marks
+        MapCache.markQueue.async { if let d = try? JSONEncoder().encode(m) { try? d.write(to: u, options: .atomic) } }
     }
 
     // P466 (Oct 25 20:03: "it looks like there should only be one waypoint. There shouldn't be multiple. So when I place
@@ -348,6 +359,13 @@ final class MapCache {
                 if dx * dx + dz * dz < r * r {
                     discover(g, kind: t.name, x: cx, z: cz, name: t.name == Greywall.kind ? Greywall.Tier.of(s).name : nil)
                 }
+            }
+            switch t.name {                                       // (Nov 18: which kind the 32-51 ms stage is)
+            case "military_base": TickProf.mark("map cache: found bases")
+            case "village": TickProf.mark("map cache: found villages")
+            case "capital_city": TickProf.mark("map cache: found capitals")
+            case "boreal_station": TickProf.mark("map cache: found stations")
+            default: TickProf.mark("map cache: found greywalls")
             }
         }
         TickProf.mark("map cache: bases and towns found")

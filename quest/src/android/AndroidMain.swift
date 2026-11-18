@@ -147,6 +147,23 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     }
     var dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
     var meshPath = (dataPath as NSString).deletingLastPathComponent + "/no_backup/meshcache"
+    // Ledger 291 (Nov 18, his Nov 17 evening playtest: the gate's route ran on a launch he made, teleporting him for 7
+    // minutes; the gate's clean-up can't reach a headset whose USB went): the debug properties (route, env) count only
+    // on the launch the gate made: tools/headset_gate.sh sets debug.sunderfall.stamp to the headset's clock just before
+    // it starts the app; a stamp more than 15 minutes old, or one a launch already used (<data>/gate-stamp-used), and
+    // they are ignored. Android may keep the process for the next launch: the environment and the route are read again.
+    let stamp = Env.androidProperty("debug.sunderfall.stamp").trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
+    let stampFile = dataPath + "/gate-stamp-used"
+    let usedStamp = (try? String(contentsOfFile: stampFile, encoding: .utf8)) ?? ""
+    let age = Int(stamp).map { Int(Date().timeIntervalSince1970) - $0 }
+    let gateLaunch = age.map { $0 >= -120 && $0 <= 900 } == true && usedStamp != stamp
+    let anyProps = !Env.androidProperty("debug.sunderfall.route").trimmingCharacters(in: CharacterSet(charactersIn: "\"' ")).isEmpty
+        || !Env.androidProperty("debug.sunderfall.env").trimmingCharacters(in: CharacterSet(charactersIn: "\"' ")).isEmpty
+    if gateLaunch { try? stamp.write(toFile: stampFile, atomically: true, encoding: .utf8) }
+    else if anyProps { print("gate: debug properties ignored (stamp '\(stamp)', age \(age.map { "\($0) s" } ?? "none"), \(usedStamp == stamp && !stamp.isEmpty ? "already used" : "not the gate's launch"))") }
+    Env.propsAllowed = gateLaunch
+    Env.all = Env.load()
+    QuestRoute.shared = QuestRoute.make()
     // Ledger 288 (store review: the headset gate plays as Meta's reviewer does): BS_REVIEWER=1 (a debug property, set
     // by tools/headset_gate.sh) runs on a fresh install's data: options, worlds, mesh cache and crash notes in a
     // folder emptied at each launch (<data>/reviewer), none of the player's read or written. Unset, nothing changes.
@@ -157,6 +174,7 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
         print("reviewer: fresh data in \(dataPath) (default options, no worlds; the player's own are untouched)")
     }
     QuestPaths.setDataRoot(dataPath)
+    SceneRenderer.pipelineCacheDir = dataPath + "/cache"   // ledger 296: compiled pipelines kept between launches
     // The world meshes outside the backed-up files (ChunkShells MeshCache.outside): <app data>/no_backup, which
     // Android's backup leaves out.
     MeshCache.outside = URL(fileURLWithPath: meshPath, isDirectory: true)

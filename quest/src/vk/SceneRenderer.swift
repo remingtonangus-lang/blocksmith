@@ -243,9 +243,15 @@ final class SceneRenderer {
         self.foveated = foveated
         self.spaceWarp = spaceWarp
         depthFormat = SceneRenderer.pickDepth(ctx)
+        var t0: Double = CFAbsoluteTimeGetCurrent()
+        func took(_ what: String) { let t = CFAbsoluteTimeGetCurrent(); print(String(format: "launch: scene %@ %.0f ms", what, (t - t0) * 1000)); t0 = t }
         try makeLayouts()
         try makeRenderPass()
+        took("layouts and render pass")
+        openPipelineCache()
         try makePipelines()
+        took("pipelines \(pipes.count) (\(pipelineCacheBytes > 0 ? "from a \(pipelineCacheBytes / 1024) KB cache" : "no cache"))")
+        savePipelineCache()
         try makeStaticBuffers()
         for i in 0..<2 { let sl = try makeSlot(); sl.queryBase = UInt32(i * 2); slots.append(sl) }
         // A 1x1 placeholder array until the block textures are uploaded (the loading scene binds set 0 too).
@@ -257,7 +263,9 @@ final class SceneRenderer {
                       srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue)
         }
         texture = ph
+        took("buffers, slots, placeholder")
         cloudNoise = try SceneRenderer.makeCloudNoise(ctx)
+        took("cloud noise")
         for sl in slots { writeSet0(sl) }
         // GPU timestamps (frame GPU time in the perf log). Not on llvmpipe: its timestamp queries crash the queue thread
         // after a few frames (CI run 1; reproduced locally with alternating targets and validation clean).
@@ -466,6 +474,50 @@ final class SceneRenderer {
     // fragments it shades are most of what it spends in a forest).
     static let overdraw = Env.all["BS_OVERDRAW"] == "1"
 
+    // Ledger 296 (Nov 18, his launch log: 2.4 s between the swapchain and the session starting, the world's ~40
+    // pipelines compiled on every launch): the driver's compiled pipelines are kept in a Vulkan pipeline cache file
+    // (<data>/cache/pipelines-<build>.bin, written once they are made; the driver checks the file's device and
+    // driver header and ignores a stale one), so later launches only look them up. BS_OLDPIPELINES=1: no cache.
+    static let oldPipelines = Env.all["BS_OLDPIPELINES"] == "1"
+    static var pipelineCacheDir: String? = Env.all["BS_PIPECACHE"]   // set by the Android launch; host: BS_PIPECACHE=<dir>
+    private var pipelineCache: VkPipelineCache? = nil
+    private(set) var pipelineCacheBytes = 0
+    private var pipelineCachePath: String? {
+        guard let d = SceneRenderer.pipelineCacheDir, !SceneRenderer.oldPipelines else { return nil }
+        return d + "/pipelines-\(QuestBuild.commit).bin"
+    }
+    private func openPipelineCache() {
+        guard let path = pipelineCachePath else { return }
+        let data = FileManager.default.contents(atPath: path) ?? Data()
+        var ci = VkPipelineCacheCreateInfo()
+        ci.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO
+        var made: VkPipelineCache?
+        let r: VkResult = data.withUnsafeBytes { b in
+            ci.initialDataSize = data.count
+            ci.pInitialData = data.isEmpty ? nil : b.baseAddress
+            return vkCreatePipelineCache(ctx.device, &ci, nil, &made)
+        }
+        if r.rawValue >= 0 { pipelineCache = made; pipelineCacheBytes = data.count }
+        else { print("launch: pipeline cache not made (\(r.rawValue))") }
+    }
+    private func savePipelineCache() {
+        guard let path = pipelineCachePath, let c = pipelineCache else { return }
+        var n = 0
+        guard vkGetPipelineCacheData(ctx.device, c, &n, nil).rawValue >= 0, n > 0, n != pipelineCacheBytes else { return }
+        var bytes = [UInt8](repeating: 0, count: n)
+        guard vkGetPipelineCacheData(ctx.device, c, &n, &bytes).rawValue >= 0 else { return }
+        let d = Data(bytes[0..<n])
+        DispatchQueue.global(qos: .utility).async {
+            let dir = (path as NSString).deletingLastPathComponent
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            // other builds' files go (one build's pipelines kept)
+            for f in (try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [] where f.hasPrefix("pipelines-") && dir + "/" + f != path {
+                try? FileManager.default.removeItem(atPath: dir + "/" + f)
+            }
+            try? d.write(to: URL(fileURLWithPath: path), options: .atomic)
+        }
+    }
+
     func makePipeline(_ p: PipeDesc, renderPass rp: VkRenderPass? = nil) throws -> VkPipeline {
         let a = PtrArena()
         let main = a.cstr("main")
@@ -588,7 +640,7 @@ final class SceneRenderer {
         ci.renderPass = rp ?? renderPass
         ci.subpass = 0
         var pipe: VkPipeline?
-        try vkCheck(vkCreateGraphicsPipelines(ctx.device, nil, 1, &ci, nil, &pipe), "vkCreateGraphicsPipelines(\(p.vert)/\(p.frag))")
+        try vkCheck(vkCreateGraphicsPipelines(ctx.device, SceneRenderer.oldPipelines ? nil : pipelineCache, 1, &ci, nil, &pipe), "vkCreateGraphicsPipelines(\(p.vert)/\(p.frag))")
         return pipe!
     }
 
