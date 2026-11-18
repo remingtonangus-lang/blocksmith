@@ -57,8 +57,10 @@ enum Riders {
                 ?? own.map { s in (s, Roads.distance(s, p2)) }
                 ?? Roads.nearest(gen, to: m.pos, range: 10).map { n in (n.0, Roads.distance(n.0, p2)) }
             guard let (s, (d, t)) = road, d < 10 else { m.wanderGoal = nil; continue }
-            let ab = s.b - s.a, len = max(1, simd_length(ab))
-            let sign: Float = simd_dot(V2(goal.x - m.pos.x, goal.z - m.pos.z), ab) >= 0 ? 1 : -1
+            let ab = s.b - s.a, len = max(1, Roads.length(s))
+            // (ledger 237: on a winding road the goal's own end says which way is on, not the straight line's lie)
+            let toB = simd_length(s.b - g2), toA = simd_length(s.a - g2)
+            let sign: Float = min(toA, toB) < 2 ? (toB < toA ? 1 : -1) : (simd_dot(V2(goal.x - m.pos.x, goal.z - m.pos.z), ab) >= 0 ? 1 : -1)
             let tw = max(0, min(1, t + sign * 10 / len))
             let w = Roads.point(s, tw)
             m.wanderGoal = (tw == 0 || tw == 1) ? nil : V3(w.x, m.pos.y, w.y)
@@ -74,7 +76,7 @@ enum Riders {
         else if let n = Roads.nearest(gen, to: g.player.pos, range: 48) { road = (n.0, n.1) }
         else { return nil }
         let (s, t0) = road
-        let len = max(1, simd_length(s.b - s.a))
+        let len = max(1, Roads.length(s))
         let ahead = Rand.bool()
         let t = max(0, min(1, t0 + (ahead ? 1 : -1) * Rand.float(in: along) / len))
         let at2 = Roads.point(s, t)

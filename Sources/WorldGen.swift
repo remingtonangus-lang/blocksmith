@@ -959,7 +959,8 @@ final class WorldGen: TerrainGenerator {
             guard maxY > 6 else { continue }
             // Spaghetti tunnel width: a column constant (it was evaluated for every block of the column, ~38k noise
             // calls per chunk: the biggest share of generate's time in the CI profile).
-            let spagT: Float = 0.05 + 0.025 * spagMod.noise2(Float(wx) / 40, Float(wz) / 40)
+            let spagT: Float = WorldGen.spagBase + WorldGen.spagVar * spagMod.noise2(Float(wx) / 40, Float(wz) / 40)
+            let noodleT = WorldGen.noodleT
             for y in 6...maxY {
                 let i = Chunk.index(lx, y, lz)
                 let cur = b[i]
@@ -973,7 +974,7 @@ final class WorldGen: TerrainGenerator {
                     if abs(cl.sample(1, lx, y, lz)) < spagT && abs(cl.sample(2, lx, y, lz)) < spagT { carve = true }
                 }
                 if !carve && yd < 40 {
-                    if abs(cl.sample(3, lx, y, lz)) < 0.022 && abs(cl.sample(4, lx, y, lz)) < 0.022 { carve = true }
+                    if abs(cl.sample(3, lx, y, lz)) < noodleT && abs(cl.sample(4, lx, y, lz)) < noodleT { carve = true }
                 }
                 guard carve else { continue }
                 // Never open the sea floor: keep a shell under water.
@@ -1134,6 +1135,22 @@ final class WorldGen: TerrainGenerator {
     // Nov 12 (A/B switches for the generator fixes of the Nov 12 playtest; each "1" gives the old result)
     static let oldPools = Env.all["BS_OLDPOOLS"] == "1"
     static let oldRavineEnds = Env.all["BS_OLDRAVINEENDS"] == "1"
+    // Ledger 236 (Nov 17 evening, 19:56:02-19:56:21, in a cave under the taiga at -3351 50 -3572: "people will be on
+    // survival mode, they'll have a crappy pickaxe, and they won't be able to move around in the caves easily...
+    // too narrow and they won't be able to walk through them... it won't be obvious which ones have to break to
+    // squeeze through"): the tunnels' widths. A tunnel is where two noises both sit inside a threshold; the wide
+    // tunnels' threshold ran 0.025 to 0.075 (one to three or four blocks across) and the thin ones' was 0.022 (a
+    // block, often less: a slot nobody fits). Counted on his world round that cave (--caveprobe, 169 chunks): 27% of the
+    // places to stand under ground had no headroom and 57% lay in a passage three or more across. Widening both made
+    // the thin ones into more two-wide squeezes (28% and 49%); the thin tunnels are the tight caves. So they are
+    // gone, and the wide tunnels run 0.05 to 0.1: 8% without headroom, 81% three or more across, 18% more cave air.
+    // A wide tunnel holds the old one inside it, so new ground meets explored ground without a break (a thin
+    // tunnel from explored ground ends at the edge of new ground).
+    // BS_OLDCAVES=1: as before. (BS_CAVE_SPAG / BS_CAVE_NOODLE: the thresholds, for the census.)
+    static let oldCaves = Env.all["BS_OLDCAVES"] == "1"
+    static let spagBase: Float = Env.all["BS_CAVE_SPAG"].flatMap { Float($0) } ?? (oldCaves ? 0.05 : 0.075)
+    static let spagVar: Float = 0.025
+    static let noodleT: Float = Env.all["BS_CAVE_NOODLE"].flatMap { Float($0) } ?? (oldCaves ? 0.022 : 0)
     static let oldWideFeet = Env.all["BS_OLDWIDEFEET"] == "1"
 
     // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.

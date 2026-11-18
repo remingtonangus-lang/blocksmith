@@ -25,6 +25,7 @@ WorldRules.p44 = CommandLine.arguments.contains("--p44")   // fixture seeds keep
 StructureCache.plansOffThread = false   // base ticks find their sites at once (P124: HitchProbe turns the worker planning on)
 Blueprints.on = false                  // upgrades fit without blueprints (P138: --p12pm-only P138 turns them on)
 TownSizes.on = false                   // and their towns as they were (C13 town sizes: --sizes-only turns them on)
+Railways.sparseOn = false              // every row carries track, as the fixtures were laid (ledger 230: its own check and --headset turn it on)
 MobVary.on = false                      // checks count exact blows and steps (the P55 check turns it on)
 Soldier.unarmedPeace = false            // checks' soldiers fight an empty-handed player as before (P510's check turns it on)
 // --headset (P510): his world as the headset makes it, not the fixtures': a new saved world's water (P44 fewer lakes,
@@ -34,6 +35,7 @@ Soldier.unarmedPeace = false            // checks' soldiers fight an empty-hande
 if CommandLine.arguments.contains("--headset") {
     World.fewerLakesUnsaved = true; World.lessWaterUnsaved = true
     WorldRules.p44 = true; TownSizes.on = true
+    Railways.sparseOn = true
 }
 // --worldgencheck [N]: the world-gen placement rules over N seeds (Sources/WorldGenCheck.swift), generator only.
 if CommandLine.arguments.contains("--worldgencheck") { exit(WorldGenCheck.run()) }
@@ -2833,6 +2835,9 @@ if let dir = arg("--treesheet"), let ctx = vkctx {
     do { try TreeShots.run(game: game, ctx: ctx, dir: dir, designs: true) } catch { print("FAIL treesheet: \(error)"); failures += 1 }
     print(failures == 0 ? "trees: all checks passed" : "trees: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if let a = arg("--planmap") { exit(PlanMap.run(a, CommandLine.arguments.last ?? "planmap.ppm")) }   // ledger 230, 237 (Sources/PlanMap.swift)
+if let a = arg("--roadprobe") { exit(RoadsCheck.probe(a)) }   // ledger 237 (Sources/RoadsCheck.swift)
+if let a = arg("--caveprobe") { exit(CaveProbe.run(a)) }   // ledger 236 (Sources/CaveProbe.swift)
 // --railprobe SEED,X,Z,R (P470): every stretch a line may run in round (X, Z) on a field world of SEED: the lines planned
 // and, for the rest, why none.
 if let a = arg("--railprobe") {
