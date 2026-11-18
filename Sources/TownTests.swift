@@ -223,6 +223,32 @@ enum TownTests {
             let other = HudExtras.lines(g, L).contains { $0.text.hasPrefix("Day ") }
             check(shown == ["Day 3  1:12 PM"] && !other, "ledger 259: a clock in hand reads \(shown.first ?? "nothing") (day 3, 13:12); a compass shows no time (\(!other))")
         }
+        // Ledger 334: every item whose point is information reads it out in hand, over the hotbar, on the headset too.
+        do {
+            let held0 = g.inventory.held
+            defer { g.inventory.held = held0; HeldReadout.cache.t = -9 }
+            let keys = ["compass", "recovery_compass", "spyglass", "goat_horn", "hunters_map", "greywall_dispatch", "naval_orders",
+                        "chancellor_ledger", "intercepted_orders", "radar_set"] + ExplorerMaps.kinds.map { $0.item }
+            let L = HudLayout(1280, 720)
+            var read: [String] = [], blank: [String] = []
+            let t0 = CFAbsoluteTimeGetCurrent()
+            for k in keys where Items.has(k) {
+                g.inventory.held = ItemStack(Items.id(k), 1)
+                HeldReadout.cache.t = -9
+                let shown = ClockFace.lines(g, L).map { $0.text }.filter { !$0.isEmpty }
+                if let t = shown.first, HudExtras.lines(g, L).contains(where: { $0.text == t }) { read.append("\(k): \(t)") } else { blank.append(k) }
+            }
+            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000 / Double(max(1, keys.count))
+            print("ledger 334 readings:\n  " + read.joined(separator: "\n  "))
+            // the quick readings cost little; a second call within the second reuses the search
+            g.inventory.held = ItemStack(Items.id("compass"), 1); HeldReadout.cache.t = -9
+            let c0 = CFAbsoluteTimeGetCurrent()
+            for _ in 0..<100 { _ = HudExtras.lines(g, L) }
+            let perFrame = (CFAbsoluteTimeGetCurrent() - c0) * 10
+            check(blank.isEmpty && read.count == keys.filter { Items.has($0) }.count && perFrame < 0.2,
+                  "ledger 334: \(read.count) of \(keys.count) information items read out in hand (blank: \(blank.isEmpty ? "none" : blank.joined(separator: ", "))); "
+                  + String(format: "%.2f ms a first reading, %.3f ms a frame after", ms, perFrame))
+        }
         // Worn and enchanted items aren't bought.
         var worn = ItemStack(Items.id("iron_sword"), 1); worn.damage = 10
         check(!Shop.sellable(worn), "trade: worn tools can't be sold")
