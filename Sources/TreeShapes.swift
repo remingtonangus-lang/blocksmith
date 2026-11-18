@@ -852,6 +852,29 @@ enum TreeShapes {
             while ry > y - 3 && (w.get(q.x, ry - 1, q.z) == AIR || Blocks.isLiquid(w.get(q.x, ry - 1, q.z))) { ry -= 1; w.force(q.x, ry, q.z, root) }
         }
         for p in s.leaves { let q = at(p); w.leaf(q.x, q.y, q.z, leaf) }
+        // Ledger 274 (Nov 18, lane 1 at the headset spawn of seed 12345, 4696 1746: a dark oak standing over a swamp
+        // pond, its trunk ending a block and a half over the water): the site's soil is tested on its own column only,
+        // and the swamp's ponds, banks and pools are cut after the ground the site was read from. A 2x2 trunk's other
+        // three columns (and any column in the next chunk) began in the air over the pond. The Nov 12 rule for the
+        // old wide trunks (each column goes on down to the ground as a buttress) was lost when the designs came in
+        // (P406): every trunk column now goes on down through open cells and water to the ground (up to 5), in the
+        // chunk that owns the column, so every chunk decides the same. BS_OLDSHOREFEET=1: as before.
+        if !WorldGen.oldShoreFeet && !wading {
+            for tz in 0...c { for tx in 0...c {
+                let f = at(IVec3(tx, 0, tz))
+                guard w.inside(f.x, y, f.z) else { continue }
+                var lo = -1
+                for yy in y...(y + 6) where CapitalBase.isLog(w.get(f.x, yy, f.z)) { lo = yy; break }
+                guard lo >= 0 else { continue }
+                var yy = lo - 1
+                while yy > y - 6 {
+                    let b = w.get(f.x, yy, f.z)
+                    guard b == AIR || Blocks.isLiquid(b) || (Blocks.replaceable[Int(b)] && !CapitalBase.isLog(b)) else { break }
+                    w.force(f.x, yy, f.z, log)
+                    yy -= 1
+                }
+            } }
+        }
         if w.inside(x, y - 1, z) && Blocks.key(w.get(x, y - 1, z)).contains("grass") { w.force(x, y - 1, z, DIRT) }
     }
 

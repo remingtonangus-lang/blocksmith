@@ -1152,6 +1152,7 @@ final class WorldGen: TerrainGenerator {
     static let spagVar: Float = 0.025
     static let noodleT: Float = Env.all["BS_CAVE_NOODLE"].flatMap { Float($0) } ?? (oldCaves ? 0.022 : 0)
     static let oldWideFeet = Env.all["BS_OLDWIDEFEET"] == "1"
+    static let oldShoreFeet = Env.all["BS_OLDSHOREFEET"] == "1"
 
     // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
     // Each 112-block region may hold one; its path depends only on the region, so chunks agree.
