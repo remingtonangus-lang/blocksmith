@@ -53,6 +53,9 @@ enum MobAnim {
         case .pig: return HeadJoint(minY: 4, maxZ: -8.4, pivot: V3(0, 10, -8))
         case .chicken: return HeadJoint(minY: 8, maxZ: -2.6, pivot: V3(0, 8.6, -3.0))
         case .mooshroom: return HeadJoint(maxZ: -9, pivot: V3(0, 6.5, -9))          // P280: the Shellback's head
+        // Ledger 332-333 (WildLooks.swift): the neck's root; the shoulders, brisket and feet never turn with it.
+        case .goat where !WildLooks.old: return HeadJoint(minY: 11, maxZ: -7.8, pivot: V3(0, 16.3, -8))
+        case .polarBear where !WildLooks.old: return HeadJoint(minY: 9, maxZ: -10.6, pivot: V3(0, 18.5, -12))
         default: return nil
         }
     }
