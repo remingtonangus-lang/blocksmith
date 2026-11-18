@@ -157,6 +157,22 @@ struct ViewGovernor {
         return .lower(current)
     }
 
+    // Ledger 298: Auto View off (the slider a ceiling, the quad budget alone): a step back up once the next step's quads
+    // fit 90 % of the budget for `baseHold` seconds running, at least `quadSettle` after a drop.
+    private var quadGood = 0.0
+    mutating func quadRaise(_ quads: Int, seconds: Double) -> Action {
+        sinceQuadDrop += seconds
+        guard Self.quadCap > 0, current < chosen, sinceQuadDrop >= Self.quadSettle, quads > 0 else { quadGood = 0; return .none }
+        let next = min(chosen, current + Self.step)
+        let quadsNext = Double(quads) * pow(Double(next) / Double(max(1, current)), Self.exponent)
+        guard quadsNext <= Double(Self.quadCap) * 0.9 else { quadGood = 0; return .none }
+        quadGood += seconds
+        guard quadGood >= Self.baseHold else { return .none }
+        quadGood = 0
+        current = next
+        return .raise(current)
+    }
+
     mutating func observe(_ w: Window) -> Action {
         sinceChange += w.seconds; sinceRaise += w.seconds; sinceDrop += w.seconds
         lidAge += w.seconds
@@ -294,6 +310,22 @@ enum ViewGovernorTest {
                 top7 = max(top7, g7.current)
             }
             check(top7 >= 14 && over7 == 0, "viewgovernor: with room in the frame the view climbs only while the next step's quads fit (top view \(top7), \(plain(top7)) quads, \(over7) windows over the budget)")
+            // 7. Ledger 298 (Auto View off, slider 22): his taiga flight comes down to the budget at once; over open land
+            // it climbs back a step at a time on the quads alone and stops at the slider.
+            var g8 = ViewGovernor(chosen: 22, current: 22)
+            func taiga(_ v: Int) -> Int { Int(64_000 * pow(Double(v) / 6, 0.9)) }
+            var secs8 = 0
+            for s in 1...10 { if case .lower = g8.overQuads(taiga(g8.current), seconds: 1) { secs8 = s; break } }
+            let low8 = g8.current
+            var top8 = low8, over8 = 0
+            for _ in 0..<600 {
+                let q = plain(g8.current) / 2
+                if q > ViewGovernor.quadCap { over8 += 1 }
+                if case .none = g8.overQuads(q, seconds: 1) { _ = g8.quadRaise(q, seconds: 1) }
+                top8 = max(top8, g8.current)
+            }
+            check(secs8 > 0 && secs8 <= 3 && low8 < 22 && taiga(low8) <= ViewGovernor.quadCap * 11 / 10 && top8 == 22 && over8 == 0,
+                  "viewgovernor: Auto View off, the slider's 22 held by the quad budget (taiga \(taiga(22)) quads: view \(low8) after \(secs8) s; open land back to \(top8), \(over8) s over)")
         }
         return fails
     }

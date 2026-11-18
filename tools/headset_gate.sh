@@ -55,6 +55,10 @@ awake
 LOGPAT="logcat -v epoch -s VrApi:I Blocksmith:I"
 pkill -f "$LOGPAT" 2>/dev/null
 cleanup() {
+  # (ledger 291: the route and switches must never reach a launch he makes: cleared here, the app stopped so a kept
+  # process can't carry them on, and the app itself ignores them past the stamp's one launch / 15 minutes)
+  [[ -n "${ROUTE:-}" || -n "${ENVS:-}" ]] && adb shell am force-stop $PKG >/dev/null 2>&1
+  adb shell setprop debug.sunderfall.stamp '""' >/dev/null 2>&1
   adb shell setprop debug.sunderfall.route '""' >/dev/null 2>&1
   for p in env env2 env3 env4 env5 env6; do adb shell setprop debug.sunderfall.$p '""' >/dev/null 2>&1; done
   adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable >/dev/null 2>&1
@@ -62,6 +66,7 @@ cleanup() {
   pkill -f "$LOGPAT" 2>/dev/null
 }
 trap cleanup EXIT
+trap 'exit 130' INT TERM HUP
 if [[ -n "$APK" && "$INSTALL" == 1 ]]; then
   # Never over an app signed with another key: that install fails and only an uninstall (which wipes the saves) gets
   # past it. The new APK's certificate must match the installed one's, or nothing is installed.
@@ -112,6 +117,7 @@ adb logcat -c
 # adb itself in the background (not the adb() function: $! would be a subshell and kill would leave adb writing).
 "$ADB" $LOGPAT > "$OUT/raw.log" 2>&1 &
 LOGPID=$!
+adb shell setprop debug.sunderfall.stamp "$(adb shell date +%s | tr -d '\r')"
 adb shell am start -n $ACT >/dev/null
 START=$(date +%s); LAST_AWAKE=$START; LOST=""
 # Ends at "route: done" / "route: failed" (with --route; 40 minutes at most) or after --minutes. Fails fast once the

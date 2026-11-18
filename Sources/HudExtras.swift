@@ -324,11 +324,13 @@ enum HudExtras {
         g.factionRaidsTick()                                         // O5: raids on your places
         TickProf.mark("hud: liberation, hunters, raids")
         Director.frame(g)                                            // P266: the Director's post-game events
+        TickProf.mark("hud: director")                               // (Nov 18: the stage's 12.3 ms, split)
         g.baseSpecialtyTick()                                        // P242: specialty bases
+        TickProf.mark("hud: specialty bases")
         g.trophiesTick()                                             // O6: trophy room and museum
         g.weatherWarTick()                                           // O7: weather that matters
         Wrecks.hintTick(g)                                           // P144: wreck and mast hints
-        TickProf.mark("hud: director, bases, trophies, wrecks")
+        TickProf.mark("hud: trophies, weather war, wrecks")
         MapFog.shared.tick(g)                     // A5 (MapFog.swift)
         TickProf.mark("hud: map fog")
         TownLaw.tick(g)

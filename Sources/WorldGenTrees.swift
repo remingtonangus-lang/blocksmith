@@ -40,6 +40,7 @@ struct TreeWriter {
 }
 
 enum TreePlacer {
+    static let oldFallenGen = Env.all["BS_OLDFALLENGEN"] == "1"          // ledger 264: fallen trunks laid as plain logs
     static func choose(_ biome: Biome, _ roll: Float, _ pick: Float, _ y: Int) -> TreeKind? {
         guard let k = chooseLiving(biome, roll, pick, y) else { return nil }
         // A few of the trees a wood would grow are instead dead snags, stumps, fallen trunks or, rarely, an ancient oak
@@ -332,9 +333,12 @@ enum TreePlacer {
         case .fallenOak:
             // A fallen trunk of bark-all-round wood along the ground (each length only where the ground under it is solid
             // and it lies in air; decided per block, so both chunks of a trunk on a border agree), a stump at its root.
-            let wood = g("oak_wood")
-            w.log(x, y, z, LOG)
             let (dx, dz) = [(1, 0), (-1, 0), (0, 1), (0, -1)][rng.int(4)]
+            // Ledger 264 (Nov 17 evening, "every log I find is going to be floating"): a tree's own wood lying along its
+            // fall (bedded in the ground as a fallen trunk), not upright bark wood, which is timber now (TreeWood.plainTimber)
+            // and was drawn as a standing plain log a block high. BS_OLDFALLENGEN=1: as before.
+            let wood = TreePlacer.oldFallenGen || !TreeWood.on ? g("oak_wood") : TreeWood.twin[Int(g(dx != 0 ? "oak_log[x]" : "oak_log[z]"))]
+            w.log(x, y, z, LOG)
             let len = rng.range(4, 6)
             for i in 2..<(2 + len) {
                 let fx = x + dx * i, fz = z + dz * i
@@ -643,7 +647,11 @@ extension WorldGen {
         if rng.chance(0.3) {
             let lx0 = rng.range(2, 9), lz0 = rng.range(2, 9), len = rng.range(3, 5), alongX = rng.chance(0.5)
             if let key = fallen[biomes[lx0 + lz0 * CS]], Blocks.has(key + (alongX ? "[x]" : "[z]")) {
-                let log = g(key + (alongX ? "[x]" : "[z]"))
+                // Ledger 264: the tree's own wood (a fallen trunk, bedded into the ground), not timber: under the plain-log
+                // rule (TreeWood.plainTimber) a plain log is drawn the whole block high, so these lay over the drawn ground,
+                // which dips below the block tops. BS_OLDFALLENGEN=1: plain logs, as before.
+                let plainLog = g(key + (alongX ? "[x]" : "[z]"))
+                let log = TreePlacer.oldFallenGen || !TreeWood.on ? plainLog : TreeWood.twin[Int(plainLog)]
                 var y = CH - 2
                 while y > 1 && !Blocks.opaque[Int(b[Chunk.index(lx0, y, lz0)])] { y -= 1 }
                 var ok = y > SEA

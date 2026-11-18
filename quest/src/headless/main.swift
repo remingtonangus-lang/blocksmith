@@ -3978,6 +3978,21 @@ BlastWearCheck.run(game, check)                // ledger 172: a blast in a vehic
 CircuitZoo.run(game, check)
 // L3 perf overlay (Sources/PerfOverlayTests.swift): its window, lines, option and HUD drawing on the Quest's HUD host.
 PerfOverlayTests.run(game, hud: { Renderer(game: game).buildHUD(1280, 720).count }, check: check)
+// Ledger 264 (Nov 17 evening, "every log I find is going to be floating"): his taiga at 1012 69 -1580 (seed
+// 4259144782798118884, a field world as the headset makes): the logs the generator lays along the ground are a tree's own
+// wood, drawn bedded into the ground, none plain timber drawn a block high (31 of 31 were before; BS_OLDFALLENGEN=1).
+do {
+    let field0 = FieldTerrain.newWorlds
+    FieldTerrain.newWorlds = true
+    let w = World(seed: 4259144782798118884, device: device, save: nil)
+    w.makeFieldWorld()
+    w.renderDistance = 3; w.activeDistance = 3
+    _ = w.loadSync(center: V3(1012.5, 69 + 64, -1580.5), radius: 3)
+    FieldTerrain.newWorlds = field0
+    let (lying, plain, first) = TreeProbeCheck.lyingCensus(w, cx: 1012, cz: -1580, r: 40)
+    check(TreePlacer.oldFallenGen || (lying > 0 && plain == 0),
+          "fallen trunks: of \(lying) generated logs lying on the ground in his taiga (1012 -1580), \(plain) are plain timber drawn a block high over the bedded ground" + (first.map { " (first at \($0.x) \($0.y) \($0.z))" } ?? ""))
+}
 // Ledger 263: the playtest frame-rate warning (Sources/FpsWarning.swift) on synthetic frame traces.
 do {
     let fw = FpsWarning.shared, st = Settings.shared, was = st.fpsWarning

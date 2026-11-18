@@ -68,6 +68,7 @@ final class Game: LifeLinked {
     var hearts: [IVec3] = []          // Barkwraith hearts near the player (AshenGrove.swift)
     var heartTimer: Float = 0
     var heartScanAge: Float = 100
+    var heartChunks: [ChunkKey: [IVec3]] = [:], heartRow = 0     // ledger 297: hearts per chunk, one row of chunks a pass
     var cameraMode = 0                // F5 / View button: 0 first person, 1 behind, 2 in front
     var screenshotRequested = false   // F2
     var target: (hit: IVec3, normal: IVec3)?
