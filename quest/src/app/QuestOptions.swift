@@ -58,6 +58,7 @@ enum QuestOptions {
         // P440: the pause menu's distance row is the view distance (Auto shows where it is now).
         PauseMenu.hostViewRow = { g in
             let S = QuestSettings.self, now = g.world.renderDistance
+            if !S.autoViewDistance && FrameStats.manualHeld && now < S.renderDistance { return ("View Distance: \(S.renderDistance) (drawing \(now) here)", "q_view") }   // ledger 298
             return ("View Distance: \(S.renderDistance)" + (S.autoViewDistance && now != S.renderDistance ? " (now \(now))" : ""), "q_view")
         }
         PauseMenu.hostValues = ["q_firstdiff", "q_pos", "q_comfort", "q_preset", "q_turn", "q_snap", "q_tspeed", "q_move", "q_vig", "q_knock", "q_vib", "q_menusize", "q_hudsize", "q_ring", "q_saddle", "q_shake", "q_chase", "q_body", "q_seated", "q_reclined", "q_swing", "q_held", "q_hand", "q_hz", "q_fov", "q_spacewarp", "q_dynres", "q_tex", "q_view", "q_autoview", "q_active", "q_autord", "q_hud", "q_bright", "q_diff"]
@@ -94,7 +95,7 @@ enum QuestOptions {
             "q_diff": "How hard the enemies hit, aim and come at you in this world. It changes at once.",
             "q_active": "How far round you the world lives: crops grow, water flows, animals and soldiers move. Never past the View Distance.",
             "q_view": "How far the land is drawn, 8 to 24 chunks. Lower it when the game isn't keeping up; it applies at once.",
-            "q_autoview": "The land is drawn as far as the headset keeps up with, 8 to 24 chunks under your View Distance, and the edge fades into haze. Off: always your View Distance.",
+            "q_autoview": "The land is drawn as far as the headset keeps up with, 8 to 24 chunks under your View Distance, and the edge fades into haze. Off: your View Distance, drawn nearer only where the land is too thick to draw at full speed.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down for now, and back up to your setting once there is headroom again.",
             "host:touch": "Every Touch controller button and what it does.",
             "q_bright": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",

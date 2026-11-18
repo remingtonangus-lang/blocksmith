@@ -262,9 +262,11 @@ extension ShipManager {
         TrainHulls.follow(self, dt, game)                          // FAILURES 3: the trains' bodies go with their cars
         TickProf.mark("ships.physics")
         updateShells(dt, game: game)
-        meltTick(dt, game: game)                                   // P461: hulls in lava (ShipMelt.swift)
-        if let g = game { AutoTurrets.tick(g, dt) }                // P93 (Wrecks.swift)
         TickProf.mark("ships.shells")
+        meltTick(dt, game: game)                                   // P461: hulls in lava (ShipMelt.swift)
+        TickProf.mark("ships.melt")                                // (Nov 18: the crash leg's 30-50 ms "ships.shells", split)
+        if let g = game { AutoTurrets.tick(g, dt) }                // P93 (Wrecks.swift)
+        TickProf.mark("ships.auto turrets")
         // Carry riders with their ship.
         for (m, s) in mobRiders where s.pos != s.prevPos || s.rot != s.prevRot {
             let mp = s.toWorld(s.prevToLocal(m.pos))

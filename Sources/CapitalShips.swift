@@ -1595,6 +1595,7 @@ extension ShipManager {
         guard dt > 0 else { return }
         restoreTaken(g)
         salvagedGunsTick(dt, g)
+        clearInsideStep(g)                                   // ledger 300: a settled hull's inside cleared a few rows a frame
         for s in capitals {
             guard let st = capState[s.id] else { continue }
             let pd = boundsDistance(s, g.player.pos)
@@ -1662,6 +1663,7 @@ extension ShipManager {
             TickProf.mark("cap: crew, wheels, ramp")             // (store review: the capital tick split for questcheck --framesoak)
             if s.wrecked {
                 st.gunCharge = -1; founder(s, st, dt, g)              // a charge dies with the ship
+                TickProf.mark("cap: founder")                       // (Nov 18: the crash leg's 1.7 s one-off, charged to the next stage)
                 // Nov 12 (06:34:53, 06:36:33 at a crawler he had stopped: "why aren't the troops inside doing anything?
                 // They're getting attacked", "soldiers here should be manning the guns and shooting back"): a crawler
                 // stopped where it stands fights on with every gun whose gunner lives (a frigate that came down is done).
@@ -3512,7 +3514,63 @@ extension ShipManager {
     // P461 (Oct 25 17:02, a crash-landed Stormwarden Frigate in the jungle: "Why are trees spawning inside the ship?"): what
     // stood where the hull came down (trees, plants, anything not ground and not a chest) is gone: every cell in its hull
     // and between its keel and its deckhead, column by column.
+    // Ledger 300 (Nov 18, the host crash leg: a frigate's touchdown 1.6 s on one frame on onone, all of it here: the
+    // world box round the hull, about a million cells for a frigate, read on the frame): the clearing now goes a few
+    // rows a frame under 1.5 ms (the hull's columns first, then the world's rows bottom up) until done; what is inside a
+    // settled hull is out of sight meanwhile. BS_OLDCLEARINSIDE=1: all on the touchdown's frame.
+    static let oldClearInside = Env.all["BS_OLDCLEARINSIDE"] == "1"
+    final class InsideClear {
+        let s: Ship
+        var lowY: [Int] = [], highY: [Int] = []
+        var z = 0, y = Int.min
+        init(_ s: Ship) { self.s = s }
+    }
+    func clearInsideStep(_ g: Game) {
+        guard !insideClears.isEmpty else { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        while let job = insideClears.first {
+            let s = job.s, gr = s.grid, w = g.world
+            guard list.contains(where: { $0 === s }) else { insideClears.removeFirst(); continue }
+            if job.lowY.isEmpty { job.lowY = [Int](repeating: Int.max, count: gr.sx * gr.sz); job.highY = [Int](repeating: -1, count: gr.sx * gr.sz) }
+            while job.z < gr.sz {
+                let z = job.z
+                for x in 0..<gr.sx { for y in 0..<gr.sy where gr.get(x, y, z) != AIR {
+                    let c = x + z * gr.sx
+                    job.lowY[c] = min(job.lowY[c], y); job.highY[c] = max(job.highY[c], y)
+                } }
+                job.z += 1
+                if CFAbsoluteTimeGetCurrent() - t0 > 0.0015 { return }
+            }
+            let a = s.worldMin, b = s.worldMax
+            let y0 = max(1, Int(floor(a.y))), y1 = min(CH - 2, Int(floor(b.y)))
+            if job.y == Int.min { job.y = y0 }
+            while job.y <= y1 {
+                ShipManager.insideCleared += clearRow(s, job.lowY, job.highY, job.y, w)
+                job.y += 1
+                if CFAbsoluteTimeGetCurrent() - t0 > 0.0015 { return }
+            }
+            insideClears.removeFirst()
+        }
+    }
+    private func clearRow(_ s: Ship, _ lowY: [Int], _ highY: [Int], _ y: Int, _ w: World) -> Int {
+        let gr = s.grid, a = s.worldMin, b = s.worldMax
+        var gone = 0
+        for z in Int(floor(a.z))...Int(floor(b.z)) { for x in Int(floor(a.x))...Int(floor(b.x)) {
+            let blk = w.block(x, y, z)
+            guard blk != AIR, !Blocks.isLiquid(blk), !w.groundAt(x, y, z), w.blockEntities[IVec3(x, y, z)] == nil else { continue }
+            let l = s.toLocal(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+            let lx = Int(floor(l.x)), ly = Int(floor(l.y)), lz = Int(floor(l.z))
+            guard lx >= 0, lz >= 0, lx < gr.sx, lz < gr.sz else { continue }
+            let c = lx + lz * gr.sx
+            guard ly >= lowY[c] && ly <= highY[c] else { continue }
+            _ = w.setBlockAsync(x, y, z, AIR)
+            gone += 1
+        } }
+        return gone
+    }
+
     func clearInside(_ s: Ship, _ g: Game) {
+        if !ShipManager.oldClearInside { insideClears.append(InsideClear(s)); return }
         let gr = s.grid, w = g.world
         var lowY = [Int](repeating: Int.max, count: gr.sx * gr.sz), highY = [Int](repeating: -1, count: gr.sx * gr.sz)
         for z in 0..<gr.sz { for x in 0..<gr.sx { for y in 0..<gr.sy where gr.get(x, y, z) != AIR {
@@ -3749,7 +3807,9 @@ extension ShipManager {
         s.vel = .zero
         s.angVel = .zero
         s.updateBounds()
+        TickProf.mark("cap: founder")
         clearInside(s, g)
+        TickProf.mark("cap: touchdown: clear inside")              // (Nov 18: the crash leg's 1.5 s touchdown, split)
         let lo = s.localMin, hi = s.localMax
         Explosion.sparePlayer = aboard?.root === s || pilot === s
         for k in 0..<3 {
@@ -3757,6 +3817,7 @@ extension ShipManager {
             Explosion.explode(at: s.toWorld(p) - V3(0, 1, 0), power: 3, game: g)
         }
         Explosion.sparePlayer = false
+        TickProf.mark("cap: touchdown: blasts")
         g.sfx(.shipCollideHard, 2, at: s.pos)
         // The jolt: the crew on deck take damage for a hard touchdown (over 3.5 b/s), none for a flared one; the
         // player rides it out (P472).

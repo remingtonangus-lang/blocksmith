@@ -20,7 +20,7 @@ import simd
 final class QuestRoute {
     static let all = ["menu", "newworld", "plains", "forest", "jungle", "village", "fight", "frigate", "train", "reload"]
     static let combat = ["battle", "siege", "naval"]
-    static let ownWorldLegs = ["frigate", "train"]          // (they change the world too: a fixed one of the route's own)
+    static let ownWorldLegs = ["frigate", "train", "crash"]          // (they change the world too: a fixed one of the route's own)
     static let combatSeed: UInt64 = 7653607216494784574        // (the host framesoak's crawler/citadel world)
     static let fightSeconds = 90.0
     static let seconds: [String: Double] = ["menu": 20, "newworld": 30, "plains": 90, "forest": 90, "jungle": 120,
@@ -42,6 +42,10 @@ final class QuestRoute {
 
     // (a var: AndroidMain makes it again at every launch, as Android may keep the process for the next one; ledger 291)
     static var shared: QuestRoute? = make()
+    private static func known(_ l: String) -> Bool {
+        if all.contains(l) || combat.contains(l) || ownWorldLegs.contains(l) { return true }
+        return l == "spotworld" || l.hasPrefix("spot-")
+    }
     static func make() -> QuestRoute? {
         #if os(Android)
         guard Env.propsAllowed else { return nil }
@@ -54,7 +58,7 @@ final class QuestRoute {
         let legs = s == "all" ? all : s == "spots" ? ["spotworld"] + spots.map { "spot-" + $0.name } : s == "combat" ? combat
             : s.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init)
                 .flatMap { $0 == "combat" ? combat : [$0] }
-                .filter { all.contains($0) || combat.contains($0) || $0 == "spotworld" || $0.hasPrefix("spot-") }
+                .filter(known)
         guard !legs.isEmpty else { print("route: failed: no known leg in '\(s)'"); return nil }
         // (Nov 17: the combat legs ran in the world the app opened, his own. They now get a world of their own first.)
         var legs2 = legs
@@ -239,6 +243,49 @@ final class QuestRoute {
             if phase == 1 && legTime - settleFrom > 3 { phase = 2; fightFrom = legTime; lastCount = -5; mark("frigate") }
             if phase == 2 { travelLine(g, "frigate", s.pos); if let why = stalled { stalled = nil; notRun(app, why); return } }
             if phase == 2 && legTime - fightFrom > QuestRoute.fightSeconds { next(app) }
+        case "crash":
+            // (Nov 18, his 19:52 playtest: 66 fps for 20 s after he flew a frigate into the taiga and its engines shook
+            // loose. Not in "all": the frigate built as in that leg, flown 8 s ("crash-flying"), then knocked as a
+            // 14 b/s strike does (engineShock) and pushed down onto the ground; 30 s measured there ("crash-after").)
+            if phase == 0 {
+                phase = 1
+                mark("crash-stage")
+                let w = g.world
+                w.ships.encounters = false
+                w.ships.spawnCapital("warfrigate", home: IVec3(Int(floor(g.player.pos.x)), 0, Int(floor(g.player.pos.z)) + 24), yaw: 0, region: nil, sync: true)
+                guard let s = w.ships.capitals.first(where: { $0.role == "warfrigate" }), let st = w.ships.capState[s.id], let stand = g.helmStand(s) else {
+                    notRun(app, "no frigate could be spawned (\(w.ships.capitals.count) capitals)"); return
+                }
+                st.crewDone = Set(0..<st.crew.count); st.crewless = true
+                st.testTurn = 0; st.testSpeed = 10
+                ship = s
+                g.player.flying = false
+                g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos)
+                print(String(format: "route: aboard %@", s.name))
+                settleFrom = legTime
+                return
+            }
+            guard let s = ship, g.world.ships.capitals.contains(where: { $0 === s }), let st = g.world.ships.capState[s.id] else {
+                notRun(app, "the frigate is gone"); return
+            }
+            if phase == 1 {
+                if let stand = g.helmStand(s), simd_length(g.player.pos - s.toWorld(stand)) > 3 { g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos) }
+                if legTime - settleFrom > 3 && label != "crash-flying" { mark("crash-flying") }
+                if legTime - settleFrom > 11 {
+                    phase = 2; fightFrom = legTime
+                    st.testTurn = nil; st.testSpeed = nil
+                    g.world.ships.engineShock(s, st, 14, g)
+                    s.vel = V3(s.vel.x, -12, s.vel.z)
+                    mark("crash-after")
+                    print(String(format: "route: crash: engines %d, %d ships, at %.0f %.0f %.0f", s.engines, g.world.ships.list.count, s.pos.x, s.pos.y, s.pos.z))
+                }
+                return
+            }
+            if Int(legTime - fightFrom) % 5 == 0 && Double(Int(legTime - fightFrom)) != lastCount {
+                lastCount = Double(Int(legTime - fightFrom))
+                print(String(format: "route: crash: %d s, ship at %.0f %.0f %.0f vel %.1f, %d ships, %d particles", Int(lastCount), s.pos.x, s.pos.y, s.pos.z, simd_length(s.vel), g.world.ships.list.count, g.particles.list.count))
+            }
+            if legTime - fightFrom > 30 { next(app) }
         case "train":
             // (Nov 18: "no line planned within 2,000 blocks yet" in every run: the lines were asked for without waiting.
             // Now planned off the frame thread near the host framesoak's train spot in the route's own world, then the
