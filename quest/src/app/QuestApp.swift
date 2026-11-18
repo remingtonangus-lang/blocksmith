@@ -81,11 +81,16 @@ final class QuestApp {
         device = QuestDevice(xr.vk)
         sharedSystemDevice = device
         xr.resolutionScale = QuestSettings.resolutionScale
+        var l0: Double = CFAbsoluteTimeGetCurrent()          // (ledger 296: the launch's swapchain-to-session gap, by step)
+        func took(_ what: String) { let t = CFAbsoluteTimeGetCurrent(); print(String(format: "launch: %@ %.0f ms", what, (t - l0) * 1000)); l0 = t }
         try xr.createSwapchain()
+        took("swapchain")
         scene = try SceneRenderer(ctx: xr.vk, device: device, views: 2, colorFormat: xr.colorFormat, foveated: xr.foveated, spaceWarp: xr.spaceWarp)
+        took("scene renderer")
         if xr.spaceWarp {
             spaceWarpPass = try SpaceWarpPass(scene: scene, mvImages: xr.mvImages, depthImages: xr.swDepthImages,
                                               width: xr.mvWidth, height: xr.mvHeight, depthFormat: xr.swDepthFormat)
+            took("space warp pass")
         }
         scene.linearOutput = SceneRenderer.isSRGB(xr.colorFormat)
         for (i, img) in xr.swapImages.enumerated() {
@@ -109,7 +114,9 @@ final class QuestApp {
         stats.dynResCounts = { [weak self] in (self?.dynRes.takenBack ?? 0, self?.dynRes.unjudged ?? 0) }      // ledger 177
         stats.dynResOn = { [weak self] in QuestSettings.dynamicResolution && (QuestApp.fovDyn || !(self?.xr.foveated ?? true)) }      // P499
         stats.perfNotice = { [weak self] in self?.xr.perfNoticeLine ?? "" }
+        took("targets, hooks")
         startLoading(WorldRequest(survival: true))       // (code reader Nov 10, batch 2.1: a buyer's first world was Creative: no camp, no goals)
+        took("loading started")
     }
 
     // MARK: Loading

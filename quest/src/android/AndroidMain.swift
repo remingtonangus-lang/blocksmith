@@ -174,6 +174,7 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
         print("reviewer: fresh data in \(dataPath) (default options, no worlds; the player's own are untouched)")
     }
     QuestPaths.setDataRoot(dataPath)
+    SceneRenderer.pipelineCacheDir = dataPath + "/cache"   // ledger 296: compiled pipelines kept between launches
     // The world meshes outside the backed-up files (ChunkShells MeshCache.outside): <app data>/no_backup, which
     // Android's backup leaves out.
     MeshCache.outside = URL(fileURLWithPath: meshPath, isDirectory: true)
