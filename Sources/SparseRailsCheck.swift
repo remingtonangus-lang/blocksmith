@@ -64,12 +64,33 @@ extension RailwayTests {
         }
         Railways.sparseOn = true
         passingTrain(check)
+        bothRows(check)
         for b in bad.prefix(12) { print("sparse rails: " + b) }
         print(String(format: "sparse rails: %.1f s", CFAbsoluteTimeGetCurrent() - t0))
         let wind0 = spread[0] / max(1, wilds[0]), wind1 = spread[1] / max(1, wilds[1])
         let ok = oddTrack == 0 && evenBare == 0 && linked * 100 >= links * 95 && steps == 0 && jumps == 0 && crossings == 0
             && cells[1] * 100 <= cells[0] * 70 && wind1 >= 60 && wind1 > 2 * wind0 && stations[1] > 0
         check(ok, "ledger 230: in a new world every second row carries track, it winds over the land and a lone town has its station (3 worlds, 25 stretches each: track in \(tracked[1]) stretches, \(tracked[0]) before; \(cells[1]) cells of track and links, \(cells[0]) before; open-country track strays \(wind1) blocks north to south on average, \(wind0) before; \(stations[1]) town stations on those rows, \(oneStop) lines of one station, \(stations[0]) stations on all rows before; \(oddTrack) odd rows with track, \(evenBare) even stretches bare, \(linked) of \(links) joins laid, \(steps) broken steps, \(jumps) grade jumps, \(crossings) cells on another track)")
+    }
+
+    // Ledger 239: a stretch's line serves the towns of its own row and of the empty row south of it (the chain with
+    // the most town in it), so more of a new world's towns have a station, and no two tracks share a column.
+    static func bothRows(_ check: (Bool, String) -> Void) {
+        let old0 = Railways.oldTownRow
+        defer { Railways.oldTownRow = old0 }
+        guard !old0 else { print("ledger 239: off"); return }
+        var got = [0, 0], all = [0, 0], shared = [0, 0], cells = [0, 0]
+        for k in 0..<3 {
+            for (wi, old) in [true, false].enumerated() {
+                Railways.oldTownRow = old
+                let gen = WorldGen(seed: UInt64(1000 + k * 7919))
+                gen.fieldWorld = true
+                let c = PlanMap.count(gen, 0, 0, 3000)
+                got[wi] += c.served.reduce(0, +); all[wi] += c.total.reduce(0, +); shared[wi] += c.shared; cells[wi] += c.cells
+            }
+        }
+        check(all[1] == all[0] && all[1] > 0 && got[1] * 10 >= got[0] * 13 && shared[1] == 0 && cells[1] * 10 <= cells[0] * 13,
+              "ledger 239: a line serves the towns of both its rows (3 new worlds, 6,000 blocks square each: \(got[1]) of \(all[1]) towns have a station, \(got[0]) before; \(shared[1]) columns shared by two tracks; \(cells[1]) cells of track, \(cells[0]) before)")
     }
 
     // Ledger 238: a line of one station runs its train over a long window (the open country before it, the links and

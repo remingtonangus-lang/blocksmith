@@ -191,6 +191,26 @@ enum TownTests {
         let gs = keeper(g, .gunsmith, at: g.player.pos + V3(-2, 0, 0))
         g.inventory.main[5] = ItemStack(Items.id("wheat"), 4)
         check(!Shop.sell(g, gs, .gunsmith, item: Items.id("wheat"), count: 4).1 && count(g, "wheat") == 4, "trade: the gunsmith won't buy wheat")
+        // Ledger 256 (Nov 17 20:06:41, at a general store: "Let me sell gold to it. That's like crucial."): every shop buys
+        // gold, diamonds and emeralds; gold pieces at their face value as money (an ingot $2.50, as it pays).
+        g.inventory.main[5] = .empty
+        var refusers: [String] = []
+        for k in ShopKind.allCases {
+            for key in ["gold_nugget", "gold_ingot", "gold_block", "raw_gold", "diamond", "emerald"] where Items.has(key) {
+                if !Economy.buysItem(k, Items.id(key)) { refusers.append("\(k.rawValue) \(key)") }
+            }
+        }
+        g.money = 0
+        g.inventory.main[6] = ItemStack(Items.id("gold_ingot"), 3)
+        g.inventory.main[7] = ItemStack(Items.id("gold_nugget"), 4)
+        let si = Shop.sell(g, m, .general, item: Items.id("gold_ingot"), count: Int.max)
+        let sn = Shop.sell(g, m, .general, item: Items.id("gold_nugget"), count: Int.max)
+        let goldPaid = g.money
+        g.inventory.main[6] = .empty; g.inventory.main[7] = .empty
+        check(refusers.isEmpty && si.1 && sn.1 && goldPaid == 3 * 250 + 4 * 25 && count(g, "gold_ingot") == 0,
+              "ledger 256: every shop buys gold, diamonds and emeralds (refused: \(refusers.isEmpty ? "none" : refusers.joined(separator: ", "))); "
+              + "the general store paid \(Money.format(goldPaid)) for 3 gold ingots and 4 nuggets (face value $8.50: \(si.0) \(sn.0))")
+        g.money = 0
         // Worn and enchanted items aren't bought.
         var worn = ItemStack(Items.id("iron_sword"), 1); worn.damage = 10
         check(!Shop.sellable(worn), "trade: worn tools can't be sold")
