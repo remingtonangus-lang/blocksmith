@@ -141,7 +141,7 @@ extension World {
             return out <= apron ? fy - p.y : (fy - (out - apron) * fall - p.y) * norm
         }
         let lo = IVec3(x - 3, max(0, y - 3), z - 3), hi = IVec3(x + 3, y, z + 3)
-        return fieldFill(lo, hi, inside, keep: IVec3(x, y, z))
+        return fieldFill(lo, hi, inside, keep: IVec3(x, y, z), floorRow: !World.oldKeepFloor)
     }
 
     // Ledger 160 (Nov 15 08:45:01, bricks put into a hollow he had dug beside a floor: "Can't place blocks in here. And
@@ -212,7 +212,14 @@ extension World {
     // grows. Never into a built block's cell, nor `keep`. Material from the ground round each new cell.
     // cut: the other way (ledger 273): each sample becomes the smaller of what it was and the shape (`inside` is then
     // the most the ground may be there), so the ground only falls; it may cut into `keep`'s own cell.
-    func fieldFill(_ lo: IVec3, _ hi: IVec3, _ inside: (V3) -> Float, keep: IVec3, cut: Bool = false) -> Int {
+    // Ledger 275 (bug hunt a, round 2: slabs, stairs, chests and beds set on sloped ground stood a tenth of a block over
+    // it, `--placeslope`): the fill left the placed block's own cell alone, so its lower fine samples (a quarter block
+    // over the floor) kept the open air's value. The drawn ground runs between the sample under the floor (raised to a
+    // quarter block in) and that one, so it crossed 0.1-0.15 under the floor all round the piece. With `floorRow` the
+    // fill also lifts the cell's lowest row of samples to the shape's value there (a quarter block out), so the ground
+    // meets the floor. BS_OLDKEEPFLOOR=1: as before.
+    static let oldKeepFloor = Env.all["BS_OLDKEEPFLOOR"] == "1"
+    func fieldFill(_ lo: IVec3, _ hi: IVec3, _ inside: (V3) -> Float, keep: IVec3, cut: Bool = false, floorRow: Bool = false) -> Int {
         var flipped = 0
         var touched: [(Chunk, Int)] = []
         func touch(_ c: Chunk, _ sy: Int) { if !touched.contains(where: { $0.0 === c && $0.1 == sy }) { touched.append((c, sy)) } }
@@ -237,8 +244,9 @@ extension World {
                 for fy in fy0...fy1 { for fz in fz0...fz1 { for fx in fx0...fx1 {
                     let ci = Chunk.index(fx >> 1, oy + (fy >> 1), fz >> 1)
                     let isKeep = ox + (fx >> 1) == keep.x && oy + (fy >> 1) == keep.y && oz + (fz >> 1) == keep.z
-                    if c.blocks.raw(ci) != AIR && !(cut && isKeep) { continue }  // (a fill never swallows a built block)
-                    if isKeep && !cut { continue }
+                    let keepFloor = isKeep && !cut && floorRow && (fy & 1) == 0
+                    if c.blocks.raw(ci) != AIR && !(cut && isKeep) && !keepFloor { continue }  // (a fill never swallows a built block)
+                    if isKeep && !cut && !keepFloor { continue }
                     let p = V3(Float(ox) + (Float(fx) + 0.5) * 0.5, Float(oy) + (Float(fy) + 0.5) * 0.5, Float(oz) + (Float(fz) + 0.5) * 0.5)
                     let k = FineField.index(fx, fy, fz)
                     let q = FieldTerrain.q(cut ? min(FieldTerrain.f(f[k]), inside(p)) : max(FieldTerrain.f(f[k]), inside(p)))

@@ -160,10 +160,10 @@ enum PlaceSlopeCheck {
         check(spots >= 40, "placeslope: \(spots) sloped spots in \(regions.count) regions (want 40 or more)")
         for (cls, _) in classes {
             let t = tally[cls]!
-            // (ledger 273 holds floating and sinking at 0; the gaps a tenth of a block under what rests on its floor and
-            // the cells a block off the aim are the hunt's next rounds, printed until they are fixed)
-            check(t.aimed >= 8 && t.placed + t.refused == t.aimed && t.refused * 4 <= t.aimed && t.float == 0 && t.sink == 0,
-                  "placeslope \(cls): \(t.placed) of \(t.aimed) placed on sloped ground (\(t.refused) refused), \(t.float) floating, \(t.sink) sunk; still open: \(t.wrongCell) in another cell than aimed, \(t.gap) with a gap under"
+            // (ledger 273 holds floating and sinking at 0, ledger 275 the gaps under what rests on its floor; the cells a
+            // block off the aim are the hunt's next round, printed until fixed)
+            check(t.aimed >= 8 && t.placed + t.refused == t.aimed && t.refused * 4 <= t.aimed && t.float == 0 && t.sink == 0 && t.gap == 0,
+                  "placeslope \(cls): \(t.placed) of \(t.aimed) placed on sloped ground (\(t.refused) refused), \(t.float) floating, \(t.sink) sunk, \(t.gap) with a gap under; still open: \(t.wrongCell) in another cell than aimed"
                   + (t.notes.isEmpty ? "" : "; " + t.notes.prefix(4).joined(separator: "; ")))
         }
     }
