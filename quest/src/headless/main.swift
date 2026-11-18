@@ -3399,6 +3399,9 @@ if CommandLine.arguments.contains("--builds") {                // Builders' Grou
     BuildersCheck.run(game, check)
     print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--placeslope") {            // bug hunt a: every placeable class on sloped field ground
+    PlaceSlopeCheck.run(game, check); namedEnd("placeslope")
+}
 if CommandLine.arguments.contains("--craterplace") {           // P507: blocks go down in a rocket's bowl
     CraterPlaceCheck.run(game, check)
     print(failures == 0 ? "craterplace: all checks passed" : "craterplace: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
@@ -4079,6 +4082,7 @@ HellWildTests.run(game, check: check)                  // P506: hell's wildlife 
 if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+PlaceSlopeCheck.run(game, check)                       // bug hunt a: placing on sloped field ground
 CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through
 ElevatorCheck.run(game, check)                         // FAILURES.md 2: a lift car riding its shaft

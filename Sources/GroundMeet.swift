@@ -26,6 +26,52 @@ extension World {
         return out
     }()
 
+    // Ledger 273 (bug hunt a, Fable Nov 18: "nothing floats over the ground or sinks under it, the ground under it
+    // closes with no gap"): what stands on its cell's floor but is too narrow to count as resting on it (a door, a
+    // fence or wall post, a pane, a rail, a ladder, a lever...) kept whatever the slope gave it: on 420 placements on
+    // sloped Polygons ground, doors, fences and rails floated up to half a block over the downhill side or stood half a
+    // block deep in the uphill ground in four of every five. Built pieces stay on the grid, so the ground comes to
+    // them: it rises under the cell to its floor (meetGround) and falls inside the cell to it (floorPad).
+    // BS_OLDFLOORMEET=1: as before.
+    static let oldFloorMeet = Env.all["BS_OLDFLOORMEET"] == "1"
+    static let standsOnFloor: [Bool] = {
+        var out = [Bool](repeating: false, count: Blocks.render.count)
+        for b in 0..<out.count where !restsOnFloor[b] && GroundDrape.seat[b] == 0 && !Blocks.isLiquid(BlockID(b))
+            && Blocks.render[b] != RenderType.cross.rawValue && Blocks.render[b] != RenderType.liquid.rawValue
+            && Blocks.render[b] != RenderType.wire.rawValue {          // (wire lies on the drawn ground: GroundDrape)
+            if Blocks.connectKind[b] != 0 { out[b] = true; continue }      // (fences, walls, panes: their post from the floor)
+            let bx = Blocks.boxes[b]
+            guard !bx.isEmpty, bx.map({ Int($0.y0) }).min() == 0 else { continue }
+            out[b] = true
+        }
+        return out
+    }()
+    static func meetsGround(_ id: BlockID) -> Bool { restsOnFloor[Int(id)] || (!oldFloorMeet && standsOnFloor[Int(id)]) }
+
+    // Ledger 273: the ground inside the cell of something standing on its floor falls to that floor, rising again at
+    // 45 degrees round the cell to the ground beside it (a level pad, not a cliff). Returns the cells that changed.
+    @discardableResult
+    func floorPad(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Int {
+        guard !World.oldFloorMeet, World.meetGroundOn, fieldTerrain, frame == nil, World.standsOnFloor[Int(id)], y > 0, y + 2 < CH else { return 0 }
+        guard !Blocks.collide[Int(builtBlock(x, y - 1, z))] || !Blocks.fullCollide[Int(builtBlock(x, y - 1, z))] else { return 0 }
+        // (only where the ground stands over the floor somewhere in the cell)
+        var over = false
+        for k in 0..<9 where !over {
+            let px = Float(x) + 0.1 + Float(k % 3) * 0.4, pz = Float(z) + 0.1 + Float(k / 3) * 0.4
+            if fieldDensity(at: V3(px, Float(y) + 0.06, pz)) > 0 { over = true }
+        }
+        guard over else { return 0 }
+        let fy = Float(y), x0 = Float(x), x1 = Float(x + 1), z0 = Float(z), z1 = Float(z + 1)
+        let apron: Float = 0.15
+        func most(_ p: V3) -> Float {
+            let dx = max(0, x0 - p.x, p.x - x1), dz = max(0, z0 - p.z, p.z - z1)
+            let out = (dx * dx + dz * dz).squareRoot()
+            if out > 1.2 { return 8 }
+            return out <= apron ? fy - p.y : (fy + (out - apron) - p.y) * 0.7071
+        }
+        return fieldFill(IVec3(x - 2, y, z - 2), IVec3(x + 2, y + 2, z + 2), most, keep: IVec3(x, y, z), cut: true)
+    }
+
     // The largest gap (blocks) between the floor of cell (x, y, z) and the field's ground under its footprint (its
     // corners, edge middles and middle, each searched down a block and a half); 0 where the ground reaches the floor.
     func floorGap(_ x: Int, _ y: Int, _ z: Int) -> Float {
@@ -43,7 +89,7 @@ extension World {
     // the floor. Returns the cells that turned to ground.
     @discardableResult
     func meetGround(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Int {
-        guard World.meetGroundOn, fieldTerrain, frame == nil, World.restsOnFloor[Int(id)], y > 0 else { return 0 }
+        guard World.meetGroundOn, fieldTerrain, frame == nil, World.meetsGround(id), y > 0 else { return 0 }
         // On the ground only: what stands on a built block is the building's business.
         let under = builtBlock(x, y - 1, z)
         guard !Blocks.collide[Int(under)] else { return 0 }
@@ -55,7 +101,13 @@ extension World {
         // blocks wide, into the rooms. The ground now rises only under a block set down on it (a gap of 0.8 at
         // most; the caller says whether it was placed on ground), and its skirt is at most a block wide.
         // BS_OLDMEET=1: as before.
-        if !World.oldMeet && gap > 0.8 { return 0 }
+        // (ledger 273: on a steep slope the downhill corner of a block set down on the ground is a block below its
+        // floor while its middle stands half a block over the ground: the middle tells whether it was set down)
+        if !World.oldMeet && World.oldFloorMeet && gap > 0.8 { return 0 }
+        if !World.oldMeet && !World.oldFloorMeet && gap > 0.8 {
+            let o = V3(Float(x) + 0.5, Float(y) + 0.02, Float(z) + 0.5)
+            guard fieldDensity(at: o) <= 0, let h = fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5), Float(y) - h.at.y <= 0.8 else { return 0 }
+        }
         // Builders' Grounds (Nov 14): over a drop, not on the ground. A lintel over an arch, a bridge deck, an eave, a
         // block put against a wall's side found no ground a block and a half under its floor and the fill still ran, a
         // plug of earth three cells deep hung under it in the air (ten cells grew in a stone gate's opening as the agent
@@ -158,7 +210,9 @@ extension World {
     // Fills the field's ground in the cells lo...hi (and their fine samples) up to the shape `inside` (> 0 inside, about
     // the distance to its surface): each sample becomes the larger of what it was and the shape, so the ground only
     // grows. Never into a built block's cell, nor `keep`. Material from the ground round each new cell.
-    func fieldFill(_ lo: IVec3, _ hi: IVec3, _ inside: (V3) -> Float, keep: IVec3) -> Int {
+    // cut: the other way (ledger 273): each sample becomes the smaller of what it was and the shape (`inside` is then
+    // the most the ground may be there), so the ground only falls; it may cut into `keep`'s own cell.
+    func fieldFill(_ lo: IVec3, _ hi: IVec3, _ inside: (V3) -> Float, keep: IVec3, cut: Bool = false) -> Int {
         var flipped = 0
         var touched: [(Chunk, Int)] = []
         func touch(_ c: Chunk, _ sy: Int) { if !touched.contains(where: { $0.0 === c && $0.1 == sy }) { touched.append((c, sy)) } }
@@ -182,11 +236,12 @@ extension World {
             if fx0 <= fx1 && fy0 <= fy1 && fz0 <= fz1 {
                 for fy in fy0...fy1 { for fz in fz0...fz1 { for fx in fx0...fx1 {
                     let ci = Chunk.index(fx >> 1, oy + (fy >> 1), fz >> 1)
-                    if c.blocks.raw(ci) != AIR { continue }                     // (a fill never swallows a built block)
-                    if ox + (fx >> 1) == keep.x && oy + (fy >> 1) == keep.y && oz + (fz >> 1) == keep.z { continue }
+                    let isKeep = ox + (fx >> 1) == keep.x && oy + (fy >> 1) == keep.y && oz + (fz >> 1) == keep.z
+                    if c.blocks.raw(ci) != AIR && !(cut && isKeep) { continue }  // (a fill never swallows a built block)
+                    if isKeep && !cut { continue }
                     let p = V3(Float(ox) + (Float(fx) + 0.5) * 0.5, Float(oy) + (Float(fy) + 0.5) * 0.5, Float(oz) + (Float(fz) + 0.5) * 0.5)
                     let k = FineField.index(fx, fy, fz)
-                    let q = FieldTerrain.q(max(FieldTerrain.f(f[k]), inside(p)))
+                    let q = FieldTerrain.q(cut ? min(FieldTerrain.f(f[k]), inside(p)) : max(FieldTerrain.f(f[k]), inside(p)))
                     if q != f[k] { f[k] = q; any = true; grow(IVec3(ox + (fx >> 1), oy + (fy >> 1), oz + (fz >> 1))) }
                 } } }
             }
@@ -198,14 +253,20 @@ extension World {
                 guard let c0 = chunkAt(x, z) else { continue }
                 let c = editing(c0)
                 guard c.blocks.isField else { continue }
-                if x == keep.x && y == keep.y && z == keep.z { continue }
+                let isKeep = x == keep.x && y == keep.y && z == keep.z
+                if isKeep && !cut { continue }
                 let i = Chunk.index(mod(x, CS), y, mod(z, CS))
-                if c.blocks.raw(i) != AIR { continue }
+                if c.blocks.raw(i) != AIR && !(cut && isKeep) { continue }
                 let d0 = FieldTerrain.f(c.blocks.density(i))
-                let q = FieldTerrain.q(max(d0, inside(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))))
+                let shape = inside(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+                let q = FieldTerrain.q(cut ? min(d0, shape) : max(d0, shape))
                 if q == c.blocks.density(i) { continue }
                 let was = d0 > 0, now = q > 0
-                if was != now {
+                if was != now && cut {
+                    c.blocks.setDensity(i, min(q, -1), material: nil, follow: false)
+                    flipped += 1
+                    c.recomputeHeight(mod(x, CS), mod(z, CS))
+                } else if was != now {
                     c.blocks.setDensity(i, max(q, 1), material: fieldNeighbourMaterial(x, y, z), follow: false)
                     flipped += 1
                     c.recomputeHeight(mod(x, CS), mod(z, CS))
