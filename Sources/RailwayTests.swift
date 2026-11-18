@@ -291,6 +291,7 @@ enum RailwayTests {
         curveSpeed(check)
         linkTrees(check)
         openCountry(check)
+        sparseCountry(check)                               // ledger 230 (Sources/SparseRailsCheck.swift)
         guard !Railways.oldRails else { print("rail: N12 diagonals skipped (BS_OLDRAILS=1)"); return }
         var lines = 0, diag = 0, legs = 0, bad: [String] = [], gateOK = 0, gateTried = 0
         var worstTurn: Float = 0, worstOldTurn: Float = 0, worstPace: Float = 0, longest = 0
