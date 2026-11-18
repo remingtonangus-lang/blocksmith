@@ -159,7 +159,9 @@ final class QuestControls {
         let down = trigBtn[1].down
         let pressed = down && !mineTrigDown
         mineTrigDown = down
-        guard QuestSettings.mineToggle, !inMenu, game.alive, game.heldGun == nil else { mineLatch = nil; mineCancelHeld = false; return }
+        // (ledger 268: a latched mine needs its controller in hand: lost, it lets go)
+        let aimLost = !HandedInput.oldLostArm && ((app.input as? HandedInput)?.lost[aimHand] ?? false)
+        guard QuestSettings.mineToggle, !inMenu, game.alive, game.heldGun == nil, !aimLost else { mineLatch = nil; mineCancelHeld = false; return }
         let t = game.target?.hit
         // A creature between the laser and the block: the trigger is its own again (no auto-swinging at it).
         let mobFirst = game.target.map { tg in

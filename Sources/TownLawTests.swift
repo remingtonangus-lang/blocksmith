@@ -96,14 +96,25 @@ extension TownTests {
         check(ok && old.villager?.profession == "librarian" && old.villager?.level == 2 && kid.villager?.role == "child",
               "people: an old-save villager, an egg villager and a newborn are townsfolk after one update ("
                 + all.map { "\($0.villager?.person ?? "?") \($0.villager?.role ?? "?")" }.joined(separator: ", ") + ")")
-        // A craftsperson takes money now: a cash counter for their trade, the barter behind a button.
+        // A craftsperson takes money now: a cash counter for their trade. Ledger 257: no barter behind it any more, and no
+        // way into the emerald trades from a townsperson or a wandering trader (BS_OLDBARTER=1: the Barter button).
+        let b0 = Barter.opened
         _ = g.talkToTownsperson(old)
         let sm = g.menu as? ShopMenu
-        check(sm?.kind == .general && sm?.hasBarter == true, "people: a librarian opens a cash counter (\(sm?.kind.rawValue ?? "no shop")) with a Barter button")
-        if let sm {
-            sm.buttonPressed(ShopMenu.barter)
-            check(g.menu != nil && !(g.menu is ShopMenu), "people: the Barter button opens the emerald trades (\(g.menu.map { "\(type(of: $0))" } ?? "nothing"))")
-        }
+        let noButton = sm?.hasBarter == false
+        if g.menu != nil { g.closeMenu() }
+        _ = g.openTrading(old)
+        let viaTrade = g.menu as? ShopMenu
+        if g.menu != nil { g.closeMenu() }
+        let wt = Mob(.wanderingTrader, at: base + V3(0, 0, -2))
+        g.mobs.mobs.append(wt)
+        _ = g.animalInteract(wt)
+        let wtShop = g.menu as? ShopMenu
+        if g.menu != nil { g.closeMenu() }
+        g.mobs.mobs.removeAll { $0 === wt }
+        check(sm?.kind == .general && noButton && viaTrade?.kind == .general && wtShop != nil && Barter.opened == b0,
+              "ledger 257: a librarian opens a cash counter (\(sm?.kind.rawValue ?? "no shop")) with no Barter button (\(noButton)); trading with him opens it too "
+              + "(\(viaTrade?.kind.rawValue ?? "something else")), a wandering trader opens a shop counter (\(wtShop?.kind.rawValue ?? "no")); barter screens opened: \(Barter.opened - b0)")
         if g.menu != nil { g.closeMenu() }
     }
 

@@ -57,6 +57,8 @@ enum PathFinder {
     static var boxes: [(V3, V3)] = []        // scratch for collision boxes (main thread only)
     static var doors = false                 // the current search may walk through wooden doors
     static var lastExpanded = 0              // nodes expanded by the last search (harness)
+    static let slowTrace = Env.all["BS_PATHSLOW"] == "1"                // prints resumed searches over 1 ms (ledger 306)
+    static var slowLast: Double = 0, slowWorst: Double = 0, slowField = 0, slowFieldT: Double = 0
 
     // Block reads during one search remember the last chunk (a search reads hundreds of cells in one to four chunks;
     // each read was a dictionary lookup: bench profile, mobs scene). Only while find() runs (main thread); elsewhere
@@ -112,7 +114,9 @@ enum PathFinder {
             let key = IVec3(x, y, z)
             if cursorOn, let t = topCache[key] { return t }
             boxes.removeAll(keepingCapacity: true)
+            let tb = slowTrace ? CFAbsoluteTimeGetCurrent() : 0
             w.collisionBoxes(x, y, z, &boxes)
+            if slowTrace { slowField += 1; slowFieldT += CFAbsoluteTimeGetCurrent() - tb }
             var top: Float = 0
             for (_, hi) in boxes { top = max(top, hi.y - Float(y)) }
             if cursorOn { topCache[key] = top }
@@ -363,7 +367,11 @@ enum PathFinder {
             iter += 1
             // (P401: every node: on field ground a big body's node reads hundreds of cells' ground columns, and sixteen
             // nodes between looks at the clock ran a 1.5 ms share to 20-28 ms)
-            if deadline < .infinity && iter > 1 && CFAbsoluteTimeGetCurrent() > deadline { return false }
+            if deadline < .infinity && iter > 1 {
+                let now = CFAbsoluteTimeGetCurrent()
+                if PathFinder.slowTrace { let d = now - slowLast; if d > slowWorst { slowWorst = d }; slowLast = now }
+                if now > deadline { return false }
+            }
             guard let e = pop() else { break }
             let i = e.1
             if closed[i] { continue }
@@ -504,7 +512,11 @@ extension Mob {
             if simd_length(target - path.goal) > 4 { dropSearch() }
             else if PathFinder.spent < PathFinder.slice {
                 let t0 = CFAbsoluteTimeGetCurrent()
+                PathFinder.slowLast = t0; PathFinder.slowWorst = 0; PathFinder.slowField = 0; PathFinder.slowFieldT = 0
+                let e0 = s.expanded
                 let done = PathFinder.run(s, w, deadline: t0 + PathFinder.slice - PathFinder.spent)
+                let took = CFAbsoluteTimeGetCurrent() - t0
+                if PathFinder.slowTrace && took > 0.001 { print(String(format: "PATHSLOW resumed %@ %.2f ms nodes %d worst node %.2f ms done %d nodes total %d drop %d span %d field %d %.2f ms global stamp %d", kind.key, took * 1000, s.expanded - e0, PathFinder.slowWorst * 1000, done ? 1 : 0, s.expanded, s.pr.maxDrop, s.pr.span, PathFinder.slowField, PathFinder.slowFieldT * 1000, w.fieldStamp)) }
                 PathFinder.spent += CFAbsoluteTimeGetCurrent() - t0
                 if done { path.search = nil; takePath(s); PathFinder.recycle(s) }
             }

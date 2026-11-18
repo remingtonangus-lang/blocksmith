@@ -19,6 +19,14 @@ final class HandedInput: XRInput {
     private var lostFor: [Float] = [0, 0]           // per physical controller, seconds without a pose
     private(set) var lost = [false, false]           // per logical hand
     static let lostGrace: Float = 0.5
+    // Ledger 268 (Nov 17 19:49:32-19:50:33, Creative, his right controller "lost" and "back" every few seconds while he
+    // played with the left: "Why is it still breaking stuff?", "Left controller is still hitting shit", sinking 67 -> 59
+    // into a dug pit): a controller put down out of view comes back into view lying on something, its trigger pressed
+    // by the cushion or the couch, and mined wherever it pointed. A controller back from lost now counts no trigger,
+    // grip or button until all of them have been seen let go (a hand picking it up again lets go and presses anew).
+    // BS_OLDLOSTARM=1: its inputs count again the moment it is seen.
+    static let oldLostArm = Env.all["BS_OLDLOSTARM"] == "1"
+    private var mustLetGo = [false, false]          // per physical controller
 
     init(raw: XRInput) { self.raw = raw }
 
@@ -46,6 +54,11 @@ final class HandedInput: XRInput {
         for p in 0..<2 {
             let tracked = src[p].aimValid || src[p].gripValid
             lostFor[p] = tracked ? 0 : lostFor[p] + dt
+            if lostFor[p] > HandedInput.lostGrace && !HandedInput.oldLostArm { mustLetGo[p] = true }
+            if mustLetGo[p] && tracked {
+                let h = src[p]
+                if h.trigger < 0.1 && h.squeeze < 0.1 && !h.button1 && !h.button2 && !h.stickClick { mustLetGo[p] = false }
+            }
         }
         for l in 0..<2 {
             let p = swap ? 1 - l : l
@@ -55,6 +68,8 @@ final class HandedInput: XRInput {
             if gone {
                 h.stick = .zero; h.trigger = 0; h.squeeze = 0; h.stickClick = false
                 h.button1 = false; h.button2 = false; h.thumbRest = false
+            } else if mustLetGo[p] {
+                h.trigger = 0; h.squeeze = 0; h.stickClick = false; h.button1 = false; h.button2 = false
             }
             lost[l] = gone
             hands[l] = h
