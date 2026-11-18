@@ -7,12 +7,22 @@ import simd
 // read the runtime's frame rate (VrApi) leg by leg. It is off unless the debug property debug.sunderfall.route is set
 // (`adb shell setprop debug.sunderfall.route all`; a player's headset can't set debug.* properties without adb):
 //   all, or legs by name: menu newworld plains forest jungle village fight frigate train reload
+//   combat legs (not in `all`; `combat` = all three): battle (the Ash Vault gate in the Deep at Total War, every
+//   garrison awake), siege (the crawler parked 40 blocks off the nearest military base's wall, main gun into it every
+//   5 s, its garrison fighting back), naval (two hostile frigates shelling him on a stone float at sea). Each prints
+//   "route: leg NAME-stage" while it is set up (and 3 s after: not counted by the gate) and "route: leg NAME" for its
+//   90 s of fighting, and every 5 s
+//   "route: combat ..." with the mobs, ships and particles (the perf line's quads count only the land).
 // Each leg prints "route: leg NAME" (the gate tags every second after it with that leg); "route: done" at the end. The
 // legs play through the game's own input (the pad the Touch controllers fill: stick forward, looking about, the
 // trigger), with moves the player makes by travelling (to a biome, a village, a frigate's helm, a train's cab) done as
 // a jump there with the land streaming in round him as it does on any arrival; those seconds are "NAME-arrive".
 final class QuestRoute {
     static let all = ["menu", "newworld", "plains", "forest", "jungle", "village", "fight", "frigate", "train", "reload"]
+    static let combat = ["battle", "siege", "naval"]
+    static let ownWorldLegs = ["frigate", "train"]          // (they change the world too: a fixed one of the route's own)
+    static let combatSeed: UInt64 = 7653607216494784574        // (the host framesoak's crawler/citadel world)
+    static let fightSeconds = 90.0
     static let seconds: [String: Double] = ["menu": 20, "newworld": 30, "plains": 90, "forest": 90, "jungle": 120,
                                             "village": 120, "fight": 120, "frigate": 120, "train": 120, "reload": 45]
 
@@ -38,11 +48,16 @@ final class QuestRoute {
         #endif
         let s = v.trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
         guard !s.isEmpty else { return nil }
-        let legs = s == "all" ? all : s == "spots" ? ["spotworld"] + spots.map { "spot-" + $0.name }
-            : s.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init).filter { all.contains($0) || $0 == "spotworld" || $0.hasPrefix("spot-") }
+        let legs = s == "all" ? all : s == "spots" ? ["spotworld"] + spots.map { "spot-" + $0.name } : s == "combat" ? combat
+            : s.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init)
+                .flatMap { $0 == "combat" ? combat : [$0] }
+                .filter { all.contains($0) || combat.contains($0) || $0 == "spotworld" || $0.hasPrefix("spot-") }
         guard !legs.isEmpty else { print("route: failed: no known leg in '\(s)'"); return nil }
-        print("route: legs \(legs.joined(separator: " "))")
-        return QuestRoute(legs)
+        // (Nov 17: the combat legs ran in the world the app opened, his own. They now get a world of their own first.)
+        var legs2 = legs
+        if let i = legs2.firstIndex(where: { combat.contains($0) || ownWorldLegs.contains($0) }), !legs2[..<i].contains("combatworld") { legs2.insert("combatworld", at: i) }
+        print("route: legs \(legs2.joined(separator: " "))")
+        return QuestRoute(legs2)
     }()
 
     let legs: [String]
@@ -61,11 +76,30 @@ final class QuestRoute {
     init(_ legs: [String]) { self.legs = legs }
 
     var leg: String { index >= 0 && index < legs.count ? legs[index] : "" }
+    // What the gate tags seconds with now ("spot-jungle-load", "plains-arrive" ...); the host soak reads it too.
+    private(set) var label = ""
+    var done: Bool { index >= legs.count }
+    private func mark(_ s: String) { frameLine(); label = String(s.split(separator: " ").first ?? ""); print("route: leg " + s) }
+
+    // Nov 18 (Fable): every leg's frames, ticked or not. A leg is measured only when the game ran: the gate fails a leg
+    // that ticked under 98 % of its frames. Counted after the step (QuestApp.frame).
+    private var framesN = 0, tickedN = 0, pausedN = 0, headLostN = 0, unfocusedN = 0
+    func counted(ticked: Bool, paused: Bool, headLost: Bool, focused: Bool) {
+        guard index >= 0 && index < legs.count else { return }
+        framesN += 1; if ticked { tickedN += 1 }; if paused { pausedN += 1 }; if headLost { headLostN += 1 }; if !focused { unfocusedN += 1 }
+    }
+    private func frameLine() {
+        guard index >= 0 && index < legs.count, framesN > 0 else { return }
+        print("route: ticked \(tickedN) of \(framesN) frames in \(label) (paused \(pausedN), head lost \(headLostN), unfocused \(unfocusedN))")
+        framesN = 0; tickedN = 0; pausedN = 0; headLostN = 0; unfocusedN = 0
+    }
 
     private func next(_ app: QuestApp?) {
-        index += 1; legTime = 0; phase = 0; target = nil; seeking = false; ship = nil; drive = nil
+        frameLine()
+        index += 1; legTime = 0; phase = 0; stillFor = 0; offFor = 0; stalled = nil; target = nil; seeking = false; ship = nil; drive = nil
         if index >= legs.count { print("route: done"); return }
-        print("route: leg \(leg)")
+        // (a staged leg starts under its -stage label: its own label only once it really runs, which the gate's NOT RUN reads)
+        mark(QuestRoute.combat.contains(leg) || QuestRoute.ownWorldLegs.contains(leg) ? "\(leg)-stage" : "\(leg)")
     }
 
     // Once a frame (QuestApp.frame), before the tick, after the controls filled the pad. `game` nil while loading.
@@ -77,20 +111,44 @@ final class QuestRoute {
         guard let g = game else { return }                         // (a world loading: its time counts in its leg)
         g.health = max(g.health, 10); g.alive = true             // (the route never ends in death)
         let want = QuestRoute.seconds[leg] ?? 60
+        if leg == "combatworld" {
+            if phase == 0 {
+                phase = 1
+                worldName = "GateCombat\(Int(Date().timeIntervalSince1970) % 100000)"
+                g.paused = false; g.closeMenu()
+                app.routeAction("create:0:3:1:\(worldName):\(QuestRoute.combatSeed)")
+                return
+            }
+            if g.world.seed == QuestRoute.combatSeed && legTime > 5 { claim(g); next(app) }
+            return
+        }
+        // Never in a world the route did not make: the spots and combat legs change the world (mode, mobs, blocks).
+        if (leg.hasPrefix("spot-") || QuestRoute.combat.contains(leg) || QuestRoute.ownWorldLegs.contains(leg)) && !ownWorld(g) {
+            print("route: failed: leg \(leg) refused: world '\(g.save?.dir.lastPathComponent ?? "?")' is not the route's own ('\(worldName)')")
+            index = legs.count
+            return
+        }
         if leg == "spotworld" {
             if phase == 0 {
                 phase = 1
+                g.paused = false; g.closeMenu()          // (a fresh install's first-launch setup panel)
                 worldName = "GateSpots\(Int(Date().timeIntervalSince1970) % 100000)"
                 app.routeAction("create:0:3:1:\(worldName):\(QuestRoute.spotSeed)")
                 return
             }
-            if g.world.seed == QuestRoute.spotSeed && legTime > 5 { next(app) }
+            if g.world.seed == QuestRoute.spotSeed && legTime > 5 { claim(g); next(app) }
             return
         }
         if leg.hasPrefix("spot-"), let sp = QuestRoute.spots.first(where: { "spot-" + $0.name == leg }) {
             spot(g, sp)
             return
         }
+        if QuestRoute.combat.contains(leg) {
+            combatLeg(app, g)
+            return
+        }
+        // (Nov 18: every leg but the menu's plays an unpaused game with no panel open: nobody wears the headset)
+        if leg != "menu" && (g.paused || g.menu != nil) { g.paused = false; g.closeMenu() }
         switch leg {
         case "menu":
             if phase == 0 { phase = 2; g.paused = true; (g.menu as? PauseMenu)?.build() }
@@ -138,53 +196,85 @@ final class QuestRoute {
             PadManager.shared.touch = pad
             if legTime > want { next(app) }
         case "frigate":
+            // (Nov 18: the async spawn never arrived on the headset or the host, so the leg stood still. Built here,
+            // in its -stage, then boarded at the helm and flown at 10 b/s over new land.)
             if phase == 0 {
-                phase = 2
+                phase = 1
+                mark("frigate-stage")
                 let w = g.world
-                let n = w.ships.capitals.count
-                w.ships.spawnCapital("warfrigate", home: IVec3(Int(floor(g.player.pos.x)), 0, Int(floor(g.player.pos.z)) + 24), yaw: 0, region: nil)
-                print("route: frigate asked for (\(n) capitals before)")
-            }
-            if ship == nil, let s = g.world.ships.capitals.first(where: { $0.role == "warfrigate" }), let st = g.world.ships.capState[s.id],
-               let stand = g.helmStand(s) {
+                w.ships.encounters = false
+                w.ships.spawnCapital("warfrigate", home: IVec3(Int(floor(g.player.pos.x)), 0, Int(floor(g.player.pos.z)) + 24), yaw: 0, region: nil, sync: true)
+                guard let s = w.ships.capitals.first(where: { $0.role == "warfrigate" }), let st = w.ships.capState[s.id], let stand = g.helmStand(s) else {
+                    notRun(app, "no frigate could be spawned (\(w.ships.capitals.count) capitals)"); return
+                }
                 st.crewDone = Set(0..<st.crew.count); st.crewless = true
                 st.testTurn = 0; st.testSpeed = 10
                 ship = s
                 g.player.flying = false
                 g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos)
                 print(String(format: "route: aboard %@", s.name))
+                settleFrom = legTime
+                return
             }
-            if let s = ship, let stand = g.helmStand(s), simd_length(g.player.pos - s.toWorld(stand)) > 3 {
-                g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos)
+            guard let s = ship, g.world.ships.capitals.contains(where: { $0 === s }), let stand = g.helmStand(s) else {
+                notRun(app, "the frigate is gone"); return
             }
-            if legTime > want { next(app) }
+            if simd_length(g.player.pos - s.toWorld(stand)) > 3 { g.player.pos = s.toWorld(stand); g.player.vel = s.velocity(at: g.player.pos) }
+            if phase == 1 && legTime - settleFrom > 3 { phase = 2; fightFrom = legTime; lastCount = -5; mark("frigate") }
+            if phase == 2 { travelLine(g, "frigate", s.pos); if let why = stalled { stalled = nil; notRun(app, why); return } }
+            if phase == 2 && legTime - fightFrom > QuestRoute.fightSeconds { next(app) }
         case "train":
+            // (Nov 18: "no line planned within 2,000 blocks yet" in every run: the lines were asked for without waiting.
+            // Now planned off the frame thread near the host framesoak's train spot in the route's own world, then the
+            // nearest station, a passenger train due there, boarded at its lead car, regulator open for the leg.)
             if phase == 0 {
-                phase = 2
-                if let gen = g.world.gen as? WorldGen {
-                    let ax = Int(g.player.pos.x), az = Int(g.player.pos.z)
-                    if let l = Railways.near(gen, x0: ax - 2000, z0: az - 2000, x1: ax + 2000, z1: az + 2000, pad: 0, wait: false)
-                        .filter({ $0.stations.count >= 1 })
-                        .min(by: { abs($0.minX - ax) + abs($0.minZ - az) < abs($1.minX - ax) + abs($1.minZ - az) }) {
-                        let c0 = l.cells[l.stations[0].index]
-                        g.player.pos = V3(Float(c0.x) + 0.5, Float(c0.y) + 1, Float(c0.z - 2) + 0.5)
-                        print("route: to the line \(l.name)")
-                    } else { print("route: no line planned within 2,000 blocks yet") }
+                phase = 1; mark("train-stage"); found = nil; target = nil; seeking = true
+                guard let gen = g.world.gen as? WorldGen else { notRun(app, "no generator"); return }
+                let ax = Int(QuestRoute.trainSpot.x), az = Int(QuestRoute.trainSpot.z)
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    let l = Railways.near(gen, x0: ax - 3000, z0: az - 3000, x1: ax + 3000, z1: az + 3000, pad: 0)
+                        .filter { $0.stations.count >= 2 }
+                        .min(by: { abs($0.minX - ax) + abs($0.minZ - az) < abs($1.minX - ax) + abs($1.minZ - az) })
+                    self?.lock.lock(); self?.line = l; self?.seeking = false; self?.lock.unlock()
                 }
+                return
             }
-            if g.riding == nil, frame % 72 == 0 {
-                // (into the nearest train's lead car once one comes by, then the regulator open)
-                if let tr = Trains.trains.values.min(by: { a, b in
-                    guard let ca = a.cars.first, let cb = b.cars.first else { return false }
-                    return simd_length(ca.pos - g.player.pos) < simd_length(cb.pos - g.player.pos) }),
-                   let lead = tr.cars.first, simd_length(lead.pos - g.player.pos) < 40 {
-                    _ = Trains.use(g, lead); tr.throttle = 2
-                    drive = { tr.throttle = 2 }
-                    print("route: aboard a train")
-                }
+            if phase == 1 {
+                lock.lock(); let busy = seeking, l = line; lock.unlock()
+                if busy { return }
+                guard let l else { notRun(app, "no line with two stations within 3,000 blocks"); return }
+                let c0 = l.cells[l.stations[0].index]
+                let at = V3(Float(c0.x) + 0.5, Float(c0.y), Float(c0.z - 2) + 0.5)
+                if target == nil { target = at; g.player.pos = at; g.player.flying = true; g.player.vel = .zero; print("route: to the line \(l.name)"); return }
+                g.player.pos = at; g.player.vel = .zero
+                guard g.world.chunkAt(c0.x, c0.z) != nil, g.world.pendingJobs < 8 || legTime > 45 else { return }
+                let t = Trains.track(l)
+                Trains.trains.removeAll()
+                var when = g.time
+                for k in 0..<Int(t.period) { let a = t.at(g.time + Double(k)); if a.stop == 0 && a.dir > 0 { when = g.time + Double(k) + 1; break } }
+                g.time = when
+                Trains.forceKind = .passenger
+                Trains.tick(g)
+                Trains.forceKind = nil
+                guard let tr = Trains.trains[t.id], let lead = tr.cars.first else { notRun(app, "no train built on \(l.name)"); return }
+                g.player.flying = false
+                _ = Trains.use(g, lead)
+                drive = { tr.throttle = 2; if g.riding == nil, let c = tr.cars.first { _ = Trains.use(g, c) } }
+                print("route: aboard a train on \(l.name) (\(l.cells.count) cells, \(tr.cars.count) cars)")
+                phase = 3; settleFrom = legTime
+                return
             }
             drive?()
-            if legTime > want { next(app) }
+            if phase == 3 && legTime - settleFrom > 3 { phase = 2; fightFrom = legTime; lastCount = -5; mark("train") }
+            if phase == 2 {
+                // (the cab's re-boarding above puts him back the next frame; off for 5 s on end: he is not on it)
+                if g.riding == nil && offFor == 0 { print(String(format: "route: off the train at %.0f %.0f %.0f (%.0f s in, %@, dead %@, train %@), boarding again", g.player.pos.x, g.player.pos.y, g.player.pos.z, legTime - fightFrom, "\(g.dim.dim)", "\(!g.alive)", "\(Trains.trains.values.map { $0.cars.count })")) }
+                offFor = g.riding == nil ? offFor + 1.0 / 72 : 0
+                if offFor > 5 { notRun(app, "off the train for 5 s at \(Int(g.player.pos.x)) \(Int(g.player.pos.z))"); return }
+                travelLine(g, "train", g.player.pos)
+                if let why = stalled { stalled = nil; notRun(app, why); return }
+                if legTime - fightFrom > QuestRoute.fightSeconds { next(app) }
+            }
         case "reload":
             if phase == 0 {
                 phase = 1
@@ -210,7 +300,7 @@ final class QuestRoute {
                 target = V3(x, y + Float(YOFF), z); phase = 1
                 g.player.pos = target!; g.player.flying = true; g.player.vel = .zero
                 g.player.yaw = -sp.yaw * .pi / 180; g.player.pitch = -10 * .pi / 180
-                print("route: leg \(leg)-load")
+                mark("\(leg)-load")
             } else if sp.find == "village" {
                 if let st = g.world.gen.structures?.nearestIfReady("village", x: 0, z: 0, maxRegions: 8) {
                     target = V3(Float(st.min.x + st.max.x) / 2 + 0.5, 0, Float(st.min.z + st.max.z) / 2 + 0.5); phase = 1
@@ -219,7 +309,7 @@ final class QuestRoute {
             } else if let b = sp.find {
                 arrive(g, biome: b)                     // (phase 1: the search runs; placed below once found)
             }
-            if phase == 1, sp.x == nil { print("route: leg \(leg)-load") }
+            if phase == 1, sp.x == nil { mark("\(leg)-load") }
             return
         }
         if target == nil {
@@ -241,8 +331,8 @@ final class QuestRoute {
         }
         PadManager.shared.touch = PadSnapshot()
         if holdFrom < 0 {
-            if g.world.pendingJobs == 0 && legTime > 3 { holdFrom = legTime; print("route: leg \(leg)") }
-            else if legTime > 90 { holdFrom = legTime; print("route: leg \(leg) (jobs never reached 0: \(g.world.pendingJobs))") }
+            if g.world.pendingJobs == 0 && legTime > 3 { holdFrom = legTime; mark("\(leg)") }
+            else if legTime > 90 { holdFrom = legTime; mark("\(leg) (jobs never reached 0: \(g.world.pendingJobs))") }
         } else if legTime - holdFrom > QuestRoute.spotHold { next(nil) }
     }
 
@@ -271,7 +361,7 @@ final class QuestRoute {
     private func land(_ g: Game, then: () -> Void = {}) {
         guard let t = target else { phase = 2; return }
         if simd_length(V2(g.player.pos.x - t.x, g.player.pos.z - t.z)) > 1 {
-            print("route: leg \(leg)-arrive")
+            mark("\(leg)-arrive")
             g.player.pos = V3(t.x, Float(CH - 40), t.z)
         }
         g.player.flying = true; g.player.vel = .zero
@@ -282,7 +372,7 @@ final class QuestRoute {
         g.player.flying = false
         phase = 2
         then()
-        print("route: leg \(leg)")
+        mark("\(leg)")
     }
 
     // On foot, stick forward, looking about.
@@ -293,6 +383,168 @@ final class QuestRoute {
         PadManager.shared.touch = pad
     }
 
+    // MARK: Combat legs (Fable, Nov 17: the route's fight and frigate legs were thin: 10 vanilla mobs, a crewless
+    // frigate, nothing firing). The heaviest fights the game has, staged where they happen.
+    private var fightFrom = -1.0
+    private var lastCount = -1.0
+    private var stand = V3.zero, aim = V3.zero, before: V3?
+    private var crawler: Ship?
+    private func combatLeg(_ app: QuestApp, _ g: Game) {
+        g.health = 20; g.alive = true
+        if phase == 0 {
+            phase = 1; fightFrom = -1; lastCount = -1; crawler = nil; found = nil; target = nil
+            if g.paused || g.menu != nil { g.paused = false; g.closeMenu() }     // (a fresh install's setup panel)
+            if g.dim.dim == .overworld { before = g.player.pos }
+            mark("\(leg)-stage")
+            if leg != "battle" {
+                // (the base or the sea found off the frame thread)
+                seeking = true
+                let gen = g.world.gen, from = g.player.pos, which = leg
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    var p: V3?
+                    if which == "siege" {
+                        if let st = gen.structures?.nearest("military_base", x: Int(from.x), z: Int(from.z), maxRegions: 24) {
+                            let cz = Float(st.min.z + st.max.z) / 2, cx = Float(st.min.x + st.max.x) / 2
+                            p = V3(Float(st.min.x) - 40, Float(st.pieces.first?.min.y ?? 140) + 12, cz)
+                            self?.lock.lock(); self?.aim = V3(cx, p!.y, cz); self?.lock.unlock()
+                        }
+                    } else {
+                        p = QuestRoute.findBiome(gen, "*ocean", from: from)
+                    }
+                    if p == nil { print("route: \(which): nothing found to fight at") }
+                    self?.lock.lock(); self?.found = p; self?.seeking = false; self?.lock.unlock()
+                }
+            }
+            return
+        }
+        if phase == 1 {
+            switch leg {
+            case "battle":
+                // (one long frame: the Deep loaded round the gate and its garrisons ticked in; counted in battle-load)
+                stand = AshVaultGapTests.battleScene(g)
+                g.player.yaw = .pi; g.player.pitch = 0.05
+                fight()
+            case "siege", "naval":
+                if target == nil {
+                    lock.lock(); let busy = seeking; if !busy { target = found }; lock.unlock()
+                    if busy { return }
+                    guard let t = target else { next(app); return }
+                    if g.dim.dim != .overworld, let b = before { g.changeDimension(to: .overworld, at: b) }
+                    g.player.pos = V3(t.x, Float(CH - 40), t.z); g.player.flying = true; g.player.vel = .zero
+                    g.world.ships.encounters = false
+                    return
+                }
+                let t = target!
+                g.player.flying = true; g.player.vel = .zero
+                let px = Int(floor(t.x)), pz = Int(floor(t.z))
+                guard let c = g.world.chunkAt(px, pz), g.world.pendingJobs < 8 || legTime > 45 else { return }
+                let w = g.world
+                if leg == "siege" {
+                    let gy = Int(c.height[mod(px, CS) + mod(pz, CS) * CS])
+                    stand = V3(t.x, Float(gy + 1), t.z)
+                    w.ships.spawnCapital("crawler", home: IVec3(px, 0, pz), yaw: -.pi / 2, region: nil, sync: true)
+                    guard let cr = w.ships.capitals.first(where: { $0.role == "crawler" }), let st = w.ships.capState[cr.id], let hc = cr.helm else {
+                        print("route: siege: no crawler could be spawned"); next(app); return
+                    }
+                    st.crewDone = Set(0..<st.crew.count); st.crewless = true; st.testTurn = 0; st.testSpeed = 0
+                    crawler = cr
+                    g.player.flying = false
+                    g.player.pos = cr.toWorld(V3(Float(hc.x) + 0.5, Float(hc.y) + 1.02, Float(hc.z) + 1.5))
+                    g.player.vel = cr.velocity(at: g.player.pos)
+                    g.player.yaw = -.pi / 2; g.player.pitch = -0.15
+                } else {
+                    let top = SEA
+                    for dz in -3...3 { for dx in -3...3 { w.setBlock(px + dx, top, pz + dz, STONE) } }
+                    stand = V3(Float(px) + 0.5, Float(top + 1), Float(pz) + 0.5)
+                    g.player.pos = stand; g.player.flying = false
+                    w.ships.spawnCapital("capfrigate", home: IVec3(px, 0, pz + 90), yaw: 0, region: nil, sync: true)
+                    w.ships.spawnCapital("capfrigate", home: IVec3(px - 85, 0, pz - 30), yaw: .pi / 2, region: nil, sync: true)
+                    g.player.yaw = .pi; g.player.pitch = -0.1
+                }
+                fight()
+            default: next(app)
+            }
+            return
+        }
+        // Fighting.
+        g.survival = true; g.difficulty = 2
+        if leg == "battle" { g.ashSpot = stand; g.ashSpotSeen = g.clock }
+        guard settled() else { return }
+        let t = legTime - fightFrom
+        switch leg {
+        case "battle":
+            g.ashSpot = stand; g.ashSpotSeen = g.clock
+            g.player.yaw = .pi + 0.5 * sinf(Float(t) * 0.4)        // (looking along the wall and back)
+        case "siege":
+            if let cr = crawler, let st = g.world.ships.capState[cr.id] {
+                if let hc = cr.helm {
+                    let h = cr.toWorld(V3(Float(hc.x) + 0.5, Float(hc.y) + 1.02, Float(hc.z) + 1.5))
+                    if simd_length(g.player.pos - h) > 3 { g.player.pos = h; g.player.vel = cr.velocity(at: h) }
+                }
+                if frame % 360 == 180 {
+                    lock.lock(); let a = aim; lock.unlock()
+                    let mw = cr.toWorld(st.mainGunMuzzle)
+                    g.world.ships.fireMainGun(cr, st, dir: simd_normalize(a - mw + V3(1e-5, 0, 0)), game: g)
+                }
+            }
+        case "naval":
+            if simd_length(g.player.pos - stand) > 4 { g.player.pos = stand; g.player.vel = .zero }
+            g.player.yaw = .pi + 0.8 * sinf(Float(t) * 0.3)
+        default: break
+        }
+        if t - lastCount >= 5 {
+            lastCount = t
+            let mobs = g.mobs.mobs.filter { $0.health > 0 }
+            let hostile = mobs.filter { $0.aggro }.count
+            print("route: combat \(leg) \(Int(t)) s: \(mobs.count) mobs (\(hostile) aggro), \(g.world.ships.list.count) ships (\(g.world.ships.capitals.count) capital), \(g.particles.list.count) particles")
+        }
+        if t > QuestRoute.fightSeconds {
+            // (back to the overworld for the legs after)
+            if leg == "battle", let b = before { g.changeDimension(to: .overworld, at: b) }
+            next(app)
+        }
+    }
+    static let trainSpot = V3(-5572, 141, 2813)              // (the host framesoak's train scene, seed combatSeed)
+    private var line: Railways.Line?
+    // A leg that could not do its job: never counted as passed (the gate reports it NOT RUN).
+    private func notRun(_ app: QuestApp, _ why: String) { print("route: failed: leg \(leg): \(why)"); next(app) }
+    // Every 5 s on a moving leg: where and how fast, with the counts the perf line's quads leave out.
+    private var lastPos = V3.zero
+    private var stalled: String?
+    private var stillFor = 0.0, offFor = 0.0
+    private func travelLine(_ g: Game, _ name: String, _ p: V3) {
+        let t = legTime - fightFrom
+        guard t - lastCount >= 5 else { return }
+        let speed = lastCount < 0 ? 0 : simd_length(V2(p.x - lastPos.x, p.z - lastPos.z)) / Float(t - lastCount)
+        lastCount = t; lastPos = p
+        // (a riding leg that stands still did not do its job: under 2 b/s for 15 s on end (40 s on a train, which
+        // halts at its stations) fails it)
+        stillFor = t >= 5 && speed < 2 ? stillFor + 5 : 0
+        if stillFor >= (name == "train" ? 40 : 15) { stalled = "standing still at \(Int(p.x)) \(Int(p.y)) \(Int(p.z)) for \(Int(stillFor)) s" }
+        print(String(format: "route: %@ %d s: at %.0f %.0f %.0f, %.1f b/s; %d mobs, %d ships, %d particles", name, Int(t), p.x, p.y, p.z, speed,
+                     g.mobs.mobs.count, g.world.ships.list.count, g.particles.list.count))
+    }
+
+    // The world the route made itself (spotworld, combatworld), by its save folder's name.
+    private var ownDir: String?
+    private func ownWorld(_ g: Game) -> Bool { ownDir != nil && g.save?.dir.lastPathComponent == ownDir }
+    // (the world just made: its folder, if it is one of the route's "Gate" worlds)
+    private func claim(_ g: Game) {
+        let d = g.save?.dir.lastPathComponent ?? ""
+        ownDir = d.hasPrefix("Gate") ? d : nil
+        print("route: world \(d)\(ownDir == nil ? " is NOT the route's own" : "")")
+    }
+    // Staging done: held 3 s more in "-stage" (the frames after a set-up, a world loaded synchronously or ships built,
+    // are staging, not play: the gate leaves "-stage" seconds out of its totals), then the fight is counted.
+    private var settleFrom = -1.0
+    private func fight() { phase = 3; settleFrom = legTime }
+    private func settled() -> Bool {
+        guard phase == 3 else { return phase == 2 }
+        if legTime - settleFrom < 3 { return false }
+        phase = 2; fightFrom = legTime; lastCount = -5; mark(leg)
+        return true
+    }
+
     // The nearest middle of `biome` from `from` (QuestFrameSoak.findBiome's spiral, 48-block steps).
     static func findBiome(_ gen: TerrainGenerator, _ want: String, from: V3) -> V3? {
         let r = 32
@@ -301,7 +553,7 @@ final class QuestRoute {
         let probes: [(Int, Int)] = [(0, 0), (r, 0), (-r, 0), (0, r), (0, -r)]
         for _ in 0..<40000 {
             let wx = ox + x * 48 + 8, wz = oz + z * 48 + 8
-            if probes.allSatisfy({ gen.column(wx + $0.0, wz + $0.1).biome.name == want }) {
+            if probes.allSatisfy({ want == "*ocean" ? gen.column(wx + $0.0, wz + $0.1).biome.isOcean : gen.column(wx + $0.0, wz + $0.1).biome.name == want }) {
                 return V3(Float(wx) + 0.5, 0, Float(wz) + 0.5)
             }
             if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }

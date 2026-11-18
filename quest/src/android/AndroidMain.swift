@@ -145,14 +145,24 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
         state.outputRedirected = true
         redirectOutputToLogcat(logFile: extPath.map { $0 + "/blocksmith.log" })
     }
-    let dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
+    var dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
+    var meshPath = (dataPath as NSString).deletingLastPathComponent + "/no_backup/meshcache"
+    // Ledger 288 (store review: the headset gate plays as Meta's reviewer does): BS_REVIEWER=1 (a debug property, set
+    // by tools/headset_gate.sh) runs on a fresh install's data: options, worlds, mesh cache and crash notes in a
+    // folder emptied at each launch (<data>/reviewer), none of the player's read or written. Unset, nothing changes.
+    let reviewer = Env.all["BS_REVIEWER"] == "1"
+    if reviewer {
+        dataPath += "/reviewer"; meshPath = dataPath + "/no_backup/meshcache"
+        try? FileManager.default.removeItem(atPath: dataPath)
+        print("reviewer: fresh data in \(dataPath) (default options, no worlds; the player's own are untouched)")
+    }
     QuestPaths.setDataRoot(dataPath)
     // The world meshes outside the backed-up files (ChunkShells MeshCache.outside): <app data>/no_backup, which
     // Android's backup leaves out.
-    MeshCache.outside = URL(fileURLWithPath: (dataPath as NSString).deletingLastPathComponent + "/no_backup/meshcache", isDirectory: true)
+    MeshCache.outside = URL(fileURLWithPath: meshPath, isDirectory: true)
     CrashGuard.begin(root: dataPath)
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
-    if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
+    if let ext = extPath, !reviewer { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
     // Imported textures (assets/texpack.bin, tools/texpack.py); read before the loading thread paints the layers.
     if TextureImport.pack == nil { TextureImport.load(readAsset(activity.pointee.assetManager, "texpack.bin")) }
     // Townsfolk voice takes (assets/voices.bin, tools/townvoice_gen.py).
@@ -164,7 +174,12 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     RealSounds.addFolder(dataPath + "/Sounds")
     if let ext = extPath { RealSounds.addFolder(ext + "/Sounds") }
     // Voice bug notes (playtest builds; a no-op stub in store builds): recordings under files/voicenotes.
-    if let ext = extPath { BugNotes.shared.setup(activity: UnsafeMutableRawPointer(activity), files: ext) }
+    // (ledger 288: a reviewer run's notes go to its own folder, emptied at each launch, never into his playtest notes)
+    if let ext = extPath {
+        let files = reviewer ? ext + "/reviewer" : ext
+        if reviewer { try? FileManager.default.removeItem(atPath: files) }
+        BugNotes.shared.setup(activity: UnsafeMutableRawPointer(activity), files: files)
+    }
     // P480: the bug and idea reporter posts through java.net on a worker thread (quest/c/report/reportpost.c).
     if !QuestBuild.reportURL.isEmpty {
         Reporter.url = QuestBuild.reportURL

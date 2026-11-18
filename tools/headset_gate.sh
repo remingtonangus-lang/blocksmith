@@ -1,6 +1,9 @@
 #!/bin/bash
 # Headset frame-rate gate (ledger 285, the store job; docs/status/headset-gate.md). Runs on the Mac with the Quest on USB:
-#   tools/headset_gate.sh [APK] [--minutes N] [--route LEGS] [--out DIR] [--no-install]
+#   tools/headset_gate.sh [APK] [--minutes N] [--route LEGS] [--out DIR] [--no-install] [--own-settings]
+# The hand-over gate is `--route all`. Every run plays as Meta's reviewer does, on a fresh install's data (ledger 288,
+#   BS_REVIEWER=1: default options, no worlds, in a folder of its own emptied at each launch); his options and worlds
+#   are neither read nor written. --own-settings: on the headset's own options and worlds instead.
 # APK: installed first (adb install -r); without one, the build already on the headset is measured.
 # --route all (or a list such as "menu newworld plains jungle"): the on-device route player plays those legs (debug
 #   property debug.sunderfall.route, cleared at the end); without it the app is left alone (menu, then the world it
@@ -16,18 +19,20 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 PKG=com.blocksmith.quest
 ACT=$PKG/android.app.NativeActivity
-APK=""; MIN=5; ROUTE=""; OUT=""; INSTALL=1; ENVS=""
+APK=""; MIN=5; ROUTE=""; OUT=""; INSTALL=1; ENVS=""; REVIEWER=1
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --minutes) MIN="$2"; shift 2 ;;
     --route) ROUTE="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
     --no-install) INSTALL=0; shift ;;
+    --own-settings) REVIEWER=0; shift ;;
     --env) ENVS="$2"; shift 2 ;;
-    -h|--help) sed -n 2,13p "$0"; exit 0 ;;
+    -h|--help) sed -n 2,16p "$0"; exit 0 ;;
     *) APK="$1"; shift ;;
   esac
 done
+(( REVIEWER )) && ENVS="BS_REVIEWER=1${ENVS:+;$ENVS}"
 OUT=${OUT:-headset-gate/$(date +%Y%m%d-%H%M%S)}
 mkdir -p "$OUT"
 # adb: $ADB, else on PATH, else ~/ClaudeTools/quest/platform-tools/adb (where the Mac keeps it).
@@ -122,6 +127,10 @@ while (( $(date +%s) - START < LIMIT )); do
       case "$last" in 1) n=idle;; 2) n=ready;; 3) n=synchronized;; 4) n="visible (system menu over the game)";; 6) n="stopping (asleep or quit)";; 7) n="loss pending";; 8) n=exiting;; *) n="?";; esac
       LOST="it left focus, xr session state $last ($n)"; break
     fi
+  fi
+  # (a build from before ledger 288 ignores BS_REVIEWER and would play on his own options and worlds: stopped)
+  if (( REVIEWER )) && (( $(date +%s) - START > 20 )) && ! grep -q 'reviewer: fresh data' "$OUT/raw.log"; then
+    LOST="this build has no reviewer mode (ledger 288) and would play on his own worlds; use --own-settings to allow that"; break
   fi
   if ! adb shell pidof $PKG >/dev/null 2>&1 && (( $(date +%s) - START > 20 )); then LOST="the app is not running (crashed or closed)"; break; fi
   (( $(date +%s) - LAST_AWAKE >= 30 )) && { awake; LAST_AWAKE=$(date +%s); }
