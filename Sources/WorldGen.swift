@@ -1673,6 +1673,20 @@ final class WorldGen: TerrainGenerator {
         return V3(byte(l + (r - l) * 0.82), byte((l + (g - l) * 0.82) * 0.97), byte((l + (b - l) * 0.82) * 0.88))
     }
 
+    // One column's grass colour as `tints` gives it (0...1): the far ground takes it (ledger 362).
+    func grassTint(_ k: Terrain.Column) -> V3 {
+        var gr: Float = 0, gg: Float = 0, gb: Float = 0, wsum: Float = 0
+        for (dT, dW, wt) in WorldGen.tintOffsets {
+            let info = terrain.biome(k, k.h, dT: dT, dW: dW).info
+            gr += Float((info.grass >> 16) & 255) * wt; gg += Float((info.grass >> 8) & 255) * wt; gb += Float(info.grass & 255) * wt
+            wsum += wt
+        }
+        let r = gr / wsum, g = gg / wsum, b = gb / wsum
+        let l: Float = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        func byte(_ v: Float) -> Float { max(0, min(255, v.rounded())) / 255 }
+        return V3(byte(l + (r - l) * 0.82), byte((l + (g - l) * 0.82) * 0.97), byte((l + (b - l) * 0.82) * 0.88))
+    }
+
     func tints(cx: Int, cz: Int) -> [UInt32] {
         var t = [UInt32](repeating: 0, count: 768)
         func byte(_ v: Float) -> UInt32 { UInt32(max(0, min(255, v.rounded()))) }

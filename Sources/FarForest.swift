@@ -94,6 +94,9 @@ final class FarForest {
         var tree = Tree(x: Int32(tx), z: Int32(tz), y: Float(YOFF) + floorf(k.h) + 1, h: sh.h * size, r: sh.r, base: sh.base,
                         cone: sh.cone, leaf: leaf, top: top, bark: bark, hv: hv, snowy: cold, kind: kind, size: 1)
         if FarForest.cards && FarSprites.tinted(kind) { tree.tint = gen.foliageTint(k) / simd_max(FarSprites.captureTint, V3(repeating: 0.02)) }
+        // The pictures are of a tree alone in the sun; in a wood its neighbours shade it (measured against the real
+        // trees at view 20: a thick snowy taiga's crowns a fifth darker than the cards, open woods the same).
+        if FarForest.cards && FarForest.woodShade { tree.tint *= 1 - 0.22 * FarRing.canopy(gen, biome, tx, tz, ground: k.h).cover }
         return tree
     }
 
@@ -127,6 +130,7 @@ final class FarForest {
     // keeps the lathed shapes of ledger 361 (before).
     static var cards: Bool { FarSprites.ready && Env.all["BS_FARSHAPES"] == nil }
     private(set) var lastCards = 0
+    static let woodShade = Env.all["BS_NOFARWOODSHADE"] == nil
     // One quad a tree (quest/shaders/farcard.vert): the foot, the corner, the frame's side, the set's first layer, the
     // tree's own quarter turn and the frame centre's height over the foot. Returns the number of quads.
     func emitCards(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, into out: inout [SimpleVert]) -> Int {

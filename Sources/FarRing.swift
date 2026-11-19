@@ -187,6 +187,13 @@ final class FarRing {
         // Map colours are the raw biome tints; the blocks' own textures darken them (grass, sand and stone art average
         // about 0.8), so the ring matches the textured ground at the seam.
         var c = rgb(MapCache.shade(b, height: top)) * 0.8
+        // Ledger 362 (far ground painted as the near ground is: the top block's own texture average times the column's
+        // blended grass colour, the way the chunks tint it; the method is the Voxelize far terrain's, from the harvest
+        // list). The map colour is the raw biome grass, brightened with height: a jungle hill's far side stood out a
+        // bright lawn green beside the olive ground of the chunks.
+        if FarRing.paintedGround && MapCache.grassTopped(b) {
+            c = gen.grassTint(k) * FarRing.grassTop
+        }
         // P250 (b): the flanks of a terrace. Grass, mycelium, petals and snow over soil show dirt from the side (with
         // a little of the top's fringe); sand, stone, terracotta and peaks are the same material all the way down.
         let soil = !(b.isOcean || b.isRiver || b.isBeach || b == .desert || b.isBadlands || b == .stonyPeaks
@@ -262,6 +269,8 @@ final class FarRing {
         if b == .snowyTaiga || b == .grove { leaf = simd_mix(leaf, V3(0.93, 0.95, 0.97), V3(repeating: 0.45)) }
         return (cover, h * min(1, cover * 1.4), leaf * 0.62)
     }
+    static let paintedGround = Env.all["BS_OLDFARGROUND"] == nil
+    static let grassTop: Float = 0.6                       // grass_block_top's average (grey art, tinted)
     static let dirt = V3(0.525, 0.376, 0.263) * 0.8        // the dirt texture's average, darkened like the map colours
     static let rock = V3(0.6, 0.6, 0.59) * 0.8             // stone (0x9A9A96, the map's peak colour)
     static let snow = V3(0.93, 0.95, 0.96) * 0.92          // snow (0xEEF2F6; its art is brighter than grass or stone)
