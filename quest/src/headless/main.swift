@@ -2614,6 +2614,9 @@ if CommandLine.arguments.contains("--musiclevels-only") { MusicLevelTests.run(ch
 if CommandLine.arguments.contains("--settings-only") { SettingsCheck.run(check: check); namedEnd("settings") }
 // --savesoak-only: 100 save/load cycles (Sources/SaveSoakTests.swift, Q2; SOAK_CYCLES=N).
 if CommandLine.arguments.contains("--savesoak-only") { SaveSoakTests.run(device: device, check: check); namedEnd("savesoak") }
+// --economy-hunt-only: ledger 337, bug hunt round (a): shops, the bank and money on death on five headset towns
+// (Sources/EconomyHunt.swift).
+if CommandLine.arguments.contains("--economy-hunt-only") { EconomyHunt.run(device: device, check: check); namedEnd("economy hunt") }
 // --garrison-only: ledger 253, Boreal Stations on five headset worlds keep their garrison (Sources/BorealMusterCheck.swift).
 if CommandLine.arguments.contains("--garrison-only") { BorealMusterCheck.run(device: device, check: check); namedEnd("garrison") }
 // --shipleave-only: ledger 255, off the helm of a stopped or wrecked Stormwarden he gets off her (Sources/ShipLeaveCheck.swift).

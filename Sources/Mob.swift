@@ -738,7 +738,10 @@ final class Mob {
         if kind == .shulker { updateSentry(dt, g); return }
         if kind == .deckGun { updateDeckGun(dt, g); return }
         if kind == .minecart {
-            if Trains.isCar(self) { Trains.drive(self, dt, g); return }                 // C1 trains move on their timetable
+            if Trains.isCar(self) {
+                if TroopWrecks.isWreck(self) { TroopWrecks.hold(self); return }          // ledger 335
+                Trains.drive(self, dt, g); return                                        // C1 trains move on their timetable
+            }
             updateMinecart(dt, g); cartExtras(dt, g); return
         }
         if kind == .wither { updateBlight(dt, g); return }
@@ -1251,7 +1254,9 @@ final class Mob {
             vel = .zero
         }
         if let mt = mount {
-            if mt.health > 0 {
+            // (ledger 335: a troop car brought to nothing this tick is wrecked after the mobs' update, not killed: its
+            // soldiers sit tight till then, and climb out clear of it with the wreck, instead of dropping where they sat)
+            if mt.health > 0 || TroopWrecks.holdsRiders(mt) {
                 if speed != 0 && !mt.kind.hostile && mt !== g.riding { mt.driven = 0.3; mt.driveSpeed = abs(speed); mt.driveYaw = speed < 0 ? yaw + .pi : yaw }
                 if let o = mountOffset {
                     let cy = cosf(mt.yaw), sy = sinf(mt.yaw)
@@ -1736,6 +1741,7 @@ final class Mob {
             return
         }
         if kind == .deckGun { GunParts.hit(self, from: src, damage: damage) }        // P372
+        if kind == .minecart && Mob.playerMelee && TroopWrecks.plated(self) { Mob.glanced += 1; return }   // ledger 335: a car's plate
         if Mob.playerMelee && damage >= 6 { stagger = max(stagger, 0.45) }   // P371 (5)
         // A downed horse takes no more (HorseLife.swift), except the player's own blow, which puts it down for good (he
         // struck his spare horse and it lay there for five minutes, "stuck in place": Oct 11 playtest P26).
@@ -1870,6 +1876,7 @@ final class Mob {
 
     // Ray vs AABB; returns the entry distance.
     func rayHit(_ o: V3, _ d: V3, maxDist: Float) -> Float? {
+        if kind == .minecart && TroopWrecks.plated(self) { return TroopWrecks.rayHit(self, o, d, maxDist: maxDist) }   // ledger 335
         let mn = V3(pos.x - halfW, pos.y, pos.z - halfW)
         let mx = V3(pos.x + halfW, pos.y + height, pos.z + halfW)
         guard let h = World.rayBox(o, d, mn, mx), h.0 <= maxDist else { return nil }
@@ -2984,6 +2991,7 @@ final class MobManager {
         // A horse of yours goes down instead of dying: a reviver can still save it (HorseLife.swift).
         // (one already down stays down whatever took its health: instant damage, a hull crushing it; only its own
         // time running out kills it, downedTick)
+        TroopWrecks.catchDeaths(game)                            // ledger 335: a troop train's car is wrecked, not killed
         for m in mobs where m.health <= 0 && m.downed > 0 { m.health = 1 }
         for m in mobs where m.health <= 0 && m.canGoDown { m.goDown(game) }
         // Deaths: loot + XP, slime splitting.
@@ -3013,6 +3021,7 @@ final class MobManager {
             // enough that its tail cars stood past the distance limit, at unloaded ground or at random despawn range, and
             // the whole train was rebuilt each second (throwing him off the footplate).
             if Trains.isCar(m) && Trains.carOf[ObjectIdentifier(m)] != nil { return false }
+            if TroopWrecks.isWreck(m) { return false }               // (ledger 335: it goes with its chunk, TroopWrecks.tick)
             // A position made non-finite outside this seat's update (another seat's knockback) can't be turned into a
             // chunk: the mob goes (its update would put it back, but Int(floor(NaN)) below is undefined).
             guard m.pos.x.isFinite && m.pos.y.isFinite && m.pos.z.isFinite else { MobManager.quarantined += 1; return true }
