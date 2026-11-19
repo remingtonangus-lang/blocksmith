@@ -122,6 +122,9 @@ final class QuestControls {
     static let oldThrow = Env.all["BS_OLDTHROW"] == "1"   // (the world-space speed, as before)
     static let oldScopeEye = Env.all["BS_OLDSCOPEEYE"] == "1"
     static let oldScopeHUD = Env.all["BS_OLDSCOPEHUD"] == "1"   // (hotbar, hint and controller card drawn over the scope)
+    // Ledger 309: a scripted route plays with nobody holding the controllers; the 3 s "controllers put down" pause and
+    // its toast stay off while QuestRoute runs (they showed in the Nov 18 gate while the route kept ticking).
+    static let oldRoutePause = Env.all["BS_OLDROUTEPAUSE"] == "1"
     // P53 (Oct 11 evening playtest): the HUD panel rests translucent (hudFade, QuestSettings) and comes up solid for a
     // few seconds after a grip steps the hotbar, or while hurt; it eases between the two.
     private var hudSolid: Float = 0
@@ -203,7 +206,7 @@ final class QuestControls {
             }
         }
         bothLost = hi.lost[0] && hi.lost[1] ? bothLost + dt : 0
-        if bothLost > 3 && !game.paused && game.menu == nil && game.credits == nil && game.alive {
+        if bothLost > 3 && (QuestRoute.shared == nil || QuestControls.oldRoutePause) && !game.paused && game.menu == nil && game.credits == nil && game.alive {
             game.paused = true
             PauseMenu.autoReason = "Paused: controllers put down"         // Q2c-console-44
             (game.menu as? PauseMenu)?.build()
