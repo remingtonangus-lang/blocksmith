@@ -2015,7 +2015,8 @@ final class Game: LifeLinked {
             id = Game.axisPlaced(blockItem, key, normal: t.normal)
         }
         let fracY = hitPoint(t).y - Float(t.hit.y)
-        let upperHalf = t.normal.y == -1 || (t.normal.y == 0 && fracY > 0.5)
+        // (ledger 276: a slab or stairs set down in the ground's row stands on its floor, not in the cell's top half)
+        let upperHalf = (t.normal.y == -1 || (t.normal.y == 0 && fracY > 0.5)) && (Game.oldStandRow || rowCell?.cell != at)
         let facing = BlockRegistry.facingToward(yaw: player.yaw)
         switch Blocks.shape[Int(blockItem)] {
         case "stairs": id = blockItem + BlockID((upperHalf ? 4 : 0) + (facing ^ 1))
@@ -2299,8 +2300,23 @@ final class Game: LifeLinked {
     static let oldHalfCell = Env.all["BS_OLDHALFCELL"] == "1"
     static let oldPlaceRepeat = Env.all["BS_OLDPLACEREPEAT"] == "1"
     static var oldWetRow = Env.all["BS_OLDWETROW"] == "1"
+    // Ledger 276 (bug hunt a, round 3: --placeslope, 1-5 of each class one cell off the aim): only a full block took the
+    // ground's row. A door, fence, chest, slab, stairs or bed aimed at ground sloping at 40-55 degrees met the ground
+    // cell's side (the ray enters it there), and went past that face: into the cell downhill of the point he aimed at,
+    // a block lower, with no ground meeting it (the ground rises only under what is set on top). Every piece that
+    // stands on its floor (World.meetsGround) now takes the row over the point aimed at the same way; a seated thing
+    // (torch, sign) and rails keep their own rule (groundCell). BS_OLDSTANDROW=1: full blocks only, as before.
+    static let oldStandRow = Env.all["BS_OLDSTANDROW"] == "1"
+    static func takesGroundRow(_ b: BlockID, old: Bool = Game.oldStandRow) -> Bool {
+        if World.restsOnFloor[Int(b)] && Blocks.fullCollide[Int(b)] { return true }
+        guard !old, World.meetsGround(b), GroundDrape.seat[Int(b)] == 0 else { return false }
+        // (a bed lays its two halves by its own path, Farming.placeBed, which wants both cells open: it keeps the face's cell)
+        let rt = Blocks.render[Int(b)]
+        return rt != RenderType.wire.rawValue && rt != RenderType.rail.rawValue && rt != RenderType.cross.rawValue
+            && !Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("_bed")
+    }
     func groundRowCell(_ t: (hit: IVec3, normal: IVec3), for b: BlockID) -> (cell: IVec3, sunk: Bool)? {
-        guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, World.restsOnFloor[Int(b)], Blocks.fullCollide[Int(b)],
+        guard !Game.oldPlaceRow, world.fieldTerrain, world.frame == nil, Game.takesGroundRow(b),
               let g = targetGround, g.cell == t.hit, g.normal.y >= 0.5 else { return nil }
         let x = Int(floor(g.at.x)), z = Int(floor(g.at.z)), r0 = Int(floor(g.at.y))
         guard r0 >= 1, r0 + 1 < CH else { return nil }
