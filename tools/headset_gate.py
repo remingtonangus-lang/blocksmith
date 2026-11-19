@@ -139,11 +139,18 @@ def report(rows, other, info):
         out.append("loading-screen seconds that missed frames (the loading scene must hold the display rate itself):")
         for r in load[:40]:
             out.append(f"  {r['t']:.0f} {r['leg']} {r['fps']}/{r['target']} stale {r['stale']:.0f} app {r['app']:.1f} ms")
+    def ticked(g):
+        # ledger 309 (Nov 19): the Nov 18 gate's menu leg read "0 of 1441" in the log with nothing in the report saying
+        # that was by design; each leg now shows its count, the menu leg marked as drawn-only.
+        n, m, _ = info.get("ticks", {}).get(g, (0, 0, ""))
+        if not m: return "-"
+        return f"{m} drawn (paused by design)" if g == "menu" else f"{n}/{m} ({n * 100 // m}%)"
     legs = []
     for r in every:
         if r["leg"] not in legs: legs.append(r["leg"])
     if len(legs) > 1 or (legs and legs[0] not in ("launch", "play")):
-        out.append("legs (* not counted): name | s | fps min/median | s under 70 / 60 | gpu ms median (app perf) | cpu ms median | quads median | eye % | view | gpu MHz (of 690) | gpu busy %")
+        out.append("legs (* not counted): name | s | fps min/median | s under 70 / 60 | gpu ms median (app perf) | cpu ms median | quads median | eye % | view | gpu MHz (of 690) | gpu busy % | ticked")
+        out.append("  (ticked: frames the game ticked of frames drawn; the menu leg is paused by design and is judged by frames drawn alone)")
         for g in legs:
             rs = [r for r in every if r["leg"] == g]
             f = [r["fps"] for r in rs]
@@ -154,7 +161,7 @@ def report(rows, other, info):
             out.append(f"  {g + ('' if not uncounted_leg(g) else ' *'):<20} | {len(f):>4} | {min(f):>3}/{pct(f,50):>3} | {sum(x < 70 for x in f):>3} / {sum(x < 60 for x in f):>3} | "
                        f"{'?' if gp is None else f'{gp:.2f}'} | {'?' if cp is None else f'{cp:.2f}'} | {'?' if q is None else q} | "
                        f"{rs[-1]['eye'] or '?'} | {rs[-1]['vd'] or '?'} | {'?' if mz is None else f'{mz} ({mz * 100 // GPU_MAX_MHZ}%)'} | "
-                       f"{'?' if busy is None else f'{busy * 100:.0f}'}")
+                       f"{'?' if busy is None else f'{busy * 100:.0f}'} | {ticked(g)}")
     f = [r["fps"] for r in rows]
     under60 = sum(x < 60 for x in f); under70 = sum(x < 70 for x in f)
     ok = bool(f) and under60 == 0 and under70 < 0.02 * len(f)
@@ -220,6 +227,16 @@ def selftest():
     check("leg train: NOT RUN (leg train: no line" in txt and "3 legs NOT RUN" in txt, f"failed leg reported NOT RUN:\n{txt}")
     check(sorted(info["notrun"]) == ["plains", "spot-jungle", "train"] and "ticked 10 of 144" in info["notrun"]["spot-jungle"],
           f"the failed leg and the paused leg are NOT RUN, plains at 97% ticked is too: {info['notrun']}")
+    check("140/144 (97%)" in txt, f"leg table shows each leg's ticked frames:\n{txt}")
+    # ledger 309: the menu leg pauses on purpose (Nov 18 gate: 0 of 1441 ticked); not NOT RUN, shown as drawn-only
+    menu = ("1731850010.000  4000  4010 I Blocksmith: route: legs menu\n"
+            "1731850010.100  4000  4010 I Blocksmith: route: leg menu\n"
+            "1731850010.200  4000  4010 I Blocksmith: adopt: total 30.1 ms\n"
+            "1731850010.500  4000  4020 I VrApi   : FPS=72/72,Stale=0,App=5.00ms,GPU%=0.40\n"
+            "1731850030.000  4000  4010 I Blocksmith: route: ticked 0 of 1441 frames in menu (paused 1441, head lost 1441, unfocused 0)\n")
+    mr, mo, mi = parse(menu.splitlines())
+    mt, mok = report(mr, mo, mi)
+    check(mok and not mi["notrun"] and "1441 drawn (paused by design)" in mt, f"menu leg judged by frames drawn:\n{mt}")
     print("\n".join(["headset_gate selftest: " + ("ok" if not fails else "FAILED")] + ["  " + f for f in fails]))
     return 0 if not fails else 1
 
