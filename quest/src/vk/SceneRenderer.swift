@@ -125,6 +125,7 @@ final class SceneRenderer {
     // Nov 11 (frame rate): the clouds' value-noise lattice (clouds.frag vnoiseT): 256 x 256 cells, each texel the hashes
     // of its four corners, so a noise tap is one fetch instead of four hashes (set 0, binding 2).
     private(set) var cloudNoise: VkImg!
+    private(set) var farSprites: VkImg?          // ledger 362 (nil: no farpack.bin, binding 3 holds the block textures)
     private(set) var sampler: VkSampler!
     private var quadIndex: VkBuf!
     private var starBuf: VkBuf!
@@ -266,6 +267,7 @@ final class SceneRenderer {
         took("buffers, slots, placeholder")
         cloudNoise = try SceneRenderer.makeCloudNoise(ctx)
         took("cloud noise")
+        if FarSprites.ready { farSprites = try? SceneRenderer.makeFarSprites(ctx); took("far sprites") }
         for sl in slots { writeSet0(sl) }
         // GPU timestamps (frame GPU time in the perf log). Not on llvmpipe: its timestamp queries crash the queue thread
         // after a few frames (CI run 1; reproduced locally with alternating targets and validation clean).
@@ -308,6 +310,9 @@ final class SceneRenderer {
             VkDescriptorSetLayoutBinding(binding: 0, descriptorType: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount: 1, stageFlags: vf, pImmutableSamplers: nil),
             VkDescriptorSetLayoutBinding(binding: 1, descriptorType: VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount: 1, stageFlags: vf, pImmutableSamplers: nil),
             VkDescriptorSetLayoutBinding(binding: 2, descriptorType: VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount: 1,
+                                         stageFlags: VK_SHADER_STAGE_FRAGMENT_BIT.rawValue, pImmutableSamplers: nil),
+            // (ledger 362: the far cards' pictures of the real trees, farcard.frag)
+            VkDescriptorSetLayoutBinding(binding: 3, descriptorType: VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount: 1,
                                          stageFlags: VK_SHADER_STAGE_FRAGMENT_BIT.rawValue, pImmutableSamplers: nil),
         ])
         set1Layout = try layout([
@@ -673,6 +678,8 @@ final class SceneRenderer {
             "simpleSolid": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, cull: none),
             // F4 middle ring (Sources/FarRing.swift): opaque, depth-tested and depth-writing, behind the loaded chunks.
             "far": PipeDesc(vert: "far.vert", frag: "simple.frag", input: .simple, cull: none),
+            // Ledger 362: the far trees' cards (pictures of the real trees, cut out; quest/shaders/farcard.*).
+            "farcard": PipeDesc(vert: "farcard.vert", frag: "farcard.frag", input: .simple, cull: none),
             "lines": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, blend: true, depthWrite: false, compare: le, cull: none,
                               topology: VK_PRIMITIVE_TOPOLOGY_LINE_LIST),
             "mob": PipeDesc(vert: "mob.vert", frag: "mob.frag", input: .mob, cull: none),
@@ -876,7 +883,14 @@ final class SceneRenderer {
         let ii = VkDescriptorImageInfo(sampler: sampler, imageView: texture?.view, imageLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
         let ni = VkDescriptorImageInfo(sampler: cloudNoise == nil ? sampler : (try? nearestSampler()) ?? sampler, imageView: cloudNoise?.view,
                                        imageLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        var w = [VkWriteDescriptorSet(), VkWriteDescriptorSet(), VkWriteDescriptorSet()]
+        let fi = VkDescriptorImageInfo(sampler: sampler, imageView: farSprites?.view ?? texture?.view, imageLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+        var w = [VkWriteDescriptorSet(), VkWriteDescriptorSet(), VkWriteDescriptorSet(), VkWriteDescriptorSet()]
+        w[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        w[3].dstSet = s.set0
+        w[3].dstBinding = 3
+        w[3].descriptorCount = 1
+        w[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+        w[3].pImageInfo = a.ptr(fi)
         w[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
         w[0].dstSet = s.set0
         w[0].dstBinding = 0
@@ -896,7 +910,60 @@ final class SceneRenderer {
         w[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
         w[2].pImageInfo = a.ptr(ni)
         // (before init has made the lattice, only the first two)
-        vkUpdateDescriptorSets(ctx.device, cloudNoise == nil ? 2 : 3, w, 0, nil)
+        // (binding 3 swaps places with the lattice's until init has made it, so the count stays a prefix)
+        if cloudNoise == nil { w[2] = w[3] }
+        vkUpdateDescriptorSets(ctx.device, cloudNoise == nil ? 3 : 4, w, 0, nil)
+    }
+
+    // Ledger 362: the far cards' pictures (FarSprites.pixels), an array with its own mip chain. Each level is a box
+    // filter of the one above with the colours weighted by coverage, so a crown's edge never fringes dark.
+    static func makeFarSprites(_ ctx: VkContext) throws -> VkImg {
+        let n = FarSprites.px, layers = FarSprites.layers
+        var levels = 1
+        while (n >> levels) >= 4 { levels += 1 }
+        var chain: [[UInt8]] = [FarSprites.pixels(size: n)]
+        var size = n
+        for _ in 1..<levels {
+            let src = chain[chain.count - 1], half = size / 2
+            var dst = [UInt8](repeating: 0, count: layers * half * half * 4)
+            for l in 0..<layers { for y in 0..<half { for x in 0..<half {
+                var r = 0, g = 0, b = 0, al = 0
+                for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                    let i = ((l * size + y * 2 + dy) * size + x * 2 + dx) * 4
+                    let w = Int(src[i + 3])
+                    r += Int(src[i]) * w; g += Int(src[i + 1]) * w; b += Int(src[i + 2]) * w; al += w
+                }
+                let o = ((l * half + y) * half + x) * 4
+                if al > 0 { dst[o] = UInt8(r / al); dst[o + 1] = UInt8(g / al); dst[o + 2] = UInt8(b / al) }
+                dst[o + 3] = UInt8(al / 4)
+            } } }
+            chain.append(dst); size = half
+        }
+        let img = try VkImg(ctx, width: n, height: n, layers: layers, levels: levels, format: VK_FORMAT_R8G8B8A8_UNORM,
+                            usage: VK_IMAGE_USAGE_SAMPLED_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_DST_BIT.rawValue)
+        let total = chain.reduce(0) { $0 + $1.count }
+        let staging = try VkBuf(ctx, size: total, usage: VK_BUFFER_USAGE_TRANSFER_SRC_BIT.rawValue, host: true)
+        var offs: [Int] = [], off = 0
+        for c in chain { offs.append(off); _ = c.withUnsafeBytes { memcpy(staging.mapped! + off, $0.baseAddress!, $0.count) }; off += c.count }
+        try ctx.oneShot { cb in
+            vkBarrier(cb, img.image, from: VK_IMAGE_LAYOUT_UNDEFINED, to: VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, levels: levels, layers: layers,
+                      srcAccess: 0, dstAccess: VK_ACCESS_TRANSFER_WRITE_BIT.rawValue,
+                      srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue)
+            var regions: [VkBufferImageCopy] = []
+            for lv in 0..<levels {
+                var r = VkBufferImageCopy()
+                r.bufferOffset = VkDeviceSize(offs[lv])
+                r.imageSubresource = VkImageSubresourceLayers(aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, mipLevel: UInt32(lv), baseArrayLayer: 0, layerCount: UInt32(layers))
+                r.imageExtent = VkExtent3D(width: UInt32(n >> lv), height: UInt32(n >> lv), depth: 1)
+                regions.append(r)
+            }
+            vkCmdCopyBufferToImage(cb, staging.buffer, img.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, UInt32(regions.count), regions)
+            vkBarrier(cb, img.image, from: VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, to: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, levels: levels, layers: layers,
+                      srcAccess: VK_ACCESS_TRANSFER_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_SHADER_READ_BIT.rawValue,
+                      srcStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue)
+        }
+        print(String(format: "far sprites: %d layers at %d px, %d levels, %.1f MB", layers, n, levels, Double(total) / 1_048_576))
+        return img
     }
 
     // The clouds' noise lattice: texel (x, y) holds hash21 of the cells (x, y), (x+1, y), (x, y+1) and (x+1, y+1),
@@ -2053,6 +2120,20 @@ final class SceneRenderer {
         vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
         vkCmdBindIndexBuffer(s.cmd, quadIndex.buffer, 0, VK_INDEX_TYPE_UINT32)
         vkCmdDrawIndexed(s.cmd, UInt32(min(quads, SceneRenderer.maxQuads) * 6), 1, 0, 0, 0)
+        drawCalls += 1
+        boundVerts = nil
+    }
+
+    // Ledger 362: the last `count` quads of the ring's buffer are the far trees' cards (FarForest.emitCards).
+    func drawFarCards(_ s: Slot, _ buf: VkBuf, first: Int, count: Int, params: float4x4) {
+        guard count > 0 else { return }
+        vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("farcard"))
+        pushConstants(s, model: params, extra: V4(Float(FarSprites.px), 0, 0, 0))
+        var b: VkBuffer? = buf.buffer
+        var o: VkDeviceSize = VkDeviceSize(first * 4 * MemoryLayout<SimpleVert>.stride)
+        vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+        vkCmdBindIndexBuffer(s.cmd, quadIndex.buffer, 0, VK_INDEX_TYPE_UINT32)
+        vkCmdDrawIndexed(s.cmd, UInt32(min(count, SceneRenderer.maxQuads) * 6), 1, 0, 0, 0)
         drawCalls += 1
         boundVerts = nil
     }

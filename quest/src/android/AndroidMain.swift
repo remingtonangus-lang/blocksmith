@@ -183,6 +183,7 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     if let ext = extPath, !reviewer { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
     // Imported textures (assets/texpack.bin, tools/texpack.py); read before the loading thread paints the layers.
     if TextureImport.pack == nil { TextureImport.load(readAsset(activity.pointee.assetManager, "texpack.bin")) }
+    if FarSprites.pack == nil { FarSprites.load(readAsset(activity.pointee.assetManager, "farpack.bin")) }
     // Townsfolk voice takes (assets/voices.bin, tools/townvoice_gen.py).
     if TownVoice.loaded == 0 { TownVoice.load(readAsset(activity.pointee.assetManager, "voices.bin")) }
     // Recorded sounds that replace synthesized ones (RealSounds.swift): assets/sounds/real/*.ogg (Resources/Sounds/real),

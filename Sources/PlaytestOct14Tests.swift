@@ -68,8 +68,24 @@ enum PlaytestOct14Tests {
         let forest = FarForest(seed: 1)
         let with = FarRing.build(gen, cx: f.0, cz: f.1, rin: rin, memo: &memo, inner: &inner, forest: forest)
         let more = (with.count - plain.count) / 4
+        // Ledger 362: with the pictures (Resources/farpack.bin) every tree in reach is one card; without them, or under
+        // BS_FARSHAPES=1, the lathed stand-ins of ledger 361 within their budget.
+        if FarSprites.pack == nil && Env.all["BS_NOFARPACK"] == nil { FarSprites.load(FileManager.default.contents(atPath: "Resources/farpack.bin")) }
+        if FarForest.cards {
+            var missing: [String] = []
+            for k in FarSprites.kinds { for sn in (k.2 ? [false, true] : [false]) { for v in 0..<FarSprites.variants { for y in 0..<8 {
+                let name = FarSprites.layerName(k.0, variant: v, snowy: sn, yaw: y)
+                guard let img = FarSprites.pack?.image(name, size: 32) else { missing.append(name); continue }
+                let solid = img.filter { $0.w > 0.5 }.count
+                if solid < 30 || solid > 900 { missing.append(name + " (\(solid) of 1024 px solid)") }
+            } } } }
+            check(missing.isEmpty, "ledger 362 (a): every far tree kind has its 8 pictures, each a tree on a clear ground (\(FarSprites.layers) layers in \(FarSprites.sets) sets\(missing.isEmpty ? "" : "; wrong: " + missing.prefix(4).joined(separator: ", ")))")
+            check(forest.lastCards > 500 && more == forest.lastCards && forest.lastQuads == 0,
+                  "ledger 362 (b): a ring at view 8 over a forest draws each far tree as one card (\(forest.lastCards) cards, no lathed stand-ins; BS_FARSHAPES=1: the stand-ins)")
+        } else {
         check(forest.lastQuads > 500 && more == forest.lastQuads && forest.lastQuads <= FarForest.maxQuads + 4096,
               "ledger 361 (b): a ring at view 8 over a forest carries stand-ins within the budget (\(forest.lastQuads) quads of \(FarForest.maxQuads), far thinning x\(String(format: "%.2f", forest.lastSqueeze)); 0 without the layer)")
+        }
         // The ground 200 blocks out: lifted to the canopy without the layer, the ground's own height with it.
         func groundY(_ v: [SimpleVert], _ n: Int) -> Float {
             var sum: Float = 0, c: Float = 0
@@ -83,7 +99,7 @@ enum PlaytestOct14Tests {
         let tg = WorldGen(seed: 4259144782798118884)
         let thick = FarForest(seed: 2)
         thick.plan(tg, cx: -4416, cz: -960, rin: rin, from: max(0, min(rin - 100, rin * 0.55)))
-        check(thick.planReach >= FarForest.reach && thick.kmin >= 0.4,
+        check(thick.planReach >= FarForest.reach && (FarForest.cards ? thick.kmin >= 1 : thick.kmin >= 0.4),
               "ledger 361 (c): a thick taiga's stand-in trees reach the full \(Int(FarForest.reach)) blocks (\(Int(thick.planReach))), \(Int(thick.kmin * 100))% of them standing at the far end")
     }
 

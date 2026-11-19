@@ -96,6 +96,7 @@ if renderPath != nil {
     // The headset's imported art (AndroidMain reads assets/texpack.bin the same way), so CI renders show the real
     // textures instead of the procedural fallback (done audit 25b6).
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
+    if FarSprites.pack == nil && Env.all["BS_NOFARPACK"] == nil { FarSprites.load(FileManager.default.contents(atPath: "Resources/farpack.bin")) }
 }
 let device = sharedSystemDevice
 // --controllerpic OUT.svg [--left]: P402 (3), the loading scene's controller picture (quest/src/app/ControllerPicture.swift).

@@ -119,6 +119,29 @@ final class FarForest {
         var tiers: [[(y: Float, r: Float, cx: Float, cz: Float)]] = []    // reduced to 5, 4 and 3 points
     }
     static let variants = 4
+    // Ledger 362: far trees as pictures of the real trees (FarSprites) when the pictures are there; BS_FARSHAPES=1
+    // keeps the lathed shapes of ledger 361 (before).
+    static var cards: Bool { FarSprites.ready && Env.all["BS_FARSHAPES"] == nil }
+    private(set) var lastCards = 0
+    // One quad a tree (quest/shaders/farcard.vert): the foot, the corner, the frame's side, the set's first layer and
+    // the tree's own quarter turn. Returns the number of quads.
+    func emitCards(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, into out: inout [SimpleVert]) -> Int {
+        var n = 0
+        let from = rin - 24
+        for l in lists { for t in l {
+            let x = Float(Int(t.x) - cx) + 0.5, z = Float(Int(t.z) - cz) + 0.5
+            let d: Float = (x * x + z * z).squareRoot()
+            if d < from || d > FarForest.reach { continue }
+            guard let ki = FarSprites.index(t.kind) else { continue }
+            let side = FarSprites.frame(t.kind)
+            let base = Float(FarSprites.base(ki, variant: Int((t.hv >> 8) & 0xFF), snowy: t.snowy))
+            let c = V4(side, base, Float(t.hv & 3), 0)
+            for k in 0..<4 { out.append(SimpleVert(pos: V4(x, t.y, z, Float(k)), color: c)) }
+            n += 1
+        } }
+        lastCards = n
+        return n
+    }
     static let deep = Env.all["BS_FARDEEP"] != nil          // (before: stand-ins all the way in under the loaded chunks)
     // A conifer's needles as the near trees draw them in shade (measured off a render: darker and yellower than the tint).
     static let darkConifer = V3(0.115, 0.175, 0.1)
@@ -222,6 +245,8 @@ final class FarForest {
         // How soon the wood thins, and to what share, is set by the budget: an open wood keeps every tree to 140
         // blocks past the edge and one in four beyond; a taiga thins from 40 blocks to one in ten, each drawn wider, so
         // its cover holds out to the full reach.
+        // Ledger 362: as cards every tree in reach is drawn, one quad each: nothing to budget.
+        if FarForest.cards { planReach = FarForest.reach; full = FarForest.reach; far = full; thin0 = full; thin = full + 1; kmin = 1; return }
         // The ladder gives up detail before it gives up trees: a wood reads by how thick it stands, so the bands of
         // finer stand-ins shorten first (a far conifer is 3 quads), and only then does the wood thin, late and little.
         let ladder: [(Float, Float, Float, Float)] = [(140, 200, 200, 0.5), (100, 160, 200, 0.5), (60, 100, 200, 0.6), (40, 40, 200, 0.75),
@@ -241,6 +266,8 @@ final class FarForest {
     }
 
     func emit(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, from: Float, into out: inout [SimpleVert]) {
+        lastCards = 0
+        if FarForest.cards { lastQuads = 0; lastSqueeze = 1; return }
         func nq(_ nx: Float, _ nz: Float) -> Float { ((nx * 0.5 + 0.5) * 1023).rounded() + ((nz * 0.5 + 0.5) * 1023).rounded() * 1024 }
         lastSqueeze = planReach / FarForest.reach
         let from = FarForest.deep ? from : max(from, rin - 40)

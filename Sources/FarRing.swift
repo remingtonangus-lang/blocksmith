@@ -43,6 +43,7 @@ final class FarRing {
         var blocky = false                         // terraced block columns (block world) or the smooth field
         var verts: [SimpleVert] = []
         var quads: Int { verts.count / 4 }
+        var cards = 0                              // ledger 362: the last `cards` quads are the far trees' cards
         // P484 (gap cover): the ring's own quads over every chunk inside the loaded disc, one chunk's run each (the 8-
         // and 16-block bands line up with the chunks). WorldRenderer draws them over the chunks not drawn yet, so a gap
         // in the land while it streams in shows coarse ground instead of the void and the caves of the chunks beside it.
@@ -122,6 +123,7 @@ final class FarRing {
             if self.forest.seed != sd { self.forest = FarForest(seed: sd); self.trackWarm.removeAll() }
             out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: blocky,
                                       inner: &inner, wantInner: FarRing.gapCover, forest: layer ? self.forest : nil)
+            out.cards = layer ? self.forest.lastCards : 0
             out.innerVerts.reserveCapacity(inner.values.reduce(0) { $0 + $1.count })
             for (k, v) in inner {
                 out.inner[k] = out.innerVerts.count..<(out.innerVerts.count + v.count)
@@ -435,6 +437,8 @@ final class FarRing {
         if let forest {
             forest.emit(gen, cx: cx, cz: cz, rin: rin, from: max(0, skip), into: &out)
             forest.lastTrack = FarTrack.emit(gen, cx: cx, cz: cz, from: max(0, skip), into: &out)
+            // (ledger 362: the cards go last; Mesh.cards of the buffer's quads are theirs, drawn by their own pipeline)
+            if FarForest.cards { _ = forest.emitCards(gen, cx: cx, cz: cz, rin: rin, into: &out) }
         }
         return out
     }
