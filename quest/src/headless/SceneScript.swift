@@ -123,6 +123,13 @@ enum SceneScript {
             step(a)
             g.player.yaw = yaw; g.player.pitch = pitch      // (the mouse path clamps and scales: land exactly)
         }
+        // (the column's foliage colour as the chunks tint leaves with it: tools/far_sprites.py records it)
+        func tintText(_ x: Int, _ z: Int) -> String {
+            guard let gen = w.gen as? WorldGen else { return "0 0 0" }
+            let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+            let c = gen.tints(cx: cx, cz: cz)[256 + (x - cx * CS) + (z - cz * CS) * CS]
+            return "\(c & 255) \((c >> 8) & 255) \((c >> 16) & 255)"
+        }
         func cellText(_ x: Int, _ y: Int, _ z: Int) -> String {
             let b = w.block(x, y, z), m = w.materialAt(x, y, z), gr = w.groundAt(x, y, z)
             return b != AIR ? key(b) : (gr ? "ground(\(key(m)))" : key(b))
@@ -311,7 +318,7 @@ enum SceneScript {
                     }
                     if let sl = snowL, top >= 0, b[Chunk.index(lx, top + 1, lz)] == AIR { w.setBlock(x + lx - 8, top + 1, z + lz - 8, BlockID(sl)) }
                 } }
-                print("\(ln) tree \(t[1]) variant \(variant): \(n) blocks, frame \(FarSprites.frame(kind))")
+                print("\(ln) tree \(t[1]) variant \(variant): \(n) blocks, frame \(FarSprites.frame(kind).side) rise \(FarSprites.frame(kind).rise) tint \(tintText(x, z))")
             case "break":
                 // The player's own break: the eye turned onto the cell's middle, the attack held until it is gone (10 s at most).
                 guard t.count == 4, let x = Int(t[1]), let y = Y(t[2]), let z = Int(t[3]) else { bad(); continue }

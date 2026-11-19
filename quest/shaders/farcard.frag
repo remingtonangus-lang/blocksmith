@@ -12,7 +12,8 @@ void main() {
     // The rim of the loaded disc: cards come in through a screen-door pattern, so there is no line where they start.
     float dither = fract(dot(floor(gl_FragCoord.xy), vec2(0.5, 0.25)) + 0.125);
     if (t.a < 0.5 || oLit.a <= dither) { discard; }
+    // (the picture already went through the film curve once: only the fog's colour goes through it here)
     vec3 c = pow(t.rgb, vec3(1.0 / u.misc.z)) * oLit.rgb;
     c = mix(c, oFog.rgb, oFog.a);
-    outColor = finalColor(vec4(filmic(c), 1.0));
+    outColor = finalColor(vec4(c, 1.0));
 }

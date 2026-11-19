@@ -9,12 +9,15 @@ enum FarSprites {
     static let yaws = 8
     static let variants = 2
     // (name, kind, snowy pictures too)
+    // (every kind that can stand where it snows has its snowy twin; the hot lands' kinds never do)
     static let kinds: [(String, TreeKind, Bool)] = [
-        ("oak", .oak, true), ("small_oak", .smallOak, false), ("fancy_oak", .fancyOak, false), ("ancient_oak", .ancientOak, false),
-        ("swamp_oak", .swampOak, false), ("birch", .birch, true), ("tall_birch", .tallBirch, false),
+        ("oak", .oak, true), ("small_oak", .smallOak, true), ("fancy_oak", .fancyOak, true), ("ancient_oak", .ancientOak, true),
+        ("swamp_oak", .swampOak, true), ("birch", .birch, true), ("tall_birch", .tallBirch, true),
         ("spruce", .spruce, true), ("pine", .pine, true), ("mega_spruce", .megaSpruce, true), ("mega_pine", .megaPine, true),
-        ("jungle", .jungle, false), ("mega_jungle", .megaJungle, false), ("acacia", .acacia, false), ("dark_oak", .darkOak, false),
-        ("mangrove", .mangrove, false), ("cherry", .cherry, false), ("pale_oak", .paleOak, false), ("saltpalm", .saltpalm, false),
+        ("jungle", .jungle, false), ("mega_jungle", .megaJungle, false), ("acacia", .acacia, false), ("dark_oak", .darkOak, true),
+        ("mangrove", .mangrove, false), ("cherry", .cherry, true), ("pale_oak", .paleOak, true), ("saltpalm", .saltpalm, false),
+        // (the undergrowth: without it a far jungle's floor was bare bright grass under the trees)
+        ("jungle_bush", .jungleBush, false),
     ]
     static func kind(_ name: String) -> TreeKind? { kinds.first { $0.0 == name }?.1 }
     static func index(_ k: TreeKind) -> Int? { kinds.firstIndex { $0.1 == k } }
@@ -29,6 +32,7 @@ enum FarSprites {
     static func load(_ d: Data?) {
         guard let d, let p = TexPack(d) else { print("far sprites: no farpack.bin, the far layer keeps its shapes"); return }
         pack = p
+        if let t = p.image("far_tint", size: 1)?.first { captureTint = V3(t.x, t.y, t.z) }
         print("far sprites: \(p.entries.count) pictures at \(p.tile) px")
     }
     static var ready: Bool { pack != nil }
@@ -71,26 +75,44 @@ enum FarSprites {
             TreePlacer.build(TreeWriter(b: buf.baseAddress!, bx: 0, bz: 0), kind, 8, y, 8, &rng)
         }
     }
-    // The side of the square a kind's pictures frame, in blocks: its tallest and widest variant with a block to spare.
-    // The square stands on the tree's foot, centred on the trunk.
-    private static var frames: [Int: Float] = [:]
+    // The square a kind's pictures frame, in blocks: its side (the tallest and widest variant with a block to spare)
+    // and how far over the tree's foot its centre is (half the tallest variant's height). It is centred on the trunk.
+    private static var frames: [Int: (side: Float, rise: Float)] = [:]
+    private static var tintedKinds: [Int: Bool] = [:]
+    // Does the kind's leaf take the biome's foliage colour (oak, jungle ...) or its own (spruce, birch, cherry)?
+    static func tinted(_ kind: TreeKind) -> Bool {
+        _ = frame(kind)
+        guard let ki = index(kind) else { return false }
+        lock.lock(); defer { lock.unlock() }
+        return tintedKinds[ki] ?? false
+    }
+    // The foliage colour where the pictures were taken (the pack's `far_tint` tile): a tinted kind's card is scaled
+    // by the tree's own foliage colour over this one.
+    static var captureTint: V3 = V3(0.4, 0.6, 0.3)
     private static let lock = NSLock()
-    static func frame(_ kind: TreeKind) -> Float {
-        guard let ki = index(kind) else { return 16 }
+    static func frame(_ kind: TreeKind) -> (side: Float, rise: Float) {
+        guard let ki = index(kind) else { return (16, 8) }
         lock.lock(); defer { lock.unlock() }
         if let f = frames[ki] { return f }
         var b: [BlockID] = []
-        var side: Float = 4
+        var side: Float = 4, top: Float = 2
+        var tint = false
         let y0 = 100
         for v in 0..<variants {
             blocks(kind, variant: v, y: y0, into: &b)
             for z in 0..<CS { for x in 0..<CS { for y in y0..<(y0 + 60) where b[Chunk.index(x, y, z)] != AIR {
                 let dx = abs(Float(x) - 8) + 1, dz = abs(Float(z) - 8) + 1
-                side = max(side, Float(y - y0) + 2, 2 * max(dx, dz) * 1.45 + 1)      // (seen cornerwise a crown is 1.41 wider)
+                top = max(top, Float(y - y0) + 1.5)
+                let id = Int(b[Chunk.index(x, y, z)])
+                if Mesher.leafT[id] && Blocks.tint[id] == 2 { tint = true }
+                side = max(side, 2 * max(dx, dz) * 1.45 + 1)      // (seen cornerwise a crown is 1.41 wider)
             } } }
         }
-        frames[ki] = side
-        return side
+        // (from 40 degrees above the square must still hold the foot and the top)
+        let f = (max(side, top + 3), top * 0.5)
+        frames[ki] = f
+        tintedKinds[ki] = tint
+        return f
     }
     static func layerName(_ kind: String, variant: Int, snowy: Bool, yaw: Int) -> String { "far_\(kind)_\(variant)\(snowy ? "_s" : "")_\(yaw)" }
 }

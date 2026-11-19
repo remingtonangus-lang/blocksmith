@@ -28,6 +28,7 @@ final class FarForest {
         var snowy = false
         var kind: TreeKind = .oak
         var size: Float = 1
+        var tint = V3(1, 1, 1)                     // ledger 362: the column's foliage colour over the pictures' (tinted kinds)
     }
 
     let seed: UInt64
@@ -55,7 +56,8 @@ final class FarForest {
         case .cherry: return (7.5, 3.6, 0.45, false, 0xE7A8C7)
         case .paleOak: return (8.5, 4, 0.45, false, 0xA3ABA0)
         case .saltpalm: return (8.5, 2.6, 0.78, false, 0)
-        default: return nil                        // shrubs, stumps, snags, fallen trunks, ice spikes
+        case .jungleBush: return (2.5, 1.6, 0.2, false, 0)        // (ledger 362: the undergrowth)
+        default: return nil                        // stumps, snags, fallen trunks, ice spikes
         }
     }
 
@@ -89,8 +91,10 @@ final class FarForest {
         let pale = kind == .birch || kind == .tallBirch || kind == .paleOak
         let bark: V3 = pale ? V3(0.74, 0.74, 0.7) * 0.8 : V3(0.36, 0.27, 0.18) * 0.8
         let size: Float = 0.9 + 0.2 * Float((hv >> 12) & 0xFF) / 255
-        return Tree(x: Int32(tx), z: Int32(tz), y: Float(YOFF) + floorf(k.h) + 1, h: sh.h * size, r: sh.r, base: sh.base,
-                    cone: sh.cone, leaf: leaf, top: top, bark: bark, hv: hv, snowy: cold, kind: kind, size: 1)
+        var tree = Tree(x: Int32(tx), z: Int32(tz), y: Float(YOFF) + floorf(k.h) + 1, h: sh.h * size, r: sh.r, base: sh.base,
+                        cone: sh.cone, leaf: leaf, top: top, bark: bark, hv: hv, snowy: cold, kind: kind, size: 1)
+        if FarForest.cards && FarSprites.tinted(kind) { tree.tint = gen.foliageTint(k) / simd_max(FarSprites.captureTint, V3(repeating: 0.02)) }
+        return tree
     }
 
     private func trees(_ gen: WorldGen, _ kx: Int, _ kz: Int) -> [Tree] {
@@ -123,8 +127,8 @@ final class FarForest {
     // keeps the lathed shapes of ledger 361 (before).
     static var cards: Bool { FarSprites.ready && Env.all["BS_FARSHAPES"] == nil }
     private(set) var lastCards = 0
-    // One quad a tree (quest/shaders/farcard.vert): the foot, the corner, the frame's side, the set's first layer and
-    // the tree's own quarter turn. Returns the number of quads.
+    // One quad a tree (quest/shaders/farcard.vert): the foot, the corner, the frame's side, the set's first layer, the
+    // tree's own quarter turn and the frame centre's height over the foot. Returns the number of quads.
     func emitCards(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, into out: inout [SimpleVert]) -> Int {
         var n = 0
         let from = rin - 24
@@ -133,10 +137,12 @@ final class FarForest {
             let d: Float = (x * x + z * z).squareRoot()
             if d < from || d > FarForest.reach { continue }
             guard let ki = FarSprites.index(t.kind) else { continue }
-            let side = FarSprites.frame(t.kind)
+            let fr = FarSprites.frame(t.kind)
             let base = Float(FarSprites.base(ki, variant: Int((t.hv >> 8) & 0xFF), snowy: t.snowy))
-            let c = V4(side, base, Float(t.hv & 3), 0)
-            for k in 0..<4 { out.append(SimpleVert(pos: V4(x, t.y, z, Float(k)), color: c)) }
+            // pos.w: the corner, the quarter turn, the frame's side and its centre's rise in quarter blocks
+            let w: Float = Float(Int(t.hv & 3) * 4 + Int((fr.side * 4).rounded()) * 16 + Int((fr.rise * 4).rounded()) * 4096)
+            let c = V4(base, t.tint.x, t.tint.y, t.tint.z)
+            for k in 0..<4 { out.append(SimpleVert(pos: V4(x, t.y, z, w + Float(k)), color: c)) }
             n += 1
         } }
         lastCards = n
