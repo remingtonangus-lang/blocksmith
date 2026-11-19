@@ -345,9 +345,12 @@ enum Explosion {
         let mannedGun = Turrets.shared.manned
         for m in g.mobs.mobs where m !== except && (m === mannedGun || !(own && m.kind.steelhold && m.factionValue == .steelhold) && !(g.ashQuiet && m.factionValue == .ashguard)
             && !(g.blastSpares != .none && m.factionValue == g.blastSpares)) {
-            if let im = impact(m.pos, m.height), im.0 > 0 {
+            let car = m.kind == .minecart && TroopWrecks.plated(m)          // ledger 335: the blast reaches its body
+            if let im = impact(car ? TroopWrecks.nearest(m, to: c) : m.pos, car ? min(m.height, 2.5) : m.height), im.0 > 0 {
                 let (k, dir) = im
                 var dmg = ((k * k + k) / 2 * 7 * radius + 1).rounded()
+                let inside = TroopWrecks.shielded(m)                       // (riding a troop car: its plate between)
+                if inside { dmg = (dmg / 8).rounded() }
                 // A soldier's vest takes the blast first (TroopClasses.swift, T7): its plate soaks a share and wears.
                 if m.troop > 0 && m.shield <= 0 && Soldier.rank(m.kind) != nil { dmg = m.troopArmourHit(dmg, seg: 1, g).rounded() }
                 // P221 (Oct 13 21:29, "nobody walks out of a rocket or shell hit"): inside the inner half of the blast,
@@ -355,7 +358,7 @@ enum Explosion {
                 // the wyrm...) still only take the damage.
                 let lethal = power * 1.1
                 if power >= 2, simd_length(m.pos + V3(0, m.height * 0.5, 0) - c) <= lethal, w.canSee(from, m.pos + V3(0, m.height * 0.5, 0)),
-                   !Explosion.blastProof(m.kind) {
+                   !Explosion.blastProof(m.kind) && !car && !inside {
                     dmg = max(dmg, 9999)                                   // (past shields, plate and difficulty scaling)
                 }
                 m.hit(from: c, damage: Int(dmg), knockback: 0)
