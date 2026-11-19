@@ -65,9 +65,17 @@ final class VoiceEvents {
     private var health = -1, alive = true, dim = "", mount = "", pilot = "", screen = "", held = "", toast = "", biome = ""
     private var biomeCheck = 0.0, damage = 0, damageAt = 0.0
     private var kept: [ItemID: Int]? = nil, keptCheck = 0.0
+    private var ownerGame: ObjectIdentifier? = nil, lastClock = -1.0
 
     func observe(_ g: Game) {
         let t = g.clock
+        let gid = ObjectIdentifier(g)
+        if !WorldClock.old && (ownerGame != gid || t + 0.001 < lastClock) {
+            ownerGame = gid
+            log.removeAll(); health = -1; alive = g.alive; dim = ""; mount = ""; pilot = ""; screen = ""; held = ""; toast = ""; biome = ""
+            biomeCheck = -10; damage = 0; damageAt = 0; kept = nil; keptCheck = -10
+        }
+        lastClock = t
         func add(_ s: String) { log.append((t, s)); if log.count > 40 { log.removeFirst(log.count - 40) } }
         if health >= 0 && g.health < health { damage += health - g.health; damageAt = t }
         if damage > 0 && t - damageAt > 1 { add("took \(damage) damage (health \(g.health)/20)"); damage = 0 }
@@ -107,7 +115,8 @@ final class VoiceEvents {
     }
 
     func recent(_ g: Game, seconds: Double = 30) -> [String] {
-        log.filter { g.clock - $0.t <= seconds }.map { String(format: "-%.0fs %@", g.clock - $0.t, $0.text) }
+        log.filter { let d = g.clock - $0.t; return (WorldClock.old || d >= 0) && d <= seconds }
+            .map { String(format: "-%.0fs %@", g.clock - $0.t, $0.text) }
     }
 }
 

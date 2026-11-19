@@ -33,6 +33,7 @@ extension Renderer {
     // P508: each citadel's start, record key and the blast spheres it holds (FarCitadel), alongside citadelList.
     static var citadelSites: [(st: StructureStart, key: String, damage: [[Float]])] = []
     func citadelCache(_ game: Game) -> [V3] {
+        WorldClock.sync(game)
         if game.clock - Renderer.citadelAt < 2 { return Renderer.citadelList }
         Renderer.citadelAt = game.clock
         Renderer.citadelList.removeAll()
@@ -64,6 +65,7 @@ extension Renderer {
 
     // Ancient Spire starts within the landmark range (structure regions are 1024 blocks).
     func spireCache(_ game: Game) -> [V4] {
+        WorldClock.sync(game)
         if game.clock - Renderer.spireAt < 2 { return Renderer.spireList }
         Renderer.spireAt = game.clock
         Renderer.spireList.removeAll()

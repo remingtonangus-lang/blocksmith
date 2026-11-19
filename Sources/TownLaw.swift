@@ -112,11 +112,15 @@ enum TownLaw {
     static var offences = 0                         // counted (TownTests)
     static var robberies = 0                        // P366 (g): tills handed over at gunpoint or knifepoint
 
+    static func resetSessionTimers() {
+        lastTick = -1; lastAmbient = -100; pending = []; openPos = nil; openItems = nil; openStart = 0; lastShot = nil
+    }
+
     static func reset() {
         state = Saved(); placedSet = []; placedOrder = []; inTown = nil; pending = []; openPos = nil; openItems = nil
         Honour.challengedVisit = nil; Honour.changedAt = -100; Honour.delta = 0; Honour.lastToast = -100
         Honour.lastWhy = ""; Honour.outlawSpotted = nil
-        offences = 0; lastTick = -1; sleptBeds = [:]
+        offences = 0; lastTick = -1; lastAmbient = -100; sleptBeds = [:]
         ownBeds = []; builtBed = [:]                    // P284
         lastShot = nil; Jail.passPack = false; TownLines.forget()          // R20
         TownConquest.reset(); TownConquest.wary = []
@@ -497,6 +501,7 @@ enum TownLaw {
     }
 
     static func tick(_ g: Game) {
+        WorldClock.sync(g)
         if worldSeed != g.world.seed { reset(); worldSeed = g.world.seed }
         Jail.watchOutlaws(g)                             // R20: a beaten outlaw gives up (per frame while one is out)
         Bandana.tick(g)                                  // D22

@@ -107,8 +107,10 @@ enum Wallet {
     static var shown = Int.min                      // (tests set these to start from a quiet wallet)
     static var changedAt: Double = -100
     private static var delta = 0
+    static func resetSession() { shown = Int.min; changedAt = -100; delta = 0 }
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
+        WorldClock.sync(g)
         let inv = g.menu is InventoryMenu && g.survival               // the inventory shows it too (with your honour)
         guard HudExtras.enabled, !g.hideHUD, g.menu == nil || inv, g.alive else { return [] }
         let money = g.money

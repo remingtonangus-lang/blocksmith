@@ -256,6 +256,7 @@ enum ContextPrompts {
     static let retireAfter: Float = 3 * 3600
     static var shown: Bool { false }
     private static var pending: Float = 0, lastClock: Double = -1
+    static func resetClock() { pending = 0; lastClock = -1 }
     static func tick(_ g: Game) {
         let dt = lastClock < 0 ? 0 : Float(max(0, min(1, g.clock - lastClock)))
         lastClock = g.clock
@@ -348,6 +349,7 @@ enum HeldReadout {
     static let fmt: NumberFormatter = { let f = NumberFormatter(); f.numberStyle = .decimal; return f }()
 
     static func text(_ g: Game) -> String? {
+        WorldClock.sync(g)
         guard !old, g.menu == nil, g.alive, !g.held.isEmpty else { return nil }
         let st = g.held, k = Items.key(st.item)
         // (each reading made a few times a second, not each frame; the searches once a second, or when he moves on)
@@ -588,6 +590,7 @@ enum SaveBadge {
     static var failing: Bool { failedAt >= savedAt }
 
     static func savedAgo(_ g: Game) -> String? {
+        WorldClock.sync(g)
         guard savedAt > -100 else { return nil }
         let d = max(0, g.clock - savedAt)
         if d < 5 { return "saved just now" }
@@ -596,6 +599,7 @@ enum SaveBadge {
     }
 
     static func lines(_ g: Game, _ L: HudLayout, below: Bool) -> [HudLine] {
+        WorldClock.sync(g)
         guard g.menu == nil, HudExtras.enabled else { return [] }
         let age = Float(g.clock - savedAt)
         let full = g.clock - storageFullAt < 30 && g.clock >= storageFullAt && StorageCheck.critical

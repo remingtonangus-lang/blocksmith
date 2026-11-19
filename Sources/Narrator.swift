@@ -41,8 +41,11 @@ final class Narrator {
         return out.split(separator: " ").joined(separator: " ")
     }
 
+    func resetClock() { lastAt = -100; lastToast = -100; last = "" }
+
     func say(_ text: String, clock: Double, interrupt: Bool = true) {
         guard enabled else { return }
+        if !WorldClock.old && clock < lastAt { lastAt = -100 }
         let t = Narrator.plain(text)
         guard !t.isEmpty, t != last || clock - lastAt > 2 else { return }
         last = t

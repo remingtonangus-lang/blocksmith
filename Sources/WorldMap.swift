@@ -24,6 +24,8 @@ final class MapCache {
     private var marksWorld = ""
     func replaceMarks(_ m: [Mark]) { marks = m }       // (checks set marks aside and put them back)
     private var scanTimer: Double = 0
+    var scanTimerValue: Double { scanTimer }
+    func resetTimers() { scanTimer = -10 }
 
     var cellCount: Int { lock.lock(); defer { lock.unlock() }; return cells.count }     // smoke memory line
 
@@ -40,6 +42,7 @@ final class MapCache {
         gen = g                               // under the lock: drain() reads it on the worker
         genID = id
         lock.unlock()
+        if !WorldClock.old { scanTimer = -10 }
     }
 
     // Colour of the 4-block cell containing (x, z), or nil while it is being sampled (it is queued).
@@ -334,6 +337,7 @@ final class MapCache {
 
     // Once a second: bases and villages within 96 blocks count as discovered (overworld only).
     func tick(_ g: Game) {
+        WorldClock.sync(g)
         loadMarks(g)
         use(g.world.gen)
         TickProf.mark("map cache: marks loaded")          // (store review: his taiga arrival's 19 ms "hud: map cache", split)

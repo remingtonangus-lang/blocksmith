@@ -114,6 +114,7 @@ enum Waymarks {
 
     // The target being followed: the one picked, or the story's objective.
     static func current(_ g: Game) -> Target? {
+        WorldClock.sync(g)
         if g.clock - cache.0 < 0.5 { return cache.1 }
         let all = candidates(g)
         var t: Target?

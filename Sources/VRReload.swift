@@ -71,6 +71,7 @@ enum VRReload {
     // `entered`: the hand reached the hip zone this frame (P286: a grip already squeezed on the way down takes one too).
     static func tick(_ g: Game, offHand: V3, gunHand: V3, head: V3, grip: Bool, gripWas: Bool, gunForward: V3? = nil, resting: Bool = false,
                      well: V3? = nil, entered: Bool = false) -> Event {
+        WorldClock.sync(g)
         let a = g.arms
         guard let gi = g.heldGun, g.alive else { a.magInHand = false; return .none }
         if a.magInHand {

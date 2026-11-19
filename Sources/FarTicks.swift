@@ -17,8 +17,10 @@ enum FarTicks {
         if !w.activeHere(p) { counting += 1; total += 1 }
     }
     static func noteShips() { counting += shipAwakeFar; total += shipAwakeFar; shipAwakeFar = 0 }
+    static func resetClock() { stamp = 0; counting = 0; lastSecond = 0 }
     static func roll(clock: Double) {
         noteShips()
+        if !WorldClock.old && clock < stamp { stamp = 0 }
         guard clock - stamp >= 1 else { return }
         stamp = clock; lastSecond = counting; counting = 0
     }

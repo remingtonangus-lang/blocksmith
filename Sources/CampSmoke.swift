@@ -16,6 +16,7 @@ extension Renderer {
 
     // Lit camps within range. Regions not yet planned are planned on a worker thread (never on the frame).
     func campCache(_ game: Game) -> [V3] {
+        WorldClock.sync(game)
         if game.clock - Renderer.campAt < 2 { return Renderer.campList }
         Renderer.campAt = game.clock
         Renderer.campList.removeAll()
@@ -115,6 +116,7 @@ extension Renderer {
     static var townPlanning = false
     static var townBoxes: [(min: IVec3, max: IVec3, tone: FarTone)] = []   // P483: their far boxes (StructureStart.far)
     func townCache(_ game: Game) -> [V4] {
+        WorldClock.sync(game)
         if game.clock - Renderer.townAt < 3 { return Renderer.townList }
         Renderer.townAt = game.clock
         Renderer.townList.removeAll()

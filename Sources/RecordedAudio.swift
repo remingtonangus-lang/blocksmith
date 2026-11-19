@@ -16,9 +16,13 @@ enum MarketCalls {
     static let old = Env.all["BS_OLDMARKETCALL"] == "1"
     static let pass: Double = 8.4                // one pass of the 8 s take, and its fade
     static var until: Double = -1, next: Double = 0
+    private static var lastClock: Double = -1
     static var passes = 0                        // (checks)
+    static func reset() { until = -1; next = 0; lastClock = -1 }
     static func heard(_ clock: Double) -> Bool {
         if old { return true }
+        if !WorldClock.old && clock < lastClock { until = -1; next = 0 }
+        lastClock = clock
         if clock < until { return true }
         guard clock >= next else { return false }
         until = clock + pass
@@ -66,6 +70,14 @@ enum RecordedNov15 {
     static var coaxLast: Double = -10, coaxFrom: Double = -10, coaxPos = V3.zero
     static var volcanoes: [Volcano] = [], volcanoesAt: Double = -10
     static var played: [String: Int] = [:]            // (checks: how often each new event played)
+
+    static func resetSession() {
+        trainState = [:]; falls = [:]; crawlerMoving = [:]; iceWeight = [:]
+        contracts = [:]; contractsRead = false; paidPost = nil; bought = -1; heldGun = nil; chute = false
+        radarSeen = []; radarAt = -10; collapseAt = -10; treesAt = -10
+        coaxLast = -10; coaxFrom = -10; coaxPos = V3.zero
+        volcanoes = []; volcanoesAt = -10
+    }
 
     static func note(_ s: Snd) { played[s.name, default: 0] += 1 }
 

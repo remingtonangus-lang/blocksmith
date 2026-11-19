@@ -1811,6 +1811,10 @@ if CommandLine.arguments.contains("--borealtest") {
     print(failed == 0 ? "borealtest: all checks passed" : "borealtest: \(failed) FAILED")
     exit(failed == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--worldclocktest") {
+    guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
+    exit(WorldClockTest.run(device: device))
+}
 if CommandLine.arguments.contains("--structcheck") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
     exit(StructCheck.run(device: device))

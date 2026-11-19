@@ -549,6 +549,7 @@ final class Game: LifeLinked {
         // in the world, --sim profile). Built here, behind the load, instead.
         _ = World.fallingIDs.count; _ = Game.hardened.count; _ = PlantSupport.ruleOf(AIR)
         CreativeMenu.warm()
+        WorldClock.begin(self)
     }
 
     static let creativeStarter = ["grass_block", "dirt", "stone", "cobblestone", "oak_planks", "oak_log", "glass", "torch", "crafting_table"]
@@ -1134,6 +1135,7 @@ final class Game: LifeLinked {
             StructureCache.noteFrameThread()
             SoldierRig.muzzleTick &+= 1
             clock += dt
+            WorldClock.sync(self)
             world.extraCenter = coop.active ? coop.otherPlayerPos(self) : nil
             // P487 (his dropship and frigate flights: "I had to literally fly into the void in order to get things to
             // generate"): the way he travels, from how far he really moved since the last update. His own velocity is the
