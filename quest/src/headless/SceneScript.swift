@@ -543,6 +543,11 @@ enum SceneScript {
                 guard t.count == 2 else { bad(); continue }
                 let p = g.player
                 switch t[1] {
+                case "mobs":
+                    // print mobs: each mob within 48 of him (kind, where, how far, its phase and time in it, hurt)
+                    for m in g.mobs.mobs where simd_length(m.pos - p.pos) < 48 {
+                        print("\(ln) \(m.kind.key) at \(f1(m.pos.x)) \(f1(m.pos.y - Float(YOFF))) \(f1(m.pos.z)), \(f1(simd_length(m.pos - p.pos))) off, phase \(m.phase) for \(f1(m.phaseTime)) s, aggro \(m.aggro), health \(f1(Float(m.health))), him \(g.health), vel \(f1(m.vel.x)) \(f1(m.vel.y)) \(f1(m.vel.z)), ground \(m.onGround), moving \(m.moving), windUp \(f1(m.windUp)), cooldown \(f1(m.attackCooldown)), hitStop \(f1(m.hitStop)), last \(f1(FierceBear.lastSpeed))")
+                    }
                 case "player":
                     print("\(ln) at \(f1(p.pos.x)) \(f1(p.pos.y - Float(YOFF))) \(f1(p.pos.z)), speed \(f1(simd_length(p.vel))), health \(g.health), held \(g.held.isEmpty ? "nothing" : Items.key(g.held.item)), riding \(g.riding?.kind.key ?? "nothing"), helm \(w.ships.pilot?.name ?? "none"), aboard \(w.ships.aboard?.name ?? "none")")
                     // (stuck: the cells whose boxes his body overlaps, with what is there)

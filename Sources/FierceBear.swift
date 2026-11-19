@@ -18,6 +18,26 @@ enum FierceBear {
     static let swipe = 12
     static let notice: Float = 28, giveUp: Float = 48
     static let charge: Float = 9.5
+    // Ledger 344 (Remington, Nov 19 01:08 on the bear's clip: "it ought to be bigger, the animal, so it's real scary and a
+    // little faster, around sprinting speed in 5s bursts"): a grown wild bear stands half as big again (2 blocks tall, its
+    // model 2 wide; its body box 1.45 wide, the old bear's, so it still gets between trees: 2 wide stuck it on a trunk in
+    // the chase clip; its reach 0.3 longer), and it charges in bursts: 5 s flat out at 10 b/s (a little over his sprint, 8.6 in
+    // the headset), then 2 s winded at a lope, then the next burst. A sprinting player gains a step while it blows, then
+    // loses it again. BS_OLDBEARRUN=1: as ledger 342 (its old size, one steady 9.5 charge).
+    static let oldRun = old || Env.all["BS_OLDBEARRUN"] == "1"
+    static let size: Float = 1.45
+    static let burst: Float = 10, burstFor: Float = 5, windedFor: Float = 2, lope: Float = 4.5
+    static var lastSpeed: Float = 0                // (checks: what it ran at last tick)
+    static func runSpeed(_ m: Mob, _ g: Game, dist: Float) -> Float {
+        let fight = m.spec.speed * 1.4                                   // (on him and him standing: a fighting pace)
+        guard !oldRun else { return dist > 4 ? charge : fight }
+        let run = m.phaseTime.truncatingRemainder(dividingBy: burstFor + windedFor) < burstFor ? burst : lope
+        guard dist <= 4 else { return run }
+        // (on him while he runs: it runs him down rather than dropping to its fighting pace beside him and letting him go,
+        // the chase clip's fault: it closed to 3 blocks and he sprinted clear)
+        let his = simd_length(V2(g.player.vel.x, g.player.vel.z))
+        return his > 1 ? run : fight
+    }
     static let stand: Float = 1.2                 // the warning: it stands and roars this long before it comes
     static let spawnClear: Float = 200
     static var warnings = 0, charges = 0, swipes = 0, kept = 0       // (checks)
@@ -46,6 +66,7 @@ extension Mob {
     func fierceBearAI(_ dt: Float, _ g: Game, dist: Float) -> Float? {
         guard kind == .polarBear, !FierceBear.old, !baby, legend < 0, !tamed else { return nil }
         let p = g.player.pos
+        if !FierceBear.oldRun && scale != FierceBear.size { scale = FierceBear.size }     // (ledger 344: half as big again)
         let inFight = g.survival && g.alive
         switch phase {
         case 1:                                           // the warning: up on its hind legs, facing him, roaring
@@ -63,7 +84,7 @@ extension Mob {
             if !inFight || dist > FierceBear.giveUp { phase = 0; aggro = false; return 0 }
             aggro = true
             face(p); moving = true
-            if g.meleeStrike(self, reach: halfW + 1.6) {
+            if g.meleeStrike(self, reach: halfW + 1.6 + (FierceBear.oldRun ? 0 : 0.3)) {
                 attackCooldown = 1.1
                 FierceBear.swipes += 1
                 let blow = Float(FierceBear.swipe) * FierceBear.clawShare(g)
@@ -71,7 +92,8 @@ extension Mob {
                 g.hurtPlayer(max(1, n), from: pos, cause: "was mauled by a \(spec.name)", knockback: 1.6, attacker: self)
             }
             // (a charge runs flat out; once on him, it keeps at him at a fighting pace)
-            return dist > 4 ? FierceBear.charge : spec.speed * 1.4
+            FierceBear.lastSpeed = FierceBear.runSpeed(self, g, dist: dist)
+            return FierceBear.lastSpeed
         default:
             // Hit or seen: the warning, then the charge.
             let sees = inFight && dist < FierceBear.notice && g.world.canSee(eye, g.player.eye)

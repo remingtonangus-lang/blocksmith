@@ -122,6 +122,58 @@ enum BearCheck {
               String(format: "ledger 342: it sees him far off (nearest notice %.0f blocks), roars and stands (shortest %.1f s), charges faster than his sprint (slowest %.1f b/s against %.1f) and throws him back (%.1f b/s)",
                      notice, stood, charge, sprint, thrown))
 
+        // Ledger 344: bigger, and its charge comes in bursts of 5 s at about his sprint with a winded lope between. He keeps
+        // 12 ahead of it for 14 s (the bear brought back to the middle each tick, so the arena never ends); what it runs at
+        // each tick is read off.
+        do {
+            reset(); gear("iron")
+            let b = Mob(.polarBear, at: spot)
+            g.mobs.mobs = [b]
+            b.phase = 2; b.phaseTime = 0; b.aggro = true
+            var speeds: [Float] = []
+            for _ in 0..<280 {
+                b.pos = spot; b.vel = .zero
+                g.player.pos = spot + V3(0, 0, 12); g.player.vel = .zero; g.health = 20
+                g.tick(0.05)
+                speeds.append(FierceBear.lastSpeed)
+                g.mobs.mobs.removeAll { $0 !== b }; w.pendingMobs.removeAll()
+            }
+            // (runs of the same speed: the bursts and the lopes)
+            var runs: [(Float, Float)] = []
+            for v in speeds { if let l = runs.last, l.0 == v { runs[runs.count - 1].1 += 0.05 } else { runs.append((v, 0.05)) } }
+            let bursts = runs.filter { $0.0 > sprint }, rests = runs.filter { $0.0 < Player.sprintSpeed }
+            let fullBursts = bursts.dropLast().map { $0.1 }                   // (the last may be cut off by the end)
+            let fast = bursts.map { $0.0 }.max() ?? 0
+            let ok = bursts.count >= 2 && !fullBursts.isEmpty && fullBursts.allSatisfy { abs($0 - 5) < 0.3 } && !rests.isEmpty
+                && fast > sprint && fast < sprint * 1.25
+            check(ok && b.height > 1.9 && b.scale > 1.4 && b.halfW < 0.8,
+                  String(format: "ledger 344: the bear is half as big again (%.1f tall; its body %.1f wide, so it still gets between trees) and charges in bursts: %@ (b/s for s; his sprint %.1f)",
+                         b.height, b.halfW * 2, runs.map { String(format: "%.1f for %.1f", $0.0, $0.1) }.joined(separator: ", "), sprint))
+            g.mobs.mobs = []
+        }
+        // ...and running from it flat out (his headset sprint) does not shake it off: from 6 behind, mid-charge, it is on
+        // him and swiping within 6 s (it dropped to its fighting pace alongside him and he ran clear).
+        do {
+            reset(); gear("iron")
+            let dir = V3(0, 0, 1), run = Player.vrSprintSpeed
+            g.player.pos = spot + V3(0, 0, -24)
+            let b = Mob(.polarBear, at: g.player.pos - dir * 6)
+            g.mobs.mobs = [b]
+            b.phase = 2; b.phaseTime = 0; b.aggro = true
+            let sw0 = FierceBear.swipes
+            var s: Float = 0, hitAt: Float = -1, closest: Float = 99
+            while s < 6 && hitAt < 0 {
+                g.player.pos += dir * run * 0.05; g.player.vel = dir * run; g.health = 20
+                g.tick(0.05); s += 0.05
+                closest = min(closest, flat(b.pos - g.player.pos))
+                if FierceBear.swipes > sw0 { hitAt = s }
+                g.mobs.mobs.removeAll { $0 !== b }; w.pendingMobs.removeAll()
+            }
+            check(hitAt > 0, String(format: "ledger 344: he cannot outrun it at a sprint (%.1f b/s): from 6 behind it swipes him %@ (closest %.1f)",
+                                    run, hitAt > 0 ? String(format: "after %.1f s", hitAt) : "never in 6 s", closest))
+            g.mobs.mobs = []
+        }
+
         // A cub, the wolf, panda and fox beside him leave him alone as before (no grown bear by the cub: its mother's rule
         // stands), and the fierce ways are a wild grown bear's alone (not a cub's, the legend's (Hunting.swift) or a tamed one's).
         reset(); gear("iron")
