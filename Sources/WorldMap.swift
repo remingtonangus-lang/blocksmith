@@ -128,6 +128,12 @@ final class MapCache {
         return false
     }
 
+    // Biomes whose map colour is their grass colour (the last case of `shade`).
+    static func grassTopped(_ b: Biome) -> Bool {
+        !(b.isOcean || b.isRiver || b.isBeach || b == .desert || b.isBadlands || b == .mushroomFields || b == .cherryGrove
+          || b == .stonyPeaks || b == .windsweptGravellyHills || b.isPeak || b.info.temp < 0.15 || b == .iceSpikes)
+    }
+
     // Biome base colour, lighter on high ground and darker in deep water.
     static func shade(_ b: Biome, height h: Int) -> UInt32 {
         var base: UInt32

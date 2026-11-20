@@ -96,6 +96,7 @@ if renderPath != nil {
     // The headset's imported art (AndroidMain reads assets/texpack.bin the same way), so CI renders show the real
     // textures instead of the procedural fallback (done audit 25b6).
     if TextureImport.pack == nil { TextureImport.load(FileManager.default.contents(atPath: "Resources/texpack.bin")) }
+    if FarSprites.pack == nil && Env.all["BS_NOFARPACK"] == nil { FarSprites.load(FileManager.default.contents(atPath: "Resources/farpack.bin")) }
 }
 let device = sharedSystemDevice
 // --controllerpic OUT.svg [--left]: P402 (3), the loading scene's controller picture (quest/src/app/ControllerPicture.swift).
@@ -143,7 +144,17 @@ if CommandLine.arguments.contains("--vehiclecheck") { exit(QuestVehicleCheck.run
 // --orderscheck: P456, intercepted orders point at places really built, in several kinds (quest/src/test/QuestOrdersCheck.swift).
 if CommandLine.arguments.contains("--orderscheck") { exit(QuestOrdersCheck.run()) }
 // --shovecheck: P455, a heavy vehicle pushes through trees on its engine (quest/src/test/QuestShoveCheck.swift).
-if CommandLine.arguments.contains("--shovecheck") { exit(QuestShoveCheck.run()) }
+if CommandLine.arguments.contains("--shovecheck") {
+    if let path = renderPath, !path.isEmpty, let ctx = vkctx {          // (ledger 308: pictures of the drive)
+        let dir = (path as NSString).deletingLastPathComponent
+        QuestShoveCheck.shot = { g, name, eye, yaw, pitch in
+            g.player.pos = eye; g.player.vel = .zero; g.player.flying = true
+            do { try RenderTest.render(game: g, ctx: ctx, path: (dir.isEmpty ? "." : dir) + "/\(name).png", width: 960, height: 540, yaw: yaw, pitch: pitch) }
+            catch { print("shovecheck render \(name): \(error)") }
+        }
+    }
+    exit(QuestShoveCheck.run())
+}
 // --detailcheck (P451): a cold sea keeps its ice through the spring melt; pumpkins grow in patches.
 if CommandLine.arguments.contains("--detailcheck") { exit(QuestDetailCheck.run()) }
 // --treerepair: P447, old second stems and kinks tidied out of saved land (quest/src/test/QuestTreeRepair.swift).

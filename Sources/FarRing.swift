@@ -28,7 +28,7 @@ final class FarRing {
     // as one low-poly stand-in per real tree (FarForest.swift: the tree pass's own lattice, so a stand-in is where the
     // chunk will grow the tree), out to `FarForest.reach` blocks; the ground under them keeps its true height there
     // instead of the canopy lift. BS_FARLAYER=1 turns it on (off = before).
-    // On the headset it is Options > Far Scenery (QuestSettings.farLayer, off until measured there).
+    // On the headset it is Options > Far Scenery (QuestSettings.farLayer, on by default since Nov 20).
     static let layerEnv = Env.all["BS_FARLAYER"] == "1"
     static var layer = layerEnv
     static let outer: Float = 1024                 // blocks: the rim (64 chunks)
@@ -43,6 +43,7 @@ final class FarRing {
         var blocky = false                         // terraced block columns (block world) or the smooth field
         var verts: [SimpleVert] = []
         var quads: Int { verts.count / 4 }
+        var cards = 0                              // ledger 362: the last `cards` quads are the far trees' cards
         // P484 (gap cover): the ring's own quads over every chunk inside the loaded disc, one chunk's run each (the 8-
         // and 16-block bands line up with the chunks). WorldRenderer draws them over the chunks not drawn yet, so a gap
         // in the land while it streams in shows coarse ground instead of the void and the caves of the chunks beside it.
@@ -122,6 +123,7 @@ final class FarRing {
             if self.forest.seed != sd { self.forest = FarForest(seed: sd); self.trackWarm.removeAll() }
             out.verts = FarRing.build(gen, cx: cx, cz: cz, rin: FarRing.loadedRadius(rd), memo: &self.memo, blocky: blocky,
                                       inner: &inner, wantInner: FarRing.gapCover, forest: layer ? self.forest : nil)
+            out.cards = layer ? self.forest.lastCards : 0
             out.innerVerts.reserveCapacity(inner.values.reduce(0) { $0 + $1.count })
             for (k, v) in inner {
                 out.inner[k] = out.innerVerts.count..<(out.innerVerts.count + v.count)
@@ -185,6 +187,13 @@ final class FarRing {
         // Map colours are the raw biome tints; the blocks' own textures darken them (grass, sand and stone art average
         // about 0.8), so the ring matches the textured ground at the seam.
         var c = rgb(MapCache.shade(b, height: top)) * 0.8
+        // Ledger 362 (far ground painted as the near ground is: the top block's own texture average times the column's
+        // blended grass colour, the way the chunks tint it; the method is the Voxelize far terrain's, from the harvest
+        // list). The map colour is the raw biome grass, brightened with height: a jungle hill's far side stood out a
+        // bright lawn green beside the olive ground of the chunks.
+        if FarRing.paintedGround && MapCache.grassTopped(b) {
+            c = gen.grassTint(k) * FarRing.grassTop
+        }
         // P250 (b): the flanks of a terrace. Grass, mycelium, petals and snow over soil show dirt from the side (with
         // a little of the top's fringe); sand, stone, terracotta and peaks are the same material all the way down.
         let soil = !(b.isOcean || b.isRiver || b.isBeach || b == .desert || b.isBadlands || b == .stonyPeaks
@@ -258,8 +267,12 @@ final class FarRing {
         let cover = 1 - expf(-odds * 25 / 9)
         // Snow on the conifers of the cold woods; leaf art is darker than its tint (holes, shading).
         if b == .snowyTaiga || b == .grove { leaf = simd_mix(leaf, V3(0.93, 0.95, 0.97), V3(repeating: 0.45)) }
-        return (cover, h * min(1, cover * 1.4), leaf * 0.62)
+        // (ledger 362: with the far ground now painted as the near grass, darker than the old map green, the canopy keeps
+        // its old step under the grass round it, P250 (b): 0.55, was 0.62)
+        return (cover, h * min(1, cover * 1.4), leaf * (FarRing.paintedGround ? 0.55 : 0.62))
     }
+    static let paintedGround = Env.all["BS_OLDFARGROUND"] == nil
+    static let grassTop: Float = 0.6                       // grass_block_top's average (grey art, tinted)
     static let dirt = V3(0.525, 0.376, 0.263) * 0.8        // the dirt texture's average, darkened like the map colours
     static let rock = V3(0.6, 0.6, 0.59) * 0.8             // stone (0x9A9A96, the map's peak colour)
     static let snow = V3(0.93, 0.95, 0.96) * 0.92          // snow (0xEEF2F6; its art is brighter than grass or stone)
@@ -435,6 +448,8 @@ final class FarRing {
         if let forest {
             forest.emit(gen, cx: cx, cz: cz, rin: rin, from: max(0, skip), into: &out)
             forest.lastTrack = FarTrack.emit(gen, cx: cx, cz: cz, from: max(0, skip), into: &out)
+            // (ledger 362: the cards go last; Mesh.cards of the buffer's quads are theirs, drawn by their own pipeline)
+            if FarForest.cards { _ = forest.emitCards(gen, cx: cx, cz: cz, rin: rin, into: &out) }
         }
         return out
     }

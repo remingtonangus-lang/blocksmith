@@ -52,6 +52,8 @@ if [ -d Resources/Textures ] && python3 -c "import PIL" 2>/dev/null; then python
 else echo "texpack: using the committed Resources/texpack.bin"; fi
 mkdir -p "$STAGE/assets"
 [ -f Resources/texpack.bin ] && cp Resources/texpack.bin "$STAGE/assets/"
+# The far trees' pictures (tools/far_sprites.py; ledger 362).
+[ -f Resources/farpack.bin ] && cp Resources/farpack.bin "$STAGE/assets/"
 # Townsfolk voice takes (tools/townvoice_gen.py; TownVoice.load reads them at launch).
 [ -f Resources/voices.bin ] && cp Resources/voices.bin "$STAGE/assets/"
 # Recorded sounds that replace synthesized ones by name (Resources/Sounds/real/README.md; AndroidMain lists assets/sounds/real).

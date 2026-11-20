@@ -8,6 +8,9 @@ import Metal
 //   questcheck --shovecheck; the full suite runs it too (`into`: the suite's check, on a world of its own; the
 //   generator's and the smooth ground's switches put back after).
 enum QuestShoveCheck {
+    // (--shovecheck --render DIR/x.png: pictures of the carriage's first drive from beside it, every half second)
+    static var shot: ((Game, String, V3, Float, Float) -> Void)?
+    static let oldUnseeded = Env.all["BS_OLDSHOVEUNSEEDED"] == "1"     // ledger 308 (b) off
     static func run(into outer: ((Bool, String) -> Void)? = nil) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)
         TextureGen.registerAll()
@@ -18,6 +21,14 @@ enum QuestShoveCheck {
         }
         let newWorlds0 = FieldTerrain.newWorlds, trace0 = Momentum.traceRest
         defer { FieldTerrain.newWorlds = newWorlds0; Momentum.traceRest = trace0 }
+        // Ledger 308 (b): each drive starts from the same settled state alone as inside the suite. Its own seeded
+        // stream (inside the suite an earlier check's Rand.seed left the stream seeded: falling blocks and crater work
+        // done whole each tick, not on the wall clock's slices) and World.deterministic (streamed chunks and their meshes
+        // in a fixed order, not by the frame's clock), as the suite's bot runs leave it. Alone it drove 23-30 blocks,
+        // run to run; in the suite 41. Both put back after. BS_OLDSHOVEUNSEEDED=1: as before.
+        let rand0 = Rand.snapshot, det0 = World.deterministic
+        if !QuestShoveCheck.oldUnseeded { Rand.seed(4797); World.deterministic = true }
+        defer { Rand.snapshot = rand0; World.deterministic = det0 }
         // (Job 6: its own Game's world load starts the trains over; the suite's are put back.)
         let trains0 = Trains.trains, carOf0 = Trains.carOf, saved0 = Trains.saved
         defer { Trains.trains = trains0; Trains.carOf = carOf0; Trains.saved = saved0 }
@@ -100,8 +111,19 @@ enum QuestShoveCheck {
             let n0 = count(), p0 = s.pos, calls0 = Momentum.shoveCalls
             Momentum.traceRest = true
             s.autopilot = V3(1, 0, 0)
+            let shots = QuestShoveCheck.shot != nil && name.hasPrefix("Ironstride")
             for i in 0..<Int(seconds * 72) {
                 g.tick(1.0 / 72)
+                if shots && i % 36 == 35, let shoot = QuestShoveCheck.shot {
+                    // (from the side and above, a little behind the wall row, looking at the carriage's middle)
+                    let mid = (s.worldMin + s.worldMax) * 0.5
+                    let side = V3(ahead.z, 0, -ahead.x)
+                    let eye = mid + side * 26 + ahead * 6 + V3(0, 9, 0)
+                    let d = mid - eye
+                    let keep = g.player.pos
+                    shoot(g, String(format: "shove-%02d", (i + 1) / 36), eye, atan2f(-d.x, -d.z), asinf(d.y / simd_length(d)))
+                    g.player.pos = keep
+                }
                 if i % 144 == 143 {
                     print(String(format: "shovecheck:   %.0f s: %.1f along, speed %.2f, ease %.2f, grounded %@, pushes %d, side contacts %d", Float(i + 1) / 72,
                                  simd_dot(s.pos - p0, ahead), simd_length(s.vel), s.throttleEase, s.grounded ? "yes" : "no", Momentum.shoveCalls - calls0, Momentum.sideContacts))
@@ -158,10 +180,11 @@ enum QuestShoveCheck {
             return (s, n0, count(), simd_dot(s.pos - p0, ahead))
         }
         let shoved0 = Momentum.shoved
+        let swept0 = Momentum.bellySwept
         let bigAt = level(halfX: 10, halfZ: 30, awayFrom: nil)
         print("shovecheck: the carriage's place \(bigAt.0) \(bigAt.1), the land \(bigAt.2) blocks from lowest to highest under its run")
         let (big, b0, b1, bMoved) = drive(Vessels.carriage(), "Ironstride Siege Carriage", at: bigAt.0, bigAt.1 + 10, seconds: 8)
-        print(String(format: "shovecheck: the siege carriage (mass %.0f) broke %d of %d trunk and plank blocks and drove %.1f blocks", big.mass, b0 - b1, b0, bMoved))
+        print(String(format: "shovecheck: the siege carriage (mass %.0f) broke %d of %d trunk and plank blocks and drove %.1f blocks (cells under its belly offered to the shove: %d)", big.mass, b0 - b1, b0, bMoved, Momentum.bellySwept - swept0))
         // (the rows two and five blocks off its bow, then the spruce wood beyond: his 14:19 "blasts through trees")
         check(Momentum.oldBelly ? true : bMoved > 32, String(format: "the siege carriage drives on past both rows (%.1f blocks in 8 s; it was held at 9.1 by a tree against its upper works, and at 28.5 on the wall's middle under its belly)", bMoved))
         check(ghosts == 0, "nothing it drove past is left standing inside its hull (\(ghosts) blocks)")

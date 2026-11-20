@@ -123,7 +123,7 @@ final class WorldRenderer {
     // the other (only once the other has been out of use for 3 frames: both frames in flight are done with it).
     private(set) var farRingOn = false           // this frame's uniforms showed it (open overworld sky)
     private var farBufs: [VkBuf?] = [nil, nil]
-    private var farLive = -1, farQuads = 0, farGen = -1, farFrame = 0
+    private var farLive = -1, farQuads = 0, farCards = 0, farGen = -1, farFrame = 0
     private var farUsed = [-10, -10]
     private var farOrigin = (0, 0), farSeed: UInt64 = 0
     private(set) var farRingQuads = 0            // drawn last frame (perf lines)
@@ -242,6 +242,7 @@ final class WorldRenderer {
             && game.blindFog == nil && fogEnd >= baseEnd - 0.01 && game.world.gen is WorldGen
         // (Only once a ring is up: until its first build lands the loaded edge keeps the usual fog.)
         if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * clearStart }
+        if WorldRenderer.noFog { fogEnd = 1e6; fogStart = 9e5 }      // (tools/far_sprites.py: a tree photographed without haze)
         // O7: fog banks (WeatherWar.swift). P365 (g): applied after the middle ring (the ring stays up under a bank),
         // so the reach closes in smoothly from the ring's rim instead of snapping from the ring to the loaded edge when
         // the bank begins and back when it lifts.
@@ -426,6 +427,7 @@ final class WorldRenderer {
     // F4: the middle ring after the opaque terrain (the loaded chunks win the depth test; far.vert sinks the ring under
     // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
     static let fogSnap = Env.all["BS_FOGSNAP"] == "1"
+    static let noFog = Env.all["BS_NOFOG"] == "1"
     private func drawFarRing(_ s: SceneRenderer.Slot, _ eye: V3) {
         farFrame += 1
         farRingQuads = 0
@@ -451,7 +453,7 @@ final class WorldRenderer {
                 }
                 if let b = farBufs[k], let p = b.mapped {
                     m.verts.withUnsafeBytes { src in _ = memcpy(p, src.baseAddress!, bytes) }
-                    farLive = k; farQuads = m.quads; farGen = m.gen; farOrigin = (m.cx, m.cz); farSeed = m.seed
+                    farLive = k; farQuads = m.quads; farCards = m.cards; farGen = m.gen; farOrigin = (m.cx, m.cz); farSeed = m.seed
                 }
             }
         }
@@ -471,7 +473,8 @@ final class WorldRenderer {
         }
         let rin = farCover
         let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(lx, lz, rin, 12), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
-        scene.drawFar(s, b, quads: farQuads, params: params)
+        scene.drawFar(s, b, quads: farQuads - farCards, params: params)
+        scene.drawFarCards(s, b, first: farQuads - farCards, count: farCards, params: params)
         farRingQuads = farQuads
     }
 

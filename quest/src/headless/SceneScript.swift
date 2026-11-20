@@ -12,7 +12,8 @@ import simd
 //
 //   at X Y Z / look YAW PITCH / load R / tick SECONDS / survival on|off / fly on|off / give ITEM [N]
 //   block X Y Z / set X Y Z KEY / break X Y Z / place X Y Z / blast X Y Z [POWER] / dump X0 Y0 Z0 X1 Y1 Z1
-//   shot NAME.png [W H]                          (the --view render at the eye; into --out DIR, never the repo)
+//   tree KIND X Y Z [VARIANT] [snow]            (one generated tree, its foot there)
+//   shot NAME.png [W H [FOV]]                          (the --view render at the eye; into --out DIR, never the repo)
 //   spawn mob KIND [DIST] / spawn vessel KIND / ride nearest train|ship / drive THROTTLE SECONDS / walk forward SECONDS
 //   train at station                             (the nearest line's passenger train standing at its nearest station)
 //   ride until step N MIN [SECONDS]              (play on until the floors' step at coach N's coupling is MIN either way)
@@ -121,6 +122,13 @@ enum SceneScript {
             a.yaw = dy; a.pitch = pitch - g.player.pitch
             step(a)
             g.player.yaw = yaw; g.player.pitch = pitch      // (the mouse path clamps and scales: land exactly)
+        }
+        // (the column's foliage colour as the chunks tint leaves with it: tools/far_sprites.py records it)
+        func tintText(_ x: Int, _ z: Int) -> String {
+            guard let gen = w.gen as? WorldGen else { return "0 0 0" }
+            let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+            let c = gen.tints(cx: cx, cz: cz)[256 + (x - cx * CS) + (z - cz * CS) * CS]
+            return "\(c & 255) \((c >> 8) & 255) \((c >> 16) & 255)"
         }
         func cellText(_ x: Int, _ y: Int, _ z: Int) -> String {
             let b = w.block(x, y, z), m = w.materialAt(x, y, z), gr = w.groundAt(x, y, z)
@@ -291,6 +299,26 @@ enum SceneScript {
                 guard t.count == 5, let x = Int(t[1]), let y = Y(t[2]), let z = Int(t[3]), Blocks.has(String(t[4])) else { bad(); continue }
                 w.setBlock(x, y, z, Blocks.id(String(t[4])))
                 print("\(ln) now \(cellText(x, y, z))")
+            case "tree":
+                // tree KIND X Y Z [VARIANT] [snow]: one tree as the generator builds it, its foot at X Y Z, alone in
+                // the air or on the ground (tools/far_sprites.sh photographs the kinds for the far cards).
+                guard t.count >= 5, let kind = FarSprites.kind(String(t[1])), let x = Int(t[2]), let y = Y(t[3]), let z = Int(t[4]) else { bad(); continue }
+                let variant = t.count > 5 ? Int(t[5]) ?? 0 : 0
+                var b: [BlockID] = []
+                FarSprites.blocks(kind, variant: variant, y: y, into: &b)
+                var n = 0
+                let snowL = t.count > 6 && t[6] == "snow" ? SmoothTerrain.snowLayer : nil
+                for lz in 0..<CS { for lx in 0..<CS {
+                    var top = -1
+                    for ly in y..<min(CH - 1, y + 60) {
+                        let id = b[Chunk.index(lx, ly, lz)]
+                        guard id != AIR else { continue }
+                        w.setBlock(x + lx - 8, ly, z + lz - 8, id); n += 1
+                        if Mesher.leafT[Int(id)] { top = ly }
+                    }
+                    if let sl = snowL, top >= 0, b[Chunk.index(lx, top + 1, lz)] == AIR { w.setBlock(x + lx - 8, top + 1, z + lz - 8, BlockID(sl)) }
+                } }
+                print("\(ln) tree \(t[1]) variant \(variant): \(n) blocks, frame \(FarSprites.frame(kind).side) rise \(FarSprites.frame(kind).rise) tint \(tintText(x, z))")
             case "break":
                 // The player's own break: the eye turned onto the cell's middle, the attack held until it is gone (10 s at most).
                 guard t.count == 4, let x = Int(t[1]), let y = Y(t[2]), let z = Int(t[3]) else { bad(); continue }
@@ -404,8 +432,9 @@ enum SceneScript {
                 try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
                 let out = (outDir as NSString).appendingPathComponent(String(t[1]))
                 let wd = t.count > 2 ? Int(t[2]) ?? 640 : 640, ht = t.count > 3 ? Int(t[3]) ?? 640 : 640
+                let fov = t.count > 4 ? Float(t[4]) ?? 90 : 90
                 do {
-                    try RenderTest.render(game: g, ctx: c, path: out, width: wd, height: ht, yaw: g.player.yaw, pitch: g.player.pitch, fovDeg: 90)
+                    try RenderTest.render(game: g, ctx: c, path: out, width: wd, height: ht, yaw: g.player.yaw, pitch: g.player.pitch, fovDeg: fov)
                     print("\(ln) wrote \(out)")
                 } catch { print("FAIL \(ln) \(error)"); fails += 1 }
             case "spawn":

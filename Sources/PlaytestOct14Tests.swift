@@ -65,11 +65,65 @@ enum PlaytestOct14Tests {
         var memo: [Int64: FarRing.Sample] = [:], inner: [ChunkKey: [SimpleVert]] = [:]
         let rin = FarRing.loadedRadius(8)
         let plain = FarRing.build(gen, cx: f.0, cz: f.1, rin: rin, memo: &memo, inner: &inner)
+        // (the pictures load before the ring is built: loaded after it, the ring had drawn the stand-ins, 0 cards)
+        if FarSprites.pack == nil && Env.all["BS_NOFARPACK"] == nil { FarSprites.load(FileManager.default.contents(atPath: "Resources/farpack.bin")) }
         let forest = FarForest(seed: 1)
         let with = FarRing.build(gen, cx: f.0, cz: f.1, rin: rin, memo: &memo, inner: &inner, forest: forest)
         let more = (with.count - plain.count) / 4
+        // Ledger 362: with the pictures (Resources/farpack.bin) every tree in reach is one card; without them, or under
+        // BS_FARSHAPES=1, the lathed stand-ins of ledger 361 within their budget.
+        if FarForest.cards {
+            var missing: [String] = []
+            for k in FarSprites.kinds { for sn in (k.2 ? [false, true] : [false]) { for v in 0..<FarSprites.variants { for y in 0..<8 {
+                let name = FarSprites.layerName(k.0, variant: v, snowy: sn, yaw: y)
+                guard let img = FarSprites.pack?.image(name, size: 32) else { missing.append(name); continue }
+                let solid = img.filter { $0.w > 0.5 }.count
+                if solid < 20 || solid > 900 /* (a birch is thin: 28 px of 1024 at 32 px) */ { missing.append(name + " (\(solid) of 1024 px solid)") }
+            } } } }
+            check(missing.isEmpty, "ledger 362 (a): every far tree kind has its 8 pictures, each a tree on a clear ground (\(FarSprites.layers) layers in \(FarSprites.sets) sets\(missing.isEmpty ? "" : "; wrong: " + missing.prefix(4).joined(separator: ", ")))")
+            check(forest.lastCards > 500 && more == forest.lastCards && forest.lastQuads == 0,
+                  "ledger 362 (b): a ring at view 8 over a forest draws each far tree as one card (\(forest.lastCards) cards, no lathed stand-ins; BS_FARSHAPES=1: the stand-ins)")
+            // (c) Snow on the far trees: a snowy twin's picture from above is whiter than the plain one's (every kind
+            // that can stand in the cold has one).
+            var bare: [String] = []
+            func white(_ name: String) -> Int { (FarSprites.pack?.image(name, size: 32) ?? []).filter { $0.w > 0.5 && min($0.x, $0.y, $0.z) > 0.55 }.count }
+            for k in FarSprites.kinds where k.2 { for v in 0..<FarSprites.variants {
+                let plainW = white(FarSprites.layerName(k.0, variant: v, snowy: false, yaw: 4)), snowW = white(FarSprites.layerName(k.0, variant: v, snowy: true, yaw: 4))
+                if snowW < plainW + 6 /* (a birch from above: 6-10 white px against 0) */ { bare.append("\(k.0) \(v): \(snowW) white px against \(plainW)") }
+            } }
+            check(bare.isEmpty, "ledger 362 (c): every cold tree kind's far picture carries its snow (\(FarSprites.kinds.filter { $0.2 }.count) kinds\(bare.isEmpty ? "" : "; bare: " + bare.prefix(4).joined(separator: ", ")))")
+            // (d) Far and near take one colour: a jungle's far ground is the grass block's own colour there (its texture
+            // average times the chunk's blended grass tint; BS_OLDFARGROUND=1: the raw map green, 0.25 brighter), and a
+            // tinted far tree takes the chunk's foliage tint over the pictures' (BS_NOFARWOODSHADE=1 for the bare ratio).
+            let jg = WorldGen(seed: 4259144782798118884)
+            var worstG: Float = 0, grassN = 0, worstT: Float = 0, treeN = 0, sumT: Float = 0
+            for cxk in -190 ... -186 { for czk in 61...65 {
+                let t = jg.tints(cx: cxk, cz: czk)
+                func col(_ v: UInt32) -> V3 { V3(Float(v & 255), Float((v >> 8) & 255), Float((v >> 16) & 255)) / 255 }
+                let x = cxk * CS + 8, z = czk * CS + 8
+                let smp = FarRing.sample(jg, x, z)
+                if smp.kind == 0 && MapCache.grassTopped(jg.terrain.biome(jg.columnData(x, z), jg.columnData(x, z).h)) && smp.c0.y > smp.c0.x && smp.c0.x < 0.6 {
+                    let want = col(t[8 * CS + 8]) * FarRing.grassTop
+                    worstG = max(worstG, { let d = simd_abs(smp.c0 - want); return max(d.x, max(d.y, d.z)) }()); grassN += 1
+                }
+                for gx in (cxk * CS / 3)..<(cxk * CS / 3 + 5) { for gz in (czk * CS / 3)..<(czk * CS / 3 + 5) {
+                    guard let tr = FarForest.site(jg, gx, gz), FarSprites.tinted(tr.kind) else { continue }
+                    let lx = Int(tr.x) - cxk * CS, lz = Int(tr.z) - czk * CS
+                    guard lx >= 0, lx < CS, lz >= 0, lz < CS else { continue }
+                    // (the wood's shade divided out: the tree's own, from its dithered biome)
+                    let got = tr.tint * FarSprites.captureTint / max(tr.shade, 0.01)
+                    let dT: Float = { let d = simd_abs(got - col(t[256 + lz * CS + lx])); return max(d.x, max(d.y, d.z)) }(); worstT = max(worstT, dT); sumT += dT; treeN += 1
+                } }
+            } }
+            check(grassN >= 5 && (worstG < 0.03) == FarRing.paintedGround,
+                  String(format: "ledger 362 (d): a jungle's far ground is the near ground's colour (%d columns, worst channel off by %.3f; BS_OLDFARGROUND=1: the raw map green)", grassN, worstG))
+            // (the far tree takes its own column's foliage colour; the chunk's map is blended over its neighbours, so near a
+            // biome's edge one tree differs by up to about a tenth: the mean says whether the colours are the chunk's)
+            check(treeN >= 5 && sumT / Float(max(1, treeN)) < 0.03 && worstT < 0.15, String(format: "ledger 362 (d): a far tree's leaves take the chunk's own foliage colour (%d trees, mean channel off by %.3f, worst %.3f)", treeN, sumT / Float(max(1, treeN)), worstT))
+        } else {
         check(forest.lastQuads > 500 && more == forest.lastQuads && forest.lastQuads <= FarForest.maxQuads + 4096,
               "ledger 361 (b): a ring at view 8 over a forest carries stand-ins within the budget (\(forest.lastQuads) quads of \(FarForest.maxQuads), far thinning x\(String(format: "%.2f", forest.lastSqueeze)); 0 without the layer)")
+        }
         // The ground 200 blocks out: lifted to the canopy without the layer, the ground's own height with it.
         func groundY(_ v: [SimpleVert], _ n: Int) -> Float {
             var sum: Float = 0, c: Float = 0
@@ -83,7 +137,7 @@ enum PlaytestOct14Tests {
         let tg = WorldGen(seed: 4259144782798118884)
         let thick = FarForest(seed: 2)
         thick.plan(tg, cx: -4416, cz: -960, rin: rin, from: max(0, min(rin - 100, rin * 0.55)))
-        check(thick.planReach >= FarForest.reach && thick.kmin >= 0.4,
+        check(thick.planReach >= FarForest.reach && (FarForest.cards ? thick.kmin >= 1 : thick.kmin >= 0.4),
               "ledger 361 (c): a thick taiga's stand-in trees reach the full \(Int(FarForest.reach)) blocks (\(Int(thick.planReach))), \(Int(thick.kmin * 100))% of them standing at the far end")
     }
 

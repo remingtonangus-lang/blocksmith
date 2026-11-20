@@ -78,6 +78,16 @@ struct ViewGovernor {
     static let lidLeave: Float = 160
     var lidded: Bool { lid < Self.keepView && !Self.keepOld }
     mutating func placeChanged() { if lidded { lid = Self.ceiling } }
+    // Ledger 384 (Nov 20 playtest, 3376e5a: "it took too long to bounce back after a drop"): under `keepView` the climb
+    // back is quick. A raise waits `keepFastHold` seconds of room (not 15) and `keepSettle` after the last change (not
+    // 8): 6 -> 12 in about 15 s once there is room, where it took over a minute. The build he played (3376e5a) also
+    // kept a lid ten minutes wherever he went; ledger 382 already lifts it 160 blocks away. In the same place the lid
+    // keeps its ten minutes (ledger 233, the store review's "fluctuates": a place that misses frames at 12 must not
+    // try it every minute; check 5). BS_OLDCLIMB=1 = as 382.
+    static let oldClimb = keepOld || Env.all["BS_OLDCLIMB"] == "1"
+    static let keepFastHold = 4.0, keepSettle = 3.0
+    var climbing: Bool { !Self.oldClimb && current < Self.keepView }
+    var holdNow: Double { current < Self.keepView ? (Self.oldClimb ? min(hold, Self.keepHold) : Self.keepFastHold) : hold }
     static let quadFloor = Env.all["BS_QUADFLOOR"].flatMap { Int($0) } ?? 6
     static let quadSettle = 2.0
     // Store review (Meta, Nov 2, VRC.Quest.Performance.1: "fluctuates under and over 60 frames per second"): a frame
@@ -193,7 +203,7 @@ struct ViewGovernor {
         let quadsNext = Double(quads) * pow(Double(next) / Double(max(1, current)), Self.exponent)
         guard quadsNext <= Double(Self.quadCap) * Self.raiseRoom(next) else { quadGood = 0; return .none }
         quadGood += seconds
-        guard quadGood >= (current < Self.keepView ? min(Self.baseHold, Self.keepHold) : Self.baseHold) else { return .none }
+        guard quadGood >= (current < Self.keepView ? (Self.oldClimb ? min(Self.baseHold, Self.keepHold) : Self.keepFastHold) : Self.baseHold) else { return .none }
         quadGood = 0
         current = next
         return .raise(current)
@@ -223,7 +233,7 @@ struct ViewGovernor {
             if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
-        if w.excused || w.loading || sinceChange < Self.settle {
+        if w.excused || w.loading || sinceChange < (climbing ? Self.keepSettle : Self.settle) {
             note = w.excused ? "excused" : (w.loading ? "loading" : "settling")
             return .none
         }
@@ -254,8 +264,8 @@ struct ViewGovernor {
             return .none
         }
         good += w.seconds
-        note = String(format: "room for %.0f of %.0f s", good, hold)
-        guard good >= (current < Self.keepView ? min(hold, Self.keepHold) : hold) else { return .none }
+        note = String(format: "room for %.0f of %.0f s", good, holdNow)
+        guard good >= holdNow else { return .none }
         // Store review (Nov 2): one step at a time. Three at once (up to six chunks more of land to make and draw) was a
         // burst of new land on the workers and the frame, and when the model was wrong a dip as deep as the jump: the
         // "fluctuates under and over 60" Meta saw. A step that holds is followed by the next after `hold` again.
@@ -384,6 +394,16 @@ enum ViewGovernorTest {
             let lidded = g10.lidded
             g10.placeChanged()
             check(lidded && !g10.lidded, "viewgovernor: a lid under 12 is lifted in another place (lidded \(lidded), view \(g10.current))")
+        }
+        // 9. Ledger 384: after a drop to 6, once the frames have room again, back at 12 within 20 s (5 s windows).
+        if !ViewGovernor.oldClimb {
+            var g11 = ViewGovernor(chosen: 24, current: 6)
+            let calm = ViewGovernor.Window(seconds: 5, frames: 360, missed: 0, gpuMs: budget * 0.5, budgetMs: budget,
+                                           dynRes: true, scale: 1.0, pixelShare: 0.3, quads: 60_000)
+            var t11 = 0.0
+            while g11.current < 12 && t11 < 120 { _ = g11.observe(calm); t11 += 5 }
+            check(g11.current >= 12 && t11 <= 20,
+                  "viewgovernor: under 12 it climbs back fast (6 -> \(g11.current) in \(Int(t11)) s; BS_OLDCLIMB=1: as 382)")
         }
         return fails
     }
