@@ -42,12 +42,13 @@ enum QuestGraveyard {
     static func retire(_ o: AnyObject) {
         lock.lock()
         // Ledger 389: a frame being recorded may have bound it already (its draw list was taken first): it waits for
-        // that frame too (the one after the last submitted). Before, with nothing in flight it was freed here at once.
-        if MeshArena.oldRetire {
+        // that frame too (the one after the last submitted) while one is being recorded; between frames, with nothing in
+        // flight, it is freed here at once as before.
+        if !MeshArena.oldRetire && MeshArena.recording {
+            items.append((o, submitted + 1))
+        } else {
             if completed >= submitted { lock.unlock(); return }      // nothing in flight: free now (o dies here)
             items.append((o, submitted))
-        } else {
-            items.append((o, submitted + 1))
         }
         lock.unlock()
     }

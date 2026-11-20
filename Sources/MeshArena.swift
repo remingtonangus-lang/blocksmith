@@ -48,17 +48,22 @@ final class MeshArena {
     private static var completedFrames = 0
     // Call right before committing a frame's command buffer; pass the result to frameCompleted().
     static let oldRetire = Env.all["BS_OLDRETIRE"] == "1"
+    // Ledger 389: a frame's recording began (its draw list is taken after this); frameSubmitted() ends it.
+    private static var recordingFrame = false
+    static func frameBegan() { fenceLock.lock(); recordingFrame = true; fenceLock.unlock() }
+    static var recording: Bool { fenceLock.lock(); defer { fenceLock.unlock() }; return recordingFrame }
     static func frameSubmitted() -> Int {
         fenceLock.lock(); defer { fenceLock.unlock() }
+        recordingFrame = false
         submittedFrames += 1
         return submittedFrames
     }
     static func frameCompleted(_ n: Int) {
         fenceLock.lock(); completedFrames = max(completedFrames, n); fenceLock.unlock()
     }
-    private static var fences: (submitted: Int, completed: Int) {
+    private static var fences: (submitted: Int, completed: Int, recording: Bool) {
         fenceLock.lock(); defer { fenceLock.unlock() }
-        return (submittedFrames, completedFrames)
+        return (submittedFrames, completedFrames, recordingFrame)
     }
 
     private let lock = NSLock()
@@ -219,8 +224,10 @@ final class MeshArena {
         // Ledger 389 (Neon's review, Fable's item 3): "right away" was wrong while the next frame is being recorded: its
         // draw list was taken before the release, so it binds the slice, and a mesh written into it meanwhile was drawn
         // in that frame's place. A slice now waits for the frame after the last submitted one too (the one being
-        // recorded, or the next). BS_OLDRETIRE=1 = before.
-        let after = MeshArena.oldRetire ? (f.completed >= f.submitted ? 0 : f.submitted) : f.submitted + 1
+        // recorded) while one is being recorded; between frames (and headless, where no frame runs) as before.
+        // BS_OLDRETIRE=1 = before.
+        let inFlight = f.completed >= f.submitted ? 0 : f.submitted
+        let after = !MeshArena.oldRetire && f.recording ? f.submitted + 1 : inFlight
         lock.lock(); defer { lock.unlock() }
         guard let s = slabs[ObjectIdentifier(b)] else { return }
         s.live -= n
