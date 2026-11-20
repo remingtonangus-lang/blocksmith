@@ -47,6 +47,7 @@ final class MeshArena {
     private static var submittedFrames = 0
     private static var completedFrames = 0
     // Call right before committing a frame's command buffer; pass the result to frameCompleted().
+    static let oldRetire = Env.all["BS_OLDRETIRE"] == "1"
     static func frameSubmitted() -> Int {
         fenceLock.lock(); defer { fenceLock.unlock() }
         submittedFrames += 1
@@ -215,7 +216,11 @@ final class MeshArena {
     fileprivate func release(_ b: MTLBuffer, _ off: Int, _ n: Int) {
         let f = MeshArena.fences
         // Frames up to `submitted` may still read it; if they have all completed it is free right away.
-        let after = f.completed >= f.submitted ? 0 : f.submitted
+        // Ledger 389 (Neon's review, Fable's item 3): "right away" was wrong while the next frame is being recorded: its
+        // draw list was taken before the release, so it binds the slice, and a mesh written into it meanwhile was drawn
+        // in that frame's place. A slice now waits for the frame after the last submitted one too (the one being
+        // recorded, or the next). BS_OLDRETIRE=1 = before.
+        let after = MeshArena.oldRetire ? (f.completed >= f.submitted ? 0 : f.submitted) : f.submitted + 1
         lock.lock(); defer { lock.unlock() }
         guard let s = slabs[ObjectIdentifier(b)] else { return }
         s.live -= n
