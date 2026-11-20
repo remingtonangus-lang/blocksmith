@@ -133,6 +133,8 @@ enum Momentum {
     static var bellyBroke = 0
     static var traceRest = false, rest = (0, 0, 0, 0, V3(0, 0, 0))     // (checks: contacts, up, belly, on other hulls, a belly point)
     static let oldBelly = Env.all["BS_OLDBELLY"] == "1"
+    static let oldBellySweep = Env.all["BS_OLDBELLYSWEEP"] == "1"     // ledger 308 off
+    static var bellySwept = 0                                            // (checks: cells under a belly offered to the shove)
     static let oldCrush = Env.all["BS_OLDCRUSH"] == "1"
     static func crush(_ s: Ship, _ g: Game) {
         guard !oldCrush, s.mass >= 200, s.engines > 0, s.parent == nil else { return }
@@ -192,6 +194,31 @@ enum Momentum {
                     let off = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5) - mid
                     let side = simd_length(off - dir * simd_dot(off, dir))
                     cand.append((c, (k - 0.6) * 2 + side * 0.2 + Float(c.y) * 0.05, b))
+                }
+            }
+        }
+        // Ledger 308 (Nov 19, questcheck --shovecheck: the carriage drove 23-30 blocks of its 32, bouncing 0.9-6 m/s over
+        // the plank wall's middle, one and two planks high, left under its belly between the wheel tracks): what stands
+        // under its belly was broken only once it stood held there (under 1.5 m/s, below), so each remnant lifted it and
+        // slowed it first. A driven hull now clears what stands just ahead of its underside as it clears its bow: under
+        // each bottom cell of the hull (none of its own below), the cell one down and ahead. Ground and what it drives
+        // on (under its lowest point) stay. BS_OLDBELLYSWEEP=1: as before.
+        if !Momentum.oldBellySweep && s.wheels.count >= 4 {
+            let down = V3(0, 1, 0)
+            for p in pts where !own(p - down) {
+                for k: Float in [0.6, 1.3] {
+                    let q = p - down + dir * k
+                    guard !own(q) else { continue }
+                    let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                    guard c.y >= 1, c.y < CH - 1, Float(c.y + 1) > floorY, seen.insert(c).inserted else { continue }
+                    let b = w.block(c.x, c.y, c.z)
+                    guard b != AIR, Blocks.collide[Int(b)], !Blocks.isLiquid(b), w.blockEntities[c] == nil else { continue }
+                    let hard = Blocks.hardness[Int(b)]
+                    guard hard >= 0, hard <= min(heft, 3), !w.groundAt(c.x, c.y, c.z),
+                          !SmoothTerrain.natural[Int(b)] || CapitalBase.isLog(b) || CapitalBase.isLeaf(b) else { continue }
+                    let off = V3(Float(c.x) + 0.5, Float(c.y) + 0.5, Float(c.z) + 0.5) - mid
+                    let side = simd_length(off - dir * simd_dot(off, dir))
+                    cand.append((c, (k - 0.6) * 2 + side * 0.2 + Float(c.y) * 0.05, b)); bellySwept += 1
                 }
             }
         }
