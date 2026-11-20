@@ -99,6 +99,19 @@ enum PlaytestOct13Tests {
                   "ledger 398: an arc bolt drops a trooper; the marshal, chancellor and a commandant live (jump to a bystander \(marshal.bystander)); shells don't one-shot them (\(proof)); BS_OLDBOSSONESHOT=1: all die")
         }
 
+        // Ledger 400 (Neon 05#3): a soldier's rocket at a rival goes at the rival, not at the player 40 blocks off.
+        do {
+            let pos0 = g.player.pos, vel0 = g.player.vel
+            defer { g.player.pos = pos0; g.player.vel = vel0 }
+            g.player.pos = lane0; g.player.vel = V3(8, 0, 0)
+            let foe = lane0 + V3(0, 1, -40)
+            let rocket = Soldier.aim(g, target: foe, flight: 1, launcher: true)
+            let round = Soldier.aim(g, target: foe, flight: 0.5, launcher: false)
+            let atHim = Soldier.aim(g, target: lane0 + V3(0, 0.9, 0), flight: 0.5, launcher: false)
+            check(simd_length(rocket - foe) < 1 && abs(round.x - foe.x) < 0.01 && atHim.x > lane0.x + 3,
+                  String(format: "ledger 400: a rocket at a rival 40 off goes %.1f from it; a round isn't led by his motion (%.2f); at him it is (%.1f); BS_OLDFOEAIM=1: at him", simd_length(rocket - foe), round.x - foe.x, atHim.x - lane0.x))
+        }
+
         // Ledger 399 (Neon 07#1): a town building claimed with a deed is no longer town property.
         if let sc = w.gen.structures, let v = sc.nearest("village", x: sx, z: sz, maxRegions: 4), let pc = v.pieces.first(where: { $0.max.x - $0.min.x >= 4 }) {
             let force0 = TownLaw.forceTown, prop0 = TownLaw.state.property
