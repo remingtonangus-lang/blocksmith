@@ -68,6 +68,9 @@ extension Renderer {
     // BS_FARGREYWALL=0 = before.
     static let farGreywall = Env.all["BS_FARGREYWALL"] != "0"
     static let greywallRange: Float = 1400
+    static let forceEngaged = Env.all["BS_FORCEENGAGED"] == "1"     // (pictures: every base as one he is fighting)
+    static var greywallDrawn: [(IVec3, IVec3)] = []                 // (this build's far Greywall models: their boxes stay out)
+    static let engagedHaze: Float = Env.all["BS_ENGAGEDHAZE"].flatMap { Float($0) } ?? 0.3
     static var greywallSites: [(st: StructureStart, key: String, at: V3)] = []
     static var greywallAt: Double = -10
     static var greywallPlanning = false
@@ -401,13 +404,21 @@ extension Renderer {
                 tri(p(r0), p(r2), p(r1), roof, &out); tri(p(r0), p(r3), p(r2), roof, &out)
             }
         }
+        Renderer.greywallDrawn.removeAll(keepingCapacity: true)
         // Ledger 385: the nearest Greywall bases past the loaded land, from their own blocks (nothing until the model is made).
+        // A base already stood there as boxes (StructureStart.far), hazed with the ground to 70-87 % fog at a view of 6-8,
+        // so from a frigate's helm it was gone in the haze ("he still couldn't see the base he was firing at"). A base he
+        // is fighting (at a helm, its alarm up, or holding his hits) stands clear: its haze is held to `engagedHaze`.
         for gw in landmarks ? greywallCache(game) : [] {
             let dist = simd_length(V2(gw.at.x - eye.x, gw.at.z - eye.z))
             guard dist > loaded + 16, dist < Renderer.greywallRange else { continue }
-            let haze: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist), margin: 0.22)
+            let engaged = Renderer.forceEngaged || game.world.ships.pilot != nil || game.greywallAlarm.sites[gw.key]?.on == true
+                || !FarCitadel.damage(game, key: gw.key).isEmpty
+            let fogged: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist), margin: 0.22)
+            let haze: Float = engaged ? min(fogged, Renderer.engagedHaze + 0.25 * Terrain.smooth(loaded, Renderer.greywallRange, dist)) : fogged
             let near = dist + 60 < place * 0.9
             if let m = FarCitadel.model(gw.st, key: gw.key, damage: FarCitadel.damage(game, key: gw.key)) {
+                Renderer.greywallDrawn.append((gw.st.min, gw.st.max))
                 FarCitadel.draw(m, eye: eye, loaded: loaded, sun: sun, day: day, nightK: nightK, hdrK: hdrK, fog: fog, haze: haze,
                                 at: { at($0, near) }, into: &out)
             }
@@ -425,6 +436,8 @@ extension Renderer {
             let ox = max(lo.x - eye.x, eye.x - hi.x, 0), oz = max(lo.z - eye.z, eye.z - hi.z, 0)
             let dist = (ox * ox + oz * oz).squareRoot()                 // to its nearest corner: none of it on loaded land
             guard dist > loaded + 2, dist < Renderer.campSmokeRange else { continue }
+            // (ledger 385: a Greywall base drawn from its own blocks above leaves its boxes out)
+            if Renderer.greywallDrawn.contains(where: { bx.min.x >= $0.0.x && bx.max.x <= $0.1.x && bx.min.z >= $0.0.z && bx.max.z <= $0.1.z }) { continue }
             let haze: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.campSmokeRange, dist), margin: 0.1)
             let col = tones[Int(bx.tone.rawValue)]
             let near = dist + 40 < place * 0.9
