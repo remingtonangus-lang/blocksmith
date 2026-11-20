@@ -28,6 +28,7 @@ final class Shell {
     var gentle = false               // hurts, breaks no blocks (an auto-turret's shell: Wrecks.swift)
     var parked: Float = -1           // seconds waiting where it struck for a shell chunk's blocks (World.dataReady); -1 flying
     var askedAt: Float = -1          // ledger 175: its age when the ground it will strike was last asked for
+    var hold: V3? = nil              // ledger 394: a missile waiting its turn in the salvo, carried at the ship's velocity
     init(pos: V3, vel: V3, owner: Int, power: Float) { self.pos = pos; self.vel = vel; self.owner = owner; self.power = power }
 }
 
@@ -152,7 +153,10 @@ extension ShipManager {
                 // P499: a rail slug, a thin white-blue bolt (its glowing line in the air is the wake, updateShells).
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
                 for k in 0..<6 { wr.cube(center: sh.pos - d * Float(k) * 0.7 - eye, half: 0.28 - Float(k) * 0.03, yaw: sh.age * 9, block: mac, light: 1) }
-            case 2: wr.cube(center: sh.pos - eye, half: 0.16, yaw: sh.age * 14, block: dart, light: 1)
+            case 2:
+                if sh.hold != nil { continue }                // (still in its pod)
+                if ShipManager.oldMissiles { wr.cube(center: sh.pos - eye, half: 0.16, yaw: sh.age * 14, block: dart, light: 1); continue }
+                ShipManager.writeMissile(&wr, sh, eye: eye, body: dart)
             case 4:
                 let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
                 for k in 0..<3 { wr.cube(center: sh.pos - d * Float(k) * 0.3 - eye, half: 0.17, yaw: 0, block: dart, light: 1) }
@@ -173,6 +177,37 @@ extension ShipManager {
         }
     }
 
+    // Ledger 394 (Remington, Nov 20 playtest: the missiles "don't look like missiles... that needs to change"; Fable's
+    // item 5): a missile was a 0.16 block cube spinning. Now it is a missile along its flight: a pale body 1.3 blocks
+    // long, a dark nose, four tail fins, a bright flame out of the tail and a smoke streak behind (Ballistics' rockets
+    // draw the same way). BS_OLDMISSILES=1: the cube, and the salvo all at once.
+    static let oldMissiles = Env.all["BS_OLDMISSILES"] == "1"
+    static func writeMissile(_ wr: inout EntityWriter, _ sh: Shell, eye: V3, body: BlockID) {
+        let sp = simd_length(sh.vel)
+        let d: V3 = sp > 0.01 ? sh.vel / sp : V3(0, 0, -1)
+        let ref: V3 = abs(d.y) > 0.9 ? V3(1, 0, 0) : V3(0, 1, 0)
+        let a = simd_normalize(simd_cross(d, ref))
+        let b = simd_cross(a, d)
+        let c = sh.pos - eye
+        let skin = Int(Blocks.tex[Int(body) * 6])
+        let nose = Int(Blocks.tex[Int(Blocks.has("coal_block") ? Blocks.id("coal_block") : body) * 6])
+        let r: Float = 0.11
+        wr.orientedBox(c, d * 0.62, a * r, b * r, layer: skin, color: V4(1, 1, 1, 1))
+        wr.orientedBox(c + d * 0.74, d * 0.12, a * r * 0.62, b * r * 0.62, layer: nose, color: V4(0.8, 0.8, 0.8, 1))
+        // Four fins at the tail, turned with the missile's own roll.
+        let roll = sh.age * 5
+        let fa: V3 = a * cosf(roll) + b * sinf(roll), fb: V3 = simd_cross(fa, d)
+        for f in [fa, fb] {
+            wr.orientedBox(c - d * 0.48, d * 0.14, f * 0.24, simd_cross(d, f) * 0.012, layer: skin, color: V4(0.75, 0.75, 0.78, 1))
+        }
+        // The motor's flame and the smoke behind it.
+        let flick: Float = 0.8 + 0.2 * sinf(sh.age * 60)
+        Armory.streak(&wr, eye, sh.pos - d * 0.62, sh.pos - d * (0.62 + 0.9 * flick), 0.13, V4(3.2, 1.9, 0.7, 1))
+        Armory.streak(&wr, eye, sh.pos - d * 0.62, sh.pos - d * (0.62 + 0.45 * flick), 0.07, V4(3.4, 3.2, 2.6, 1))
+        let trail = min(6, max(0, sh.age) * 30)
+        if trail > 1 { Armory.streak(&wr, eye, sh.pos - d * (1.4 + trail), sh.pos - d * 1.4, 0.16, V4(0.75, 0.75, 0.75, 0.35)) }
+    }
+
     // Moves shells and detonates them (call once per frame).
     func updateShells(_ dt: Float, game: Game?) {
         for s in list { s.reload = max(0, s.reload - dt) }
@@ -183,6 +218,13 @@ extension ShipManager {
         var blasts: [(V3, Float, Int, Bool, Int, Bool, V3)] = []
         for sh in shells {
             sh.age += dt
+            // Ledger 394: a salvo's missiles leave their pods one after another, each with its own launch.
+            if let h = sh.hold {
+                if sh.age < 0 { sh.pos += h * dt; keep.append(sh); continue }
+                sh.hold = nil
+                game?.sfx(.fireworkLaunch, 0.9, at: sh.pos)
+                game?.particles.smoke(at: sh.pos, dark: false)
+            }
             let start = sh.pos
             // Missiles: track the target and turn toward it (2.5 rad/s), smoking; a proximity fuse.
             var near = false

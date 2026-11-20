@@ -663,7 +663,19 @@ extension Game {
         let w = world
         let mid = V3((s.worldMin.x + s.worldMax.x) / 2, s.worldMin.y, (s.worldMin.z + s.worldMax.z) / 2)
         let right = s.dirToWorld(V3(1, 0, 0)), back = s.dirToWorld(V3(0, 0, 1))
-        let r = simd_normalize(V3(right.x, 0, right.z)), bk = simd_normalize(V3(back.x, 0, back.z))
+        // Ledger 395 (Neon's review 04#2): a craft pitched or rolled 90 degrees has its right or back pointing straight
+        // up: normalizing the zero level part gave NaN and Int(floor(NaN)) trapped. A level direction is made from the
+        // other one, or the hull's forward. BS_OLDDISMOUNT=1: as before.
+        var r = V3(right.x, 0, right.z), bk = V3(back.x, 0, back.z)
+        if Env.all["BS_OLDDISMOUNT"] == "1" { r = simd_normalize(r); bk = simd_normalize(bk) } else {
+            if simd_length(r) < 0.05 && simd_length(bk) < 0.05 { let f = s.dirToWorld(V3(0, 1, 0)); bk = V3(f.x, 0, f.z) }
+            if simd_length(bk) < 0.05 { bk = V3(-r.z, 0, r.x) }
+            if simd_length(r) < 0.05 { r = V3(bk.z, 0, -bk.x) }
+            if simd_length(bk) < 0.05 { bk = V3(0, 0, 1) }
+            if simd_length(r) < 0.05 { r = V3(1, 0, 0) }
+            r = simd_normalize(r); bk = simd_normalize(bk)
+            guard mid.x.isFinite && mid.y.isFinite && mid.z.isFinite else { return nil }
+        }
         let half = player.halfW - 0.02
         for k in out {
             for d in [-r, bk, -bk, r, simd_normalize(bk - r), simd_normalize(-bk - r)] {

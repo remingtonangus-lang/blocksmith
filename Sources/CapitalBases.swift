@@ -116,6 +116,12 @@ extension BaseRecord {
         missileCD = (try? c.decodeIfPresent(Float.self, forKey: .missileCD))
         dropPads = (try? c.decodeIfPresent([[Float]].self, forKey: .dropPads))
         dropSpent = (try? c.decodeIfPresent([Bool].self, forKey: .dropSpent))
+        // Ledger 395 (Neon's review 06#1): these two were saved but never read back, so every reload put another
+        // Kestrel on the pad, inside the one standing there (or back after he had flown it off).
+        if Env.all["BS_OLDKESTRELLOAD"] != "1" {
+            parked = (try? c.decodeIfPresent(Int.self, forKey: .parked))
+            kestrelTaken = (try? c.decodeIfPresent(Bool.self, forKey: .kestrelTaken))
+        }
     }
 }
 

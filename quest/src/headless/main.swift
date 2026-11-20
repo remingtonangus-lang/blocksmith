@@ -783,6 +783,16 @@ if let out = arg("--view"), let ctx = vkctx {
             print("view: in the frigate at builder \(fi[0]) \(fi[1]) \(fi[2]), eye \(Int(vg.player.pos.x)) \(Int(vg.player.pos.y)) \(Int(vg.player.pos.z))")
         } else { print("view: --frigatein: no frigate spawned") }
     }
+    // --missiles (ledger 394): a frigate salvo's missiles in flight across the view, 5 to 9 blocks ahead.
+    if CommandLine.arguments.contains("--missiles") {
+        let fwd = V3(-sinf(yaw), 0, -cosf(yaw)), side = V3(cosf(yaw), 0, -sinf(yaw))
+        for k in 0..<3 {
+            let sh = Shell(pos: vg.player.pos + V3(0, 1.6 + Float(k) * 0.7, 0) + fwd * (5 + Float(k) * 2) + side * (Float(k) - 1) * 1.5,
+                           vel: simd_normalize(side * 1 + fwd * 0.35 + V3(0, 0.08, 0)) * 30, owner: -1, power: 1)
+            sh.kind = 2; sh.gravity = 0; sh.age = 0.4 + Float(k) * 0.3
+            vw.ships.shells.append(sh)
+        }
+    }
     // --cave: the eye in the nearest open cave below (spiralling out from the spot until one has room round the eye).
     if CommandLine.arguments.contains("--cave") {
         let px = Int(floor(vg.player.pos.x)), pz = Int(floor(vg.player.pos.z))

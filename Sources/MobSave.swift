@@ -213,13 +213,19 @@ extension MobManager {
         guard let s = s else { return }
         var all: [String: [MobRecord]] = [:]
         for (k, v) in stored { all["\(k.x),\(k.z)"] = v }
+        // Ledger 395 (Neon's review 05#2): a mob whose place is not a number trapped Int(floor()) here; it is left out
+        // (its place is lost: nothing to put back). The file is read with the decoder it is written with (non-finite
+        // floats as strings), so one such float no longer quarantines every villager, horse and pet.
+        // BS_OLDMOBSAVE=1: as before.
+        let oldMobSave = Env.all["BS_OLDMOBSAVE"] == "1"
         for m in mobs where m.keepOnUnload {
+            if !oldMobSave && !(m.pos.x.isFinite && m.pos.z.isFinite && abs(m.pos.x) < 1e9 && abs(m.pos.z) < 1e9) { continue }
             let k = "\(floorDiv(Int(floor(m.pos.x)), CS)),\(floorDiv(Int(floor(m.pos.z)), CS))"
             all[k, default: []].append(m.record)
         }
         let url = s.dir.appendingPathComponent("mobs.json")
         if background { SaveIO.writeJSON(all, to: url) }       // (MobRecord: value snapshots)
-        else if let d = try? JSONEncoder().encode(all) { try? d.write(to: url, options: .atomic) }
+        else if let d = try? (oldMobSave ? JSONEncoder() : SaveIO.encoder()).encode(all) { try? d.write(to: url, options: .atomic) }
         savePopulated(to: s, background: background)
         saveHives(to: s, background: background)
     }
@@ -228,7 +234,7 @@ extension MobManager {
         loadPopulated(from: s)
         loadHives(from: s)
         guard let s = s, let d = try? Data(contentsOf: s.dir.appendingPathComponent("mobs.json")) else { return }
-        guard let all = try? JSONDecoder().decode([String: [MobRecord]].self, from: d) else {
+        guard let all = try? (Env.all["BS_OLDMOBSAVE"] == "1" ? JSONDecoder() : SaveIO.decoder()).decode([String: [MobRecord]].self, from: d) else {
             SaveIO.quarantine(s.dir.appendingPathComponent("mobs.json"), what: "animals and people file")      // S1
             return
         }

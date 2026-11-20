@@ -130,6 +130,7 @@ Scenes in `quest/scenes/` (each passes on the fix and fails with its switch):
 | `place-pull.scene --headset --seed 7780452129890778212` (ledger 260) | a 0.3 s pull sets one block | `BS_OLDPLACEREPEAT=1`: 1 FAILED (two) |
 | `tree-stump-stays.scene --seed 7780452129890778212 --headset` (ledgers 226, 227) | all passed: stump and neighbour stand, one body of 144 | `BS_OLDFELLSTUMP=1`: 5 FAILED (246 blocks fall) |
 | `tree-lies-down.scene --seed 3084501862406496736 --headset` (ledger 228) | all passed: tilt 0.79, spin 0 | `BS_OLDCROWNWEIGHT=1`: 1 FAILED (upside down) |
+| `tree-pair-and-lying-log.scene --seed 2436324470025364514 --headset` (ledger 393) | all passed: one trunk of two falls; a lying log loses only the struck log | `BS_OLDFEETJOIN=1`: both trunks fall; `BS_OLDGROUNDLOG=1`: the lying log falls again |
 | `bush-on-the-ground.scene --seed 3084501862406496736 --headset` (ledger 229) | all passed; bush.png | `BS_OLDBUSHMOUND=1`: 3 FAILED |
 
 Each runs in about 15 s after the census is kept. `ride nearest train` needs a train in the loaded land.

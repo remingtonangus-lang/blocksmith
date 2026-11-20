@@ -1,0 +1,36 @@
+# Ledger 393 (Fable's item 4; Nov 20 playtest at 4108 70 -3488, seed 2436324470025364514). Two trunks one block apart on
+# a stone shelf in the air: the struck one falls alone (feet 1 apart were one trunk). Then a log lying on the shelf, hit
+# in its middle: only that log goes (it rose again as one body and rolled as two pieces joined).
+# questcheck --scene quest/scenes/tree-pair-and-lying-log.scene --seed 2436324470025364514 --headset
+# Before: BS_OLDFEETJOIN=1 (both trunks fall), BS_OLDGROUNDLOG=1 (the lying log falls again as a body).
+at 4114.5 100 -3480.5
+fly on
+load 3
+ground 4110 95 -3486 4122 95 -3474 stone
+set 4113 96 -3478 tree_spruce_log
+set 4113 97 -3478 tree_spruce_log
+set 4113 98 -3478 tree_spruce_log
+set 4113 99 -3478 tree_spruce_log
+set 4113 100 -3478 tree_spruce_log
+set 4112 96 -3479 tree_spruce_log
+set 4112 97 -3479 tree_spruce_log
+set 4112 98 -3479 tree_spruce_log
+set 4112 99 -3479 tree_spruce_log
+set 4112 100 -3479 tree_spruce_log
+set 4116 96 -3483 tree_spruce_log[x]
+set 4117 96 -3483 tree_spruce_log[x]
+set 4118 96 -3483 tree_spruce_log[x]
+set 4119 96 -3483 tree_spruce_log[x]
+set 4120 96 -3483 tree_spruce_log[x]
+tick 1
+break 4113 96 -3478
+tick 6
+expect felled.count == 1
+expect block 4112 96 -3479 == tree_spruce_log
+expect block 4112 99 -3479 == tree_spruce_log
+at 4117.5 98 -3480.5
+break 4118 96 -3483
+tick 4
+expect felled.count == 1
+expect block 4116 96 -3483 == tree_spruce_log[x]
+expect block 4120 96 -3483 == tree_spruce_log[x]

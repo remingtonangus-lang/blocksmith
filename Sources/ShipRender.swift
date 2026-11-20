@@ -219,6 +219,33 @@ final class ShipMesh {
         return build(sx: sx, sy: sy, sz: sz, blocks: shell, only: only, damage: damage, trunks: trunks)
     }
 
+    // Ledger 390 (Fable's item 2: aboard, every deck and room inside the hull was drawn): standing on an open deck (open
+    // sky over his head in the hull's grid), what lies more than a section away is seen as from outside: its outer
+    // copy. The sections round him draw in full (the hatch, the ladder well, the door beside him), and inside a room
+    // (a deck over his head) everything draws in full as before. BS_OLDABOARD=1: in full whenever inside the box.
+    static let oldAboard = Env.all["BS_OLDABOARD"] == "1"
+    static func openDeck(_ s: Ship, _ eye: V3) -> V3? {
+        if oldAboard { return nil }
+        let l = s.toLocal(eye)
+        return openDeck(s.grid, local: l) ? l : nil
+    }
+    static func openDeck(_ g: ShipGrid, local l: V3) -> Bool {
+        let x = Int(floor(l.x)), z = Int(floor(l.z))
+        guard x >= 0 && z >= 0 && x < g.sx && z < g.sz else { return true }     // (beside the hull, inside its box)
+        let pass = outerPass, stop = outerStop
+        var y = max(0, Int(floor(l.y)) + 1)
+        while y < g.sy {
+            let b = Int(g.get(x, y, z))
+            if b != Int(AIR) && (!pass[b] || stop[b]) { return false }     // (a roof, a hatch or a skylight over him)
+            y += 1
+        }
+        return true
+    }
+    @inline(__always) static func nearEye(_ origin: V3, _ l: V3) -> Bool {
+        let d = simd_abs(origin + V3(8, 8, 8) - l)
+        return max(d.x, max(d.y, d.z)) < 24
+    }
+
     // Whether the eye (world space) is outside the hull's box: the outer copy is all it can see from there.
     static func eyeOutside(_ s: Ship, _ eye: V3) -> Bool {
         let l = s.toLocal(eye), g = s.grid

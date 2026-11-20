@@ -1349,12 +1349,20 @@ final class ShipManager: LifeLinked {
         // F1: the autosave takes copies here (grids are arrays: copy on write) and packs and encodes them on the save
         // queue; ship grids' palettes, lzfse and JSON ran on the frame thread.
         let snaps = snapshots(nil)
+        // Ledger 395 (Neon's review 04#1): encode gave nil on any failure and the save then deleted ships.json, so one
+        // non-finite float in one ship lost every ship. The file goes only when there are no ships; a ship that cannot
+        // be saved is left out and reported. BS_OLDSHIPSAVE=1: as before.
         let write = {
-            guard let d = ShipManager.encode(snaps) else {
-                if FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.removeItem(at: url) }
+            if ShipManager.oldShipSave || snaps.isEmpty {
+                guard let d = ShipManager.encode(snaps) else {
+                    if FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.removeItem(at: url) }
+                    return
+                }
+                try? d.write(to: url, options: .atomic)
                 return
             }
-            try? d.write(to: url, options: .atomic)
+            guard let d = ShipManager.encode(snaps) else { SaveIO.report("the vehicles could not be saved; the last save of them is kept"); return }
+            do { try d.write(to: url, options: .atomic) } catch { SaveIO.report("the vehicles could not be written: \(error.localizedDescription)") }
         }
         if background { SaveIO.run(write) } else { write() }
     }
@@ -1381,7 +1389,17 @@ final class ShipManager: LifeLinked {
     }
     private static func encode(_ snaps: [Snap]) -> Data? {
         var out: [Saved] = []
-        for s in snaps {
+        for var s in snaps {
+            if !ShipManager.oldShipSave {
+                // (a ship whose place is not a number is left out; its motion and turn are made sane)
+                guard s.pos.x.isFinite && s.pos.y.isFinite && s.pos.z.isFinite else { SaveIO.report("a vehicle (\(s.name)) had no place and was not saved"); continue }
+                if !(s.vel.x.isFinite && s.vel.y.isFinite && s.vel.z.isFinite) { s.vel = .zero }
+                if !(s.angVel.x.isFinite && s.angVel.y.isFinite && s.angVel.z.isFinite) { s.angVel = .zero }
+                if !(s.rot.x.isFinite && s.rot.y.isFinite && s.rot.z.isFinite && s.rot.w.isFinite) { s.rot = V4(0, 0, 0, 1) }
+                if !s.liftLevel.isFinite { s.liftLevel = 0 }
+                if let h = s.hoverY, !h.isFinite { s.hoverY = nil }
+                if !s.turretYaw.isFinite { s.turretYaw = 0 }
+            }
             var map: [BlockID: UInt16] = [:]
             var names: [String] = []
             var idx = [UInt16](repeating: 0, count: s.blocks.count)
@@ -1403,8 +1421,9 @@ final class ShipManager: LifeLinked {
                              wrecked: s.wrecked ? true : nil))
         }
         if out.isEmpty { return nil }
-        return try? JSONEncoder().encode(out)
+        return try? (ShipManager.oldShipSave ? JSONEncoder() : SaveIO.encoder()).encode(out)
     }
+    static let oldShipSave = Env.all["BS_OLDSHIPSAVE"] == "1"
 
     private func load() {
         if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? Data(contentsOf: r),
@@ -1449,7 +1468,7 @@ final class ShipManager: LifeLinked {
 
     // Adds the ships stored in `d` (see encode).
     func decode(_ d: Data) {
-        guard let saved = try? JSONDecoder().decode([Saved].self, from: d) else { return }
+        guard let saved = try? SaveIO.decoder().decode([Saved].self, from: d) else { return }
         for sv in saved where sv.size.count == 3 && sv.pos.count == 3 && sv.rot.count == 4 {
             let n = sv.size[0] * sv.size[1] * sv.size[2]
             guard n > 0 else { continue }

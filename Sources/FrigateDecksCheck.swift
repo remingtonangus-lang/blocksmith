@@ -138,5 +138,28 @@ enum FrigateDecksCheck {
             lines.append("\(name) \(h.sx)x\(h.sy)x\(h.sz): \(a) quads, from outside \(out == nil ? "no outer copy" : "\(b)")")
         }
         check(fewer == 2, "frigatedecks: vehicles drawn from outside without their rooms: " + lines.joined(separator: "; "))
+        // Ledger 390: standing on the open deck amidships, the sections more than one away drawn as from outside.
+        var aboard: [String] = [], cut = 0
+        for (name, h) in [("Stormwarden Frigate", hb), ("Capital Frigate", Capital.capitalFrigate())] {
+            let full = ShipMesh.build(sx: h.sx, sy: h.sy, sz: h.sz, blocks: h.blocks, only: nil)
+            guard let out = ShipMesh.outerBuild(sx: h.sx, sy: h.sy, sz: h.sz, blocks: h.blocks) else { aboard.append("\(name): no outer copy"); continue }
+            let g = ShipGrid(sx: h.sx, sy: h.sy, sz: h.sz, blocks: h.blocks)
+            let x = h.sx / 2, z = h.sz / 2
+            var y = h.sy - 1
+            while y > 0 && !Blocks.opaque[Int(g.get(x, y, z))] { y -= 1 }
+            let eye = V3(Float(x) + 0.5, Float(y + 1) + 1.6, Float(z) + 0.5)
+            let deck = ShipMesh.openDeck(g, local: eye)
+            var outer: [Int: SectionMesh] = [:]
+            for (k, m, _) in out { outer[k] = m }
+            func q(_ m: SectionMesh) -> Int { (m.opaque.count + m.trans.count) / 8 }
+            var a = 0, b = 0
+            for (k, m, o) in full {
+                a += q(m)
+                b += deck && !ShipMesh.nearEye(o, eye) ? outer[k].map(q) ?? q(m) : q(m)
+            }
+            if deck && b < a { cut += 1 }
+            aboard.append("\(name) deck at \(x),\(y + 1),\(z) open \(deck): \(a) quads in full, \(b) drawn")
+        }
+        check(cut == 2, "frigatedecks: ledger 390, on the open deck the far decks and rooms drawn as from outside: " + aboard.joined(separator: "; "))
     }
 }

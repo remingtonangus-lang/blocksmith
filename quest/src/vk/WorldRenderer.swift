@@ -121,6 +121,7 @@ final class WorldRenderer {
     private(set) var landmarkMs = 0.0
     // F4 middle ring (Sources/FarRing.swift): two host-visible vertex buffers, one drawn while a new build goes into
     // the other (only once the other has been out of use for 3 frames: both frames in flight are done with it).
+    static let oldShipOrder = Env.all["BS_OLDSHIPORDER"] == "1"
     private(set) var farRingOn = false           // this frame's uniforms showed it (open overworld sky)
     private var farBufs: [VkBuf?] = [nil, nil]
     private var farLive = -1, farQuads = 0, farCards = 0, farGen = -1, farFrame = 0
@@ -131,7 +132,7 @@ final class WorldRenderer {
     // P484 (gap cover, FarRing.Mesh.inner): the ring's quads over the chunks of the loaded disc not drawn yet, gathered
     // every 4th frame into one of two host-visible buffers (the same 3-frame rule as the ring's).
     private var gapBufs: [VkBuf?] = [nil, nil]
-    private var gapLive = -1, gapQuads = 0
+    private var gapLive = -1, gapQuads = 0, gapCards = 0
     private var gapUsed = [-10, -10]
     private var gapOrigin = (0, 0)
     private var gapKeys: [ChunkKey] = []         // this build's gaps (compared to skip an unchanged rebuild)
@@ -378,12 +379,17 @@ final class WorldRenderer {
         stage(7)
         scene.beginPass(s, t, clear: clear)
         let skip = WorldRenderer.debugSkip
+        // Ledger 390 (Fable's item 2, the frigate fight over land that held the view at 6): ships first, so the land and
+        // far ring behind a hull close by (or the deck under him) fail the depth test before they are shaded.
+        // BS_OLDSHIPORDER=1: after the land and ring, as before.
+        let shipsFirst = !WorldRenderer.oldShipOrder && !skip.contains("ships")
+        if shipsFirst { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("opaque") { scene.drawOpaque(s) }
         if CostProbe.landTwice && !skip.contains("opaque") { scene.drawOpaque(s) }     // nothing passes the depth test again
         stage(8)
         if !skip.contains("far") { drawFarRing(s, eye) }
         stage(9)
-        if !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
+        if !shipsFirst && !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         stage(10)
         Renderer.sceneFog = (u.fogColor.w, u.params.x)          // (P505: the far boxes hazed as the ground under them)
         if !skip.contains("landmarks") { drawLandmarks(s, eye, far: cam.far, fogColor: V3(u.fogColor.x, u.fogColor.y, u.fogColor.z)) }
@@ -526,12 +532,16 @@ final class WorldRenderer {
                 }
                 gapMissing = missing
                 if WorldRenderer.gapTint { for i in gapVerts.indices { gapVerts[i].color = V4(1, 0, 1, 0) } }
+                // Ledger 391: then the trees standing on those chunks, as the ring's far cards (their own pipeline).
+                let groundCount = gapVerts.count
+                if !m.innerCards.isEmpty { for k in keys { if let r = m.innerCards[k] { gapVerts += m.innerCardVerts[r] } } }
+                let cardQuads = (gapVerts.count - groundCount) / 4
                 let k = gapLive < 0 ? 0 : 1 - gapLive
                 // (Written only into the buffer both frames in flight are done with; otherwise next time round.)
                 if farFrame - gapUsed[k] >= 3 {
                     gapKeys = keys; gapRingGen = m.gen; gapMade = made
                     if gapVerts.isEmpty {
-                        gapLive = k; gapQuads = 0; gapOrigin = (m.cx, m.cz)
+                        gapLive = k; gapQuads = 0; gapCards = 0; gapOrigin = (m.cx, m.cz)
                     } else {
                         let bytes = gapVerts.count * MemoryLayout<SimpleVert>.stride
                         if gapBufs[k] == nil || gapBufs[k]!.size < bytes {
@@ -540,19 +550,20 @@ final class WorldRenderer {
                         }
                         if let b = gapBufs[k], let p = b.mapped {
                             gapVerts.withUnsafeBytes { src in _ = memcpy(p, src.baseAddress!, bytes) }
-                            gapLive = k; gapQuads = gapVerts.count / 4; gapOrigin = (m.cx, m.cz)
+                            gapLive = k; gapQuads = groundCount / 4; gapCards = cardQuads; gapOrigin = (m.cx, m.cz)
                         }
                     }
                 }
             }
         }
-        guard gapLive >= 0, gapQuads > 0, let b = gapBufs[gapLive] else { return }
+        guard gapLive >= 0, gapQuads + gapCards > 0, let b = gapBufs[gapLive] else { return }
         gapUsed[gapLive] = farFrame
         gapChunks = gapKeys.count
         let ox: Float = Float(gapOrigin.0) - eye.x, oz: Float = Float(gapOrigin.1) - eye.z
         // (A loaded radius of 0: far.vert sinks none of it, only the ring's usual 2 blocks.)
         let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(0, 0, 0, 0), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
         scene.drawFar(s, b, quads: gapQuads, params: params)
+        if gapCards > 0 { scene.drawFarCards(s, b, first: gapQuads, count: gapCards, params: params) }
     }
 
     // A chunk next to a drawn one is always made (meshing waits for its neighbours), so the ground the cover stands for

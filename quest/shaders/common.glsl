@@ -66,7 +66,8 @@ vec4 texGradOrTop(vec3 p, vec2 gx, vec2 gy, vec2 sz) {
     if (fxOn(32768)) { return textureLod(tex, p, 0.5 * log2(g2)); }     // (ledger 235, headset trial: a level read, no gradient read)
     return textureGrad(tex, p, gx, gy);
 }
-vec2 sharpUV(vec2 uv) { return sharpUVd(uv, fwidth(uv * vec2(textureSize(tex, 0).xy))); }
+// (Neon's review, Nov 20: the texture's size read once, not twice; ships, mobs and cutout ground read through here)
+vec2 sharpUV(vec2 uv) { vec2 sz = vec2(textureSize(tex, 0).xy); return sharpUVs(uv, fwidth(uv * sz), sz); }
 vec4 texSharp(vec2 uv, float layer) { return texture(tex, vec3(sharpUV(uv), layer)); }
 #endif
 
