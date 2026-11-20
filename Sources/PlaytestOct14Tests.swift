@@ -134,6 +134,51 @@ enum PlaytestOct14Tests {
             // (the far tree takes its own column's foliage colour; the chunk's map is blended over its neighbours, so near a
             // biome's edge one tree differs by up to about a tenth: the mean says whether the colours are the chunk's)
             check(treeN >= 5 && sumT / Float(max(1, treeN)) < 0.03 && worstT < 0.15, String(format: "ledger 362 (d): a far tree's leaves take the chunk's own foliage colour (%d trees, mean channel off by %.3f, worst %.3f)", treeN, sumT / Float(max(1, treeN)), worstT))
+            // Ledger 392: the ground that isn't grass, far against near. Per biome, one chunk away from its edges: the
+            // mean of its real top blocks (each its texture's average, grass times the chunk's tint) against the mean
+            // of the ring's samples over it (before the canopy). BS_OLDFARCOLOUR=1: the map colours.
+            let want: [Biome] = [.desert, .badlands, .stonyPeaks, .snowySlopes, .jaggedPeaks, .beach, .cherryGrove, .mushroomFields, .mangroveSwamp]
+            var found: [Biome: (Int, Int)] = [:]
+            search: for r in stride(from: 0, through: 4096, by: 128) { for sx in [-1, 1] { for sz in [-1, 1] { for t in stride(from: 0, through: r, by: 128) {
+                for (x, z) in [(sx * r, sz * t), (sx * t, sz * r)] {
+                    let cxk = floorDiv(x, CS), czk = floorDiv(z, CS)
+                    let bc = jg.column(cxk * CS + 8, czk * CS + 8).biome
+                    guard want.contains(bc), found[bc] == nil else { continue }
+                    if [(0, 0), (15, 0), (0, 15), (15, 15)].allSatisfy({ jg.column(cxk * CS + $0.0, czk * CS + $0.1).biome == bc }) { found[bc] = (cxk, czk) }
+                    if found.count == want.count { break search }
+                }
+            } } } }
+            var colourLines: [String] = [], colourBad = 0
+            let leafT2 = Mesher.leafT
+            for bm in want {
+                guard let (cxk, czk) = found[bm] else { colourLines.append("\(bm): none found"); continue }
+                let blk = jg.generate(cx: cxk, cz: czk), tn = jg.tints(cx: cxk, cz: czk)
+                var near = V3(0, 0, 0), nn = 0, far = V3(0, 0, 0), fn = 0
+                for lz in stride(from: 1, to: CS, by: 3) { for lx in stride(from: 1, to: CS, by: 3) {
+                    var y = CH - 2
+                    while y > 1 {
+                        let id = blk[Chunk.index(lx, y, lz)]
+                        if Blocks.fluidKind[Int(id)] != 0 { y = -1; break }
+                        if Blocks.opaque[Int(id)] && !leafT2[Int(id)] && !Blocks.key(id).hasSuffix("_log") { break }
+                        y -= 1
+                    }
+                    guard y > 1 else { continue }
+                    let id = blk[Chunk.index(lx, y, lz)]
+                    let tv = tn[lz * CS + lx]
+                    let tint = Blocks.tint[Int(id)] == 1 ? V3(Float(tv & 255), Float((tv >> 8) & 255), Float((tv >> 16) & 255)) / 255 : V3(1, 1, 1)
+                    near += FarRing.topAvg(id) * tint; nn += 1
+                    let smp = FarRing.sample(jg, cxk * CS + lx, czk * CS + lz)
+                    if smp.kind == 0 { far += smp.c0; fn += 1 }
+                } }
+                guard nn > 8, fn > 8 else { colourLines.append("\(bm): \(nn) near, \(fn) far columns"); continue }
+                let a = near / Float(nn), b = far / Float(fn)
+                let d = simd_abs(a - b), off = max(d.x, max(d.y, d.z))
+                if off > 0.08 { colourBad += 1 }
+                colourLines.append("\(bm) " + String(format: "%.2f,%.2f,%.2f far %.2f,%.2f,%.2f (off %.3f)", a.x, a.y, a.z, b.x, b.y, b.z, off))
+            }
+            print("ledger 392: " + colourLines.joined(separator: "; "))
+            check(found.count >= 6 && (colourBad == 0 || !FarRing.paintedTops),
+                  "ledger 392: the far ground that isn't grass is the near ground's colour (\(found.count) biomes, \(colourBad) off by over 0.08; BS_OLDFARCOLOUR=1: the map colours)")
         } else {
         check(forest.lastQuads > 500 && more == forest.lastQuads && forest.lastQuads <= FarForest.maxQuads + 4096,
               "ledger 361 (b): a ring at view 8 over a forest carries stand-ins within the budget (\(forest.lastQuads) quads of \(FarForest.maxQuads), far thinning x\(String(format: "%.2f", forest.lastSqueeze)); 0 without the layer)")

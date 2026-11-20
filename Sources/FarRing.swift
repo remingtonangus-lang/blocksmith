@@ -201,6 +201,8 @@ final class FarRing {
         // bright lawn green beside the olive ground of the chunks.
         if FarRing.paintedGround && MapCache.grassTopped(b) {
             c = gen.grassTint(k) * FarRing.grassTop
+        } else if FarRing.paintedTops, let t = FarRing.farTop(gen, b, k, top) {
+            c = t
         }
         // P250 (b): the flanks of a terrace. Grass, mycelium, petals and snow over soil show dirt from the side (with
         // a little of the top's fringe); sand, stone, terracotta and peaks are the same material all the way down.
@@ -217,12 +219,13 @@ final class FarRing {
         default: mountain = false
         }
         if k.slope >= 2 && !b.isBadlands && b != .desert && !b.isBeach || k.slope >= 1.3 && mountain {
-            c = rock; side = rock * 0.92
+            let r = FarRing.paintedTops ? FarRing.topAvg(STONE) : rock
+            c = r; side = r * 0.92
         } else {
             if k.slope >= 1.2 && soil { side = rock * 0.95 }        // a steep bank: the terrace walls cut into rock
             // Snow on the ground (steep rock faces shed it, as in the freeze); snowy grass shows dirt under a white rim.
             if cold(top) {
-                c = snow
+                c = FarRing.paintedTops ? FarRing.topAvg(SNOW) : snow
                 if soil { side = simd_mix(side, snow, V3(repeating: 0.3)) }
             }
         }
@@ -280,6 +283,54 @@ final class FarRing {
         return (cover, h * min(1, cover * 1.4), leaf * (FarRing.paintedGround ? 0.55 : 0.62))
     }
     static let paintedGround = Env.all["BS_OLDFARGROUND"] == nil
+    // Ledger 392 (Remington, Nov 20 17:03: colour accuracy "remains to be fixed"; Fable's note: sand, stone, badlands,
+    // snow, cherry, mushroom fields still raw map colours): the ground that isn't grass painted the way ledger 362
+    // painted grass: the top block WorldGen.surface lays there (its share where noise splits it), as its own texture's
+    // average, times the grass colour where it is grass. Snow and cliff rock the same. BS_OLDFARCOLOUR=1: the map
+    // colours, as before.
+    static let paintedTops = paintedGround && Env.all["BS_OLDFARCOLOUR"] == nil
+    private static let avgLock = NSLock()
+    private static var avgs: [BlockID: V3] = [:]
+    private static var avgTable: [String: TextureGen.Painter]?
+    // The top face's texture as the chunks draw it, averaged (alpha-weighted), once per block.
+    static func topAvg(_ b: BlockID) -> V3 {
+        avgLock.lock(); defer { avgLock.unlock() }
+        if let v = avgs[b] { return v }
+        let l = Int(Blocks.tex[Int(b) * 6 + 2])
+        var v = V3(0.5, 0.5, 0.5)
+        if l < Tex.names.count {
+            if avgTable == nil { avgTable = TextureGen.painters() }
+            let px = TextureGen.loadedPixels(Tex.names[l], n: 16, table: avgTable!)
+            var acc = V3(0, 0, 0), w: Float = 0
+            for p in px { acc += V3(p.x, p.y, p.z) * p.w; w += p.w }
+            if w > 0 { v = acc / w }
+        }
+        avgs[b] = v
+        return v
+    }
+    static func farTop(_ gen: WorldGen, _ b: Biome, _ k: Terrain.Column, _ top: Int) -> V3? {
+        let g = Blocks.id
+        func mix(_ parts: [(BlockID, Float)]) -> V3 { parts.reduce(V3(0, 0, 0)) { $0 + topAvg($1.0) * $1.1 } }
+        let grass = gen.grassTint(k) * grassTop
+        switch b {
+        case .desert: return topAvg(SAND)
+        case .beach, .snowyBeach: return k.ts < -0.05 ? simd_mix(topAvg(SAND), topAvg(GRAVEL), V3(repeating: 0.4)) : topAvg(SAND)
+        case .stonyShore: return mix([(STONE, 0.6), (GRAVEL, 0.3), (g("andesite"), 0.1)])
+        case .badlands, .erodedBadlands, .woodedBadlands:
+            if b == .woodedBadlands && top > YOFF + 97 { return simd_mix(topAvg(g("coarse_dirt")), grass, V3(repeating: 0.5)) }
+            if top < YOFF + 72 { return topAvg(g("red_sand")) }
+            return gen.bands.reduce(V3(0, 0, 0)) { $0 + topAvg($1) } / Float(max(1, gen.bands.count))
+        case .mushroomFields: return top <= SEA + 1 ? topAvg(SAND) : grass
+        case .cherryGrove: return grass
+        case .windsweptGravellyHills: return mix([(GRAVEL, 0.6), (STONE, 0.4)])
+        case .jaggedPeaks: return topAvg(SNOW)
+        case .frozenPeaks: return mix([(SNOW, 0.65), (g("packed_ice"), 0.35)])
+        case .stonyPeaks: return mix([(STONE, 0.7), (g("calcite"), 0.3)])
+        case .snowySlopes: return mix([(SNOW, 0.7), (g("powder_snow"), 0.3)])
+        case .mangroveSwamp: return topAvg(g("mud"))
+        default: return nil
+        }
+    }
     static let grassTop: Float = 0.6                       // grass_block_top's average (grey art, tinted)
     static let dirt = V3(0.525, 0.376, 0.263) * 0.8        // the dirt texture's average, darkened like the map colours
     static let rock = V3(0.6, 0.6, 0.59) * 0.8             // stone (0x9A9A96, the map's peak colour)
