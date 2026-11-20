@@ -28,7 +28,7 @@ final class FarRing {
     // as one low-poly stand-in per real tree (FarForest.swift: the tree pass's own lattice, so a stand-in is where the
     // chunk will grow the tree), out to `FarForest.reach` blocks; the ground under them keeps its true height there
     // instead of the canopy lift. BS_FARLAYER=1 turns it on (off = before).
-    // On the headset it is Options > Far Scenery (QuestSettings.farLayer, off until measured there).
+    // On the headset it is Options > Far Scenery (QuestSettings.farLayer, on by default since Nov 20).
     static let layerEnv = Env.all["BS_FARLAYER"] == "1"
     static var layer = layerEnv
     static let outer: Float = 1024                 // blocks: the rim (64 chunks)
