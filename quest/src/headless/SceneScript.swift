@@ -588,6 +588,21 @@ enum SceneScript {
                     print("\(ln) " + (train.map { "\(f1($0.blocksPerSec)) b/s, throttle \(f1($0.throttle)), brake \(f1($0.brake)), \($0.cars.count) cars" } ?? "none"))
                 case "ship":
                     print("\(ln) " + (ship.map { "\($0.name) at \(f1($0.pos.x)) \(f1($0.pos.y - Float(YOFF))) \(f1($0.pos.z)), speed \(f1(simd_length($0.vel))), hull \($0.blockCount) blocks" } ?? "none"))
+                case "felled":
+                    // every felled tree: its centre, blocks, logs, and the span of its logs in the world (to aim at)
+                    let fl = w.ships.list.filter { Felling.isFelled($0) }
+                    var parts: [String] = []
+                    for s in fl {
+                        var lo = V3(repeating: 1e9), hi = V3(repeating: -1e9), logs = 0
+                        let gd = s.grid
+                        for i in 0..<gd.blocks.count where gd.blocks[i] != AIR && (ShapeTrunks.isLog[Int(gd.blocks[i])] || CapitalBase.isLog(gd.blocks[i])) {
+                            let c = IVec3(i % gd.sx, i / (gd.sx * gd.sz), (i / gd.sx) % gd.sz)
+                            let wp = s.toWorld(V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5)
+                            lo = simd_min(lo, wp); hi = simd_max(hi, wp); logs += 1
+                        }
+                        parts.append("id \(s.id) root \(s.root.id) at \(f1(s.pos.x)) \(f1(s.pos.y - Float(YOFF))) \(f1(s.pos.z)), \(s.blockCount) blocks, \(logs) logs from \(f1(lo.x)) \(f1(lo.y - Float(YOFF))) \(f1(lo.z)) to \(f1(hi.x)) \(f1(hi.y - Float(YOFF))) \(f1(hi.z))")
+                    }
+                    print("\(ln) \(fl.count) felled: " + parts.joined(separator: "; "))
                 case "station":
                     // the Boreal Station nearest him: its centre, how far, the soldiers inside its fence and bunker
                     if let sc = w.gen.structures, let st = sc.nearest(BorealStation.kind, x: Int(p.pos.x), z: Int(p.pos.z), maxRegions: 4) {

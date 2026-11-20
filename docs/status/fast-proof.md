@@ -107,7 +107,7 @@ note's facing and pitch in degrees.
 | `aimat X Y Z` | turn the eye onto a point (floats, display y) through the mouse path; prints the target: cell, face, the face's cell and its density, the drawn ground point and normal, where a block would go |
 | `use [SECONDS]`, `hit [SECONDS]` | one press of use / attack as he aims now, held one tick or SECONDS (a trigger pull); prints the target and every cell within 3 that changed; `use` counts `place.count` and `place.off` (a placed block neither in the aimed face's cell nor within half a block of the drawn point) |
 | `probe X Y Z` | the cell's built block, ground flag, material, centre density, the drawn (fine) density at its middle and the drawn surface over its column |
-| `print player\|train\|ship\|fps` | place, speed, held, aboard, hull; tick avg and worst over the last tick |
+| `print player\|train\|ship\|fps\|felled` | place, speed, held, aboard, hull; tick avg and worst over the last tick; each felled tree's centre, blocks and the span of its logs |
 | `fly to X Z SECONDS [SPEED]` | fly toward a point through the input path (sprint held; at most SPEED b/s when given) |
 | `realtime on\|off` | each tick waits out its 1/72 s, so generation keeps the pace it keeps in play |
 | `reopen` | (with `--save`) save, close and open the world again as the headset does (World + Game on the save, WorldRequest.setUp) |
