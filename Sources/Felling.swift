@@ -147,6 +147,9 @@ enum Felling {
     static let spinRests = Env.all["BS_OLDFELLSPIN"] != "1"       // ledger 228 (ShipPhysics, the felled tree's drag)
     static let slimTrunks = Env.all["BS_OLDTRUNKBOX"] != "1"     // ledger 228 (ShipPhysics.terrainContacts)
     static let trace = Env.all["BS_FELLTRACE"] == "1"          // (prints each cut's trunks and each falling body once a second)
+    static let oldFeetJoin = Env.all["BS_OLDFEETJOIN"] == "1"  // ledger 393
+    static let oldGroundLog = Env.all["BS_OLDGROUNDLOG"] == "1"  // ledger 393
+    static let oldSwap = Env.all["BS_OLDFELLSWAP"] == "1"        // ledger 393
     static let newSeed = Env.all["BS_OLDFELLSEED"] != "1"
     static let woodRests = Env.all["BS_OLDLEAFREST"] != "1"
     static var slipped = 0                       // (counter: bodies let through the trunks they hung in)
@@ -356,18 +359,38 @@ extension Game {
             guard treeAt(c.x, c.y + 1, c.z), treeAt(c.x, c.y + 2, c.z) else { continue }
             feet.append(c)
         }
+        // Ledger 393 (Fable's item 4, Neon's review: feet 1 apart were one trunk, so two trees standing side by side fell
+        // together): two feet are one trunk only when they stand in one thick trunk's 2x2, every column of it wood a
+        // block over the higher foot. BS_OLDFEETJOIN=1: any feet 1 apart, as before.
+        func thick(_ a: IVec3, _ b: IVec3) -> Bool {
+            let l = max(a.y, b.y) + 1
+            for sx in (max(a.x, b.x) - 1)...min(a.x, b.x) { for sz in (max(a.z, b.z) - 1)...min(a.z, b.z) {
+                if treeAt(sx, l, sz) && treeAt(sx + 1, l, sz) && treeAt(sx, l, sz + 1) && treeAt(sx + 1, l, sz + 1) { return true }
+            } }
+            return false
+        }
         var label: [IVec3: Int] = [:]
         var trunks = 0
         for f in feet where label[f] == nil {
             var q = [f]
             label[f] = trunks
             while let c = q.popLast() {
-                for g in feet where label[g] == nil && abs(g.x - c.x) <= 1 && abs(g.z - c.z) <= 1 && abs(g.y - c.y) <= 2 { label[g] = trunks; q.append(g) }
+                for g in feet where label[g] == nil && abs(g.x - c.x) <= 1 && abs(g.z - c.z) <= 1 && abs(g.y - c.y) <= 2 && (Felling.oldFeetJoin || thick(c, g)) { label[g] = trunks; q.append(g) }
             }
             trunks += 1
         }
         if Felling.trace {
             print("fell trace: cut \(p.x) \(p.y - YOFF) \(p.z), wood \(comp.count), feet \(feet.map { "\($0.x) \($0.y - YOFF) \($0.z)" }), trunks \(trunks)")
+        }
+        // Ledger 393 (Fable's item 4: a felled log lying on the ground, hit, rose again as one body with the other half
+        // and "rolls as if two pieces joined"): wood with no trunk that lies on the ground is a lying log: the blow takes
+        // the struck log only, as mining does, and the rest lies where it is. BS_OLDGROUNDLOG=1: it all fell again.
+        if fixed && trunks == 0 && !Felling.oldGroundLog && comp.contains(where: { c in
+            let u = Int(w.block(c.x, c.y - 1, c.z))
+            return !treeT[u] && !rootT[u] && !leafT[u] && (Blocks.opaque[u] || Blocks.collide[u] || w.groundAt(c.x, c.y - 1, c.z))
+        }) {
+            if Felling.trace { print("fell trace: a lying log (\(comp.count) logs on the ground): only the struck one goes") }
+            return
         }
         var logs = Set(comp)
         if !fixed {
@@ -874,6 +897,11 @@ extension Game {
                 // (ledger 134: and its trunk's shape is made, so it never shows as posts for a frame)
                 // (for half a second at most: a shape that comes later goes on when it does)
                 let built = !s.mesh.busy && !s.mesh.sections.isEmpty && (Felling.shapePending[s.id] == nil || f.held > 0.5)
+                // Ledger 393 (Fable's item 4, his Nov 20 "flash on hit"): the body was shown only once both were done, so
+                // when the world redrew the tree without it first, neither was drawn for those frames. Now the body shows
+                // the frame its mesh is in, held still where the tree stood (drawn over the world's copy, the same shape)
+                // until the world has redrawn. BS_OLDFELLSWAP=1: hidden until both.
+                if built && !Felling.oldSwap { s.hidden = false }
                 if !(drawn && built) && f.held < 4 { s.vel = .zero; s.angVel = .zero; continue }
                 if !drawn { Felling.letLate += 1 }
                 s.hidden = false; s.kinematic = false
