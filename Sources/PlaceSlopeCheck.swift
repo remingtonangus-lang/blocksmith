@@ -103,6 +103,9 @@ enum PlaceSlopeCheck {
                     g.tick(1.0 / 60)
                     g.input.rightClicked = false; g.input.rightDown = false
                     let tgClick = g.target
+                    // (the aim the click used: the view settles a few hundredths between ticks, and at a cell's edge the
+                    // target moves with it)
+                    let ghClick = g.targetGround.flatMap { gc in tgClick.map { gc.cell == $0.hit } == true ? gc : nil } ?? gh
                     g.tick(1.0 / 60)
                     let base = Blocks.groupBase[Int(Blocks.id(key))]
                     let mine = before.keys.filter { c in
@@ -117,15 +120,20 @@ enum PlaceSlopeCheck {
                     tl.placed += 1
                     var bad: [String] = []
                     // (a) the cell the aim shows: the column the ray met the ground in, the row at the height it met it
-                    let hx = Int(floor(hitAt.x)), hz = Int(floor(hitAt.z))
-                    let hy = Int(floor(hitAt.y))
-                    if low.x != hx || low.z != hz || (low.y != hy && low.y != hy + 1) {
-                        tl.wrongCell += 1; bad.append(String(format: "went in %d %d %d, aimed at the ground at %.2f %.2f %.2f", low.x, low.y - YOFF, low.z, hitAt.x, hitAt.y - Float(YOFF), hitAt.z))
-                        if trace { print(String(format: "placeslope:   target %d %d %d face %d %d %d, placeCell said %d %d %d, ray meets ground at %@, eye moved %.2f; at the click the target was %@", tg.hit.x, tg.hit.y - YOFF, tg.hit.z, tg.normal.x, tg.normal.y, tg.normal.z, want.x, want.y - YOFF, want.z, direct.map { String(format: "%.2f %.2f %.2f", $0.at.x, $0.at.y - Float(YOFF), $0.at.z) } ?? "none", simd_length(p.eye - eye0), tgClick.map { "\($0.hit.x) \($0.hit.y - YOFF) \($0.hit.z) face \($0.normal.x) \($0.normal.y) \($0.normal.z)" } ?? "none")) }
+                    let hx = Int(floor(ghClick.at.x)), hz = Int(floor(ghClick.at.z))
+                    let hy = Int(floor(ghClick.at.y))
+                    // (ledger 276: what stands on its floor goes over the point aimed at on ground that faces up (40
+                    // degrees or less from it, as a full block always did); against steep ground, or a torch, sign, rail
+                    // or plant aimed at the ground's side, the cell past the face aimed at is the aim too)
+                    let rowKind = Game.takesGroundRow(Blocks.id(key), old: false) && ghClick.normal.y >= 0.5
+                    let past = tgClick.map { $0.hit + $0.normal } ?? (tg.hit + tg.normal)
+                    if (low.x != hx || low.z != hz || (low.y != hy && low.y != hy + 1)) && (rowKind || low != past) {
+                        tl.wrongCell += 1; bad.append(String(format: "went in %d %d %d, aimed at the ground at %.2f %.2f %.2f", low.x, low.y - YOFF, low.z, ghClick.at.x, ghClick.at.y - Float(YOFF), ghClick.at.z))
+                        if trace { print(String(format: "placeslope:   ground normal %.2f %.2f %.2f; target %d %d %d face %d %d %d, placeCell said %d %d %d, ray meets ground at %@, eye moved %.2f; at the click the target was %@", gh.normal.x, gh.normal.y, gh.normal.z, tg.hit.x, tg.hit.y - YOFF, tg.hit.z, tg.normal.x, tg.normal.y, tg.normal.z, want.x, want.y - YOFF, want.z, direct.map { String(format: "%.2f %.2f %.2f", $0.at.x, $0.at.y - Float(YOFF), $0.at.z) } ?? "none", simd_length(p.eye - eye0), tgClick.map { "\($0.hit.x) \($0.hit.y - YOFF) \($0.hit.z) face \($0.normal.x) \($0.normal.y) \($0.normal.z)" } ?? "none")) }
                     }
                     // (b) floats or sinks: each bottom piece (nothing of its own under it) against the drawn ground; set down
                     // on the ground's top only (one put against the side of a bank hangs off it, as a block does)
-                    let onTop = (tgClick?.normal.y ?? 0) == 1
+                    let onTop = (tgClick?.normal.y ?? 0) == 1 || rowKind
                     for c in mine where onTop && !mine.contains(IVec3(c.x, c.y - 1, c.z)) {
                         let b = w.builtBlock(c.x, c.y, c.z)
                         guard !Blocks.collide[Int(w.builtBlock(c.x, c.y - 1, c.z))] else { continue }   // (stood on a block)
@@ -160,10 +168,10 @@ enum PlaceSlopeCheck {
         check(spots >= 40, "placeslope: \(spots) sloped spots in \(regions.count) regions (want 40 or more)")
         for (cls, _) in classes {
             let t = tally[cls]!
-            // (ledger 273 holds floating and sinking at 0, ledger 275 the gaps under what rests on its floor; the cells a
-            // block off the aim are the hunt's next round, printed until fixed)
-            check(t.aimed >= 8 && t.placed + t.refused == t.aimed && t.refused * 4 <= t.aimed && t.float == 0 && t.sink == 0 && t.gap == 0,
-                  "placeslope \(cls): \(t.placed) of \(t.aimed) placed on sloped ground (\(t.refused) refused), \(t.float) floating, \(t.sink) sunk, \(t.gap) with a gap under; still open: \(t.wrongCell) in another cell than aimed"
+            // (ledger 273 holds floating and sinking at 0, ledger 275 the gaps under what rests on its floor, ledger 276
+            // the cell the aim shows)
+            check(t.aimed >= 8 && t.placed + t.refused == t.aimed && t.refused * 4 <= t.aimed && t.float == 0 && t.sink == 0 && t.gap == 0 && t.wrongCell == 0,
+                  "placeslope \(cls): \(t.placed) of \(t.aimed) placed on sloped ground (\(t.refused) refused), \(t.float) floating, \(t.sink) sunk, \(t.gap) with a gap under, \(t.wrongCell) in another cell than aimed"
                   + (t.notes.isEmpty ? "" : "; " + t.notes.prefix(4).joined(separator: "; ")))
         }
     }
