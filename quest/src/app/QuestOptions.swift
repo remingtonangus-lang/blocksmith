@@ -362,9 +362,19 @@ enum QuestOptions {
     // The Touch rows with the hands named as the player holds them (Dominant Hand: Left mirrors every binding).
     static func touchRowsHanded() -> [String] {
         var rows = touchRows
-        if QuestSettings.controlPreset == 2 { rows.insert("One Hand: R stick forward/back walks too", at: 1) }
+        // Ledger 388: One Hand plays from the dominant controller alone (HandedInput.oneHand); its rows come first.
+        if QuestSettings.controlPreset == 2 { rows.insert(contentsOf: oneHandRows, at: 0) }
         return QuestSettings.leftHanded ? rows.map { mirrorHands($0) } : rows
     }
+    static let oneHandRows = [
+        "One Hand: the right controller alone plays",
+        "R stick: forward/back walks, sideways turns",
+        "R trigger: attack / mine",
+        "R grip: tap: next slot; hold: use / place / eat / bow",
+        "A: jump (double tap: fly)  B: sneak, back; hold: drop",
+        "Click R stick: pick block / reload; hold: weapon wheel",
+        "A + B together: pause; hold: inventory",
+    ]
     // "Right" <-> "Left", A <-> X, B <-> Y as whole words (what the swapped hands press).
     static func mirrorHands(_ s: String) -> String { ContextPrompts.mirrorHands(s) }
 

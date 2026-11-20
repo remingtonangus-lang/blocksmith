@@ -83,5 +83,65 @@ final class HandedInput: XRInput {
                 hands[1].stick = V2(0, 0)
             }
         }
+        if QuestSettings.controlPreset == 2 && !HandedInput.oldOneHand && !lost[1] { oneHand(dt: dt, walk: walk) }
+    }
+
+    // Ledger 388 (Nov 20, Remington: "Build it properly now"; Neon's controls review: One Hand only remapped walking, so
+    // use, the inventory, pause and reload stayed on the off controller). With One Hand the dominant controller alone
+    // plays the game; its presses are given to the off hand's controls below QuestControls, so every reader sees them
+    // (Dominant Hand: Left mirrors it like the rest). On top of the walking stick:
+    //   grip       a tap steps the hotbar (as before); held 0.3 s it is the use trigger: place, eat, open, talk, board,
+    //              nock and draw the bow (QuestControls.bowUpdate draws it with the hold), held as long as the grip is
+    //   stick in   a tap (stick near the centre) is X: pick block / reload; held 0.3 s it is itself: the weapon wheel
+    //   A + B      together: a tap pauses; held 0.5 s, the inventory (Y held)
+    // A (jump; a double tap flies), B (tap: sneak / back; held: drop) and the trigger are as ever. In menus only A + B
+    // is taken (the pause and the inventory close as they open). BS_OLDONEHAND=1: the stick alone, as before.
+    static let oldOneHand = Env.all["BS_OLDONEHAND"] == "1"
+    static let gripUseAfter: Float = 0.3, clickHoldAfter: Float = 0.3, chordHoldAfter: Float = 0.5
+    private var gripT: Float = 0, gripPulse = 0
+    private var clickT: Float = 0, clickPulse = 0, clickPushed = false
+    private var chordT: Float = 0, chord = false, menuPulse = 0
+    private(set) var gripUse = false                  // (QuestControls: the bow draws with this hold)
+    private func oneHand(dt: Float, walk: Bool) {
+        var d = hands[1], o = hands[0]
+        // A + B together (either order): suppressed from A and B until both are let go.
+        if d.button1 && d.button2 { chord = true }
+        if chord {
+            chordT += dt
+            if chordT >= HandedInput.chordHoldAfter { o.button2 = true }
+            if !d.button1 && !d.button2 {
+                if chordT < HandedInput.chordHoldAfter { menuPulse = 3 }
+                chord = false; chordT = 0
+            }
+            d.button1 = false; d.button2 = false
+        }
+        if menuPulse > 0 { o.menu = true; menuPulse -= 1 }
+        if walk {
+            // The grip: held back until it is a tap (given back as three frames of grip: the hotbar steps) or a hold (use).
+            let g = d.squeeze > 0.5
+            if g {
+                gripT += dt
+                if gripT >= HandedInput.gripUseAfter { gripUse = true }
+            } else {
+                if gripT > 0 && !gripUse { gripPulse = 3 }
+                gripT = 0; gripUse = false
+            }
+            d.squeeze = gripPulse > 0 ? 1 : 0
+            if gripPulse > 0 { gripPulse -= 1 }
+            if gripUse { o.trigger = max(o.trigger, 1) }
+            // The stick click: a tap near the centre is X; a click with the stick pushed (walking) or held is the click.
+            if d.stickClick {
+                if clickT == 0 { clickPushed = simd_length(raw.hands[physical(1)].stick) > 0.45 }
+                clickT += dt
+                if !clickPushed && clickT < HandedInput.clickHoldAfter { d.stickClick = false }
+            } else {
+                if clickT > 0 && !clickPushed && clickT < HandedInput.clickHoldAfter { clickPulse = 3 }
+                clickT = 0
+            }
+            if clickPulse > 0 { o.button1 = true; clickPulse -= 1 }
+        } else {
+            gripT = 0; gripUse = false; gripPulse = 0; clickT = 0; clickPulse = 0
+        }
+        hands[1] = d; hands[0] = o
     }
 }
