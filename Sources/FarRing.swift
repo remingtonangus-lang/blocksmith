@@ -508,7 +508,7 @@ final class FarRing {
             forest.emit(gen, cx: cx, cz: cz, rin: rin, from: max(0, skip), into: &out)
             forest.lastTrack = FarTrack.emit(gen, cx: cx, cz: cz, from: max(0, skip), into: &out)
             // (ledger 362: the cards go last; Mesh.cards of the buffer's quads are theirs, drawn by their own pipeline)
-            if FarForest.cards { _ = forest.emitCards(gen, cx: cx, cz: cz, rin: rin, into: &out) }
+            if FarForest.cards { _ = forest.emitCards(gen, cx: cx, cz: cz, rin: rin, skip: skip, into: &out) }
         }
         return out
     }

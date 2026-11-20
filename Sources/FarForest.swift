@@ -134,9 +134,12 @@ final class FarForest {
     static let woodShade = Env.all["BS_NOFARWOODSHADE"] == nil
     // One quad a tree (quest/shaders/farcard.vert): the foot, the corner, the frame's side, the set's first layer, the
     // tree's own quarter turn and the frame centre's height over the foot. Returns the number of quads.
-    func emitCards(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, into out: inout [SimpleVert]) -> Int {
+    func emitCards(_ gen: WorldGen, cx: Int, cz: Int, rin: Float, skip: Float = .infinity, into out: inout [SimpleVert]) -> Int {
         var n = 0
-        let from = rin - 24
+        // Ledger 391b (Neon's review 06#4): rin - 24 is measured from the ring's 128-block build cell's centre, and he
+        // stands up to 90 blocks off it: on his far side the cards began well out past the drawn land. From the ring's
+        // own inner edge (skip) instead; farcard.vert hides those under the live disc. BS_OLDFARGAP=1: rin - 24.
+        let from = FarForest.oldGap || !skip.isFinite ? rin - 24 : max(0, skip)
         for l in lists { for t in l {
             let x = Float(Int(t.x) - cx) + 0.5, z = Float(Int(t.z) - cz) + 0.5
             let d: Float = (x * x + z * z).squareRoot()
