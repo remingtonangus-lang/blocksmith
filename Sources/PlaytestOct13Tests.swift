@@ -77,6 +77,28 @@ enum PlaytestOct13Tests {
             g.mobs.mobs = []; g.mobs.rebuildIndex()
         }
 
+        // Ledger 398 (Neon 05#1): the player's arc bolt drops a foot soldier in one, but not the marshal, the chancellor or
+        // a tower's commandant; nor do a rocket's or a shell's direct hits (shellProof), and its jumps take the bolt's
+        // own damage, not the boss's whole health.
+        do {
+            let o = lane0 + V3(0, 1.0, 0)
+            func bolt(_ kind: MobKind, commandant: Bool = false) -> (alive: Bool, bystander: Int) {
+                let m = Mob(kind, at: lane0 + V3(0, 0, -6))
+                if commandant { m.commandant = true }
+                let by = Mob(.soldierTrooper, at: lane0 + V3(1.5, 0, -6))
+                by.health = 200
+                g.mobs.mobs = [m, by]; g.mobs.rebuildIndex()
+                g.arms.beam(g, from: o, dir: simd_normalize(m.pos + V3(0, m.height * 0.5, 0) - o), range: 20, damage: 6, fromPlayer: true, shooter: nil, by: "test")
+                let r = (m.health > 0, 200 - by.health)
+                g.mobs.mobs = []; g.mobs.rebuildIndex()
+                return r
+            }
+            let grunt = bolt(.soldierTrooper), marshal = bolt(.ashMarshal), chancellor = bolt(.ashChancellor), officer = bolt(.soldierOfficer, commandant: true)
+            let proof = MobKind.ashMarshal.shellProof && MobKind.ashChancellor.shellProof
+            check(!grunt.alive && marshal.alive && chancellor.alive && officer.alive && marshal.bystander < 20 && proof,
+                  "ledger 398: an arc bolt drops a trooper; the marshal, chancellor and a commandant live (jump to a bystander \(marshal.bystander)); shells don't one-shot them (\(proof)); BS_OLDBOSSONESHOT=1: all die")
+        }
+
         // P177: a hand grips a chicken, lifts it, flicks forward and lets go: it flies; a grip on a carcass drags it
         // along the ground.
         do {
