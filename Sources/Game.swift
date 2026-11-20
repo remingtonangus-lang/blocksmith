@@ -480,7 +480,17 @@ final class Game: LifeLinked {
     var padHotbarScroll = true          // bumpers scroll the hotbar (the Quest picks slots by pointing instead)
     private var lastSpaceTap: Double = -1
     private var flyTapAt: Double = -1         // (the tick of a double-tapped jump: the fly toggle waits for the player's update)
-    var clock: Double = 0            // (settable: the deep-war checks step it without a full tick)
+    // Ledger 381 (replaces draft PR #822's hand-kept reset list): a new Game's clock carries on from the furthest any
+    // Game in this process reached, so it never runs backwards across a world switch or a reload. Dozens of
+    // process-wide timers (TownLaw, MarketCalls, Waymarks, Spine, Liberation, Corsairs, PowerSuit, MainGun, the HUD's
+    // caches...) hold Game.clock stamps; with every new world restarting at 0 they sat minutes in the future and
+    // froze or stuck on. Carried on, every old stamp lies in the past: cooldowns are over, caches refresh at once,
+    // and a timer added later needs no reset list. (Game.clock is never saved.) BS_OLDWORLDCLOCK=1 = from 0.
+    static let clockFromZero = Env.all["BS_OLDWORLDCLOCK"] == "1"
+    private(set) static var clockReached: Double = 0
+    var clock: Double = Game.clockFromZero ? 0 : Game.clockReached {     // (settable: the deep-war checks step it without a full tick)
+        didSet { if clock > Game.clockReached { Game.clockReached = clock } }
+    }
     var lastJump: (at: Double, what: String)?         // ledger 138: the last move of 48+ blocks between two frames
     var toastText = ""
     static func toastLife(_ t: String) -> Double { min(9, 2.2 + Double(max(0, t.count - 30)) * 0.06) }   // P209: time to read it

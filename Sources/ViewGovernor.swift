@@ -41,7 +41,9 @@ struct ViewGovernor {
     // raises stop one step under it (`lid`), so the frame does not see-saw at the edge of what the headset can draw.
     // BS_OLDVIEWGOV=1 = before.
     static let steady = Env.all["BS_OLDVIEWGOV"] != "1"
-    static let baseHold = steady ? 45.0 : 20.0, lidFor = 600.0
+    // Ledger 380: BS_VIEWHOLD / BS_VIEWLID (seconds) for headset trials.
+    static let baseHold = Env.all["BS_VIEWHOLD"].flatMap { Double($0) } ?? (steady ? 45.0 : 20.0)
+    static let lidFor = Env.all["BS_VIEWLID"].flatMap { Double($0) } ?? 600.0
     // P440 (Oct 24 evening: 20-23 fps at view 16 flying into new land, "why isn't it auto rendering?"): the GPU had room,
     // the frames were lost to the CPU making land, and a loading window never counted. Two windows in a row missing
     // more than a quarter of their frames, loading or not, now take a step down whatever the GPU says.
