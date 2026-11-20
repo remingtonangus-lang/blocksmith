@@ -44,12 +44,15 @@ enum RenderTest {
         let cam = EyeCamera(center: center, viewProj: vps, cullViewProj: proj * XRMath.inversePose(head, .zero), yaw: yaw, pitch: pitch, far: far)
         let readback = try VkBuf(ctx, size: width * height * 4 * 2, usage: VK_BUFFER_USAGE_TRANSFER_DST_BIT.rawValue, host: true)
         var ms: [Double] = []
-        for fi in 0..<3 {
+        // (BS_RENDERFRAMES=N: more frames first, so what streams in over frames is up: the far ring's upload waits for
+        // its buffer to be three frames free, and the fog reaches out over it only the frame after)
+        let nF = max(3, Int(Env.all["BS_RENDERFRAMES"] ?? "") ?? 3)
+        for fi in 0..<nF {
             let s = scene.beginFrame()
             let a = CFAbsoluteTimeGetCurrent()
             let al0 = AllocCount.now
-            if fi == 2 { AllocCount.traced("record") { wr.record(s, targets[fi % 2], cam) } } else { wr.record(s, targets[fi % 2], cam) }
-            if fi == 2, let x = al0, let y = AllocCount.now { print("render: world record allocations per frame (steady): \(y - x)") }
+            if fi == nF - 1 { AllocCount.traced("record") { wr.record(s, targets[fi % 2], cam) } } else { wr.record(s, targets[fi % 2], cam) }
+            if fi == nF - 1, let x = al0, let y = AllocCount.now { print("render: world record allocations per frame (steady): \(y - x)") }
             vkCmdEndRenderPass(s.cmd)
             // A pending bug-note screenshot, as QuestApp records it (left eye back in COLOR_ATTACHMENT_OPTIMAL after).
             QuestScreenshot.service(s, ctx: ctx, image: img.image, format: VK_FORMAT_R8G8B8A8_UNORM, width: width, height: height)
