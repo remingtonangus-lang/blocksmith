@@ -103,7 +103,8 @@ enum FarCitadel {
     // (The site's foot: from 6 under the plaza's base, where the podium's white starts; the ground it lays is left out.)
     static func voxelize(_ piece: Piece, key: String) -> Model {
         let F = cell
-        let floorY = piece.min.y + 14
+        // (a citadel from its podium, 14 up; ledger 385: a Greywall base from just under its yard, Greywall.yardY)
+        let floorY = piece.min.y + (key.hasPrefix("greywall:") ? 11 : 14)
         let x0 = piece.min.x, z0 = piece.min.z, y1 = min(CH - 1, piece.max.y)
         let nx = (piece.max.x - x0 + F) / F, nz = (piece.max.z - z0 + F) / F, ny = max(1, (y1 - floorY + F) / F)
         var count = [UInt8](repeating: 0, count: nx * ny * nz)

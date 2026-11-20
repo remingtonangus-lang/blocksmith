@@ -12,6 +12,7 @@ enum Nov14EveningChecks {
         hullChip(g, check)
         seaIce(g, check)
         farTower(g, check)
+        farGreywall(g, check)
         var horses = 0, packs = 0
         for _ in 0..<4000 { if let (k, _, _) = MobManager.pickAnimal(.plains) { packs += 1; if k == .horse { horses += 1 } } }
         check(MobManager.oldHorsePacks || (packs > 0 && Float(horses) / Float(packs) < 0.06),
@@ -55,6 +56,25 @@ enum Nov14EveningChecks {
         check(FarCitadel.oldFarShot || (inTower && !overIt && !holed),
               String(format: "Nov 14 far tower: a far shot meets the citadel's tower at %.0f %.0f %.0f (%@), not the air 12 over it (%@), nor a blast hole there (%@)",
                      wx, y - Float(YOFF), wz, inTower ? "yes" : "no", overIt ? "solid" : "clear", holed ? "solid" : "clear"))
+    }
+
+    // Ledger 385 (Nov 20: the Greywall base he shelled stood past the drawn land): a Greywall base's far model is made
+    // from its own blocks, walls and towers standing (cells up to the wall's height), no ground.
+    static func farGreywall(_ g: Game, _ check: (Bool, String) -> Void) {
+        guard let st = g.world.gen.structures?.nearest(Greywall.kind, x: Int(g.player.pos.x), z: Int(g.player.pos.z), maxRegions: 16) else {
+            check(false, "ledger 385: no Greywall base near the suite's spot"); return
+        }
+        let (cx, cz) = Greywall.centre(st)
+        let sync0 = FarCitadel.sync
+        FarCitadel.sync = true
+        let m = FarCitadel.model(st, key: "greywall:\(cx),\(cz)", damage: [])
+        FarCitadel.sync = sync0
+        guard let model = m else { check(false, "ledger 385: the far Greywall model was not made"); return }
+        var top = 0
+        for i in model.grid.indices where model.grid[i] != 0 { top = max(top, i / (model.nz * model.nx)) }
+        let wall = Greywall.Tier.of(st).wallH
+        check(Renderer.farGreywall == false || (model.quads.count > 200 && (top + 1) * FarCitadel.cell >= wall),
+              "ledger 385: a Greywall base past the loaded land stands from its own blocks (\(model.quads.count) quads, \((top + 1) * FarCitadel.cell) blocks tall, wall \(wall); BS_FARGREYWALL=0: not drawn)")
     }
 
     // Nov 14 (a cold sea: "Make it like ice panes except they're flat, not vertical"): open water freezes to a sheet two

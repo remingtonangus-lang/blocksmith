@@ -62,6 +62,48 @@ extension Renderer {
         return Renderer.citadelList
     }
 
+    // Ledger 385 (Nov 20 playtest, the frigate shelling a Greywall fortress: "he still couldn't see the base he was firing
+    // at", it stood past the drawn land while the view was held low): the Greywall bases stand past the loaded land as
+    // the citadels do, compressed from their own blocks (FarCitadel), the two nearest within `greywallRange`.
+    // BS_FARGREYWALL=0 = before.
+    static let farGreywall = Env.all["BS_FARGREYWALL"] != "0"
+    static let greywallRange: Float = 1400
+    static var greywallSites: [(st: StructureStart, key: String, at: V3)] = []
+    static var greywallAt: Double = -10
+    static var greywallPlanning = false
+    func greywallCache(_ game: Game) -> [(st: StructureStart, key: String, at: V3)] {
+        guard Renderer.farGreywall else { return [] }
+        if game.clock - Renderer.greywallAt < 2 && game.clock >= Renderer.greywallAt { return Renderer.greywallSites }
+        Renderer.greywallAt = game.clock
+        guard let wg = game.world.gen as? WorldGen, let sc = wg.structures, let t = sc.types.first(where: { $0.name == Greywall.kind }) else {
+            Renderer.greywallSites = []; return []
+        }
+        let span = t.spacing * CS
+        let p = game.player.pos
+        let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
+        let n = Int(Renderer.greywallRange) / span + 1
+        var todo: [(Int, Int)] = []
+        var found: [(st: StructureStart, key: String, at: V3)] = []
+        for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
+            guard sc.isCached(t, regionX: rx, regionZ: rz) else { todo.append((rx, rz)); continue }
+            guard let st = sc.start(t, regionX: rx, regionZ: rz), !st.pieces.isEmpty else { continue }
+            let (x, z) = Greywall.centre(st)
+            let w = V3(Float(x), Float(Greywall.yardY(st)), Float(z))
+            guard simd_length(V2(w.x - p.x, w.z - p.z)) < Renderer.greywallRange else { continue }
+            found.append((st, "greywall:\(x),\(z)", w))
+        } }
+        found.sort { simd_length_squared(V2($0.at.x - p.x, $0.at.z - p.z)) < simd_length_squared(V2($1.at.x - p.x, $1.at.z - p.z)) }
+        Renderer.greywallSites = Array(found.prefix(2))
+        if !todo.isEmpty && !Renderer.greywallPlanning {
+            Renderer.greywallPlanning = true
+            DispatchQueue.global(qos: .utility).async {
+                for (rx, rz) in todo { _ = sc.start(t, regionX: rx, regionZ: rz) }
+                Renderer.greywallPlanning = false
+            }
+        }
+        return Renderer.greywallSites
+    }
+
     // Ancient Spire starts within the landmark range (structure regions are 1024 blocks).
     func spireCache(_ game: Game) -> [V4] {
         if game.clock - Renderer.spireAt < 2 { return Renderer.spireList }
@@ -357,6 +399,17 @@ extension Renderer {
                 let roof = V4(col * (0.5 + 0.5 * day) * nightK * hdrK * (1 - haze) + fog * haze, 1)
                 let r0 = V3(c.x - h, y0 + hi, c.z - h), r1 = V3(c.x + h, y0 + hi, c.z - h), r2 = V3(c.x + h, y0 + hi, c.z + h), r3 = V3(c.x - h, y0 + hi, c.z + h)
                 tri(p(r0), p(r2), p(r1), roof, &out); tri(p(r0), p(r3), p(r2), roof, &out)
+            }
+        }
+        // Ledger 385: the nearest Greywall bases past the loaded land, from their own blocks (nothing until the model is made).
+        for gw in landmarks ? greywallCache(game) : [] {
+            let dist = simd_length(V2(gw.at.x - eye.x, gw.at.z - eye.z))
+            guard dist > loaded + 16, dist < Renderer.greywallRange else { continue }
+            let haze: Float = landHaze(dist, 0.3 + 0.55 * Terrain.smooth(loaded, Renderer.citadelRange, dist), margin: 0.22)
+            let near = dist + 60 < place * 0.9
+            if let m = FarCitadel.model(gw.st, key: gw.key, damage: FarCitadel.damage(game, key: gw.key)) {
+                FarCitadel.draw(m, eye: eye, loaded: loaded, sun: sun, day: day, nightK: nightK, hdrK: hdrK, fog: fog, haze: haze,
+                                at: { at($0, near) }, into: &out)
             }
         }
         // P483 (Oct 28 17:40, "compress the city from a very long distance away"): past the loaded land the towns and
