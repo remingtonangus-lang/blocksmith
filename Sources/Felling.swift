@@ -392,6 +392,16 @@ extension Game {
             if Felling.trace { print("fell trace: a lying log (\(comp.count) logs on the ground): only the struck one goes") }
             return
         }
+        // Ledger 393: a struck log standing on the ground that is no trunk's foot (a stump left by an earlier cut) is a
+        // stump: it goes alone. It was given to the nearest trunk through the wood, so a stump beside another tree
+        // brought that tree down. BS_OLDGROUNDLOG=1: as before.
+        if fixed && !Felling.oldGroundLog && !feet.contains(p) && label[p] == nil && {
+            let u = Int(w.block(p.x, p.y - 1, p.z))
+            return !treeT[u] && !rootT[u] && !leafT[u] && (Blocks.opaque[u] || Blocks.collide[u] || w.groundAt(p.x, p.y - 1, p.z))
+        }() {
+            if Felling.trace { print("fell trace: a stump on the ground: only the struck log goes") }
+            return
+        }
         var logs = Set(comp)
         if !fixed {
             if trunks > 1 {
