@@ -78,7 +78,7 @@ enum PlaytestOct14Tests {
                 let name = FarSprites.layerName(k.0, variant: v, snowy: sn, yaw: y)
                 guard let img = FarSprites.pack?.image(name, size: 32) else { missing.append(name); continue }
                 let solid = img.filter { $0.w > 0.5 }.count
-                if solid < 20 || solid > 900 {   // (a birch is thin: 28 px of 1024 at 32 px) missing.append(name + " (\(solid) of 1024 px solid)") }
+                if solid < 20 || solid > 900 /* (a birch is thin: 28 px of 1024 at 32 px) */ { missing.append(name + " (\(solid) of 1024 px solid)") }
             } } } }
             check(missing.isEmpty, "ledger 362 (a): every far tree kind has its 8 pictures, each a tree on a clear ground (\(FarSprites.layers) layers in \(FarSprites.sets) sets\(missing.isEmpty ? "" : "; wrong: " + missing.prefix(4).joined(separator: ", ")))")
             check(forest.lastCards > 500 && more == forest.lastCards && forest.lastQuads == 0,
@@ -89,7 +89,7 @@ enum PlaytestOct14Tests {
             func white(_ name: String) -> Int { (FarSprites.pack?.image(name, size: 32) ?? []).filter { $0.w > 0.5 && min($0.x, $0.y, $0.z) > 0.55 }.count }
             for k in FarSprites.kinds where k.2 { for v in 0..<FarSprites.variants {
                 let plainW = white(FarSprites.layerName(k.0, variant: v, snowy: false, yaw: 4)), snowW = white(FarSprites.layerName(k.0, variant: v, snowy: true, yaw: 4))
-                if snowW < plainW + 6 {          // (a birch from above: 6-10 white px against 0) bare.append("\(k.0) \(v): \(snowW) white px against \(plainW)") }
+                if snowW < plainW + 6 /* (a birch from above: 6-10 white px against 0) */ { bare.append("\(k.0) \(v): \(snowW) white px against \(plainW)") }
             } }
             check(bare.isEmpty, "ledger 362 (c): every cold tree kind's far picture carries its snow (\(FarSprites.kinds.filter { $0.2 }.count) kinds\(bare.isEmpty ? "" : "; bare: " + bare.prefix(4).joined(separator: ", ")))")
             // (d) Far and near take one colour: a jungle's far ground is the grass block's own colour there (its texture
