@@ -3105,10 +3105,17 @@ extension ShipManager {
                 sh.kind = 2
                 sh.gravity = 0
                 sh.life = 12
-                sh.age = -Float(k) * 0.05
                 sh.seekShip = t.ship; sh.seekMob = t.mob; sh.seekPlayer = t.player; sh.seekPoint = t.point
+                if ShipManager.oldMissiles {
+                    sh.age = -Float(k) * 0.05
+                    if k % 2 == 0 { g.sfx(.fireworkLaunch, 0.9, at: at) }
+                } else if k == 0 {
+                    g.sfx(.fireworkLaunch, 0.9, at: at)
+                } else {
+                    sh.age = -Float(k) * 0.22              // ledger 394: one after another, a fifth of a second apart
+                    sh.hold = s.vel
+                }
                 shells.append(sh)
-                if k % 2 == 0 { g.sfx(.fireworkLaunch, 0.9, at: at) }
             }
         }
     }
