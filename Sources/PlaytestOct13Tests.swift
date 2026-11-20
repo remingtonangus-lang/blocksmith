@@ -112,6 +112,21 @@ enum PlaytestOct13Tests {
                   String(format: "ledger 400: a rocket at a rival 40 off goes %.1f from it; a round isn't led by his motion (%.2f); at him it is (%.1f); BS_OLDFOEAIM=1: at him", simd_length(rocket - foe), round.x - foe.x, atHim.x - lane0.x))
         }
 
+        // Ledger 401 (Neon 07#2): Fortify Homestead bought at a town's gunsmith, his homestead 3000 blocks off: ordered,
+        // kept until its ground is loaded, and not sold twice.
+        do {
+            let prop0 = TownLaw.state.property, walls0 = TownLaw.state.walls
+            defer { TownLaw.state.property = prop0; TownLaw.state.walls = walls0 }
+            TownLaw.state.property = []; TownLaw.state.walls = nil
+            let none = Quartermaster.fortify(g)
+            let hx = sx + 3000
+            Property.claim(IVec3(hx - 12, 60, sz - 12), IVec3(hx + 12, 120, sz + 12))
+            let first = Quartermaster.fortify(g), again = Quartermaster.fortify(g)
+            let pending = (TownLaw.state.walls ?? []).filter { $0.count == 6 }.count
+            check(!none.1 && first.1 && !again.1 && pending == 1,
+                  "ledger 401: no homestead: refused (\(none.0)); one 3000 off: \(first.0); again: \(again.0); waiting \(pending); BS_OLDFORTIFY=1: refused")
+        }
+
         // Ledger 399 (Neon 07#1): a town building claimed with a deed is no longer town property.
         if let sc = w.gen.structures, let v = sc.nearest("village", x: sx, z: sz, maxRegions: 4), let pc = v.pieces.first(where: { $0.max.x - $0.min.x >= 4 }) {
             let force0 = TownLaw.forceTown, prop0 = TownLaw.state.property

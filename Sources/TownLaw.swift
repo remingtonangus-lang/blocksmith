@@ -80,6 +80,7 @@ enum TownLaw {
         var hot: [String: Int]? = nil
         var hotDay: Int? = nil
         var property: [[Int]]? = nil                 // D28 (Property.swift): your houses and homesteads
+        var walls: [[Int]]? = nil                    // ledger 401 (Quartermaster.fortify): homesteads whose walls are ordered
         var orders: [[String]]? = nil                // D29 (MailOrder.swift): catalog orders [key, count, due day]
         var ordersToasted: Bool? = nil
         var baseObj: [String: Int]? = nil            // D34 (BaseObjectives.swift): base key -> objectives done
@@ -505,6 +506,7 @@ enum TownLaw {
         Jail.watchOutlaws(g)                             // R20: a beaten outlaw gives up (per frame while one is out)
         Bandana.tick(g)                                  // D22
         Witnesses.tick(g)                                // D23
+        Quartermaster.raiseWalls(g)                      // ledger 401
         // Sheriffs draw after their challenge.
         if !pending.isEmpty {
             pending.removeAll { (m, t) in
