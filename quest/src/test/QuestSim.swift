@@ -59,6 +59,14 @@ enum QuestSim {
         check(RenderDistanceGovernorTest.run() == 0, "rdgovernor: synthetic traces (down, back up to the choice, no oscillation)")
         check(RenderDistanceGovernorTest.gameChecks(game) == 0, "rdgovernor: the save and the menu keep the player's choice")
         check(ViewGovernorTest.run() == 0, "viewgovernor: dynamic resolution counted in the view distance's pixel model")
+        // Ledger 381: a world switch or reload never runs Game.clock backwards (the process-wide timers stay in the past).
+        do {
+            let t = game.clock + 900
+            let wa = World(seed: 12345, device: sharedSystemDevice, save: nil), ga = Game(world: wa, save: nil, persistent: false)
+            ga.clock = t
+            let wb = World(seed: 99999, device: sharedSystemDevice, save: nil), gb = Game(world: wb, save: nil, persistent: false)
+            check(Game.clockFromZero || gb.clock >= t, "worldclock: a new world's clock carries on from the last (\(gb.clock) >= \(t))")
+        }
         let dt: Float = 1.0 / 72
         ShipManager.stepRate = 72; ShipManager.stepSlack = 0.2 / 72       // as QuestApp: one ship step per frame
         func idleHands() {
