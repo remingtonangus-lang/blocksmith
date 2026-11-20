@@ -1690,6 +1690,11 @@ final class SceneRenderer {
     // walk stops at the first all-water section instead of descending through every one to the bed. A meshed section
     // with no faces and water in it is all water (any other block next to water has a face). BS_DEEPSEA=0 turns it off.
     static var deepSeaCull = Env.all["BS_DEEPSEA"] != "0"
+    // Ledger 383 (the frigate leg, GPU-bound at sea): the Quest meshes every chunk at full detail (World.lodNear 99), so
+    // `c.lod == 1` never held there and the deep-sea skip never ran: every seabed section under a full section of water
+    // was drawn out to the view's edge. Now any section under 10+ blocks of water is skipped once its nearest point is
+    // `deepNear` blocks away, past where water.frag makes deep water opaque (60-76 blocks). BS_DEEPNEAR=0 = as before.
+    static let deepNear: Float = Env.all["BS_DEEPNEAR"].flatMap { Float($0) } ?? 80
     private(set) var deepSeaSkipped = 0
     // P392 (view 24: cull the buried far caves): a section is sky-open when open air comes down to it from the sky
     // through the sections above it (each one's top face open and, for the ones it passes through, its top face joined
@@ -2157,6 +2162,16 @@ extension SceneRenderer {
 
     // underDeepWater's test without its tally (the flag is kept in the table; the tally counts at use).
     private func deepWaterAbove(_ c: Chunk, _ sy: Int) -> Bool {
+        if SceneRenderer.deepNear > 0 && sy + 1 < NSEC {
+            // (ledger 383: the sea floor rarely leaves a whole empty section of water above it; 10 blocks of water over
+            // the section's top at its middle and two corners, whatever the section above holds)
+            let y = (sy + 1) * 16, fk = fluidKindT
+            guard y + 10 < CH else { return false }
+            for (x, z) in [(8, 8), (0, 0), (15, 15)] {
+                if fk[Int(c.blocks[Chunk.index(x, y, z)])] != 1 || fk[Int(c.blocks[Chunk.index(x, y + 10, z)])] != 1 { return false }
+            }
+            return true
+        }
         guard c.lod == 1, sy + 1 < NSEC else { return false }
         let above = c.sections[sy + 1]
         guard above.empty, above.meshedVersion != -1 else { return false }
@@ -2333,8 +2348,10 @@ extension SceneRenderer {
         let deepOn = SceneRenderer.deepSeaCull
         let flDeep = UInt8(SecInfo.deep), flNonEmpty = UInt8(SecInfo.nonEmpty)
         var deepSkips = 0
-        @inline(__always) func deep(_ slot: Int, _ sy: Int) -> Bool {
+        let deepNear2 = SceneRenderer.deepNear * SceneRenderer.deepNear
+        @inline(__always) func deep(_ slot: Int, _ sy: Int, _ mn: V3) -> Bool {
             guard deepOn, tf[slot * NSEC + sy] & flDeep != 0 else { return false }
+            if deepNear2 > 0 && simd_length_squared(simd_clamp(eye, mn, mn + side) - eye) < deepNear2 { return false }
             deepSkips &+= 1
             return true
         }
@@ -2402,8 +2419,8 @@ extension SceneRenderer {
                 let ns = sX[ndx + R] + sZ[ndz + R]
                 if f != 2 && f != 3 {
                     guard tc[ns].present, tc[ns].meshedOnce else { continue }
-                    if deep(ns, nsy) { continue }
-                } else if deep(slot, nsy) { continue }
+                    if deep(ns, nsy, nmn) { continue }
+                } else if deep(slot, nsy, nmn) { continue }
                 if peek {
                     if tc[ns].present, nsy < topCut, nsy >= Int(sl[ns]), tf[ns * NSEC + nsy] & flNonEmpty != 0, fG[vi] != g {
                         fG[vi] = g
