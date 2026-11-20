@@ -110,10 +110,8 @@ enum PlaytestOct14Tests {
                     guard let tr = FarForest.site(jg, gx, gz), FarSprites.tinted(tr.kind) else { continue }
                     let lx = Int(tr.x) - cxk * CS, lz = Int(tr.z) - czk * CS
                     guard lx >= 0, lx < CS, lz >= 0, lz < CS else { continue }
-                    let kcol = jg.terrain.column(Int(tr.x), Int(tr.z))
-                    let b = jg.terrain.biome(kcol, kcol.h)
-                    let shade: Float = FarForest.woodShade ? 1 - 0.22 * FarRing.canopy(jg, b, Int(tr.x), Int(tr.z), ground: kcol.h).cover : 1
-                    let got = tr.tint * FarSprites.captureTint / max(shade, 0.01)
+                    // (the wood's shade divided out: the tree's own, from its dithered biome)
+                    let got = tr.tint * FarSprites.captureTint / max(tr.shade, 0.01)
                     let dT: Float = { let d = simd_abs(got - col(t[256 + lz * CS + lx])); return max(d.x, max(d.y, d.z)) }(); worstT = max(worstT, dT); sumT += dT; treeN += 1
                 } }
             } }

@@ -29,6 +29,7 @@ final class FarForest {
         var kind: TreeKind = .oak
         var size: Float = 1
         var tint = V3(1, 1, 1)                     // ledger 362: the column's foliage colour over the pictures' (tinted kinds)
+        var shade: Float = 1                       // ledger 362: the wood's shade folded into `tint` (checks divide it out)
     }
 
     let seed: UInt64
@@ -96,7 +97,7 @@ final class FarForest {
         if FarForest.cards && FarSprites.tinted(kind) { tree.tint = gen.foliageTint(k) / simd_max(FarSprites.captureTint, V3(repeating: 0.02)) }
         // The pictures are of a tree alone in the sun; in a wood its neighbours shade it (measured against the real
         // trees at view 20: a thick snowy taiga's crowns a fifth darker than the cards, open woods the same).
-        if FarForest.cards && FarForest.woodShade { tree.tint *= 1 - 0.22 * FarRing.canopy(gen, biome, tx, tz, ground: k.h).cover }
+        if FarForest.cards && FarForest.woodShade { tree.shade = 1 - 0.22 * FarRing.canopy(gen, biome, tx, tz, ground: k.h).cover; tree.tint *= tree.shade }
         return tree
     }
 
