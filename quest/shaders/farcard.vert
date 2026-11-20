@@ -14,6 +14,7 @@ layout(location = 1) in vec4 color;
 layout(location = 0) out vec3 oUVL;
 layout(location = 1) out vec4 oLit;      // rgb the light now over the light the pictures were taken in, a the fade
 layout(location = 2) out vec4 oFog;      // rgb the fog's colour toward the tree, a its share
+layout(location = 3) out vec3 oTint;      // ledger 362: the foliage tint and wood shade (leaf pixels only)
 void main() {
     float wq = floor(pos.w + 0.5);
     int corner = int(mod(wq, 4.0));
@@ -52,7 +53,9 @@ void main() {
     vec3 lit = max(day * skyTint, vec3(0.055));
     lit = mix(lit, vec3(1.0), u.sunDir.w);
     // (the pictures were taken at noon, light 1; a tinted kind takes its own column's foliage colour over the pictures')
-    lit *= color.yzw;
+    // (ledger 362, his v5 verdict "need some more white on those far trees": the tint goes to the fragment, which keeps
+    // it off the snow)
+    oTint = color.yzw;
     oLit = vec4(lit, smoothstep(pc.m[1].z - 20.0, pc.m[1].z + 4.0, d));
     float dist = length(c);
     oFog = vec4(filmic(fogColorAlong(c)), fogAmount(dist));
