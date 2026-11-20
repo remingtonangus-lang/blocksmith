@@ -267,7 +267,9 @@ final class FarRing {
         let cover = 1 - expf(-odds * 25 / 9)
         // Snow on the conifers of the cold woods; leaf art is darker than its tint (holes, shading).
         if b == .snowyTaiga || b == .grove { leaf = simd_mix(leaf, V3(0.93, 0.95, 0.97), V3(repeating: 0.45)) }
-        return (cover, h * min(1, cover * 1.4), leaf * 0.62)
+        // (ledger 362: with the far ground now painted as the near grass, darker than the old map green, the canopy keeps
+        // its old step under the grass round it, P250 (b): 0.55, was 0.62)
+        return (cover, h * min(1, cover * 1.4), leaf * (FarRing.paintedGround ? 0.55 : 0.62))
     }
     static let paintedGround = Env.all["BS_OLDFARGROUND"] == nil
     static let grassTop: Float = 0.6                       // grass_block_top's average (grey art, tinted)

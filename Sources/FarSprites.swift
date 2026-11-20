@@ -7,11 +7,11 @@ import simd
 // one card that turns about its trunk to face the eye and shows the picture taken from that side.
 enum FarSprites {
     // Ledger 362: the elevation (degrees) from which the cards show the pictures taken from 40 degrees up. BS_FARUPDEG.
-    static let upFrom: Float = Env.all["BS_FARUPDEG"].flatMap { Float($0) } ?? 16
+    static let upFrom: Float = Env.all["BS_FARUPDEG"].flatMap { Float($0) } ?? 10
     // (the snow in a picture: pixels whose darkest channel passes snowLo start to count as snow, lifted toward white by
     // snowLift; BS_FARSNOWLO / BS_FARSNOWLIFT)
-    static let snowLo: Float = Env.all["BS_FARSNOWLO"].flatMap { Float($0) } ?? 0.45
-    static let snowLift: Float = Env.all["BS_FARSNOWLIFT"].flatMap { Float($0) } ?? 0.3
+    static let snowLo: Float = Env.all["BS_FARSNOWLO"].flatMap { Float($0) } ?? 0.4
+    static let snowLift: Float = Env.all["BS_FARSNOWLIFT"].flatMap { Float($0) } ?? 0.4
     static let yaws = 8
     static let variants = 2
     // (name, kind, snowy pictures too)
