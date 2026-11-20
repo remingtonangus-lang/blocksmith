@@ -121,6 +121,7 @@ final class WorldRenderer {
     private(set) var landmarkMs = 0.0
     // F4 middle ring (Sources/FarRing.swift): two host-visible vertex buffers, one drawn while a new build goes into
     // the other (only once the other has been out of use for 3 frames: both frames in flight are done with it).
+    static let oldShipOrder = Env.all["BS_OLDSHIPORDER"] == "1"
     private(set) var farRingOn = false           // this frame's uniforms showed it (open overworld sky)
     private var farBufs: [VkBuf?] = [nil, nil]
     private var farLive = -1, farQuads = 0, farCards = 0, farGen = -1, farFrame = 0
@@ -378,12 +379,17 @@ final class WorldRenderer {
         stage(7)
         scene.beginPass(s, t, clear: clear)
         let skip = WorldRenderer.debugSkip
+        // Ledger 390 (Fable's item 2, the frigate fight over land that held the view at 6): ships first, so the land and
+        // far ring behind a hull close by (or the deck under him) fail the depth test before they are shaded.
+        // BS_OLDSHIPORDER=1: after the land and ring, as before.
+        let shipsFirst = !WorldRenderer.oldShipOrder && !skip.contains("ships")
+        if shipsFirst { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("opaque") { scene.drawOpaque(s) }
         if CostProbe.landTwice && !skip.contains("opaque") { scene.drawOpaque(s) }     // nothing passes the depth test again
         stage(8)
         if !skip.contains("far") { drawFarRing(s, eye) }
         stage(9)
-        if !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
+        if !shipsFirst && !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         stage(10)
         Renderer.sceneFog = (u.fogColor.w, u.params.x)          // (P505: the far boxes hazed as the ground under them)
         if !skip.contains("landmarks") { drawLandmarks(s, eye, far: cam.far, fogColor: V3(u.fogColor.x, u.fogColor.y, u.fogColor.z)) }

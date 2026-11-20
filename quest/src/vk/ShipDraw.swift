@@ -90,8 +90,10 @@ final class ShipDraw {
             let m = model(s, eye: eye)
             let perSection = s.mesh.sections.count > 4                  // (P510: a crawler's dozens of sections culled too)
             let outside = !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
+            let deck = !outside && !s.mesh.outerSecs.isEmpty ? ShipMesh.openDeck(s, eye) : nil      // ledger 390
             for (k, full) in s.mesh.sections {
-                let sec = outside ? s.mesh.outerSecs[k] ?? full : full
+                let far = outside || deck.map { !ShipMesh.nearEye(full.origin, $0) } ?? false
+                let sec = far ? s.mesh.outerSecs[k] ?? full : full
                 if perSection && !ShipDraw.sectionVisible(s, sec, frustum) { continue }
                 drawSec(sl, sec, m, s.skyLight, f, pass)
             }
@@ -208,8 +210,10 @@ final class ShipDraw {
             let f = fog(s, u)
             let perSection = s.mesh.sections.count > 4                  // (P510: a crawler's dozens of sections culled too)
             let outside = !s.mesh.outerSecs.isEmpty && ShipMesh.eyeOutside(s, eye)     // P450: the hull as seen from outside
+            let deck = !outside && !s.mesh.outerSecs.isEmpty ? ShipMesh.openDeck(s, eye) : nil      // ledger 390
             for (k, full) in s.mesh.sections {
-                let sec = outside ? s.mesh.outerSecs[k] ?? full : full
+                let far = outside || deck.map { !ShipMesh.nearEye(full.origin, $0) } ?? false
+                let sec = far ? s.mesh.outerSecs[k] ?? full : full
                 guard let buf = sec.trans, sec.transQuads > 0 else { continue }
                 if perSection && !ShipDraw.sectionVisible(s, sec, frustum) { continue }
                 if !bound { vkCmdBindPipeline(sl.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scene.pipe("shipTrans")); bound = true }
