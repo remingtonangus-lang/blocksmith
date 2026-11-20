@@ -152,6 +152,7 @@ enum TownLaw {
 
     // MARK: Where and who
 
+    static let oldOwnedHouse = Env.all["BS_OLDOWNEDHOUSE"] != nil
     static func isTownSpot(_ g: Game, _ p: IVec3) -> Bool {
         if let f = forceTown { return f }
         if Property.owns(p) { return false }                                    // D28: your own house or homestead
@@ -164,6 +165,9 @@ enum TownLaw {
     // farms, the square, roads), no deeper than 4 blocks under a lot's floor.
     static func isTownOwned(_ g: Game, _ p: IVec3) -> Bool {
         if let f = forceTown { return f }
+        // Ledger 399 (Neon 07#1): a house bought with a deed is his, as isTownSpot already said; breaking or opening
+        // things in it (his own placed blocks and chests too, never recorded there) brought theft and the sheriff.
+        if !oldOwnedHouse && Property.owns(p) { return false }
         guard g.dim.dim == .overworld, let sc = g.world.gen.structures,
               let s = sc.nearestIfReady("village", x: p.x, z: p.z, maxRegions: 1),
               abs(s.anchor.x - p.x) < 200 && abs(s.anchor.z - p.z) < 200 else { return false }

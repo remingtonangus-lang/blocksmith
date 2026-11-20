@@ -99,6 +99,20 @@ enum PlaytestOct13Tests {
                   "ledger 398: an arc bolt drops a trooper; the marshal, chancellor and a commandant live (jump to a bystander \(marshal.bystander)); shells don't one-shot them (\(proof)); BS_OLDBOSSONESHOT=1: all die")
         }
 
+        // Ledger 399 (Neon 07#1): a town building claimed with a deed is no longer town property.
+        if let sc = w.gen.structures, let v = sc.nearest("village", x: sx, z: sz, maxRegions: 4), let pc = v.pieces.first(where: { $0.max.x - $0.min.x >= 4 }) {
+            let force0 = TownLaw.forceTown, prop0 = TownLaw.state.property
+            defer { TownLaw.forceTown = force0; TownLaw.state.property = prop0 }
+            TownLaw.forceTown = nil
+            let p = IVec3((pc.min.x + pc.max.x) / 2, pc.max.y - 2, (pc.min.z + pc.max.z) / 2)
+            let before = TownLaw.isTownOwned(g, p)
+            Property.claim(pc.min, pc.max)
+            let after = TownLaw.isTownOwned(g, p)
+            check(before && !after, "ledger 399: a block in a town building is the town's (\(before)); bought with a deed, it is not (\(!after)); BS_OLDOWNEDHOUSE=1: still the town's")
+        } else {
+            check(false, "ledger 399: a village within 4 regions of the test spot")
+        }
+
         // P177: a hand grips a chicken, lifts it, flicks forward and lets go: it flies; a grip on a carcass drags it
         // along the ground.
         do {
