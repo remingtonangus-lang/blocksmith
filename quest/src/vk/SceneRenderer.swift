@@ -1692,7 +1692,7 @@ final class SceneRenderer {
     static var deepSeaCull = Env.all["BS_DEEPSEA"] != "0"
     // Ledger 383 (the frigate leg, GPU-bound at sea): the Quest meshes every chunk at full detail (World.lodNear 99), so
     // `c.lod == 1` never held there and the deep-sea skip never ran: every seabed section under a full section of water
-    // was drawn out to the view's edge. Now any section under 16+ blocks of water is skipped once its nearest point is
+    // was drawn out to the view's edge. Now any section under 10+ blocks of water is skipped once its nearest point is
     // `deepNear` blocks away, past where water.frag makes deep water opaque (60-76 blocks). BS_DEEPNEAR=0 = as before.
     static let deepNear: Float = Env.all["BS_DEEPNEAR"].flatMap { Float($0) } ?? 80
     private(set) var deepSeaSkipped = 0
@@ -2162,7 +2162,17 @@ extension SceneRenderer {
 
     // underDeepWater's test without its tally (the flag is kept in the table; the tally counts at use).
     private func deepWaterAbove(_ c: Chunk, _ sy: Int) -> Bool {
-        guard c.lod == 1 || SceneRenderer.deepNear > 0, sy + 1 < NSEC else { return false }
+        if SceneRenderer.deepNear > 0 && sy + 1 < NSEC {
+            // (ledger 383: the sea floor rarely leaves a whole empty section of water above it; 10 blocks of water over
+            // the section's top at its middle and two corners, whatever the section above holds)
+            let y = (sy + 1) * 16, fk = fluidKindT
+            guard y + 10 < CH else { return false }
+            for (x, z) in [(8, 8), (0, 0), (15, 15)] {
+                if fk[Int(c.blocks[Chunk.index(x, y, z)])] != 1 || fk[Int(c.blocks[Chunk.index(x, y + 10, z)])] != 1 { return false }
+            }
+            return true
+        }
+        guard c.lod == 1, sy + 1 < NSEC else { return false }
         let above = c.sections[sy + 1]
         guard above.empty, above.meshedVersion != -1 else { return false }
         let y = (sy + 1) * 16
