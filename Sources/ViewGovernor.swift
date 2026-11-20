@@ -68,6 +68,16 @@ struct ViewGovernor {
     static let quadCap = Env.all["BS_QUADCAP"].flatMap { Int($0) } ?? 170_000
     // Ledger 380: the view the first store update keeps. Under it a raise waits `keepHold` seconds of room, not 45.
     static let keepView = Env.all["BS_KEEPVIEW"].flatMap { Int($0) } ?? 12, keepHold = 15.0
+    // Ledger 382 (the same night's reviewer route, 3376e5a): the frigate's GPU took the view 12 -> 10 (right), then its
+    // ten-minute lid kept the cheap train leg at 10, one loading second of 178k quads took it to 8 at once, and 121k at 8
+    // never passed the raise test (158k predicted at 10 against 90 % of the budget). Under `keepView`: a lid is lifted
+    // once he is `lidLeave` blocks from where it was set (another place; the same place keeps its ten minutes), the
+    // budget drop wants two seconds over in a row (one second over by a quarter still drops), and a raise needs the next
+    // step's quads under the budget itself. BS_OLDKEEP=1 = as 380.
+    static let keepOld = Env.all["BS_OLDKEEP"] == "1"
+    static let lidLeave: Float = 160
+    var lidded: Bool { lid < Self.keepView && !Self.keepOld }
+    mutating func placeChanged() { if lidded { lid = Self.ceiling } }
     static let quadFloor = Env.all["BS_QUADFLOOR"].flatMap { Int($0) } ?? 6
     static let quadSettle = 2.0
     // Store review (Meta, Nov 2, VRC.Quest.Performance.1: "fluctuates under and over 60 frames per second"): a frame
@@ -86,6 +96,7 @@ struct ViewGovernor {
     private(set) var lid = ViewGovernor.ceiling          // (ledger 233: the highest view a raise may reach for now)
     private var lidAge = 0.0
     private var sinceQuadDrop = 1e9
+    private var overSeconds = 0.0
     // Why the last window did not raise the view (the perf line prints it while the view is under the slider).
     private(set) var note = ""
 
@@ -149,6 +160,8 @@ struct ViewGovernor {
         return rd
     }
 
+    // Ledger 382: the share of the budget a raise's predicted quads must fit (all of it up to `keepView`).
+    static func raiseRoom(_ next: Int) -> Double { !keepOld && next <= keepView ? 1.0 : 0.9 }
     // Ledger 234: the view that keeps `quads` (drawn at `view`) inside the budget.
     static func viewFor(quads: Int, at view: Int) -> Int {
         var rd = view
@@ -159,7 +172,9 @@ struct ViewGovernor {
     // its frames, so no lid: the raise's own quad test keeps it from coming straight back.
     mutating func overQuads(_ quads: Int, seconds: Double) -> Action {
         sinceQuadDrop += seconds
+        overSeconds = Self.quadCap > 0 && quads > Self.quadCap ? overSeconds + seconds : 0
         guard Self.quadCap > 0, quads > Self.quadCap, current > Self.quadFloor, sinceQuadDrop >= Self.quadSettle else { return .none }
+        if !Self.keepOld && current <= Self.keepView && overSeconds < 2 && Double(quads) < Double(Self.quadCap) * 1.25 { return .none }
         let to = Self.viewFor(quads: quads, at: current)
         guard to < current else { return .none }
         current = to
@@ -176,7 +191,7 @@ struct ViewGovernor {
         guard Self.quadCap > 0, current < chosen, sinceQuadDrop >= Self.quadSettle, quads > 0 else { quadGood = 0; return .none }
         let next = min(chosen, current + Self.step)
         let quadsNext = Double(quads) * pow(Double(next) / Double(max(1, current)), Self.exponent)
-        guard quadsNext <= Double(Self.quadCap) * 0.9 else { quadGood = 0; return .none }
+        guard quadsNext <= Double(Self.quadCap) * Self.raiseRoom(next) else { quadGood = 0; return .none }
         quadGood += seconds
         guard quadGood >= (current < Self.keepView ? min(Self.baseHold, Self.keepHold) : Self.baseHold) else { return .none }
         quadGood = 0
@@ -227,7 +242,7 @@ struct ViewGovernor {
         badStreak = 0
         let next = current + Self.step
         let quadsNext = Double(w.quads) * pow(Double(next) / Double(max(1, current)), Self.exponent)
-        let quadRoom = Self.quadCap <= 0 || w.quads <= 0 || quadsNext <= Double(Self.quadCap) * 0.9
+        let quadRoom = Self.quadCap <= 0 || w.quads <= 0 || quadsNext <= Double(Self.quadCap) * Self.raiseRoom(next)
         guard current < chosen, current < lid, w.frames > 0, w.missed * 100 <= w.frames, quadRoom,
               Self.roomFor(w, from: current, to: next) else {
             good = 0
@@ -351,6 +366,24 @@ enum ViewGovernorTest {
             }
             check(secs8 > 0 && secs8 <= 3 && low8 < 22 && taiga(low8) <= ViewGovernor.quadCap * 11 / 10 && top8 == 22 && over8 == 0,
                   "viewgovernor: Auto View off, the slider's 22 held by the quad budget (taiga \(taiga(22)) quads: view \(low8) after \(secs8) s; open land back to \(top8), \(over8) s over)")
+        }
+        // 8. Ledger 382: at view 12 one loading second over the budget does not drop it (two in a row do), and a lid set
+        // under 12 is lifted when he is somewhere else.
+        if ViewGovernor.quadCap > 0 && !ViewGovernor.keepOld {
+            var g9 = ViewGovernor(chosen: 24, current: 12)
+            let spike = ViewGovernor.quadCap * 105 / 100
+            let one = g9.overQuads(spike, seconds: 1), calm = g9.overQuads(ViewGovernor.quadCap / 2, seconds: 1)
+            _ = g9.overQuads(spike, seconds: 1)
+            let two = g9.overQuads(spike, seconds: 1)
+            check(one == .none && calm == .none && two != .none, "viewgovernor: one second over the quad budget is a spike, two are a drop (\(one), \(two))")
+            var g10 = ViewGovernor(chosen: 24, current: 12)
+            for _ in 0..<4 {
+                _ = g10.observe(ViewGovernor.Window(seconds: 5, frames: 360, missed: 120, gpuMs: budget * 1.3, budgetMs: budget,
+                                                   dynRes: true, scale: 0.6, pixelShare: 0.1))
+            }
+            let lidded = g10.lidded
+            g10.placeChanged()
+            check(lidded && !g10.lidded, "viewgovernor: a lid under 12 is lifted in another place (lidded \(lidded), view \(g10.current))")
         }
         return fails
     }

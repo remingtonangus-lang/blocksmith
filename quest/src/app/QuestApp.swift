@@ -965,6 +965,7 @@ final class FrameStats {
     private var badWindows = 0, lastCaptureAt = -1e9, prevLine = ""
     static let captureMissFrac = 0.15, captureGap = 120.0
     var viewGov: ViewGovernor?              // P425: Auto View Distance
+    var lidPlace: V3? = nil                 // ledger 382: where the view lid was set
     static let viewFix = Env.all["BS_VIEWFIX"].flatMap { Int($0) }
     static let manualHeld = Env.all["BS_OLDMANUALVIEW"] != "1"      // ledger 298: Auto View off still keeps the quad budget
     var dynResProbe: (() -> Double)?        // P403 step 2: DynamicResolution.lastProbe
@@ -1166,6 +1167,11 @@ final class FrameStats {
                                      genRate > FrameStats.loadingChunksPerSecond ? "loading " : "", "quads \(sumQuads / max(1, frames))"))
                     }
                 }
+                // Ledger 382: a lid under view 12 stays with the place it was set in.
+                if !vg.lidded { lidPlace = nil }
+                else if let at = lidPlace {
+                    if simd_length(g.player.pos - at) > ViewGovernor.lidLeave { vg.placeChanged(); lidPlace = nil; print("perf: view lid lifted, another place") }
+                } else { lidPlace = g.player.pos }
                 viewGov = vg
             }
         }
