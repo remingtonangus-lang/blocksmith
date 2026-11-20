@@ -89,11 +89,27 @@ final class SoundtrackDirector {
 
     // P457: the take to play for a state: one not heard lately (the last half of its takes, at most four back), at
     // random among the rest; the state's own name when the deck has no takes for it.
+    // Ledger 387 (Nov 20 playtest: "the same song over and over" though there are plenty): with three takes a state
+    // kept only its last one out, so two could take turns. Now every take of a state plays once, in a shuffled order,
+    // before any plays again, and a new round never opens with the one that closed the last. BS_OLDTAKES=1 = before.
+    static let oldTakes = Env.all["BS_OLDTAKES"] == "1"
+    var bag: [String: [String]] = [:]       // ledger 387: each state's takes not played yet this round
     func nextTake(_ state: String, _ deck: TrackDeck) -> String {
         if takes[state] == nil { takes[state] = Soundtrack.takes(state, in: deck.names) }
         let all = takes[state] ?? []
         guard all.count > 1 else { return all.first ?? state }
         var heard = recent[state] ?? []
+        if !SoundtrackDirector.oldTakes {
+            var left = bag[state] ?? []
+            if left.isEmpty { left = all }
+            let ok = left.indices.filter { left[$0] != heard.last }
+            let pick = left.remove(at: ok.isEmpty ? Int.random(in: 0..<left.count) : ok[Int.random(in: 0..<ok.count)])
+            bag[state] = left
+            heard.append(pick)
+            if heard.count > all.count { heard.removeFirst(heard.count - all.count) }
+            recent[state] = heard
+            return pick
+        }
         let keep = min(4, all.count / 2)
         if heard.count > keep { heard.removeFirst(heard.count - keep) }
         let fresh = all.filter { !heard.contains($0) }

@@ -216,6 +216,7 @@ final class QuestControls {
     private var lastHeartBeats = 0, dubIn: Float = 0        // Q2c-console-34
     // The bow (bowUpdate): an arrow nocked by the drawing hand, the draw (0...1), the haptic ramp's last step.
     private(set) var bowNocked = false
+    private var oneHandDraw: Float = 0                 // ledger 388: One Hand, the string drawn by the hold (0...1)
     private(set) var bowPose: VRBow.Pose?               // tracking space, while a bow is held
     private var bowTick: Float = 0, bowHum: Float = 0
     private var bowNockT: Float = 1                     // seconds since the arrow was nocked (it slides onto the string)
@@ -1589,6 +1590,14 @@ final class QuestControls {
         let grip = R.aimPos + rot.act(V3(0, 0.01, -0.03))
         let trig = trigBtn[0].down
         let hasArrow = !game.survival || game.arrowSlot() != nil
+        // Ledger 388 (One Hand, the off hand not in play): the grip's hold nocks at once and draws the string back over a
+        // second (`oneHandDraw`), the bow hand aiming; letting go looses it.
+        let oneHanded = QuestSettings.controlPreset == 2 && !HandedInput.oldOneHand
+            && (((app.input as? HandedInput)?.lost[moveHand] ?? false) || !L.aimValid)
+        if trig && !bowNocked && oneHanded && hasArrow {
+            bowNocked = true; bowTick = 0; bowHum = 0; bowNockT = 0; bowDrawLast = 0; oneHandDraw = 0
+            game.sfx(.bowNock, 0.6, at: rig.toWorld(grip))
+        }
         if trig && !bowNocked && L.aimValid && hasArrow {
             if simd_length(L.aimPos - VRBow.restNock(grip: grip, handRot: rot)) < VRBow.nockRange {
                 bowNocked = true; bowTick = 0; bowHum = 0; bowNockT = 0; bowDrawLast = 0
@@ -1597,7 +1606,11 @@ final class QuestControls {
             }
         }
         let wasNocked = bowNocked
-        let pose = VRBow.pose(grip: grip, handRot: rot, drawHand: bowNocked && L.aimValid ? L.aimPos : nil)
+        if bowNocked && oneHanded { oneHandDraw = min(1, oneHandDraw + dt) }
+        let fwd1 = rot.act(V3(0, 0, -1))
+        let drawAt: V3? = !bowNocked ? nil : (oneHanded ? grip - fwd1 * (VRBow.brace + oneHandDraw * (VRBow.fullDraw - VRBow.brace))
+                                                        : (L.aimValid ? L.aimPos : nil))
+        let pose = VRBow.pose(grip: grip, handRot: rot, drawHand: drawAt)
         bowPose = pose
         game.vrBow = (draw: pose.draw, origin: rig.toWorld(pose.grip) + rig.toWorldDir(pose.dir) * 0.1, dir: simd_normalize(rig.toWorldDir(pose.dir)))
         bowNockT += dt; bowReleaseT += dt

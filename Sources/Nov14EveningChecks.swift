@@ -13,6 +13,10 @@ enum Nov14EveningChecks {
         seaIce(g, check)
         farTower(g, check)
         farGreywall(g, check)
+        // Ledger 386 (Nov 20: a Meridian Frigate on him 7 s into a new world): no warship at the world's start.
+        let sp = Game.findSpawn(gen: g.world.gen, seed: g.world.seed)
+        let atStart = Vessels.nearStart(g, IVec3(Int(sp.x) + 400, 120, Int(sp.z) - 300))
+        check(Vessels.oldStartFleet || atStart, "ledger 386: no warship is put out 500 blocks from the world's spawn point (held \(atStart); BS_OLDSPAWNFLEET=1: it was)")
         var horses = 0, packs = 0
         for _ in 0..<4000 { if let (k, _, _) = MobManager.pickAnimal(.plains) { packs += 1; if k == .horse { horses += 1 } } }
         check(MobManager.oldHorsePacks || (packs > 0 && Float(horses) / Float(packs) < 0.06),

@@ -1091,6 +1091,7 @@ final class SceneRenderer {
                 }
             }
         }
+        MeshArena.frameBegan()                                 // ledger 389: releases from here on wait for this frame
         motionDraws.removeAll(keepingCapacity: true)
         var f: VkFence? = s.fence
         vkResetFences(ctx.device, 1, &f)

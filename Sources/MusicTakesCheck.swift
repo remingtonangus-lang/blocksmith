@@ -29,6 +29,12 @@ enum MusicTakesCheck {
         let caves = (0..<20).map { _ in d.nextTake("caves", deck) }
         let soon = (0..<16).allSatisfy { i in Set(caves[i..<(i + 5)]).count == 5 }
         check(soon && Set(caves).count >= 8, "musictakes: caves' takes come round without one again within five plays (\(Set(caves).count) of 9 in 20): \(caves.prefix(6).joined(separator: " "))")
+        // Ledger 387: a state's every take plays once before any plays again (three takes: no two taking turns).
+        let d3 = SoundtrackDirector()
+        let snow = (0..<12).map { _ in d3.nextTake("creative_mode", deck) }
+        let rounds = SoundtrackDirector.oldTakes || stride(from: 0, to: 12, by: 3).allSatisfy { Set(snow[$0..<($0 + 3)]).count == 3 }
+        let noRepeat = SoundtrackDirector.oldTakes || (1..<12).allSatisfy { snow[$0] != snow[$0 - 1] }
+        check(rounds && noRepeat, "musictakes: Creative's three takes each play once a round, never twice running: \(snow.joined(separator: " ")) (BS_OLDTAKES=1: two could take turns)")
         let noGain = files.filter { SoundtrackGains.table[$0] == nil }.sorted()
         check(noGain.isEmpty, "musictakes: every take has its loudness gain (missing \(noGain.count): \(noGain.prefix(4)))")
         // P456: every vessel he can drive or ride has its music: the crawler shares the frigate's, planes fly to the flight

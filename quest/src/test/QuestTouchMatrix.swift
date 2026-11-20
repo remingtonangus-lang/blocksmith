@@ -85,10 +85,11 @@ enum QuestTouchMatrix {
             scene.waitIdle()
         }
         let dt: Float = 1.0 / 72
+        var leftGone = false                   // (ledger 388: the off controller put down, out of tracking)
         func idle() -> (XRHand, XRHand) {
             var h = [XRHand(), XRHand()]
             for i in 0..<2 {
-                h[i].aimValid = true; h[i].gripValid = true
+                h[i].aimValid = !(leftGone && i == 0); h[i].gripValid = h[i].aimValid
                 h[i].aimPos = sim.headPos + V3(i == 0 ? -0.2 : 0.2, -0.45, -0.3); h[i].gripPos = h[i].aimPos
                 // Pointing down at the floor ahead: nothing to break or use in reach but the floor.
                 h[i].aimRot = simd_quatf(angle: -0.9, axis: V3(1, 0, 0)); h[i].gripRot = h[i].aimRot
@@ -281,6 +282,43 @@ enum QuestTouchMatrix {
             QuestSettings.leftHanded = false
             reset()
             check(mism.isEmpty, "S7: the left-handed swap mirrors every Touch control on foot" + (mism.isEmpty ? "" : ": " + mism.joined(separator: "; ")))
+        }
+        // Ledger 388: One Hand with the left controller put down (lost): each action the off hand did is reached from the
+        // right controller alone and does what the two-handed control does (use, pick, hotbar, pause, inventory, wheel).
+        if !HandedInput.oldOneHand {
+            let bond0 = g.horseBond, grave0 = g.horseGrave
+            defer { g.horseBond = bond0; g.horseGrave = grave0 }
+            func act(_ n: Int, gone: Bool, _ press: @escaping (inout XRHand, inout XRHand) -> Void) -> [String] {
+                reset()
+                g.horseBond = bond0; g.horseGrave = grave0
+                leftGone = gone
+                for _ in 0..<(gone ? 50 : 2) { frame() }               // (lost after HandedInput.lostGrace)
+                let s0 = state(g)
+                for _ in 0..<n { frame(press) }
+                for _ in 0..<12 { frame() }
+                leftGone = false
+                return diff(s0, state(g), swimming: false)
+            }
+            let pairs: [(String, Int, (inout XRHand, inout XRHand) -> Void, Int, (inout XRHand, inout XRHand) -> Void)] = [
+                ("use (grip held)", 2, { l, _ in l.trigger = 1 }, 30, { _, r in r.squeeze = 1 }),
+                ("hotbar (grip tap)", 4, { _, r in r.squeeze = 1 }, 4, { _, r in r.squeeze = 1 }),
+                ("pick / reload (stick click tap)", 2, { l, _ in l.button1 = true }, 4, { _, r in r.stickClick = true }),
+                ("weapon wheel (stick click held)", 2, { _, r in r.stickClick = true }, 30, { _, r in r.stickClick = true }),
+                ("pause (A + B tap)", 2, { l, _ in l.menu = true }, 4, { _, r in r.button1 = true; r.button2 = true }),
+                ("inventory (A + B held)", 30, { l, _ in l.button2 = true }, 60, { _, r in r.button1 = true; r.button2 = true }),
+            ]
+            var miss1: [String] = [], seen1: [String] = []
+            for (name, n2, two, n1, one) in pairs {
+                QuestSettings.controlPreset = 0
+                let want = act(n2, gone: false, two)
+                QuestSettings.controlPreset = 2
+                let got = act(n1, gone: true, one)
+                QuestSettings.controlPreset = 0
+                seen1.append("\(name): \(got)"); print("touchmatrix 388: \(name): two hands \(want), one hand \(got)")
+                if want != got { miss1.append("\(name): two hands \(want), one hand \(got)") }
+            }
+            reset()
+            check(miss1.isEmpty, "ledger 388: One Hand reaches every off-hand action from the right controller (\(miss1.isEmpty ? seen1.joined(separator: "; ") : miss1.joined(separator: "; ")); BS_OLDONEHAND=1: the stick alone)")
         }
         // The code reader's Nov 10 batch 2, through the real VR path: 2.2 a grip held a moment while walking keeps the
         // held item; 2.4 sitting down in standing play stops sneaking after 3 s (a duck still crouches); 2.3 with a menu
