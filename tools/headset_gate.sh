@@ -51,6 +51,9 @@ echo "headset_gate: $(adb shell getprop ro.product.model | tr -d '\r'), build $(
 # focus.
 awake() { adb shell am broadcast -a com.oculus.vrpowermanager.prox_close >/dev/null 2>&1; }
 awake
+# Nov 19 (ledger 309): the boundary/tracking card stopped two gate runs (Nov 17-18). guardian_pause 1 keeps the
+# boundary and its card away for the run; cleanup sets it back to 0 (a reboot clears it too).
+adb shell setprop debug.oculus.guardian_pause 1 >/dev/null 2>&1
 # A logcat left over from an earlier run (killed script, or the old `kill` of the wrapper) still writes its raw.log.
 LOGPAT="logcat -v epoch -s VrApi:I Blocksmith:I"
 pkill -f "$LOGPAT" 2>/dev/null
@@ -62,6 +65,7 @@ cleanup() {
   adb shell setprop debug.sunderfall.route '""' >/dev/null 2>&1
   for p in env env2 env3 env4 env5 env6; do adb shell setprop debug.sunderfall.$p '""' >/dev/null 2>&1; done
   adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable >/dev/null 2>&1
+  adb shell setprop debug.oculus.guardian_pause 0 >/dev/null 2>&1
   [[ -n "${LOGPID:-}" ]] && kill "$LOGPID" 2>/dev/null
   pkill -f "$LOGPAT" 2>/dev/null
 }
@@ -82,7 +86,8 @@ if [[ -n "$APK" && "$INSTALL" == 1 ]]; then
     fi
   fi
   echo "headset_gate: installing $APK"
-  adb install -r "$APK" | tail -1 | grep -q Success || { echo "headset_gate: install failed"; exit 2; }
+  # (streaming installs print Success before other lines: look for it anywhere, ledger 380)
+  adb install -r "$APK" 2>&1 | grep -q "^Success" || { echo "headset_gate: install failed"; exit 2; }
 fi
 echo "headset_gate: app version $(adb shell dumpsys package $PKG | grep -m1 versionName | tr -d ' \r')"
 adb shell am force-stop $PKG
@@ -117,6 +122,17 @@ adb logcat -c
 # adb itself in the background (not the adb() function: $! would be a subshell and kill would leave adb writing).
 "$ADB" $LOGPAT > "$OUT/raw.log" 2>&1 &
 LOGPID=$!
+# Nov 19 (ledger 309): a system dialog left over from earlier (tracking lost, boundary, an update prompt) sits over a
+# launch and the game never gets focus. Look at the focused window first; anything that is neither the home shell
+# nor the game gets one BACK (Remington's blanket OK for the tracking card's buttons). If it stays it is only named
+# (the home shell's window name differs between OS builds); the focus watch below still stops a run that never focuses.
+focus() { adb shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus' | tr -d '\r' | sed 's/.*mCurrentFocus=//'; }
+stale() { local f; f=$(focus); [[ -n "$f" && "$f" != "null" && "$f" != *"$PKG"* && "$f" != *vrshell* && "$f" != *systemux.*Home* && "$f" != *horizonhome* ]] && echo "$f"; }
+if d=$(stale); then
+  echo "headset_gate: a window is up before launch: $d (pressing BACK once)"
+  adb shell input keyevent KEYCODE_BACK >/dev/null 2>&1; sleep 2
+  if d=$(stale); then echo "headset_gate: still up after BACK: $d (going on; if the run never focuses, clear it in the headset)"; fi
+fi
 adb shell setprop debug.sunderfall.stamp "$(adb shell date +%s | tr -d '\r')"
 adb shell am start -n $ACT >/dev/null
 START=$(date +%s); LAST_AWAKE=$START; LOST=""

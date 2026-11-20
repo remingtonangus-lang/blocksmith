@@ -22,7 +22,8 @@ enum RailwayTests {
         var sample: (UInt64, Railways.Line)?
         let half = 6000, seeds = 24
         let t0 = CFAbsoluteTimeGetCurrent()
-        for k in 0..<seeds {
+        let quick335 = Env.all["RAIL_ONLY"] == "335"             // (quick runs of the troop train scene alone: the first line found)
+        for k in 0..<seeds where !(quick335 && sample != nil) {
             let seed = UInt64(1000 + k * 7919)
             let gen = WorldGen(seed: seed)
             let found = Railways.near(gen, x0: -half, z0: -half, x1: half, z1: half, pad: 0)
@@ -35,6 +36,7 @@ enum RailwayTests {
             }
         }
         let area = Float(2 * half) * Float(2 * half) * Float(seeds) / (4000 * 4000)
+        if quick335, let (seed, line) = sample { trains(g, seed, line, check); return }
         sites(check)
         diagonals(check)
         let perSquare = Float(lines) / area
@@ -797,6 +799,8 @@ enum RailwayTests {
         g.player.pos = V3(Float(sc.x) + 0.5, Float(sc.y), Float(sc.z - 2) + 0.5)
         _ = world.loadSync(center: g.player.pos, radius: 4)
         Trains.trains.removeAll()
+        skipTo335: do {
+        if Env.all["RAIL_ONLY"] == "335" { break skipTo335 }
         // Ledger 304: the game makes a line's track on a worker (293); the frame never waits and the track comes.
         if let gen = world.gen as? WorldGen {
             let pr = Trains.workerTrackProof(l, gen: gen)
@@ -1037,6 +1041,129 @@ enum RailwayTests {
             } else { check(false, "ledger 254 troop train: no troop car or guard car (\(mtr.cars.map { $0.variant }))") }
             Trains.remove(g, mtr)
         } else { check(false, "ledger 254 troop train: no train could be put on the line") }
+        }
+        // Ledger 335 (Fable's job 12): a Greywall troop train can be destroyed. Rockets at each car from 50 blocks off
+        // (out of the troops' own reach to pile out): each car keeps its hurts, is wrecked when they reach its strength,
+        // uncoupled off the rails, its troops out beside it clear of everything solid; the train stands for good; the
+        // wrecks are solid and searched for loot; no train on the line until the next day; a wreck goes with its chunk.
+        Trains.trains.removeAll()
+        if let mtr = TrainArrivals.arrive(g, [t], kind: .troop) {
+            Trains.build(g, mtr)
+            TrainArrivals.kinds.removeAll(); TrainArrivals.wreckers.removeAll()
+            if g.riding != nil { g.dismount() }
+            g.survival = true; g.alive = true; g.health = 20
+            let cars0 = mtr.cars, troops0 = MilitaryTrain.holding(mtr).count
+            // (his standing with Greywall and the towns as it was: the soldiers this kills would leak into later checks)
+            let rep0 = FactionRep.rep, hunters0 = FactionRep.nextHunters, honour0 = TownLaw.state.honour
+            TroopWrecks.outList = []; TroopWrecks.recordOut = true
+            let vanishOn0 = TroopVanish.on; TroopVanish.on = true; TroopVanish.reset()
+            defer { TroopVanish.on = vanishOn0 }
+            let made0 = TroopWrecks.made, out0 = TroopWrecks.troopsOut, stuck0 = TroopWrecks.stuckOut
+            // (him 50 blocks off the middle car's side, on free ground, the train stood: a scene, not a timetable)
+            mtr.heldBy = true; mtr.brake = 1
+            if let mid = cars0.dropFirst().first {
+                let right = V3(cosf(mid.yaw), 0, -sinf(mid.yaw))
+                g.player.pos = g.world.freeSpawn(mid.pos + right * 50)
+                // (the ground round the train loaded, as the game streams it round him: troops out on unloaded ground are
+                // put away with it, and every one of them was)
+                _ = g.world.loadSync(center: mid.pos + right * 25, radius: 6)
+            }
+            let dt: Float = 1.0 / 60
+            func step(_ n: Int) {
+                for _ in 0..<n {
+                    g.health = 20; g.alive = true
+                    g.time += Double(dt); g.clock += Double(dt)
+                    g.armsTick(dt)
+                    g.mobs.update(dt, game: g)
+                    TrainHulls.follow(g.world.ships, dt, g)
+                }
+            }
+            step(30)
+            let intactT0 = CFAbsoluteTimeGetCurrent(); step(120); let intactMs = (CFAbsoluteTimeGetCurrent() - intactT0) * 1000 / 120
+            var rockets: [String] = [], wreckMs: [Double] = []
+            var outSeen = 0, freshOut = 0, freshFighting = 0
+            for c in cars0 {
+                var n = 0
+                while !TroopWrecks.isWreck(c) && n < 12 {
+                    // (from a launcher 25 blocks off the car's side and 6 up: a clear line over the lineside)
+                    let cr = V3(cosf(c.yaw), 0, -sinf(c.yaw)), toP = simd_dot(g.player.pos - c.pos, cr) < 0 ? Float(-1) : 1
+                    let eye = c.pos + cr * toP * 25 + V3(0, 6, 0), aim = c.pos + V3(0, 2, 0)
+                    let d = simd_normalize(aim - eye)
+                    var sl = Slug(pos: eye + d * 0.6, vel: d * 70, kind: .rocket, damage: 0, fromPlayer: true, shooter: nil, by: "Player", life: 3, gravity: 0)
+                    sl.power = Guns.rocketPower
+                    g.arms.spawn(sl)
+                    n += 1
+                    for _ in 0..<60 where !TroopWrecks.isWreck(c) { step(1) }
+                    if TroopWrecks.isWreck(c) { wreckMs.append(TroopWrecks.lastWreckMs) }
+                }
+                // (a second after its car went: those who climbed out of it stand on their feet, after him)
+                if TroopWrecks.isWreck(c) {
+                    let fresh = Array(TroopWrecks.outList.dropFirst(outSeen)); outSeen = TroopWrecks.outList.count
+                    step(60)
+                    freshOut += fresh.count
+                    freshFighting += fresh.filter { s in s.mount == nil && s.health > 0 && s.aggro && g.mobs.mobs.contains(where: { m in m === s }) }.count
+                }
+                rockets.append("\(c.customName ?? "car") \(TroopWrecks.isWreck(c) ? "\(n)" : "not wrecked after \(n)")")
+            }
+            step(60)
+            let wrecks = cars0.filter { TroopWrecks.isWreck($0) }
+            let allDown = wrecks.count == cars0.count && mtr.cars.isEmpty
+            let out = TroopWrecks.troopsOut - out0, stuck = TroopWrecks.stuckOut - stuck0
+            // every soldier who got out: in the clear (the world's blocks and every body, the wrecks' too)
+            let outNow = TroopWrecks.outList.filter { s in s.mount == nil && s.health > 0 && g.mobs.mobs.contains(where: { m in m === s }) }
+            let outKinds = Set(outNow.map { $0.kind.key }).sorted().joined(separator: "/")
+            let inSolid = outNow.filter { m in g.world.collides(V3(m.pos.x - m.halfW, m.pos.y + 0.05, m.pos.z - m.halfW), V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)) }.count
+            let fighting = outNow.filter { $0.health > 0 && $0.aggro }.count
+            // where the rest went by the end (the rockets at the next cars along fall among them: that is the fight)
+            let outDead = TroopWrecks.outList.filter { $0.health <= 0 }.count
+            let outMounted = TroopWrecks.outList.filter { $0.health > 0 && $0.mount != nil }.count
+            let outGone = TroopWrecks.outList.filter { s in s.health > 0 && s.mount == nil && !g.mobs.mobs.contains(where: { m in m === s }) }.count
+            // wrecks: solid (his box at one's middle meets it), they stop a round, searched for loot, the train stands
+            var solid = 0, stops = 0
+            for w in wrecks {
+                // (a body-sized box across its side, along its length: the hull's wall or its solid body)
+                var meets = false
+                for z: Float in [-2, -1, 0, 1, 2] { for sx: Float in [-1, 1] where !meets {
+                    let p = TroopWrecks.toWorld(w, V3(sx * (Trains.halfWidth(w) - 0.2), 1.3, z))
+                    if g.world.collides(p - V3(0.3, 0, 0.3), p + V3(0.3, 1.0, 0.3)) { meets = true }
+                } }
+                if meets { solid += 1 }
+                let right = V3(cosf(w.yaw), 0, -sinf(w.yaw)), from = w.pos + right * 8 + V3(0, 2, 0)
+                if let h = Armory.mobHit(g, from, simd_normalize(w.pos + V3(0, 2, 0) - from), 20, shooter: nil, friendly: false), h.0 === w { stops += 1 }
+            }
+            let s0 = TroopWrecks.searched
+            let opened = wrecks.first.map { Trains.use(g, $0) } ?? false
+            let loot = (wrecks.first?.cargo?.slots.filter { !$0.isEmpty }.count) ?? 0
+            g.menu = nil
+            let searchedOne = TroopWrecks.searched == s0 + 1 && opened && loot > 0
+            let day = Int(g.time / DAY_LENGTH)
+            let blockedToday = TroopWrecks.blocked(t.id, day: day) && !TroopWrecks.blocked(t.id, day: day + 1)
+            // the frame cost: the scene's frames with the wrecks lying there (the soldiers who got out gone: their fight
+            // is theirs) against the train whole and stood with its troops aboard
+            for m in outNow { m.health = -2000 }
+            g.mobs.mobs.removeAll { $0.health <= -1000 }
+            let wreckT0 = CFAbsoluteTimeGetCurrent(); step(120); let wreckedMs = (CFAbsoluteTimeGetCurrent() - wreckT0) * 1000 / 120
+            // a wreck goes with its chunk
+            if let w = wrecks.last { w.pos = V3(4_000_000, w.pos.y, 4_000_000); TroopWrecks.tick(g) }
+            let goes = wrecks.last.map { w in !g.mobs.mobs.contains { $0 === w } && TrainHulls.hull(w) == nil && !TroopWrecks.isWreck(w) } ?? false
+            let note = String(format: "rockets %@; %d cars wrecked, %d soldiers out of %d aboard (%d in a solid at once, %d in one now), %d of %d on their feet after him a second after their car went; at the end %d alive out fighting (%@), %d killed by the blasts at the next cars, %d back aboard, %d gone; wrecks solid %d/%d, stop a round %d/%d; searched (%d stacks) %@; train stood %@; line closed today, open tomorrow %@; gone with its chunk %@; frames %.2f ms whole, %.2f ms wrecked; the wrecking frame %.2f ms at most",
+                              rockets.joined(separator: ", "), wrecks.count, out, troops0, stuck, inSolid, freshFighting, freshOut, fighting, outKinds, outDead, outMounted, outGone, solid, wrecks.count, stops, wrecks.count, loot,
+                              searchedOne ? "yes" : "no", mtr.halted ? "yes" : "no", blockedToday ? "yes" : "no", goes ? "yes" : "no", intactMs, wreckedMs, wreckMs.max() ?? 0)
+            print("rail: ledger 335: " + note)
+            print("rail: ledger 335 soldiers taken out of the world: " + TroopVanish.line + String(format: " (him %.0f, %.0f; view %d)", g.player.pos.x, g.player.pos.z, g.world.renderDistance))
+            check(allDown && TroopWrecks.made - made0 == cars0.count && out >= troops0 - 2 && out > 0 && freshFighting > 0 && freshFighting >= freshOut - 1 && outMounted == 0 && outGone == 0 && stuck == 0 && inSolid == 0 && solid == wrecks.count
+                  && stops == wrecks.count && searchedOne && mtr.halted && blockedToday && goes && wreckedMs < intactMs * 1.5 + 0.5,
+                  "ledger 335 troop train destroyed: " + note)
+            for w in TroopWrecks.wrecks { TroopWrecks.remove(g, w) }
+            let outIDs = Set(TroopWrecks.outList.map { ObjectIdentifier($0) })
+            g.mobs.mobs.removeAll { outIDs.contains(ObjectIdentifier($0)) }      // (the soldiers out leave the scene with it)
+            TroopWrecks.outList = []; TroopWrecks.recordOut = false
+            FactionRep.rep = rep0; FactionRep.nextHunters = hunters0; TownLaw.state.honour = honour0
+            TroopWrecks.down[t.id] = nil
+            Trains.remove(g, mtr)
+            g.health = 20
+        } else { check(false, "ledger 335 troop train: no train could be put on the line") }
+        if Env.all["RAIL_STOP_AFTER"] == "335" { return }               // (quick runs of the troop train checks)
         // Ledger 137: a train leaving a stop whistles once (it whistled on every frame of the stand's last two seconds).
         for old in Trains.trains.values where !old.cars.isEmpty { Trains.remove(g, old) }
         Trains.trains.removeAll()

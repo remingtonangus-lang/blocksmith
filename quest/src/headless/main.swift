@@ -2605,6 +2605,9 @@ if CommandLine.arguments.contains("--musiclevels-only") { MusicLevelTests.run(ch
 if CommandLine.arguments.contains("--settings-only") { SettingsCheck.run(check: check); namedEnd("settings") }
 // --savesoak-only: 100 save/load cycles (Sources/SaveSoakTests.swift, Q2; SOAK_CYCLES=N).
 if CommandLine.arguments.contains("--savesoak-only") { SaveSoakTests.run(device: device, check: check); namedEnd("savesoak") }
+// --economy-hunt-only: ledger 337, bug hunt round (a): shops, the bank and money on death on five headset towns
+// (Sources/EconomyHunt.swift).
+if CommandLine.arguments.contains("--economy-hunt-only") { EconomyHunt.run(device: device, check: check); namedEnd("economy hunt") }
 // --garrison-only: ledger 253, Boreal Stations on five headset worlds keep their garrison (Sources/BorealMusterCheck.swift).
 if CommandLine.arguments.contains("--garrison-only") { BorealMusterCheck.run(device: device, check: check); namedEnd("garrison") }
 // --shipleave-only: ledger 255, off the helm of a stopped or wrecked Stormwarden he gets off her (Sources/ShipLeaveCheck.swift).
@@ -3400,6 +3403,9 @@ if CommandLine.arguments.contains("--builds") {                // Builders' Grou
     BuildersCheck.run(game, check)
     print(failures == 0 ? "builds: all checks passed" : "builds: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+if CommandLine.arguments.contains("--treeshore") {             // ledger 274: no tree over the water along shorelines
+    TreeShoreCheck.run(game, check); namedEnd("treeshore")
+}
 if CommandLine.arguments.contains("--placeslope") {            // bug hunt a: every placeable class on sloped field ground
     PlaceSlopeCheck.run(game, check); namedEnd("placeslope")
 }
@@ -4088,6 +4094,7 @@ HellWildTests.run(game, check: check)                  // P506: hell's wildlife 
 if CommandLine.arguments.contains("--hell-only") && renderPath == nil {
     print(failures == 0 ? "hell: all checks passed" : "hell: \(failures) FAILED"); exit(failures == 0 ? 0 : 1)
 }
+TreeShoreCheck.run(game, check)                        // ledger 274: no tree over the water along shorelines
 PlaceSlopeCheck.run(game, check)                       // bug hunt a: placing on sloped field ground
 CraterPlaceCheck.run(game, check)                      // P507: blocks go down in a rocket's bowl
 GarageDoorCheck.run(game, check)                       // FAILURES.md 1: a garage door a vehicle drives through

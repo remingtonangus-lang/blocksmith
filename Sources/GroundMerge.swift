@@ -18,7 +18,8 @@ final class GroundMerge {
     // Quest 3: 2064 x 2208 per eye, about 25 pixels a degree at the centre of the lens (its sharpest).
     static let pixelRadians: Float = (1 / 25.5) * .pi / 180
     static let tol16: Float = 2                                  // 1/8 block
-    static let farDistance: Float = tol16 / 16 / pixelRadians      // ~180 blocks (11 chunks)
+    // Ledger 380: BS_FARDIST=N (blocks) moves it, for headset trials at view 12.
+    static let farDistance: Float = Env.all["BS_FARDIST"].flatMap { Float($0) } ?? tol16 / 16 / pixelRadians      // ~180 blocks (11 chunks)
     static var merged = 0, replaced = 0                            // (harness tallies, quads)
 
     // One up-facing quad: 4 corners in dual-cell order (x-1,z-1), (x-1,z), (x,z), (x,z-1); per corner

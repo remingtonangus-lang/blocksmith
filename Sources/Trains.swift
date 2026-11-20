@@ -319,6 +319,7 @@ enum Trains {
         var facing: Float = 1                   // P508: the way the one engine faces (layout mirrored when -1)
         var fresh = true                        // (just built: it takes the timetable's heading at once)
         var taken = false                       // P510 (MilitaryTrain.swift): a troop train he cleared and took
+        var halted = false                      // ledger 335 (TroopWrecks.swift): a car of it wrecked, it stands for good
         // Nov 12 playtest (Trains.driveCab): driven from the cab the train is his, off the timetable: where it is on
         // the track, the way the engine faces along it (+1 up the cells), its speed that way (blocks a second; less
         // than 0 backing) and the coal in its tender (lumps).
@@ -449,15 +450,16 @@ enum Trains {
 
     // P337 step 6: what a world's save keeps of its trains (trains.json): how far each runs behind its timetable (a
     // driven or held train), the day it was last robbed and whether it was wrecked. The rest follows the world's clock.
-    struct SavedTrain: Codable { var id: Int64; var delay: Double; var robbedDay: Int; var wrecked: Bool }
+    struct SavedTrain: Codable { var id: Int64; var delay: Double; var robbedDay: Int; var wrecked: Bool; var down: Int? = nil }   // (down: ledger 335)
     static var saved: [Int64: SavedTrain] = [:]
     static func load(_ w: World) {
         // (Opening the overworld, a new world or back from another dimension: the trains start over from its save.)
-        if w.dim == .overworld { saved.removeAll(); trains.removeAll(); carOf.removeAll() }
+        if w.dim == .overworld { saved.removeAll(); trains.removeAll(); carOf.removeAll(); TroopWrecks.down.removeAll(); TroopWrecks.reset(nil) }
         guard let s = w.save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("trains.json")),
               let list = try? JSONDecoder().decode([SavedTrain].self, from: d) else { return }
         for t in list {
             saved[t.id] = t
+            if let d = t.down { TroopWrecks.down[t.id] = d }
             if let tr = trains[t.id] { tr.delay = t.delay; tr.robbedDay = t.robbedDay; tr.wrecked = t.wrecked }
         }
     }
@@ -466,8 +468,9 @@ enum Trains {
         for tr in trains.values where tr.track.dim == w.dim && !tr.track.through {
             saved[tr.track.id] = SavedTrain(id: tr.track.id, delay: tr.delay, robbedDay: tr.robbedDay, wrecked: tr.wrecked)
         }
+        for (id, d) in TroopWrecks.down { saved[id, default: SavedTrain(id: id, delay: 0, robbedDay: -1, wrecked: false)].down = d }
         let mine = saved.values.filter { v in trains[v.id].map { $0.track.dim == w.dim } ?? true }
-            .filter { $0.delay != 0 || $0.robbedDay >= 0 || $0.wrecked }
+            .filter { $0.delay != 0 || $0.robbedDay >= 0 || $0.wrecked || $0.down != nil }
         if mine.isEmpty && !FileManager.default.fileExists(atPath: s.dir.appendingPathComponent("trains.json").path) { return }
         SaveIO.write(mine.sorted { $0.id < $1.id }, to: s.dir.appendingPathComponent("trains.json"), background: SaveIO.queued(background))
     }
@@ -515,6 +518,7 @@ enum Trains {
                 tr.track = t; tr.fresh = true; tr.carS = []
             }
             if tr.wrecked { continue }
+            if tr.cars.isEmpty && TroopWrecks.blocked(t.id, day: Int(g.time / DAY_LENGTH)) { continue }      // ledger 335
             if t.id == ridden && !tr.cars.isEmpty && tr.track === t { want.insert(t.id); continue }
             tr.time = g.time - tr.delay
             let at = now(tr)
@@ -538,10 +542,11 @@ enum Trains {
             if tr.track.through { trains[id] = nil; throughOut = throughOut.filter { $0.value != id } }
         }
         // Cars not in a train (a save's leftovers) go.
-        g.mobs.mobs.removeAll { isCar($0) && carOf[ObjectIdentifier($0)] == nil }
+        g.mobs.mobs.removeAll { isCar($0) && carOf[ObjectIdentifier($0)] == nil && !TroopWrecks.isWreck($0) }
+        TroopWrecks.tick(g)                                       // ledger 335: wrecks go with their chunk
         // A held train with the player gone, or a minute on, runs again.
         for tr in trains.values where !tr.cars.isEmpty { raidTick(g, tr); troopTick(g, tr) }       // D50: hold-ups of the train you ride
-        for tr in trains.values where tr.heldBy && tr.raid.isEmpty {
+        for tr in trains.values where tr.heldBy && tr.raid.isEmpty && !tr.halted {
             tr.stoppedFor += 1
             let far = lead(tr).map { simd_length($0.pos - p) > 48 } ?? true
             if far || tr.stoppedFor > 60 { tr.heldBy = false; tr.brake = 0; tr.stoppedFor = 0; tr.holdUp = 0 }
@@ -719,7 +724,7 @@ enum Trains {
     static func drive(_ m: Mob, _ dt: Float, _ g: Game) {
         guard let (tr, k) = carOf[ObjectIdentifier(m)] else { m.health = -1; return }
         let guards = tr.layout.isEmpty ? (tr.bullion && k == 1) : ((tr.bullion || tr.kind == .troop) && m.variant == gunCar)
-        if !tr.track.armoured && !guards { m.health = m.spec.health; m.hurt = 0 }
+        if !tr.track.armoured && !guards && !TroopWrecks.on(tr) { m.health = m.spec.health; m.hurt = 0 }
         if k == 0 { place(g, tr, dt: dt); if !tr.passengers.isEmpty { TrainHulls.seatPassengers(tr) } }
         if g.riding === m {
             g.player.pos = seat(m)
@@ -810,6 +815,7 @@ enum Trains {
             } else { tr.starved = false }
         }
         tr.brake += ((tr.heldBy || tr.starved ? 1 : 0) - tr.brake) * min(1, dt * 1.2)
+        if tr.halted { tr.brake = 1; tr.heldBy = true; tr.rate = 0; tr.driveV = 0 }        // ledger 335: stood for good
         // P337 step 3: riding the locomotive is driving it. Forward opens the regulator, back closes it, through stop
         // into reverse; the train runs its timetable's track at that rate (late or early: the timetable's time is the
         // train's own). Left alone it eases back to the timetable's pace.
@@ -1059,6 +1065,7 @@ enum Trains {
     static let oldCarUse = Env.all["BS_OLDCARUSE"] == "1"          // ledger 205 (Game.interact, MilitaryTrain.use)
     // Use a car: the coach seats you; the express car's strongbox cracks (a held-up train only).
     static func use(_ g: Game, _ m: Mob) -> Bool {
+        if TroopWrecks.isWreck(m) { return TroopWrecks.search(g, m) }          // ledger 335
         guard isCar(m), let (tr, k) = carOf[ObjectIdentifier(m)] else { return false }
         _ = k
         if climbRoof(g, tr, m) { return true }                              // D50: sneak-use climbs onto the roof

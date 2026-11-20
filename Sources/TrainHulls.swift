@@ -238,6 +238,7 @@ enum TrainHulls {
         var gone: [Ship] = []
         for s in ships.list {
             guard let m = s.trainCar else { continue }
+            if TroopWrecks.isWreck(m) { continue }                 // ledger 335: a wreck's body lies where it fell
             if m.health <= 0 || Trains.carOf[ObjectIdentifier(m)] == nil { gone.append(s); continue }
             pose(s, m, ahead: dt)
             s.vel = dt > 0 ? (s.pos - s.prevPos) / dt : .zero

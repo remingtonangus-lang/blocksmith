@@ -10,9 +10,12 @@ import Foundation
 ///      draw blends as nothing): the extra GPU time is what the sky costs;
 ///   2. the land's opaque passes are drawn a second time (every fragment fails the depth test, so nothing is shaded):
 ///      the extra GPU time is what the land's triangles cost before a pixel is shaded.
-/// The perf line then reads "sky drawn twice +N ms, land drawn twice +N ms". BS_COSTPROBE=0 turns it off.
+/// The perf line then reads "sky drawn twice +N ms, land drawn twice +N ms". Off unless BS_COSTPROBE=1 (ledger 380).
 enum CostProbe {
-    static let on = Env.all["BS_COSTPROBE"] != "0"
+    // Ledger 380 (Neon review 2, item 3, checked): on by default it drew the sky and the land twice for 24 frames
+    // each after every slow window, in the scenes already over budget, and those frames fed the view and resolution
+    // governors. Measuring only: BS_COSTPROBE=1 turns it on (the gate's trials ask for it).
+    static let on = Env.all["BS_COSTPROBE"] == "1"
     private(set) static var frame = -1          // -1: idle
     private static var sums = [Double](repeating: 0, count: 4), counts = [Int](repeating: 0, count: 4)
     private(set) static var sky = 0.0, land = 0.0, fresh = false

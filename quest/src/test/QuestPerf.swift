@@ -19,6 +19,8 @@ enum QuestPerf {
         Spot(name: "homestead", seed: 6665340019718134347, x: 2932.8, y: 69.0, z: -240.6, yaw: 333, pitch: -4),
         Spot(name: "taiga", seed: 6665340019718134347, x: 4323.3, y: 67.5, z: -594.3, yaw: 80, pitch: -20),
         Spot(name: "ocean", seed: 3931512493184456980, x: 11576.9, y: 62.8, z: -12552.1, yaw: 165, pitch: -23),
+        // Ledger 383: open deep sea from a frigate's deck height (the reviewer route's frigate leg was GPU-bound at sea).
+        Spot(name: "deepsea", seed: 3084501862406496736, x: 0, y: 80, z: 0, yaw: 90, pitch: -10, find: "deep_ocean"),
         Spot(name: "darkforest", seed: 1997562484558922131, x: 7668.3, y: 209.7, z: -5667.8, yaw: 103, pitch: -36),
         // P374 (Oct 18 07:54-08:00: 45-54 fps by the forest bandit camp, the savanna town Stone Gulch busy around him)
         Spot(name: "camp", seed: 13480747113613945685, x: 5127.0, y: 153.8, z: 1050.3, yaw: 355, pitch: -26),
@@ -184,6 +186,11 @@ enum QuestPerf {
             capitalTop = ((st.min.x + st.max.x) / 2, (st.min.z + st.max.z) / 2)
             g.player.pos = V3(Float(capitalTop!.0) + 0.5, Float(YOFF + 120), Float(capitalTop!.1) + 0.5)
             print("    capital city at \(capitalTop!.0), \(capitalTop!.1)")
+        }
+        if sp.find == "deep_ocean" {
+            guard let p = QuestFrameSoak.findBiome(w.gen, "deep_ocean") else { print("perfscene deepsea: no deep ocean found"); return }
+            g.player.pos = V3(p.x, Float(SEA + 18), p.z)
+            print("    deep ocean at \(Int(p.x)), \(Int(p.z))")
         }
         if sp.find == "vault" {
             g.player.pos = AshVaultGapTests.battleScene(g)
