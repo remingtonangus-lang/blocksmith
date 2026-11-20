@@ -157,6 +157,11 @@ enum SkyTest {
         // toward the horizon, at noon and at sunset; and a map painted over two frames against one painted in one.
         let strips0 = CloudMap.strips, on0 = CloudMap.on
         defer { CloudMap.strips = strips0; CloudMap.on = on0 }
+        // (ledger 362: Far Scenery on by default; its far trees stream in over the first frames, so the pairs compared
+        // here are drawn without it: the clouds alone differ between them)
+        let far0 = QuestSettings.farLayer
+        QuestSettings.farLayer = false
+        defer { QuestSettings.farLayer = far0 }
         game.weather = Weather(); game.weather.rain = 0; game.weather.thunder = 0
         func decks(_ name: String, time: Double, pitch: Float, mapped: Bool, strips: Int = 1) throws -> [UInt8] {
             game.time = time * DAY_LENGTH
