@@ -244,6 +244,7 @@ final class WorldRenderer {
         // (Only once a ring is up: until its first build lands the loaded edge keeps the usual fog.)
         if farRingOn && farLive >= 0 && farSeed == game.world.seed { fogEnd = max(fogEnd, FarRing.outer - 16); fogStart = fogEnd * clearStart }
         if WorldRenderer.noFog { fogEnd = 1e6; fogStart = 9e5 }      // (tools/far_sprites.py: a tree photographed without haze)
+        if WorldRenderer.fogTrace { print(String(format: "fogtrace: start %.0f end %.0f ring %d live %d auto %d", fogStart, fogEnd, farRingOn ? 1 : 0, farLive, autoView ? 1 : 0)) }
         // O7: fog banks (WeatherWar.swift). P365 (g): applied after the middle ring (the ring stays up under a bank),
         // so the reach closes in smoothly from the ring's rim instead of snapping from the ring to the loaded edge when
         // the bank begins and back when it lifts.
@@ -434,6 +435,7 @@ final class WorldRenderer {
     // them) and before the landmarks and the sky (its depth hides the horizon shell and the sky dome behind it).
     static let fogSnap = Env.all["BS_FOGSNAP"] == "1"
     static let noFog = Env.all["BS_NOFOG"] == "1"
+    static let fogTrace = Env.all["BS_FOGTRACE"] != nil
     private func drawFarRing(_ s: SceneRenderer.Slot, _ eye: V3) {
         farFrame += 1
         farRingQuads = 0
