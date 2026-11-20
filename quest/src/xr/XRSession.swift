@@ -71,6 +71,10 @@ final class XRSession {
     // P426: whether this frame goes to the runtime with motion vectors and depth: set up at launch and still on in
     // Options (turning it off applies at once; the plain projection layer is what the runtime gets).
     var spaceWarpOn: Bool { spaceWarp && QuestSettings.spaceWarp }
+    // Ledger 402 (Neon's crash-safety note, Fable item 3): this frame's commands never reached the GPU (vkQueueSubmit
+    // failed), so its swapchain image holds whatever was last there; it is ended with no layer instead of shown.
+    var dropFrame = false
+    static let oldSubmitPresent = Env.all["BS_OLDSUBMITPRESENT"] != nil
     private(set) var mvWidth = 0, mvHeight = 0
     private(set) var mvSwapchain: XrSwapchain?, swDepthSwapchain: XrSwapchain?
     private(set) var mvImages: [VkImage] = [], swDepthImages: [VkImage] = []
@@ -914,8 +918,9 @@ final class XRSession {
             layer.viewCount = 2
             layer.views = a.array(pv)
             let lp = a.ptr(layer)
-            layers.append(UnsafeRawPointer(lp).assumingMemoryBound(to: XrCompositionLayerBaseHeader.self))
+            if !dropFrame { layers.append(UnsafeRawPointer(lp).assumingMemoryBound(to: XrCompositionLayerBaseHeader.self)) }
         }
+        dropFrame = false
         var ei = XrFrameEndInfo()
         ei.type = XR_TYPE_FRAME_END_INFO
         ei.displayTime = f.displayTime
