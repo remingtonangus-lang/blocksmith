@@ -103,7 +103,7 @@ enum PlaytestOct14Tests {
                 let smp = FarRing.sample(jg, x, z)
                 if smp.kind == 0 && MapCache.grassTopped(jg.terrain.biome(jg.columnData(x, z), jg.columnData(x, z).h)) && smp.c0.y > smp.c0.x && smp.c0.x < 0.6 {
                     let want = col(t[8 * CS + 8]) * FarRing.grassTop
-                    worstG = max(worstG, simd_reduce_max(simd_abs(smp.c0 - want))); grassN += 1
+                    worstG = max(worstG, { let d = simd_abs(smp.c0 - want); return max(d.x, max(d.y, d.z)) }()); grassN += 1
                 }
                 for gx in (cxk * CS / 3)..<(cxk * CS / 3 + 5) { for gz in (czk * CS / 3)..<(czk * CS / 3 + 5) {
                     guard let tr = FarForest.site(jg, gx, gz), FarSprites.tinted(tr.kind) else { continue }
@@ -113,7 +113,7 @@ enum PlaytestOct14Tests {
                     let b = jg.terrain.biome(kcol, kcol.h)
                     let shade: Float = FarForest.woodShade ? 1 - 0.22 * FarRing.canopy(jg, b, Int(tr.x), Int(tr.z), ground: kcol.h).cover : 1
                     let got = tr.tint * FarSprites.captureTint / max(shade, 0.01)
-                    worstT = max(worstT, simd_reduce_max(simd_abs(got - col(t[256 + lz * CS + lx])))); treeN += 1
+                    worstT = max(worstT, { let d = simd_abs(got - col(t[256 + lz * CS + lx])); return max(d.x, max(d.y, d.z)) }()); treeN += 1
                 } }
             } }
             check(grassN >= 5 && (worstG < 0.03) == FarRing.paintedGround,
