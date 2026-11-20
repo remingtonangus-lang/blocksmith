@@ -60,5 +60,5 @@ void main() {
     oTint = color.yzw;
     oLit = vec4(lit, smoothstep(pc.m[1].z - 20.0, pc.m[1].z + 4.0, d));
     float dist = length(c);
-    oFog = vec4(filmic(fogColorAlong(c)), fogAmount(dist));
+    oFog = vec4(filmic(fogColorAlong(c)), farFog(dist, c, pc.m[1], pc.m[2].x));
 }

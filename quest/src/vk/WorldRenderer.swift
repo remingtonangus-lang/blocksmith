@@ -478,7 +478,7 @@ final class WorldRenderer {
                 : FarRing.meshedRadius(game.world, game.world.renderDistance, center: ChunkKey(x: pcx, z: pcz))
         }
         let rin = farCover
-        let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(lx, lz, rin, 12), V4(0, 0, 0, 0), V4(0, 0, 0, 0)))
+        let params = float4x4(columns: (V4(ox, -eye.y, oz, 0), V4(lx, lz, rin, 12), V4(FarRing.clarity, 0, 0, 0), V4(0, 0, 0, 0)))
         scene.drawFar(s, b, quads: farQuads - farCards, params: params)
         scene.drawFarCards(s, b, first: farQuads - farCards, count: farCards, params: params)
         farRingQuads = farQuads

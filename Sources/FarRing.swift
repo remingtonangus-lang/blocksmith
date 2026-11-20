@@ -292,6 +292,10 @@ final class FarRing {
     // Ledger 397 (Remington Nov 20: far "can't tell if something is a hill or not"): the far grid samples every 8-64
     // blocks, so its slopes come out far gentler than the block steps near; the shading normal takes the slope
     // KFAR times steeper (the ground's height is untouched). BS_OLDFARSHADE=1: the true sampled slope.
+    // Ledger 397 (b): the fog took the far hills to the sky's colour long before the ring's rim, so their shape and
+    // shading were gone; past the loaded edge (+96) the fog holds back to 70% until its last fifth (the rim still
+    // goes fully into the haze, the seam at the loaded edge is untouched). far.vert / farcard.vert, m[2].x.
+    static let clarity: Float = Env.all["BS_OLDFARSHADE"] != nil ? 0 : Float(Env.all["BS_FARCLEAR"].flatMap { Double($0) } ?? 1)
     static let slopeGain: Float = Env.all["BS_OLDFARSHADE"] != nil ? 1 : Float(Env.all["BS_FARSLOPE"].flatMap { Double($0) } ?? 2.5)
     private static let avgLock = NSLock()
     private static var avgs: [BlockID: V3] = [:]

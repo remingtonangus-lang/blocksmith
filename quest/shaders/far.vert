@@ -52,5 +52,6 @@ void main() {
         float sw = 0.85 * smoothstep(0.0, 0.45, day) * clamp(day * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w);
         c = color.rgb * lit * sunShadeN(n, smoothShade(n), sw, u.sunDir.xyz);
     }
-    oColor = vec4(filmic(applyFogDir(c, rel, dist)), 1.0);
+    float f = color.a > 1.5 ? fogAmount(dist) : farFog(dist, rel, pc.m[1], pc.m[2].x);
+    oColor = vec4(filmic(applyFogDirF(c, rel, dist, f)), 1.0);
 }
