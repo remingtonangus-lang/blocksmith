@@ -244,6 +244,25 @@ enum Vessels {
     }
 }
 
+extension Vessels {
+    static let oldStartFleet = Env.all["BS_OLDSPAWNFLEET"] == "1"
+    static let spawnClear: Float = 900, graceSeconds = 180.0
+    static var startOrigin: (seed: UInt64, at: V2)?
+    static var heldAtStart = 0                        // (checks)
+    static func nearStart(_ g: Game, _ home: IVec3) -> Bool {
+        guard !oldStartFleet else { return false }
+        let w = g.world
+        if startOrigin?.seed != w.seed {
+            let sp = Game.findSpawn(gen: w.gen, seed: w.seed)
+            startOrigin = (w.seed, V2(sp.x, sp.z))
+        }
+        let early = (Stats.c["time"] ?? 0) < graceSeconds
+        let near = startOrigin.map { simd_length(V2(Float(home.x), Float(home.z)) - $0.at) < spawnClear } ?? false
+        if early || near { heldAtStart += 1 }
+        return early || near
+    }
+}
+
 extension Ship {
     var isVessel: Bool { role == "frigate" || role == "carriage" || role == "warfrigate" || role == "crawler" || role == "capfrigate" || role == "sloop" || role == NavalPatrol.role }
 }
@@ -274,6 +293,10 @@ extension ShipManager {
                     // the start (P243: he had never seen one).
                     if !Vessels.out(kind, fleetSails: g.fleetSails) { continue }
                     if simd_length(d) > (kind == "crawler" ? 320 : 520) { continue }
+                    // Ledger 386 (Nov 20 playtest, a new world 7 s in: a Meridian Frigate spotted him and hit him for 9;
+                    // Neon's review: no distance from spawn, no grace): no warship is put out within `spawnClear` blocks
+                    // of the world's spawn point, nor before `graceSeconds` of play in the world. BS_OLDSPAWNFLEET=1 = before.
+                    if Vessels.nearStart(g, home) { continue }
                     spawnedRegions.insert(key)
                     let yaw = Float(abs(home.x * 7 + home.z * 3) % 628) / 100
                     if kind == "battle" {
