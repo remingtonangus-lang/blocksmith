@@ -60,7 +60,14 @@ struct ViewGovernor {
     // The same route at fixed views: at 6 every spot held 72 (jungle 102k quads at 12.7 ms, taiga 64k); at 8 the jungle
     // (141k) and the taiga ran 68-69 fps; at 10, 57 and 48. So under the quad budget, and only under it, the view may
     // go one step under the floor, to 6 (BS_QUADFLOOR=8 = not).
-    static let quadCap = Env.all["BS_QUADCAP"].flatMap { Int($0) } ?? 105_000
+    // Ledger 380 (first store update, Nov 20: "render distance is abysmal ... at least 12 most of the time"): the
+    // 105k budget was set before ledger 235 halved the land's shader. His Quest on build 908ca9d, the six spots held at
+    // view 12: every spot 72 fps (min 70, 0 s under 70), jungle 148k quads at 12.9 ms GPU (eye 85 %), forest 125k at
+    // 12.6, village 106k at 12.8, beach 76k at 11.6. So the budget is now 170k: view 12 fits every spot with room, and
+    // past it the view still comes down at once (the 229k / 410k views that ran 52 and 24 fps stay out).
+    static let quadCap = Env.all["BS_QUADCAP"].flatMap { Int($0) } ?? 170_000
+    // Ledger 380: the view the first store update keeps. Under it a raise waits `keepHold` seconds of room, not 45.
+    static let keepView = Env.all["BS_KEEPVIEW"].flatMap { Int($0) } ?? 12, keepHold = 15.0
     static let quadFloor = Env.all["BS_QUADFLOOR"].flatMap { Int($0) } ?? 6
     static let quadSettle = 2.0
     // Store review (Meta, Nov 2, VRC.Quest.Performance.1: "fluctuates under and over 60 frames per second"): a frame
@@ -171,7 +178,7 @@ struct ViewGovernor {
         let quadsNext = Double(quads) * pow(Double(next) / Double(max(1, current)), Self.exponent)
         guard quadsNext <= Double(Self.quadCap) * 0.9 else { quadGood = 0; return .none }
         quadGood += seconds
-        guard quadGood >= Self.baseHold else { return .none }
+        guard quadGood >= (current < Self.keepView ? min(Self.baseHold, Self.keepHold) : Self.baseHold) else { return .none }
         quadGood = 0
         current = next
         return .raise(current)
@@ -233,7 +240,7 @@ struct ViewGovernor {
         }
         good += w.seconds
         note = String(format: "room for %.0f of %.0f s", good, hold)
-        guard good >= hold else { return .none }
+        guard good >= (current < Self.keepView ? min(hold, Self.keepHold) : hold) else { return .none }
         // Store review (Nov 2): one step at a time. Three at once (up to six chunks more of land to make and draw) was a
         // burst of new land on the workers and the frame, and when the model was wrong a dip as deep as the jump: the
         // "fluctuates under and over 60" Meta saw. A step that holds is followed by the next after `hold` again.
@@ -314,7 +321,8 @@ enum ViewGovernorTest {
             func jungle(_ v: Int) -> Int { Int(143_000 * pow(Double(v) / 8, 0.68)) }
             var secs6 = 0
             for s in 1...10 { if case .lower = g6.overQuads(jungle(g6.current), seconds: 1) { secs6 = s; break } }
-            check(secs6 > 0 && secs6 <= 3 && g6.current == ViewGovernor.quadFloor, "viewgovernor: over the quad budget the view comes down at once (\(jungle(16)) quads at 16: view \(g6.current) after \(secs6) s)")
+            let fit6 = Double(jungle(16)) * pow(Double(g6.current) / 16, 0.8) <= Double(ViewGovernor.quadCap)
+            check(secs6 > 0 && secs6 <= 3 && g6.current < 16 && fit6, "viewgovernor: over the quad budget the view comes down at once (\(jungle(16)) quads at 16: view \(g6.current) after \(secs6) s)")
             var g7 = ViewGovernor(chosen: 24, current: 8)
             func plain(_ v: Int) -> Int { Int(40_000 * pow(Double(v) / 8, 1.0)) }
             var top7 = 8, over7 = 0
