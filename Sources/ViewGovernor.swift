@@ -233,7 +233,10 @@ struct ViewGovernor {
             if Self.steady { lid = max(Self.floor, min(lid, current)); lidAge = 0 }
             return .lower(current)
         }
-        if w.excused || w.loading || sinceChange < (climbing ? Self.keepSettle : Self.settle) {
+        // Ledger 384 (Fable/Neon, Nov 20): a window making land never counted as room, so flying on (always loading)
+        // the view never climbed back. Under `keepView` a loading window whose frames held (1 % missed at most) counts.
+        let loadingBlocks = w.loading && !(climbing && w.frames > 0 && w.missed * 100 <= w.frames)
+        if w.excused || loadingBlocks || sinceChange < (climbing ? Self.keepSettle : Self.settle) {
             note = w.excused ? "excused" : (w.loading ? "loading" : "settling")
             return .none
         }
@@ -402,8 +405,12 @@ enum ViewGovernorTest {
                                            dynRes: true, scale: 1.0, pixelShare: 0.3, quads: 60_000)
             var t11 = 0.0
             while g11.current < 12 && t11 < 120 { _ = g11.observe(calm); t11 += 5 }
-            check(g11.current >= 12 && t11 <= 20,
-                  "viewgovernor: under 12 it climbs back fast (6 -> \(g11.current) in \(Int(t11)) s; BS_OLDCLIMB=1: as 382)")
+            var g13 = ViewGovernor(chosen: 24, current: 6)
+            var fly = calm; fly.loading = true
+            var t13 = 0.0
+            while g13.current < 12 && t13 < 120 { _ = g13.observe(fly); t13 += 5 }
+            check(g11.current >= 12 && t11 <= 20 && g13.current >= 12 && t13 <= 20,
+                  "viewgovernor: under 12 it climbs back fast, standing (6 -> \(g11.current) in \(Int(t11)) s) and flying on through new land (6 -> \(g13.current) in \(Int(t13)) s; BS_OLDCLIMB=1: as 382)")
         }
         return fails
     }
