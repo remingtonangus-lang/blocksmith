@@ -31,7 +31,9 @@ void main() {
     vec3 right = vec3(h.y, 0.0, -h.x);
     vec3 up = vec3(0.0, 1.0, 0.0);
     float layer;
-    if (elev > radians(24.0)) {
+    // (ledger 362, his v5 verdict "more white on those far trees": from above, the real woods show their snowy tops; the
+    // pictures taken from 40 degrees up show them, so they take over from extra.y degrees up, 16 by default, not 24)
+    if (elev > radians(pc.extra.y > 0.0 ? pc.extra.y : 24.0)) {
         float k = mod(floor(ang / 180.0 + 0.5) + floor(turn * 0.5), 2.0);
         layer = color.x + 4.0 + k;
         float t = radians(40.0);

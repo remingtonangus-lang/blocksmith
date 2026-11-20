@@ -6,6 +6,8 @@ import simd
 // pictures are texture layers `far_<kind>_<variant>[_s]_<yaw>` (Resources/Textures). FarForest draws a far tree as
 // one card that turns about its trunk to face the eye and shows the picture taken from that side.
 enum FarSprites {
+    // Ledger 362: the elevation (degrees) from which the cards show the pictures taken from 40 degrees up. BS_FARUPDEG.
+    static let upFrom: Float = Env.all["BS_FARUPDEG"].flatMap { Float($0) } ?? 16
     static let yaws = 8
     static let variants = 2
     // (name, kind, snowy pictures too)
