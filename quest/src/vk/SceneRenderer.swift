@@ -2137,7 +2137,7 @@ final class SceneRenderer {
     func drawFarCards(_ s: Slot, _ buf: VkBuf, first: Int, count: Int, params: float4x4) {
         guard count > 0 else { return }
         vkCmdBindPipeline(s.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe("farcard"))
-        pushConstants(s, model: params, extra: V4(Float(FarSprites.px), FarSprites.upFrom, 0, 0))
+        pushConstants(s, model: params, extra: V4(Float(FarSprites.px), FarSprites.upFrom, FarSprites.snowLo, FarSprites.snowLift))
         var b: VkBuffer? = buf.buffer
         var o: VkDeviceSize = VkDeviceSize(first * 4 * MemoryLayout<SimpleVert>.stride)
         vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
