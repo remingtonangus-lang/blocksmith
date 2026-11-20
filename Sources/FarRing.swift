@@ -289,6 +289,10 @@ final class FarRing {
     // average, times the grass colour where it is grass. Snow and cliff rock the same. BS_OLDFARCOLOUR=1: the map
     // colours, as before.
     static let paintedTops = paintedGround && Env.all["BS_OLDFARCOLOUR"] == nil
+    // Ledger 397 (Remington Nov 20: far "can't tell if something is a hill or not"): the far grid samples every 8-64
+    // blocks, so its slopes come out far gentler than the block steps near; the shading normal takes the slope
+    // KFAR times steeper (the ground's height is untouched). BS_OLDFARSHADE=1: the true sampled slope.
+    static let slopeGain: Float = Env.all["BS_OLDFARSHADE"] != nil ? 1 : Float(Env.all["BS_FARSLOPE"].flatMap { Double($0) } ?? 2.5)
     private static let avgLock = NSLock()
     private static var avgs: [BlockID: V3] = [:]
     private static var avgTable: [String: TextureGen.Painter]?
@@ -467,7 +471,7 @@ final class FarRing {
                 if smp.kind == 0 {
                     let hx0 = S(cx + ox - s, cz + oz), hx1 = S(cx + ox + s, cz + oz)
                     let hz0 = S(cx + ox, cz + oz - s), hz1 = S(cx + ox, cz + oz + s)
-                    let gx: Float = hx0.y - hx1.y, gz: Float = hz0.y - hz1.y
+                    let gx: Float = (hx0.y - hx1.y) * FarRing.slopeGain, gz: Float = (hz0.y - hz1.y) * FarRing.slopeGain
                     let nv = simd_normalize(V3(gx, Float(2 * s), gz))
                     nx = nv.x; nz = nv.z
                 }

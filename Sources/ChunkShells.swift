@@ -68,6 +68,7 @@ extension World {
             if c.fieldDirty { save.saveFieldEdits(k, c.fieldEdits); c.fieldDirty = false }
         }
         c.hollowOcc = c.occluderTop
+        c.hollowDeep = c.deepMask()
         c.blocks = BlockStore([])
         c.markSaved()
         for i in c.light.indices { c.light[i] = nil }
@@ -140,6 +141,7 @@ extension World {
         c.blocks = BlockStore([])
         c.hollow = true
         c.hollowOcc = e.occ
+        var deep: UInt32 = 0
         c.modified = e.modified
         c.markSaved()
         for (sy, m) in e.sections.enumerated() {
@@ -149,7 +151,17 @@ extension World {
             s.transBuf = cacheBuffer(m.trans); s.transQuads = m.counts[4]
             s.detailBuf = cacheBuffer(m.detail); s.detailQuads = m.counts[5]; s.detailSolid = m.counts[6]
             s.naturalCubes = m.counts[7]; s.groundQuads = m.counts[8]; s.blobQuads = m.counts[9]; s.solidFull = m.counts[10] != 0
-            s.farCut = m.counts[11]; s.detailFarSkip = m.counts[12]; s.detailFarExtra = m.counts[13]; s.farTail = m.counts[14]; s.farPlants = 0
+            s.farCut = m.counts[11]; s.detailFarSkip = m.counts[12]; s.detailFarExtra = m.counts[13]; s.farTail = m.counts[14]
+            // (ledger 396, Neon 03#1: the far copies' counters too; read back as 0, every cached chunk drew its full
+            // cutout leaves and small plants out to the view's edge)
+            if MeshCache.oldCounts {
+                s.farPlants = 0
+            } else {
+                s.farPlants = m.counts[16]; s.blobFarAt = m.counts[17]; s.blobFarN = m.counts[18]; s.blobCutN = m.counts[19]
+                s.canopyN = m.counts[20]
+                s.canopyTrunks = SIMD3<Int32>(Int32(truncatingIfNeeded: m.counts[21]), Int32(truncatingIfNeeded: m.counts[22]), Int32(truncatingIfNeeded: m.counts[23]))
+                if m.counts[24] != 0 && sy < 32 { deep |= 1 << UInt32(sy) }
+            }
             s.vis = m.vis; s.leafy = m.leafy
             // (ledger 129: a section left unmeshed as buried comes back as one, so it meshes when he comes near; read
             // back as an empty mesh with no flag, the rock and caves under such a chunk were never drawn again, and a
@@ -157,6 +169,7 @@ extension World {
             if m.counts[15] != 0 && !World.oldBuriedLow { s.deferred = true; c.deferredBuried += 1 }
             s.meshedVersion = s.version
         }
+        c.hollowDeep = deep
         c.meshedOnce = true
         c.updateTopSec()
         c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
@@ -206,10 +219,12 @@ extension World {
 // writes it fresh. Writes run on a background queue from the section buffers (kept alive until written). The folder
 // is held under `capBytes` (oldest files go first).
 final class MeshCache {
-    static let format: UInt32 = 5                       // 2: P381 adaptive ground; 3: P383 per-position ground vertices;
+    static let oldCounts = Env.all["BS_OLDMESHCACHE"] != nil
+    static let format: UInt32 = oldCounts ? 5 : 6       // 2: P381 adaptive ground; 3: P383 per-position ground vertices;
                                                         // 4: P384 far copies (far cutout skip, detail far copy)
                                                         // 5: ledger 129, a section's "left unmeshed as buried" flag
-    static let countsPerSection = 16
+                                                        // 6: ledger 396, far plants / leaf blobs / canopy counters, deep
+    static let countsPerSection = oldCounts ? 16 : 25
     static let capBytes = 768 << 20
     // P400 step 2: what a cached mesh depends on besides the format and registries. The headset sets it to a hash of
     // the sources that shape meshes and terrain (quest/tools/build-apk.sh: QuestBuild.meshHash), so an update that
@@ -310,13 +325,21 @@ final class MeshCache {
         let n = c.sections.count
         var bufs = [MeshSlice?](), counts = [Int](), viss = [UInt64](), leafs = [Bool]()
         bufs.reserveCapacity(n * 3); counts.reserveCapacity(n * MeshCache.countsPerSection); viss.reserveCapacity(n); leafs.reserveCapacity(n)
-        for s in c.sections {
+        let deep = c.hollow ? c.hollowDeep : c.deepMask()
+        for (sy, s) in c.sections.enumerated() {
             bufs.append(s.opaqueBuf); bufs.append(s.transBuf); bufs.append(s.detailBuf)
             counts.append(s.opaqueQuads); counts.append(s.solidQuads); counts.append(s.farSkip); counts.append(s.farExtra)
             counts.append(s.transQuads); counts.append(s.detailQuads); counts.append(s.detailSolid); counts.append(s.naturalCubes)
             counts.append(s.groundQuads); counts.append(s.blobQuads); counts.append(s.solidFull ? 1 : 0); counts.append(s.farCut)
             counts.append(s.detailFarSkip); counts.append(s.detailFarExtra); counts.append(s.farTail)
             counts.append(s.deferred ? 1 : 0)
+            if !MeshCache.oldCounts {
+                counts.append(s.farPlants); counts.append(s.blobFarAt); counts.append(s.blobFarN); counts.append(s.blobCutN)
+                counts.append(s.canopyN)
+                counts.append(Int(UInt32(bitPattern: s.canopyTrunks.x))); counts.append(Int(UInt32(bitPattern: s.canopyTrunks.y)))
+                counts.append(Int(UInt32(bitPattern: s.canopyTrunks.z)))
+                counts.append(sy < 32 && deep & (1 << UInt32(sy)) != 0 ? 1 : 0)
+            }
             viss.append(s.vis); leafs.append(s.leafy)
         }
         let height = c.height, tint = c.tint, modified = c.modified
@@ -344,8 +367,9 @@ final class MeshCache {
                 u64(viss[i]); u32(leafs[i] ? 1 : 0)
                 slice(bufs[i * 3]); slice(bufs[i * 3 + 1]); slice(bufs[i * 3 + 2])
             }
+            let old = MeshCache.oldCounts ? 0 : ((try? FileManager.default.attributesOfItem(atPath: u.path)[.size] as? Int) ?? 0)
             do { try Data(d).write(to: u, options: .atomic) } catch { lock.lock(); have.remove(k); lock.unlock(); return }
-            lock.lock(); bytes += d.count; let over = bytes > MeshCache.capBytes; lock.unlock()
+            lock.lock(); bytes += d.count - old; let over = bytes > MeshCache.capBytes; lock.unlock()
             if over { trim() }
         }
     }
@@ -371,7 +395,18 @@ final class MeshCache {
     // Worker side: the file decoded, or nil (missing, another build, damaged: dropped).
     func read(_ k: ChunkKey) -> Entry? {
         lock.lock(); reads += 1; lock.unlock()
-        guard let data = try? Data(contentsOf: url(k)) else { refuse("missing"); drop(k); return nil }
+        guard let data = try? Data(contentsOf: url(k)) else {
+            refuse("missing")
+            // (ledger 396, Neon 03#1: read while its write was still queued; dropping it queued a delete after that
+            // write, so the fresh file went as soon as it landed. Forgotten only if it is still missing then.)
+            if MeshCache.oldCounts { drop(k) } else {
+                let u = url(k)
+                queue.async { [self] in
+                    if !FileManager.default.fileExists(atPath: u.path) { lock.lock(); have.remove(k); lock.unlock() }
+                }
+            }
+            return nil
+        }
         let b = [UInt8](data)
         var p = 0
         func u32() -> UInt32? {
