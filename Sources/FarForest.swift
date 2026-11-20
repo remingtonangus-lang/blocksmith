@@ -153,6 +153,31 @@ final class FarForest {
         lastCards = n
         return n
     }
+    // Ledger 391 (Remington, Nov 20 17:03, his far scenery play: "a big gap between actually drawn land and the
+    // compression that has nothing that can be seen"): inside the loaded disc a chunk not drawn yet is covered by the
+    // ring's own ground (the gap cover) but stood bare: the cards began 24 blocks inside the disc's edge and the
+    // shader hid any inside it. While the view climbs or he flies, that band was flat ground with no wood. Now the
+    // trees inside the disc are cards too, by chunk; WorldRenderer.drawGaps draws a gap chunk's with its ground.
+    // BS_OLDFARGAP=1: bare, as before.
+    static let oldGap = Env.all["BS_OLDFARGAP"] == "1"
+    func innerCards(cx: Int, cz: Int, rin: Float) -> [ChunkKey: [SimpleVert]] {
+        var out: [ChunkKey: [SimpleVert]] = [:]
+        if FarForest.oldGap || !FarForest.cards { return out }
+        let to = rin - 24
+        for l in lists { for t in l {
+            let x = Float(Int(t.x) - cx) + 0.5, z = Float(Int(t.z) - cz) + 0.5
+            let d: Float = (x * x + z * z).squareRoot()
+            if d >= to || d < 40 { continue }         // (not right by him: a picture up close reads as one)
+            guard let ki = FarSprites.index(t.kind) else { continue }
+            let fr = FarSprites.frame(t.kind)
+            let base = Float(FarSprites.base(ki, variant: Int((t.hv >> 8) & 0xFF), snowy: t.snowy))
+            let w: Float = Float(Int(t.hv & 3) * 4 + Int((fr.side * 4).rounded()) * 16 + Int((fr.rise * 4).rounded()) * 4096)
+            let c = V4(base, t.tint.x, t.tint.y, t.tint.z)
+            let k = ChunkKey(x: floorDiv(Int(t.x), CS), z: floorDiv(Int(t.z), CS))
+            for q in 0..<4 { out[k, default: []].append(SimpleVert(pos: V4(x, t.y, z, w + Float(q)), color: c)) }
+        } }
+        return out
+    }
     static let deep = Env.all["BS_FARDEEP"] != nil          // (before: stand-ins all the way in under the loaded chunks)
     // A conifer's needles as the near trees draw them in shade (measured off a render: darker and yellower than the tint).
     static let darkConifer = V3(0.115, 0.175, 0.1)

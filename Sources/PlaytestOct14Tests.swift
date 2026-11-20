@@ -83,6 +83,20 @@ enum PlaytestOct14Tests {
             check(missing.isEmpty, "ledger 362 (a): every far tree kind has its 8 pictures, each a tree on a clear ground (\(FarSprites.layers) layers in \(FarSprites.sets) sets\(missing.isEmpty ? "" : "; wrong: " + missing.prefix(4).joined(separator: ", ")))")
             check(forest.lastCards > 500 && more == forest.lastCards && forest.lastQuads == 0,
                   "ledger 362 (b): a ring at view 8 over a forest draws each far tree as one card (\(forest.lastCards) cards, no lathed stand-ins; BS_FARSHAPES=1: the stand-ins)")
+            // Ledger 391: the trees inside the disc are cards too, by chunk, for the gap cover over chunks not drawn yet;
+            // each chunk's lie in that chunk, inside the disc and not right by the centre.
+            let ic = forest.innerCards(cx: f.0, cz: f.1, rin: rin)
+            var icN = 0, icOff = 0
+            for (k, v) in ic {
+                icN += v.count / 4
+                for q in v where q.pos.w.truncatingRemainder(dividingBy: 4) < 0.5 {
+                    let wx = Int(floor(q.pos.x)) + f.0, wz = Int(floor(q.pos.z)) + f.1
+                    let d = (q.pos.x * q.pos.x + q.pos.z * q.pos.z).squareRoot()
+                    if floorDiv(wx, CS) != k.x || floorDiv(wz, CS) != k.z || d >= rin - 24 || d < 40 { icOff += 1 }
+                }
+            }
+            check(FarForest.oldGap || icN > 100 && icOff == 0,
+                  "ledger 391: a gap chunk inside the disc has its trees as cards (\(icN) cards over \(ic.count) chunks, \(icOff) misplaced; BS_OLDFARGAP=1: none)")
             // (c) Snow on the far trees: a snowy twin's picture from above is whiter than the plain one's (every kind
             // that can stand in the cold has one).
             var bare: [String] = []

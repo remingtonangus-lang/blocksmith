@@ -49,6 +49,8 @@ final class FarRing {
         // in the land while it streams in shows coarse ground instead of the void and the caves of the chunks beside it.
         var inner: [ChunkKey: Range<Int>] = [:]
         var innerVerts: [SimpleVert] = []
+        var innerCards: [ChunkKey: Range<Int>] = [:]       // ledger 391: the far trees' cards over each chunk inside the disc
+        var innerCardVerts: [SimpleVert] = []
     }
 
     // kind: 0 ground, 1 water, 2 lava. `side`: the colour of the ground's flanks seen from the side in a block world
@@ -128,6 +130,12 @@ final class FarRing {
             for (k, v) in inner {
                 out.inner[k] = out.innerVerts.count..<(out.innerVerts.count + v.count)
                 out.innerVerts += v
+            }
+            if layer && FarRing.gapCover {
+                for (k, v) in self.forest.innerCards(cx: cx, cz: cz, rin: FarRing.loadedRadius(rd)) {
+                    out.innerCards[k] = out.innerCardVerts.count..<(out.innerCardVerts.count + v.count)
+                    out.innerCardVerts += v
+                }
             }
             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             self.lock.lock()
