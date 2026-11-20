@@ -165,7 +165,7 @@ enum PlaytestOct14Tests {
                     guard y > 1 else { continue }
                     let id = blk[Chunk.index(lx, y, lz)]
                     let tv = tn[lz * CS + lx]
-                    let tint = Blocks.tint[Int(id)] == 1 ? V3(Float(tv & 255), Float((tv >> 8) & 255), Float((tv >> 16) & 255)) / 255 : V3(1, 1, 1)
+                    let tint = Blocks.tint[Int(id)] != 0 ? V3(Float(tv & 255), Float((tv >> 8) & 255), Float((tv >> 16) & 255)) / 255 : V3(1, 1, 1)
                     near += FarRing.topAvg(id) * tint; nn += 1
                     let smp = FarRing.sample(jg, cxk * CS + lx, czk * CS + lz)
                     if smp.kind == 0 { far += smp.c0; fn += 1 }

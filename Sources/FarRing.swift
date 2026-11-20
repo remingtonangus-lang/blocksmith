@@ -199,10 +199,10 @@ final class FarRing {
         // blended grass colour, the way the chunks tint it; the method is the Voxelize far terrain's, from the harvest
         // list). The map colour is the raw biome grass, brightened with height: a jungle hill's far side stood out a
         // bright lawn green beside the olive ground of the chunks.
-        if FarRing.paintedGround && MapCache.grassTopped(b) {
+        if FarRing.paintedTops, let t = FarRing.farTop(gen, b, k, top) {
+            c = t                                     // (ledger 392: before the grass test: a mangrove's mud counts as grass-topped)
+        } else if FarRing.paintedGround && MapCache.grassTopped(b) {
             c = gen.grassTint(k) * FarRing.grassTop
-        } else if FarRing.paintedTops, let t = FarRing.farTop(gen, b, k, top) {
-            c = t
         }
         // P250 (b): the flanks of a terrace. Grass, mycelium, petals and snow over soil show dirt from the side (with
         // a little of the top's fringe); sand, stone, terracotta and peaks are the same material all the way down.
