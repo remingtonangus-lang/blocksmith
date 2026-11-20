@@ -86,7 +86,8 @@ if [[ -n "$APK" && "$INSTALL" == 1 ]]; then
     fi
   fi
   echo "headset_gate: installing $APK"
-  adb install -r "$APK" | tail -1 | grep -q Success || { echo "headset_gate: install failed"; exit 2; }
+  # (streaming installs print Success before other lines: look for it anywhere, ledger 380)
+  adb install -r "$APK" 2>&1 | grep -q "^Success" || { echo "headset_gate: install failed"; exit 2; }
 fi
 echo "headset_gate: app version $(adb shell dumpsys package $PKG | grep -m1 versionName | tr -d ' \r')"
 adb shell am force-stop $PKG
