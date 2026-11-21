@@ -4,7 +4,7 @@ Each entry is a bug a player could hit. It was reproduced before the fix (a host
 fixed at its root. Item 5 (bloom) applies to every entry: after each fix, look for the same mistake elsewhere and log what turned
 up. Newest at the bottom.
 
-Count: 236
+Count: 237
 
 | # | Found | Bug | Root cause and fix | Proof | Bloom |
 |---|-------|-----|--------------------|-------|-------|
@@ -409,3 +409,4 @@ Count: 236
 | 421 | Nov 21 | Nov 20 evening run: Gemini (Part 8 01:40) a stranger's toast reads "A stranger in town! Abigal Hale", the name run into the sentence | The toast now reads "<name> has come to town". | Host build + full suite | Text only |
 | 422 | Nov 21 | Nov 20 evening run: Gemini (Part 7 03:30) the on-fire overlay recurs "while running up a dark cave tunnel with no visible lava nearby" | In a field world the lava probe a quarter block under the feet also found lava in a cell under the tunnel's drawn floor, hidden in the rock, and set the player burning. Below the feet it now counts only where the point is open, not inside the drawn ground. `BS_OLDLAVAPROBE=1` | Host build + full suite | Not reproduced from the clip (clips not pulled yet); the cause is read from the code |
 | 423 | Nov 21 | Nov 20 evening run: Gemini (Part 9) a "near full-screen orange flash" in the Road Agent fight, a comfort risk | (a) Burning: the flames licked past the middle of the view at 75% alpha over a 50% orange ring. Now half as tall (the lower quarter), 50% alpha, ring 30%. (b) A blast's light (up to 12x white) lit every surface round the eye at once; within 5 blocks of the eye it is dimmed, to 40% at the eye. `BS_OLDFIREFX=1`, `BS_OLDFLASH=1` | Host build + full suite | Which of the two the clip showed not confirmed (clips not pulled yet) |
+| 424 | Nov 21 | Nov 20 evening run: his own notes, placed water "partly invisible" (fluids "need a full redesign") | The harness: a bucket on a gentle plains slope fills 31 cells but showed as a wet dirt patch with blue slivers at the edges. All water under 0.75 m comes in the shallowest depth band (0.25 m), whose absorption let ~90% of the bed through, and the shoreline fade (to 0.4 m) halved the rest. The Quest water shader now keeps at least 35% of the water's body over the bed in the shallows (T <= 0.65) and ends the fade at 0.3 m. | Host build + full suite, before/after pour render | Shader only (no env toggle); the before is the 7bbe5be build |
