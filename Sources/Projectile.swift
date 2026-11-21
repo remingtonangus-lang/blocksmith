@@ -256,6 +256,10 @@ final class ProjectileManager {
                     let h0 = m.health
                     m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch), iframes: true)
                     m.arrowDamage += max(0, h0 - m.health)
+                    if h0 > m.health {
+                        let mobScale = max(0.4, min(1.0, m.height / 1.6))
+                        g.particles.hitBurst(at: a.pos + dir * hitT, along: dir, outward: -dir, power: min(1.2, Float(dmg) / 10), scale: mobScale)
+                    }
                     if a.trident != nil { g.tridentHit(a, mob: m) }
                     if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident.map { ThrownBlades.isBlade($0.item) ? "arrow_hit" : "trident_hit" } ?? "arrow_hit") }
                     else { m.lastHitBySkeleton = true }
@@ -290,6 +294,7 @@ final class ProjectileManager {
                 if a.trident != nil { g.tridentHit(a, mob: nil); a.returning = false }
             } else {
                 a.pos += step
+                if a.flame && Rand.float(in: 0..<1) < dt * 24 { g.particles.flame(at: a.pos) }
             }
             if a.pos.y < -64 { a.dead = true }
         }
