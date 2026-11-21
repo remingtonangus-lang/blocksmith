@@ -149,3 +149,52 @@ What Looked Good
 ## Parts 7-11 (19:33-19:52)
 
 Pending: sent on the next watchdog runs (6 parts per run).
+
+
+---
+
+## Parts 07-09 (19:33-19:45), clips part07-193319-193739, part08-193745-194133, part09-194142-194536; sent 21:27 in Gemini app chat "Sunderfall Playtest Notes and Review" (Neon)
+
+Bugs & Visual Glitches
+
+⚬ Part 7, 00:10, 00:40–01:40 & 02:35 (Water/Lava/Obsidian Geometry): Pouring water onto lava creates large, sharp, jagged translucent blue triangles clipping through the rock and lava. At 01:15–01:30, a hard-edged, right-angle blue/purple water rim sits awkwardly on top of the lava surface.
+⚬ Part 7, 00:40–01:05 (Camera Clipping at Water/Lava Edge): Mining Obsidian at the water-lava boundary clips the camera inside the fluid meshes, putting flat blue and yellow-orange polygons directly in front of the player's view.
+⚬ Part 7, 03:30–03:40 (Recurring On-Fire VFX + Phantom Burn): The flat, spiky low-poly orange fire overlay recurs while the player is running up a dark cave tunnel with no visible lava nearby.
+⚬ Part 7, 04:15 (Unlit Held Block): The Basalt block held in the player's right hand renders completely pitch-black.
+⚬ Part 8, 01:05–01:35 (Town Light Dome Artifact): From a distance at night, Clear Bend has a giant, low-poly segmented orange dome glowing in the sky over it, with clearly visible polygon facets (01:35).
+⚬ Part 8, 01:40–01:45 (NPC Dialogue Formatting): Floating dialogue reads A stranger in town! Abigal Hale with the speaker's name colliding into the end of the sentence.
+⚬ Part 8, 02:00 & 02:20 (Recurring Wall/Doorway Clipping): Camera clips directly into wooden wall textures when moving through building doorways in Clear Bend.
+⚬ Part 8, 02:55–03:10 (Honour Text Overlap): +1 Honour / you protected the town and Honour raised (you protected the town) stack directly over the minimap, coordinates, and hotbar.
+⚬ Part 8, 04:25–04:35; Part 9, 00:05 & 04:05 (Recurring Health Bar Overlap): Powderwight, Graveworn Duelist, and Road Agent health bars continue to collide with the compass, escort distance marker, and minimap.
+⚬ Part 9, 00:15–00:20 (NPC Dialogue Clipping/Mismatch): NPC dialogue (More'stance: Owls are out. Mice should...) is cut off on the right and overlaps the hotbar; Today is the Spring Fair: the towns gather at their best triggers during a snowstorm.
+⚬ Part 9, 00:25 & 00:40–01:10 (Notice Board UI):
+  ⚬ Top status line truncates on the right: Honour: Neutral (+4), last: + job for C... (00:25).
+  ⚬ Deliver 2 String displays You have 0. Press to hand them over. (00:45–00:55), prompting a turn-in when the player has 0.
+⚬ Part 9, 04:10, 04:20, 04:30 & 04:35 (Combat/Projectile VFX): Combat/ranged attacks spawn a bright red chain of repeating blocky shapes/rings streaking through the air (looks like a placeholder trail).
+⚬ Part 9, 04:25 (Blinding Combat Flash): Huge, flat translucent orange rectangles fill almost the entire screen during close-quarters combat with the Road Agents, completely obscuring vision.
+
+Frame Drops, Stutter & Recording Notes
+
+⚬ Same stitched-clip format with no audio, so minor micro-stutters can't be cleanly separated from clip joins.
+⚬ No prolonged freezes were visible, though the full-screen orange combat flash (Part 9, 04:25) and water/lava camera clipping (Part 7, 00:40–01:05) create jarring visual breaks.
+⚬ Frequent red ● Note flags from the playtester across all three parts (notably Part 7 00:00, 00:20, 00:30, 01:10, 01:45, 02:15, 02:45, 03:25; Part 8 00:05, 00:35, 01:35, 01:45, 01:50, 02:10, 02:55, 03:15, 04:25; Part 9 00:05, 02:50, 03:10).
+
+Confusing UI & Controls
+
+⚬ Recurring Low HUD Contrast on Snow (Part 9, 01:15–04:40): Daytime snow makes the semi-transparent hotbar, status bars, and contract tracking text (Tracking Contract: Escort Willa Ellery at 02:30–02:35) very hard to read.
+⚬ Escort Mission Visibility (Part 9, 02:20–04:15): After accepting Escort Willa Ellery, there is no clear distance marker or health bar for Willa on the HUD, making it easy to outpace her and hard to tell she's in danger until Willa Ellery is dead. The contract's off. appears (04:10).
+⚬ Cold Warning Without a Meter (Part 9, 00:00 & 03:00): You're getting dangerously cold pops up over the hotbar, but there is no visible temperature gauge showing how cold the player is or how close they are to taking cold damage.
+⚬ Unsellable Items in Shop Sell Tab (Part 9, 01:30–01:40): Rotten Flesh appears in the Butcher's Sell tab at $0.00 only to tell the player Rotten Flesh isn't worth anything here when selected.
+
+Player Goals & Where They Got Stuck
+
+⚬ Part 7 (00:00–04:25): Poured water over a deep lava pool to create and mine Obsidian (00:00–02:40), packed up their Blast Furnace and Crafting Table (03:15–03:20), and began climbing back out of the caves (Y -56 to Y 23). Got slowed down by awkward water/lava/obsidian clipping while mining and caught fire unexpectedly while running up the tunnel (03:30–03:40).
+⚬ Part 8 (00:00–04:35): Finished climbing out of the cave to the snowy surface at night (01:05), walked into Clear Bend (01:40), and took the Clear 4 monsters near town job from the Notice Board (02:40–02:50). Got stuck briefly in a deep snow pit/ravine while fighting a Powderwight (03:15–03:50) and had to place blocks/dig back out before completing the job (04:15) and engaging a Graveworn Duelist (04:35).
+⚬ Part 9 (00:00–04:40): Finished off the Graveworn Duelist (00:05), turned in the monster-clearing job at Clear Bend (00:25), tried selling Rotten Flesh to the Butcher (01:30–01:40), and accepted Escort Willa Ellery to Red Flats (02:20–02:30). Trekked through the snowy forest (02:45–03:50) until Road Agents ambushed them (03:55–04:35). Failed the escort when Willa Ellery died in the ambush (04:10), then fought off the remaining Road Agents.
+
+What Looked Good
+
+⚬ Clear Bend Notice Board & Progression Hooks (Part 8, 02:40–02:50; Part 9, 00:25–01:10): Great hub for direction—clear jobs, payouts, honour feedback, and aspirational goals like buying a town house ($200.00) or homestead ($150.00).
+⚬ Dawn & Overcast Skybox (Part 9, 00:10–00:35, 02:45–03:15): The orange sunrise clouds over Clear Bend and the heavy winter clouds during the forest trek look atmospheric and sell the passage of time well.
+⚬ Road Agent Ambush (Part 9, 03:55–04:35): Getting ambushed by bandits in the snowy woods during an escort mission is a strong, memorable encounter, and the Road Agents' silhouettes/hats read clearly against the snow.
+⚬ Town Streetlamps at Night (Part 8, 01:40–02:05): Aside from the distant light-dome artifact, walking into Clear Bend's warm-lit streets out of the dark snowstorm feels cozy and grounded.
