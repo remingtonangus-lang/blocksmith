@@ -1,0 +1,277 @@
+[
+ {
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -20,
+    40,
+    85
+   ]
+  },
+  "seconds": 2.0,
+  "warm": 2,
+  "events": [],
+  "rd": 24,
+  "fps": 30,
+  "cruise": 0,
+  "follow": false,
+  "peaceful": true,
+  "name": "cov_landscape",
+  "time": 0.45,
+  "fov": 44,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -215.4,
+     4,
+     127
+    ],
+    "look": [
+     30,
+     45,
+     -35
+    ],
+    "ground": true
+   },
+   {
+    "t": 2,
+    "pos": [
+     -215.4,
+     4,
+     127
+    ],
+    "look": [
+     30,
+     45,
+     -35
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -20,
+    40,
+    85
+   ]
+  },
+  "seconds": 2.0,
+  "warm": 2,
+  "events": [],
+  "rd": 24,
+  "fps": 30,
+  "cruise": 0,
+  "follow": false,
+  "peaceful": true,
+  "name": "cov_square",
+  "time": 0.45,
+  "fov": 58,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -215.4,
+     4,
+     127
+    ],
+    "look": [
+     18.1,
+     52,
+     -51.7
+    ],
+    "ground": true
+   },
+   {
+    "t": 2,
+    "pos": [
+     -215.4,
+     4,
+     127
+    ],
+    "look": [
+     18.1,
+     52,
+     -51.7
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -20,
+    40,
+    85
+   ]
+  },
+  "seconds": 2.0,
+  "warm": 2,
+  "events": [],
+  "rd": 24,
+  "fps": 30,
+  "cruise": 0,
+  "follow": false,
+  "peaceful": true,
+  "name": "cov_portrait",
+  "time": 0.45,
+  "fov": 54,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -215.4,
+     4,
+     127
+    ],
+    "look": [
+     38.1,
+     48,
+     -21.9
+    ],
+    "ground": true
+   },
+   {
+    "t": 2,
+    "pos": [
+     -215.4,
+     4,
+     127
+    ],
+    "look": [
+     38.1,
+     48,
+     -21.9
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -20,
+    40,
+    85
+   ]
+  },
+  "seconds": 2.0,
+  "warm": 2,
+  "events": [],
+  "rd": 24,
+  "fps": 30,
+  "cruise": 0,
+  "follow": false,
+  "peaceful": true,
+  "name": "cov_hero",
+  "time": 0.45,
+  "fov": 26,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -275,
+     30,
+     172
+    ],
+    "look": [
+     55.8,
+     66,
+     9.5
+    ],
+    "ground": true
+   },
+   {
+    "t": 2,
+    "pos": [
+     -275,
+     30,
+     172
+    ],
+    "look": [
+     55.8,
+     66,
+     9.5
+    ],
+    "ground": true
+   }
+  ]
+ },
+ {
+  "anchor": {
+   "near": "village",
+   "from": [
+    3000,
+    0
+   ],
+   "frigate": [
+    -20,
+    40,
+    85
+   ]
+  },
+  "seconds": 2.0,
+  "warm": 2,
+  "events": [],
+  "rd": 24,
+  "fps": 30,
+  "cruise": 0,
+  "follow": false,
+  "peaceful": true,
+  "name": "cov_mini",
+  "time": 0.45,
+  "fov": 27,
+  "cam": [
+   {
+    "t": 0,
+    "pos": [
+     -275,
+     30,
+     172
+    ],
+    "look": [
+     69.9,
+     63,
+     41.9
+    ],
+    "ground": true
+   },
+   {
+    "t": 2,
+    "pos": [
+     -275,
+     30,
+     172
+    ],
+    "look": [
+     69.9,
+     63,
+     41.9
+    ],
+    "ground": true
+   }
+  ]
+ }
+]
