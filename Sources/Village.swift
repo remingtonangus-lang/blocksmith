@@ -60,6 +60,7 @@ enum Village {
         var r20 = false           // the office is R20's stone jail (TownJail.swift)
         var p354 = false          // P354's homes, workshops and three-cell jail (TownHomes.swift)
         var l52 = false           // ledger 52: the family house's table clear of the bedroom door (TownHomes.homeLot)
+        var inn = false           // T16: every village gets an accommodations building (inn) near the square
     }
 
     static func size(_ k: Kind) -> (Int, Int) {
@@ -410,6 +411,7 @@ enum Village {
             pathCols = cols2; goodRoads = roads2; spans = spans2
         }
         if frontier && sz?.office != false { frontierLots(&lots, ox: ox, oz: oz, bank: gap && sz?.bank != false, r20: r20, shopsGive: p499) }
+        if frontier { placeInn(&lots, ox: ox, oz: oz) }
         planLog?(ox, oz, style, plan, lots.count)
         var pieces: [Piece] = []
         let plaza = cy
@@ -522,7 +524,8 @@ enum Village {
         let lotPieces = pieces.count                  // (the mine's pieces go in before the lots: T2, pieces.last is a lot)
         for lot in lots {
             let (x0, z0, x1, z1) = bounds(lot)
-            pieces.append(Piece(min: IVec3(x0 - 3, lot.y - 12, z0 - 3), max: IVec3(x1 + 3, lot.y + 14, z1 + 3)) { w in
+            let topH = (lot.inn || lot.kind == .saloon) ? max(14, 10 + (lot.d + 1) / 2) : 14
+            pieces.append(Piece(min: IVec3(x0 - 3, lot.y - 12, z0 - 3), max: IVec3(x1 + 3, lot.y + topH, z1 + 3)) { w in
                 sealCaves(&w, x0 - 3, z0 - 3, x1 + 3, z1 + 3, top: lot.y + 6, floor: lot.y, depth: lot.y - 7)
                 buildLot(&w, lot, m, styleV)
             })
@@ -537,23 +540,45 @@ enum Village {
         let start = StructureStart(kind: "village", pieces: pieces, anchor: IVec3(ox + 6, plaza + 1, oz + 6))
         start.plan = mine
         start.info = ["lots": lots.count, "shops": lots.filter { $0.kind == .shop || $0.kind == .saloon }.count,
-                      "deputies": sz?.deputies ?? 1, "office": lots.contains { $0.kind == .office } ? 1 : 0]
+                      "deputies": sz?.deputies ?? 1, "office": lots.contains { $0.kind == .office } ? 1 : 0,
+                      "inn": lots.contains { $0.inn || $0.kind == .saloon } ? 1 : 0]
         if let townSize { start.info["size"] = townSize.rawValue }
         // (P483: the far view's boxes: each building's walls and its roof, no farms or pens.)
-        for l in lots where l.kind != .farm && l.kind != .pen {
+        for l in lots where l.inn || (l.kind != .farm && l.kind != .pen) {
             let (x0, z0, x1, z1) = bounds(l)
             let tall: Int
-            switch l.kind {
-            case .bigHouse, .library, .saloon, .bank: tall = 6
-            case .temple: tall = 8
-            default: tall = 4
+            if l.inn { tall = 8 }
+            else {
+                switch l.kind {
+                case .bigHouse, .library, .saloon, .bank: tall = 6
+                case .temple: tall = 8
+                default: tall = 4
+                }
             }
-            let stone = l.kind == .temple || l.kind == .bank || l.kind == .smithy || l.r20
+            let stone = !l.inn && (l.kind == .temple || l.kind == .bank || l.kind == .smithy || l.r20)
             start.far.append((IVec3(x0, l.y, z0), IVec3(x1, l.y + tall, z1), stone ? .stone : .timber))
             if x1 - x0 > 2 && z1 - z0 > 2 { start.far.append((IVec3(x0 + 1, l.y + tall + 1, z0 + 1), IVec3(x1 - 1, l.y + tall + 2, z1 - 1), .roof)) }
         }
         if let office = lots.first(where: { $0.kind == .office }) { Jail.record(office, into: &start.info) }   // R20 (TownJail.swift)
         return start
+    }
+
+    // T16: every frontier settlement (hamlet through city) gets a dedicated accommodations building (inn) near the
+    // square where you can pay to sleep/rest (TownBuildings.innLot). Prefers residential lots so shops, office and bank stay intact.
+    static func placeInn(_ lots: inout [Lot], ox: Int, oz: Int) {
+        func dist2(_ l: Lot) -> Int {
+            let (cx, cz) = world(l, l.w / 2, l.d / 2)
+            let dx = cx - ox, dz = cz - oz
+            return dx * dx + dz * dz
+        }
+        let homes: [Kind] = [.bigHouse, .mediumHouse, .smallHouse, .jobHut]
+        let pick =
+            lots.indices.filter { homes.contains(lots[$0].kind) && lots[$0].w >= 9 && lots[$0].d >= 7 }.min { dist2(lots[$0]) < dist2(lots[$1]) }
+            ?? lots.indices.filter { homes.contains(lots[$0].kind) && lots[$0].w >= 7 && lots[$0].d >= 6 }.min { dist2(lots[$0]) < dist2(lots[$1]) }
+            ?? lots.indices.filter { homes.contains(lots[$0].kind) }.min { dist2(lots[$0]) < dist2(lots[$1]) }
+            ?? lots.indices.filter { [.library, .farm, .pen].contains(lots[$0].kind) }.min { dist2(lots[$0]) < dist2(lots[$1]) }
+            ?? (lots.contains { $0.kind == .saloon } ? nil : lots.indices.filter { lots[$0].kind == .temple || (lots[$0].kind == .shop && lots[$0].job != "general") }.min { dist2(lots[$0]) < dist2(lots[$1]) })
+        if let i = pick { lots[i].inn = true }
     }
 
     // Cave pockets just under the ground round a house, filled with dirt (two villagers spent the whole behaviour sim
@@ -652,7 +677,8 @@ enum Village {
 
     static func foundation(_ w: inout StructWriter, _ b: LB, _ m: Mats) {
         let l = b.l
-        let clear = [Kind.farm, .pen].contains(l.kind) ? 3 : (l.kind == .temple ? 14 : ([.bigHouse, .shop, .saloon].contains(l.kind) ? 13 : 9))
+        let clear = (l.inn || l.kind == .saloon) ? max(13, 10 + (l.d + 1) / 2)
+            : ([Kind.farm, .pen].contains(l.kind) ? 3 : (l.kind == .temple ? 14 : ([.bigHouse, .shop].contains(l.kind) ? 13 : 9)))
         for v in 0..<l.d { for u in 0..<l.w {
             let (x, z) = world(l, u, v)
             w.groundDown(x, l.y - 1, z, m.foundation, minY: l.y - 40)      // over deeper caves too (structcheck floating; 24 left 6-8 columns, run 357)
@@ -751,13 +777,13 @@ enum Village {
         }
     }
 
-    static func bed(_ w: inout StructWriter, _ b: LB, _ m: Mats, u: Int, v: Int) {
+    static func bed(_ w: inout StructWriter, _ b: LB, _ m: Mats, u: Int, v: Int, dy: Int = 0) {
         // Foot at (u, v), head one further from the street.
         let d = dir(b.l, 0)
         let facing = [1, 0, 3, 2][d]      // bed facing index whose head offset points along world dir d
         let foot = Blocks.id(m.bed), head = Blocks.id(m.bed + "_head")
-        b.set(&w, u, 0, v, foot + BlockID(facing))
-        b.set(&w, u, 0, v + 1, head + BlockID(facing))
+        b.set(&w, u, dy, v, foot + BlockID(facing))
+        b.set(&w, u, dy, v + 1, head + BlockID(facing))
     }
 
     static func villager(_ w: inout StructWriter, _ b: LB, u: Int, v: Int, dy: Int = 0) {
@@ -769,6 +795,7 @@ enum Village {
         let b = LB(l: l)
         var rng = SRng(l.seed)
         let g = Blocks.id
+        if l.inn { innLot(&w, b, m); return }
         if l.p354 && [.smallHouse, .mediumHouse, .bigHouse].contains(l.kind) { homeLot(&w, b, m); return }
         if l.p354 && l.kind == .jobHut { workshopLot(&w, b, m); return }
         switch l.kind {

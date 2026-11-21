@@ -20,16 +20,161 @@ extension Village {
         let l = b.l
         let m = varied(m0, l)
         let saloon = k == .saloon
-        let wallH = saloon ? 6 : 5
+        let wallH = saloon ? (m.roofFlat ? 8 : 6) : 5
         house(&w, b, m0, wallH: wallH)
         falseFront(&w, b, m, wallH: wallH, band: blk(bandColor(k) + "_terracotta", m.log))
         // Awning over the doorway (frontier towns: a covered boardwalk the width of the front), the sign above the door.
-        if l.frontier { boardwalk(&w, b, m, wallH: wallH) }
-        else { for u in thru(max(0, l.w / 2 - 2), min(l.w - 1, l.w / 2 + 2)) { b.set(&w, u, wallH - 1, -1, m.slab) } }
+        let porchH = min(wallH, 6)
+        if l.frontier { boardwalk(&w, b, m, wallH: porchH) }
+        else { for u in thru(max(0, l.w / 2 - 2), min(l.w - 1, l.w / 2 + 2)) { b.set(&w, u, porchH - 1, -1, m.slab) } }
         sign(&w, b, u: l.w / 2, dy: 2, v: -1, lines: ["", k.name, "", ""])
         // R20: the general store's exchange, with its rate, by the door (Exchange: every counter has the row inside).
         if k == .general { sign(&w, b, u: 1, dy: 1, v: -1, lines: Exchange.signLines) }
+        // T16: the saloon advertises its rooms upstairs and actually has guest rooms over the bar.
+        if saloon { sign(&w, b, u: 1, dy: 1, v: -1, lines: ["ROOMS UPSTAIRS", "Room: $3.00", "Bath: $1.00", "Ask barkeep"]) }
         shopInside(&w, b, m, k, saloon: saloon)
+        if saloon { saloonUpstairs(&w, b, m, wallH: wallH) }
+    }
+
+    // T16: guest rooms over the saloon (stairs along the open left wall u = 1, three private rooms along the front).
+    static func saloonUpstairs(_ w: inout StructWriter, _ b: LB, _ m: Mats, wallH: Int) {
+        let l = b.l
+        guard l.w >= 13 && l.d >= 9 else { return }
+        if !m.roofFlat {
+            for u in 0..<l.w { b.set(&w, u, wallH, l.d - 1, (u == 0 || u == l.w - 1) ? m.log : m.wall) }
+        }
+        b.fill(&w, 1, 4, 1, l.w - 2, 4, l.d - 2, m.floor)
+        for step in 0..<4 {
+            let sv = 2 + step
+            for fy in 0..<step { b.set(&w, 1, fy, sv, m.planks) }
+            b.set(&w, 1, step, sv, b.stair(m.stairs, high: 0))
+        }
+        for sv in 2...5 {
+            b.set(&w, 1, 4, sv, AIR); b.set(&w, 1, 5, sv, AIR); b.set(&w, 1, 6, sv, AIR)
+        }
+        for sv in 2...4 { b.set(&w, 2, 5, sv, m.fence) }
+        let lantern = blk("lantern", AIR), pane = blk("glass_pane", m.planks)
+        let sideTbl = b.furniture(m, "side_table") ?? m.planks
+        b.fill(&w, 3, 5, 4, l.w - 2, 7, 4, m.planks)
+        b.fill(&w, 6, 5, 1, 6, 7, 4, m.planks)
+        b.fill(&w, 10, 5, 1, 10, 7, 4, m.planks)
+        for (du, bu, tu) in [(4, 3, 5), (8, 7, 9), (12, l.w - 2, 11)] {
+            b.set(&w, du, 5, 4, m.door + BlockID(dir(l, 0)))
+            b.set(&w, du, 6, 4, m.door + BlockID(dir(l, 0) + 8))
+            b.set(&w, du, 6, 0, pane)
+            bed(&w, b, m, u: bu, v: 1, dy: 5)
+            b.set(&w, tu, 5, 1, sideTbl); b.set(&w, tu, 6, 1, lantern)
+        }
+        b.set(&w, 3, 6, 5, b.wallTorch(facing: 0))
+        b.set(&w, 11, 6, 5, b.wallTorch(facing: 0))
+        b.set(&w, 6, 5, l.d - 2, b.seat(m, "bench", back: 0))
+        b.set(&w, 8, 5, l.d - 2, b.seat(m, "bench", back: 0))
+    }
+
+    // T16: a dedicated two-story village inn (accommodations building) where you can pay the keeper behind the front desk
+    // for a room for the night ($3) or a hot bath ($1) (Hotel.swift). Built in every frontier settlement (hamlet through
+    // city) so even small villages without a saloon have a clearly signed place to sleep and rest.
+    static func innLot(_ w: inout StructWriter, _ b: LB, _ m0: Mats) {
+        let l = b.l
+        let m = varied(m0, l)
+        let wallH = 8
+        house(&w, b, m0, wallH: wallH)
+        falseFront(&w, b, m, wallH: wallH, band: blk("blue_terracotta", m.log))
+        let pane = blk("glass_pane", m.wall)
+        for v in 0..<l.d { for u in 0..<l.w {
+            let edgeU = u == 0 || u == l.w - 1, edgeV = v == 0 || v == l.d - 1
+            guard edgeU || edgeV, !(edgeU && edgeV) else { continue }
+            if (edgeV && u % 2 == 0) || (edgeU && v % 2 == 0) { b.set(&w, u, 6, v, pane) }
+        } }
+        // Porch/awning at ground-floor height (wallH: 5 -> roof at dy = 4, flush with the 2nd floor deck and below dy = 6 windows).
+        if l.frontier { boardwalk(&w, b, m, wallH: 5) }
+        else { for u in thru(max(0, l.w / 2 - 2), min(l.w - 1, l.w / 2 + 2)) { b.set(&w, u, 4, -1, m.slab) } }
+        sign(&w, b, u: l.w / 2, dy: 2, v: -1, lines: ["", "Inn", "Rooms & Baths", ""])
+        if l.w >= 6 { sign(&w, b, u: 1, dy: 1, v: -1, lines: ["INN & ROOMS", "Room: $3.00", "Bath: $1.00", "Ask inside"]) }
+
+        let lantern = blk("lantern", AIR)
+        let counter = blk("stripped_\(Blocks.key(m.log).replacingOccurrences(of: "stripped_", with: ""))", m.planks)
+        let sideTbl = b.furniture(m, "side_table") ?? m.planks
+        var rng = SRng(l.seed &+ 0x1AA0)
+
+        b.fill(&w, 1, 4, 1, l.w - 2, 4, l.d - 2, m.floor)
+
+        if l.w >= 7 && l.d >= 6 {
+            let cv = l.d - 3
+            let cEnd = max(2, l.w - 4)
+            for u in 1...cEnd { b.set(&w, u, 0, cv, counter) }
+            b.set(&w, min(l.w / 2, cEnd), 1, cv, lantern)
+            let till = world(l, 1, l.d - 2)
+            w.chest(till.0, l.y, till.1, loot: "shop_register", seed: rng.next(), facing: dir(l, 1))
+            let ku = min(max(2, l.w / 2), cEnd)
+            let (kx, kz) = world(l, ku, cv + 1)
+            w.mob("villager:shop_saloon", V3(Float(kx) + 0.5, Float(l.y), Float(kz) + 0.5))
+
+            let stool = b.seat(m, "stool")
+            let round = b.furniture(m, "round_table") ?? b.furniture(m, "table") ?? m.fence
+            if l.w >= 9 && cv >= 4 {
+                b.set(&w, 2, 0, 2, round)
+                b.set(&w, 1, 0, 2, stool); b.set(&w, 3, 0, 2, stool)
+            } else if cv >= 3 {
+                b.set(&w, 1, 0, 1, round)
+                b.set(&w, 2, 0, 1, stool)
+            }
+            b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))
+            b.set(&w, l.w - 2, 2, 1, b.wallTorch(facing: 3))
+            b.set(&w, 2, 2, l.d - 2, b.wallTorch(facing: 1))
+
+            let su = l.w - 2
+            for step in 0..<4 {
+                let sv = 1 + step
+                for fy in 0..<step { b.set(&w, su, fy, sv, m.planks) }
+                b.set(&w, su, step, sv, b.stair(m.stairs, high: 0))
+            }
+            for sv in 1...4 {
+                b.set(&w, su, 4, sv, AIR); b.set(&w, su, 5, sv, AIR); b.set(&w, su, 6, sv, AIR)
+            }
+            for sv in 1...3 { b.set(&w, su - 1, 5, sv, m.fence) }
+
+            if l.w >= 9 && l.d >= 7 {
+                let hallWall = l.d - 3
+                let mid = (l.w - 3) / 2
+                b.fill(&w, 1, 5, hallWall, l.w - 4, 7, hallWall, m.planks)
+                b.fill(&w, mid, 5, 1, mid, 7, hallWall, m.planks)
+                let d1 = max(1, mid - 1)
+                b.set(&w, d1, 5, hallWall, m.door + BlockID(dir(l, 0)))
+                b.set(&w, d1, 6, hallWall, m.door + BlockID(dir(l, 0) + 8))
+                bed(&w, b, m, u: 1, v: 1, dy: 5)
+                b.set(&w, 1, 5, 3, sideTbl); b.set(&w, 1, 6, 3, lantern)
+                let d2 = min(l.w - 4, mid + 1)
+                b.set(&w, d2, 5, hallWall, m.door + BlockID(dir(l, 0)))
+                b.set(&w, d2, 6, hallWall, m.door + BlockID(dir(l, 0) + 8))
+                bed(&w, b, m, u: l.w - 4, v: 1, dy: 5)
+                b.set(&w, l.w - 4, 5, 3, sideTbl); b.set(&w, l.w - 4, 6, 3, lantern)
+                b.set(&w, 1, 6, l.d - 2, b.wallTorch(facing: 1))
+                let rtu = (l.w - 3) % 2 == 1 ? l.w - 3 : l.w - 4
+                b.set(&w, rtu, 6, l.d - 2, b.wallTorch(facing: 1))
+            } else {
+                bed(&w, b, m, u: 1, v: 1, dy: 5)
+                bed(&w, b, m, u: 3, v: 1, dy: 5)
+                b.set(&w, 2, 5, 1, sideTbl); b.set(&w, 2, 6, 1, lantern)
+                b.set(&w, 1, 6, l.d - 2, b.wallTorch(facing: 1))
+            }
+        } else {
+            b.set(&w, 1, 0, 2, counter); b.set(&w, 2, 0, 2, counter)
+            b.set(&w, 1, 1, 2, lantern)
+            let till = world(l, 1, l.d - 2)
+            w.chest(till.0, l.y, till.1, loot: "shop_register", seed: rng.next(), facing: dir(l, 1))
+            let (kx, kz) = world(l, 2, l.d - 2)
+            w.mob("villager:shop_saloon", V3(Float(kx) + 0.5, Float(l.y), Float(kz) + 0.5))
+            b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))
+            let lad = blk("ladder", AIR)
+            if lad != AIR {
+                b.set(&w, l.w - 2, 4, 1, AIR)
+                for dy in 0...4 { b.set(&w, l.w - 2, dy, 1, lad + BlockID(dir(l, 3))) }
+            }
+            bed(&w, b, m, u: 1, v: 1, dy: 5)
+            b.set(&w, 2, 5, l.d - 2, sideTbl); b.set(&w, 2, 6, l.d - 2, lantern)
+            b.set(&w, 1, 6, l.d - 2, b.wallTorch(facing: 1))
+        }
     }
 
     // False front: the street wall carried up past the roof ridge (ridge = wallH + (d + 1) / 2, house's gable) and over
