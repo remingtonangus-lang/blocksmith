@@ -390,7 +390,10 @@ final class ItemEntityManager {
             // well"): a drop within a few blocks of him is lit at least a third (a dark chip of rock on dark rock
             // vanished), and it is a fifth bigger.
             let fill: Float = max(0.08, MobLight.fill * near, 0.34 * (1 - Terrain.smooth(4, 9, simd_length(c))))
-            let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+            let raw = max(Float(l.sky) / 15 * daylight, Float(l.block) / 15)
+            let ambient = raw + (1 - raw) * world.dim.ambient
+            let emit: Float = e.stack.def.block.map { Float(Blocks.emit[Int($0)]) / 15 } ?? 0
+            let light = min(Float(1), max(fill, ambient, emit, MobLight.nightVision * 0.9))
             let copies = d2 > 256 && ItemEntityManager.p446 ? 1 : ItemEntityManager.copies(e.stack.count)
             for k in 0..<copies {
                 if let b = e.stack.def.block, !Blocks.flatIcon(b) {

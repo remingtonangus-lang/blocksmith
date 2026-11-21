@@ -12,9 +12,10 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
     let hit = playerHitAngle(sw)
     let parts = playerParts(g, pitch: prone ? p.pitch + .pi / 2 * 0.8 : p.pitch, walk: walk, hit: hit)
 
-    let l = g.world.lightAt(Int(floor(p.pos.x)), Int(floor(p.pos.y + 1)), Int(floor(p.pos.z)))
-    var bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+    let l = g.world.lightOpen(Int(floor(p.pos.x)), Int(floor(p.pos.y + 1)), Int(floor(p.pos.z)))
+    var bright = max(Float(l.sky) / 15 * daylight, Float(l.block) / 15)
     bright = bright + (1 - bright) * g.world.dim.ambient
+    bright = min(Float(1), max(0.05, MobLight.fill, bright, MobLight.nightVision * 0.9))
     let CT = Mesher.cornerTable
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     let order = [0, 1, 2, 0, 2, 3]
