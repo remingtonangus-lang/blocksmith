@@ -624,6 +624,7 @@ extension Game {
 }
 
 extension Game {
+    static let oldLavaProbe = Env.all["BS_OLDLAVAPROBE"] == "1"           // ledger 422
     // Lava, fire, magma and cactus hurt; burning continues until water puts it out.
     func hazardTick(_ dt: Float) {
         frostWalkerTick()
@@ -643,7 +644,13 @@ extension Game {
             let hw = player.halfW * 0.9
             let ys: [Float] = world.fieldTerrain ? [-0.25, 0.1, 1] : [0.1, 1]
             scan: for dy in ys { for (dx, dz) in [(-hw, -hw), (hw, -hw), (-hw, hw), (hw, hw), (0, 0)] {
-                if Blocks.fluidKind[Int(world.builtBlock(Int(floor(p.x + dx)), Int(floor(p.y + dy)), Int(floor(p.z + dz))))] == 2 { inLava = true; break scan }
+                // Ledger 422 (Nov 20 evening run, Gemini Part 7 03:30: "the on-fire overlay recurs while running up a dark
+                // cave tunnel with no visible lava nearby"): the probe a quarter block under the feet found lava in a cell
+                // under the tunnel's drawn floor, out of sight in the rock, and set him burning. Below the feet it counts
+                // only where that point is open (not inside the drawn ground). BS_OLDLAVAPROBE=1: as before.
+                let q = V3(p.x + dx, p.y + dy, p.z + dz)
+                if Blocks.fluidKind[Int(world.builtBlock(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] == 2
+                    && (dy >= 0 || Game.oldLavaProbe || world.fieldDensity(at: q) <= 0) { inLava = true; break scan }
             } }
         }
         if player.inWater && !inLava && !player.inFuel { onFire = 0 }
