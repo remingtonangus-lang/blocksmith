@@ -482,6 +482,7 @@ enum HudExtras {
         TickProf.mark("hud: specialty bases")
         g.trophiesTick()                                             // O6: trophy room and museum
         g.weatherWarTick()                                           // O7: weather that matters
+        ColdExposure.tick(g)                                         // T06: cold meter and hypothermia
         Wrecks.hintTick(g)                                           // P144: wreck and mast hints
         TickProf.mark("hud: trophies, weather war, wrecks")
         MapFog.shared.tick(g)                     // A5 (MapFog.swift)
@@ -522,6 +523,7 @@ enum HudExtras {
         }
         out += SaveBadge.lines(g, L, below: bn.listening)                 // Q2c-console-2
         out += ClockFace.lines(g, L)                                        // ledger 259
+        out += ColdExposure.lines(g, L)                                     // T06: cold meter
         out += NowPlaying.lines(g, L)                                       // Q2c-console-14
         // (Not on the headset: the grips step the hotbar there, and he wanted the labels gone: P85, Oct 12 playtest.)
         if ContextPrompts.shown && Prompt.pad && g.menu == nil && g.vrHead == nil && !g.drivingHUD {
@@ -632,5 +634,333 @@ enum NowPlaying {
         let a = min(1, (4 - age) / 1, age / 0.4) * 0.75
         let s = L.s
         return [HudLine(text: title, x: L.insetX + 4 * s, y: L.H - L.insetY - 10 * s, scale: s, color: V4(0.9, 0.92, 1, a))]
+    }
+}
+
+// MARK: Cold exposure & temperature gauge (T06)
+
+// Body warmth (0 freezing .. 1 comfortable) driven by biome climate, season, altitude, night, storms, and icy water,
+// countered by nearby fires/heat blocks, shelter (roof, walls, caves, vehicle cabs), held torches/lanterns, exertion,
+// and a fueled power suit. Draws a visible temperature gauge on both Mac and Quest HUDs whenever cold or recovering,
+// adds a subtle frost border when dangerously cold, and drains health until the player warms up.
+enum ColdExposure {
+    static let disabled = Env.all["BS_OLDCOLD"] == "1"
+    static let chillThreshold: Float = 0.18
+    static let dangerThreshold: Float = 0.25
+
+    struct SeatState {
+        var warmth: Float = 1
+        var ambientTemp: Float = 0.8
+        var heat: Float = 0
+        var shelter: Float = 0
+        var chilling = false
+        var warming = false
+        var damageTimer: Float = 0
+        var lastScan: Double = -100
+        var lastScanPos = V3(0, -1000, 0)
+        var lastWarn: Double = -100
+        var lastDamage: Double = -100
+    }
+
+    static var seats: [Int: SeatState] = [:]
+    static var lastClock: Double = -1
+
+    // Per-block heat strength (0 none, >0 always warm, -1 warm when lit by block light).
+    private static let blockHeat: [Float] = {
+        var t = [Float](repeating: 0, count: Blocks.count)
+        for i in 0..<Blocks.count {
+            let k = Blocks.key(BlockID(i))
+            if k.contains("coral") || k.contains("flower") || k.contains("fern") || k.contains("grass")
+                || k.contains("banner") || k.contains("sign") || k.contains("firework")
+                || k.contains("redstone_torch") || k == "sea_lantern" { continue }
+            if k == "fire" || k == "soul_fire" || k.contains("campfire") || k == "lava"
+                || k.contains("magma") || k.contains("brazier") || k.contains("hearth") || k.contains("fireplace") {
+                t[i] = 1.0
+            } else if k.contains("furnace") || k.contains("smoker") || k.contains("stove") || k.contains("forge") || k.contains("kiln") {
+                t[i] = k.contains("lit") ? 0.9 : -1.0
+            } else if k.contains("torch") || k.contains("lantern") || k == "jack_o_lantern" || k.contains("candle") {
+                t[i] = 0.55
+            }
+        }
+        return t
+    }()
+
+    static func state(for g: Game) -> SeatState {
+        seats[g.coop.active ? g.coop.current : 0] ?? SeatState()
+    }
+
+    static func tick(_ g: Game) {
+        guard !disabled else { return }
+        if lastClock < 0 || g.clock < lastClock || g.clock - lastClock > 10 {
+            if g.clock < lastClock { seats.removeAll() }
+            lastClock = g.clock
+            return
+        }
+        let dt = min(0.25, Float(g.clock - lastClock))
+        lastClock = g.clock
+        guard dt > 0 else { return }
+
+        g.coop.eachSeat(g) {
+            let id = g.coop.active ? g.coop.current : 0
+            if !g.survival || !g.alive {
+                seats[id] = SeatState()
+                return
+            }
+            guard !g.paused, g.menu == nil else { return }
+            var s = seats[id] ?? SeatState()
+            stepSeat(g, &s, dt: dt)
+            seats[id] = s
+        }
+    }
+
+    private static func stepSeat(_ g: Game, _ s: inout SeatState, dt: Float) {
+        // Non-overworld dimensions (Emberdeep, Hollow) do not freeze; warm back up quickly.
+        guard g.wetWorld else {
+            let wasCold = s.warmth < 0.995
+            s.warmth = min(1, s.warmth + 0.25 * dt)
+            s.chilling = false
+            s.warming = wasCold && s.warmth < 0.995
+            s.damageTimer = 0
+            return
+        }
+
+        // Standing in lava or burning warms immediately.
+        if g.player.inLava || g.onFire > 0 {
+            let wasCold = s.warmth < 0.995
+            s.warmth = min(1, s.warmth + 0.45 * dt)
+            s.chilling = false
+            s.warming = wasCold && s.warmth < 0.995
+            s.damageTimer = 0
+            return
+        }
+
+        let p = g.player.pos
+        let px = Int(floor(p.x)), py = Int(floor(p.y)), pz = Int(floor(p.z))
+        guard g.world.isLoaded(px, pz) else { return }
+
+        if g.clock - s.lastScan >= 0.5 || simd_length_squared(p - s.lastScanPos) > 2.25 {
+            s.lastScan = g.clock
+            s.lastScanPos = p
+            scanEnvironment(g, &s, px, py, pz)
+        }
+
+        var heldHeat: Float = 0
+        if !g.held.isEmpty {
+            let hk = Items.key(g.held.item)
+            if (hk.contains("torch") && !hk.contains("redstone")) || (hk.contains("lantern") && hk != "sea_lantern")
+                || hk.contains("campfire") || hk.contains("lava") || hk.contains("blaze") {
+                heldHeat = 0.22
+            }
+        }
+        let suitWarmth: Float = g.player.suitFuel > 0 ? 0.35 : 0
+        let moveWarmth: Float = g.player.sprinting && !g.player.inWater ? 0.06 : 0
+        let waterChill: Float = g.player.inWater && s.ambientTemp < 0.25 ? 0.45 : 0
+
+        let effective = s.ambientTemp + s.shelter * 0.36 + s.heat * 0.95 + heldHeat + suitWarmth + moveWarmth - waterChill
+
+        if effective < chillThreshold {
+            let severity = min(1.4, chillThreshold - effective)
+            let rate = severity * 0.028 + (waterChill > 0 ? 0.022 : 0)
+            s.warmth = max(0, s.warmth - rate * dt)
+            s.chilling = true
+            s.warming = false
+        } else {
+            let recovery = 0.025 + s.heat * 0.14 + s.shelter * 0.02 + max(0, effective - chillThreshold) * 0.04
+            let wasCold = s.warmth < 0.995
+            s.warmth = min(1, s.warmth + recovery * dt)
+            s.chilling = false
+            s.warming = wasCold && s.warmth < 0.995 && (s.heat > 0.15 || s.shelter >= 0.5 || effective > 0.4)
+            s.damageTimer = 0
+        }
+
+        if s.warmth <= dangerThreshold && s.chilling {
+            if g.clock - s.lastWarn >= 35 {
+                s.lastWarn = g.clock
+                g.onToast?("Freezing: get to fire or shelter")
+            }
+            let interval: Float = 1.4 + (s.warmth / dangerThreshold) * 1.1
+            s.damageTimer += dt
+            if s.damageTimer >= interval {
+                s.damageTimer -= interval
+                let dmg: Float = s.warmth <= 0.05 ? 1.5 : 1.0
+                s.lastDamage = g.clock
+                g.damage(dmg, "froze to death", type: .generic)
+            }
+        } else {
+            s.damageTimer = 0
+        }
+    }
+
+    private static func scanEnvironment(_ g: Game, _ s: inout SeatState, _ px: Int, _ py: Int, _ pz: Int) {
+        let biome = g.world.gen.column(px, pz).biome
+        var temp = biome.info.temp - Float(max(0, py - YOFF - 80)) * 0.05 / 30 - Seasons.season.chill
+        if g.daylight < 0.4 {
+            temp -= 0.15 * (1 - g.daylight / 0.4)
+        }
+
+        let underRoof = !g.skyExposed(px, py + 1, pz)
+        var hasCeiling = false
+        for dy in 2...7 {
+            let y = py + dy
+            if y >= 0 && y < CH && g.world.solidAt(px, y, pz) { hasCeiling = true; break }
+        }
+        var walls = 0
+        let wallY = max(0, min(CH - 1, py + 1))
+        for dir in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            for d in 1...6 {
+                if g.world.solidAt(px + dir.0 * d, wallY, pz + dir.1 * d) { walls += 1; break }
+            }
+        }
+        var deepCave = false
+        if let c = g.world.chunks[ChunkKey(x: floorDiv(px, CS), z: floorDiv(pz, CS))] {
+            let top = Int(c.height[mod(px, CS) + mod(pz, CS) * CS])
+            deepCave = top - py >= 8
+        }
+        let inCab = g.world.ships.pilot != nil
+        let covered = underRoof || hasCeiling || inCab
+
+        let shelter: Float
+        if deepCave { shelter = 1.0 }
+        else if covered && walls >= 3 { shelter = 0.85 }
+        else if inCab { shelter = 0.7 }
+        else if covered && walls >= 1 { shelter = 0.55 }
+        else if covered { shelter = 0.35 }
+        else if walls >= 3 { shelter = 0.2 }
+        else { shelter = 0 }
+
+        if !covered && g.weather.rain > 0.2 {
+            let precip = g.precipitation(px, py, pz)
+            if precip == 2 {
+                temp -= 0.25 * g.weather.rain + 0.15 * g.weather.thunder
+            } else if precip == 1 && temp < 0.4 {
+                temp -= 0.18 * g.weather.rain
+            }
+        }
+
+        var bestHeat: Float = 0
+        let heatTable = blockHeat
+        let tableCount = heatTable.count
+        for dy in -1...2 {
+            let y = py + dy
+            guard y >= 0 && y < CH else { continue }
+            for dz in -4...4 {
+                let z = pz + dz
+                for dx in -4...4 {
+                    let x = px + dx
+                    let b = Int(g.world.block(x, y, z))
+                    guard b >= 0 && b < tableCount else { continue }
+                    var h = heatTable[b]
+                    if h == 0 { continue }
+                    if h < 0 {
+                        let l0 = max(Int(g.world.lightAt(x, y, z).block), Int(g.world.lightAt(x, min(CH - 1, y + 1), z).block))
+                        let l1 = max(Int(g.world.lightAt(x + 1, y, z).block), Int(g.world.lightAt(x - 1, y, z).block))
+                        let l2 = max(Int(g.world.lightAt(x, y, z + 1).block), Int(g.world.lightAt(x, y, z - 1).block))
+                        h = max(l0, max(l1, l2)) >= 9 ? 0.85 : 0
+                    }
+                    if h > 0 {
+                        let dist = Float(dx * dx + dy * dy + dz * dz).squareRoot()
+                        let reach: Float = h >= 0.8 ? 5.5 : 4.2
+                        let contrib = h * max(0, 1 - dist / reach)
+                        if contrib > bestHeat { bestHeat = contrib }
+                    }
+                }
+            }
+        }
+        let localLight = Int(g.world.lightAt(px, wallY, pz).block)
+        if localLight >= 10 {
+            bestHeat = max(bestHeat, 0.35 + Float(localLight - 10) * 0.11)
+        }
+
+        s.ambientTemp = temp
+        s.heat = bestHeat
+        s.shelter = shelter
+    }
+
+    static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
+        guard !disabled, HudExtras.enabled, g.menu == nil, g.alive, g.survival else { return [] }
+        let st = state(for: g)
+        guard st.warmth < 0.995 || st.chilling else { return [] }
+
+        let s = L.s
+        let danger = st.warmth <= dangerThreshold
+        let hurtFlash = g.clock - st.lastDamage >= 0 && g.clock - st.lastDamage < 0.35
+        let fade: Float = st.chilling ? 1 : simd_clamp((1 - st.warmth) / 0.08, 0, 1)
+        guard fade > 0.02 else { return [] }
+
+        var out: [HudLine] = []
+
+        // Subtle peripheral frost border when dangerously cold.
+        if st.warmth < 0.30 && !st.warming {
+            let frost = simd_clamp((0.30 - st.warmth) / 0.30, 0, 1)
+            let pulse: Float = 0.8 + 0.2 * sinf(Float(g.clock) * 5)
+            let fa = frost * 0.26 * pulse
+            let edge = (7 + 9 * frost) * s
+            let fc = hurtFlash ? V4(0.88, 0.35, 0.45, min(0.42, fa + 0.14)) : V4(0.62, 0.86, 1.0, fa)
+            out.append(HudLine(text: "", x: 0, y: 0, scale: s, bg: fc, box: V2(L.W, edge)))
+            out.append(HudLine(text: "", x: 0, y: L.H - edge, scale: s, bg: fc, box: V2(L.W, edge)))
+            out.append(HudLine(text: "", x: 0, y: edge, scale: s, bg: fc, box: V2(edge, max(0, L.H - 2 * edge))))
+            out.append(HudLine(text: "", x: L.W - edge, y: edge, scale: s, bg: fc, box: V2(edge, max(0, L.H - 2 * edge))))
+        }
+
+        let label: String
+        let fillCol: V4
+        let textCol: V4
+        let rimCol: V4
+        if st.warming {
+            label = "Warming"
+            fillCol = V4(0.98, 0.66, 0.22, fade)
+            textCol = V4(1.0, 0.85, 0.5, fade)
+            rimCol = V4(0.85, 0.55, 0.18, 0.75 * fade)
+        } else if danger {
+            let p: Float = 0.5 + 0.5 * sinf(Float(g.clock) * 8)
+            label = "Freezing"
+            fillCol = hurtFlash ? V4(1.0, 0.2, 0.2, fade) : V4(0.95 - 0.12 * p, 0.26 + 0.62 * p, 0.3 + 0.68 * p, fade)
+            textCol = V4(1.0, 0.48 + 0.32 * p, 0.48 + 0.38 * p, fade)
+            rimCol = V4(0.95, 0.28, 0.3, (0.65 + 0.35 * p) * fade)
+        } else if st.warmth <= 0.55 {
+            label = "Cold"
+            fillCol = V4(0.32, 0.68, 0.98, fade)
+            textCol = V4(0.68, 0.9, 1.0, fade)
+            rimCol = V4(0.3, 0.62, 0.92, 0.65 * fade)
+        } else {
+            label = "Chilly"
+            fillCol = V4(0.62, 0.86, 0.98, fade)
+            textCol = V4(0.84, 0.94, 1.0, fade)
+            rimCol = V4(0.5, 0.75, 0.9, 0.5 * fade)
+        }
+
+        let barW = 58 * s
+        let labelSlot = max(Float(Font.width("Freezing")) * s, Float(Font.width(label)) * s)
+        let pillW = 14 * s + barW + 5 * s + labelSlot + 5 * s
+        let pillH = 14 * s
+        let hasReadout = ClockFace.text(g) != nil || HeldReadout.text(g) != nil
+        let x0 = (L.W - pillW) / 2
+        let y0 = hasReadout ? (L.hotbarY0 - 50 * s) : (L.hotbarY0 - 34 * s)
+
+        // Outer rim and dark backdrop.
+        out.append(HudLine(text: "", x: x0 - s, y: y0 - s, scale: s, bg: rimCol, box: V2(pillW + 2 * s, pillH + 2 * s)))
+        out.append(HudLine(text: "", x: x0, y: y0, scale: s, bg: V4(0.05, 0.08, 0.13, 0.78 * fade), box: V2(pillW, pillH)))
+
+        // Thermometer icon (stem + bulb + mercury level).
+        let tx = x0 + 4 * s, ty = y0 + 2 * s
+        out.append(HudLine(text: "", x: tx + s, y: ty, scale: s, bg: V4(0.75, 0.82, 0.9, 0.85 * fade), box: V2(2 * s, 7 * s)))
+        out.append(HudLine(text: "", x: tx, y: ty + 6 * s, scale: s, bg: V4(0.75, 0.82, 0.9, 0.85 * fade), box: V2(4 * s, 4 * s)))
+        let stemFill = max(1 * s, 6 * s * st.warmth)
+        out.append(HudLine(text: "", x: tx + 1.4 * s, y: ty + 7 * s - stemFill, scale: s, bg: fillCol, box: V2(1.2 * s, stemFill)))
+        out.append(HudLine(text: "", x: tx + 0.6 * s, y: ty + 6.6 * s, scale: s, bg: fillCol, box: V2(2.8 * s, 2.8 * s)))
+
+        // Temperature bar track, danger zone, active fill, and danger tick.
+        let bx = x0 + 13 * s, by = y0 + 4 * s, bh = 6 * s
+        out.append(HudLine(text: "", x: bx, y: by, scale: s, bg: V4(0.12, 0.15, 0.2, 0.9 * fade), box: V2(barW, bh)))
+        out.append(HudLine(text: "", x: bx, y: by, scale: s, bg: V4(0.45, 0.12, 0.15, 0.55 * fade), box: V2(barW * dangerThreshold, bh)))
+        let fillW = barW * simd_clamp(st.warmth, 0, 1)
+        if fillW > 0.5 {
+            out.append(HudLine(text: "", x: bx, y: by, scale: s, bg: fillCol, box: V2(fillW, bh)))
+        }
+        out.append(HudLine(text: "", x: bx + barW * dangerThreshold, y: by - s, scale: s, bg: V4(1, 0.85, 0.85, 0.6 * fade), box: V2(s, bh + 2 * s)))
+
+        // Status label.
+        out.append(HudLine(text: label, x: bx + barW + 5 * s, y: y0 + 3 * s, scale: s, color: textCol))
+        return out
     }
 }
