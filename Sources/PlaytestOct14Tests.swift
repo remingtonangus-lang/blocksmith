@@ -50,7 +50,7 @@ enum PlaytestOct14Tests {
         var want: UInt32 = 0
         for sy in 0..<NSEC where (sy + 1) * 16 + 10 < 200 { want |= 1 << UInt32(sy) }
         check(mask == want, String(format: "ledger 396 (a): a chunk of sea 200 deep has deep water over sections 0-10 (mask %x, want %x)", mask, want))
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bs-ledger396-\(getpid())", isDirectory: true)
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bs-ledger396-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         guard let mc = MeshCache(saveDir: dir) else { check(false, "ledger 396 (b): a mesh cache in a temporary folder"); return }
         let s = c.sections[3]
