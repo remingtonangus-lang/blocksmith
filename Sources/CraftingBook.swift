@@ -467,9 +467,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             out.append(HudLine(text: "", x: o.x + Float(x) * s, y: o.y + Float(y) * s, scale: s, bg: c, box: V2(Float(w) * s, Float(h) * s)))
         }
         func label(_ t: String, _ x: Int, _ y: Int, _ c: V4 = V4(1, 1, 1, 1), maxW: Int = 400) {
-            var t = t
-            while Float(Font.width(t)) > Float(maxW) && t.count > 2 { t = String(t.dropLast(2)) + "." }
-            out.append(HudLine(text: t, x: o.x + Float(x) * s, y: o.y + Float(y) * s, scale: s, color: c))
+            out.append(HudLine(text: Font.fit(t, maxW), x: o.x + Float(x) * s, y: o.y + Float(y) * s, scale: s, color: c))
         }
         func icon(_ st: ItemStack, _ x: Int, _ y: Int, _ size: Int = 16) {
             out.append(HudLine(text: "", x: o.x + Float(x) * s, y: o.y + Float(y) * s, scale: s, box: V2(Float(size) * s, Float(size) * s), item: st))
@@ -536,7 +534,10 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             if r.result.item == CraftBook.flashItem && since < 0.3 { box(sl.x, sl.y, sl.w, sl.h, V4(1, 1, 0.82, 0.65 * (1 - since / 0.3))) }
         }
         if list.isEmpty {
-            label(!query.isEmpty ? "No recipe matches \"\(query)\"" : (tab == .craftable ? "Nothing craftable yet: gather materials" : "No recipes here"), 14, 100, ink, maxW: 170)
+            let msg = !query.isEmpty ? "No recipe matches \"\(query)\"" : (tab == .craftable ? "Nothing craftable yet: gather materials" : "No recipes here")
+            for (k, ml) in Font.wrap(msg, maxWidth: 168, maxLines: 3).enumerated() {
+                label(ml, 14, 96 + k * 9, ink, maxW: 170)
+            }
         }
         // Page and filter buttons.
         for sl in slots {
@@ -552,20 +553,35 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             let have = CraftBook.maxCrafts(r, pool)
             box(196, 40, 36, 36, V4(0.55, 0.55, 0.58, 1))
             icon(r.result, 198, 42, 32)
-            // (ledger 404: a long name on two lines, not cut)
+            // (ledger 404: wrap long crafting names up to three lines instead of clipping)
             let name = r.result.def.display
-            if !CraftingBookMenu.oldBook && Font.width(name) > 100, let cut = CraftingBookMenu.wrap(name, 100) {
-                label(cut.0, 236, 40, ink, maxW: 100); label(cut.1, 236, 48, ink, maxW: 100)
-                label("Makes \(r.result.count)", 236, 57, V4(0.3, 0.3, 0.34, 1), maxW: 100)
+            let nameLines = CraftingBookMenu.oldBook ? [name] : Font.wrap(name, maxWidth: 100, maxLines: 3)
+            let makesY: Int
+            let statusY: Int
+            if nameLines.count >= 3 {
+                for (k, nl) in nameLines.enumerated() { label(nl, 236, 38 + k * 8, ink, maxW: 100) }
+                makesY = 63
+                statusY = 72
+            } else if nameLines.count == 2 {
+                label(nameLines[0], 236, 40, ink, maxW: 100)
+                label(nameLines[1], 236, 48, ink, maxW: 100)
+                makesY = 57
+                statusY = 66
             } else {
                 label(name, 236, 42, ink, maxW: 100)
-                label("Makes \(r.result.count)", 236, 54, V4(0.3, 0.3, 0.34, 1), maxW: 100)
+                makesY = 54
+                statusY = 66
             }
+            label("Makes \(r.result.count)", 236, makesY, V4(0.3, 0.3, 0.34, 1), maxW: 100)
             if !fitsHere(i) {                  // Q2c-console-38
-                label("Needs a", 236, 66, V4(0.55, 0.36, 0.02, 1), maxW: 100)
-                label("Crafting Table", 236, 75, V4(0.55, 0.36, 0.02, 1), maxW: 100)
+                if nameLines.count >= 3 {
+                    label("Needs Table", 236, statusY, V4(0.55, 0.36, 0.02, 1), maxW: 100)
+                } else {
+                    label("Needs a", 236, statusY, V4(0.55, 0.36, 0.02, 1), maxW: 100)
+                    label("Crafting Table", 236, statusY + 9, V4(0.55, 0.36, 0.02, 1), maxW: 100)
+                }
             } else {
-                label(have > 0 ? (CraftingBookMenu.oldBook ? "You can make \(have * r.result.count)" : "Can make \(have * r.result.count)") : "Missing items", 236, 66, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
+                label(have > 0 ? (CraftingBookMenu.oldBook ? "You can make \(have * r.result.count)" : "Can make \(have * r.result.count)") : "Missing items", 236, statusY, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
             }
             // Ingredient grid (3x3 or 2x2) with each cell's item; red where you have none.
             var uniq: [String] = []
@@ -582,25 +598,37 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
                 if owned == nil { box(cx, cy, 18, 18, V4(0.7, 0.2, 0.2, 0.6)) }
                 if let it = shown { icon(ItemStack(it, 1), cx + 1, cy + 1) }
             }
-            // What you have of each distinct ingredient.
-            var rowsDone = Set<String>()
-            var ly = 86
-            // Count and name on two lines when there is room (one line cut names short: "84/3 Oak Plan.", TV shot).
-            let twoLines = Set(CraftBook.needs(r)).count <= 3
-            for ing in CraftBook.needs(r) where !rowsDone.contains(ing) && ly < 140 {
-                rowsDone.insert(ing)
-                let need = CraftBook.needs(r).filter { $0 == ing }.count
+            // What you have of each distinct ingredient, wrapped inside the available column width.
+            let allNeeds = CraftBook.needs(r)
+            var distinct: [String] = []
+            for ing in allNeeds where !distinct.contains(ing) { distinct.append(ing) }
+            let listX = 198 + max(1, cw) * 19 + 3
+            let listW = 336 - listX
+            let twoLines = distinct.count <= 3
+            var ly = 85
+            for (idx, ing) in distinct.enumerated() where ly < 144 {
+                let need = allNeeds.filter { $0 == ing }.count
                 let opts = ing.hasPrefix("#") ? Array(Recipes.tagSets[String(ing.dropFirst())] ?? []) : (Items.has(ing) ? [Items.id(ing)] : [])
                 let got = opts.reduce(0) { $0 + (pool[$1] ?? 0) }
                 let nm = ing.hasPrefix("#") ? "Any " + String(ing.dropFirst()).replacingOccurrences(of: "_", with: " ") : (opts.first.map { Items.def($0).display } ?? ing)
                 let col = got >= need ? ink : V4(0.6, 0.12, 0.1, 1)
+                let rem = distinct.count - 1 - idx
                 if twoLines {
-                    label("\(got) / \(need)", 258, ly, col, maxW: 78)
-                    label(nm, 258, ly + 9, col, maxW: 78)
-                    ly += 20
+                    label("\(got) / \(need)", listX, ly, col, maxW: listW)
+                    ly += 8
+                    let maxL = max(1, min(3, (148 - ly - rem * 18) / 8))
+                    for nl in Font.wrap(nm, maxWidth: listW, maxLines: maxL) {
+                        label(nl, listX, ly, col, maxW: listW)
+                        ly += 8
+                    }
+                    ly += 3
                 } else {
-                    label("\(got)/\(need) \(nm)", 258, ly, col, maxW: 78)
-                    ly += 11
+                    let maxL = max(1, min(2, (148 - ly - rem * 10) / 8))
+                    for rl in Font.wrap("\(got)/\(need) \(nm)", maxWidth: listW, maxLines: maxL) {
+                        label(rl, listX, ly, col, maxW: listW)
+                        ly += 8
+                    }
+                    ly += 2
                 }
             }
         } else {
@@ -623,7 +651,11 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             }
             label(t, sl.x + (sl.w - Font.width(t)) / 2, sl.y + 4)
         }
-        if !lastCraftMessage.isEmpty { label(lastCraftMessage, 196, 248, ink, maxW: 144) }
+        if !lastCraftMessage.isEmpty {
+            let msgLines = Font.wrap(lastCraftMessage, maxWidth: 142, maxLines: 2)
+            let my = msgLines.count > 1 ? 246 : 248
+            for (k, ml) in msgLines.enumerated() { label(ml, 196, my + k * 9, ink, maxW: 144) }
+        }
         label("Inventory", 8, 179, ink)
         return out
     }

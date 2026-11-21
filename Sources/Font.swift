@@ -136,4 +136,85 @@ enum Font {
         for u in s.unicodeScalars { w += advance(Int(u.value)) }
         return max(0, w - 1)
     }
+
+    /// Cuts text to a pixel width with an ellipsis.
+    static func fit(_ t: String, _ px: Int) -> String {
+        guard px > 0, width(t) > px else { return t }
+        var s = t
+        while !s.isEmpty && width(s + "...") > px { s.removeLast() }
+        return s.isEmpty ? "..." : s + "..."
+    }
+
+    /// Word-wraps text so every line fits within maxWidth font pixels (splitting an overlong word by characters).
+    /// When maxLines is reached with remaining text, the final line is fitted with an ellipsis.
+    static func wrap(_ text: String, maxWidth: Int, maxLines: Int = Int.max) -> [String] {
+        guard !text.isEmpty else { return [] }
+        guard maxWidth > 0, maxLines > 0 else { return [text] }
+        var out: [String] = []
+        let paragraphs = text.split(separator: "\n", omittingEmptySubsequences: false)
+        for (pi, para) in paragraphs.enumerated() {
+            let words = para.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+            if words.isEmpty {
+                out.append("")
+                if out.count >= maxLines { return out }
+                continue
+            }
+            var cur = ""
+            var wi = 0
+            while wi < words.count {
+                let w = words[wi]
+                if cur.isEmpty {
+                    if width(w) <= maxWidth {
+                        cur = w
+                        wi += 1
+                    } else {
+                        var remaining = w
+                        while width(remaining) > maxWidth {
+                            if out.count + 1 >= maxLines {
+                                let tail = ([remaining] + words[(wi + 1)...]).joined(separator: " ")
+                                out.append(fit(tail, maxWidth))
+                                return out
+                            }
+                            var chunk = ""
+                            var rest = remaining[...]
+                            while let ch = rest.first {
+                                let next = chunk + String(ch)
+                                if !chunk.isEmpty && width(next) > maxWidth { break }
+                                chunk = next
+                                rest = rest.dropFirst()
+                            }
+                            out.append(chunk)
+                            remaining = String(rest)
+                        }
+                        cur = remaining
+                        wi += 1
+                    }
+                } else {
+                    let cand = cur + " " + w
+                    if width(cand) <= maxWidth {
+                        cur = cand
+                        wi += 1
+                    } else {
+                        if out.count + 1 >= maxLines {
+                            let tail = ([cur] + words[wi...]).joined(separator: " ")
+                            out.append(fit(tail, maxWidth))
+                            return out
+                        }
+                        out.append(cur)
+                        cur = ""
+                    }
+                }
+            }
+            if !cur.isEmpty {
+                let moreAfter = pi + 1 < paragraphs.count && paragraphs[(pi + 1)...].contains { !$0.isEmpty }
+                if out.count + 1 >= maxLines && moreAfter {
+                    out.append(fit(cur + "...", maxWidth))
+                    return out
+                }
+                out.append(cur)
+                if out.count >= maxLines { return out }
+            }
+        }
+        return out
+    }
 }

@@ -310,10 +310,21 @@ enum ClockFace {
     }
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         guard let t = text(g) ?? HeldReadout.text(g) else { return [] }      // (ledger 334: every reading in hand)
-        let s = L.s, w = Float(Font.width(t)) * s
-        let x = (L.W - w) / 2, y = L.hotbarY0 - 30 * s
-        return [HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 8 * s, 14 * s)),
-                HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.93, 0.7, 1))]
+        let s = L.s
+        let maxPx = max(60, Int(floor((L.W - 2 * L.insetX - 16 * s) / s)))
+        let wrapped = Font.wrap(t, maxWidth: maxPx, maxLines: 2)
+        guard !wrapped.isEmpty else { return [] }
+        let w = Float(wrapped.map { Font.width($0) }.max() ?? 0) * s
+        let lineH: Float = 9 * s
+        let totalH = Float(wrapped.count - 1) * lineH + 14 * s
+        let x = (L.W - w) / 2
+        let y0 = L.hotbarY0 - 30 * s - Float(wrapped.count - 1) * lineH
+        var out: [HudLine] = [HudLine(text: "", x: x - 4 * s, y: y0 - 3 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 8 * s, totalH))]
+        for (k, line) in wrapped.enumerated() {
+            let lw = Float(Font.width(line)) * s
+            out.append(HudLine(text: line, x: (L.W - lw) / 2, y: y0 + Float(k) * lineH, scale: s, color: V4(1, 0.93, 0.7, 1)))
+        }
+        return out
     }
 }
 
@@ -632,5 +643,159 @@ enum NowPlaying {
         let a = min(1, (4 - age) / 1, age / 0.4) * 0.75
         let s = L.s
         return [HudLine(text: title, x: L.insetX + 4 * s, y: L.H - L.insetY - 10 * s, scale: s, color: V4(0.9, 0.92, 1, a))]
+    }
+}
+
+// Shared text wrapping for menu panels (ShopMenu, ListMenu screens, CraftingBookMenu) so long NPC dialogue,
+// job descriptions, honour status lines and item names wrap cleanly instead of clipping off the right edge.
+enum MenuText {
+    static func addCandidate(_ s: String, to list: inout [String]) {
+        if !s.isEmpty { list.append(s) }
+    }
+    static func addCandidate(_ s: String?, to list: inout [String]) {
+        if let s = s, !s.isEmpty { list.append(s) }
+    }
+
+    /// Fits or wraps a single label into a bounding box (maxW x maxH in GUI px).
+    /// Keeps exact original scale and y when the text already fits on one line.
+    static func fittedLine(_ text: String, x: Float, y: Float, maxW: Int, maxH: Float, scale s: Float, color: V4,
+                           allowWrap: Bool = true, wrapLift: Float = 0) -> [HudLine] {
+        guard !text.isEmpty, maxW > 0 else { return [] }
+        let tw = Font.width(text)
+        if tw <= maxW {
+            return [HudLine(text: text, x: x, y: y, scale: s, color: color)]
+        }
+        let scale1 = s * Float(maxW) / Float(max(1, tw))
+        if !allowWrap {
+            let ns = max(s * 0.62, min(s, scale1))
+            let fitW = max(16, Int(floor(Float(maxW) * s / ns)))
+            let dy = (s - ns) * 3.5
+            return [HudLine(text: Font.fit(text, fitW), x: x, y: y + dy, scale: ns, color: color)]
+        }
+        let availH = max(7, maxH + wrapLift)
+        let maxLines = availH >= 15.5 ? max(2, Int(availH / 8)) : 2
+        let scale2 = max(s * 0.56, min(s, (availH * s) / Float(maxLines * 7 + (maxLines - 1))))
+        if scale1 >= scale2 && scale1 >= s * 0.78 {
+            let dy = (s - scale1) * 3.5
+            return [HudLine(text: text, x: x, y: y + dy, scale: scale1, color: color)]
+        }
+        let wrapW = max(24, Int(floor(Float(maxW) * s / scale2)))
+        let wrapped = Font.wrap(text, maxWidth: wrapW, maxLines: maxLines)
+        if wrapped.count <= 1 {
+            let ns = max(scale2, min(s, scale1))
+            let fitW = max(16, Int(floor(Float(maxW) * s / ns)))
+            let dy = (s - ns) * 3.5
+            return [HudLine(text: Font.fit(text, fitW), x: x, y: y + dy, scale: ns, color: color)]
+        }
+        let topY = y - wrapLift * s
+        let step = 7.8 * scale2
+        return wrapped.enumerated().map { (k, line) in
+            HudLine(text: line, x: x, y: topY + Float(k) * step, scale: scale2, color: color)
+        }
+    }
+
+    /// Post-processes a panel's HudLines so overlong subtitles, row descriptions and bottom NPC dialogue lines
+    /// wrap inside their available column/panel width instead of clipping off the right edge.
+    static func wrapPanelLines(_ lines: [HudLine], origin o: V2, width: Int, height: Int, scale s: Float,
+                               candidates: [String] = []) -> [HudLine] {
+        struct Rect { var x: Float, y: Float, w: Float, h: Float }
+        let panelW = Float(width) * s, panelH = Float(height) * s
+
+        func fullText(for shown: String) -> String {
+            guard shown.hasSuffix("...") else { return shown }
+            let prefix = String(shown.dropLast(3))
+            guard !prefix.isEmpty else { return shown }
+            return candidates.first(where: { $0.hasPrefix(prefix) && $0.count > shown.count }) ?? shown
+        }
+
+        let rawBoxes: [Rect] = lines.compactMap { l in
+            guard l.text.isEmpty, l.item == nil, let b = l.box, b.x >= panelW * 0.55, b.y >= 12 * s, b.y <= 44 * s else { return nil }
+            return Rect(x: l.x, y: l.y, w: b.x, h: b.y)
+        }
+        var rowBoxes: [Rect] = []
+        for b in rawBoxes {
+            if let i = rowBoxes.firstIndex(where: { abs($0.y - b.y) <= 2.5 * s }) {
+                if b.h < rowBoxes[i].h { rowBoxes[i] = b }
+            } else {
+                rowBoxes.append(b)
+            }
+        }
+        rowBoxes.sort { $0.y < $1.y }
+        let firstRowY: Float = rowBoxes.first?.y ?? (o.y + panelH * 0.25)
+        let lastRowBottom: Float = rowBoxes.last.map { $0.y + $0.h } ?? (o.y + panelH * 0.8)
+        let textLines = lines.filter { !$0.text.isEmpty }
+
+        var out: [HudLine] = []
+        out.reserveCapacity(lines.count + 8)
+        for l in lines {
+            if l.text.isEmpty { out.append(l); continue }
+            let t = fullText(for: l.text)
+            // Inside a row box: wrap detail lines cleanly without colliding with a right-aligned value.
+            if let rb = rowBoxes.first(where: { l.y >= $0.y - 2 * s && l.y < $0.y + $0.h }) {
+                if l.x > rb.x + rb.w * 0.65 { out.append(l); continue }
+                let rightSib = textLines
+                    .filter { $0.x > l.x + 20 * s && $0.x > rb.x + rb.w * 0.5 && $0.y >= rb.y - 2 * s && $0.y < rb.y + rb.h }
+                    .map { $0.x }
+                    .min()
+                let maxRight = min(rb.x + rb.w - 4 * s, (rightSib ?? (rb.x + rb.w)) - 4 * s)
+                let availW = max(24, Int(floor((maxRight - l.x) / l.scale)))
+                if Font.width(t) <= availW && t == l.text { out.append(l); continue }
+                let hasBelow = textLines.contains { $0.y > l.y + 4 * s && $0.y < rb.y + rb.h && abs($0.x - l.x) < 10 * s }
+                let aboveBottom = textLines
+                    .filter { $0.y < l.y - 4 * s && $0.y >= rb.y - 2 * s && abs($0.x - l.x) < 10 * s }
+                    .map { $0.y + 7 * $0.scale }
+                    .max()
+                let liftPx: Float = aboveBottom.map { max(0, (l.y - ($0 + 0.8 * s)) / l.scale) } ?? 0
+                let maxHPx = max(7, (rb.y + rb.h - 0.5 * s - l.y) / l.scale)
+                out += fittedLine(t, x: l.x, y: l.y, maxW: availW, maxH: maxHPx, scale: l.scale, color: l.color,
+                                  allowWrap: !hasBelow, wrapLift: liftPx)
+                continue
+            }
+            // Subtitle / header region above the first row.
+            if l.y < firstRowY {
+                if l.x > o.x + panelW * 0.5 { out.append(l); continue }
+                let rightSib = textLines
+                    .filter { $0.x > l.x + 20 * s && abs($0.y - l.y) < 6 * s }
+                    .map { $0.x }
+                    .min()
+                let maxRight = min(o.x + panelW - 8 * s, (rightSib ?? (o.x + panelW - 4 * s)) - 4 * s)
+                let availW = max(32, Int(floor((maxRight - l.x) / l.scale)))
+                if Font.width(t) <= availW && t == l.text { out.append(l); continue }
+                let maxHPx = max(7, (firstRowY - l.y - 0.5 * s) / l.scale)
+                out += fittedLine(t, x: l.x, y: l.y, maxW: availW, maxH: maxHPx, scale: l.scale, color: l.color,
+                                  allowWrap: true, wrapLift: 1)
+                continue
+            }
+            // Bottom status / NPC dialogue region below the last row: wrap at full scale, expanding the panel canvas if needed.
+            if l.y >= lastRowBottom - 2 * s {
+                if l.x > o.x + panelW * 0.5 { out.append(l); continue }
+                let maxRight = o.x + panelW - 8 * s
+                let availW = max(40, Int(floor((maxRight - l.x) / l.scale)))
+                if Font.width(t) <= availW && t == l.text { out.append(l); continue }
+                let wrapped = Font.wrap(t, maxWidth: availW, maxLines: 4)
+                let step = 9 * l.scale
+                let neededBottom = l.y + Float(max(0, wrapped.count - 1)) * step + 7 * l.scale
+                if neededBottom > o.y + panelH - 3 * s {
+                    let extTop = max(lastRowBottom + s, o.y + panelH - 4 * s)
+                    let extH = max(4 * s, (neededBottom + 5 * s) - extTop)
+                    out.append(HudLine(text: "", x: o.x, y: extTop, scale: s, bg: MenuColors.rim, box: V2(panelW, extH)))
+                    out.append(HudLine(text: "", x: o.x + s, y: extTop, scale: s, bg: MenuColors.brass, box: V2(panelW - 2 * s, max(0, extH - s))))
+                    out.append(HudLine(text: "", x: o.x + 2 * s, y: extTop, scale: s, bg: MenuColors.panel, box: V2(panelW - 4 * s, max(0, extH - 2 * s))))
+                }
+                for (k, wl) in wrapped.enumerated() {
+                    out.append(HudLine(text: wl, x: l.x, y: l.y + Float(k) * step, scale: l.scale, color: l.color))
+                }
+                continue
+            }
+            // Standalone body line (e.g. empty-list message) between header and footer.
+            let maxRight = o.x + panelW - 8 * s
+            let availW = max(40, Int(floor((maxRight - l.x) / l.scale)))
+            if Font.width(t) <= availW && t == l.text { out.append(l); continue }
+            let wrapped = Font.wrap(t, maxWidth: availW, maxLines: 3)
+            for (k, wl) in wrapped.enumerated() {
+                out.append(HudLine(text: wl, x: l.x, y: l.y + Float(k) * 9 * l.scale, scale: l.scale, color: l.color))
+            }
+        }
+        return out
     }
 }
