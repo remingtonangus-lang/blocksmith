@@ -48,28 +48,69 @@ extension World {
     }()
     static func meetsGround(_ id: BlockID) -> Bool { restsOnFloor[Int(id)] || (!oldFloorMeet && standsOnFloor[Int(id)]) }
 
-    // Ledger 273: the ground inside the cell of something standing on its floor falls to that floor, rising again at
-    // 45 degrees round the cell to the ground beside it (a level pad, not a cliff). Returns the cells that changed.
+    // T13 (Nov 20, part 2: crafting table and furnace placed on smooth sloped cave ground sink their bottom corners
+    // into the rock): placed stations and camp furniture sit on a level pad rather than letting sloped ground rise
+    // through their corners (floorPad) or pull back up their sides (groundBack). BS_OLDSTATIONSEAT=1: as before.
+    static let oldStationSeat = Env.all["BS_OLDSTATIONSEAT"] == "1"
+    static let isStation: [Bool] = {
+        let exact: Set<String> = [
+            "crafting_table", "furnace", "blast_furnace", "smoker", "smithing_table", "cartography_table",
+            "fletching_table", "loom", "stonecutter", "grindstone", "anvil", "enchanting_table", "brewing_stand",
+            "cauldron", "composter", "lectern", "crafter", "campfire", "soul_campfire", "chest", "trapped_chest",
+            "ender_chest", "barrel", "shulker_box", "jukebox", "beacon", "respawn_anchor", "lodestone", "beehive",
+            "bell", "gunsmith_bench", "weapon_printer", "ship_bench", "vehicle_works"
+        ]
+        var out = [Bool](repeating: false, count: Blocks.render.count)
+        for b in 0..<out.count where GroundDrape.seat[b] == 0 && !Blocks.isLiquid(BlockID(b)) {
+            let base = Blocks.groupBase[b]
+            let raw = Blocks.def(base).group ?? Blocks.key(base)
+            let k = raw.split(separator: "[", maxSplits: 1).first.map(String.init) ?? raw
+            if exact.contains(k) || k.hasSuffix("_table") || k.hasSuffix("_furnace") || k.hasSuffix("_bench")
+                || k.hasSuffix("_anvil") || k.hasSuffix("_cauldron") || k.hasSuffix("_chest")
+                || k.hasSuffix("_shulker_box") || k.hasSuffix("_bed") || k.hasSuffix("_campfire")
+                || k.hasSuffix("_console") || k.hasSuffix("_safe") {
+                out[b] = true
+            }
+        }
+        return out
+    }()
+    static func seatsOnFloor(_ id: BlockID) -> Bool {
+        (!oldFloorMeet && standsOnFloor[Int(id)]) || (!oldStationSeat && isStation[Int(id)])
+    }
+
+    // Ledger 273 / T13: the ground inside the cell of something standing on its floor (or a placed station) falls to
+    // that floor, rising again at 45 degrees round the cell to the ground beside it (a level pad, not a cliff). Clamps
+    // the upper fine row of y - 1 too so the zero crossing lands on the floor rather than poking through bottom
+    // corners, and leaves columns supporting an adjacent raised block untouched. Returns the cells that changed.
     @discardableResult
     func floorPad(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Int {
-        guard !World.oldFloorMeet, World.meetGroundOn, fieldTerrain, frame == nil, World.standsOnFloor[Int(id)], y > 0, y + 2 < CH else { return 0 }
+        guard World.meetGroundOn, fieldTerrain, frame == nil, World.seatsOnFloor(id), y > 0, y + 2 < CH else { return 0 }
         guard !Blocks.collide[Int(builtBlock(x, y - 1, z))] || !Blocks.fullCollide[Int(builtBlock(x, y - 1, z))] else { return 0 }
-        // (only where the ground stands over the floor somewhere in the cell)
+        // (only where the ground stands over the floor somewhere across the footprint, corners included)
         var over = false
         for k in 0..<9 where !over {
-            let px = Float(x) + 0.1 + Float(k % 3) * 0.4, pz = Float(z) + 0.1 + Float(k / 3) * 0.4
-            if fieldDensity(at: V3(px, Float(y) + 0.06, pz)) > 0 { over = true }
+            let px = Float(x) + 0.02 + Float(k % 3) * 0.48, pz = Float(z) + 0.02 + Float(k / 3) * 0.48
+            if fieldDensity(at: V3(px, Float(y) + 0.03, pz)) > 0 { over = true }
         }
         guard over else { return 0 }
+        // (do not undercut an adjacent built block sitting one row higher on the slope)
+        var support: UInt32 = 0
+        for dz in -2...2 { for dx in -2...2 where dx != 0 || dz != 0 {
+            if Blocks.collide[Int(builtBlock(x + dx, y + 1, z + dz))] { support |= UInt32(1) << UInt32((dx + 2) + (dz + 2) * 5) }
+        } }
         let fy = Float(y), x0 = Float(x), x1 = Float(x + 1), z0 = Float(z), z1 = Float(z + 1)
-        let apron: Float = 0.15
+        let apron: Float = 0.36                                         // (> 0.25*sqrt(2): flat across all four corners)
         func most(_ p: V3) -> Float {
+            if support != 0 {
+                let cx = Int(floor(p.x)) - x, cz = Int(floor(p.z)) - z
+                if cx >= -2 && cx <= 2 && cz >= -2 && cz <= 2 && (support & (UInt32(1) << UInt32((cx + 2) + (cz + 2) * 5))) != 0 { return 8 }
+            }
             let dx = max(0, x0 - p.x, p.x - x1), dz = max(0, z0 - p.z, p.z - z1)
             let out = (dx * dx + dz * dz).squareRoot()
-            if out > 1.2 { return 8 }
+            if out > 1.5 { return 8 }
             return out <= apron ? fy - p.y : (fy + (out - apron) - p.y) * 0.7071
         }
-        return fieldFill(IVec3(x - 2, y, z - 2), IVec3(x + 2, y + 2, z + 2), most, keep: IVec3(x, y, z), cut: true)
+        return fieldFill(IVec3(x - 2, max(0, y - 1), z - 2), IVec3(x + 2, y + 1, z + 2), most, keep: IVec3(x, y, z), cut: true)
     }
 
     // The largest gap (blocks) between the floor of cell (x, y, z) and the field's ground under its footprint (its
@@ -85,6 +126,21 @@ extension World {
         return worst
     }
 
+    // The most (blocks) the field's ground rises above the floor of cell (x, y, z) across its footprint (its corners,
+    // edge middles and middle); 0 where the ground stays at or under the floor.
+    func floorSink(_ x: Int, _ y: Int, _ z: Int) -> Float {
+        var worst: Float = 0
+        for k in 0..<9 {
+            let px = Float(x) + 0.02 + Float(k % 3) * 0.48, pz = Float(z) + 0.02 + Float(k / 3) * 0.48
+            let o = V3(px, Float(y) + 0.02, pz)
+            guard fieldDensity(at: o) > 0 else { continue }
+            let top = V3(px, Float(y) + 1.0, pz)
+            if fieldDensity(at: top) > 0 { worst = max(worst, 1.0); continue }
+            if let h = fieldRaySegment(top, V3(0, -1, 0), from: 0, to: 1.0) { worst = max(worst, h.at.y - Float(y)) } else { worst = max(worst, 1.0) }
+        }
+        return worst
+    }
+
     // P387: after a block that rests on its floor is placed at (x, y, z) on field ground, the ground under it rises to
     // the floor. Returns the cells that turned to ground.
     @discardableResult
@@ -93,6 +149,7 @@ extension World {
         // On the ground only: what stands on a built block is the building's business.
         let under = builtBlock(x, y - 1, z)
         guard !Blocks.collide[Int(under)] else { return 0 }
+        _ = floorPad(x, y, z, id)
         let gap = floorGap(x, y, z)
         guard gap > 0.03 else { return 0 }
         // Ledger 130 (Nov 14, building a house on a beach: "All that sand just spawned", "the ground just fucked up my
@@ -106,7 +163,9 @@ extension World {
         if !World.oldMeet && World.oldFloorMeet && gap > 0.8 { return 0 }
         if !World.oldMeet && !World.oldFloorMeet && gap > 0.8 {
             let o = V3(Float(x) + 0.5, Float(y) + 0.02, Float(z) + 0.5)
-            guard fieldDensity(at: o) <= 0, let h = fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5), Float(y) - h.at.y <= 0.8 else { return 0 }
+            if fieldDensity(at: o) <= 0 {
+                guard let h = fieldRaySegment(o, V3(0, -1, 0), from: 0, to: 1.5), Float(y) - h.at.y <= 0.8 else { return 0 }
+            }
         }
         // Builders' Grounds (Nov 14): over a drop, not on the ground. A lintel over an arch, a bridge deck, an eave, a
         // block put against a wall's side found no ground a block and a half under its floor and the fill still ran, a
@@ -127,7 +186,7 @@ extension World {
         let fy = Float(y), x0 = Float(x), x1 = Float(x + 1), z0 = Float(z), z1 = Float(z + 1)
         // (a flat apron a third of a block wide round the foot first: the drawn ground interpolates between half-block
         // samples, so a skirt starting right at the footprint's edge still showed a third of a block of gap under it)
-        let apron: Float = 0.35
+        let apron: Float = 0.36
         let run: Float = World.oldMeet ? min(2.5, gap + 0.5) : min(1.0, gap + 0.2)
         let skirt = run + apron
         // (the skirt's fall: 45 degrees, steeper where a block's width would not reach the ground)
@@ -154,7 +213,8 @@ extension World {
     static let oldBack = Env.all["BS_OLDBACK"] == "1"
     @discardableResult
     func groundBack(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Int {
-        guard !World.oldBack, World.meetGroundOn, fieldTerrain, frame == nil, Blocks.fullCollide[Int(id)], y > 1, y + 2 < CH else { return 0 }
+        guard !World.oldBack, World.meetGroundOn, fieldTerrain, frame == nil, Blocks.fullCollide[Int(id)],
+              World.oldStationSeat || !World.isStation[Int(id)], y > 1, y + 2 < CH else { return 0 }
         let fy = Float(y), top = fy + 1
         // The ground further out, each of the eight ways: its height, or nil where there is none within a block of the
         // block's own height (open air, a drop, a pit: nothing to come back to).
