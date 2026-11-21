@@ -47,14 +47,36 @@ extension Renderer {
         let toEye = simd_normalize(eye - c + V3(0, 1e-3, 0))
         let right = simd_normalize(simd_cross(V3(0, 1, 0), toEye) + V3(1e-4, 0, 0)), up = simd_cross(toEye, right)
         let mid = at(c), rim = V4(col.x, col.y, col.z, 0)
-        var prev = at(c + right * r)
-        for k in 1...8 {
-            let a = Float(k) / 8 * 2 * .pi
-            let q = at(c + (right * cosf(a) + up * sinf(a) * 0.85) * r)
-            smoke.append(SimpleVert(pos: mid, color: col)); smoke.append(SimpleVert(pos: prev, color: rim)); smoke.append(SimpleVert(pos: q, color: rim))
-            prev = q
+        if Renderer.oldPuff {
+            var prev = at(c + right * r)
+            for k in 1...8 {
+                let a = Float(k) / 8 * 2 * .pi
+                let q = at(c + (right * cosf(a) + up * sinf(a) * 0.85) * r)
+                smoke.append(SimpleVert(pos: mid, color: col)); smoke.append(SimpleVert(pos: prev, color: rim)); smoke.append(SimpleVert(pos: q, color: rim))
+                prev = q
+            }
+            return
+        }
+        // Ledger 418 (Nov 20 evening, Gemini Part 8: Clear Bend's night glow "a giant, low-poly segmented orange dome ... with
+        // clearly visible polygon facets"; his own notes: the town's light bloom looks bad): an octagon whose alpha fell in a
+        // straight line from the middle to the rim showed its eight spokes and its corners. Now 24 sides and a ring at
+        // 45% of the radius carrying 60% of the colour, so the glow falls off as a soft round haze. BS_OLDPUFF=1: the octagon.
+        let ringCol = V4(col.x, col.y, col.z, col.w * 0.6)
+        let n = 24
+        func ringAt(_ k: Int, _ f: Float) -> V4 {
+            let a = Float(k) / Float(n) * 2 * .pi
+            return at(c + (right * cosf(a) + up * sinf(a) * 0.85) * (r * f))
+        }
+        var pIn = ringAt(0, 0.45), pOut = ringAt(0, 1)
+        for k in 1...n {
+            let qIn = ringAt(k, 0.45), qOut = ringAt(k, 1)
+            smoke.append(SimpleVert(pos: mid, color: col)); smoke.append(SimpleVert(pos: pIn, color: ringCol)); smoke.append(SimpleVert(pos: qIn, color: ringCol))
+            smoke.append(SimpleVert(pos: pIn, color: ringCol)); smoke.append(SimpleVert(pos: pOut, color: rim)); smoke.append(SimpleVert(pos: qOut, color: rim))
+            smoke.append(SimpleVert(pos: pIn, color: ringCol)); smoke.append(SimpleVert(pos: qOut, color: rim)); smoke.append(SimpleVert(pos: qIn, color: ringCol))
+            pIn = qIn; pOut = qOut
         }
     }
+    static let oldPuff = Env.all["BS_OLDPUFF"] == "1"
     static var campEye = V3.zero
 
     // Appends the camp smoke columns to the blended landmark smoke. `shell` puts a far point on the far-plane shell.
@@ -158,7 +180,10 @@ extension Renderer {
             let at3 = V3(c.x, c.y, c.z)
             let dist = simd_length(V2(c.x - eye.x, c.z - eye.z))
             guard dist > c.w, dist < Renderer.campSmokeRange else { continue }
-            let fadeIn = Terrain.smooth(c.w, c.w * 2.5, dist)
+            // Ledger 418 (his notes: "the bloom is fine from a distance, but up close it looks bad; the lamps should light
+            // the village"): the haze now fades in from 2 to 5 town widths out (1 to 2.5 before), so near the town the
+            // lamps' own light is what he sees.
+            let fadeIn = Renderer.oldPuff ? Terrain.smooth(c.w, c.w * 2.5, dist) : Terrain.smooth(c.w * 2, c.w * 5, dist)
             let fadeOut = 1 - Terrain.smooth(Renderer.campSmokeRange * 0.75, Renderer.campSmokeRange, dist)
             let inside = dist < loaded - 8
             func at(_ q: V3) -> V4 { inside ? V4(q - eye, 1) : shell(q) }

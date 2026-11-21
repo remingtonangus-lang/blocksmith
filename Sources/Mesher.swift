@@ -1403,6 +1403,31 @@ enum Mesher {
                             let ov = floor(min(min(vs[0][va], vs[1][va]), min(vs[2][va], vs[3][va])))
                             for k in 0..<4 {
                                 let v = vs[k], cl = cells[k]
+                                // Ledger 417 (Nov 20 evening, his own notes: the fluids "need a full redesign"; Gemini:
+                                // water poured on a cave slope or onto lava is "sharp, jagged blue triangles"): each quad
+                                // took one of the six face shades from its own facing, so a surface net over a slope was a
+                                // patchwork of flat facets in different shades. Each vertex now takes the shade of the
+                                // fluid's own surface normal there (the field's gradient over its cell's eight samples),
+                                // so the shades blend across the quads into one rounded surface. BS_OLDFLUIDSHADE=1: per quad.
+                                var vface = face
+                                if !Mesher.oldFluidShade {
+                                    @inline(__always) func fs(_ dx: Int, _ dy: Int, _ dz: Int) -> Float {
+                                        F[(cl.x + dx) + (cl.z + dz) * N + (cl.y + dy) * NN]
+                                    }
+                                    let gx: Float = (fs(1, 0, 0) - fs(0, 0, 0)) + (fs(1, 1, 0) - fs(0, 1, 0)) + (fs(1, 0, 1) - fs(0, 0, 1)) + (fs(1, 1, 1) - fs(0, 1, 1))
+                                    let gy: Float = (fs(0, 1, 0) - fs(0, 0, 0)) + (fs(1, 1, 0) - fs(1, 0, 0)) + (fs(0, 1, 1) - fs(0, 0, 1)) + (fs(1, 1, 1) - fs(1, 0, 1))
+                                    let gz: Float = (fs(0, 0, 1) - fs(0, 0, 0)) + (fs(1, 0, 1) - fs(1, 0, 0)) + (fs(0, 1, 1) - fs(0, 1, 0)) + (fs(1, 1, 1) - fs(1, 1, 0))
+                                    let nrm = SIMD3<Float>(-gx, -gy, -gz)         // (outward: the field falls out of the fluid)
+                                    if simd_length_squared(nrm) > 1e-6 {
+                                        // A top-ish normal (within 50 degrees of up) shades as the top: rounded edges stay bright.
+                                        let up = nrm.y / simd_length(nrm)
+                                        if up > 0.64 { vface = 2 }
+                                        else {
+                                            let vax = abs(nrm.x) >= abs(nrm.y) && abs(nrm.x) >= abs(nrm.z) ? 0 : (abs(nrm.y) >= abs(nrm.z) ? 1 : 2)
+                                            vface = vax * 2 + (nrm[vax] >= 0 ? 0 : 1)
+                                        }
+                                    }
+                                }
                                 var sky = 0, blk = 0
                                 for m in 0..<8 {
                                     let l = light(cl.x + (m & 1) + C0, cl.y + ((m >> 1) & 1) + C0, cl.z + ((m >> 2) & 1) + C0)
@@ -1411,10 +1436,10 @@ enum Mesher {
                                 let u16 = min(31, max(0, Int(((v[ua] - ou) * 16).rounded()))), v16 = min(31, max(0, Int(((v[va] - ov) * 16).rounded())))
                                 let x16 = Int((v.x * 16).rounded()), y16 = Int((v.y * 16).rounded()), z16 = Int((v.z * 16).rounded())
                                 if kind == 1 {
-                                    let ao = Mesher.waterDepthAO && face == 2 ? depthAO(cl.x + 1 + C0, cl.y + C0, cl.z + 1 + C0) : 3
-                                    vert(true, x16, y16, z16, face, 3, u16, v16, layer, ao, sky | blk << 4, false)
+                                    let ao = Mesher.waterDepthAO && vface == 2 ? depthAO(cl.x + 1 + C0, cl.y + C0, cl.z + 1 + C0) : 3
+                                    vert(true, x16, y16, z16, vface, 3, u16, v16, layer, ao, sky | blk << 4, false)
                                 } else if kind == 3 {
-                                    vert(true, x16, y16, z16, face, 0, u16, v16, layer, 3, sky | blk << 4, false)    // (fuel: no water swell)
+                                    vert(true, x16, y16, z16, vface, 0, u16, v16, layer, 3, sky | blk << 4, false)    // (fuel: no water swell)
                                 } else {
                                     curCut = false
                                     vert(trans, x16, y16, z16, 7, 0, u16, v16, layer, 3, sky | blk << 4, false)     // (P378: every face glows)
@@ -2668,6 +2693,7 @@ enum Mesher {
     static var fluidNets = Env.all["BS_FLUIDNETS"] != "0"
     // Nov 12: the water level kept inside low natural ground (BS_OLDWATERGROUND=1: through it at its height, as before).
     static let oldWaterGround = Env.all["BS_OLDWATERGROUND"] == "1"
+    static let oldFluidShade = Env.all["BS_OLDFLUIDSHADE"] == "1"          // ledger 417
     // The twelve edges of a cell's corner cube (corner k: x = k & 1, y = (k >> 1) & 1, z = (k >> 2) & 1).
     static let cubeEdges: [(Int, Int)] = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)]
     static var farDarkCull = true
