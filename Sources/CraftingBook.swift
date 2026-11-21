@@ -22,7 +22,8 @@ enum CraftCategory: Int, CaseIterable {
                              "carpet", "glazed", "stained_glass", "head", "skull", "armor_stand", "end_rod", "chain", "pane", "shelf"]
     static let transportWords = ["boat", "raft", "minecart", "rail", "saddle", "on_a_stick", "elytra", "lead", "ship_", "propeller", "balloon",
                                  "airfoil", "harness"]
-    static let combatWords = ["sword", "bow", "arrow", "shield", "trident", "mace", "spear", "gun_", "_rounds", "shells", "rocket_ammo",
+    // (ledger 404: "bow" matched "bowl": a bowl and the stews sat in Combat. The bows by name: CraftCategory.of.)
+    static let combatWords = ["sword", "crossbow", "arrow", "shield", "trident", "mace", "spear", "gun_", "_rounds", "shells", "rocket_ammo",
                               "arc_cell", "helmet", "chestplate", "leggings", "boots", "horse_armor", "wolf_armor", "tnt", "firework"]
 
     // Category of a crafted item (for the tabs; "craftable" is computed live).
@@ -30,7 +31,7 @@ enum CraftCategory: Int, CaseIterable {
         let k = Items.key(id)
         func has(_ words: [String]) -> Bool { words.contains { k.contains($0) } }
         if has(transportWords) { return .transport }
-        if has(combatWords) || Items.def(id).armorSlot != nil { return .combat }
+        if has(combatWords) || Items.def(id).armorSlot != nil || (CraftingBookMenu.oldBook ? k.contains("bow") : k == "bow" || k.hasSuffix("_bow")) { return .combat }
         switch CreativeMenu.category(id) {
         case .building, .natural: return has(decorWords) ? .decoration : .building
         case .functional: return has(decorWords) ? .decoration : .utility
@@ -185,6 +186,16 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     static let craft1 = 800, craftStack = 801, craftMax = 802, amountDown = 803, amountUp = 804, craftAmount = 805, gridBtn = 806
     static let amounts = [1, 2, 3, 4, 5, 8, 10, 16, 20, 32, 64]
     static var lastTab: CraftCategory = .craftable
+    // A name split at the last space that leaves its first part within w (ledger 404); nil if no such space.
+    static func wrap(_ s: String, _ w: Int) -> (String, String)? {
+        let words = s.split(separator: " ").map(String.init)
+        guard words.count > 1 else { return nil }
+        for n in stride(from: words.count - 1, through: 1, by: -1) {
+            let a = words[0..<n].joined(separator: " ")
+            if Font.width(a) <= w { return (a, words[n...].joined(separator: " ")) }
+        }
+        return nil
+    }
     static func alwaysShown(_ id: ItemID) -> Bool {
         let k = Items.key(id)
         return Guns.index(id) != nil || Guns.all.contains { $0.ammo == k }
@@ -193,7 +204,11 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
     static let tableItem: ItemID? = Items.has("crafting_table") ? Items.id("crafting_table") : nil
 
     let size: Int
-    var tab: CraftCategory = CraftingBookMenu.lastTab
+    // Ledger 404 (Nov 20 evening run, Gemini's notes item 2): the book opens on Craftable Now (he paged a remembered
+    // tab for 90 s looking for a plate he could make); the header, names and "You can make" no longer cut off; a tab
+    // change clears the detail pane. BS_OLDBOOK=1: as before.
+    static let oldBook = Env.all["BS_OLDBOOK"] != nil
+    var tab: CraftCategory = CraftingBookMenu.oldBook ? CraftingBookMenu.lastTab : .craftable
     var page = 0
     var list: [Int] = []                       // indices into Recipes.all for this tab
     var selected: Int?                         // recipe index shown in the detail panel
@@ -324,6 +339,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         query = ""; searching = false
         CraftingBookMenu.lastTab = tab
         page = 0
+        if !CraftingBookMenu.oldBook { selected = nil }
         refresh()
         game.sfx(.click, 0.4)
     }
@@ -383,6 +399,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
         case CraftingBookMenu.tabBase..<(CraftingBookMenu.tabBase + CraftCategory.allCases.count):
             tab = CraftCategory(rawValue: id - CraftingBookMenu.tabBase) ?? .craftable
             CraftingBookMenu.lastTab = tab
+            if !CraftingBookMenu.oldBook { selected = nil }
             page = 0; refresh(); game.sfx(.click, 0.4)
         case CraftingBookMenu.prevPage: flip(-1)
         case CraftingBookMenu.nextPage: flip(1)
@@ -473,7 +490,9 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             if Items.has(t.icon) { icon(ItemStack(Items.id(t.icon), 1), sl.x + 2, sl.y + 2) }
         }
         let shown = list.isEmpty ? "0" : "\(page * CraftingBookMenu.cols + 1)-\(min(list.count, (page + CraftingBookMenu.rows) * CraftingBookMenu.cols)) of \(list.count)"
-        label(query.isEmpty ? "\(tab.name)  \(shown)" : "Found \(shown)", 8, 40, ink, maxW: 102)
+        let head = query.isEmpty ? "\(tab.name)  \(shown)" : "Found \(shown)"
+        // (ledger 404: cut at 102, "Combat 1-15 of 134" read "of 1"; the open tab is gold above, so its name goes first)
+        label(CraftingBookMenu.oldBook || Font.width(head) <= 102 || !query.isEmpty ? head : shown, 8, 40, ink, maxW: 102)
         // Search field: click to type (the Quest's keyboard / the pad keyboard opens), click again to clear.
         if let sb = slots.first(where: { if case .button(let id) = $0.kind { return id == CraftingBookMenu.searchBtn } else { return false } }) {
             box(sb.x, sb.y, sb.w, sb.h, hover === sb ? focus : (searching ? V4(0.12, 0.12, 0.14, 1) : V4(0.36, 0.36, 0.4, 1)))
@@ -533,13 +552,20 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             let have = CraftBook.maxCrafts(r, pool)
             box(196, 40, 36, 36, V4(0.55, 0.55, 0.58, 1))
             icon(r.result, 198, 42, 32)
-            label(r.result.def.display, 236, 42, ink, maxW: 100)
-            label("Makes \(r.result.count)", 236, 54, V4(0.3, 0.3, 0.34, 1), maxW: 100)
+            // (ledger 404: a long name on two lines, not cut)
+            let name = r.result.def.display
+            if !CraftingBookMenu.oldBook && Font.width(name) > 100, let cut = CraftingBookMenu.wrap(name, 100) {
+                label(cut.0, 236, 40, ink, maxW: 100); label(cut.1, 236, 48, ink, maxW: 100)
+                label("Makes \(r.result.count)", 236, 57, V4(0.3, 0.3, 0.34, 1), maxW: 100)
+            } else {
+                label(name, 236, 42, ink, maxW: 100)
+                label("Makes \(r.result.count)", 236, 54, V4(0.3, 0.3, 0.34, 1), maxW: 100)
+            }
             if !fitsHere(i) {                  // Q2c-console-38
                 label("Needs a", 236, 66, V4(0.55, 0.36, 0.02, 1), maxW: 100)
                 label("Crafting Table", 236, 75, V4(0.55, 0.36, 0.02, 1), maxW: 100)
             } else {
-                label(have > 0 ? "You can make \(have * r.result.count)" : "Missing items", 236, 66, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
+                label(have > 0 ? (CraftingBookMenu.oldBook ? "You can make \(have * r.result.count)" : "Can make \(have * r.result.count)") : "Missing items", 236, 66, have > 0 ? (cb ? V4(0.15, 0.3, 0.6, 1) : V4(0.1, 0.42, 0.12, 1)) : V4(0.6, 0.12, 0.1, 1), maxW: 100)
             }
             // Ingredient grid (3x3 or 2x2) with each cell's item; red where you have none.
             var uniq: [String] = []
