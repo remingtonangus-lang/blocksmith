@@ -77,6 +77,70 @@ enum PlaytestOct13Tests {
             g.mobs.mobs = []; g.mobs.rebuildIndex()
         }
 
+        // Ledger 398 (Neon 05#1): the player's arc bolt drops a foot soldier in one, but not the marshal, the chancellor or
+        // a tower's commandant; nor do a rocket's or a shell's direct hits (shellProof), and its jumps take the bolt's
+        // own damage, not the boss's whole health.
+        do {
+            let o = lane0 + V3(0, 1.0, 0)
+            func bolt(_ kind: MobKind, commandant: Bool = false) -> (alive: Bool, bystander: Int) {
+                let m = Mob(kind, at: lane0 + V3(0, 0, -6))
+                if commandant { m.commandant = true }
+                let by = Mob(.soldierTrooper, at: lane0 + V3(1.5, 0, -6))
+                by.health = 200
+                g.mobs.mobs = [m, by]; g.mobs.rebuildIndex()
+                g.arms.beam(g, from: o, dir: simd_normalize(m.pos + V3(0, m.height * 0.5, 0) - o), range: 20, damage: 6, fromPlayer: true, shooter: nil, by: "test")
+                let r = (m.health > 0, 200 - by.health)
+                g.mobs.mobs = []; g.mobs.rebuildIndex()
+                return r
+            }
+            let grunt = bolt(.soldierTrooper), marshal = bolt(.ashMarshal), chancellor = bolt(.ashChancellor), officer = bolt(.soldierOfficer, commandant: true)
+            let proof = MobKind.ashMarshal.shellProof && MobKind.ashChancellor.shellProof
+            check(!grunt.alive && marshal.alive && chancellor.alive && officer.alive && marshal.bystander < 20 && proof,
+                  "ledger 398: an arc bolt drops a trooper; the marshal, chancellor and a commandant live (jump to a bystander \(marshal.bystander)); shells don't one-shot them (\(proof)); BS_OLDBOSSONESHOT=1: all die")
+        }
+
+        // Ledger 400 (Neon 05#3): a soldier's rocket at a rival goes at the rival, not at the player 40 blocks off.
+        do {
+            let pos0 = g.player.pos, vel0 = g.player.vel
+            defer { g.player.pos = pos0; g.player.vel = vel0 }
+            g.player.pos = lane0; g.player.vel = V3(8, 0, 0)
+            let foe = lane0 + V3(0, 1, -40)
+            let rocket = Soldier.aim(g, target: foe, flight: 1, launcher: true)
+            let round = Soldier.aim(g, target: foe, flight: 0.5, launcher: false)
+            let atHim = Soldier.aim(g, target: lane0 + V3(0, 0.9, 0), flight: 0.5, launcher: false)
+            check(simd_length(rocket - foe) < 1 && abs(round.x - foe.x) < 0.01 && atHim.x > lane0.x + 3,
+                  String(format: "ledger 400: a rocket at a rival 40 off goes %.1f from it; a round isn't led by his motion (%.2f); at him it is (%.1f); BS_OLDFOEAIM=1: at him", simd_length(rocket - foe), round.x - foe.x, atHim.x - lane0.x))
+        }
+
+        // Ledger 401 (Neon 07#2): Fortify Homestead bought at a town's gunsmith, his homestead 3000 blocks off: ordered,
+        // kept until its ground is loaded, and not sold twice.
+        do {
+            let prop0 = TownLaw.state.property, walls0 = TownLaw.state.walls
+            defer { TownLaw.state.property = prop0; TownLaw.state.walls = walls0 }
+            TownLaw.state.property = []; TownLaw.state.walls = nil
+            let none = Quartermaster.fortify(g)
+            let hx = sx + 3000
+            Property.claim(IVec3(hx - 12, 60, sz - 12), IVec3(hx + 12, 120, sz + 12))
+            let first = Quartermaster.fortify(g), again = Quartermaster.fortify(g)
+            let pending = (TownLaw.state.walls ?? []).filter { $0.count == 6 }.count
+            check(!none.1 && first.1 && !again.1 && pending == 1,
+                  "ledger 401: no homestead: refused (\(none.0)); one 3000 off: \(first.0); again: \(again.0); waiting \(pending); BS_OLDFORTIFY=1: refused")
+        }
+
+        // Ledger 399 (Neon 07#1): a town building claimed with a deed is no longer town property.
+        if let sc = w.gen.structures, let v = sc.nearest("village", x: sx, z: sz, maxRegions: 4), let pc = v.pieces.first(where: { $0.max.x - $0.min.x >= 4 }) {
+            let force0 = TownLaw.forceTown, prop0 = TownLaw.state.property
+            defer { TownLaw.forceTown = force0; TownLaw.state.property = prop0 }
+            TownLaw.forceTown = nil
+            let p = IVec3((pc.min.x + pc.max.x) / 2, pc.max.y - 2, (pc.min.z + pc.max.z) / 2)
+            let before = TownLaw.isTownOwned(g, p)
+            Property.claim(pc.min, pc.max)
+            let after = TownLaw.isTownOwned(g, p)
+            check(before && !after, "ledger 399: a block in a town building is the town's (\(before)); bought with a deed, it is not (\(!after)); BS_OLDOWNEDHOUSE=1: still the town's")
+        } else {
+            check(false, "ledger 399: a village within 4 regions of the test spot")
+        }
+
         // P177: a hand grips a chicken, lifts it, flicks forward and lets go: it flies; a grip on a carcass drags it
         // along the ground.
         do {

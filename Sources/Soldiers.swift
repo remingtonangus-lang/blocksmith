@@ -113,6 +113,17 @@ final class SoldierBrain {
 }
 
 enum Soldier {
+    static let oldFoeAim = Env.all["BS_OLDFOEAIM"] != nil      // ledger 400 (Mob.soldierFire)
+    // Where a soldier's shot goes for a target (Mob.soldierFire): led by the target's motion and allowing for the drop.
+    // Ledger 400 (Neon 05#3): the player's motion and place only when the target is him; at a rival's man or vessel a
+    // soldier led it by the player's motion, and a launcher threw the target away and fired at the player.
+    static func aim(_ g: Game, target: V3, flight: Float, launcher: Bool) -> V3 {
+        let atPlayer = oldFoeAim || simd_length(target - (g.player.pos + V3(0, g.player.height * 0.5, 0))) < 2.5
+        var aimAt = target + (atPlayer ? g.player.vel : V3(0, 0, 0)) * flight
+        aimAt.y += 0.5 * 1.5 * flight * flight
+        if launcher { aimAt = atPlayer ? g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 : target - V3(0, 0.6, 0) }
+        return aimAt
+    }
     static let oldSturm = Env.all["BS_OLDSTURM"] == "1"          // ledger 246: the Sturmbrecher's long runs, short cycle and gap
 
     // P510 (Nov 1 20:11:03-20:11:08, near a Capital citadel in the snow: "Oh, please. I didn't even have a...", "I
@@ -896,9 +907,9 @@ extension Mob {
         let sniper = kind == .soldierMarksman
         // P507 (Nov 1 12:29:17, shot at by a Greywall patrol: "Soldiers need to be more accurate"): every rank leads him
         // in full and allows for the drop now (they used to lead him four fifths and aim low), with a tighter group.
-        aimAt += g.player.vel * flight
-        aimAt.y += 0.5 * 1.5 * flight * flight
-        if Guns.isLauncher(b.gun) { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
+        // Ledger 400 (Neon 05#3): only when the target is him. Shooting at a rival's man or vessel, a soldier led it by
+        // the player's motion and a launcher threw the target away and fired at the player (an ally's rocket too).
+        aimAt = Soldier.aim(g, target: target, flight: flight, launcher: Guns.isLauncher(b.gun))
         let dir = simd_normalize(aimAt - muzzle)
         // Soldiers' shotgun pellets hit softer (a point-blank volley shouldn't one-shot a full-health player).
         // The Ashguard are veterans (the Deep's harder army, docs/status/deep-balance.md): 60 % more damage and a

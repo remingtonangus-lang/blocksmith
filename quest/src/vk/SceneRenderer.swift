@@ -2245,6 +2245,8 @@ extension SceneRenderer {
     // underDeepWater's test without its tally (the flag is kept in the table; the tally counts at use).
     private func deepWaterAbove(_ c: Chunk, _ sy: Int) -> Bool {
         if SceneRenderer.deepNear > 0 && sy + 1 < NSEC {
+            // (ledger 396: a hollow shell has no blocks; its mask was taken before they went)
+            if c.hollow && !Chunk.oldHollowDeep { return sy < 32 && c.hollowDeep & (1 << UInt32(sy)) != 0 }
             // (ledger 383: the sea floor rarely leaves a whole empty section of water above it; 10 blocks of water over
             // the section's top at its middle and two corners, whatever the section above holds)
             let y = (sy + 1) * 16, fk = fluidKindT

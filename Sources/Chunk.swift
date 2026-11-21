@@ -502,6 +502,27 @@ final class Chunk {
         didSet { if cullWatched { CullNotes.note(cx, cz) } }
     }
     var hollowOcc = -1             //   its horizon-culling band, kept from before
+    // Ledger 396 (Neon 03#2): one bit a section with deep water over it (ledger 383's seabed cull), worked out while
+    // the blocks are here: a hollow shell or one from the mesh cache has none to look at, and read as "not deep" it
+    // drew the whole sea floor of the outer ocean band.
+    var hollowDeep: UInt32 = 0
+    static let oldHollowDeep = Env.all["BS_OLDHOLLOWDEEP"] != nil
+    // The 383 test: 10 blocks of water over the section's top at its middle and two corners.
+    func deepWaterOver(_ sy: Int) -> Bool {
+        guard !hollow, sy + 1 < NSEC else { return false }
+        let y = (sy + 1) * 16
+        guard y + 10 < CH else { return false }
+        let fk = Blocks.fluidKind
+        for (x, z) in [(8, 8), (0, 0), (15, 15)] {
+            if fk[Int(blocks[Chunk.index(x, y, z)])] != 1 || fk[Int(blocks[Chunk.index(x, y + 10, z)])] != 1 { return false }
+        }
+        return true
+    }
+    func deepMask() -> UInt32 {
+        var m: UInt32 = 0
+        for sy in 0..<min(NSEC, 32) where deepWaterOver(sy) { m |= 1 << UInt32(sy) }
+        return m
+    }
     var cacheDropped = false       //   its disk mesh cache file dropped since it loaded (edited)
     var cachedStamp = -1           //   P400: cullStamp when its meshes were last written to (or read from) the disk cache
     var fieldEdits: [Int32: UInt16] = [:]     // PG1: bounds on the terrain field per cell (TerrainField.swift)

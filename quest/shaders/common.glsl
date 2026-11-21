@@ -192,6 +192,14 @@ float vnoise(vec2 p) {
 float fogAmount(float dist) {
     return smoothstep(u.fogColor.w, u.params.x, dist);
 }
+// Ledger 397 (b): the far ring's fog past the loaded edge (m1 = loaded disc centre xy, radius z; k = FarRing.clarity):
+// held back to 70% until the last fifth, so far hills keep their shape and shading and still meet the haze at the rim.
+float farFog(float dist, vec3 rel, vec4 m1, float k) {
+    float f = fogAmount(dist);
+    if (k <= 0.0) { return f; }
+    float held = 0.70 * f + 0.30 * smoothstep(0.80, 1.0, f);
+    return mix(f, held, k * smoothstep(m1.z, m1.z + 96.0, length(rel.xz - m1.xy)));
+}
 
 vec3 applyFog(vec3 c, float dist) {
     float f = fogAmount(dist);
@@ -205,8 +213,9 @@ vec3 fogColorAlong(vec3 rel) {
     return u.fogColor.rgb + vec3(1.0, 0.55, 0.25) * pow(sd, 5.0) * glow;
 }
 
-vec3 applyFogDir(vec3 c, vec3 rel, float dist) {
-    float f = fogAmount(dist);
+vec3 applyFogDirF(vec3 c, vec3 rel, float dist, float f);
+vec3 applyFogDir(vec3 c, vec3 rel, float dist) { return applyFogDirF(c, rel, dist, fogAmount(dist)); }
+vec3 applyFogDirF(vec3 c, vec3 rel, float dist, float f) {
     c = mix(c, fogColorAlong(rel), f);
     // SH1 valley mist: at dawn, dusk and night a thin white mist lies in the low ground (below u.fx.z), thickening with
     // depth under its top and with distance, so valleys and lake shores fill with it while hills stand clear.

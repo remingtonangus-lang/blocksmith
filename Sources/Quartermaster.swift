@@ -77,12 +77,47 @@ enum Quartermaster {
     }
 
     // A wall of stone bricks three high round the homestead you stand in, a gate on its north side.
+    // Ledger 401 (Neon 07#2): it is sold only at a town's gunsmith, and a homestead is staked 120 or more blocks from any
+    // town, so "stand on your homestead" could never be met. Now the order is for his nearest homestead without walls;
+    // the masons raise them as soon as its ground is loaded (now, or when he next goes there). BS_OLDFORTIFY=1.
+    static let oldFortify = Env.all["BS_OLDFORTIFY"] != nil
     static func fortify(_ g: Game) -> (String, Bool) {
         let p = IVec3(Int(floor(g.player.pos.x)), Int(floor(g.player.pos.y)), Int(floor(g.player.pos.z)))
+        if !oldFortify {
+            let ordered = TownLaw.state.walls ?? []
+            let homes = (TownLaw.state.property ?? []).filter { $0.count == 6 && $0[3] - $0[0] == 24 }
+            guard !homes.isEmpty else { return ("Stake a homestead with a Homestead Deed first.", false) }
+            func d2(_ b: [Int]) -> Int { let dx = (b[0] + b[3]) / 2 - p.x, dz = (b[2] + b[5]) / 2 - p.z; return dx * dx + dz * dz }
+            guard let b = homes.filter({ h in !ordered.contains { Array($0.prefix(6)) == h } }).min(by: { d2($0) < d2($1) }) else {
+                return ("Your homestead's walls are already ordered.", false)
+            }
+            TownLaw.state.walls = ordered + [b]
+            if raiseWalls(g) > 0 { return ("The masons are done: your homestead has its walls.", true) }
+            return ("Ordered: the masons will have your homestead's walls up when you get there.", true)
+        }
         guard let b = (TownLaw.state.property ?? []).first(where: { $0.count == 6 && $0[3] - $0[0] == 24
                 && p.x >= $0[0] && p.x <= $0[3] && p.z >= $0[2] && p.z <= $0[5] }) else {
             return ("Stand on your homestead to order its walls.", false)
         }
+        build(g, b)
+        return ("The masons are done: your homestead has its walls.", true)
+    }
+
+    // Ordered walls whose whole ring is loaded go up (TownLaw.tick); the number raised.
+    @discardableResult static func raiseWalls(_ g: Game) -> Int {
+        guard let list = TownLaw.state.walls, list.contains(where: { $0.count == 6 }), g.dim.dim == .overworld else { return 0 }
+        var left: [[Int]] = [], done = 0
+        for b in list {
+            guard b.count == 6 else { left.append(b); continue }        // (7: built, kept so it isn't sold twice)
+            let cx = (b[0] + b[3]) / 2, cz = (b[2] + b[5]) / 2, r = 10
+            let ready = [(cx - r, cz - r), (cx + r, cz - r), (cx - r, cz + r), (cx + r, cz + r)].allSatisfy { g.world.chunkAt($0.0, $0.1).map { !$0.hollow } ?? false }   // (a shell has no blocks)
+            if ready { build(g, b); done += 1; left.append(b + [1]) } else { left.append(b) }
+        }
+        TownLaw.state.walls = left
+        return done
+    }
+
+    private static func build(_ g: Game, _ b: [Int]) {
         let cx = (b[0] + b[3]) / 2, cz = (b[2] + b[5]) / 2, r = 10
         let wall = Blocks.has("stone_bricks") ? Blocks.id("stone_bricks") : Blocks.id("cobblestone")
         let gate = Blocks.has("oak_fence_gate") ? Blocks.id("oak_fence_gate") : AIR
@@ -92,7 +127,6 @@ enum Quartermaster {
             let isGate = z == cz - r && abs(x - cx) <= 1
             for dy in 0..<3 { g.world.setBlock(x, y + dy, z, isGate ? (dy == 0 ? gate : AIR) : wall) }
         } }
-        return ("The masons are done: your homestead has its walls.", true)
     }
 }
 

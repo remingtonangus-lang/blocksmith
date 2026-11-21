@@ -384,7 +384,10 @@ final class Armory {
         // P219 (Oct 13 19:08, "a direct rocket hit should kill a soldier outright"): the body a rocket strikes takes the
         // whole warhead, whatever its plate (a deck gun or a tank's armour still only takes the blast).
         // P345: a tank or artillery shell to the body kills the same way.
-        if (s.kind == .rocket && Soldier.rank(m.kind) != nil && m.kind != .deckGun || s.kind == .shell && !m.kind.shellProof), m.health > 0 {
+        // Ledger 398 (Neon 05#1): never the marshal, the chancellor or a tower's commandant (bosses: a direct rocket or
+        // shell killed them outright, skipping the chancellor's guard call and bunker quake). BS_OLDBOSSONESHOT=1.
+        if (s.kind == .rocket && Soldier.rank(m.kind) != nil && m.kind != .deckGun || s.kind == .shell && !m.kind.shellProof), m.health > 0,
+           Mob.oldBossOneShot || !m.soldierBoss {
             if s.fromPlayer { m.killedByPlayer = true; m.playerHurtAt = g.clock; hitMarker = 0.3; hits += 1 }
             m.hit(from: at - dir * 2, damage: m.health + 1000, knockback: 1.2)
         }
@@ -588,7 +591,11 @@ final class Armory {
             }
             // P459 (Oct 25 16:32, the Blitzlanze: "The air gun should kill soldiers one shot. Unless it's like a Hannibal
             // troop"): his bolt drops any foot soldier but a Hannibal trooper.
-            if infantry && fromPlayer && shooter == nil && m.troop != Int8(TroopClass.hannibal.rawValue) { dmg = max(dmg, Float(m.health) + 1) }
+            // (ledger 398: the jumps take the bolt's own damage, not the one-shot below; never a boss)
+            let jumpDmg = Mob.oldBossOneShot ? 0 : dmg
+            if infantry && fromPlayer && shooter == nil && m.troop != Int8(TroopClass.hannibal.rawValue) && (Mob.oldBossOneShot || !m.soldierBoss) {
+                dmg = max(dmg, Float(m.health) + 1)
+            }
             Mob.roundHit = infantry
             m.hit(from: o, damage: max(1, Int(dmg)), knockback: 0.9)
             Mob.roundHit = false
@@ -610,7 +617,7 @@ final class Armory {
                     guard let c = best else { break }
                     let to = c.pos + V3(0, c.height * 0.5, 0)
                     beams.append(Beam(a: from, b: to, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.05))
-                    c.hit(from: from, damage: Int(dmg * 0.6), knockback: 0.5)
+                    c.hit(from: from, damage: Int((Mob.oldBossOneShot ? dmg : jumpDmg) * 0.6), knockback: 0.5)
                     if fromPlayer { c.killedByPlayer = true; c.provoke(g) }
                     done.append(ObjectIdentifier(c)); from = to; jumped += 1
                 }
@@ -692,6 +699,7 @@ extension MobKind {
     var shellProof: Bool {
         switch self {
         case .deckGun, .enderDragon, .wither, .warden, .elderGuardian, .boat, .minecart, .endCrystal, .ironGolem: return true
+        case .ashMarshal, .ashChancellor: return !Mob.oldBossOneShot          // (ledger 398: bosses)
         default: return ashVehicle
         }
     }

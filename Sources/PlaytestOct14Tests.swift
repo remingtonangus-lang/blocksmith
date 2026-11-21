@@ -36,6 +36,37 @@ enum PlaytestOct14Tests {
         check(fUp > 4 && pUp < 0.5, String(format: "P250 (b, c): a forest far off stands %.1f blocks over its ground as canopy (open plains %.1f)", fUp, pUp))
         check(fs.c.y < ps.c.y && green > 1.05, String(format: "P250 (b): in leaf colours, darker than the plains' grass (green %.2f vs %.2f)", fs.c.y, ps.c.y))
         farForest(gen, f, check: check)
+        ledger396(check: check)
+    }
+
+    // Ledger 396 (Neon 03#1, 03#2). (a) A chunk of sea keeps its "deep water over this section" bits once hollowed
+    // (the seabed cull read them from blocks it no longer has). (b) The mesh cache gives back the far copies' counters
+    // and those bits (it dropped them: cached chunks drew full leaves and plants out to the edge).
+    static func ledger396(check: (Bool, String) -> Void) {
+        var blocks = [BlockID](repeating: AIR, count: CSQ * CH)
+        for y in 0..<200 { for i in 0..<CSQ { blocks[y * CSQ + i] = WATER } }
+        let c = Chunk(cx: 9001, cz: -9001, blocks: blocks, height: [Int16](repeating: 199, count: CSQ), tint: [UInt32](repeating: 0, count: CSQ * 3))
+        let mask = c.deepMask()
+        var want: UInt32 = 0
+        for sy in 0..<NSEC where (sy + 1) * 16 + 10 < 200 { want |= 1 << UInt32(sy) }
+        check(mask == want, String(format: "ledger 396 (a): a chunk of sea 200 deep has deep water over sections 0-10 (mask %x, want %x)", mask, want))
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bs-ledger396-\(getpid())", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        guard let mc = MeshCache(saveDir: dir) else { check(false, "ledger 396 (b): a mesh cache in a temporary folder"); return }
+        let s = c.sections[3]
+        s.farPlants = 7; s.blobFarAt = 11; s.blobFarN = 13; s.blobCutN = 17; s.canopyN = 19; s.canopyTrunks = SIMD3<Int32>(23, 29, -1)
+        c.hollowDeep = mask
+        c.blocks = BlockStore([]); c.hollow = true
+        let k = ChunkKey(x: 9001, z: -9001)
+        mc.write(k, c, occ: 0)
+        var e: MeshCache.Entry?
+        for _ in 0..<200 where e == nil { usleep(10_000); if FileManager.default.fileExists(atPath: mc.url(k).path) { e = mc.read(k) } }
+        guard let e else { check(false, "ledger 396 (b): the cached chunk reads back"); return }
+        let m = e.sections[3].counts
+        let got = MeshCache.oldCounts ? [0] : Array(m[16...24])
+        let deepBits = e.sections.enumerated().reduce(UInt32(0)) { $0 | (MeshCache.oldCounts || $1.element.counts[24] == 0 ? 0 : 1 << UInt32($1.offset)) }
+        check(got == [7, 11, 13, 17, 19, 23, 29, Int(UInt32(bitPattern: -1)), 1] && deepBits == want,
+              "ledger 396 (b): the mesh cache keeps far plants, leaf blobs, canopy and deep-water bits (\(got), deep \(String(deepBits, radix: 16)); BS_OLDMESHCACHE=1: dropped)")
     }
 
     // Ledger 361: the far layer's stand-in trees. (a) A stand-in is where the chunk grows a tree: of the sites
