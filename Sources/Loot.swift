@@ -137,7 +137,11 @@ enum Mining {
         if gkey.hasSuffix("_bed_head") { return one(String(gkey.dropLast(5))) }
         switch gkey {
         case _ where gkey.hasPrefix(TreeWood.prefix) && gkey.hasSuffix("_log"): return one(String(gkey.dropFirst(TreeWood.prefix.count)))   // a tree's wood: the log
-        case "ammo_crate": return []                                     // P254: it splinters; its contents spill (BaseMaterials)
+        case "ammo_crate": return []
+        // Ledger 408 (Nov 20 evening, his HIGH PRIORITY: breaking his furnace gave nothing back, he had to craft another for
+        // the Blast Furnace): a furnace broken while it burns is the hidden lit state, which has no item of its own, so it
+        // dropped nothing. A lit furnace, smoker or blast furnace gives the plain block. BS_OLDFURNACEDROP=1: nothing.
+        case "lit_furnace", "lit_smoker", "lit_blast_furnace": return FurnaceGlow.oldDrop ? [] : one(String(gkey.dropFirst(4)))                                     // P254: it splinters; its contents spill (BaseMaterials)
         case _ where gkey.hasSuffix(Armour.twinSuffix): return one(String(gkey.dropLast(Armour.twinSuffix.count)))   // P501: the plain block
         case "wheat":
             return stage == 7 ? one("wheat") + one("wheat_seeds", 1 + binom(3, 0.5714)) : one("wheat_seeds")

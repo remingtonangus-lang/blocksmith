@@ -1029,7 +1029,7 @@ final class Circuit {
 
     static func immovable(_ b: BlockID, _ w: World, _ p: IVec3) -> Bool {
         if b == BEDROCK || b == OBSIDIAN || Blocks.hardness[Int(b)] < 0 { return true }
-        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        let k = FurnaceGlow.unlit(Blocks.key(Blocks.groupBase[Int(b)]))
         if ["crying_obsidian", "reinforced_deepslate", "end_portal_frame", "spawner", "chest", "furnace", "lit_furnace", "hopper",
             "dispenser", "dropper", "enchanting_table", "ender_chest", "beacon", "lectern", "barrel", "respawn_anchor", "piston_head"].contains(k) { return true }
         if w.blockEntities[p] != nil { return true }

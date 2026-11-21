@@ -389,6 +389,9 @@ extension Mob {
     func townHoldUp(_ dt: Float, _ g: Game, _ v: VillagerData) {
         guard v.shop != nil, g.survival, !lying, !baby else { return }
         guard town.handsUp >= 2.49 else { return }        // only while the weapon is still on him
+        // Ledger 415: a blade in hand at the counter (2.4 blocks, facing him) emptied a trader's till in 2 s while he
+        // shopped; the till goes only at gunpoint now. BS_OLDMUG=1: a blade too.
+        if !Mob.oldMug && Guns.index(g.held.item) == nil { return }
         town.holdUp += dt
         let day = Int(g.time / DAY_LENGTH)
         guard town.holdUp >= 2, town.robbedDay != day else { return }
@@ -410,6 +413,8 @@ extension Mob {
         ("iron_nugget", 2...6, 9), ("paper", 1...3, 8), ("gold_nugget", 1...4, 7), ("cookie", 1...3, 6), ("iron_ingot", 1...2, 4),
         ("gold_ingot", 1...2, 3), ("emerald", 1...2, 2), ("field_stim", 1...1, 1), ("diamond", 1...1, 1),
     ]
+    static let oldMug = Env.all["BS_OLDMUG"] == "1"
+    static var mugAsk: (ObjectIdentifier, Double)?
     func townMug(_ g: Game) -> Bool {
         guard g.survival, health > 0, !lying, !baby, town.handsUp > 0, villager?.person != nil else { return false }
         let to = eye - g.player.eye
@@ -417,6 +422,19 @@ extension Mob {
         guard d < 6, d > 0.3, simd_dot(to / d, g.player.look) > 0.95 else { return false }
         let day = Int(g.time / DAY_LENGTH)
         guard town.muggedDay != day else { return false }
+        // Ledger 415 (Nov 20 evening, his own notes, Part 9: "I accidentally robbed the sheriff... it needs a clearer
+        // confirmation"): a blade held on someone close raised his hands, and the next press of use, meant to talk,
+        // robbed him. The first press now asks ("Rob Hal Burke? Use again"), and only a second press on the same person
+        // within 3 s robs. BS_OLDMUG=1: the first press robs.
+        if !Mob.oldMug {
+            let me = ObjectIdentifier(self)
+            if Mob.mugAsk?.0 != me || g.clock - (Mob.mugAsk?.1 ?? -10) > 3 {
+                Mob.mugAsk = (me, g.clock)
+                g.onToast?("Rob \(customName ?? villager?.person ?? "them")? Use again")
+                return true
+            }
+            Mob.mugAsk = nil
+        }
         town.muggedDay = day
         let pool = Mob.mugPool.filter { Items.has($0.0) }
         var r = Rand.int(in: 0...max(0, pool.reduce(0) { $0 + $1.2 } - 1))

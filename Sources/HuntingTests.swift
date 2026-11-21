@@ -102,9 +102,9 @@ extension TownTests {
         while !Hunting.bodies.isEmpty && steps < 40 { _ = g.skinUse(true, 0.1); steps += 1 }
         progress = Float(steps) * 0.1
         let good = Items.id(Hunting.peltKey(Hunting.animals[2], 2))
-        let gotPelt = g.inventory.main.countOf(good) == 1, gotMeat = g.inventory.main.countOf(Items.id("game_meat")) == 2
+        let gotPelt = g.inventory.main.countOf(good) == 1, gotMeat = g.inventory.main.countOf(Items.id("game_meat")) == (Hunting.oldKillMeat ? 2 : 0)   // ledger 409: the meat dropped at the kill
         check(aimed && started && released && Hunting.bodies.isEmpty && gotPelt && gotMeat && abs(progress - 1.2) < 0.25,
-              String(format: "hunting: holding use on a wolf's body skins it in %.1f s (a Good Wolf Pelt and 2 game meat); letting go starts over", progress)
+              String(format: "hunting: holding use on a wolf's body skins it in %.1f s (a Good Wolf Pelt; its meat dropped at the kill); letting go starts over", progress)
               + (aimed && started && released ? "" : " [aimed \(aimed), started \(started), released \(released)]"))
 
         // Selling and crafting.

@@ -651,6 +651,8 @@ final class Mob {
     // s of swell to blow (reference 1.5; playtest v78: a VR swing needs the extra; Oct 11 G16: 2.0 with 16 health and a
     // 0.8 s setback per hit, so an iron sword's three blows always land before it goes off)
     static let hisserFuse: Float = 2.0
+    static let powderSprint: Float = 5.0          // ledger 411: a lit one's run (the player sprints 5.6)
+    static let oldPowderStand = ProcessInfo.processInfo.environment["BS_OLDPOWDERSTAND"] == "1"
     static let powderRush: Float = 1.7           // P134: a Powderwight's run (4.25 blocks a second, about a player's walk)
     var eye: V3 { pos + V3(0, height * 0.85, 0) }
 
@@ -1168,7 +1170,7 @@ final class Mob {
                 if flinch > 0 {
                     flinch -= dt
                     speed = 0
-                } else if soaked == 0 && (dist < 3 || (fuse > 0 && dist < 7)) && w.canSee(eye, g.player.eye) {
+                } else if soaked == 0 && (dist < 3 || (fuse > 0 && dist < (Mob.oldPowderStand ? 7 : 9))) && w.canSee(eye, g.player.eye) {
                     if fuse == 0 { g.sfx(.creeperHiss, 1, at: pos) }
                     fuse += dt * (g.isRainingAt(pos) ? 0.7 : 1)
                     // Sparks spitting off the fuse: the telegraph that reads across a field and in the dark.
@@ -1177,7 +1179,11 @@ final class Mob {
                                                  life: 0.35, maxLife: 0.35, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.06,
                                                  gravity: 9, color: V3(1, 0.75, 0.3), collide: false, glow: true))
                     }
-                    speed = 0
+                    // Ledger 411 (Nov 20 evening, his own idea: "when they ignite, make them sprint at the player so you're
+                    // forced to either kill them fast or sprint away"): a lit one runs at you at 5 blocks a second, a
+                    // little under your sprint (5.6), and its fuse keeps burning while it can see you within 9.
+                    // BS_OLDPOWDERSTAND=1: it stands still to blow.
+                    speed = Mob.oldPowderStand || dist < 1.4 ? 0 : Mob.powderSprint
                 } else {
                     fuse = max(0, fuse - dt)
                     // P134 ("the creeper replacements run at you... make them faster"): a Powderwight on your trail

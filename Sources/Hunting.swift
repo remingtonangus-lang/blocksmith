@@ -174,7 +174,12 @@ enum Hunting {
 
     // MARK: Bodies
 
-    struct Body { let mob: Mob; let quality: Int; let legend: Int; let until: Double; let dim: Dim }
+    struct Body { let mob: Mob; let quality: Int; let legend: Int; let until: Double; let dim: Dim; var meatLeft = true }
+    // Ledger 409 (Nov 20 evening, his own notes: "killing rabbits and the polar bear dropped no food"): the meat came only
+    // from skinning the body (hold use on it, which nothing tells you), so a kill gave nothing to eat. The meat now drops
+    // at the kill, as an animal's food does in the genre; the body still gives its pelt and any trophy to skinning.
+    // BS_OLDKILLMEAT=1: meat only from skinning.
+    static let oldKillMeat = ProcessInfo.processInfo.environment["BS_OLDKILLMEAT"] == "1"
     static var bodies: [Body] = []
     static var bodyMobs: [Mob] = []                    // those in this dimension, for the renderer (no array built per frame)
     static func refresh(_ g: Game) { bodyMobs = bodies.filter { $0.dim == g.world.dim }.map { $0.mob } }
@@ -205,7 +210,14 @@ enum Hunting {
             g.sfx(.goatHorn, 0.6, at: m.pos)
         }
         if bodies.count >= maxBodies { bodies.removeFirst() }
-        bodies.append(Body(mob: b, quality: q, legend: Int(m.legend), until: g.clock + bodyTime, dim: g.world.dim))
+        var body = Body(mob: b, quality: q, legend: Int(m.legend), until: g.clock + bodyTime, dim: g.world.dim)
+        if !oldKillMeat && m.legend < 0, let a = animal(m.kind), Items.has(a.meat) {
+            var meat = ItemStack(Items.id(a.meat), max(1, q))
+            if m.fire > 0, let cooked = Recipes.smelt(meat.item) { meat = ItemStack(cooked, meat.count) }   // burnt to death: cooked
+            g.drops.spawn(meat, at: b.pos + V3(0, 0.4, 0))
+            body.meatLeft = false
+        }
+        bodies.append(body)
         refresh(g)
         carcasses += 1
         return true
@@ -242,7 +254,7 @@ enum Hunting {
             return out
         }
         add(peltKey(a, b.quality), 1)
-        add(a.meat, b.quality)
+        if b.meatLeft { add(a.meat, b.quality) }
         if let t = a.trophy, Rand.float(in: 0..<1) < a.trophyChance * (b.quality == 3 ? 1.5 : 1) { add(t, 1) }
         return out
     }

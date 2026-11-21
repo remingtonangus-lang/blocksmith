@@ -56,7 +56,7 @@ struct VillagerData: Codable {
 
 enum Villagers {
     // Per block state: the profession whose job site it is (dictionary lookups on the block key ran per scanned cell).
-    static let jobSiteOf: [String?] = (0..<Blocks.count).map { $0 == Int(AIR) ? nil : jobSites[Blocks.key(Blocks.groupBase[$0])] }
+    static let jobSiteOf: [String?] = (0..<Blocks.count).map { $0 == Int(AIR) ? nil : jobSites[FurnaceGlow.unlit(Blocks.key(Blocks.groupBase[$0]))] }
     static let jobSites: [String: String] = [
         "blast_furnace": "armorer", "smoker": "butcher", "cartography_table": "cartographer", "brewing_stand": "cleric",
         "composter": "farmer", "barrel": "fisherman", "fletching_table": "fletcher", "cauldron": "leatherworker",
@@ -272,7 +272,7 @@ extension Mob {
         if v.profession != "none", let js = v.jobSite {
             // Lost the job site (broken)? Become unemployed again.
             let b = g.world.block(js[0], js[1], js[2])
-            if Villagers.jobSites[Blocks.key(Blocks.groupBase[Int(b)])] == v.profession { return }
+            if Villagers.jobSites[FurnaceGlow.unlit(Blocks.key(Blocks.groupBase[Int(b)]))] == v.profession { return }
             v.profession = "none"; v.offers = []; v.jobSite = nil; v.level = 1; v.xp = 0
             villager = v
             return
