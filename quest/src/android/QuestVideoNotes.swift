@@ -15,6 +15,9 @@ import CAndroidGlue
 // and encoding run on the utility queue and the encoder block.
 enum QuestVideo {
     static let fps = 30.0
+    // Ledger 406 (Remington, Nov 21: "records VIDEO ONLY... Neon can't hear anything"): the clips carry the game's own
+    // mix and his voice as one AAC track (quest/c/voice/voicevideo.c). BS_OLDCLIPSOUND=1: pictures only.
+    static let oldSound = Env.all["BS_OLDCLIPSOUND"] != nil
     // Nov 13 (Remington, 14:48: "Why doesn't the recorder capture at higher resolution", "I want it at max resolution";
     // ledger 120): the clip was a quarter of the left eye each way (384x416 on the headset, ~2 Mb/s). It is the whole
     // eye now, every pixel the game drew: the GPU copy is the same one blit (full size), the conversion to the
@@ -58,6 +61,7 @@ enum QuestVideo {
     static func tick(listening: Bool) {
         let want = listening && Settings.shared.bugNoteVideo && !unsupported
         lock.lock(); let was = wanted; wanted = want; lock.unlock()
+        bs_vaudio_enable(want && !QuestVideo.oldSound ? 1 : 0)
         if was && !want { queue.async { if let e = enc { bs_venc_close(e); enc = nil } } }
         let now = CFAbsoluteTimeGetCurrent()
         if want && now - lastLog > 10 {

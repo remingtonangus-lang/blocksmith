@@ -13,3 +13,10 @@ int bs_venc_begin(void *enc, const char *path);                      // 0 ok, -1
 int64_t bs_venc_end(void *enc);
 int64_t bs_venc_buffered(void *enc);                                 // bytes held in memory
 void bs_venc_close(void *enc);
+// Ledger 406 (Nov 21, Remington: the recordings had no sound): the game's own mix and his voice go into the clip as
+// one AAC track. Any thread: the audio callback pushes what it plays (interleaved float stereo at `rate`), the voice
+// note reader what the microphone hears (mono int16 at `rate`); each with the wall clock (microseconds, the pictures'
+// clock) of its first frame. Lock-free for the audio thread: a push that finds the ring busy is dropped.
+void bs_vaudio_game(const float *lr, int32_t frames, int32_t rate, int64_t ptsUs);
+void bs_vaudio_mic(const int16_t *pcm, int32_t frames, int32_t rate, int64_t ptsUs);
+void bs_vaudio_enable(int on);                                      // off: pushes are ignored (no cost)
