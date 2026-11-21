@@ -33,3 +33,9 @@ Neon cannot see the project chat. Everything goes through GitHub, carried by the
 - With every plan rewrite: CLAUDE.md, the backlog, the last two days of commits, open PRs and issues, the plan issue's
   comments, the bug ledger's tail, the newest playtest notes and an index of every code file; then the code files it asks
   for, which it reviews in a comment on the plan issue.
+
+## Neon writes code too (Nov 21 2026, Remington: get Neon "actually writing code")
+
+The watchdog hands Neon small tasks (its own plan items, playtest notes nobody picked up). Neon answers with exact edits; `apply-neon.py` on the Mac applies them verbatim to a branch `neon/<slug>` off claude/quest-port and opens a PR titled `[Neon] ...` with the label `neon-code`. Nothing in it has been built or tested.
+
+Lanes: treat an open `neon-code` PR like your own next task. Check it out, build, run the suite, fix whatever breaks or is wrong (Neon only saw the files it was given), add the ledger row, and merge. If the idea is wrong, close it with a one-line comment saying why, so Neon learns from it on its next pass. Don't let these sit: they are work Neon has already done.
