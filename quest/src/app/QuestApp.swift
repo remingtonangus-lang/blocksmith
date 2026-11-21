@@ -372,6 +372,13 @@ final class QuestApp {
         }
         game.appAction = { [weak self] id in self?.appAction(id) }
         MapDraw.facingYaw = { [weak self] in self?.rig.headYaw }        // P463: the map's arrow is where he looks
+        NoticeStack.shared.clear()
+        if !NoticeStack.old {
+            game.onToast = { [weak game] text in
+                guard let g = game else { return }
+                NoticeStack.shared.post(text, at: g.clock)
+            }
+        }
         if let why = joinFailed { joinFailed = nil; game.onToast?(why) }
         rig.needsRecenter = true
         rig.bodyYaw = game.player.yaw
@@ -401,6 +408,7 @@ final class QuestApp {
             g.sound?.stopAll()
             QuestAudioOutput.shared.stop()
             PadManager.shared.touch = nil
+            NoticeStack.shared.clear()
             controls = nil; worldRenderer = nil; game = nil; save = nil
             SaveIO.flush()
             let ok = CrashGuard.restore(dir: dir)
@@ -437,6 +445,7 @@ final class QuestApp {
         QuestAudioOutput.shared.stop()
         part("sound")
         PadManager.shared.touch = nil
+        NoticeStack.shared.clear()
         controls = nil
         part("controls")
         worldRenderer = nil

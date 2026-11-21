@@ -311,7 +311,8 @@ enum ClockFace {
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         guard let t = text(g) ?? HeldReadout.text(g) else { return [] }      // (ledger 334: every reading in hand)
         let s = L.s, w = Float(Font.width(t)) * s
-        let x = (L.W - w) / 2, y = L.hotbarY0 - 30 * s
+        let baseY = CombatHUD.driveTop(g, L).map { $0 - 30 * s } ?? (L.hotbarY0 - 30 * s)
+        let x = (L.W - w) / 2, y = max(L.insetY + 4 * s, baseY)
         return [HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 8 * s, 14 * s)),
                 HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.93, 0.7, 1))]
     }
@@ -498,45 +499,443 @@ enum HudExtras {
     private static var counterN = -1, counterLost = false, counterText = ""
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        var out = Goals.lines(g, L)
-        // P98: the Reckoning's counter (top right) while war bands hunt the player.
+        let s = L.s
+        var reckoning: [HudLine] = []
+        // P98: the Reckoning's counter while war bands hunt the player.
         if Reckoning.stage == 2 && g.menu == nil && g.dim.dim == .overworld {
-            let s = L.s, n = Reckoning.groupsLeft
+            let n = Reckoning.groupsLeft
             if n != counterN || Reckoning.underground != counterLost {          // (built when it changes, not every frame)
                 counterN = n; counterLost = Reckoning.underground
                 counterText = "\(n) war band\(n == 1 ? "" : "s") hunting you" + (Reckoning.underground ? " (trail lost)" : "")
             }
             let t = counterText
             let w = Float(Font.width(t)) * s, x = L.W - L.insetX - w - 6 * s, y = L.insetY + 4 * s
-            out.append(HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.6), box: V2(w + 8 * s, 14 * s)))
-            out.append(HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.6, 0.2, 1)))
+            reckoning.append(HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.6), box: V2(w + 8 * s, 14 * s)))
+            reckoning.append(HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.6, 0.2, 1)))
         }
+        var bnLines: [HudLine] = []
         let bn = BugNotes.shared
         if bn.listening {
             // Bug Notes mic dot: grey = listening, red = recording a note (top-left, inside the safe area).
-            let s = L.s, x = L.insetX + 4 * s, y = L.insetY + 4 * s
+            let x = L.insetX + 4 * s, y = L.insetY + 4 * s
             let pulse: Float = bn.recording ? 0.75 + 0.25 * sinf(Float(g.clock) * 8) : 1
-            out.append(HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(8 * s, 8 * s)))
-            out.append(HudLine(text: "", x: x, y: y, scale: s, bg: bn.recording ? V4(0.95, 0.15, 0.15, pulse) : V4(0.7, 0.7, 0.72, 0.8), box: V2(6 * s, 6 * s)))
-            if bn.recording { out.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
+            bnLines.append(HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(8 * s, 8 * s)))
+            bnLines.append(HudLine(text: "", x: x, y: y, scale: s, bg: bn.recording ? V4(0.95, 0.15, 0.15, pulse) : V4(0.7, 0.7, 0.72, 0.8), box: V2(6 * s, 6 * s)))
+            if bn.recording { bnLines.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
         }
-        out += SaveBadge.lines(g, L, below: bn.listening)                 // Q2c-console-2
-        out += ClockFace.lines(g, L)                                        // ledger 259
-        out += NowPlaying.lines(g, L)                                       // Q2c-console-14
+        let saveLines = SaveBadge.lines(g, L, below: bn.listening)                 // Q2c-console-2
+        let clockLines = ClockFace.lines(g, L)                                     // ledger 259
+        var nowPlayingLines = NowPlaying.lines(g, L)                               // Q2c-console-14
+        var padGlyphLines: [HudLine] = []
         // (Not on the headset: the grips step the hotbar there, and he wanted the labels gone: P85, Oct 12 playtest.)
         if ContextPrompts.shown && Prompt.pad && g.menu == nil && g.vrHead == nil && !g.drivingHUD {
             // LB / RB beside the hotbar.
-            let s = L.s, y = L.hotbarY0 + L.slot / 2 - 4 * s
+            let y = L.hotbarY0 + L.slot / 2 - 4 * s
             let lb = PadMap.glyph(.lb), rb = PadMap.glyph(.rb)
-            out.append(HudLine(text: lb.s, x: L.hotbarX0 - Float(Glyphs.advance(Int(lb.rawValue))) * s - 4 * s, y: y, scale: s))
-            out.append(HudLine(text: rb.s, x: L.hotbarX0 + L.slot * 9 + 5 * s, y: y, scale: s))
+            padGlyphLines.append(HudLine(text: lb.s, x: L.hotbarX0 - Float(Glyphs.advance(Int(lb.rawValue))) * s - 4 * s, y: y, scale: s))
+            padGlyphLines.append(HudLine(text: rb.s, x: L.hotbarX0 + L.slot * 9 + 5 * s, y: y, scale: s))
         }
         let prompts = ContextPrompts.lines(g, L)
-        out += prompts
-        let top = prompts.map { $0.y }.min() ?? (L.H - L.insetY - 6 * L.s)
-        out += Subtitles.shared.lines(g, L, bottom: top - 4 * L.s)
-        if g.menu is InventoryMenu && g.alive { out = Wallet.lines(g, L) + HonourHUD.lines(g, L) + out }
-        if g.menu == nil && g.alive { out = Minimap.lines(g, L) + Wallet.lines(g, L) + HonourHUD.lines(g, L) + CombatHUD.shared.lines(g, L) + CompassHUD.lines(g, L) + glanceLines(g, L) + out }
+        let top = prompts.map { $0.y }.min() ?? (L.H - L.insetY - 6 * s)
+        let subtitles = Subtitles.shared.lines(g, L, bottom: top - 4 * s)
+
+        if NoticeStack.old {
+            var out = Goals.lines(g, L) + reckoning + bnLines + saveLines + clockLines + nowPlayingLines + padGlyphLines + prompts + subtitles
+            if g.menu is InventoryMenu && g.alive { out = Wallet.lines(g, L) + HonourHUD.lines(g, L) + out }
+            if g.menu == nil && g.alive { out = Minimap.lines(g, L) + Wallet.lines(g, L) + HonourHUD.lines(g, L) + CombatHUD.shared.lines(g, L) + CompassHUD.lines(g, L) + glanceLines(g, L) + out }
+            return out
+        }
+
+        let inPlay = g.menu == nil && g.alive
+        let inInv = g.menu is InventoryMenu && g.alive
+        let minimapLines = inPlay ? Minimap.lines(g, L) : []
+        let walletLines = (inPlay || inInv) ? Wallet.lines(g, L) : []
+        let invHonourLines = inInv ? HonourHUD.lines(g, L) : []
+        let playHonourLines = inPlay ? HonourHUD.lines(g, L) : []
+        let combatLines = inPlay ? CombatHUD.shared.lines(g, L) : []
+        let compassLines = inPlay ? CompassHUD.lines(g, L) : []
+        let glance = inPlay ? glanceLines(g, L) : []
+        let goalLines = Goals.lines(g, L)
+
+        // Keep bottom-left song title clear of a passenger vehicle panel.
+        var combatClusters: [HudRect]? = nil
+        if !nowPlayingLines.isEmpty && !combatLines.isEmpty {
+            let clusters = NoticeLayout.clusters(of: combatLines, gap: 6 * s)
+            combatClusters = clusters
+            let nr = NoticeLayout.bounds(of: nowPlayingLines)
+            var liftY = nr.y
+            for c in clusters where nr.intersects(c.expanded(by: 2 * s)) {
+                liftY = min(liftY, c.y - nr.h - 4 * s)
+            }
+            if liftY < nr.y {
+                let dy = max(L.insetY + 4 * s, liftY) - nr.y
+                nowPlayingLines = nowPlayingLines.map { var l = $0; l.y += dy; return l }
+            }
+        }
+
+        // Unified notification stack: Reckoning counter, Goals banners, Honour notices, and NoticeStack toasts.
+        let maxToastW = min(max(60 * s, L.W - 2 * L.insetX - 12 * s), max(100 * s, min(190 * s, L.W * 0.42)))
+        let toastCards = NoticeStack.shared.cards(g, L, maxWidth: maxToastW)
+        var noticeCards: [NoticeCard] = []
+        if !reckoning.isEmpty { noticeCards += NoticeLayout.splitCards(reckoning, scale: s) }
+        if !goalLines.isEmpty { noticeCards += NoticeLayout.splitCards(goalLines, scale: s) }
+        if !playHonourLines.isEmpty { noticeCards += NoticeLayout.splitCards(playHonourLines, scale: s) }
+        if !toastCards.isEmpty { noticeCards += toastCards }
+
+        var placedNotices: [HudLine] = []
+        if !noticeCards.isEmpty {
+            let pad = 3 * s
+            var obstacles: [HudRect] = []
+            func addObstacle(_ lines: [HudLine]) {
+                guard !lines.isEmpty else { return }
+                let r = NoticeLayout.bounds(of: lines)
+                if !r.isEmpty { obstacles.append(r.expanded(by: pad)) }
+            }
+            addObstacle(bnLines)
+            addObstacle(saveLines)
+            addObstacle(clockLines)
+            addObstacle(nowPlayingLines)
+            addObstacle(padGlyphLines)
+            addObstacle(prompts)
+            addObstacle(subtitles)
+
+            if inPlay {
+                let minimapRect = NoticeLayout.bounds(of: minimapLines)
+                if !minimapRect.isEmpty { obstacles.append(minimapRect.expanded(by: pad)) }
+                addObstacle(walletLines)
+                addObstacle(compassLines)
+                addObstacle(glance)
+                let clusters = combatClusters ?? NoticeLayout.clusters(of: combatLines, gap: 6 * s)
+                for c in clusters { obstacles.append(c.expanded(by: pad)) }
+                obstacles.append(L.bottomHudRect(driveTop: CombatHUD.driveTop(g, L)).expanded(by: pad))
+                obstacles.append(L.crosshairRect.expanded(by: pad))
+                // Anchor on the top corner opposite the minimap (top-left by default).
+                let preferredRight = !minimapRect.isEmpty && minimapRect.midX < L.W * 0.5
+                placedNotices = NoticeLayout.place(cards: noticeCards, obstacles: obstacles, preferredRight: preferredRight, layout: L)
+            } else if let m = g.menu {
+                addObstacle(walletLines)
+                addObstacle(invHonourLines)
+                let withMenu = obstacles + [L.menuRect(m).expanded(by: pad)]
+                placedNotices = NoticeLayout.place(cards: noticeCards, obstacles: withMenu, preferredRight: false, layout: L)
+                if placedNotices.isEmpty && !toastCards.isEmpty {
+                    placedNotices = NoticeLayout.place(cards: toastCards, obstacles: obstacles, preferredRight: false, layout: L)
+                }
+            } else {
+                placedNotices = NoticeLayout.place(cards: noticeCards, obstacles: obstacles, preferredRight: false, layout: L)
+            }
+        }
+
+        var out: [HudLine] = []
+        if inPlay { out += minimapLines + walletLines + combatLines + compassLines + glance }
+        else if inInv { out += walletLines + invHonourLines }
+        out += bnLines + saveLines + clockLines + nowPlayingLines + padGlyphLines + prompts + subtitles + placedNotices
+        return out
+    }
+}
+
+extension HudLine {
+    // Pixel bounding box of this HUD primitive (origin top-left).
+    var bounds: HudRect {
+        let s = max(1, scale)
+        var r = HudRect(x: x, y: y, w: 0, h: 0)
+        if let b = box {
+            r = HudRect(x: x, y: y, w: b.x, h: b.y)
+        }
+        if !text.isEmpty {
+            let tw = Float(Font.width(text)) * s
+            let th = 8 * s
+            let pad: Float = (box == nil && bg != nil) ? 2 * s : 0
+            let tr = HudRect(x: x - pad, y: y - pad, w: tw + pad * 2, h: th + pad * 2)
+            r = r.isEmpty ? tr : r.union(tr)
+        }
+        return r
+    }
+}
+
+struct NoticeCard {
+    var lines: [HudLine]
+    var bounds: HudRect
+
+    func shifted(by dx: Float, _ dy: Float) -> [HudLine] {
+        if dx == 0 && dy == 0 { return lines }
+        return lines.map {
+            var l = $0
+            l.x += dx
+            l.y += dy
+            return l
+        }
+    }
+}
+
+// Unified notification stack for toasts and transient HUD notices (T03: one stack that never overlaps HUD elements).
+// BS_OLDNOTICES=1 restores the previous uncoordinated positions.
+final class NoticeStack {
+    static let shared = NoticeStack()
+    static let old = Env.all["BS_OLDNOTICES"] == "1"
+    static let maxVisible = 4
+
+    struct Entry {
+        var rawLines: [String]
+        var key: String
+        var time: Double
+        var duration: Double
+    }
+
+    private let lock = NSLock()
+    private var entries: [Entry] = []
+
+    func post(_ text: String, detail: String? = nil, at clock: Double, duration: Double = 4.0, key: String? = nil) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        var lines = trimmed.split(separator: "\n", omittingEmptySubsequences: true).map {
+            String($0).trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }
+        if let d = detail?.trimmingCharacters(in: .whitespacesAndNewlines), !d.isEmpty { lines.append(d) }
+        guard !lines.isEmpty else { return }
+        let k = key ?? lines.joined(separator: "\n")
+        let dur = max(duration, lines.count > 1 || trimmed.count > 44 ? 4.8 : 4.0)
+        lock.lock()
+        if let i = entries.firstIndex(where: { $0.key == k }) {
+            entries[i].rawLines = lines
+            entries[i].time = clock
+            entries[i].duration = dur
+        } else {
+            entries.append(Entry(rawLines: lines, key: k, time: clock, duration: dur))
+            if entries.count > NoticeStack.maxVisible { entries.removeFirst(entries.count - NoticeStack.maxVisible) }
+        }
+        lock.unlock()
+    }
+
+    func clear() {
+        lock.lock()
+        entries.removeAll()
+        lock.unlock()
+    }
+
+    static func wrap(_ text: String, scale s: Float, maxWidth: Float) -> [String] {
+        var out: [String] = []
+        for raw in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(raw).trimmingCharacters(in: .whitespaces)
+            if line.isEmpty { continue }
+            if Float(Font.width(line)) * s <= maxWidth {
+                out.append(line)
+                continue
+            }
+            var cur = ""
+            for wordSub in line.split(separator: " ", omittingEmptySubsequences: true) {
+                let word = String(wordSub)
+                let cand = cur.isEmpty ? word : cur + " " + word
+                if !cur.isEmpty && Float(Font.width(cand)) * s > maxWidth {
+                    out.append(cur)
+                    cur = word
+                } else {
+                    cur = cand
+                }
+            }
+            if !cur.isEmpty { out.append(cur) }
+        }
+        return out
+    }
+
+    private static func style(for text: String) -> (accent: V4, primary: V4, detail: V4) {
+        let low = text.lowercased()
+        if low.contains("lost") || low.contains("failed") || low.contains("full") || low.contains("no guns") || low.contains("can't") || low.contains("cannot") || low.contains("not linked") {
+            return (V4(0.95, 0.38, 0.26, 1), V4(1, 0.93, 0.89, 1), V4(0.94, 0.78, 0.72, 1))
+        }
+        if low.contains("honour") || low.contains("honor") || low.contains("raised") || low.contains("protected") || low.contains("unlocked") || low.contains("cleared") {
+            return (V4(0.98, 0.78, 0.28, 1), V4(1, 0.96, 0.84, 1), V4(0.92, 0.86, 0.7, 1))
+        }
+        return (MenuColors.brass, V4(0.96, 0.96, 0.98, 1), V4(0.84, 0.86, 0.9, 1))
+    }
+
+    func cards(_ g: Game, _ L: HudLayout, maxWidth: Float) -> [NoticeCard] {
+        lock.lock()
+        entries.removeAll { g.clock - $0.time > $0.duration || g.clock < $0.time }
+        let snap = entries
+        lock.unlock()
+        guard !snap.isEmpty else { return [] }
+
+        let s = L.s
+        let textOffset = 7 * s
+        let rightPad = 5 * s
+        let maxTextW = max(60 * s, maxWidth - textOffset - rightPad)
+        var out: [NoticeCard] = []
+        for e in snap {
+            let age = Float(g.clock - e.time)
+            let left = Float(e.duration) - age
+            let a = min(1, min(age / 0.15, left / 0.6))
+            guard a > 0.01 else { continue }
+            var wrapped: [(String, Bool)] = []
+            for (idx, raw) in e.rawLines.enumerated() {
+                for line in NoticeStack.wrap(raw, scale: s, maxWidth: maxTextW) {
+                    wrapped.append((line, idx > 0))
+                }
+            }
+            guard !wrapped.isEmpty else { continue }
+            let widest = wrapped.map { Float(Font.width($0.0)) * s }.max() ?? 0
+            let w = widest + textOffset + rightPad
+            let h = Float(wrapped.count) * 10 * s + 4 * s
+            let pal = NoticeStack.style(for: e.key)
+            var lines: [HudLine] = [
+                HudLine(text: "", x: 0, y: 0, scale: s, bg: V4(0.05, 0.05, 0.07, 0.72 * a), box: V2(w, h)),
+                HudLine(text: "", x: 0, y: 0, scale: s, bg: V4(pal.accent.x, pal.accent.y, pal.accent.z, a), box: V2(2 * s, h)),
+            ]
+            for (i, pair) in wrapped.enumerated() {
+                let c = pair.1 ? pal.detail : pal.primary
+                lines.append(HudLine(text: pair.0, x: textOffset, y: 3 * s + Float(i) * 10 * s, scale: s, color: V4(c.x, c.y, c.z, a)))
+            }
+            out.append(NoticeCard(lines: lines, bounds: HudRect(x: 0, y: 0, w: w, h: h)))
+        }
+        return out
+    }
+}
+
+enum NoticeLayout {
+    static func bounds(of lines: [HudLine]) -> HudRect {
+        var r = HudRect(x: 0, y: 0, w: 0, h: 0)
+        for l in lines { r = r.union(l.bounds) }
+        return r
+    }
+
+    // Groups spatially adjacent HUD lines into tight obstacle rects so distant widgets (e.g. armour bars
+    // and crosshair marks in CombatHUD) never merge into one giant screen-spanning box.
+    static func clusters(of lines: [HudLine], gap: Float) -> [HudRect] {
+        var rects = lines.map { $0.bounds }.filter { !$0.isEmpty }
+        guard rects.count > 1 else { return rects }
+        var changed = true
+        while changed {
+            changed = false
+            var i = 0
+            while i < rects.count {
+                var j = i + 1
+                while j < rects.count {
+                    if rects[i].expanded(by: gap).intersects(rects[j]) {
+                        rects[i] = rects[i].union(rects[j])
+                        rects.remove(at: j)
+                        changed = true
+                    } else {
+                        j += 1
+                    }
+                }
+                i += 1
+            }
+        }
+        return rects
+    }
+
+    // Splits a stream of notice HudLines into distinct visual cards so overlapping notices emitted by
+    // the same subsystem are separated while multi-line cards preserve their internal layout.
+    static func splitCards(_ lines: [HudLine], scale s: Float) -> [NoticeCard] {
+        guard !lines.isEmpty else { return [] }
+        var cards: [NoticeCard] = []
+        var cur: [HudLine] = []
+        var curBounds = HudRect(x: 0, y: 0, w: 0, h: 0)
+        var curBackdrop = HudRect(x: 0, y: 0, w: 0, h: 0)
+        var curHasText = false
+
+        func flush() {
+            guard !cur.isEmpty else { return }
+            cards.append(NoticeCard(lines: cur, bounds: curBounds))
+            cur.removeAll(keepingCapacity: true)
+            curBounds = HudRect(x: 0, y: 0, w: 0, h: 0)
+            curBackdrop = HudRect(x: 0, y: 0, w: 0, h: 0)
+            curHasText = false
+        }
+
+        for line in lines {
+            let r = line.bounds
+            let isBox = line.text.isEmpty && line.item == nil && line.box != nil
+            let isCardBackdrop = isBox && r.w >= 18 * s && r.h >= 9 * s
+
+            if !cur.isEmpty {
+                if isCardBackdrop {
+                    let insideBackdrop = !curBackdrop.isEmpty && curBackdrop.contains(r, tolerance: 2 * s)
+                    let wrapsPreAccent = !curHasText && curBackdrop.isEmpty && r.expanded(by: 3 * s).intersects(curBounds)
+                    if curHasText || (!insideBackdrop && !wrapsPreAccent) {
+                        flush()
+                    }
+                } else if !curBackdrop.isEmpty {
+                    if !curBackdrop.contains(r, tolerance: 4 * s) {
+                        let stackedBelow = r.y >= curBounds.maxY - 1 * s && r.y <= curBounds.maxY + 6 * s &&
+                            r.x < curBounds.maxX && r.maxX > curBounds.x &&
+                            ((!line.text.isEmpty && line.bg == nil) || (isBox && r.h < 9 * s))
+                        if !stackedBelow {
+                            flush()
+                        }
+                    }
+                } else {
+                    let sameRowOverlap = r.intersects(curBounds)
+                    let stackedBelow = r.y >= curBounds.maxY - 1 * s && r.y <= curBounds.maxY + 6 * s &&
+                        r.x < curBounds.maxX + 20 * s && r.maxX > curBounds.x - 20 * s
+                    if sameRowOverlap || !stackedBelow {
+                        flush()
+                    }
+                }
+            }
+
+            if isCardBackdrop && curBackdrop.isEmpty {
+                curBackdrop = cur.isEmpty ? r : r.union(curBounds)
+            }
+            if !line.text.isEmpty { curHasText = true }
+            cur.append(line)
+            curBounds = curBounds.union(r)
+        }
+        flush()
+        return cards
+    }
+
+    // Places every card into one non-overlapping notification stack, skipping all HUD obstacles and
+    // previously placed cards. Cards that cannot fit without overlapping are omitted.
+    static func place(cards: [NoticeCard], obstacles: [HudRect], preferredRight: Bool, layout L: HudLayout) -> [HudLine] {
+        guard !cards.isEmpty else { return [] }
+        let s = L.s
+        let margin = 6 * s
+        let gap = 3 * s
+        let pad = 2 * s
+        let safe = HudRect(x: L.insetX + margin, y: L.insetY + 4 * s,
+                           w: max(1, L.W - 2 * (L.insetX + margin)), h: max(1, L.H - 2 * L.insetY - 8 * s))
+        var blockers = obstacles
+        var primaryY = safe.y
+        var out: [HudLine] = []
+
+        func findY(x: Float, w: Float, h: Float, startY: Float) -> Float? {
+            var y = startY
+            while y + h <= safe.maxY + 0.5 {
+                let cand = HudRect(x: x, y: y, w: w, h: h)
+                var nextY: Float = -1
+                for b in blockers where cand.intersects(b) {
+                    nextY = max(nextY, b.maxY + gap)
+                }
+                if nextY < 0 { return y }
+                y = nextY > y ? nextY : y + gap
+            }
+            return nil
+        }
+
+        for card in cards {
+            let cw = card.bounds.w, ch = card.bounds.h
+            guard cw > 0 && ch > 0 else { continue }
+            let leftX = safe.x
+            let rightX = max(safe.x, safe.maxX - cw)
+            let centerX = max(safe.x, min(safe.maxX - cw, floor((L.W - cw) / 2)))
+            let primaryX = preferredRight ? rightX : leftX
+            let secondaryX = preferredRight ? leftX : rightX
+
+            var placedPos: (Float, Float)? = nil
+            if let y = findY(x: primaryX, w: cw, h: ch, startY: primaryY) {
+                placedPos = (primaryX, y)
+                primaryY = y + ch + gap
+            } else if let y = findY(x: centerX, w: cw, h: ch, startY: safe.y) {
+                placedPos = (centerX, y)
+            } else if let y = findY(x: secondaryX, w: cw, h: ch, startY: safe.y) {
+                placedPos = (secondaryX, y)
+            }
+
+            if let (px, py) = placedPos {
+                out += card.shifted(by: px - card.bounds.x, py - card.bounds.y)
+                blockers.append(HudRect(x: px - pad, y: py - pad, w: cw + pad * 2, h: ch + pad * 2))
+            }
+        }
         return out
     }
 }
