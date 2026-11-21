@@ -2007,9 +2007,15 @@ final class QuestControls {
         let prev = motionPrev(pos, rot, was: drawnAim, eye: eye)       // P403 7b
         drawnAim = (pos + eye, rot)
         let pe = game.player.eye
-        let l = game.world.lightAt(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
+        let le = game.world.lightOpen(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
+        let hw = pos + eye
+        let lh = simd_length_squared(hw - pe) < 9 ? game.world.lightOpen(Int(floor(hw.x)), Int(floor(hw.y)), Int(floor(hw.z))) : le
+        let skyL = max(le.sky, lh.sky), blkL = max(le.block, lh.block)
         let skyK: Float = 0.12 + 0.88 * game.renderDaylight
-        let light = max(0.15, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
+        let rawLight = max(Float(skyL) / 15 * skyK, Float(blkL) / 15)
+        let ambient = rawLight + (1 - rawLight) * game.dimAmbient
+        let fill: Float = max(0.38, MobLight.fill)
+        let light = min(Float(1), max(fill, ambient, game.nightVision * 0.9))
         // Nov 14 (trailer review v3l: "the flash pops up to the left of the hand, nowhere near the barrel"): the flash
         // goes at the muzzle of the gun as it is drawn, 3.2x and held out, not 0.2 m past the controller.
         game.vrMuzzle = game.heldGun.flatMap { gi in gi < CapitalArms.models.count ? drawnPoint(CapitalArms.models[gi].muzzle) : nil }
@@ -2043,13 +2049,37 @@ final class QuestControls {
         guard cap >= 96 else { return }
         var wr = EntityWriter(out: ptr, capacity: cap)
         if let b = held.def.block, !Blocks.flatIcon(b) {
-            let t = Blocks.tint[Int(b)]
+            let bs = Blocks.iconState(b)
+            let t = Blocks.tint[Int(bs)]
             let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
-            wr.cube(center: .zero, half: 0.085, yaw: 0, block: b, light: light, tint: tint)
-            for i in 0..<wr.n {
-                let v = ptr[i].pos
-                let w = rot.act(V3(v.x, v.y, v.z) + V3(0, 0.03, -0.11)) + pos
-                ptr[i].pos = V4(w.x, w.y, w.z, v.w)
+            let emitK = Float(Blocks.emit[Int(bs)]) / 15
+            let blockLight = max(light, emitK)
+            wr.cube(center: .zero, half: 0.085, yaw: 0, block: bs, light: blockLight, tint: tint)
+            let blockCenter = rot.act(V3(0, 0.03, -0.11)) + pos
+            let d2 = simd_length_squared(blockCenter)
+            let toEye = d2 > 1e-6 ? -blockCenter / sqrtf(d2) : V3(0, 0, 1)
+            for f in 0..<6 where f * 6 + 6 <= wr.n {
+                let fn: V3
+                switch f {
+                case 0: fn = V3(1, 0, 0)
+                case 1: fn = V3(-1, 0, 0)
+                case 2: fn = V3(0, 1, 0)
+                case 3: fn = V3(0, -1, 0)
+                case 4: fn = V3(0, 0, 1)
+                default: fn = V3(0, 0, -1)
+                }
+                let wn = rot.act(fn)
+                let baseShade = min(Float(1), 0.8 + 0.18 * wn.y + 0.05 * (abs(wn.x) - abs(wn.z)) + 0.06 * max(0, simd_dot(wn, toEye)))
+                let shade = baseShade + (1 - baseShade) * emitK * 0.5
+                let ratio = shade / EntityWriter.cubeShade[f]
+                for k in 0..<6 {
+                    let i = f * 6 + k
+                    let v = ptr[i].pos
+                    let w = rot.act(V3(v.x, v.y, v.z) + V3(0, 0.03, -0.11)) + pos
+                    ptr[i].pos = V4(w.x, w.y, w.z, v.w)
+                    let col = ptr[i].color
+                    ptr[i].color = V4(col.x * ratio, col.y * ratio, col.z * ratio, col.w)
+                }
             }
         } else {
             let layer = Items.texLayer(held.item) ?? Int(Blocks.tex[Int(held.def.block ?? 0) * 6])
@@ -2082,9 +2112,10 @@ final class QuestControls {
                                 : pos + rot.act(V3(0, 0.07, -0.12))
             // One texel (h/8) thick and closed: both faces plus a wall round every opaque texel (ItemExtrude.swift; the
             // five stacked sprites it replaced read as five pieces and went see-through edge-on: Oct 11 playtest P17).
-            heldQuads = wr.extrudedItem(center: c, half: h, right: r, up: up, normal: side, thick: h / 8, layer: layer, light: light)
+            let itemLight = held.def.block.map { max(light, Float(Blocks.emit[Int($0)]) / 15) } ?? light
+            heldQuads = wr.extrudedItem(center: c, half: h, right: r, up: up, normal: side, thick: h / 8, layer: layer, light: itemLight)
             // Upgrades show on the model (Upgrades.accents): a grip wrap, a band on the head, a line on the edge.
-            Upgrades.writeAccents(&wr, held, center: c, half: h, right: r, up: up, normal: side, thick: h * 2.6 / 32, light: light)
+            Upgrades.writeAccents(&wr, held, center: c, half: h, right: r, up: up, normal: side, thick: h * 2.6 / 32, light: itemLight)
         }
         app.scene.commit(off, wr.n, EntityVert.self)
         app.scene.drawScratch(s, "entity", offset: off, count: wr.n)
