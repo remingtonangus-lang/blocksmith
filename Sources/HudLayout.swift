@@ -85,4 +85,68 @@ struct HudLayout {
         let i = r * HudLayout.cols + c
         return i < n ? i : nil
     }
+
+    var safeRect: HudRect {
+        HudRect(x: insetX, y: insetY, w: max(0, W - 2 * insetX), h: max(0, H - 2 * insetY))
+    }
+
+    var hotbarRect: HudRect {
+        HudRect(x: hotbarX0, y: hotbarY0, w: slot * Float(HudLayout.cols), h: slot)
+    }
+
+    // Bottom-center HUD region: hotbar + hearts/hunger/XP/held-label (or driving panel + status bars).
+    func bottomHudRect(driveTop: Float? = nil) -> HudRect {
+        let pad = 4 * s
+        let x0 = max(insetX, hotbarX0 - pad)
+        let x1 = min(W - insetX, hotbarX0 + slot * Float(HudLayout.cols) + pad)
+        let top = driveTop.map { $0 - 26 * s } ?? (hotbarY0 - 42 * s)
+        let y0 = max(insetY, top)
+        let y1 = H - insetY
+        return HudRect(x: x0, y: y0, w: max(0, x1 - x0), h: max(0, y1 - y0))
+    }
+
+    var crosshairRect: HudRect {
+        HudRect(x: floor(W / 2) - 14 * s, y: floor(H / 2) - 14 * s, w: 28 * s, h: 28 * s)
+    }
+
+    func menuRect(_ m: Menu) -> HudRect {
+        let ml = fitted(m)
+        let mw = Float(m.width) * ml.s, mh = Float(m.height) * ml.s
+        let pad = 4 * ml.s
+        return HudRect(x: floor((W - mw) / 2) - pad, y: floor((H - mh) / 2) - 16 * ml.s, w: mw + pad * 2, h: mh + 24 * ml.s)
+    }
+}
+
+// Axis-aligned rectangle in HUD pixel space (origin top-left), shared for non-overlapping HUD placement.
+struct HudRect {
+    var x: Float
+    var y: Float
+    var w: Float
+    var h: Float
+
+    var maxX: Float { x + w }
+    var maxY: Float { y + h }
+    var midX: Float { x + w * 0.5 }
+    var midY: Float { y + h * 0.5 }
+    var isEmpty: Bool { w <= 0 || h <= 0 }
+
+    func expanded(by pad: Float) -> HudRect {
+        HudRect(x: x - pad, y: y - pad, w: w + pad * 2, h: h + pad * 2)
+    }
+
+    func intersects(_ other: HudRect) -> Bool {
+        !isEmpty && !other.isEmpty && x < other.maxX && maxX > other.x && y < other.maxY && maxY > other.y
+    }
+
+    func contains(_ other: HudRect, tolerance: Float = 0) -> Bool {
+        other.x >= x - tolerance && other.y >= y - tolerance && other.maxX <= maxX + tolerance && other.maxY <= maxY + tolerance
+    }
+
+    func union(_ other: HudRect) -> HudRect {
+        if isEmpty { return other }
+        if other.isEmpty { return self }
+        let x0 = min(x, other.x), y0 = min(y, other.y)
+        let x1 = max(maxX, other.maxX), y1 = max(maxY, other.maxY)
+        return HudRect(x: x0, y: y0, w: x1 - x0, h: y1 - y0)
+    }
 }
