@@ -139,6 +139,12 @@ void main() {
         float murk = 1.0 - smoothstep(0.8, 1.0, oTint.b / max(oTint.g, 0.01));
         vec3 absorb = exp(-path * mix(vec3(0.42, 0.15, 0.09), vec3(1.1, 0.9, 1.2), murk));
         float T = dot(absorb, vec3(0.3, 0.5, 0.2));
+        // Ledger 424 (Nov 20 evening run, his own notes: placed water "partly invisible"; the harness: a bucket on a
+        // gentle plains slope fills 31 cells and shows as a wet dirt patch with blue slivers at its edges): all water
+        // under three quarters of a block deep comes in the shallowest depth band (0.25 m), which let about nine tenths of
+        // the bed through, and the shoreline fade took half of what was left, so a flow or a puddle was nearly clear.
+        // The shallows now keep at least a third of the water's body over the bed, and the fade ends at 0.3 m.
+        T = min(T, 0.65);
         // F5 (open ocean the cheapest view): deep water (the mesher's 5+ band) past the near ring shows none of its bed,
         // so the far sections under 16+ blocks of water are not drawn at all (SceneRenderer.cull); from high up the
         // bed's last tenth or so of transmittance would otherwise show the sky through.
@@ -160,7 +166,7 @@ void main() {
         // quite settle with the ground perfectly... Or anywhere for that matter"): the last few centimetres of water at
         // the shoreline thin out to nothing (the sky's sheen and the tint fade with the depth), so the water's edge
         // isn't a line drawn across the sand where the sheet meets it.
-        float shore = smoothstep(0.02, 0.4, oWDepth);
+        float shore = smoothstep(0.02, 0.3, oWDepth);
         A *= shore; pm *= shore;
     } else {
         // Side faces (water spilling down a step, falls): tumbling water with white streaks, a weak reflection.
