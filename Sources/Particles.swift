@@ -33,43 +33,67 @@ final class ParticleManager {
 
     func add(_ p: Particle) { if list.count < ParticleManager.cap { list.append(p) } }
 
+    @inline(__always) private static func blockTint(_ b: BlockID, face: Int = 2) -> V3 {
+        let t = Blocks.tint[Int(b)]
+        if t == 2 { return V3(0.47, 0.67, 0.18) }
+        if t == 1 || (t == 3 && face == 2) { return V3(0.57, 0.74, 0.35) }
+        return V3(1, 1, 1)
+    }
+
+    @inline(__always) private static func smoothstep(_ edge0: Float, _ edge1: Float, _ x: Float) -> Float {
+        let t = max(0, min(1, (x - edge0) / (edge1 - edge0)))
+        return t * t * (3 - 2 * t)
+    }
+
+    @inline(__always) private static func maxV3(_ a: V3, _ b: V3) -> V3 {
+        V3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z))
+    }
+
     func blockBreak(_ b: BlockID, at p: IVec3) {
+        guard b != AIR else { return }
         let layer = Int(Blocks.tex[Int(b) * 6 + 2])
-        let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
+        let tint = ParticleManager.blockTint(b, face: 2)
+        let glow = Blocks.emit[Int(b)] >= 10
         for i in 0..<3 { for j in 0..<3 { for k in 0..<3 {
             let o = V3(Float(i) + 0.5, Float(j) + 0.5, Float(k) + 0.5) / 3
             let pos = V3(Float(p.x), Float(p.y), Float(p.z)) + o
             let v = (o - V3(0.5, 0.5, 0.5)) * 4 + V3(0, 1.5, 0)
             add(Particle(pos: pos, vel: v, life: Rand.float(in: 0.4...1.0), maxLife: 1, layer: layer,
                          uv0: V2(Rand.float(in: 0..<0.75), Rand.float(in: 0..<0.75)), uvSize: 0.25, size: 0.08,
-                         gravity: 16, color: tint, collide: true))
+                         gravity: 16, color: tint, collide: true, glow: glow))
         } } }
     }
 
     // Small block-textured bits around the feet (landing, sprinting).
     func dust(_ b: BlockID, at c: V3, count: Int, spread: Float) {
+        guard b != AIR else { return }
         let layer = Int(Blocks.tex[Int(b) * 6 + 2])
-        let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
+        let tint = ParticleManager.blockTint(b, face: 2)
+        let glow = Blocks.emit[Int(b)] >= 10
         for _ in 0..<count {
             let d = V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1)) * spread
             add(Particle(pos: c + d + V3(0, 0.05, 0), vel: V3(d.x * 3, Rand.float(in: 1...2.5), d.z * 3), life: Rand.float(in: 0.3...0.7), maxLife: 0.7,
                          layer: layer, uv0: V2(Rand.float(in: 0..<0.75), Rand.float(in: 0..<0.75)), uvSize: 0.25, size: 0.06,
-                         gravity: 14, color: tint, collide: true))
+                         gravity: 14, color: tint, collide: true, glow: glow))
         }
     }
 
     // Pieces breaking off a struck face (progressive block damage): chunky fragments of that face's texture thrown
     // out along its normal, tumbling down; face 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z.
     func chipBits(_ b: BlockID, at c: V3, normal n: V3, face: Int, count: Int) {
-        let layer = Int(Blocks.tex[Int(b) * 6 + max(0, min(5, face))])
-        let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
+        guard b != AIR else { return }
+        let f = max(0, min(5, face))
+        let layer = Int(Blocks.tex[Int(b) * 6 + f])
+        let tint = ParticleManager.blockTint(b, face: f)
+        let glow = Blocks.emit[Int(b)] >= 10
         for _ in 0..<count {
             let side = V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)) * 0.35
             let jitter: V3 = side - n * simd_dot(side, n)
             let v: V3 = n * Rand.float(in: 1.5...3.5) + jitter * 4 + V3(0, Rand.float(in: 1...2.5), 0)
-            add(Particle(pos: c + jitter, vel: v, life: Rand.float(in: 0.6...1.4), maxLife: 1.4, layer: layer,
+            // Step slightly clear of the struck face so chips sample the open cell's light and do not self-collide on frame 1.
+            add(Particle(pos: c + jitter + n * 0.08, vel: v, life: Rand.float(in: 0.6...1.4), maxLife: 1.4, layer: layer,
                          uv0: V2(Rand.float(in: 0..<0.7), Rand.float(in: 0..<0.7)), uvSize: 0.3, size: Rand.float(in: 0.08...0.14),
-                         gravity: 18, color: tint, collide: true))
+                         gravity: 18, color: tint, collide: true, glow: glow))
         }
     }
 
@@ -236,18 +260,66 @@ final class ParticleManager {
             // "smoke" picture showed its holes as eyes, as the glowing ones did (t22.5); it takes the solid round puff.
             if p.size >= 0.5 && p.uvSize >= 1 && layer == ParticleManager.smokeLayer && !ParticleManager.oldSmoke { layer = ParticleManager.puffLayer }
             let c = p.pos - eye
-            let l = world.lightOpen(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
+            let ix = Int(floor(p.pos.x)), iy = Int(floor(p.pos.y)), iz = Int(floor(p.pos.z))
+            let l0 = world.lightOpen(ix, iy, iz)
+            var sky = Int(l0.sky), blk = Int(l0.block)
+            if sky == 0 && blk == 0 && !p.glow {
+                // Freshly broken block cells and chips hugging a mined face can read (0, 0) before lighting
+                // fills in (or on smooth-terrain surfaces); pull from the brightest adjacent open cell or
+                // the open cell just in front toward the viewer.
+                for d in World.allDirs {
+                    let nx = ix + d.x, ny = iy + d.y, nz = iz + d.z
+                    if !Blocks.opaque[Int(world.block(nx, ny, nz))] {
+                        let nl = world.lightAt(nx, ny, nz)
+                        if Int(nl.sky) > sky { sky = Int(nl.sky) }
+                        if Int(nl.block) > blk { blk = Int(nl.block) }
+                    }
+                }
+                if sky == 0 && blk == 0 {
+                    let dist = simd_length(c)
+                    if dist > 0.05 {
+                        let toward = p.pos - c * (min(0.65, dist * 0.5) / dist)
+                        let tx = Int(floor(toward.x)), ty = Int(floor(toward.y)), tz = Int(floor(toward.z))
+                        if !Blocks.opaque[Int(world.block(tx, ty, tz))] {
+                            let nl = world.lightAt(tx, ty, tz)
+                            sky = Int(nl.sky); blk = Int(nl.block)
+                        }
+                    }
+                }
+            }
             ParticleManager.drawnCount += 1
-            if l.sky == 0 && l.block == 0 && !p.glow { ParticleManager.darkCount += 1 }
-            // Same dimension ambient lift as terrain (Emberdeep ash would otherwise be black).
-            let base = max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
-            var light = p.glow ? ParticleManager.glowBoost : base + (1 - base) * amb
-            if !p.glow {
+            if sky == 0 && blk == 0 && !p.glow { ParticleManager.darkCount += 1 }
+            var lit: V3
+            if p.glow {
+                let g = ParticleManager.glowBoost
+                lit = V3(g, g, g)
+            } else {
+                // Match chunkVS (Shaders.swift / Quest chunk.vert): sky/torch light curves, warm torch and
+                // cool night tints, cool cave fill in unlit underground spaces, and dimension ambient lift.
+                let skyL = Float(sky) / 15
+                let blkL = Float(blk) / 15
+                let skyVal = skyL * (0.35 + 0.65 * skyL) * daylight
+                let skyMix = ParticleManager.smoothstep(0.30, 0.62, daylight)
+                let skyTint = V3(0.6, 0.7, 1.0) * (1 - skyMix) + V3(1, 1, 1) * skyMix
+                let blk0 = blkL / (4 - 3 * blkL)
+                let inv = 1 - blk0
+                let inv4 = inv * inv * inv * inv
+                let blkVal = min(1, (blk0 * 0.4 + (1 - inv4) * 0.6) * 1.05)
+                let blkSq = blkVal * blkVal
+                let blkTint = V3(1.06, 0.82, 0.56) * (1 - blkSq) + V3(1.0, 0.95, 0.86) * blkSq
+                lit = ParticleManager.maxV3(skyTint * skyVal, blkTint * blkVal)
+                let dist = simd_length(c)
+                let near = 1 - 0.55 * ParticleManager.smoothstep(5, 30, dist)
+                let caveScale: Float = ParticleManager.glowBoost > 1.01 ? 1.0 : 2.0
+                let fl = max(0.04, 0.21 * near) * caveScale * (1 - ParticleManager.smoothstep(0, 0.34, skyL))
+                let fill = V3(0.84, 0.92, 1.08) * (fl * 0.88)
+                lit = ParticleManager.maxV3(lit, ParticleManager.maxV3(fill, skyTint * 0.18))
+                lit = lit + (V3(1, 1, 1) - lit) * amb
                 for f in ParticleManager.flashes {
                     let d = simd_length(f.pos - p.pos)
                     if d < f.radius {
                         let k = max(0, f.life / f.maxLife), a = 1 - d / f.radius
-                        light += (f.color.x + f.color.y + f.color.z) / 3 * a * a * k * k * 0.6
+                        lit += f.color * (a * a * k * k * 0.6)
                     }
                 }
             }
@@ -255,7 +327,7 @@ final class ParticleManager {
             let r = right * s, u = up * s
             let a = p.uv0, b = p.uv0 + V2(p.uvSize, p.uvSize)
             wr.quad4(c - r - u, c + r - u, c + r + u, c - r + u, V2(a.x, b.y), V2(b.x, b.y), V2(b.x, a.y), V2(a.x, a.y),
-                     layer, V4(p.color * light, alpha))
+                     layer, V4(V3(p.color.x * lit.x, p.color.y * lit.y, p.color.z * lit.z), alpha))
         }
     }
 }

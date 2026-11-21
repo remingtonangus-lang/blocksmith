@@ -591,7 +591,7 @@ fragment float4 entityFS(EntOut in [[stage_in]],
     if (c.a < 0.5) { discard_fragment(); }
     float3 rgb = c.rgb;
     if (in.overlay > 0.5 && c.a < 0.95) { rgb *= float3(0.57, 0.74, 0.35); }   // grass-side overlay (default grass colour)
-    float3 o = applyFog(rgb * in.color.rgb, in.dist, u);
+    float3 o = applyFog(waterAmbient(rgb * in.color.rgb, rgb, u), in.dist, u);
     return float4(u.eye.w < 0.5 ? filmic(o) : o, 1.0);   // Fancy shares this shader and tone-maps later
 }
 
