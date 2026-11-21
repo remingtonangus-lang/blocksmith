@@ -27,6 +27,7 @@ struct TownState {
     var anger: Float = 0            // > 0: fighting the player (seconds left)
     var brawl: Float = 0, punch: Float = 0, out: Float = 0   // D13: a saloon fist fight; knocked out (Brawls.swift)
     var handsUp: Float = 0          // > 0: hands raised (a gun pointed at them)
+    var talking: Float = 0          // > 0: speaking to the player (hold position and face them)
     var greetCooldown: Float = 0
     var swing: Float = 0            // > 0: a weapon swing in progress (seconds left)
     var think: Float = 0
@@ -66,7 +67,7 @@ enum Townsfolk {
                              "Rufus", "Ruth", "Silas", "Sophronia", "Thaddeus", "Tobias", "Viola", "Walter", "Willa", "Zeke",
                              "Cora", "Harlan", "Iris", "Jasper", "Marian", "Nathaniel", "Rosalie", "Virgil", "Wendell"]
     // Which first names are women's (for the look: long hair, skirts).
-    static let women: Set<String> = ["Ada", "Beulah", "Clara", "Delia", "Edna", "Etta", "Flora", "Hattie", "Ida", "Josephine",
+    static let women: Set<String> = ["Abigail", "Ada", "Beulah", "Clara", "Delia", "Edna", "Etta", "Flora", "Hattie", "Ida", "Josephine",
                                      "Lena", "Lottie", "Mabel", "Minnie", "Nell", "Opal", "Pearl", "Ruth", "Sophronia", "Viola",
                                      "Willa", "Cora", "Iris", "Marian", "Rosalie"]
     static let surnames = ["Ashby", "Bramwell", "Calloway", "Dunmore", "Ellery", "Fairweather", "Gartside", "Hale", "Ingram",
@@ -208,6 +209,11 @@ enum Townsfolk {
         if !(TownVoice.play(g, m, line) && AudioSettings.subtitles) { g.onToast?(said) } else { g.logMessage(said) }   // P421: the caption too
         townLastLine = g.clock
         if v.metDay == nil { m.villager?.metDay = Int(g.time / DAY_LENGTH) }          // P478: now they've met
+        if !m.lying && m.town.anger <= 0 && m.town.foe == nil && m.panic <= 0 && simd_length(g.player.pos - m.pos) < 10 {
+            m.face(g.player.pos)
+            m.moving = false
+            m.town.talking = max(m.town.talking, max(3.5, min(10, Float(line.count) * 0.065 + 1.5)))
+        }
     }
     static var townLastLine: Double = -100
 
@@ -339,6 +345,7 @@ extension Mob {
     // Reactions to the player: hands up at a pointed gun, a greeting by name, turning to look.
     func townReact(_ dt: Float, _ g: Game) -> Bool {
         town.handsUp = max(0, town.handsUp - dt)
+        town.talking = max(0, town.talking - dt)
         town.greetCooldown = max(0, town.greetCooldown - dt)
         town.aimMemory = max(0, town.aimMemory - dt)
         guard g.alive, g.menu == nil, var v = villager else { return false }
@@ -347,7 +354,7 @@ extension Mob {
         guard d < 14 else { return town.handsUp > 0 }
         // P454 (Oct 25 14:17, "the villager's attacking him. He probably shouldn't have his arms up"): someone in a fight
         // (a raider, a monster, or him) fights on with his weapon; a gun on him doesn't raise his hands.
-        if town.foe != nil || town.anger > 0 || town.swing > 0 { town.handsUp = 0; town.holdUp = 0; return false }
+        if town.foe != nil || town.anger > 0 || town.swing > 0 { town.handsUp = 0; town.holdUp = 0; town.talking = 0; return false }
         // A gun pointed at them (within ~4 degrees): hands up, a word, and the town remembers.
         if Guns.index(g.held.item) != nil && d > 0.5 {
             let aim = simd_dot(simd_normalize(-to), g.player.look)
@@ -371,8 +378,12 @@ extension Mob {
         if Takedowns.blade(g.held) && d < 2.4 && simd_dot(simd_normalize(-to), g.player.look) > 0.9 {
             town.handsUp = max(town.handsUp, 2.5)
         }
-        if town.handsUp > 0 { townHoldUp(dt, g, v); face(g.player.pos); return true }
+        if town.handsUp > 0 { town.talking = 0; townHoldUp(dt, g, v); face(g.player.pos); return true }
         town.holdUp = 0
+        if town.talking > 0 {
+            if lying || panic > 0 || d > 10 { town.talking = 0 }
+            else { face(g.player.pos); moving = false; return true }
+        }
         // A greeting when you come close (each person every few minutes, within the town's unprompted-line budget).
         if d < 4 && town.greetCooldown <= 0 && !lying && TownLaw.ambientOK(g) {
             town.greetCooldown = TownLaw.greetGap
@@ -533,7 +544,10 @@ extension Game {
             return true
         }
         if !m.baby && v.role == "banker" {
-            if !BankMenu.open(dayFraction) { TownVoice.speak(self, m, .closed); return true }
+            if !BankMenu.open(dayFraction) {
+                m.face(player.pos); m.moving = false; m.town.talking = max(m.town.talking, 3.5)
+                TownVoice.speak(self, m, .closed); return true
+            }
             openMenu(BankMenu(game: self, banker: m))
             return true
         }
@@ -541,6 +555,7 @@ extension Game {
             let f = Float(dayFraction)
             let (a, b) = k.hours
             if f < a || f > b {
+                m.face(player.pos); m.moving = false; m.town.talking = max(m.town.talking, 3.5)
                 TownVoice.speak(self, m, .closed)
                 return true
             }
@@ -553,6 +568,8 @@ extension Game {
             return openTrading(m)
         }
         m.face(player.pos)
+        m.moving = false
+        m.town.talking = max(m.town.talking, 4)
         townGreet(m, v)
         return true
     }

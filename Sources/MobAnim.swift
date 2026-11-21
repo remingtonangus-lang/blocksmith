@@ -162,6 +162,8 @@ extension Mob {
             let d = simd_length(pe - eye)
             if kind.hostile {
                 lookAt = d < 16 && g.alive ? pe : nil
+            } else if kind == .villager && town.talking > 0 && d < 10 && g.alive {
+                lookAt = pe
             } else if d < 6 && g.alive {
                 // Animals and townsfolk glance at you now and then when you're close, and watch you
                 // when you stand right beside them (within 3 blocks, always).
