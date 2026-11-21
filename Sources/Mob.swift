@@ -71,7 +71,7 @@ enum MobKind: Int, CaseIterable {
                                    drops: [("chicken", 1, 1), ("feather", 0, 2)], xp: 2, call: .mobChicken)
         case .pig: return Spec(name: "Pig", halfW: 0.45, height: 0.9, health: 10, speed: 1.0, behavior: .passive,
                                drops: [("porkchop", 1, 3)], xp: 2, call: .mobPig)
-        case .zombie: return Spec(name: "Zombie", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+        case .zombie: return Spec(name: "Zombie", halfW: 0.3, height: 1.95, health: Mob.oldUndead ? 20 : 24, speed: Mob.oldUndead ? 2.3 : 2.65, behavior: .melee, attack: Mob.oldUndead ? 3 : 4,
                                   burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .skeleton: return Spec(name: "Skeleton", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
                                     burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
@@ -119,11 +119,11 @@ enum MobKind: Int, CaseIterable {
                                 drops: [], xp: 0, call: .click)
         case .armorStand: return Spec(name: "Armor Stand", halfW: 0.25, height: 1.975, health: 1, speed: 0, behavior: .vehicle,
                                       drops: [("armor_stand", 1, 1)], xp: 0, call: .click)
-        case .husk: return Spec(name: "Dust Zombie", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+        case .husk: return Spec(name: "Dust Zombie", halfW: 0.3, height: 1.95, health: Mob.oldUndead ? 20 : 24, speed: Mob.oldUndead ? 2.3 : 2.65, behavior: .melee, attack: Mob.oldUndead ? 3 : 4,
                                 drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .stray: return Spec(name: "Frost Skeleton", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
                                  burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
-        case .drowned: return Spec(name: "Sunken", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+        case .drowned: return Spec(name: "Sunken", halfW: 0.3, height: 1.95, health: Mob.oldUndead ? 20 : 24, speed: Mob.oldUndead ? 2.3 : 2.65, behavior: .melee, attack: Mob.oldUndead ? 3 : 4,
                                    burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
         case .caveSpider: return Spec(name: "Gravesworn Squire", halfW: 0.3, height: 1.85, health: 20, speed: 2.9, behavior: .monster, attack: 3,
                                       drops: [("string", 0, 2), ("iron_nugget", 0, 1), ("spider_eye", 0, 1)], xp: 5, call: .mob(self, .ambient))
@@ -652,6 +652,12 @@ final class Mob {
     // 0.8 s setback per hit, so an iron sword's three blows always land before it goes off)
     static let hisserFuse: Float = 2.0
     static let powderSprint: Float = 5.0          // ledger 411: a lit one's run (the player sprints 5.6)
+    // Ledger 425 (Nov 20 evening run, his own notes: "mobs too easy", spec R "scary and strong"; Remington Nov 21 02:30:
+    // "no proposals, just do them"): the walking dead (Zombie, Dust Zombie, Sunken) were the reference's 20 health, 2.3
+    // m/s and 3 a blow, which in a headset a player outwalks backing off and drops in four swings. They now take 24,
+    // close at 2.65 m/s (still under his walk) and hit for 4 (two hearts on Normal; the levels still scale it).
+    // BS_OLDUNDEAD=1: as before.
+    static let oldUndead = Env.all["BS_OLDUNDEAD"] == "1"
     static let oldPowderStand = ProcessInfo.processInfo.environment["BS_OLDPOWDERSTAND"] == "1"
     static let powderRush: Float = 1.7           // P134: a Powderwight's run (4.25 blocks a second, about a player's walk)
     var eye: V3 { pos + V3(0, height * 0.85, 0) }
