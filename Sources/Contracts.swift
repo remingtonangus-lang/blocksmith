@@ -173,6 +173,7 @@ enum Contracts {
             g.mobs.mobs.append(m)
             if let t = c.destAt { c.count = Int(simd_length(V2(Float(t[0]) - g.player.pos.x, Float(t[1]) - g.player.pos.z))) }
             save(board, slot, c)
+            EscortHUD.seed(key: "\(board)#\(slot)", hp: Float(m.health), clock: g.clock)
             fileOrders(g, board, slot, c)
             return ("\(c.who ?? "The traveller") will follow you to \(c.dest ?? "town").", true)
         case "stage":
@@ -281,7 +282,7 @@ enum Contracts {
             case "escort":
                 guard let t = c.destAt else { continue }
                 guard let m = g.mobs.mobs.first(where: { $0.kind == .villager && $0.customName == c.who && $0.persistent }) else { continue }
-                if m.health <= 0 { c.failed = true; save(board, slot, c); g.onToast?("\(c.who ?? "The traveller") is dead. The contract's off"); continue }
+                if m.health <= 0 { c.failed = true; save(board, slot, c); EscortHUD.clear(key: key); g.onToast?("\(c.who ?? "The traveller") is dead. The contract's off"); continue }
                 // Follow the player; half way, bandits. Nov 15: they keep to him every frame (Mob.escortStep), riding
                 // behind him on his horse; the escort mark is put back on after a load.
                 let d = simd_length(m.pos - pos)
@@ -304,6 +305,7 @@ enum Contracts {
                     v.person = c.who; m.villager = v
                     Townsfolk.setup(m, tag: "", game: g)
                     if var v2 = m.villager { v2.town = c.dest; m.villager = v2 }
+                    EscortHUD.clear(key: key)
                     pay(g, board, slot, &c)
                 }
             case "stage":
@@ -322,6 +324,7 @@ enum Contracts {
                 if TownRaids.start(g, town: board) { c.spawned = true; save(board, slot, c) }
             }
         }
+        EscortHUD.observe(g, activeEscorts(g))
     }
 
     static func bandits(_ g: Game, near c: V3, _ n: Int, _ name: String) {
@@ -345,6 +348,7 @@ enum Contracts {
             var c = c0
             c.failed = true
             save(board, slot, c)
+            EscortHUD.clear(key: key)
             g.onToast?("\(name) is dead. The contract's off")
             return
         }
@@ -428,4 +432,231 @@ extension Mob {
         return dp > 8 ? 5.6 : (dp > 5 ? 4.3 : 3.2)
     }
     static let oldEscortPace = Env.all["BS_OLDESCORTPACE"] == "1"
+}
+
+extension Contracts {
+    struct EscortStatus {
+        let key: String
+        let name: String
+        let dest: String
+        let pos: V3
+        let dist: Float
+        let rel: Float
+        let health: Float
+        let maxHealth: Float
+        let riding: Bool
+        let unloaded: Bool
+    }
+
+    static func activeEscorts(_ g: Game) -> [EscortStatus] {
+        guard g.dim.dim == .overworld, let st0 = TownLaw.state.contracts, !st0.isEmpty else { return [] }
+        var hasAny = false
+        for c in st0.values where c.kind == "escort" && c.taken && !c.paid && !c.failed { hasAny = true; break }
+        guard hasAny else { return [] }
+        let p = g.player.pos
+        var out: [EscortStatus] = []
+        for key in st0.keys.sorted() {
+            guard let c = st0[key], c.kind == "escort", c.taken, !c.paid, !c.failed, let who = c.who, !who.isEmpty else { continue }
+            if let m = g.mobs.mobs.first(where: { $0.kind == .villager && $0.customName == who && $0.persistent && $0.health > 0 }) {
+                let hp = Float(m.health)
+                let maxHp = max(EscortHUD.villagerMaxHp, EscortHUD.peakHealth(for: key), hp)
+                let dx = m.pos.x - p.x, dz = m.pos.z - p.z
+                let horiz = (dx * dx + dz * dz).squareRoot()
+                let dist = simd_length(m.pos - p)
+                var rel: Float = 0
+                if horiz >= 1.5 {
+                    rel = atan2f(dx, -dz) + g.player.yaw
+                    rel = rel.truncatingRemainder(dividingBy: 2 * .pi)
+                    if rel > .pi { rel -= 2 * .pi } else if rel < -.pi { rel += 2 * .pi }
+                }
+                let riding = g.riding.map { m.mount === $0 } ?? false
+                out.append(EscortStatus(key: key, name: who, dest: c.dest ?? "town", pos: m.pos, dist: dist, rel: rel,
+                                        health: hp, maxHealth: maxHp, riding: riding, unloaded: false))
+            } else {
+                var storedPos: V3? = nil
+                for (_, list) in g.mobs.stored {
+                    if let r = list.first(where: { $0.name == who }), r.p.count >= 3 {
+                        storedPos = V3(r.p[0], r.p[1], r.p[2])
+                        break
+                    }
+                }
+                if let sp = storedPos {
+                    let dx = sp.x - p.x, dz = sp.z - p.z
+                    let horiz = (dx * dx + dz * dz).squareRoot()
+                    let dist = simd_length(sp - p)
+                    var rel: Float = 0
+                    if horiz >= 1.5 {
+                        rel = atan2f(dx, -dz) + g.player.yaw
+                        rel = rel.truncatingRemainder(dividingBy: 2 * .pi)
+                        if rel > .pi { rel -= 2 * .pi } else if rel < -.pi { rel += 2 * .pi }
+                    }
+                    let maxHp = max(EscortHUD.villagerMaxHp, EscortHUD.peakHealth(for: key))
+                    let lastHp = EscortHUD.lastHealth(for: key) ?? maxHp
+                    out.append(EscortStatus(key: key, name: who, dest: c.dest ?? "town", pos: sp, dist: dist, rel: rel,
+                                            health: lastHp, maxHealth: maxHp, riding: false, unloaded: true))
+                }
+            }
+        }
+        return out
+    }
+}
+
+// T07 (Nov 20, part 9: escort jobs had no HUD distance marker or health bar for the escorted NPC, so you could
+// outpace her and only learn she died from "the contract's off"). Shows a bearing-eased HUD card for each active
+// escorted NPC with her name, directional distance marker, and color-coded health bar, plus damage alerts.
+// BS_OLDESCORTHUD=1: nothing.
+enum EscortHUD {
+    static let old = Env.all["BS_OLDESCORTHUD"] == "1"
+    static let villagerMaxHp: Float = max(1, Float(Mob(.villager, at: V3(0, 0, 0)).health))
+
+    struct State {
+        var lastHp: Float
+        var peakHp: Float
+        var hurtAt: Double = -100
+        var warnAt: Double = -100
+    }
+    struct Ease {
+        var offset: Float = 0
+        var behindSign: Float = 1
+        var clock: Double = -1
+    }
+
+    static var states: [String: State] = [:]
+    static var ease: [String: Ease] = [:]
+    private static var lastClock: Double = -1
+
+    static func peakHealth(for key: String) -> Float { states[key]?.peakHp ?? 0 }
+    static func lastHealth(for key: String) -> Float? { states[key]?.lastHp }
+
+    static func seed(key: String, hp: Float, clock: Double) {
+        if clock < lastClock { states.removeAll(); ease.removeAll() }
+        lastClock = clock
+        states[key] = State(lastHp: hp, peakHp: max(villagerMaxHp, hp))
+    }
+
+    static func clear(key: String) {
+        states.removeValue(forKey: key)
+        ease = ease.filter { !$0.key.hasPrefix(key + "#") }
+    }
+
+    static func observe(_ g: Game, _ escorts: [Contracts.EscortStatus]) {
+        if g.clock < lastClock { states.removeAll(); ease.removeAll() }
+        lastClock = g.clock
+        let live = Set(escorts.map { $0.key })
+        if !states.isEmpty { states = states.filter { live.contains($0.key) } }
+        if !ease.isEmpty { ease = ease.filter { entry in live.contains(where: { entry.key.hasPrefix($0 + "#") }) } }
+        guard !old else { return }
+        for e in escorts where !e.unloaded {
+            if var st = states[e.key] {
+                st.peakHp = max(st.peakHp, e.health)
+                if e.health + 0.01 < st.lastHp {
+                    st.hurtAt = g.clock
+                    let frac = e.health / max(1, st.peakHp)
+                    if g.clock - st.warnAt >= 8 || g.clock < st.warnAt {
+                        if frac <= 0.35 {
+                            st.warnAt = g.clock
+                            g.onToast?("\(e.name) is badly hurt!")
+                        } else if e.dist > 10 {
+                            st.warnAt = g.clock
+                            g.onToast?("\(e.name) is under attack!")
+                        }
+                    }
+                }
+                st.lastHp = e.health
+                states[e.key] = st
+            } else {
+                states[e.key] = State(lastHp: e.health, peakHp: max(villagerMaxHp, e.health))
+            }
+        }
+    }
+
+    static func lines(_ g: Game, _ L: HudLayout, below: [HudLine] = []) -> [HudLine] {
+        guard !old, g.menu == nil, g.alive, g.dim.dim == .overworld else { return [] }
+        let escorts = Contracts.activeEscorts(g)
+        observe(g, escorts)
+        guard !escorts.isEmpty else { return [] }
+
+        let s = L.s
+        let cx = L.W / 2
+        var y = L.insetY + (Waymarks.hud(g) != nil ? 36 * s : 22 * s)
+        if let wy = WaymarkEase.y, g.clock - WaymarkEase.clock < 1, wy >= L.insetY, wy < L.H * 0.3 {
+            y = max(y, wy + 14 * s)
+        }
+        for l in below where l.y < L.H * 0.3 {
+            let lw = l.box?.x ?? (Float(Font.width(l.text)) * l.scale)
+            if l.x + lw > cx - L.W * 0.25 && l.x < cx + L.W * 0.25 {
+                let lh = l.box?.y ?? (10 * l.scale)
+                y = max(y, l.y + lh + 4 * s)
+            }
+        }
+        y = min(y, L.H * 0.36)
+
+        let seat = g.coop.active ? g.coop.current : 0
+        let padX = 4 * s, padY = 3 * s
+        let boxH = 24 * s
+        var out: [HudLine] = []
+
+        for (idx, e) in escorts.enumerated() {
+            let eKey = "\(e.key)#\(seat)"
+            var es = ease[eKey] ?? Ease()
+            if abs(e.rel) < 2.85 && abs(e.rel) > 0.2 {
+                es.behindSign = e.rel >= 0 ? 1 : -1
+            }
+            let effRel: Float = abs(e.rel) >= 2.85 ? es.behindSign * .pi : e.rel
+            let targetOff: Float = (e.riding || e.dist <= 4) ? 0 : max(-1, min(1, effRel / (.pi * 0.45)))
+            let dt = es.clock < 0 || g.clock < es.clock ? 1 : Float(max(0, min(0.25, g.clock - es.clock)))
+            let alpha = es.clock < 0 || g.clock < es.clock ? 1 : min(1, dt * 10)
+            es.offset += (targetOff - es.offset) * alpha
+            es.clock = g.clock
+            ease[eKey] = es
+
+            let st = states[e.key]
+            let hurtAge = st.map { Float(g.clock - $0.hurtAt) } ?? 99
+            let hurt = hurtAge >= 0 && hurtAge < 1.5
+            let hpFrac = max(0, min(1, e.health / max(1, e.maxHealth)))
+
+            let distStr = e.riding ? "Riding" : "\(Int(e.dist.rounded())) m"
+            let leftArrow = (!e.riding && e.dist > 4 && effRel < -.pi * 0.16)
+                ? (abs(e.rel) > .pi * 0.72 ? "<< " : "< ") : ""
+            let rightArrow = (!e.riding && e.dist > 4 && effRel > .pi * 0.16)
+                ? (abs(e.rel) > .pi * 0.72 ? " >>" : " >") : ""
+            let leftText = leftArrow + e.name
+            let rightText = distStr + rightArrow
+            let leftW = Float(Font.width(leftText)) * s
+            let rightW = Float(Font.width(rightText)) * s
+            let maxInt = max(1, Int(ceil(e.maxHealth)))
+            let curInt = min(maxInt, max(1, Int(ceil(e.health))))
+            let hpText = e.unloaded ? "?" : "\(curInt)/\(maxInt)"
+            let hpW = Float(Font.width(hpText)) * s
+
+            let innerW = max(108 * s, leftW + rightW + 10 * s)
+            let boxW = innerW + padX * 2
+            let maxSpan = max(0, (L.W - 2 * L.insetX - boxW) / 2 - 4 * s)
+            let span = min(maxSpan, min(L.W * 0.25, 96 * s))
+            let bx = floor(cx + es.offset * span - boxW / 2)
+            let by = floor(y + Float(idx) * (boxH + 3 * s))
+
+            let hpColor: V4 = (hurt && sinf(hurtAge * 20) > 0)
+                ? V4(1, 0.35, 0.3, 1)
+                : (hpFrac < 0.35 ? Settings.shared.badColor : (hpFrac < 0.65 ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor))
+            let distColor: V4 = e.riding
+                ? V4(0.65, 0.92, 0.72, 1)
+                : (e.dist > 30 ? Settings.shared.badColor : (e.dist > 18 ? V4(0.95, 0.75, 0.2, 1) : V4(0.9, 0.94, 0.98, 1)))
+            let cardBg = hurt ? V4(0.32, 0.04, 0.04, 0.72) : V4(0, 0, 0, 0.55)
+
+            out.append(HudLine(text: "", x: bx, y: by, scale: s, bg: cardBg, box: V2(boxW, boxH)))
+            out.append(HudLine(text: "", x: bx, y: by, scale: s, bg: hpColor, box: V2(2 * s, boxH)))
+            out.append(HudLine(text: leftText, x: bx + padX + s, y: by + padY, scale: s, color: V4(1, 0.92, 0.65, 1)))
+            out.append(HudLine(text: rightText, x: bx + boxW - padX - rightW, y: by + padY, scale: s, color: distColor))
+
+            let barX = bx + padX + s
+            let barY = by + 14 * s
+            let barW = max(24 * s, innerW - s - hpW - 5 * s)
+            out.append(HudLine(text: "", x: barX, y: barY, scale: s, bg: V4(0.2, 0.2, 0.22, 0.9), box: V2(barW, 5 * s)))
+            out.append(HudLine(text: "", x: barX, y: barY, scale: s, bg: hpColor, box: V2(barW * hpFrac, 5 * s)))
+            out.append(HudLine(text: hpText, x: bx + boxW - padX - hpW, y: by + 13 * s, scale: s,
+                               color: (hpFrac < 0.35 || hurt) ? Settings.shared.badColor : V4(0.85, 0.88, 0.92, 0.95)))
+        }
+        return out
+    }
 }

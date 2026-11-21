@@ -536,7 +536,10 @@ enum HudExtras {
         let top = prompts.map { $0.y }.min() ?? (L.H - L.insetY - 6 * L.s)
         out += Subtitles.shared.lines(g, L, bottom: top - 4 * L.s)
         if g.menu is InventoryMenu && g.alive { out = Wallet.lines(g, L) + HonourHUD.lines(g, L) + out }
-        if g.menu == nil && g.alive { out = Minimap.lines(g, L) + Wallet.lines(g, L) + HonourHUD.lines(g, L) + CombatHUD.shared.lines(g, L) + CompassHUD.lines(g, L) + glanceLines(g, L) + out }
+        if g.menu == nil && g.alive {
+            let compass = CompassHUD.lines(g, L)
+            out = Minimap.lines(g, L) + Wallet.lines(g, L) + HonourHUD.lines(g, L) + CombatHUD.shared.lines(g, L) + compass + EscortHUD.lines(g, L, below: compass + out) + glanceLines(g, L) + out
+        }
         return out
     }
 }
