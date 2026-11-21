@@ -23,6 +23,10 @@ final class LightHalos {
         if k.contains("panel") || k.contains("lamp") || k.contains("floodlight") || k.contains("bulb") || k.hasPrefix("light")
             || k.contains("console") || k.contains("terminal") || k.contains("server") || k.contains("map_table") || k.contains("screen")
             || k.contains("beacon") { return .zero }
+        // Ledger 418 (Nov 20 evening, his own notes, Part 2: "the light bloom around the furnace underground looks bad"): a
+        // furnace's fire is behind its door; the warm disc a block across in front of it read as a smear. The door's glow
+        // and the light it casts stay. BS_OLDPUFF=1: the halo.
+        if !Renderer.oldPuff && (k.contains("furnace") || k.contains("smoker")) { return .zero }
         if k.contains("soul") { return V3(0.45, 0.8, 1.0) }
         if k.contains("lava") || k.contains("magma") || k.contains("fire") { return V3(1.0, 0.5, 0.18) }
         if k.contains("redstone") || k.contains("signal") { return V3(1.0, 0.25, 0.15) }
@@ -73,7 +77,9 @@ extension Game {
             let d = simd_length(c)
             guard d > 0.8 else { continue }
             c -= c / d * 0.6
-            let fade: Float = 1 - max(0, min(1, (d - 14) / 6))
+            var fade: Float = 1 - max(0, min(1, (d - 14) / 6))
+            // Ledger 418: up close a halo is a flat disc floating in front of the light; it fades out inside 4 blocks.
+            if !Renderer.oldPuff { fade *= max(0, min(1, (d - 1.5) / 2.5)) }
             let a = e.alpha * fade * day
             guard a > 0.01 else { continue }
             let rx = right * e.size, uy = up * e.size
