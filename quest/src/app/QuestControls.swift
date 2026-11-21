@@ -1216,6 +1216,7 @@ final class QuestControls {
     static let faceShades: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     // Controller model boxes (centre, half size): grip, pointer nose, top plate.
     static let oldHands = Env.all["BS_OLDHANDS"] == "1"
+    static let oldHandPose = Env.all["BS_OLDHANDPOSE"] != nil            // ledger 403
     // The glove in the grip pose (metres; -Z along the pointing direction, +Y up): back of the hand over the grip,
     // knuckles, four curled fingers wrapped under and in front, the thumb (mirrored to the hand's inner side), the cuff.
     static let gloveParts: [(c: V3, half: V3, shade: Float, cuff: Bool, mirror: Bool)] = [
@@ -1785,6 +1786,14 @@ final class QuestControls {
         let chestPiece = game.inventory.armor[1]
         let ck = chestPiece.isEmpty ? "" : Items.key(chestPiece.item)
         let gauntlet: ArmorLook.Style? = ck.isEmpty || ck == "elytra" || ck == "jetpack" ? nil : ArmorLook.style(chestPiece)
+        // Ledger 403 (b): the hands lit by the light where he stands, as the held gun is.
+        let handLight: Float = {
+            if QuestControls.oldHandPose { return 1 }
+            let pe = game.player.eye
+            let gl = game.world.lightAt(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
+            let skyK: Float = 0.12 + 0.88 * game.renderDaylight
+            return max(0.18, max(Float(gl.sky) / 15 * skyK, Float(gl.block) / 15), game.nightVision * 0.9)
+        }()
         // Controllers: a grip block and a pointer nose, in each hand's grip pose.
         handRanges.removeAll(keepingCapacity: true)
         for h in 0..<2 {
@@ -1806,12 +1815,29 @@ final class QuestControls {
             // that reads as a stapler"): a gloved hand closed round the controller's grip in place of the bare grip
             // block, nose and plate: a tan leather glove, knuckles and four
             // curled fingers in front, the thumb over the top, a flared cuff and a shirt sleeve (the worn chest piece as a bracer). BS_OLDHANDS=1: the grip block.
+            let lit = handLight
             if !QuestControls.oldHands {
                 let leather = V3(0.56, 0.39, 0.24), cuff = gauntlet?.color ?? V3(0.3, 0.34, 0.44)
-                let thumbX: Float = h == aimHand ? -1 : 1
-                for gp in QuestControls.gloveParts {
-                    let c = V3(gp.c.x * (gp.mirror ? thumbX : 1), gp.c.y, gp.c.z), half = gp.half
-                    let col = gp.cuff ? cuff : leather * gp.shade
+                // Ledger 403 (Fable's item 8, Neon's playtest review 6). (a) The thumb goes by the physical hand: by the
+                // aiming hand it sat outside the hand in left-handed play. (b) The glove is lit by the light where he
+                // stands, as the held gun is (it was full bright in a cave at night). (c) The index finger lifts off as
+                // the trigger lets go, the other three open as the grip does and the thumb rises off its rest.
+                // BS_OLDHANDPOSE=1: as before.
+                let physical = QuestSettings.leftHanded ? 1 - h : h
+                let thumbX: Float = QuestControls.oldHandPose ? (h == aimHand ? -1 : 1) : (physical == 1 ? -1 : 1)
+                for (pi, gp) in QuestControls.gloveParts.enumerated() {
+                    var c = V3(gp.c.x * (gp.mirror ? thumbX : 1), gp.c.y, gp.c.z), half = gp.half
+                    if !QuestControls.oldHandPose {
+                        if (5...8).contains(pi) {
+                            let index = (gp.c.x > 0) == (thumbX > 0) && abs(gp.c.x) > 0.015
+                            let open = 0.6 * (1 - min(1, max(0, index ? hd.trigger : hd.squeeze)))
+                            c = c + (V3(gp.c.x, 0.03, -0.072) - c) * open
+                            half = half + (V3(gp.half.x, 0.009, 0.026) - half) * open
+                        } else if gp.mirror && !hd.thumbRest {
+                            c.y += 0.012
+                        }
+                    }
+                    let col = (gp.cuff ? cuff : leather * gp.shade) * lit
                     for f in 0..<6 {
                         for k in QuestControls.quadOrder {
                             let ci = (f * 4 + k) * 3
@@ -1859,7 +1885,7 @@ final class QuestControls {
                     for k in QuestControls.quadOrder {
                         let ci = (f * 4 + k) * 3
                         let lp = c + V3(Float(CT[ci] * 2 - 1) * half.x, Float(CT[ci + 1] * 2 - 1) * half.y, Float(CT[ci + 2] * 2 - 1) * half.z)
-                        v.append(SimpleVert(pos: V4(rot.act(lp) + pos, 1), color: V4(col * shades[f], 1)))
+                        v.append(SimpleVert(pos: V4(rot.act(lp) + pos, 1), color: V4(col * lit * shades[f], 1)))
                     }
                 }
             }
