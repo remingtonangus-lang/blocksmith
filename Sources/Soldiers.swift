@@ -25,6 +25,7 @@ final class SoldierBrain {
     var strafeTimer: Float = 0
     var strafeDir: Float = 1
     var lastSeen: V3?
+    var lastSeenVel: V3? = nil        // ledger 405: an enemy vessel's own motion (nil: the target is the player)
     var seenAgo: Float = 99
     var sees = false
     var watchT: Float = 0          // P419 (b): seconds the player has stood in its sight, unnoticed
@@ -1148,6 +1149,7 @@ extension Mob {
         if (b.sees || radar) && canTarget && !greyHolds && !capHolds {
             if !aggro { aggro = true; g.sfx(.gun(10), 1.5, at: pivot); alertGarrison(g, g.player.pos, radius: 40) }
             b.lastSeen = player
+            b.lastSeenVel = nil
             b.seenAgo = 0
         } else {
             b.seenAgo += dt
@@ -1155,6 +1157,7 @@ extension Mob {
             // An enemy faction's vessel in range instead (CapitalShips.swift).
             if let foe = g.world.ships.nearestFoe(of: factionValue, near: pivot, range: HeavyTurret.range * 1.5, game: g), foe.ship != nil || foe.mob != nil {
                 b.lastSeen = foe.point
+                b.lastSeenVel = foe.vel
                 b.seenAgo = 0
             }
         }
@@ -1183,7 +1186,10 @@ extension Mob {
             // Ballistic solution (low arc) for the heavy shells, half-leading the target.
             var aimP = tgt
             let flat0 = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z))
-            aimP += g.player.vel * (flat0 / v) * 0.5
+            // (ledger 405, Neon 05#3: an enemy vessel led by its own motion, not the player's: a player flying past
+            // in a frigate pulled every base gun 50-100 blocks off the warship it was shelling. BS_OLDFOEAIM=1.)
+            let lead = !Soldier.oldFoeAim && !onPlayer ? (b.lastSeenVel ?? .zero) : g.player.vel
+            aimP += lead * (flat0 / v) * 0.5
             dx = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z))
             let dy = aimP.y - pivot.y
             let disc = v * v * v * v - grav * (grav * dx * dx + 2 * dy * v * v)

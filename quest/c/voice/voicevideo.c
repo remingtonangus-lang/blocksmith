@@ -11,6 +11,8 @@
 #include <media/NdkMediaFormat.h>
 #include <media/NdkMediaMuxer.h>
 #include <android/log.h>
+#include <pthread.h>
+#include <stdatomic.h>
 
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "blocksmith", __VA_ARGS__)
 
@@ -36,7 +38,74 @@ typedef struct {
     ssize_t track;
     int64_t base, last;         // the clip's first pts, the last pts written
     int64_t clipBytes;
+    // Ledger 406: the sound (AAC, game mix + microphone), its packets kept like the pictures'.
+    AMediaCodec *acodec;
+    AMediaFormat *aformat;
+    int32_t arate;
+    int64_t aNext;              // pts of the next sample fed to the encoder (-1: not started)
+    Pkt aring[RING * 2];
+    int ahead, acount;
+    ssize_t atrack;
+    int64_t alast;
 } VEnc;
+
+// MARK: sound in (ledger 406)
+
+#define GRING (48000 * 2 * 4)               // game ring: 4 s of interleaved stereo
+#define MRING (48000 * 4)                   // microphone ring: 4 s mono
+static float gRing[GRING];
+static atomic_long gWrite = 0, gRead = 0;   // samples (floats) ever written / read
+static atomic_llong gPts0 = -1;             // pts of the sample at gRing index 0 of the stream (gWrite counts from it)
+static atomic_int gRate = 0;
+static atomic_int audioOn = 0;
+static atomic_flag gBusy = ATOMIC_FLAG_INIT;
+static int16_t mRing[MRING];
+static atomic_llong mTotal = 0;             // microphone samples ever written
+static atomic_llong mPtsEnd = -1;           // pts just past the last microphone sample
+static atomic_int mRate = 0;
+static pthread_mutex_t mLock = PTHREAD_MUTEX_INITIALIZER;
+
+void bs_vaudio_enable(int on) { atomic_store(&audioOn, on); }
+
+void bs_vaudio_game(const float *lr, int32_t frames, int32_t rate, int64_t ptsUs) {
+    if (!atomic_load(&audioOn) || frames <= 0 || rate <= 0) return;
+    if (atomic_flag_test_and_set(&gBusy)) return;
+    long w = atomic_load(&gWrite), r = atomic_load(&gRead);
+    if (atomic_load(&gPts0) < 0 || atomic_load(&gRate) != rate) {
+        atomic_store(&gRate, rate); atomic_store(&gPts0, ptsUs); w = 0; r = 0;
+        atomic_store(&gRead, 0);
+    } else {
+        // a gap (the stream paused or restarted): start the stream's clock again from here
+        int64_t expect = atomic_load(&gPts0) + (int64_t)(w / 2) * 1000000 / rate;
+        if (ptsUs - expect > 250000 || expect - ptsUs > 250000) {
+            atomic_store(&gPts0, ptsUs - (int64_t)(w / 2) * 1000000 / rate);
+        }
+    }
+    long n = (long)frames * 2;
+    if (w + n - r > GRING) { atomic_flag_clear(&gBusy); return; }     // (the queue is behind: dropped)
+    for (long i = 0; i < n; i++) gRing[(w + i) % GRING] = lr[i];
+    atomic_store(&gWrite, w + n);
+    atomic_flag_clear(&gBusy);
+}
+
+void bs_vaudio_mic(const int16_t *pcm, int32_t frames, int32_t rate, int64_t ptsUs) {
+    if (!atomic_load(&audioOn) || frames <= 0 || rate <= 0) return;
+    pthread_mutex_lock(&mLock);
+    long long t = atomic_load(&mTotal);
+    if (atomic_load(&mRate) != rate) { atomic_store(&mRate, rate); t = 0; }
+    for (int32_t i = 0; i < frames; i++) mRing[(t + i) % MRING] = pcm[i];
+    atomic_store(&mTotal, t + frames);
+    atomic_store(&mPtsEnd, ptsUs + (int64_t)frames * 1000000 / rate);
+    pthread_mutex_unlock(&mLock);
+}
+
+// The microphone at wall-clock time t (0 when it has nothing there).
+static float micAt(int64_t t, long long total, int64_t end, int rate) {
+    if (rate <= 0 || end < 0) return 0;
+    long long back = (end - t) * rate / 1000000;
+    if (back < 1 || back > total || back >= MRING - rate / 10) return 0;
+    return (float)mRing[(total - back) % MRING] / 32768.0f;
+}
 
 static void dropOldest(VEnc *e) {
     Pkt *p = &e->ring[e->head];
@@ -109,6 +178,115 @@ static void drain(VEnc *e) {
     }
 }
 
+// MARK: sound out (ledger 406)
+
+static void aDropOldest(VEnc *e) {
+    Pkt *p = &e->aring[e->ahead];
+    e->ringBytes -= p->size;
+    free(p->data); p->data = NULL;
+    e->ahead = (e->ahead + 1) % (RING * 2);
+    e->acount--;
+}
+
+static void writeAudio(VEnc *e, const uint8_t *data, int32_t size, int64_t pts) {
+    if (!e->mux || e->atrack < 0 || e->base < 0) return;           // (the clip starts with its first picture)
+    int64_t t = pts - e->base;
+    if (t < 0) return;
+    if (t <= e->alast) t = e->alast + 1;
+    e->alast = t;
+    AMediaCodecBufferInfo info = { .offset = 0, .size = size, .presentationTimeUs = t, .flags = 0 };
+    if (AMediaMuxer_writeSampleData(e->mux, (size_t)e->atrack, data, &info) == AMEDIA_OK) e->clipBytes += size;
+}
+
+static void aDrain(VEnc *e) {
+    for (;;) {
+        AMediaCodecBufferInfo info;
+        ssize_t i = AMediaCodec_dequeueOutputBuffer(e->acodec, &info, 0);
+        if (i == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) {
+            if (e->aformat) AMediaFormat_delete(e->aformat);
+            e->aformat = AMediaCodec_getOutputFormat(e->acodec);
+            continue;
+        }
+        if (i == AMEDIACODEC_INFO_OUTPUT_BUFFERS_CHANGED) continue;
+        if (i < 0) return;
+        size_t cap = 0;
+        uint8_t *buf = AMediaCodec_getOutputBuffer(e->acodec, (size_t)i, &cap);
+        if (buf && info.size > 0 && !(info.flags & AMEDIACODEC_BUFFER_FLAG_CODEC_CONFIG)) {
+            uint8_t *copy = malloc((size_t)info.size);
+            if (copy) {
+                memcpy(copy, buf + info.offset, (size_t)info.size);
+                if (e->acount == RING * 2) aDropOldest(e);
+                Pkt *p = &e->aring[(e->ahead + e->acount) % (RING * 2)];
+                p->data = copy; p->size = info.size; p->pts = info.presentationTimeUs; p->key = 1;
+                e->acount++;
+                e->ringBytes += info.size;
+                writeAudio(e, copy, info.size, info.presentationTimeUs);
+                // keep the sound from the oldest picture kept on
+                int64_t oldest = e->count > 0 ? e->ring[e->head].pts : info.presentationTimeUs;
+                while (e->acount > 1 && e->aring[e->ahead].pts < oldest - 100000) aDropOldest(e);
+            }
+        }
+        AMediaCodec_releaseOutputBuffer(e->acodec, (size_t)i, false);
+    }
+}
+
+// What the game played (and the microphone heard) up to 150 ms ago goes to the AAC encoder, mixed, as 16-bit stereo.
+static void aPump(VEnc *e, int64_t nowUs) {
+    if (!e->acodec) return;
+    int rate = atomic_load(&gRate);
+    if (rate != e->arate) { atomic_store(&gRead, atomic_load(&gWrite)); e->aNext = -1; return; }   // (another rate: not this encoder's)
+    long r = atomic_load(&gRead), w = atomic_load(&gWrite);
+    int64_t pts0 = atomic_load(&gPts0);
+    if (pts0 < 0 || w <= r) return;
+    long long mt; int64_t mend; int mr;
+    pthread_mutex_lock(&mLock); mt = atomic_load(&mTotal); mend = atomic_load(&mPtsEnd); mr = atomic_load(&mRate); pthread_mutex_unlock(&mLock);
+    for (;;) {
+        long avail = w - r;
+        int64_t rPts = pts0 + (int64_t)(r / 2) * 1000000 / rate;
+        if (avail < 2 || rPts > nowUs - 150000) break;
+        ssize_t i = AMediaCodec_dequeueInputBuffer(e->acodec, 0);
+        if (i < 0) { aDrain(e); break; }
+        size_t cap = 0;
+        uint8_t *buf = AMediaCodec_getInputBuffer(e->acodec, (size_t)i, &cap);
+        long frames = avail / 2;
+        if ((long)(cap / 4) < frames) frames = (long)(cap / 4);
+        if (frames > 1024) frames = 1024;
+        int16_t *out = (int16_t *)buf;
+        for (long f = 0; f < frames; f++) {
+            float m = micAt(rPts + (int64_t)f * 1000000 / rate, mt, mend, mr) * 1.6f;
+            for (int ch = 0; ch < 2; ch++) {
+                float v = gRing[(r + f * 2 + ch) % GRING] + m;
+                v = v > 1 ? 1 : (v < -1 ? -1 : v);
+                out[f * 2 + ch] = (int16_t)(v * 32767.0f);
+            }
+        }
+        AMediaCodec_queueInputBuffer(e->acodec, (size_t)i, 0, (size_t)frames * 4, (uint64_t)rPts, 0);
+        r += frames * 2;
+        atomic_store(&gRead, r);
+    }
+    aDrain(e);
+}
+
+static void aOpen(VEnc *e) {
+    int rate = atomic_load(&gRate);
+    if (rate <= 0) rate = 48000;
+    AMediaCodec *c = AMediaCodec_createEncoderByType("audio/mp4a-latm");
+    if (!c) { LOGI("voicevideo: no AAC encoder: clips without sound"); return; }
+    AMediaFormat *f = AMediaFormat_new();
+    AMediaFormat_setString(f, AMEDIAFORMAT_KEY_MIME, "audio/mp4a-latm");
+    AMediaFormat_setInt32(f, AMEDIAFORMAT_KEY_SAMPLE_RATE, rate);
+    AMediaFormat_setInt32(f, AMEDIAFORMAT_KEY_CHANNEL_COUNT, 2);
+    AMediaFormat_setInt32(f, AMEDIAFORMAT_KEY_BIT_RATE, 128000);
+    AMediaFormat_setInt32(f, AMEDIAFORMAT_KEY_AAC_PROFILE, 2);          // AAC LC
+    AMediaFormat_setInt32(f, AMEDIAFORMAT_KEY_MAX_INPUT_SIZE, 1024 * 4 * 2);
+    media_status_t st = AMediaCodec_configure(c, f, NULL, NULL, AMEDIACODEC_CONFIGURE_FLAG_ENCODE);
+    AMediaFormat_delete(f);
+    if (st != AMEDIA_OK || AMediaCodec_start(c) != AMEDIA_OK) { LOGI("voicevideo: AAC encoder setup failed (%d)", (int)st); AMediaCodec_delete(c); return; }
+    e->acodec = c; e->arate = rate; e->aNext = -1;
+    atomic_store(&gRead, atomic_load(&gWrite));
+    LOGI("voicevideo: sound %d Hz stereo AAC", rate);
+}
+
 void *bs_venc_open(int32_t width, int32_t height, int32_t fps, int32_t bitrate, int32_t keySeconds, int32_t windowSeconds) {
     AMediaCodec *c = AMediaCodec_createEncoderByType("video/avc");
     if (!c) { LOGI("voicevideo: no H.264 encoder"); return NULL; }
@@ -131,7 +309,8 @@ void *bs_venc_open(int32_t width, int32_t height, int32_t fps, int32_t bitrate, 
     VEnc *e = calloc(1, sizeof(VEnc));
     e->codec = c; e->w = width; e->h = height; e->stride = width; e->slice = height;
     e->window = (int64_t)windowSeconds * 1000000;
-    e->track = -1; e->base = -1;
+    e->track = -1; e->base = -1; e->atrack = -1;
+    aOpen(e);
     // The encoder's own row stride and plane height when it asks for padding.
     AMediaFormat *in = AMediaCodec_getInputFormat(c);
     if (in) {
@@ -240,6 +419,7 @@ int bs_venc_frame_rgba(void *enc, const uint8_t *rgba, int32_t rowBytes, int64_t
     rgbaToNV12(rgba, (size_t)rowBytes, e->w, e->h, buf, buf + (size_t)e->stride * e->slice, (size_t)e->stride);
     AMediaCodec_queueInputBuffer(e->codec, (size_t)i, 0, need, (uint64_t)ptsUs, 0);
     drain(e);
+    aPump(e, ptsUs);
     return 0;
 }
 
@@ -252,11 +432,17 @@ int bs_venc_begin(void *enc, const char *path) {
     AMediaMuxer *m = AMediaMuxer_new(fileno(file), AMEDIAMUXER_OUTPUT_FORMAT_MPEG_4);
     if (!m) { fclose(file); return -1; }
     ssize_t t = AMediaMuxer_addTrack(m, e->outFormat);
+    ssize_t at = e->aformat ? AMediaMuxer_addTrack(m, e->aformat) : -1;          // ledger 406: the sound
     if (t < 0 || AMediaMuxer_start(m) != AMEDIA_OK) { AMediaMuxer_delete(m); fclose(file); return -1; }
     e->mux = m; e->file = file; e->track = t; e->base = -1; e->last = -1; e->clipBytes = 0;
+    e->atrack = at; e->alast = -1;
     for (int k = 0; k < e->count; k++) {           // the buffered seconds before the note
         Pkt *p = &e->ring[(e->head + k) % RING];
         writePkt(e, p->data, p->size, p->pts, p->key);
+    }
+    for (int k = 0; k < e->acount; k++) {
+        Pkt *p = &e->aring[(e->ahead + k) % (RING * 2)];
+        writeAudio(e, p->data, p->size, p->pts);
     }
     return 0;
 }
@@ -268,7 +454,7 @@ int64_t bs_venc_end(void *enc) {
     if (e->base >= 0) AMediaMuxer_stop(e->mux);
     AMediaMuxer_delete(e->mux);
     fclose(e->file);
-    e->mux = NULL; e->file = NULL; e->track = -1;
+    e->mux = NULL; e->file = NULL; e->track = -1; e->atrack = -1;
     return e->base >= 0 ? e->clipBytes : 0;
 }
 
@@ -282,5 +468,8 @@ void bs_venc_close(void *enc) {
     AMediaCodec_delete(e->codec);
     if (e->outFormat) AMediaFormat_delete(e->outFormat);
     while (e->count > 0) dropOldest(e);
+    if (e->acodec) { AMediaCodec_stop(e->acodec); AMediaCodec_delete(e->acodec); }
+    if (e->aformat) AMediaFormat_delete(e->aformat);
+    while (e->acount > 0) aDropOldest(e);
     free(e);
 }

@@ -343,6 +343,8 @@ final class BugNotes {
                 continue
             }
             if n == 0 { continue }
+            // Ledger 406: his voice into the playtest clip's sound, mixed with the game's.
+            buf.withUnsafeBufferPointer { _ = bs_vaudio_mic($0.baseAddress, Int32(n), Int32(rate), Int64((CFAbsoluteTimeGetCurrent() - Double(n) / Double(rate)) * 1_000_000)) }
             var sum: Float = 0
             for i in 0..<n { let v = Float(buf[i]) / 32768; sum += v * v }
             let rms = (sum / Float(n)).squareRoot()

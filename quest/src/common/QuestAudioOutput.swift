@@ -11,6 +11,7 @@ import CAndroidGlue
 // the frame loop opens a new one (`watch`). The voice notes say how the stream stands (`describe`: underruns, restarts).
 final class QuestAudioOutput {
     static let shared = QuestAudioOutput()
+    static var rate: Int32 = 48000              // the stream's sample rate (ledger 406: the clip's sound)
     static var lost = false                      // set by the stream's error callback (another thread); watch() reopens
     private(set) var restarts = 0
     private var lostAt = 0.0
@@ -45,6 +46,10 @@ final class QuestAudioOutput {
             for i in 0..<Int(frames) * 2 { sum += p[i] * p[i] }
             let rms = frames > 0 ? (sum / Float(frames * 2)).squareRoot() : 0
             QuestAudioOutput.level = max(rms, QuestAudioOutput.level * 0.9)
+            #if VOICE_NOTES
+            // Ledger 406: what is played goes into the playtest clip's sound (ignored unless a clip can be made).
+            bs_vaudio_game(p, frames, QuestAudioOutput.rate, Int64(CFAbsoluteTimeGetCurrent() * 1_000_000))
+            #endif
             return aaudio_data_callback_result_t(AAUDIO_CALLBACK_RESULT_CONTINUE)
         }, Unmanaged.passUnretained(self).toOpaque())
         var s: OpaquePointer?
@@ -53,6 +58,7 @@ final class QuestAudioOutput {
         guard r == aaudio_result_t(AAUDIO_OK), let st = s else { print("audio: openStream failed \(r)"); return }
         stream = st
         let sr = AAudioStream_getSampleRate(st)
+        QuestAudioOutput.rate = sr
         _ = AAudioStream_requestStart(st)
         print("audio: AAudio stream started, \(sr) Hz, burst \(AAudioStream_getFramesPerBurst(st)) frames")
         #endif
