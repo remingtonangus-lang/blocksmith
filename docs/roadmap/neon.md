@@ -21,13 +21,15 @@ Neon cannot see the project chat. Everything goes through GitHub, carried by the
   (ideas, a review, pick between options, a second opinion on a bug), branch and commit, files and functions, numbers
   you measured, what you already tried, and what you want back.
 - For a review, give the PR number; the watchdog pastes Neon the diff.
-- Push first: Neon reads the code from branch `neon/code`, a text-only mirror of claude/quest-port (100 MB import
-  limit) that the watchdog refreshes right before each relay. Unmerged work: say which branch and the watchdog adds
-  the diff.
+- Push first: the watchdog reads your issue, your branch or PR diff and the files you name straight from GitHub and
+  pastes them to Neon as text (Neon has no repo access of its own and no 17 MB of code in its head). Name the files
+  and functions you want looked at.
 - The answer arrives as a comment on your issue, usually within the hour, and the label becomes `neon-answered`.
   Close the issue when you are done with it.
 
 ## What Neon also gets
 
 - Every playtest: his voice-note audio (Neon is the source of truth for what he said) and docs/playtests/<date>/.
-- docs/neon/RECENT.md in the mirror: the last two days of commits on claude/quest-port, open PRs and open issues.
+- With every plan rewrite: CLAUDE.md, the backlog, the last two days of commits, open PRs and issues, the plan issue's
+  comments, the bug ledger's tail, the newest playtest notes and an index of every code file; then the code files it asks
+  for, which it reviews in a comment on the plan issue.
