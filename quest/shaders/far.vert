@@ -50,7 +50,16 @@ void main() {
         c = refl * fres + deep * (1.0 - fres);
     } else {
         float sw = 0.85 * smoothstep(0.0, 0.45, day) * clamp(day * 4.0 + 0.5, 0.0, 1.0) * (1.0 - u.sunDir.w);
-        c = color.rgb * lit * sunShadeN(n, smoothShade(n), sw, u.sunDir.xyz);
+        vec3 sh = sunShadeN(n, smoothShade(n), sw, u.sunDir.xyz);
+        // Ledger 397 (c): a slope turned to the sun brighter and one turned away darker than flat ground by
+        // m[2].y of the difference, and steep ground darker by m[2].z (as the near blocks' side faces are), so a
+        // hill reads as a hill far off. FarRing.contrast / steepDark; 0 = as before.
+        if (pc.m[2].y > 0.0 || pc.m[2].z > 0.0) {
+            vec3 l = normalize(u.sunDir.xyz);
+            float facing = dot(n, l) - l.y;
+            sh *= clamp(1.0 + pc.m[2].y * sw * facing - pc.m[2].z * (1.0 - n.y), 0.45, 1.5);
+        }
+        c = color.rgb * lit * sh;
     }
     float f = color.a > 1.5 ? fogAmount(dist) : farFog(dist, rel, pc.m[1], pc.m[2].x);
     oColor = vec4(filmic(applyFogDirF(c, rel, dist, f)), 1.0);

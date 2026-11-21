@@ -296,6 +296,9 @@ final class FarRing {
     // shading were gone; past the loaded edge (+96) the fog holds back to 70% until its last fifth (the rim still
     // goes fully into the haze, the seam at the loaded edge is untouched). far.vert / farcard.vert, m[2].x.
     static let clarity: Float = Env.all["BS_OLDFARSHADE"] != nil ? 0 : Float(Env.all["BS_FARCLEAR"].flatMap { Double($0) } ?? 1)
+    // Ledger 397 (c): far.vert's slope light (m[2].y) and steep-ground darkening (m[2].z).
+    static let contrast: Float = Env.all["BS_OLDFARSHADE"] != nil ? 0 : Float(Env.all["BS_FARCONTRAST"].flatMap { Double($0) } ?? 1.2)
+    static let steepDark: Float = Env.all["BS_OLDFARSHADE"] != nil ? 0 : Float(Env.all["BS_FARSTEEP"].flatMap { Double($0) } ?? 0.6)
     static let slopeGain: Float = Env.all["BS_OLDFARSHADE"] != nil ? 1 : Float(Env.all["BS_FARSLOPE"].flatMap { Double($0) } ?? 2.5)
     private static let avgLock = NSLock()
     private static var avgs: [BlockID: V3] = [:]
