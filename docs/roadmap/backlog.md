@@ -2,6 +2,8 @@
 
 The only rule (Remington, Oct 30 08:20). Every earlier rule, in this file, the archive, CLAUDE.md or anywhere else, is retired:
 
+Nov 21 2026 (Remington): Fable is off; Neon (Gemini, via GitHub and the watchdog) is the lead and sets the plan in the pinned "Neon plan" issue. How lanes and Neon talk: docs/roadmap/neon.md.
+
 "If we had a reward system, I want the model to be rewarded for the amount of useful work it completed and predictability, meaning that it cannot half-ass work. It needs to do a lot of work, not necessarily merges; if it's a big task, that's just one merge. A lot of this work is that ownership, bloom, whatever rule, where I give it a bug and it takes initiative in figuring out that bug and anything else that bug could entail about the game. Its goal is to make the game the best and do the most work per hour in getting that done. When it is waiting, it should realize that this is not the most efficient way to get work done. Magical reward points that don't exist mean working while waiting for another thing to compile."
 
 No one watches or nudges the lane anymore; he looks in himself now and then. "Sunderfall lane 2" owns all the work.
