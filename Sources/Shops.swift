@@ -253,7 +253,7 @@ enum Economy {
         .gunsmith: ["gunpowder", "flint", "feather", "string", "iron_ingot", "steel_ingot", "coal", "gun_sidearm", "gun_revolver", "gun_shotgun",
                     "gun_rifle", "gun_sniper", "gun_kessel", "rifle_rounds", "capital_rounds", "greywall_rounds", "shotgun_shells", "heavy_rounds"],
         .butcher: ["beef", "porkchop", "chicken", "mutton", "rabbit", "cod", "salmon", "leather", "rabbit_hide", "feather",
-                   "bone", "rotten_flesh", "egg", "pufferfish", "tropical_fish"] + Hunting.buys,
+                   "bone"] + (Economy.oldJunkSell ? ["rotten_flesh"] : []) + ["egg", "pufferfish", "tropical_fish"] + Hunting.buys,
         .doctor: ["spider_eye", "ghast_tear", "rabbit_foot", "glowstone_dust", "nether_wart", "sugar", "blaze_powder",
                   "blaze_rod", "honey_bottle", "phantom_membrane", "glass_bottle", "slime_ball"],
         .stable: ["wheat", "hay_block", "apple", "carrot", "golden_carrot", "leather", "saddle", "leather_horse_armor",
@@ -302,6 +302,9 @@ enum Economy {
     // blocks at their face value as money; raw gold at the shop's price), diamonds and emeralds (the exchange's dollar).
     // BS_OLDVALUABLES=1: as before.
     static let oldValuables = Env.all["BS_OLDVALUABLES"] == "1"
+    // Ledger 413 (Nov 20 evening, his own notes, Part 9: "worthless items like Rotten Flesh shouldn't appear in the Sell
+    // list at all"): the butcher no longer buys rotten flesh (a cent a piece after ledger 407). BS_OLDJUNKSELL=1: it does.
+    static let oldJunkSell = Env.all["BS_OLDJUNKSELL"] == "1"
     static let valuables: Set<String> = ["gold_nugget", "gold_ingot", "gold_block", "raw_gold", "diamond", "emerald"]
 }
 

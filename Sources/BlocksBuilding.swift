@@ -147,6 +147,16 @@ extension BlockRegistry {
         sided("barrel", "Barrel", side: "barrel_side", top: "barrel_top", bottom: "barrel_bottom", tool: .axe, snd: .wood)
         sided("smoker", "Smoker", side: "smoker_front", top: "smoker_top", bottom: "smoker_top", h: 3.5, tool: .pickaxe, snd: .stone, req: true)
         sided("blast_furnace", "Blast Furnace", side: "blast_furnace_front", top: "blast_furnace_top", bottom: "blast_furnace_top", h: 3.5, tool: .pickaxe, snd: .stone, req: true)
+        // Ledger 408 (Nov 20 evening: "the Blast Furnace doesn't light up like the furnace does"): hidden lit twins that
+        // glow while they burn (FurnaceGlow.follow swaps them, as the furnace swaps to lit_furnace). BS_OLDBLASTGLOW=1: none.
+        if !FurnaceGlow.oldGlow {
+            for (n, disp, side, top) in [("smoker", "Smoker", "smoker_front", "smoker_top"), ("blast_furnace", "Blast Furnace", "blast_furnace_front", "blast_furnace_top")] {
+                var d = BlockDef("lit_" + n, disp)
+                d.tex = [side, side, top, top, side, side]; d.hardness = 3.5; d.tool = .pickaxe; d.sound = .stone; d.requiresTool = true
+                d.emit = 13; d.hidden = true
+                add(d)
+            }
+        }
         sided("cartography_table", "Cartography Table", side: "cartography_table_side", top: "cartography_table_top", bottom: "dark_oak_planks")
         sided("fletching_table", "Fletching Table", side: "fletching_table_side", top: "fletching_table_top", bottom: "birch_planks")
         sided("smithing_table", "Smithing Table", side: "smithing_table_side", top: "smithing_table_top", bottom: "smithing_table_top")

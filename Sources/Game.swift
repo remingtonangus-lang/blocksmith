@@ -2439,7 +2439,7 @@ final class Game: LifeLinked {
 
     // A block that use opens or works (a table, a chest, a door, a seat).
     static func opens(_ b: BlockID) -> Bool {
-        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        let k = FurnaceGlow.unlit(Blocks.key(Blocks.groupBase[Int(b)]))
         let shape = Blocks.shape[Int(b)]
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
         if shape == "gate" { return true }
@@ -2485,7 +2485,7 @@ final class Game: LifeLinked {
 
     func openBlock(_ p: IVec3) {
         TownLaw.opening(self, p)
-        let k = Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))])
+        let k = FurnaceGlow.unlit(Blocks.key(Blocks.groupBase[Int(world.materialAt(p.x, p.y, p.z))]))
         if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) {
             if BaseSecurity.refuse(self, p) { return }                  // D35: a locked bulkhead
             // P508 (Nov 1 15:53:30 at a Boreal Station's double bulkhead: "Doors are still having trouble opening and
@@ -3989,6 +3989,7 @@ final class Game: LifeLinked {
                 if (key == "furnace" || key == "lit_furnace") && b - base < 4 && (key == "lit_furnace") != (be.burn > 0) {
                     world.setBlock(p.x, p.y, p.z, Blocks.id(be.burn > 0 ? "lit_furnace" : "furnace") + (b - base))
                 }
+                FurnaceGlow.follow(world, p, burning: be.burn > 0)
             }
             if be.tickFurnace() && be.mob.isEmpty {
                 // Swap between furnace and lit furnace, keeping the facing.
@@ -3997,6 +3998,7 @@ final class Game: LifeLinked {
                 let facing = b - base
                 // Only a furnace swaps (a stale furnace entity under another block took that block's state as a facing).
                 let key = Blocks.key(base)
+                if FurnaceGlow.follow(world, p, burning: be.burn > 0) { continue }       // ledger 408: smoker, blast furnace
                 guard key == "furnace" || key == "lit_furnace", facing < 4 else { continue }
                 let other = key == "furnace" ? Blocks.id("lit_furnace") : Blocks.id("furnace")
                 world.setBlock(p.x, p.y, p.z, other + facing)

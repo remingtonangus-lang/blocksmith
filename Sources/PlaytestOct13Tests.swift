@@ -122,6 +122,59 @@ enum PlaytestOct13Tests {
                   "ledger 404: a bowl (\(bowl.map { $0.name } ?? "-")) and a stew aren't Combat, the bows are; a long name splits in two lines that fit (\(cut.map { "\($0.0) / \($0.1)" } ?? "none")); BS_OLDBOOK=1: the bowl in Combat")
         }
 
+        // Ledger 408 (Nov 20 evening, his own notes): a furnace broken while burning gives the furnace back; a burning
+        // blast furnace lights up, and stays an armorer's job site and a blast furnace to open.
+        do {
+            let pick = ItemStack(Items.id("stone_pickaxe"), 1)
+            let back = Mining.drops(Blocks.id("lit_furnace"), pick).map { Items.key($0.item) }
+            let at = IVec3(Int(floor(lane0.x)) + 3, Int(floor(lane0.y)) + 2, Int(floor(lane0.z)))
+            let old0 = g.world.block(at.x, at.y, at.z)
+            defer { g.world.setBlock(at.x, at.y, at.z, old0) }
+            g.world.setBlock(at.x, at.y, at.z, Blocks.id("blast_furnace"))
+            FurnaceGlow.follow(g.world, at, burning: true)
+            let lit = g.world.block(at.x, at.y, at.z)
+            let glow = Blocks.emit[Int(lit)], job = Villagers.jobSiteOf[Int(lit)] ?? "-", opens = Game.opens(lit)
+            let litBack = Mining.drops(lit, pick).map { Items.key($0.item) }
+            FurnaceGlow.follow(g.world, at, burning: false)
+            let out = Blocks.key(g.world.block(at.x, at.y, at.z))
+            check(back == ["furnace"] && glow >= 13 && job == "armorer" && opens && litBack == ["blast_furnace"] && out == "blast_furnace",
+                  "ledger 408: a burning furnace broken gives \(back); a burning blast furnace glows \(glow), is an \(job)'s site, opens \(opens), drops \(litBack), goes back to \(out) when out; BS_OLDFURNACEDROP=1: nothing")
+        }
+
+        // Ledger 410 (Nov 20 evening, his own notes): one zombie that hit him is no battle; three are.
+        do {
+            let mobs0 = g.mobs.mobs, hurt0 = g.lastHurtAt, pos0 = g.player.pos
+            defer { g.mobs.mobs = mobs0; g.lastHurtAt = hurt0; g.player.pos = pos0 }
+            g.player.pos = lane0
+            func zombies(_ n: Int) -> String {
+                g.mobs.mobs = (0..<n).map { i in let m = Mob(.zombie, at: lane0 + V3(Float(i) * 1.5 - 1.5, 0, -5)); m.aggro = true; return m }
+                g.lastHurtAt = g.clock - 1
+                return g.soundtrackState()
+            }
+            let one = zombies(1), three = zombies(3)
+            check(one != "combat" && one != "danger_nearby" && three == "combat",
+                  "ledger 410: one zombie that just hit him plays \(one); three play \(three); BS_OLDCOMBATMUSIC=1: one is combat")
+        }
+
+        // Ledger 409 (Nov 20 evening, his own notes): a rabbit killed drops its meat where it falls.
+        do {
+            let bodies0 = Hunting.bodies, drops0 = g.drops.items.count
+            defer { Hunting.bodies = bodies0; Hunting.refresh(g) }
+            let r = Mob(.rabbit, at: lane0 + V3(2, 0, 0)); r.killedByPlayer = true; r.health = 0
+            let body = Hunting.died(g, r)
+            let dropped = g.drops.items.dropFirst(drops0).map { Items.key($0.stack.item) }
+            let rest = Hunting.bodies.last.map { Hunting.yield($0).map { Items.key($0.item) } } ?? []
+            check(body && dropped.contains("rabbit") && !rest.contains("rabbit") && rest.contains { $0.hasPrefix("rabbit_pelt") },
+                  "ledger 409: a rabbit killed drops \(dropped) at once; skinning its body gives \(rest); BS_OLDKILLMEAT=1: meat only from skinning")
+        }
+
+        // Ledger 413 (Nov 20 evening, his own notes): rotten flesh is not in a shop's sell list; beef still is.
+        do {
+            let flesh = ShopKind.allCases.contains { Economy.buysItem($0, Items.id("rotten_flesh")) }
+            let beef = Economy.buysItem(.butcher, Items.id("beef"))
+            check(!flesh && beef, "ledger 413: a shop buys rotten flesh \(flesh), the butcher buys beef \(beef); BS_OLDJUNKSELL=1: the butcher buys it")
+        }
+
         // Ledger 401 (Neon 07#2): Fortify Homestead bought at a town's gunsmith, his homestead 3000 blocks off: ordered,
         // kept until its ground is loaded, and not sold twice.
         do {

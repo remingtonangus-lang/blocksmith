@@ -421,6 +421,11 @@ extension Mob {
         face(pp)
         moving = true
         aiTimer = max(aiTimer, 1)
-        return spec.speed * (dp > 8 ? 2.8 : 1.6)
+        // Ledger 414 (Nov 20 evening, his own notes: Willa Ellery lagged behind on a long escort; "they need to move faster"):
+        // 2.6 blocks a second close in (his walk is 4.3) and 4.5 behind, so a traveller fell back the whole way. Now they
+        // keep his walk inside 8 and his sprint (5.6) further back. BS_OLDESCORTPACE=1: as before.
+        if Mob.oldEscortPace { return spec.speed * (dp > 8 ? 2.8 : 1.6) }
+        return dp > 8 ? 5.6 : (dp > 5 ? 4.3 : 3.2)
     }
+    static let oldEscortPace = Env.all["BS_OLDESCORTPACE"] == "1"
 }

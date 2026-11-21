@@ -106,6 +106,7 @@ extension Village {
     }
 
     // A tradesman's workshop: his station, his stock along the walls, a counter by the door, his bed in the corner.
+    static let oldChains = Env.all["BS_OLDCHAINS"] == "1"
     static func workshopLot(_ w: inout StructWriter, _ b: LB, _ m: Mats) {
         let l = b.l
         house(&w, b, m, wallH: 5)
@@ -134,7 +135,16 @@ extension Village {
             "toolsmith": [(1, 0, 5, "anvil"), (3, 0, 5, "grindstone"), (1, 0, 4, "crafting_table"), (1, 0, 3, "barrel"), (3, 1, 5, "chain")],
         ]
         b.set(&w, 2, 0, 5, g(station[l.job] ?? "barrel"))
-        for (u, dy, v, n) in stock[l.job] ?? [] { b.set(&w, u, dy, v, g(n)) }
+        for (u, dy, v, n) in stock[l.job] ?? [] {
+            b.set(&w, u, dy, v, g(n))
+            // Ledger 416 (Nov 20 evening, his own notes, Part 10/11: "a floating chain near an Iron Block and Blast Furnace"
+            // in a smithy): a chain stood one block high in the open room under the gable. It now hangs from the roof:
+            // the column runs up to the underside of the roof above it. BS_OLDCHAINS=1: one block.
+            if n == "chain" && !Village.oldChains {
+                let top = (m.roofFlat ? 5 : 5 + min(v + 1, l.d - v)) - 1
+                if dy < top { for y in (dy + 1)...top { b.set(&w, u, y, v, g(n)) } }
+            }
+        }
         // The counter across the right of the room, a gap to walk behind it; the bed in the back corner.
         for u in 5...6 { b.set(&w, u, 0, 2, m.log) }
         b.set(&w, 6, 1, 2, blk("lantern", AIR))

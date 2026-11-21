@@ -21,6 +21,7 @@ protocol TrackDeck: AnyObject {
 }
 
 enum Soundtrack {
+    static let oldCombatMusic = ProcessInfo.processInfo.environment["BS_OLDCOMBATMUSIC"] == "1"   // ledger 410
     static let tracks = ["main_title", "loading_screen", "overworld_daytime", "overworld_night", "rain", "snow", "desert",
                          "jungle", "swamp", "mountains", "old_growth_forest", "ocean_sailing", "underwater", "caves",
                          "the_hollow", "emberdeep", "sky_islands", "village", "capital_city", "military_base_infiltration",
@@ -130,15 +131,22 @@ extension Game {
         let p = player.pos
         // Bosses, then a knight at sword's length.
         var danger = false, knight = false
+        var threat: Float = 0
         for m in mobs.mobs where m.health > 0 {
             let d = simd_length(m.pos - p)
             if d > 80 { continue }
             if (Legendaries.isBoss(m) || m.kind == .wither) && (d < 48 || m.aggro) { return "boss_battle" }
             guard m.kind.hostile && d < 18 && (m.aggro || m.spec.behavior == .melee) else { continue }
             danger = true
+            threat += max(1, Float(m.spec.health) / 20)
             if d < 7 && [.brandSquire, .brandKnight, .brandChampion].contains(m.kind) { knight = true }
         }
         if knight { return "knight_duel" }
+        // Ledger 410 (Nov 20 evening, his own notes: "combat music triggers every single time you come into contact with
+        // a regular zombie"): one ordinary hostile is no fight worth scoring. The music turns for a pack (threat 2: two
+        // zombies, or one big one) and the battle music for three or more once they hurt you. BS_OLDCOMBATMUSIC=1: any one.
+        if !Soundtrack.oldCombatMusic { danger = threat >= 2 }
+        let hurtNow = danger && clock - lastHurtAt < 6 && (Soundtrack.oldCombatMusic || threat >= 3)
         let deep = dim.dim == .deep
         if deep && DeepGen.inVault(p.y) {
             if audio.combat >= 2 { return "ash_vault_battle" }
@@ -146,7 +154,7 @@ extension Game {
             return nml > 0.3 ? "no_mans_land" : "ash_vault_front"
         }
         if raid != nil || FactionRaids.active != nil { return "raid_incoming" }
-        if audio.combat >= 2 || (danger && clock - lastHurtAt < 6) { return "combat" }
+        if audio.combat >= 2 || hurtNow { return "combat" }
         // Vehicles: the craft at the player's helm, or the train under them.
         if let s = world.ships.pilot?.root, let v = Soundtrack.vehicle(s) { return v }
         if let r = riding, Trains.trains.values.contains(where: { $0.cars.contains { $0 === r } }) { return "trains_and_railways" }

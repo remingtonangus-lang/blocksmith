@@ -104,7 +104,14 @@ extension Game {
     // A melee mob's strike gate (Mob.update's melee branches): true when the strike lands now. Off VR: in reach with
     // the cooldown ready (as before). In VR: in reach with the cooldown ready starts a wind-up (the rear-back pose and
     // a grunt); when it ends the strike lands only if the player is still within reach + dodgeGrace, else it's dodged.
-    func meleeStrike(_ m: Mob, reach: Float) -> Bool {
+    // Ledger 412 (Nov 20 evening, his own notes: "mobs are too easy to kill... they should be able to hit the player from
+    // further away"): on Normal a mob's strike reaches half a block further, on Hard 0.8 (a lunge into the swing); Easy
+    // and Peaceful as before. BS_OLDMOBREACH=1: no extra reach.
+    static let oldMobReach = ProcessInfo.processInfo.environment["BS_OLDMOBREACH"] == "1"
+    static func reachBonus(_ difficulty: Int) -> Float { oldMobReach ? 0 : ([0, 0, 0.5, 0.8] as [Float])[max(0, min(3, difficulty))] }
+
+    func meleeStrike(_ m: Mob, reach reach0: Float) -> Bool {
+        let reach = reach0 + Game.reachBonus(difficulty)
         let gap = meleeGap(m)
         guard meleeWindUps else { m.windUp = 0; m.windUpDone = false; return gap < reach && m.attackCooldown <= 0 }
         if m.windUp > 0 { return false }
