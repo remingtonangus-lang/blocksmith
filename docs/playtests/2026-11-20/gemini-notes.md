@@ -198,3 +198,112 @@ What Looked Good
 ‚ö¨ Dawn & Overcast Skybox (Part 9, 00:10‚Äì00:35, 02:45‚Äì03:15): The orange sunrise clouds over Clear Bend and the heavy winter clouds during the forest trek look atmospheric and sell the passage of time well.
 ‚ö¨ Road Agent Ambush (Part 9, 03:55‚Äì04:35): Getting ambushed by bandits in the snowy woods during an escort mission is a strong, memorable encounter, and the Road Agents' silhouettes/hats read clearly against the snow.
 ‚ö¨ Town Streetlamps at Night (Part 8, 01:40‚Äì02:05): Aside from the distant light-dome artifact, walking into Clear Bend's warm-lit streets out of the dark snowstorm feels cozy and grounded.
+
+
+## Voice-note audio review, all parts (audio tracks part01-part11 .m4a sent 21:50 in Gemini app chat "Sunderfall Playtest Notes and Review", Neon; reply saved 22:28)
+
+Here are the updated playtest notes incorporating your voice commentary across all 11 audio tracks, matched to what was on screen in Parts 1–9 (with a preview section for Parts 10–11 pending the videos).
+
+New Bugs & Polish Issues (From Audio)
+
+? Double Crafting Table glitch (Part 1): Placing/viewing the Crafting Table briefly looked like two Crafting Tables stacked or duplicated.
+? Missing mob food drops & floating/hovering mobs (Part 1): Killing rabbits and the Polar Bear dropped no food (only eventually getting a Rabbit's Foot). You also spotted a floating rabbit and a hovering Polar Bear near the cave entrance.
+? Floating dirt / unsmoothed terrain (Part 3): Noted as a lower-priority polish issue where floating dirt chunks aren't smoothed properly.
+? Square ore blocks (Part 4): Ores—especially Titanium—still stand out as obviously squared blocks against the smooth cave walls.
+? Wrong mob drops (Part 5): Enemies are still dropping Spider Eyes and String; you noted there shouldn't be Spider Eyes in the game anymore.
+? HIGH PRIORITY — Breaking a Furnace destroys it (Part 6): Breaking your placed Furnace did not drop the item back into your inventory, forcing you to craft a new one to make the Blast Furnace.
+? Blast Furnace doesn't emit light (Part 6): Unlike the standard Furnace, the Blast Furnace doesn't light up when active.
+? Fluid system needs a full redesign (Parts 6–7):
+  ? Invisible water (Part 7): Placed water has large sections that simply aren't visible.
+  ? Lava morphing through Obsidian (Part 7): Lava clips/morphs through newly formed Obsidian (flagged as moderate polish).
+  ? Unexplained lava sources (Part 7): Lava appears/flows in ways that shouldn't be possible.
+? Explosive enemy ("bomb guy") destroys Obsidian (Part 7): The Powderwight/bomb enemy shouldn't be able to blow up Obsidian.
+? Hole blown through Furnace (Part 7): Breaking/hitting the furnace punched a literal hole through it before it broke.
+? Bad lighting bloom (Parts 2 & 8):
+  ? Furnace bloom (Part 2): The light bloom around the Furnace underground looks bad. (Correction to video-only notes.)
+  ? Village light bloom (Part 8): The bloom is fine from a distance, but up close it looks bad; the actual streetlamps/lights should illuminate the village instead.
+? Broken Zombie model (Part 8): One of the enemies outside Clear Bend looked "horrible" and needs its model fixed if it's meant to be a zombie.
+? Escort NPC can't walk diagonally (Part 9): Willa Ellery lagged behind because NPCs appear unable to move diagonally; they also need to move faster over long escort distances.
+
+Design, Balance & UX Complaints / Ideas
+
+? Tree felling too easy (Part 1): Breaking the entire tree at once feels too easy.
+? Questionable audio (Part 1): Flagged early game audio as questionable.
+? Tight cave traversal (Part 2): Squeezing/crouching through narrow cave gaps is "the painstaking part of the game". You also referenced wanting Halo Infinite–style double-tap mantling/climbing.
+? Normal difficulty is too easy / enemies aren't scary (Parts 2, 3, 5, 6):
+  ? Mobs are too easy to kill and need more risk/reach—specifically, they should be able to hit the player from further away.
+  ? Powderwight idea (Part 8): When they ignite, make them sprint at the player so you're forced to either kill them fast or sprint away.
+? Crafting discoverability (Parts 3 & 4):
+  ? You got stuck in the crafting book in Part 3 because you couldn't tell how to make a Steel Ingot, eventually giving up and making Iron Armor.
+  ? In Part 4, it took a while to figure out where to find the Bucket (under Transport).
+? Repetitive combat music (Part 5): Combat music triggers every single time you come into contact with a regular zombie.
+? Waterfalls (Part 6): Want to see more actual, decent-looking waterfalls with real water sources above them.
+? Clear Bend objective clarity (Parts 4, 5, 8): Confused why Clear Bend popped up as a journal/specific objective and why the player should care about it.
+? Missing village accommodations (Part 8): Every village needs an accommodations building where you can pay to stay, otherwise there's nowhere to rest.
+? Accidental sheriff robbery (Part 9): You accidentally robbed the sheriff without intending to—interaction/stealing needs clearer confirmation or separation.
+? Shopkeeper & Sell tab friction (Part 9): Unclear who actually runs the store, and worthless items like Rotten Flesh shouldn't appear in the Sell list at all.
+? Cold mechanic feedback (Part 9): When "dangerously cold" triggers, there should be a visible HUD indicator and an actual consequence (like health drain).
+? Dynamic village pricing idea (Part 2): Vary village shop costs based on local conditions.
+
+What You Liked
+
+? Overall game feel (Part 8): "Pleasantly surprised with how a lot of this game feels".
+? Survival loop (Part 2): Aside from the early animal drop issues, the core survival progression felt good.
+? Cave generation (Part 4): Nuanced and "not too bad".
+? Obsidian visuals (Part 6): Forming Obsidian worked and looked "very nice".
+? Building/pillaring straight up (Part 7): Using actual blocks to pillar up "felt pretty good".
+? Ragdoll physics (Part 8): Liked the ragdoll physics on the zombie even though the model itself needs work.
+
+Preview Notes from Parts 10–11 Audio (Videos Pending)
+
+? Part 10:
+  ? Log mesh gaps & floating logs: Logs are floating and still have visible see-through gaps/lines running through them, especially on the ends.
+  ? Positive: Impressed by the scale of a large village ("one big-ass village").
+? Part 11:
+  ? Biome-appropriate NPCs: NPCs should change outfits/appearance to match the biome/weather they're in.
+  ? Unexpected Emeralds: Noticed 2 Emeralds in inventory "out of nowhere".
+  ? Floating chain: Spotted a floating chain near an Iron Block and Blast Furnace while looking for an accommodations building.
+  ? Positive: Discovered a Mine ("Oh, hell yeah. Wow, that's awesome") and a Stable (expecting to be able to buy a horse).
+
+Send over Parts 10 and 11 videos whenever you're ready and I'll match these last notes to the exact timestamps.
+
+## Parts 10-11 (19:45-19:52), clips part10-194542-194950, part11-195036-195223; sent 22:26 in the same Gemini app chat (Neon)
+
+Bugs & Visual Glitches
+
+? Part 10, 00:25 (Water Surface Clipping): Moving at the river's edge splits the screen horizontally across the water plane, showing a sharp, flat gray/white snow edge on the left and a harsh see-through cutoff into the underwater terrain.
+? Part 10, 00:55 (Camera Clipping): A large brown/orange blocky mesh (held item or player arm/body) clips across the entire lower half of the view.
+? Part 10, 01:10 & 01:20–01:25 (Floating Logs & Mesh Gaps): Fallen logs hover above the ground and have visible see-through gaps/lines running through them, especially on the ends.
+? Part 10, 03:00 (Unexpected Inventory Item): Two Emeralds appeared in the player's inventory "out of nowhere" when opening the General Store Sell tab.
+? Part 10, 03:35–03:40 (Floating Chain): Inside the workshop/smithy, a chain hangs floating in mid-air near the Block of Iron and Blast Furnace.
+? Part 10, 04:30 (Disconnected Trim/Posts): Wooden ladder/fence posts on the side of a building look awkwardly attached/protruding along the exterior wall.
+? Part 11, 00:04–00:08 (Stable UI Truncation): In the Horses tab, the bottom NPC line is cut off on the right (Looking for a horse? Every one here's broke to the...), and the horse stat lines sit very tight against each other.
+? Part 11, 01:20–01:28 (Notice Board Truncation): The Defend the town tonight! description cuts off on the right (Raiders are coming. Press to stand...).
+? Part 11, 01:52–02:04 (Recurring Streetlamp Bloom): Streetlamps at dusk/night still show blocky, low-poly glow halos.
+? Part 11, 02:12 (Recurring Health Bar Overlap): The Zombie Townsperson health bar collides with the minimap and compass.
+? Part 11, 02:16 (Controller Warning Overlap): Right controller lost: bring it into view or check its battery overlaps directly with +1 Honour / you protected the town.
+
+Frame Drops, Stutter & Recording Notes
+
+? Same stitched-clip format with silent video; no prolonged freezes were visible.
+? Playtester ? Note flags appear frequently across both parts (notably Part 10 01:10, 01:25, 02:20, 03:40; Part 11 00:20, 00:24, 01:56, 02:08).
+? At Part 11, 02:16, the headset lost tracking on the right controller during night combat.
+
+Confusing UI & Controls
+
+? Overlapping Chest & Shop Prompts (Part 10, 03:00–03:10 & 04:35): The Blueprint: Piercing Rounds tooltip overlaps the Store / Take buttons, and bottom controller hints continue to crowd the lower inventory/shop rows.
+? Biome-Mismatched NPC Outfits (Part 10–11): Townsfolk in the snowy biome wear light/standard clothing; NPCs should change outfits/appearance to match the weather and biome.
+? Missing Accommodations Building (Part 10–11): Spent time searching Flint Flats for a place to stay/rest, reinforcing the earlier note that towns need a clear accommodations building.
+? Doorway Blocking (Part 11, 01:08–01:12): Cora Jessup stands right in the General Store doorway after closing time, clipping close to the camera when trying to interact.
+
+Player Goals & Where They Got Stuck
+
+? Part 10 (00:00–04:45): Trekked through the snowy forest after the ambush, stopped to inspect floating/gapped fallen logs (01:10–01:25), and arrived at Flint Flats (02:20–02:40), discovering the Greywall & Flint Railway. Sold an Emerald at Jessup's General Store (03:00–03:10), searched buildings for an accommodations building (spotting the floating chain at 03:40), climbed down and looted the town Mine (03:55–04:20), and looted a Blueprint: Piercing Rounds from a chest (04:35).
+? Part 11 (00:00–02:16): Checked out the Flint Flats Stable and browsed horse breeds/prices (00:00–00:08), explored the town well, railway ticket board (00:44), and saloon (00:52). Tried entering the General Store after dark (01:08), then accepted Defend the town tonight! at the Notice Board (01:20–01:40). Patrolled the snowy outskirts at night (01:48–02:08) and fought a Zombie Townsperson (02:12–02:16), ending just as the right controller lost tracking.
+
+What Looked Good
+
+? Flint Flats Scale & Landmarks (Part 10, 02:20–02:50): Impressed by the size of the town ("one big-ass village"), with the railway tracks, walled stone buildings, and streetlamps giving it a strong frontier feel.
+? The Town Mine (Part 10, 03:55–04:20): Big highlight ("Oh, hell yeah. Wow, that's awesome")—the timber headframe, deep vertical shaft, long ladder climb, and underground loot chest felt great to discover.
+? Stable & Railway Progression Hooks (Part 11, 00:00–00:08 & 00:44): Having distinct horse breeds with clear traits/prices (Draft Horse, Saddlebred, Landrunner, etc.) and a working railway ticket board (Juniper Hill Station) gives players clear mid-game goals to save money for.
+? Sunset & Night Skybox (Part 11, 00:36–02:16): The transition from bright blue sky to orange sunset clouds to a starry night over Flint Flats looks atmospheric and readable.
