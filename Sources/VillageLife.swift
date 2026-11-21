@@ -422,7 +422,7 @@ extension Game {
     // A villager killed by the player: every villager within 16 blocks that can see it remembers (major negative 25).
     func villagerDied(_ m: Mob) {
         // Reference drop odds kept out of the plain tables: fish bone meal 5%, rabbit's foot 10% (+3% per
-        // Looting) and spider eyes 1 in 3, both only for player kills.
+        // Looting) for player kills.
         if !m.baby {
             let at = m.pos + V3(0, 0.4, 0)
             let looting = Float(m.killedByPlayer ? m.lootingLevel : 0)
@@ -431,10 +431,6 @@ extension Game {
             }
             if m.kind == .rabbit && m.killedByPlayer && Rand.float(in: 0..<1) < 0.1 + 0.03 * looting && Items.has("rabbit_foot") {
                 drops.spawn(ItemStack(Items.id("rabbit_foot"), 1), at: at)
-            }
-            if (m.kind == .spider || m.kind == .caveSpider) && m.killedByPlayer && Items.has("spider_eye") {
-                let n = Rand.int(in: -1...1) + Rand.int(in: 0...Int(looting))
-                if n > 0 { drops.spawn(ItemStack(Items.id("spider_eye"), n), at: at) }
             }
         }
         // Killing prey an axolotl was fighting: Regeneration for the player, and Mining Fatigue lifted.

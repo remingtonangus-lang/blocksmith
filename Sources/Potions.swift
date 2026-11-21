@@ -104,14 +104,14 @@ enum Potions {
     static let mixes: [(from: String, ingredient: String, to: String)] = {
         var m: [(String, String, String)] = []
         m.append(("water", "nether_wart", "awkward"))
-        for i in ["redstone", "sugar", "ghast_tear", "rabbit_foot", "blaze_powder", "glistering_melon_slice", "spider_eye", "magma_cream"] {
+        for i in ["redstone", "sugar", "ghast_tear", "rabbit_foot", "blaze_powder", "glistering_melon_slice", "red_mushroom", "poisonous_potato", "magma_cream"] {
             m.append(("water", i, "mundane"))
         }
         m.append(("water", "glowstone_dust", "thick"))
         m.append(("water", "fermented_spider_eye", "weakness"))
         let awk: [(String, String)] = [("golden_carrot", "night_vision"), ("rabbit_foot", "leaping"), ("magma_cream", "fire_resistance"),
                                        ("sugar", "swiftness"), ("turtle_helmet", "turtle_master"), ("pufferfish", "water_breathing"),
-                                       ("glistering_melon_slice", "healing"), ("spider_eye", "poison"), ("ghast_tear", "regeneration"),
+                                       ("glistering_melon_slice", "healing"), ("red_mushroom", "poison"), ("poisonous_potato", "poison"), ("ghast_tear", "regeneration"),
                                        ("blaze_powder", "strength"), ("phantom_membrane", "slow_falling"), ("breeze_rod", "wind_charged"),
                                        ("cobweb", "weaving"), ("slime_block", "oozing"), ("stone", "infested")]
         for (i, to) in awk { m.append(("awkward", i, to)) }

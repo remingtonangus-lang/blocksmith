@@ -865,7 +865,7 @@ enum Loot {
                             ("apple", 1, 3, 15), ("iron_pickaxe", 1, 1, 5), ("iron_sword", 1, 1, 5), ("obsidian", 3, 7, 5),
                             ("oak_sapling", 3, 7, 5), ("iron_helmet", 1, 1, 5)]),
         "desert_pyramid": (2...4, [("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 15), ("gold_ingot", 2, 7, 15), ("emerald", 1, 3, 15),
-                                   ("bone", 4, 6, 25), ("spider_eye", 1, 3, 25), ("rotten_flesh", 3, 7, 25), ("saddle", 1, 1, 20),
+                                   ("bone", 4, 6, 25), ("rotten_flesh", 3, 7, 25), ("saddle", 1, 1, 20),
                                    ("iron_horse_armor", 1, 1, 15), ("golden_horse_armor", 1, 1, 10), ("diamond_horse_armor", 1, 1, 5),
                                    ("golden_apple", 1, 1, 20), ("enchanted_book", 1, 1, 20), ("enchanted_golden_apple", 1, 1, 2),
                                    ("empty", 0, 0, 15), ("dune_armor_trim_smithing_template", 1, 1, 4)]),

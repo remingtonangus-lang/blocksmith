@@ -165,7 +165,7 @@ enum Economy {
         "stick": 1, "coal": 12, "charcoal": 10, "iron_nugget": 10, "iron_ingot": 100, "raw_iron": 60, "gold_nugget": 25,
         "gold_ingot": 250, "raw_gold": 160, "steel_ingot": 350, "raw_titanium": 2800, "diamond": 4000, "emerald": 100,   // titanium x2.7: an ingot sold for "five bucks" (P29)
         "lapis_lazuli": 40, "quartz": 30, "amethyst_shard": 20, "flint": 4, "string": 8, "gunpowder": 40, "slime_ball": 30,
-        "ender_pearl": 250, "blaze_rod": 250, "blaze_powder": 125, "spider_eye": 12, "ghast_tear": 300, "rabbit_foot": 150,
+        "ender_pearl": 250, "blaze_rod": 250, "blaze_powder": 125, "fermented_spider_eye": 25, "ghast_tear": 300, "rabbit_foot": 150,
         "glowstone_dust": 30, "nether_wart": 15, "phantom_membrane": 80, "paper": 6, "book": 32, "ink_sac": 8,
         "glass_bottle": 14,
         // Wool and cloth
@@ -254,7 +254,7 @@ enum Economy {
                     "gun_rifle", "gun_sniper", "gun_kessel", "rifle_rounds", "capital_rounds", "greywall_rounds", "shotgun_shells", "heavy_rounds"],
         .butcher: ["beef", "porkchop", "chicken", "mutton", "rabbit", "cod", "salmon", "leather", "rabbit_hide", "feather",
                    "bone"] + (Economy.oldJunkSell ? ["rotten_flesh"] : []) + ["egg", "pufferfish", "tropical_fish"] + Hunting.buys,
-        .doctor: ["spider_eye", "ghast_tear", "rabbit_foot", "glowstone_dust", "nether_wart", "sugar", "blaze_powder",
+        .doctor: ["fermented_spider_eye", "ghast_tear", "rabbit_foot", "glowstone_dust", "nether_wart", "sugar", "blaze_powder",
                   "blaze_rod", "honey_bottle", "phantom_membrane", "glass_bottle", "slime_ball"],
         .stable: ["wheat", "hay_block", "apple", "carrot", "golden_carrot", "leather", "saddle", "leather_horse_armor",
                   "iron_horse_armor", "golden_horse_armor"],

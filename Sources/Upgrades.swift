@@ -31,14 +31,14 @@ enum Upgrades {
         let steel = V3(0.85, 0.9, 0.98), gold = V3(1, 0.82, 0.3), leather = V3(0.45, 0.28, 0.15), iron = V3(0.72, 0.72, 0.75)
         return Dictionary(uniqueKeysWithValues: [
             s(.sharpness, .edge, "flint", 1, steel), s(.smite, .edge, "gold_nugget", 2, V3(1, 0.95, 0.75)),
-            s(.baneOfArthropods, .edge, "spider_eye", 1, V3(0.45, 0.85, 0.35)), s(.knockback, .grip, "iron_nugget", 2, iron),
+            s(.baneOfArthropods, .edge, "slime_ball", 1, V3(0.45, 0.85, 0.35)), s(.knockback, .grip, "iron_nugget", 2, iron),
             s(.fireAspect, .coating, "blaze_powder", 1, V3(1, 0.45, 0.1)), s(.looting, .grip, "leather", 1, leather),
             s(.sweepingEdge, .blade, "flint", 2, V3(0.7, 0.85, 1)),
             s(.efficiency, .bit, "copper_ingot", 1, V3(0.95, 0.55, 0.3)), s(.silkTouch, .bit, "amethyst_shard", 2, V3(0.75, 0.5, 0.95)),
             s(.unbreaking, .head, "iron_ingot", 1, iron), s(.fortune, .bit, "lapis_lazuli", 3, V3(0.2, 0.35, 0.95)),
             s(.power, .limbs, "string", 2, V3(0.3, 0.2, 0.12)), s(.punch, .limbs, "iron_nugget", 2, iron),
             s(.flame, .string, "coal", 2, V3(1, 0.45, 0.1)), s(.infinity, .string, "leather", 4, adv: true, leather),
-            s(.luckOfTheSea, .line, "gold_nugget", 2, gold), s(.lure, .line, "spider_eye", 1, V3(0.85, 0.3, 0.3)),
+            s(.luckOfTheSea, .line, "gold_nugget", 2, gold), s(.lure, .line, "feather", 1, V3(0.85, 0.3, 0.3)),
             s(.loyalty, .tines, "string", 4, V3(0.9, 0.9, 0.85)), s(.impaling, .tines, "flint", 2, steel),
             s(.riptide, .tines, "prismarine_shard", 2, V3(0.35, 0.75, 0.7)), s(.channeling, .tines, "copper_ingot", 4, adv: true, V3(0.95, 0.55, 0.3)),
             s(.multishot, .string, "iron_ingot", 2, iron), s(.quickCharge, .grip, "iron_ingot", 1, iron), s(.piercing, .string, "flint", 2, steel),

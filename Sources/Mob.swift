@@ -81,8 +81,7 @@ enum MobKind: Int, CaseIterable {
         // fight"): the save keys "spider"/"cave_spider" are now the Gravesworn, dead men-at-arms in tarnished plate who
         // fight as sword duellists (the Brand Order's guard, wind-ups, feints and charges; HellMobs.orderAI).
         case .spider: return Spec(name: "Gravesworn Duellist", halfW: 0.3, height: 1.95, health: 30, speed: 2.7, behavior: .monster, attack: 5,
-                                  // P484 (Oct 28 18:05, "How do I get a spider eye?"): the Grave Eye is the Gravesworn's again.
-                                  drops: [("string", 0, 2), ("iron_nugget", 0, 2), ("spider_eye", 0, 1)], xp: 7, call: .mob(self, .ambient))
+                                  drops: [("iron_nugget", 1, 3), ("bone", 0, 2)], xp: 7, call: .mob(self, .ambient))
         case .enderman: return Spec(name: "Voidwalker", halfW: 0.3, height: 2.9, health: 40, speed: 3.0, behavior: .enderman, attack: 7,
                                     drops: [], xp: 5, call: .mobVoidwalker)   // P499: no void pearls
         case .slime: return Spec(name: "Slime", halfW: 0.26, height: 0.52, health: 1, speed: 2.0, behavior: .slime, attack: 0,
@@ -126,10 +125,10 @@ enum MobKind: Int, CaseIterable {
         case .drowned: return Spec(name: "Sunken", halfW: 0.3, height: 1.95, health: Mob.oldUndead ? 20 : 24, speed: Mob.oldUndead ? 2.3 : 2.65, behavior: .melee, attack: Mob.oldUndead ? 3 : 4,
                                    burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
         case .caveSpider: return Spec(name: "Gravesworn Squire", halfW: 0.3, height: 1.85, health: 20, speed: 2.9, behavior: .monster, attack: 3,
-                                      drops: [("string", 0, 2), ("iron_nugget", 0, 1), ("spider_eye", 0, 1)], xp: 5, call: .mob(self, .ambient))
+                                      drops: [("iron_nugget", 0, 2), ("bone", 0, 1)], xp: 5, call: .mob(self, .ambient))
         case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.5, behavior: .witch,
                                  drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
-                                         ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
+                                         ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
         case .pillager: return Spec(name: "Marauder", halfW: 0.3, height: 1.95, health: 24, speed: 3.5, behavior: .ranged,
                                     drops: [("arrow", 0, 2)], xp: 5, call: .mobVillager)
         case .vindicator: return Spec(name: "Brigand", halfW: 0.3, height: 1.95, health: 24, speed: 3.5, behavior: .melee, attack: 13,

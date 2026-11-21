@@ -227,7 +227,7 @@ final class ItemRegistry {
         item("fishing_rod", "Fishing Rod", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0xD03030], stack: 1)
         item("carrot_on_a_stick", "Carrot on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0xF08A1A], stack: 1)
         item("glass_bottle", "Glass Bottle", "bottle", 0xD0DCF0, ["c": 0xDCE8F6])
-        item("fermented_spider_eye", "Soured Grave Eye", "eye", 0xB0506A, ["c": 0xE8C0C8, "d": 0x5A2030])
+        item("fermented_spider_eye", "Soured Ferment", "eye", 0xB0506A, ["c": 0xE8C0C8, "d": 0x5A2030])
         item("glistering_melon_slice", "Gilded Melon Slice", "melon", 0xF0C040, ["c": 0xFFF0A0, "d": 0xC89A20])
         item("rabbit_foot", "Rabbit's Foot", "foot", 0xC8A078, ["c": 0xE8D8C0])
         item("rabbit_hide", "Rabbit Hide", "leather", 0xC8A078)
