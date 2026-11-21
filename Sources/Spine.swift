@@ -34,8 +34,13 @@ enum Spine {
     static var target: Game.RadarContact?
     static var bearing: String?                     // "Greywall Outpost: 1,240 m NW, ahead left" (Goals.lines)
     static var bearingAt: Double = -100
+    static var wasInTown = false                    // edge-detect walking into a frontier town (never misfire at a bench)
+    static var enteredTown = false                  // latched when entering a town on the frontier stage
 
-    static func reset() { lastTick = -100; seenTaken = -1; targetGoal = nil; targetAt = -100; target = nil; bearing = nil; bearingAt = -100 }
+    static func reset() {
+        lastTick = -100; seenTaken = -1; targetGoal = nil; targetAt = -100; target = nil; bearing = nil; bearingAt = -100
+        wasInTown = false; enteredTown = false
+    }
 
     // MARK: Twice a second (Goals.tick, every frame before the hints check)
 
@@ -57,7 +62,16 @@ enum Spine {
         if cur == "spine/iron_set", SixIron.armourScore(g.inventory.armor.slots) >= SixIron.ironFrom { g.achieve("spine_iron_set") }
         if cur == "spine/find_town", g.dim.dim == .overworld,
            TownLaw.inTown != nil || MapCache.shared.marks.contains(where: { $0.kind == "village" }) { g.achieve("spine_find_town") }
-        if let c = cur, c.hasPrefix("spine/"), c != "spine/iron_set", !g.advancements.contains("spine/intro") {
+        // Log "Who Holds the Frontier" when the player actually enters a frontier town (or reaches Stage 3+: Greywall,
+        // fleet, Capital), never while crafting iron gear at a workbench or inside a menu.
+        let stage = Goals.next(g)?.id
+        let onFrontier = stage.map { $0.hasPrefix("spine/") && $0 != "spine/iron_set" } ?? false
+        let pastTown = onFrontier && stage != "spine/find_town" && stage != "spine/take_town"
+        let inTown = g.dim.dim == .overworld && TownLaw.inTown != nil
+        if !onFrontier || !inTown { enteredTown = false }
+        else if !wasInTown { enteredTown = true }
+        wasInTown = inTown
+        if onFrontier, (enteredTown || pastTown), g.menu == nil, !g.advancements.contains("spine/intro") {
             g.advancements.insert("spine/intro")
             g.logDocument("Who Holds the Frontier", introPages, cat: .notes, id: "spine-intro")
         }
@@ -130,9 +144,27 @@ enum Spine {
     }
 
     static let introPages = [
-        "WHO HOLDS THE FRONTIER\n\nGREYWALL COMMAND: walled bases in the wilds, grey concrete, blue corner lamps. Take them a tier at a time: outpost, garrison, fortress. Their war rooms keep the fleet's orders.",
+        "WHO HOLDS THE FRONTIER\n\nFRONTIER TOWNS: held by a sheriff and deputies. Outgun them in iron armour to claim the town; the jail safe keeps a Greywall Dispatch.\n\nGREYWALL COMMAND: walled bases in the wilds, grey concrete, blue corner lamps. Take them a tier at a time: outpost, garrison, fortress. Their war rooms keep the fleet's orders.",
         "THE CAPITAL: white citadels and garden cities. It pays for every war and keeps the Ember Charges. It is the enemy over everything.\n\nYour road: iron, a town, the Greywall bases, the Meridian fleet, the fire below the world, and the Capital itself.",
     ]
+
+    // Short reason the player is heading to the current story target (HUD waymark, map, Track menu, inventory goal).
+    static func reason(for id: String?) -> String? {
+        switch id {
+        case "spine/find_town": return "take town for Greywall intel"
+        case "spine/take_town": return "outgun sheriff for Greywall intel"
+        case "spine/greywall_base": return "take base for dispatch"
+        case "spine/greywall_top": return "raid war room for fleet orders"
+        case "spine/flagship": return "take her Ember Charge"
+        case "spine/capital_citadel", "spine/capital_fall": return "clear the garrison"
+        default: return nil
+        }
+    }
+
+    static func objectiveLabel(_ t: Game.RadarContact, goal: String?) -> String {
+        guard let r = reason(for: goal) else { return t.name }
+        return "\(t.name) (\(r))"
+    }
 
     // MARK: The current goal's target (banner bearing and the map's "Next objective")
 
@@ -155,8 +187,16 @@ enum Spine {
             let moved = t.map { n in target.map { abs($0.x - n.x) + abs($0.z - n.z) > 64 } ?? true } ?? (target != nil)
             target = t
             if changed || moved {
-                if let t { MapCache.shared.setObjective(g, x: t.x, z: t.z, name: t.name) } else { MapCache.shared.setObjective(g, x: nil, z: nil, name: nil) }
+                if let t { MapCache.shared.setObjective(g, x: t.x, z: t.z, name: objectiveLabel(t, goal: id)) } else { MapCache.shared.setObjective(g, x: nil, z: nil, name: nil) }
             }
+        }
+        // Explain why the frontier town is the next objective once iron armour is done (wait until menus close and any
+        // current toast clears so the hand-off isn't buried behind a workbench or another toast).
+        if (id == "spine/find_town" || id == "spine/take_town"), let t = target,
+           g.menu == nil, !g.advancements.contains("spine/brief_town"),
+           g.toastText.isEmpty || g.clock - g.toastTime >= 3 {
+            g.advancements.insert("spine/brief_town")
+            g.onToast?("Objective: \(t.name) - outgun the sheriff to claim the town and its Greywall dispatch")
         }
         if g.clock - bearingAt >= 0.5 {
             bearingAt = g.clock
@@ -271,7 +311,7 @@ enum Spine {
         }
         guard let tt = t else { return }
         target = tt; targetGoal = n.id; targetAt = g.clock; bearingAt = -100
-        MapCache.shared.setObjective(g, x: tt.x, z: tt.z, name: tt.name)
+        MapCache.shared.setObjective(g, x: tt.x, z: tt.z, name: objectiveLabel(tt, goal: n.id))
     }
 }
 
