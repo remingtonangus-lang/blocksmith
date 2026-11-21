@@ -3028,7 +3028,7 @@ final class Game: LifeLinked {
             case .shulker:                                                                // one shell, 50 % + 6.25 % a level
                 if Rand.float(in: 0..<1) < 0.5 + 0.0625 * Float(looting) { give("shulker_shell", 1) }
             case .witch:                                                                  // 1-3 rolls of one pool
-                let pool = ["glowstone_dust", "sugar", "spider_eye", "glass_bottle", "gunpowder", "stick", "stick", "redstone"]
+                let pool = ["glowstone_dust", "sugar", "glass_bottle", "gunpowder", "stick", "stick", "redstone"]
                 for _ in 0..<Rand.int(in: 1...3) { give(pool[Rand.int(in: 0..<pool.count)], Rand.int(in: 0...(2 + looting))) }
             case .polarBear:                                                              // cod 3 : salmon 1
                 give(Rand.int(in: 0..<4) == 0 ? "salmon" : "cod", Rand.int(in: 0...(2 + looting)))

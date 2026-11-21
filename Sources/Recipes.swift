@@ -483,7 +483,7 @@ enum Recipes {
         r.append(shaped([" B ", "###"], ["B": "blaze_rod", "#": "#stone_tool"], "brewing_stand"))
         r.append(shaped([" B ", "D#D", "###"], ["B": "book", "D": "diamond", "#": "obsidian"], "enchanting_table"))
         r.append(shaped(["# #", " # "], ["#": "glass"], "glass_bottle", 3))
-        r.append(shapeless(["spider_eye", "brown_mushroom", "sugar"], "fermented_spider_eye"))
+        r.append(shapeless(["rotten_flesh", "brown_mushroom", "sugar"], "fermented_spider_eye"))
         r.append(shaped(["###", "#M#", "###"], ["#": "gold_nugget", "M": "melon_slice"], "glistering_melon_slice"))
         r.append(shapeless(["blaze_powder", "slime_ball"], "magma_cream"))
         // P317 (d): Lava Cream had no use a player could find without a brewing guide. Two show up in the crafting book

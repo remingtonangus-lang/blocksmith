@@ -75,7 +75,7 @@ extension MobKind {
         .rabbit: ["carrot", "golden_carrot", "dandelion"], .fox: ["sweet_berries", "glow_berries"], .wolf: ["beef", "cooked_beef", "porkchop", "cooked_porkchop", "chicken", "cooked_chicken", "mutton", "cooked_mutton", "rabbit", "cooked_rabbit", "rotten_flesh"],
         .cat: ["cod", "salmon"], .ocelot: ["cod", "salmon"], .horse: ["golden_apple", "golden_carrot"], .donkey: ["golden_apple", "golden_carrot"],
         .llama: ["hay_block"], .traderLlama: ["hay_block"], .camel: ["cactus"], .goat: ["wheat"], .panda: ["bamboo"], .turtle: ["seagrass"],
-        .frog: ["slime_ball"], .armadillo: ["spider_eye"], .sniffer: ["torchflower_seeds"], .mooshroom: ["sweet_berries", "kelp", "seagrass"], .bee: ["dandelion", "poppy", "blue_orchid", "allium", "azure_bluet", "oxeye_daisy", "cornflower", "lily_of_the_valley", "sunflower"],
+        .frog: ["slime_ball"], .armadillo: ["brown_mushroom", "sweet_berries"], .sniffer: ["torchflower_seeds"], .mooshroom: ["sweet_berries", "kelp", "seagrass"], .bee: ["dandelion", "poppy", "blue_orchid", "allium", "azure_bluet", "oxeye_daisy", "cornflower", "lily_of_the_valley", "sunflower"],
         .axolotl: ["tropical_fish_bucket"], .polarBear: [],
     ]
 }
