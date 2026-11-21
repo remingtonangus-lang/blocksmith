@@ -24,6 +24,17 @@ enum Explosion {
         return r0
     }
 
+    // Whether a blast of `power` (with `resistCap` and optional `directional` shot bias) can break block `id`.
+    // Mirrors the ray cost in `explode` so secondary terrain-field carving (`BlastShape`) never destroys obsidian
+    // or other blast-resistant blocks that the blast's own rays could not break.
+    static func canBreak(_ id: BlockID, power: Float, resistCap: Float = .infinity, directional: Bool = false) -> Bool {
+        if id == AIR || Blocks.isLiquid(id) || Blocks.hardness[Int(id)] < 0 { return false }
+        let res = capped(id, Blocks.resistance[Int(id)], resistCap)
+        let cost: Float = (res + 0.3) * 0.3
+        let maxIntensity = power * 1.3 * (directional ? 1.6 : 1)
+        return maxIntensity > cost
+    }
+
     // P452 (Remington, Oct 25 13:34: "if an explosion happens, any of the stuff it destroys is destroyed. There's no
     // block left to pick up. Unless it's a very valuable block. Like a weapon upgrades block thing."): the fight at the
     // surface left the ground strewn with blasted blocks to pick up and it lagged. What a blast (or a crater, a shell
@@ -148,7 +159,7 @@ enum Explosion {
                         shaken[b] = max(shaken[b] ?? 0, intensity / cost)
                     }
                     intensity -= cost
-                    if intensity > 0 && !fluid && b.y >= 0 && b.y < CH && breakBlocks { destroyed.insert(b) }
+                    if intensity > 0 && !fluid && Blocks.hardness[Int(id)] >= 0 && b.y >= 0 && b.y < CH && breakBlocks { destroyed.insert(b) }
                 }
                 p += d * 0.3
                 intensity -= 0.225
@@ -262,7 +273,8 @@ enum Explosion {
             // The ground inside the bowl goes with it (its valuable blocks drop, as the broken ones do).
             // Ledger 42: the bowl, the rim passes and the opened cells' shaping are a job (BlastShape); on the headset it
             // runs on the next frames within the carving allowance, here and in the checks at once.
-            let job = BlastShape(world: w, balls: balls, opened: opened, quiet: calm)
+            let job = BlastShape(world: w, balls: balls, opened: opened, quiet: calm,
+                                 power: power, resistCap: resistCap, directional: shot != nil)
             if BlastShape.deferred && CraterJob.inTick { BlastShape.queue.append(job) } else { while !job.step(g, until: .infinity) {} }
         } else {
             for b in opened { w.fieldShape(b.x, b.y, b.z, opened: true) }
@@ -715,6 +727,7 @@ final class CraterJob {
             let x = cx + dx + sx, z = cz + dz + sz
             let id = w.block(x, y, z)
             if id == AIR || Blocks.isLiquid(id) || Blocks.hardness[Int(id)] < 0 { continue }
+            if Blocks.resistance[Int(id)] > 600 && !Armour.isGrade(id) { continue }
             let b = IVec3(x, y, z)
             if let be = w.blockEntities.removeValue(forKey: b) {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)) }
@@ -961,9 +974,14 @@ final class BlastShape {
     private var stage = 0                                     // 0..<balls: a ball; then the rim passes
     private var pass = 0, scanned = false, dots: [IVec3] = [], next = 0, openedDone = false
     let quiet: Bool                                           // (no circuit part near: ledger 45)
+    let power: Float
+    let resistCap: Float
+    let directional: Bool
 
-    init(world: World, balls: [(V3, Float)], opened: [IVec3], quiet: Bool = false) {
+    init(world: World, balls: [(V3, Float)], opened: [IVec3], quiet: Bool = false,
+         power: Float = 4, resistCap: Float = .infinity, directional: Bool = false) {
         self.world = world; self.balls = balls; self.opened = opened; self.quiet = quiet
+        self.power = power; self.resistCap = resistCap; self.directional = directional
     }
 
     // Does pieces until `deadline` (at least one); true when the crater is shaped.
@@ -979,10 +997,16 @@ final class BlastShape {
             first = false
             if stage < balls.count {
                 let (at, rr) = balls[stage]
+                var restore: [(IVec3, BlockID)] = []
                 w.carve(at: at, radius: rr, mode: .dig) { [self] p, b in
                     carved.insert(p)
+                    if !Explosion.canBreak(b, power: power, resistCap: resistCap, directional: directional) {
+                        restore.append((p, b))
+                        return
+                    }
                     for s in Explosion.blastDrops(b) { g.drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)) }
                 }
+                for (p, b) in restore { w.setBlockAsync(p.x, p.y, p.z, b) }
                 stage += 1
                 if stage == balls.count { Explosion.lap("bowl") }
                 continue
@@ -1002,8 +1026,10 @@ final class BlastShape {
                     let R = Int(ceil(rr + reach)), ax = Int(floor(at.x)), ay = Int(floor(at.y)), az = Int(floor(at.z))
                     for y in (ay - R)...(ay + R) { for z in (az - R)...(az + R) { for x in (ax - R)...(ax + R) {
                         let q = IVec3(x, y, z), mid = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
+                        let id = w.block(x, y, z)
                         guard !carved.contains(q), simd_length(mid - at) < rr + reach, w.groundAt(x, y, z),
-                              Blocks.hardness[Int(w.block(x, y, z))] >= 0, w.fieldDensity(at: mid) < 0.12 else { continue }
+                              Explosion.canBreak(id, power: power, resistCap: resistCap, directional: directional),
+                              w.fieldDensity(at: mid) < 0.12 else { continue }
                         carved.insert(q); dots.append(q)
                     } } }
                 }
@@ -1014,8 +1040,13 @@ final class BlastShape {
             }
             if next < dots.count {
                 let q = dots[next]; next += 1
-                for s in Explosion.blastDrops(w.block(q.x, q.y, q.z)) { g.drops.spawn(s, at: V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)) }
-                BridgeHunt.broke(w.block(q.x, q.y, q.z), q.x, q.y, q.z)
+                let id = w.block(q.x, q.y, q.z)
+                guard Explosion.canBreak(id, power: power, resistCap: resistCap, directional: directional) else {
+                    if next == dots.count { Explosion.lap("dots shaped") }
+                    continue
+                }
+                for s in Explosion.blastDrops(id) { g.drops.spawn(s, at: V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)) }
+                BridgeHunt.broke(id, q.x, q.y, q.z)
                 w.setBlockAsync(q.x, q.y, q.z, AIR); w.fieldShape(q.x, q.y, q.z, opened: true)
                 if next == dots.count { Explosion.lap("dots shaped") }
                 continue
