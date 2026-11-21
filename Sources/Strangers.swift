@@ -97,10 +97,10 @@ enum Strangers {
     // talkToTownsperson: a stranger.
     static func talk(_ g: Game, _ m: Mob) -> Bool {
         guard isStranger(m), let s = story(m) else { return false }
+        m.face(g.player.pos)
         let c = chapter(s.key)
         guard c < 3 else { Townsfolk.say(g, m, "Good to see you again, friend."); return true }
         let ch = s.chapters[c]
-        m.face(g.player.pos)
         if !taken(s.key) {
             setCode(s.key, c * 10 + 1)
             setCount(s.key, 0)
