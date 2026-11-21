@@ -83,6 +83,10 @@ final class CombatHUD {
                     let rr = R - (k == 0 ? 2 * s : 0)
                     let px = cx + sinf(b) * rr, py = cy - cosf(b) * rr
                     let sz = (k == 0 ? 5 : 3) * s
+                    if !HudContrast.old {
+                        out.append(HudLine(text: "", x: px - sz / 2 - 0.5 * s, y: py - sz / 2 - 0.5 * s, scale: s,
+                                           bg: V4(0, 0, 0, fade * 0.75), box: V2(sz + s, sz + s)))
+                    }
                     out.append(HudLine(text: "", x: px - sz / 2, y: py - sz / 2, scale: s, bg: col, box: V2(sz, sz)))
                 }
             }
@@ -97,20 +101,26 @@ final class CombatHUD {
             }
             let y0 = L.hotbarY0 - 3 * s
             if !pieces.isEmpty {
-                out.append(HudLine(text: "Armour", x: L.hotbarX0 - 40 * s, y: y0 - 10 * s, scale: s, color: V4(0.85, 0.88, 0.92, 0.9)))
+                if !HudContrast.old {
+                    let px = L.hotbarX0 - 42 * s
+                    let pw = min(L.hotbarX0 - 4 * s - px, max(36 * s, Float(Font.width("Armour")) * s + 3 * s))
+                    out += HudContrast.frame(px, y0 - 12 * s, pw, 12 * s + Float(pieces.count) * 7 * s, scale: s)
+                }
+                let hc = HudContrast.old ? V4(0.85, 0.88, 0.92, 0.9) : V4(0.92, 0.95, 1, 1)
+                out.append(HudLine(text: "Armour", x: L.hotbarX0 - 40 * s, y: y0 - 10 * s, scale: s, color: hc))
             }
             for st in pieces {
                 let f = max(0, 1 - Float(st.damage) / Float(st.def.durability))
                 let x = L.hotbarX0 - 30 * s, y = y0 + Float(row) * 7 * s
                 out.append(HudLine(text: "", x: x - 10 * s, y: y - 1.5 * s, scale: s, box: V2(6 * s, 6 * s), item: st))
-                out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, 0.55), box: V2(22 * s, 3 * s)))
+                out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, HudContrast.old ? 0.55 : 0.85), box: V2(22 * s, 3 * s)))
                 let c = f < 0.2 ? Settings.shared.badColor : (Settings.shared.colorblind ? V4(0.6, 0.8, 1, 1) : V4(0.75, 0.85, 0.95, 1))
                 out.append(HudLine(text: "", x: x + s * 0.5, y: y + s * 0.5, scale: s, bg: c, box: V2(21 * s * f, 2 * s)))
                 row += 1
             }
         }
-        out += Jetpack.gauge(g, L)
-        out += g.radarLines(L)
+        out += HudContrast.enhance(Jetpack.gauge(g, L), L)
+        out += HudContrast.enhance(g.radarLines(L), L, frameWhole: true, strongBorder: true)
         // Vehicle gauges while piloting (or riding aboard).
         // Ledger 243 (Nov 16 20:53:38, in a locomotive's cab: "the speed regulator overlaps with some of the bars"): the
         // engine's hull counts him aboard, so its hull/rounds/throttle panel was drawn too, a few rows off the cab's own
@@ -128,7 +138,11 @@ final class CombatHUD {
             // need it to tell us that it's a capital dropship in VTOL mode"): the hull, the magazine, the tank or lift,
             // the throttle, and a warship's drive and big gun; no name, speed, heading, height or gun-ready words.
             let (x, y0, w) = CombatHUD.panelOrigin(g, L, rows: 34 + extra)
-            out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, (34 + extra) * s)))
+            if HudContrast.old {
+                out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, (34 + extra) * s)))
+            } else {
+                out += HudContrast.frame(x - 3 * s, y0 - 4 * s, w + 6 * s, (34 + extra) * s, scale: s)
+            }
             if let st = war {
                 let dy = y0 + 33 * s
                 let d = Capital.drive(ship.root, st)
@@ -196,7 +210,11 @@ final class CombatHUD {
         // P379 step 2: the locomotive's cab: speed, the regulator (forward right, reverse left) and the brake.
         if let tr = Trains.cab(g), g.menu == nil {
             let (x, y0, w) = CombatHUD.panelOrigin(g, L, rows: 46)
-            out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, 46 * s)))
+            if HudContrast.old {
+                out.append(HudLine(text: "", x: x - 3 * s, y: y0 - 4 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 6 * s, 46 * s)))
+            } else {
+                out += HudContrast.frame(x - 3 * s, y0 - 4 * s, w + 6 * s, 46 * s, scale: s)
+            }
             out.append(HudLine(text: tr.track.name, x: x, y: y0, scale: s, color: V4(1, 0.9, 0.6, 1)))
             out.append(HudLine(text: String(format: "%3.0f km/h", tr.blocksPerSec * 3.6), x: x, y: y0 + 11 * s, scale: s))
             if !Trains.oldCab && g.survival {
@@ -221,20 +239,32 @@ final class CombatHUD {
         // Q2: the tank sight (D42) under the crosshair while a wheeled vehicle's gun is laid on it.
         if let ship = g.world.ships.pilot, TankSight.sighted(ship), let p = TankSight.aim, g.menu == nil, VehicleControls.armed(g, ship) {
             let t = String(format: "%.0f m  %@", simd_length(p - g.player.eye), TankSight.laid ? "LAID" : "traversing")
-            out.append(HudLine(text: t, x: cx - Float(Font.width(t)) * s / 2, y: cy + 22 * s, scale: s,
+            let tw = Float(Font.width(t)) * s, tx = cx - tw / 2, ty = cy + 22 * s
+            if !HudContrast.old { out += HudContrast.frame(tx - 3 * s, ty - 2 * s, tw + 6 * s, 11 * s, scale: s) }
+            out.append(HudLine(text: t, x: tx, y: ty, scale: s,
                                color: TankSight.laid ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1)))
         }
         // Manned deck gun: reload bar under the crosshair.
         if Turrets.shared.active {
             let r = max(0, Turrets.shared.reload)
             let w = 40 * s, x = cx - w / 2, y = cy + 14 * s
-            out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, 0.55), box: V2(w, 4 * s)))
+            let shells: (Int, Int, String)? = {
+                guard let gm = Turrets.shared.manned else { return nil }
+                let n = Turrets.magazine(gm, g)
+                guard n >= 0 else { return nil }
+                return (n, Turrets.magazineSize(gm), "Shells \(n)")
+            }()
+            if !HudContrast.old {
+                let tw = shells.map { Float(Font.width($0.2)) * s } ?? 0
+                let bw = max(w, tw) + 6 * s
+                out += HudContrast.frame(cx - bw / 2, y - 2 * s, bw, shells == nil ? 8 * s : 17 * s, scale: s)
+            }
+            out.append(HudLine(text: "", x: x, y: y, scale: s, bg: V4(0, 0, 0, HudContrast.old ? 0.55 : 0.85), box: V2(w, 4 * s)))
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: r <= 0 ? Settings.shared.goodColor : V4(0.95, 0.75, 0.2, 1), box: V2(w * max(0, 1 - r / (HeavyTurret.reload * 0.6)), 4 * s)))
             // Nov 12: the shells left in its magazine (Turrets.magazine), red when it runs low.
-            if let gm = Turrets.shared.manned, Turrets.magazine(gm, g) >= 0 {
-                let n = Turrets.magazine(gm, g), t = "Shells \(n)"
+            if let (n, sz, t) = shells {
                 out.append(HudLine(text: t, x: cx - Float(Font.width(t)) * s / 2, y: y + 6 * s, scale: s,
-                                   color: n * 5 < Turrets.magazineSize(gm) ? V4(1, 0.4, 0.3, 1) : V4(0.9, 0.9, 0.9, 1)))
+                                   color: n * 5 < sz ? V4(1, 0.4, 0.3, 1) : V4(0.95, 0.95, 0.95, 1)))
             }
         }
         out += WeaponWheel.shared.lines(g, L)
@@ -378,7 +408,9 @@ final class WeaponWheel {
         let s = L.s
         let cx = floor(L.W / 2), cy = floor(L.H / 2)
         let R = 54 * s, cell = 24 * s
-        var out: [HudLine] = [HudLine(text: "", x: cx - R - cell, y: cy - R - cell, scale: s, bg: V4(0, 0, 0, 0.35), box: V2(2 * (R + cell), 2 * (R + cell)))]
+        var out: [HudLine] = HudContrast.old
+            ? [HudLine(text: "", x: cx - R - cell, y: cy - R - cell, scale: s, bg: V4(0, 0, 0, 0.35), box: V2(2 * (R + cell), 2 * (R + cell)))]
+            : HudContrast.frame(cx - R - cell, cy - R - cell, 2 * (R + cell), 2 * (R + cell), scale: s)
         for (i, idx) in entries.enumerated() {
             let a = Float(i) * 2 * .pi / Float(entries.count)
             let px = cx + sinf(a) * R - cell / 2, py = cy - cosf(a) * R - cell / 2

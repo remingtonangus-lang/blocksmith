@@ -32,6 +32,211 @@ struct HudLine {
     var item: ItemStack? = nil   // item icon drawn at x, y in a box-sized square (weapon wheel, map markers)
 }
 
+// T05 (Nov 20 playtest: HUD hard to read on bright snow): shared dark translucent backing and crisp dark outline
+// for HUD panels, text blocks, minimap, compass, and the hotbar frame. BS_OLDHUDCONTRAST=1 restores the old look.
+enum HudContrast {
+    static let old = Env.all["BS_OLDHUDCONTRAST"] == "1"
+
+    static var baseAlpha: Float { min(0.92, max(0.76, 0.55 + Settings.shared.textBackground * 0.4)) }
+    static func panelBg(_ alpha: Float = 1) -> V4 { V4(0.03, 0.04, 0.06, baseAlpha * max(0, min(1, alpha))) }
+    static func borderColor(_ alpha: Float = 1) -> V4 { V4(0, 0, 0, min(0.96, 0.92 * max(0, min(1, alpha)))) }
+    static func isDark(_ c: V4) -> Bool { max(c.x, c.y, c.z) <= 0.24 && c.w >= 0.35 }
+
+    static func boostedAlpha(_ a: Float) -> Float {
+        let target = baseAlpha
+        if a >= target { return a }
+        if a >= 0.38 { return target }
+        return min(target, a * (target / 0.38))
+    }
+
+    // 4-edge non-overlapping outline outside (x, y, w, h).
+    static func outline(_ x: Float, _ y: Float, _ w: Float, _ h: Float, scale s: Float,
+                        thickness: Float? = nil, alpha: Float = 1) -> [HudLine] {
+        guard w > 0, h > 0, alpha > 0.02 else { return [] }
+        let b = thickness ?? max(1, s)
+        let c = borderColor(alpha)
+        return [
+            HudLine(text: "", x: x - b, y: y - b, scale: s, bg: c, box: V2(w + 2 * b, b)),
+            HudLine(text: "", x: x - b, y: y + h, scale: s, bg: c, box: V2(w + 2 * b, b)),
+            HudLine(text: "", x: x - b, y: y, scale: s, bg: c, box: V2(b, h)),
+            HudLine(text: "", x: x + w, y: y, scale: s, bg: c, box: V2(b, h)),
+        ]
+    }
+
+    // Dark translucent backing panel with a strong dark outline.
+    static func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, scale s: Float,
+                      alpha: Float = 1, border: Float? = nil) -> [HudLine] {
+        guard w > 0, h > 0, alpha > 0.02 else { return [] }
+        return [HudLine(text: "", x: x, y: y, scale: s, bg: panelBg(alpha), box: V2(w, h))]
+            + outline(x, y, w, h, scale: s, thickness: border, alpha: alpha)
+    }
+
+    // Outer frame around the hotbar (drawn strictly outside the slots and selection border so icons stay crisp).
+    static func hotbarFrame(_ L: HudLayout) -> [HudLine] {
+        guard !old else { return [] }
+        let s = L.s
+        return outline(L.hotbarX0 - 1.5 * s, L.hotbarY0 - 1.5 * s, L.slot * 9 + 3 * s, L.slot + 3 * s,
+                       scale: s, thickness: max(1.5, 1.5 * s), alpha: 1)
+    }
+
+    private struct Rect {
+        var x0: Float, y0: Float, x1: Float, y1: Float
+        var dark: Bool
+        var alpha: Float
+        var w: Float { x1 - x0 }
+        var h: Float { y1 - y0 }
+        func contains(_ x: Float, _ y: Float) -> Bool { x >= x0 && x <= x1 && y >= y0 && y <= y1 }
+    }
+
+    private static func bounds(_ l: HudLine) -> (Float, Float, Float, Float)? {
+        if let box = l.box, box.x > 0, box.y > 0 { return (l.x, l.y, l.x + box.x, l.y + box.y) }
+        if !l.text.isEmpty {
+            let w = Float(Font.width(l.text)) * l.scale
+            if w > 0 { return (l.x, l.y, l.x + w, l.y + 8 * l.scale) }
+        }
+        return nil
+    }
+
+    private static func cluster(_ items: [Rect], padX: Float, padY: Float) -> [Rect] {
+        var groups = items
+        var merged = true
+        while merged {
+            merged = false
+            var i = 0
+            while i < groups.count {
+                var j = i + 1
+                while j < groups.count {
+                    let a = groups[i], b = groups[j]
+                    if a.x0 - padX <= b.x1 && b.x0 - padX <= a.x1 && a.y0 - padY <= b.y1 && b.y0 - padY <= a.y1 {
+                        groups[i] = Rect(x0: min(a.x0, b.x0), y0: min(a.y0, b.y0),
+                                         x1: max(a.x1, b.x1), y1: max(a.y1, b.y1),
+                                         dark: a.dark || b.dark, alpha: max(a.alpha, b.alpha))
+                        groups.remove(at: j)
+                        merged = true
+                    } else {
+                        j += 1
+                    }
+                }
+                i += 1
+            }
+        }
+        return groups
+    }
+
+    // Strengthen faint dark backings, outline panels, pill light text over bright surfaces, and frame bare text blocks.
+    static func enhance(_ lines: [HudLine], _ L: HudLayout, frameWhole: Bool = false, strongBorder: Bool = false) -> [HudLine] {
+        guard !old, !lines.isEmpty else { return lines }
+        let s = L.s
+        let border = strongBorder ? max(1.5, 1.5 * s) : max(1, s)
+        let needsCoverCheck = lines.contains { !$0.text.isEmpty && $0.bg == nil }
+        var drawn: [Rect] = []
+        var panels: [Rect] = []
+        var bareText: [Rect] = []
+        var auxBoxes: [Rect] = []
+        var minX = Float.greatestFiniteMagnitude, minY = Float.greatestFiniteMagnitude
+        var maxX = -Float.greatestFiniteMagnitude, maxY = -Float.greatestFiniteMagnitude
+        var maxAlpha: Float = 0
+        var out: [HudLine] = []
+        out.reserveCapacity(lines.count + 16)
+
+        for var l in lines {
+            if let (x0, y0, x1, y1) = bounds(l) {
+                minX = min(minX, x0); minY = min(minY, y0)
+                maxX = max(maxX, x1); maxY = max(maxY, y1)
+            }
+            if l.text.isEmpty && l.item == nil, let bg = l.bg, let box = l.box, box.x > 0, box.y > 0 {
+                let r = Rect(x0: l.x, y0: l.y, x1: l.x + box.x, y1: l.y + box.y, dark: isDark(bg), alpha: bg.w)
+                maxAlpha = max(maxAlpha, bg.w)
+                if max(bg.x, bg.y, bg.z) <= 0.22 && bg.w >= 0.2 && bg.w < 0.96 && box.x >= 12 * l.scale && box.y >= 8 * l.scale {
+                    let na = boostedAlpha(bg.w)
+                    l.bg = V4(bg.x, bg.y, bg.z, na)
+                    let nested = panels.contains { p in
+                        p.x0 <= r.x0 && p.y0 <= r.y0 && p.x1 >= r.x1 && p.y1 >= r.y1 && (p.w - r.w) <= 8 * l.scale && (p.h - r.h) <= 8 * l.scale
+                    }
+                    out.append(l)
+                    if !nested { out += outline(l.x, l.y, box.x, box.y, scale: l.scale, thickness: border, alpha: min(1, na / 0.5)) }
+                    let pr = Rect(x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1, dark: true, alpha: na)
+                    panels.append(pr)
+                    if needsCoverCheck { drawn.append(pr) }
+                } else {
+                    out.append(l)
+                    if max(bg.x, bg.y, bg.z) <= 0.16 && bg.w >= 0.96 && box.x >= 24 * l.scale && box.y >= 24 * l.scale {
+                        panels.append(r)
+                    }
+                    if needsCoverCheck { drawn.append(r) }
+                    if box.x <= L.W * 0.5 && box.y <= 24 * l.scale { auxBoxes.append(r) }
+                }
+                continue
+            }
+            if l.item != nil, let box = l.box, box.x > 0, box.y > 0 {
+                out.append(l)
+                let r = Rect(x0: l.x, y0: l.y, x1: l.x + box.x, y1: l.y + box.y, dark: false, alpha: 1)
+                if box.x <= 24 * l.scale && box.y <= 24 * l.scale { auxBoxes.append(r) }
+                continue
+            }
+            if !l.text.isEmpty {
+                maxAlpha = max(maxAlpha, l.color.w)
+                if let bg = l.bg {
+                    if max(bg.x, bg.y, bg.z) <= 0.22 && bg.w >= 0.2 && bg.w < 0.96 {
+                        l.bg = V4(bg.x, bg.y, bg.z, boostedAlpha(bg.w))
+                    }
+                    out.append(l)
+                    if needsCoverCheck, let (x0, y0, x1, y1) = bounds(l) {
+                        drawn.append(Rect(x0: x0, y0: y0, x1: x1, y1: y1, dark: isDark(l.bg!), alpha: l.bg!.w))
+                    }
+                    continue
+                }
+                let textLum = 0.299 * l.color.x + 0.587 * l.color.y + 0.114 * l.color.z
+                if textLum >= 0.32, let (x0, y0, x1, y1) = bounds(l) {
+                    let cx = (x0 + x1) * 0.5, cy = (y0 + y1) * 0.5
+                    if let top = drawn.last(where: { $0.contains(cx, cy) }) {
+                        if !top.dark { l.bg = panelBg(l.color.w) }
+                    } else {
+                        bareText.append(Rect(x0: x0, y0: y0, x1: x1, y1: y1, dark: false, alpha: l.color.w))
+                    }
+                }
+                out.append(l)
+                continue
+            }
+            out.append(l)
+        }
+
+        if frameWhole && minX < maxX && minY < maxY {
+            let tw = maxX - minX, th = maxY - minY
+            if tw <= L.W * 0.75 && th <= L.H * 0.55 {
+                let covered = panels.contains { p in
+                    p.x0 <= minX + 4 * s && p.y0 <= minY + 4 * s && p.x1 >= maxX - 4 * s && p.y1 >= maxY - 4 * s
+                }
+                if !covered {
+                    let pad = 3 * s
+                    let a = maxAlpha > 0 ? min(1, maxAlpha) : 1
+                    return frame(minX - pad, minY - pad, tw + 2 * pad, th + 2 * pad, scale: s, alpha: a, border: border) + out
+                }
+            }
+        }
+
+        if !bareText.isEmpty {
+            var groups = cluster(bareText, padX: 14 * s, padY: 8 * s)
+            for i in groups.indices {
+                var g = groups[i]
+                for a in auxBoxes {
+                    if a.x0 - 8 * s <= g.x1 && g.x0 - 8 * s <= a.x1 && a.y0 - 6 * s <= g.y1 && g.y0 - 6 * s <= a.y1 {
+                        g.x0 = min(g.x0, a.x0); g.y0 = min(g.y0, a.y0)
+                        g.x1 = max(g.x1, a.x1); g.y1 = max(g.y1, a.y1)
+                    }
+                }
+                groups[i] = g
+            }
+            var backs: [HudLine] = []
+            for g in groups where g.w <= L.W * 0.85 && g.h <= L.H * 0.5 {
+                backs += frame(g.x0 - 3 * s, g.y0 - 2 * s, g.w + 6 * s, g.h + 4 * s, scale: s, alpha: g.alpha, border: border)
+            }
+            if !backs.isEmpty { return backs + out }
+        }
+        return out
+    }
+}
+
 // MARK: Subtitles
 
 final class Subtitles {
@@ -158,12 +363,22 @@ final class Subtitles {
         let w = Float(shown.map { Font.width($0.label) }.max() ?? 0) * s + 24 * s
         let x0 = L.W - L.insetX - w - 4 * s
         var out: [HudLine] = []
+        let nShown = shown.count
         for (i, e) in shown.reversed().enumerated() {
             let age = Float(g.clock - e.time)
             let a = age > 2.2 ? max(0.25, 1 - (age - 2.2) / 0.8) : 1
             let y = bottom - Float(i + 1) * 11 * s
             let tw = Float(Font.width(e.label)) * s
-            out.append(HudLine(text: "", x: x0, y: y - 2 * s, scale: s, bg: V4(0, 0, 0, 0.6 * a), box: V2(w, 11 * s)))
+            if HudContrast.old {
+                out.append(HudLine(text: "", x: x0, y: y - 2 * s, scale: s, bg: V4(0, 0, 0, 0.6 * a), box: V2(w, 11 * s)))
+            } else {
+                let b = max(1, s), bc = HudContrast.borderColor(a)
+                out.append(HudLine(text: "", x: x0, y: y - 2 * s, scale: s, bg: HudContrast.panelBg(a), box: V2(w, 11 * s)))
+                out.append(HudLine(text: "", x: x0 - b, y: y - 2 * s, scale: s, bg: bc, box: V2(b, 11 * s)))
+                out.append(HudLine(text: "", x: x0 + w, y: y - 2 * s, scale: s, bg: bc, box: V2(b, 11 * s)))
+                if i == 0 { out.append(HudLine(text: "", x: x0 - b, y: y + 9 * s, scale: s, bg: bc, box: V2(w + 2 * b, b))) }
+                if i == nShown - 1 { out.append(HudLine(text: "", x: x0 - b, y: y - 2 * s - b, scale: s, bg: bc, box: V2(w + 2 * b, b))) }
+            }
             out.append(HudLine(text: e.label, x: x0 + (w - tw) / 2, y: y, scale: s, color: V4(1, 1, 1, a)))
             if e.side < 0 { out.append(HudLine(text: "<", x: x0 + 3 * s, y: y, scale: s, color: V4(1, 1, 0.6, a))) }
             if e.side > 0 { out.append(HudLine(text: ">", x: x0 + w - 7 * s, y: y, scale: s, color: V4(1, 1, 0.6, a))) }
@@ -281,8 +496,9 @@ enum ContextPrompts {
         if L.W - L.insetX - widest - 8 * s < L.hotbarX0 + L.slot * 9 + 4 * s { bottom = min(bottom, L.hotbarY0 - 4 * s) }
         for (i, t) in list.reversed().enumerated() {
             let w = Float(Font.width(t)) * s
+            let bg = HudContrast.old ? V4(0, 0, 0, 0.3 + Settings.shared.textBackground * 0.5) : HudContrast.panelBg()
             out.append(HudLine(text: t, x: L.W - L.insetX - w - 8 * s, y: bottom - Float(i + 1) * 12 * s, scale: s,
-                               color: V4(1, 1, 1, 0.95), bg: V4(0, 0, 0, 0.3 + Settings.shared.textBackground * 0.5)))
+                               color: V4(1, 1, 1, 0.95), bg: bg))
         }
         return out
     }
@@ -312,8 +528,10 @@ enum ClockFace {
         guard let t = text(g) ?? HeldReadout.text(g) else { return [] }      // (ledger 334: every reading in hand)
         let s = L.s, w = Float(Font.width(t)) * s
         let x = (L.W - w) / 2, y = L.hotbarY0 - 30 * s
-        return [HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 8 * s, 14 * s)),
-                HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.93, 0.7, 1))]
+        let bg = HudContrast.old
+            ? [HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(w + 8 * s, 14 * s))]
+            : HudContrast.frame(x - 4 * s, y - 3 * s, w + 8 * s, 14 * s, scale: s)
+        return bg + [HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.93, 0.7, 1))]
     }
 }
 
@@ -498,7 +716,7 @@ enum HudExtras {
     private static var counterN = -1, counterLost = false, counterText = ""
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        var out = Goals.lines(g, L)
+        var out = HudContrast.enhance(Goals.lines(g, L), L)
         // P98: the Reckoning's counter (top right) while war bands hunt the player.
         if Reckoning.stage == 2 && g.menu == nil && g.dim.dim == .overworld {
             let s = L.s, n = Reckoning.groupsLeft
@@ -508,7 +726,11 @@ enum HudExtras {
             }
             let t = counterText
             let w = Float(Font.width(t)) * s, x = L.W - L.insetX - w - 6 * s, y = L.insetY + 4 * s
-            out.append(HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.6), box: V2(w + 8 * s, 14 * s)))
+            if HudContrast.old {
+                out.append(HudLine(text: "", x: x - 4 * s, y: y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.6), box: V2(w + 8 * s, 14 * s)))
+            } else {
+                out += HudContrast.frame(x - 4 * s, y - 3 * s, w + 8 * s, 14 * s, scale: s)
+            }
             out.append(HudLine(text: t, x: x, y: y, scale: s, color: V4(1, 0.6, 0.2, 1)))
         }
         let bn = BugNotes.shared
@@ -516,7 +738,12 @@ enum HudExtras {
             // Bug Notes mic dot: grey = listening, red = recording a note (top-left, inside the safe area).
             let s = L.s, x = L.insetX + 4 * s, y = L.insetY + 4 * s
             let pulse: Float = bn.recording ? 0.75 + 0.25 * sinf(Float(g.clock) * 8) : 1
-            out.append(HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(8 * s, 8 * s)))
+            if HudContrast.old {
+                out.append(HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(8 * s, 8 * s)))
+            } else {
+                let bw = bn.recording ? 13 * s + Float(Font.width("Note")) * s : 8 * s
+                out += HudContrast.frame(x - s, y - s, bw, 9 * s, scale: s)
+            }
             out.append(HudLine(text: "", x: x, y: y, scale: s, bg: bn.recording ? V4(0.95, 0.15, 0.15, pulse) : V4(0.7, 0.7, 0.72, 0.8), box: V2(6 * s, 6 * s)))
             if bn.recording { out.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
         }
@@ -528,15 +755,28 @@ enum HudExtras {
             // LB / RB beside the hotbar.
             let s = L.s, y = L.hotbarY0 + L.slot / 2 - 4 * s
             let lb = PadMap.glyph(.lb), rb = PadMap.glyph(.rb)
-            out.append(HudLine(text: lb.s, x: L.hotbarX0 - Float(Glyphs.advance(Int(lb.rawValue))) * s - 4 * s, y: y, scale: s))
-            out.append(HudLine(text: rb.s, x: L.hotbarX0 + L.slot * 9 + 5 * s, y: y, scale: s))
+            let pill: V4? = HudContrast.old ? nil : HudContrast.panelBg()
+            out.append(HudLine(text: lb.s, x: L.hotbarX0 - Float(Glyphs.advance(Int(lb.rawValue))) * s - 4 * s, y: y, scale: s, bg: pill))
+            out.append(HudLine(text: rb.s, x: L.hotbarX0 + L.slot * 9 + 5 * s, y: y, scale: s, bg: pill))
         }
         let prompts = ContextPrompts.lines(g, L)
         out += prompts
         let top = prompts.map { $0.y }.min() ?? (L.H - L.insetY - 6 * L.s)
         out += Subtitles.shared.lines(g, L, bottom: top - 4 * L.s)
-        if g.menu is InventoryMenu && g.alive { out = Wallet.lines(g, L) + HonourHUD.lines(g, L) + out }
-        if g.menu == nil && g.alive { out = Minimap.lines(g, L) + Wallet.lines(g, L) + HonourHUD.lines(g, L) + CombatHUD.shared.lines(g, L) + CompassHUD.lines(g, L) + glanceLines(g, L) + out }
+        if g.menu is InventoryMenu && g.alive {
+            out = HudContrast.enhance(Wallet.lines(g, L), L) + HudContrast.enhance(HonourHUD.lines(g, L), L) + out
+        }
+        if g.menu == nil && g.alive {
+            let hotbar = g.drivingHUD ? [] : HudContrast.hotbarFrame(L)
+            out = hotbar
+                + HudContrast.enhance(Minimap.lines(g, L), L, frameWhole: true, strongBorder: true)
+                + HudContrast.enhance(Wallet.lines(g, L), L)
+                + HudContrast.enhance(HonourHUD.lines(g, L), L)
+                + CombatHUD.shared.lines(g, L)
+                + HudContrast.enhance(CompassHUD.lines(g, L), L, frameWhole: true)
+                + HudContrast.enhance(glanceLines(g, L), L)
+                + out
+        }
         return out
     }
 }
@@ -605,8 +845,11 @@ enum SaveBadge {
         let s = L.s, x = L.insetX + 4 * s, y = L.insetY + 4 * s + (below ? 12 * s : 0)
         let t = full && !(failing && g.clock - failedAt < 30) ? "Storage full" : (bad ? "Save failed" : "Saved")
         let body = bad ? V4(0.75, 0.16, 0.14, a) : V4(0.22, 0.36, 0.62, a)
-        return [
-            HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.45 * a), box: V2(Float(Font.width(t)) * s + 13 * s, 9 * s)),
+        let bw = Float(Font.width(t)) * s + 13 * s
+        let back = HudContrast.old
+            ? [HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.45 * a), box: V2(bw, 9 * s))]
+            : HudContrast.frame(x - s, y - s, bw, 9 * s, scale: s, alpha: a)
+        return back + [
             HudLine(text: "", x: x, y: y, scale: s, bg: body, box: V2(7 * s, 7 * s)),                         // the disc
             HudLine(text: "", x: x + 2 * s, y: y, scale: s, bg: V4(0.9, 0.92, 0.95, a), box: V2(3 * s, 2 * s)),  // its shutter
             HudLine(text: "", x: x + 1.5 * s, y: y + 4 * s, scale: s, bg: V4(0.95, 0.95, 0.9, a), box: V2(4 * s, 3 * s)),   // its label
@@ -630,7 +873,11 @@ enum NowPlaying {
         let age = Float(g.clock - at)
         guard Settings.shared.songTitles, g.menu == nil, HudExtras.enabled, age >= 0, age < 4 else { return [] }
         let a = min(1, (4 - age) / 1, age / 0.4) * 0.75
-        let s = L.s
-        return [HudLine(text: title, x: L.insetX + 4 * s, y: L.H - L.insetY - 10 * s, scale: s, color: V4(0.9, 0.92, 1, a))]
+        let s = L.s, x = L.insetX + 4 * s, y = L.H - L.insetY - 10 * s
+        if HudContrast.old {
+            return [HudLine(text: title, x: x, y: y, scale: s, color: V4(0.9, 0.92, 1, a))]
+        }
+        return HudContrast.frame(x - 3 * s, y - 2 * s, Float(Font.width(title)) * s + 6 * s, 11 * s, scale: s, alpha: a)
+            + [HudLine(text: title, x: x, y: y, scale: s, color: V4(0.94, 0.96, 1, min(1, a * 1.25)))]
     }
 }
