@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// D19 hotel rooms over the saloon. The barkeep lets rooms and draws baths:
+// D19/T16 hotel rooms at every village inn (TownBuildings.innLot) and over the saloon. The keeper lets rooms and draws baths:
 //   a room for the night   $3: you sleep upstairs. Full health, the night passes (from dusk on: you wake at sunrise),
 //                          your respawn point is set here, and the game is saved.
 //   a hot bath             $1: the blood and the road wash off (townsfolk stop remarking on it), poison and hunger
