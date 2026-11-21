@@ -12,7 +12,12 @@ import simd
 //   notes      the same list stamps a note where you stand (Camp, Danger, Loot, Ore, Water, Home) as a * on the map,
 //              or clears the notes and waypoints within 32 blocks.
 enum Waymarks {
-    struct Target { let kind: String; let key: String; let name: String; let pos: V3 }
+    struct Target {
+        let kind: String; let key: String; let name: String; let pos: V3; let reason: String?
+        init(kind: String, key: String, name: String, pos: V3, reason: String? = nil) {
+            self.kind = kind; self.key = key; self.name = name; self.pos = pos; self.reason = reason
+        }
+    }
     static let noteNames = ["Camp", "Danger", "Loot", "Ore", "Water", "Home"]
     static let beaconRange: Float = 600
     static var cache: (Double, Target?) = (-1e9, nil)
@@ -32,7 +37,9 @@ enum Waymarks {
         guard g.dim.dim == .overworld else { return [] }
         let py = g.player.pos.y
         var out: [Target] = []
-        if let t = Spine.target { out.append(Target(kind: "objective", key: "objective", name: "Story: " + t.name, pos: v(t.x, t.z, py))) }
+        if let t = Spine.target {
+            out.append(Target(kind: "objective", key: "objective", name: "Story: " + t.name, pos: v(t.x, t.z, py), reason: Spine.reason(for: Spine.targetGoal)))
+        }
         for (key, c) in Contracts.all where c.taken && !c.paid && !c.failed {
             let at = c.done ? nil : (c.target ?? c.destAt)
             guard let a = at, a.count >= 2 else { continue }
@@ -149,7 +156,8 @@ enum Waymarks {
         rel = rel.truncatingRemainder(dividingBy: 2 * .pi)
         if rel > .pi { rel -= 2 * .pi } else if rel < -.pi { rel += 2 * .pi }
         let name = t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) } ?? t.name
-        let label = "\(name) \(Int(d)) m"
+        let title = t.reason.map { "\(name) (\($0))" } ?? name
+        let label = "\(title) \(Int(d)) m"
         return (rel, label, MapCache.style(t.kind).1)
     }
 
@@ -177,7 +185,9 @@ enum Waymarks {
             if d < 10 && arrivedAt != id && !["my_horse", "my_ship", "my_vehicle"].contains(t.kind) {
                 arrivedAt = id
                 g.sfx(.xp, 0.8)
-                g.onToast?("You've reached \(t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) } ?? t.name)")
+                let place = t.name.split(separator: ":").last.map { String($0).trimmingCharacters(in: .whitespaces) } ?? t.name
+                let why = t.reason.map { " - \($0)" } ?? ""
+                g.onToast?("You've reached \(place)\(why)")
             } else if d > 40 && arrivedAt == id { arrivedAt = nil }
             if d > 12 && d < beaconRange {
                 let x = Int(floor(t.pos.x)), z = Int(floor(t.pos.z))
@@ -228,7 +238,8 @@ final class TrackMenu: ListMenu {
             let on = cur?.kind == t.kind && cur?.key == t.key
             let d = Int(simd_length(V2(t.pos.x - p.x, t.pos.z - p.z)))
             let way = d > 4 ? ", " + Waymarks.side(game, t.pos) : ""
-            out.append(Row(name: t.name, detail: (on ? "Tracking: " : "") + "\(d) m\(way)", value: "", enabled: true, good: on))
+            let why = t.reason.map { "\($0), " } ?? ""
+            out.append(Row(name: t.name, detail: (on ? "Tracking: " : "") + "\(why)\(d) m\(way)", value: "", enabled: true, good: on))
         }
         if Waymarks.trackedKey != nil {
             acts.append(.track(nil))

@@ -128,7 +128,9 @@ enum Goals {
         // the top); the banner sits under any boss and alarm bars (Renderer: 19 px a bar from insetY + 12).
         let F = inv ? L.fitted(g.menu!) : L
         let s = F.s
-        let head = Goals.head, t = n.text
+        let head = Goals.head
+        let why = Spine.reason(for: n.id)
+        let t = (why != nil && !why!.localizedCaseInsensitiveContains(n.text)) ? "\(n.text) - \(why!)" : n.text
         let b = Spine.targetGoal == n.id ? Spine.bearing : nil         // where the target is, when it is known
         var y = L.insetY + 34 * s + Float(bars) * 19 * s
         if inv, let m = g.menu {
