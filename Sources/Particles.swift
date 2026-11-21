@@ -159,19 +159,44 @@ final class ParticleManager {
         }
     }
 
-    // The mark a blade leaves where it hit (VRMelee, Oct 11 playtest P16): a red streak along the swing across the
-    // contact point, lingering a second, drawn a little toward the viewer so it sits on the mob's surface.
+    // The mark a blade leaves where it hit (VRMelee, Oct 11 P16; Nov 20 T11: scaled to the target and slimmed so small
+    // mobs like rabbits don't get covered by a bright red pill, paired with a quick kinetic hit burst).
     func slashMark(at c: V3, along dir: V3, toward eye: V3, power: Float, on mob: Mob? = nil) {
-        let smoke = Int(Tex.id("smoke"))
+        let puff = ParticleManager.puffLayer
         let d = simd_normalize(dir + V3(0, 1e-4, 0)), out = simd_normalize(eye - c + V3(0, 1e-4, 0))
-        let n = 9, len: Float = 0.3 + 0.25 * power
+        let pwr = max(0, min(1.5, power))
+        let mobScale: Float = mob.map { max(0.35, min(1.0, $0.height / 1.6)) } ?? 0.85
+        let len: Float = (0.14 + 0.14 * pwr) * mobScale
+        let n = 7
         for i in 0..<n {
             let t = Float(i) / Float(n - 1) - 0.5
-            let w: Float = 1 - abs(t) * 1.2                     // thick in the middle, tapering to the ends
-            // R11 (Oct 13: "the red hit mark should stay on the target"): it rides on the mob it was cut into, for 2.5 s.
-            add(Particle(pos: c + d * (t * len) + out * 0.06, vel: V3(0, mob == nil ? -0.04 : 0, 0), life: mob == nil ? 1.1 : 2.5, maxLife: mob == nil ? 1.1 : 2.5,
-                         layer: smoke, uv0: V2(0, 0), uvSize: 1, size: 0.05 + 0.04 * w, gravity: 0, color: V3(0.75, 0.04, 0.03), collide: false, glow: false,
+            let w: Float = max(0.15, 1 - abs(t) * 1.7)          // slim cut tapering to fine tips
+            // R11: rides on the mob it was cut into, fading smoothly (and dissolving promptly once a slain mob falls).
+            let life: Float = mob == nil ? 0.7 : 2.0
+            add(Particle(pos: c + d * (t * len) + out * (0.025 * mobScale),
+                         vel: V3(0, mob == nil ? -0.05 : 0, 0), life: life, maxLife: life,
+                         layer: puff, uv0: V2(0, 0), uvSize: 1,
+                         size: (0.011 + 0.015 * w) * mobScale, gravity: 0,
+                         color: V3(0.55, 0.05, 0.04), collide: false, glow: false,
                          follow: mob, followAt: mob?.pos ?? .zero))
+        }
+        hitBurst(at: c + out * (0.02 * mobScale), along: d, outward: out, power: pwr, scale: mobScale)
+    }
+
+    // Compact kinetic hit burst for melee and ranged impacts: small flecks thrown outward with gravity that fade out.
+    func hitBurst(at c: V3, along dir: V3, outward out: V3, power: Float = 0.7, scale: Float = 1) {
+        let puff = ParticleManager.puffLayer
+        let count = max(5, min(12, 5 + Int(power * 5)))
+        for _ in 0..<count {
+            let spread = V3(Rand.float(in: -1...1), Rand.float(in: -0.3...1), Rand.float(in: -1...1))
+            let vDir = simd_normalize(dir * 0.9 + out * 0.7 + spread * 0.9 + V3(0, 1e-4, 0))
+            let speed = Rand.float(in: 1.8...4.2) * (0.65 + 0.35 * scale)
+            let shade = Rand.float(in: 0.45...0.7)
+            let life = Rand.float(in: 0.18...0.36)
+            add(Particle(pos: c, vel: vDir * speed + V3(0, 0.6, 0), life: life, maxLife: life,
+                         layer: puff, uv0: V2(0, 0), uvSize: 1,
+                         size: Rand.float(in: 0.014...0.028) * max(0.6, scale), gravity: 11,
+                         color: V3(shade, shade * 0.08, shade * 0.06), collide: true, glow: false))
         }
     }
 
@@ -184,7 +209,12 @@ final class ParticleManager {
             list[i].vel.y -= list[i].gravity * dt
             var np = list[i].pos + list[i].vel * dt
             if let m = list[i].follow {
-                if m.health <= 0 && m.deathT > 1 { list[i].follow = nil } else { np += m.pos - list[i].followAt; list[i].followAt = m.pos }
+                if m.health <= 0 {
+                    if m.deathT > 0.6 { list[i].follow = nil; list[i].life = min(list[i].life, 0.15) }
+                    else { np += m.pos - list[i].followAt; list[i].followAt = m.pos; list[i].life = min(list[i].life, 0.65 - m.deathT) }
+                } else {
+                    np += m.pos - list[i].followAt; list[i].followAt = m.pos
+                }
             }
             if list[i].collide && (Blocks.collide[Int(w.builtBlock(Int(floor(np.x)), Int(floor(np.y)), Int(floor(np.z))))] || (field && w.fieldDensity(at: np) > 0) || (ships && w.ships.solid(at: np))) {
                 list[i].vel = V3(list[i].vel.x * 0.3, 0, list[i].vel.z * 0.3)
@@ -224,17 +254,23 @@ final class ParticleManager {
         let amb = world.dim.ambient
         for p in list {
             if p.delay > 0 { continue }
-            var alpha: Float = 1, layer = p.layer
+            var alpha: Float = 1, layer = p.layer, scale: Float = 1
+            let sm = ParticleManager.isSmoke(p)
+            let gp = !sm && ParticleManager.isGlowPuff(p)
+            // Nov 20 (T11): colored/small smoke-layer motes (ranged trails, sparks, hit marks) bypassed isSmoke/isGlowPuff
+            // and drew as opaque holey blocky rings. Route all full-quad smoke/puff motes through the soft pass with
+            // the solid round puff, smooth fade, and gentle size taper.
+            let sp = !sm && !gp && p.uvSize >= 1 && (p.layer == ParticleManager.smokeLayer || p.layer == ParticleManager.puffLayer)
+            let frac = max(0, min(1, p.life / max(0.01, p.maxLife)))
             if let soft {
-                let sm = ParticleManager.isSmoke(p), gp = !sm && ParticleManager.isGlowPuff(p)
-                if (sm || gp) != soft { continue }
+                if (sm || gp || sp) != soft { continue }
                 let fade = min(1, p.life / max(0.01, p.maxLife * 0.4))
                 if sm { alpha = 0.55 * fade }
-                if gp { alpha = 0.85 * fade; layer = ParticleManager.puffLayer }
+                else if gp { alpha = 0.85 * fade; layer = ParticleManager.puffLayer }
+                else if sp { alpha = (p.glow ? 0.88 : 0.72) * frac; layer = ParticleManager.puffLayer }
             }
-            // Nov 12 (the trailer's snow base, 18 s: a burning truck's smoke): a grey puff a block or more across on the
-            // "smoke" picture showed its holes as eyes, as the glowing ones did (t22.5); it takes the solid round puff.
-            if p.size >= 0.5 && p.uvSize >= 1 && layer == ParticleManager.smokeLayer && !ParticleManager.oldSmoke { layer = ParticleManager.puffLayer }
+            if sp && !ParticleManager.oldSmoke { scale = p.glow ? (0.4 + 0.6 * frac) : (0.5 + 0.5 * frac) }
+            if p.uvSize >= 1 && layer == ParticleManager.smokeLayer && !ParticleManager.oldSmoke { layer = ParticleManager.puffLayer }
             let c = p.pos - eye
             let l = world.lightOpen(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
             ParticleManager.drawnCount += 1
@@ -251,7 +287,7 @@ final class ParticleManager {
                     }
                 }
             }
-            let s = p.size
+            let s = p.size * scale
             let r = right * s, u = up * s
             let a = p.uv0, b = p.uv0 + V2(p.uvSize, p.uvSize)
             wr.quad4(c - r - u, c + r - u, c + r + u, c - r + u, V2(a.x, b.y), V2(b.x, b.y), V2(b.x, a.y), V2(a.x, a.y),
