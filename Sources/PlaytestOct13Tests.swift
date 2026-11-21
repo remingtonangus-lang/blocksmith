@@ -112,6 +112,16 @@ enum PlaytestOct13Tests {
                   String(format: "ledger 400: a rocket at a rival 40 off goes %.1f from it; a round isn't led by his motion (%.2f); at him it is (%.1f); BS_OLDFOEAIM=1: at him", simd_length(rocket - foe), round.x - foe.x, atHim.x - lane0.x))
         }
 
+        // Ledger 404 (Nov 20 evening run): the crafting book's tabs and labels.
+        do {
+            func cat(_ k: String) -> CraftCategory? { Items.has(k) ? CraftCategory.of(Items.id(k)) : nil }
+            let bowl = cat("bowl"), stew = cat("mushroom_stew"), bow = cat("bow"), xbow = cat("crossbow")
+            let cut = CraftingBookMenu.wrap("Heavy Weighted Pressure Plate", 100)
+            let fits = cut.map { Font.width($0.0) <= 100 && Font.width($0.1) <= 100 } ?? false
+            check(bowl != .combat && stew != .combat && bow == .combat && xbow == .combat && fits,
+                  "ledger 404: a bowl (\(bowl.map { $0.name } ?? "-")) and a stew aren't Combat, the bows are; a long name splits in two lines that fit (\(cut.map { "\($0.0) / \($0.1)" } ?? "none")); BS_OLDBOOK=1: the bowl in Combat")
+        }
+
         // Ledger 401 (Neon 07#2): Fortify Homestead bought at a town's gunsmith, his homestead 3000 blocks off: ordered,
         // kept until its ground is loaded, and not sold twice.
         do {
