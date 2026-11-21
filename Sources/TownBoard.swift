@@ -293,6 +293,12 @@ final class NoticeBoardMenu: ListMenu {
     var items: [Item] = []
     var gangWanted: (GangLeaders.Gang, Int, String)?
     var hideout: IVec3?
+    private var lastStatus = ""
+
+    private func setStatus(_ text: String, good: Bool) {
+        lastStatus = text
+        say(text, good: good)
+    }
 
     init(game: Game, town: String, anchor: IVec3) {
         self.town = town
@@ -377,23 +383,23 @@ final class NoticeBoardMenu: ListMenu {
         switch items[index] {
         case .job(let i):
             let r = TownBoard.use(g, town, i, anchor: anchor)
-            say(r.0, good: r.1)
+            setStatus(r.0, good: r.1)
         case .contract(let i):
             let r = Contracts.use(g, board: town, at: anchor, i)
-            say(r.0, good: r.1)
+            setStatus(r.0, good: r.1)
         case .deed(let i):
             let key = i == 0 ? Property.townKey : Property.homeKey, price = i == 0 ? Property.townPrice : Property.homePrice
-            guard g.money >= price, Items.has(key) else { say("That's \(Money.format(price)).", good: false); return }
+            guard g.money >= price, Items.has(key) else { setStatus("That's \(Money.format(price)).", good: false); return }
             g.money -= price
             let r = g.inventory.add(ItemStack(Items.id(key), 1)); if !r.isEmpty { g.dropItem(r) }
             g.sfx(.villagerTrade, 0.6)
-            say(i == 0 ? "Stand inside an empty town building and use the deed." : "Ride out into open country and use the deed where you want your cabin.", good: true)
+            setStatus(i == 0 ? "Stand inside an empty town building and use the deed." : "Ride out into open country and use the deed where you want your cabin.", good: true)
         case .donate:
-            guard g.money >= TownBoard.donation else { say("You can't spare it.", good: false); return }
+            guard g.money >= TownBoard.donation else { setStatus("You can't spare it.", good: false); return }
             g.money -= TownBoard.donation
             Honour.earn(g, 2, source: "donation", "a donation to \(town)")
             g.sfx(.villagerTrade, 0.6)
-            say("\(town) thanks you for your kindness.", good: true)
+            setStatus("\(town) thanks you for your kindness.", good: true)
         case .gang:
             // The hideout on the map and the compass following the boss (Waymarks' bounty target).
             guard let (gg, d, dir) = gangWanted else { break }
@@ -401,16 +407,30 @@ final class NoticeBoardMenu: ListMenu {
             let follow = Waymarks.candidates(g).first { $0.kind == "bounty" && $0.key == gg.leader }
             if let t = follow { Waymarks.track(g, t) }
             g.sfx(.pageTurn, 0.5)
-            say("\(gg.leader)'s hideout is marked on your map, \(d) blocks \(dir)" + (follow != nil ? ". The compass follows the bounty." : "."), good: true)
+            setStatus("\(gg.leader)'s hideout is marked on your map, \(d) blocks \(dir)" + (follow != nil ? ". The compass follows the bounty." : "."), good: true)
         case .name:
             let n = TownBoard.names
             let i = n.firstIndex(of: TownBoard.playerName) ?? 0
             TownLaw.state.playerName = n[(i + 1) % n.count]
             g.sfx(.click, 0.4)
-            say("Folks will know you as \(TownBoard.playerName).", good: true)
+            setStatus("Folks will know you as \(TownBoard.playerName).", good: true)
         default: break
         }
         refresh()
+    }
+
+    override func drawLines(_ L: HudLayout, _ o: V2) -> [HudLine] {
+        let base = super.drawLines(L, o)
+        var cands: [String] = []
+        if base.contains(where: { $0.text.hasSuffix("...") }) {
+            MenuText.addCandidate(subtitle, to: &cands)
+            MenuText.addCandidate(lastStatus, to: &cands)
+            for r in rows {
+                MenuText.addCandidate(r.name, to: &cands)
+                MenuText.addCandidate(r.detail, to: &cands)
+            }
+        }
+        return MenuText.wrapPanelLines(base, origin: o, width: width, height: height, scale: L.s, candidates: cands)
     }
 
     override func tick() {

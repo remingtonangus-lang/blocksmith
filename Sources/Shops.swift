@@ -378,7 +378,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         let who = keeper.villager?.person.flatMap { $0.split(separator: " ").last }.map { "\($0)'s " } ?? ""
         super.init(who.isEmpty ? kind.name : who + kind.name, game: game)
         showInventoryLabel = false
-        width = 284; height = 198
+        width = 284; height = 208
         for i in 0..<ShopMenu.visible {
             let b = MenuSlot(ShopMenu.rowX, ShopMenu.rowY + ShopMenu.rowH * i, nil, 0, .button(i))
             b.w = ShopMenu.rowW; b.h = ShopMenu.rowH - 2
@@ -597,7 +597,7 @@ final class ShopMenu: Menu, CustomDrawnMenu {
         if let v = data {
             var line = [v.person, v.town].compactMap { $0 }.joined(separator: " of ")
             if let n = countryLine { line += ", " + n }
-            label(ShopMenu.fit(line, width - 16), 8, 15, mid)
+            out += MenuText.fittedLine(line, x: o.x + 8 * s, y: o.y + 15 * s, maxW: width - 16, maxH: 10, scale: s, color: mid, allowWrap: true, wrapLift: 1)
         }
         right("Wallet " + Money.format(game.money), width - 8, 6, V4(0.1, 0.38, 0.12, 1))
         // Tabs and quantity.
@@ -630,8 +630,11 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             box(x, y, ShopMenu.rowW, ShopMenu.rowH - 2, V4(0.22, 0.2, 0.18, 1))
             box(x + 1, y + 1, ShopMenu.rowW - 2, ShopMenu.rowH - 4, hot ? V4(0.86, 0.82, 0.72, 1) : V4(0.7, 0.67, 0.6, 1))
             if !st.isEmpty { let (px, py) = at(x + 3, y + 2); out.append(HudLine(text: "", x: px, y: py, scale: s, item: st)) }
-            label(name, x + 24, y + 2, ok ? dark : V4(0.32, 0.3, 0.28, 1))
-            label(detail, x + 24, y + 11, mid)
+            let availW = max(40, ShopMenu.rowW - 24 - 5 - Font.width(price) - 6)
+            out += MenuText.fittedLine(name, x: o.x + Float(x + 24) * s, y: o.y + Float(y + 2) * s, maxW: availW, maxH: 8, scale: s,
+                                       color: ok ? dark : V4(0.32, 0.3, 0.28, 1), allowWrap: false)
+            out += MenuText.fittedLine(detail, x: o.x + Float(x + 24) * s, y: o.y + Float(y + 11) * s, maxW: availW, maxH: 7.5, scale: s,
+                                       color: mid, allowWrap: true, wrapLift: 1.2)
             right(price, x + ShopMenu.rowW - 5, y + 6, ok ? V4(0.08, 0.34, 0.1, 1) : V4(0.55, 0.16, 0.12, 1))
             if hot && Prompt.pad { box(x - 1, y - 1, ShopMenu.rowW + 2, 1, V4(1, 0.85, 0.2, 1)); box(x - 1, y + ShopMenu.rowH - 2, ShopMenu.rowW + 2, 1, V4(1, 0.85, 0.2, 1)) }
         }
@@ -649,17 +652,17 @@ final class ShopMenu: Menu, CustomDrawnMenu {
             box(266, top, 10, span, V4(0.3, 0.28, 0.26, 1))
             box(267, y, 8, h, V4(0.85, 0.8, 0.7, 1))
         }
-        if !status.isEmpty { label(ShopMenu.fit(status, width - 16), 8, height - 13, statusGood ? V4(0.1, 0.3, 0.12, 1) : V4(0.55, 0.14, 0.1, 1)) }
+        if !status.isEmpty {
+            let col = statusGood ? V4(0.1, 0.3, 0.12, 1) : V4(0.55, 0.14, 0.1, 1)
+            let wrapped = Font.wrap(status, maxWidth: width - 16, maxLines: 3)
+            let y0 = wrapped.count == 1 ? 189 : (wrapped.count == 2 ? 184 : 181)
+            for (k, wl) in wrapped.enumerated() { label(wl, 8, y0 + k * 9, col) }
+        }
         return out
     }
 
     // Cuts text to a pixel width with an ellipsis (names and messages never run off the panel).
-    static func fit(_ t: String, _ px: Int) -> String {
-        guard Font.width(t) > px else { return t }
-        var s = t
-        while !s.isEmpty && Font.width(s + "...") > px { s.removeLast() }
-        return s + "..."
-    }
+    static func fit(_ t: String, _ px: Int) -> String { Font.fit(t, px) }
 
     var legend: String {
         if Prompt.pad { return Prompt.line([(.select, selling ? "Sell" : "Buy"), (.tabs, "Buy / Sell"), (.scroll, "Scroll"), (.back, "Leave")]) }

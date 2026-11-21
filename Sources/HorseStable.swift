@@ -131,6 +131,7 @@ final class StableMenu: ListMenu {
     let town: String
     private enum Act { case buy(HorseBreed), store(Mob), take(Int), sell(Mob), rename(Mob) }
     private var acts: [Act] = []
+    private var lastStatus = ""
 
     init(game g: Game, keeper m: Mob) {
         keeper = m
@@ -138,7 +139,9 @@ final class StableMenu: ListMenu {
         super.init("Horses", game: g)
         subtitle = "\(town) Stable"
         let mine = Stable.nearby(g, m.pos).count, kept = Stable.kept.count
-        say(mine + kept == 0 ? "Looking for a horse? Every one here's broke to the saddle." : "Your horses are in good hands.", good: true)
+        let msg = mine + kept == 0 ? "Looking for a horse? Every one here's broke to the saddle." : "Your horses are in good hands."
+        lastStatus = msg
+        say(msg, good: true)
         Stable.opened += 1
     }
 
@@ -196,6 +199,21 @@ final class StableMenu: ListMenu {
         case .sell(let m): r = Stable.sell(game, m, town: town)
         case .rename(let m): r = ("Your horse is called \(Stable.rename(m)) now.", true)
         }
+        lastStatus = r.0
         say(r.0, good: r.1)
+    }
+
+    override func drawLines(_ L: HudLayout, _ o: V2) -> [HudLine] {
+        let base = super.drawLines(L, o)
+        var cands: [String] = []
+        if base.contains(where: { $0.text.hasSuffix("...") }) {
+            MenuText.addCandidate(subtitle, to: &cands)
+            MenuText.addCandidate(lastStatus, to: &cands)
+            for r in rows {
+                MenuText.addCandidate(r.name, to: &cands)
+                MenuText.addCandidate(r.detail, to: &cands)
+            }
+        }
+        return MenuText.wrapPanelLines(base, origin: o, width: width, height: height, scale: L.s, candidates: cands)
     }
 }
