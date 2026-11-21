@@ -25,7 +25,8 @@ enum PlaceSlopeCheck {
         let p = g.player
         let classes: [(String, String)] = [("cube", "stone"), ("slab", "stone_slab"), ("stairs", "oak_stairs"), ("door", "oak_door"),
                                            ("fence", "oak_fence"), ("torch", "torch"), ("sign", "oak_sign"), ("rail", "rail"),
-                                           ("bed", "red_bed"), ("chest", "chest"), ("plant", "poppy")]
+                                           ("bed", "red_bed"), ("chest", "chest"), ("table", "crafting_table"), ("furnace", "furnace"),
+                                           ("plant", "poppy")]
         var tally: [String: Tally] = [:]
         for (n, _) in classes { tally[n] = Tally() }
         func top(_ x: Int, _ z: Int) -> Int {
@@ -147,6 +148,10 @@ enum PlaceSlopeCheck {
                         if World.restsOnFloor[Int(b)] {
                             let gp = w.floorGap(c.x, c.y, c.z)
                             if gp > 0.1 { tl.gap += 1; bad.append(String(format: "%@ at %d %d %d: ground %.2f under its floor", Blocks.key(b), c.x, c.y - YOFF, c.z, gp)) }
+                            if World.isStation[Int(b)] {
+                                let sk = w.floorSink(c.x, c.y, c.z)
+                                if sk > 0.1 { tl.sink += 1; bad.append(String(format: "%@ at %d %d %d: corners sunk %.2f into the ground", Blocks.key(b), c.x, c.y - YOFF, c.z, sk)) }
+                            }
                             continue
                         }
                         guard let mid = surface(Float(c.x) + 0.5, Float(c.z) + 0.5, from: Float(c.y) + 1.5) else { continue }
