@@ -7,7 +7,10 @@ struct HudLayout {
     let H: Float
     let s: Float      // integer HUD scale
     let slot: Float   // slot size in pixels
+    private(set) var baseS: Float   // un-shrunk HUD scale kept across fitted(_:) for bottom hint-bar clearance
     static let cols = 9
+    static let menuTopMargin: Float = 6
+    static let menuLegendH: Float = 42
     static var userScale: Int = UserDefaults.standard.integer(forKey: "guiScale") { didSet { UserDefaults.standard.set(userScale, forKey: "guiScale") } }
     static var couch: Bool = UserDefaults.standard.bool(forKey: "couchMode") { didSet { UserDefaults.standard.set(couch, forKey: "couchMode") } }
     // Split screen (Coop.swift): the whole frame's height, so each half-height view keeps the TV's full overscan margin.
@@ -29,6 +32,7 @@ struct HudLayout {
         let auto = max(1, min(floor(uw / (HudLayout.couch ? 280 : 400)), floor(uh / (HudLayout.couch ? 210 : 300))))
         let maxFit = max(1, min(floor(W / 240), floor(H / 180)))
         s = HudLayout.userScale > 0 ? min(Float(HudLayout.userScale), maxFit) : auto
+        baseS = s
         slot = 20 * s
     }
 
@@ -40,17 +44,22 @@ struct HudLayout {
         insetX = floor((HudLayout.splitFullW > 0 ? HudLayout.splitFullW : W) * safe)
         insetY = floor((HudLayout.splitFullH > 0 ? HudLayout.splitFullH : H) * safe)
         s = max(1, scale)
+        baseS = s
         slot = 20 * s
     }
 
     // Largest scale (up to this one) at which a menu panel plus its title/legend fits inside the safe area.
     func fitted(_ m: Menu) -> HudLayout {
         let extraW: Float = (m as? HasRecipeBook)?.book.open == true ? 250 : 8
-        let extraH: Float = m is PauseMenu && (m as? PauseMenu)?.page == .title ? 90 : 34
+        let isTitle = (m as? PauseMenu)?.page == .title
+        let extraH: Float = isTitle ? 90 : (HudLayout.menuTopMargin + HudLayout.menuLegendH)
         let fw = floor((W - 2 * insetX) / (Float(m.width) + extraW))
         let fh = floor((H - 2 * insetY) / (Float(m.height) + extraH))
         let fit = max(1, min(s, fw, fh))
-        return fit == s ? self : HudLayout(W, H, scale: fit)
+        if fit == s { return self }
+        var out = HudLayout(W, H, scale: fit)
+        out.baseS = baseS
+        return out
     }
 
     var hotbarX0: Float { floor((W - slot * 9) / 2) }

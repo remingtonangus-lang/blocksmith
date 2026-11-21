@@ -284,7 +284,17 @@ class Menu {
     // MARK: Geometry
 
     func origin(_ L: HudLayout) -> V2 {
-        V2(floor((L.W - Float(width) * L.s) / 2), floor((L.H - Float(height) * L.s) / 2))
+        let x = floor((L.W - Float(width) * L.s) / 2)
+        let ph = Float(height) * L.s
+        if (self as? PauseMenu)?.page == .title {
+            return V2(x, floor((L.H - ph) / 2))
+        }
+        let top = L.insetY + HudLayout.menuTopMargin * L.s
+        let bot = L.H - L.insetY - max(HudLayout.menuLegendH * L.s, 36 * L.baseS)
+        let y = bot - top >= ph
+            ? floor(top + (bot - top - ph) / 2)
+            : max(L.insetY, floor(bot - ph))
+        return V2(x, y)
     }
     func slotAt(_ p: V2, _ L: HudLayout) -> MenuSlot? {
         let o = origin(L)
