@@ -36,7 +36,10 @@ extension Economy {
         if isEmerald(item) { return emeraldSell }
         if !oldValuables, let face = Money.face(item) { return face }      // ledger 256: gold is money, sold at face value
         let v = value(of: item) ?? 0
-        return p.country.active ? p.country.sell(item, v, p) : p.sell(v)
+        let price = p.country.active ? p.country.sell(item, v, p) : p.sell(v)
+        // (ledger 407, Nov 20 evening run: rotten flesh, worth 2 cents, sold for $0.00 at the butcher's: anything a
+        // shop buys fetches at least a cent)
+        return v > 0 && !TownBoard.oldDeliverLine ? max(1, price) : price
     }
 
     // A craftsperson's cash counter: the shop catalogue closest to their trade.

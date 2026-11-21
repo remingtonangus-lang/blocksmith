@@ -54,6 +54,7 @@ struct TownJob: Codable {
 }
 
 enum TownBoard {
+    static let oldDeliverLine = Env.all["BS_OLDDELIVERLINE"] != nil      // ledger 407
     static let names = ["Stranger", "Drifter", "Partner", "Ace", "Bo", "Cal", "Dusty", "Eli", "Frankie", "Gus", "Hank", "Jesse",
                         "Kit", "Lou", "Mae", "Nat", "Ollie", "Rae", "Sam", "Tex", "Val", "Wren"]
     static var playerName: String { TownLaw.state.playerName ?? "Stranger" }
@@ -119,7 +120,9 @@ enum TownBoard {
         case "deliver":
             let name = Items.has(j.item ?? "") ? ItemStack(Items.id(j.item!), 1).def.display : (j.item ?? "goods")
             let have = Items.has(j.item ?? "") ? g.inventory.main.countOf(Items.id(j.item!)) : 0
-            return ("Deliver \(j.count) \(name)", j.paid ? "Done. Thank you kindly." : "You have \(have). Press to hand them over")
+            // (ledger 407, Nov 20 evening run: "You have 0. Press to hand them over" with nothing to hand over)
+            let ready = have >= j.count || TownBoard.oldDeliverLine
+            return ("Deliver \(j.count) \(name)", j.paid ? "Done. Thank you kindly." : (ready ? "You have \(have). Press to hand them over" : "You have \(have) of \(j.count)"))
         case "hunt":
             let what = "Clear \(j.count) monsters near town"
             if j.paid { return (what, "Done. Thank you kindly.") }
