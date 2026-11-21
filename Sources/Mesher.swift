@@ -1355,6 +1355,30 @@ enum Mesher {
                         V[ci] = SIMD3<Float>(Float(cx), Float(cy), Float(cz)) + 0.5 + sum / n
                         has[ci] = true
                     } } }
+                    // Ledger 419 (fluids step 2, his "full redesign"; Gemini: poured water a cluster of "sharp, jagged blue
+                    // triangles"): the surface net's vertices sit at the mean of their own cell's crossings, so a spill
+                    // over the cells' steps came out as a crumpled sheet of spikes. Two passes relax each vertex half way
+                    // toward the mean of its neighbours (the six cells beside it that hold one), which irons out the
+                    // spikes and steps and leaves a flat surface flat. The cells on the section's border (0 and 16 on
+                    // any axis) stay where they are, so a section and its neighbour still meet at the same vertices.
+                    // BS_OLDFLUIDRELAX=1: as before.
+                    if !Mesher.oldFluidRelax {
+                        withUnsafeTemporaryAllocation(of: SIMD3<Float>.self, capacity: M * MM) { (V2: UnsafeMutableBufferPointer<SIMD3<Float>>) -> Void in
+                            for _ in 0..<2 {
+                                for cy in 1..<(M - 1) { for cz in 1..<(M - 1) { for cx in 1..<(M - 1) {
+                                    let ci = cx + cz * M + cy * MM
+                                    guard has[ci] else { continue }
+                                    var sum = SIMD3<Float>(repeating: 0), n: Float = 0
+                                    for d in [1, -1, M, -M, MM, -MM] where has[ci + d] { sum += V[ci + d]; n += 1 }
+                                    V2[ci] = n > 0 ? V[ci] * 0.5 + (sum / n) * 0.5 : V[ci]
+                                } } }
+                                for cy in 1..<(M - 1) { for cz in 1..<(M - 1) { for cx in 1..<(M - 1) {
+                                    let ci = cx + cz * M + cy * MM
+                                    if has[ci] { V[ci] = V2[ci] }
+                                } } }
+                            }
+                        }
+                    }
                     let layer = Int(texT[(kind == 1 ? Int(WATER) : (kind == 3 ? Int(FUEL) : Int(LAVA))) * 6 + 2])
                     let trans = kind != 2 || layerT[Int(LAVA)] == translucent
                     // Quads: one per sample edge with a crossing, round it the four cells' vertices. A section owns the
@@ -1576,6 +1600,9 @@ enum Mesher {
                     // white sawtooth of block steps over every snowy slope (P142).
                     if smooth && (site != nil || fieldOn) && bi == snowLayerID && natAt(i - RL) { continue }
                     if leafBlob && bi == snowLayerID && leafT[Int(R[i - RL])] { continue }     // (P451: the blob's top is the snow)
+                    // (Ledger 420: snow on a fallen trunk in a field world: the trunk beds down into the ground, so the slab
+                    // stood over it in the air; the trunk carries no slab.)
+                    if fieldOn && bi == snowLayerID && !ShapeTrunks.oldFallen && ShapeTrunks.isTrunk[Int(R[i - RL])] && ShapeTrunks.axisOf[Int(R[i - RL])] != 1 { continue }
                     let lx = x - C0, lz = z - C0
                     let bx16 = lx * 16, by16 = ly * 16, bz16 = lz * 16
                     let tintB = Int(tintT[bi])
@@ -2694,6 +2721,7 @@ enum Mesher {
     // Nov 12: the water level kept inside low natural ground (BS_OLDWATERGROUND=1: through it at its height, as before).
     static let oldWaterGround = Env.all["BS_OLDWATERGROUND"] == "1"
     static let oldFluidShade = Env.all["BS_OLDFLUIDSHADE"] == "1"          // ledger 417
+    static let oldFluidRelax = Env.all["BS_OLDFLUIDRELAX"] == "1"          // ledger 419
     // The twelve edges of a cell's corner cube (corner k: x = k & 1, y = (k >> 1) & 1, z = (k >> 2) & 1).
     static let cubeEdges: [(Int, Int)] = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)]
     static var farDarkCull = true

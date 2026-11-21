@@ -80,7 +80,7 @@ enum Strangers {
         g.mobs.mobs.append(m)
         TownLaw.state.strangerDay = day
         appearances += 1
-        g.onToast?("A stranger in town: \(s.name)")
+        g.onToast?("\(s.name) has come to town")
     }
 
     static func story(_ m: Mob) -> Story? { stories.first { $0.name == m.customName } }

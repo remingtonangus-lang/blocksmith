@@ -862,7 +862,9 @@ enum ShapeTrunks {
     }
     static func fallenRun(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int) -> Bool {
         let b = ctx.block(x, y, z)
-        guard isTrunk[Int(b)], SmoothTerrain.natural[Int(ctx.block(x, y - 1, z))] else { return false }
+        let under = ctx.block(x, y - 1, z)
+        guard isTrunk[Int(b)], SmoothTerrain.natural[Int(under)]
+                || (!oldFallen && under == AIR && ctx.groundTop(x, y - 1, z, reach: 2) != nil) else { return false }
         let a = lieAxis(ctx, b, x, y, z)
         guard a != 1 else { return false }
         let sx = a == 0 ? 1 : 0, sz = a == 2 ? 1 : 0
@@ -914,8 +916,7 @@ enum ShapeTrunks {
         // P484 (Oct 28 17:44, a trader's covered wagon: "Why is it hovering?"): only a fallen trunk (3+ along the ground,
         // fallenRun) with nothing solid on it; a wagon's wheel under its bed, a log seat by a fire or a log he set down
         // keeps the whole block, so the bed sits on its wheels.
-        let up = ctx.block(x, y + 1, z)
-        if axis != 1 && fallenRun(ctx, x, y, z) && !isTrunk[Int(up)] && (!Blocks.collide[Int(up)] || Mesher.leafT[Int(up)]) {
+        if bedded(ctx, x, y, z, axis) {
             r = fallenRadius
             let lift = r * 0.8
             let g0 = ctx.groundTop(x, y - 1, z, reach: 2) ?? Float(y)
@@ -932,7 +933,30 @@ enum ShapeTrunks {
         func ring(_ c: SIMD3<Float>) -> [SIMD3<Float>] {
             (0...sides).map { k in let t = Float(k % sides) / Float(sides) * 2 * .pi; return c + (e1v * cosf(t) + e2v * sinf(t)) * r }
         }
-        if !(isTrunk[Int(next)] && axisOf[Int(next)] == UInt8(axis)) { cap(ctx, center: b, pts: ring(b).reversed(), normal: d, layer: rings) }
-        if !(isTrunk[Int(prev)] && axisOf[Int(prev)] == UInt8(axis)) { cap(ctx, center: a, pts: ring(a), normal: -d, layer: rings) }
+        // Ledger 420: an end whose neighbour along the log is drawn otherwise (one bedded, one whole) gets its rings too,
+        // or the step between the two pieces was an open seam you saw through.
+        let me = oldFallen ? false : bedded(ctx, x, y, z, axis)
+        func joins(_ nb: BlockID, _ sx: Int) -> Bool {
+            guard isTrunk[Int(nb)] && axisOf[Int(nb)] == UInt8(axis) else { return false }
+            return oldFallen || bedded(ctx, x + step.x * sx, y, z + step.z * sx, axis) == me
+        }
+        if !joins(next, 1) { cap(ctx, center: b, pts: ring(b).reversed(), normal: d, layer: rings) }
+        if !joins(prev, -1) { cap(ctx, center: a, pts: ring(a), normal: -d, layer: rings) }
+    }
+
+    // Ledger 420 (Nov 20 evening, his notes and Gemini Part 10 01:10-01:25, a snowy forest: "fallen logs hover above
+    // the ground and have see-through gaps, especially on the ends"): a fallen trunk beds into the ground only with
+    // nothing on it, and the snow cover lying on a log counted as something on it. So in snow most pieces of a fallen
+    // trunk kept the whole block's height and thickness, floating over the dipped ground, and where a bare piece beside
+    // them bedded down the two did not meet. Snow cover and carpets no longer hold a log up, and a piece under ground
+    // that the field draws lower than the cell (no block under it) beds too. BS_OLDFALLEN=1: as before.
+    static let oldFallen = Env.all["BS_OLDFALLEN"] == "1"
+    static let thinCover: [Bool] = (0..<Blocks.count).map { i in
+        let k = Blocks.key(Blocks.groupBase[i]); return k == "snow" || k.hasSuffix("_carpet") || k == "moss_carpet"
+    }
+    static func bedded(_ ctx: DetailContext, _ x: Int, _ y: Int, _ z: Int, _ axis: Int) -> Bool {
+        guard axis != 1 && fallenRun(ctx, x, y, z) else { return false }
+        let up = ctx.block(x, y + 1, z)
+        return !isTrunk[Int(up)] && (!Blocks.collide[Int(up)] || Mesher.leafT[Int(up)] || (!oldFallen && thinCover[Int(up)]))
     }
 }

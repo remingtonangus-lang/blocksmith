@@ -40,6 +40,7 @@ extension Game {
 struct LightFlash { var pos: V3; var color: V3; var radius: Float; var life: Float; var maxLife: Float }
 
 extension Game {
+    static let oldFlash = Env.all["BS_OLDFLASH"] == "1"                  // ledger 423
     /// Adds a brief point light at `pos` (world). `color` is HDR (values above 1 bloom), `radius` in blocks.
     func addFlash(at pos: V3, color: V3, radius: Float, life: Float) {
         if flashes.count >= 32 { flashes.removeFirst() }
@@ -60,7 +61,11 @@ extension Game {
         for f in sorted.prefix(8) {
             let k = max(0, f.life / f.maxLife)
             out.append(V4(f.pos - eye, f.radius))
-            out.append(V4(f.color * (k * k), 0))
+            // Ledger 423 (Gemini, Nov 20 evening Part 9: a "near full-screen orange flash" in a fight, a comfort risk in a
+            // headset): a blast's light at up to 12 times white lit every surface round the eye white-orange at once.
+            // Within 5 blocks of the eye a flash is dimmed toward 40% (at the eye). BS_OLDFLASH=1: as before.
+            let near: Float = Game.oldFlash ? 1 : min(1, 0.4 + simd_length(f.pos - eye) / 8)
+            out.append(V4(f.color * (k * k * near), 0))
             n += 1
         }
         while out.count < 16 { out.append(V4(0, 0, 0, 0)) }

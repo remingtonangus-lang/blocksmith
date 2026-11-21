@@ -121,6 +121,7 @@ final class QuestControls {
     private var velRHand = V3(0, 0, 0), prevRTrack: V3? = nil
     static let oldThrow = Env.all["BS_OLDTHROW"] == "1"   // (the world-space speed, as before)
     static let oldScopeEye = Env.all["BS_OLDSCOPEEYE"] == "1"
+    static let oldFireFx = Env.all["BS_OLDFIREFX"] == "1"     // ledger 423
     static let oldScopeHUD = Env.all["BS_OLDSCOPEHUD"] == "1"   // (hotbar, hint and controller card drawn over the scope)
     // Ledger 309: a scripted route plays with nobody holding the controllers; the 3 s "controllers put down" pause and
     // its toast stay off while QuestRoute runs (they showed in the Nov 18 gate while the route kept ticking).
@@ -2325,11 +2326,15 @@ final class QuestControls {
             let h = hashf(i, 3, 17, 0xF1A3)
             let x: Float = -1.35 + 2.7 * (Float(i) + 0.5) / Float(n) + (h - 0.5) * 0.08
             let lick: Float = 0.5 + 0.5 * sinf(t * (7 + 5 * h) + h * 11)
-            let tall: Float = (0.55 + 0.6 * h) * (0.7 + 0.45 * lick)
+            // Ledger 423 (Nov 20 evening run, Gemini Part 9: a "near full-screen orange flash" in the Road Agent fight, a
+            // comfort risk): the flames reached past the middle of the view at three quarters alpha over an orange ring
+            // at half, so burning washed most of the view orange. They now lick up the lower quarter only, fainter, and the
+            // ring keeps to the edge. BS_OLDFIREFX=1: as before.
+            let tall: Float = (0.55 + 0.6 * h) * (0.7 + 0.45 * lick) * (QuestControls.oldFireFx ? 1 : 0.5)
             let half: Float = 0.1 + 0.05 * h
             let sway: Float = 0.06 * sinf(t * 5.3 + h * 7)
             let y0: Float = -1.35, y1: Float = y0 + tall
-            let a: Float = 0.75 * max(0.3, fx)
+            let a: Float = (QuestControls.oldFireFx ? 0.75 : 0.5) * max(0.3, fx)
             let root = V4(1, 0.38, 0.04, a), mid = V4(1, 0.62, 0.1, a * 0.85), tip = V4(1, 0.9, 0.35, 0)
             let ym: Float = y0 + tall * 0.45
             QuestControls.quad(&v, V4(x - half, y0, 0, 2), V4(x + half, y0, 0, 2), V4(x + half * 0.7 + sway * 0.5, ym, 0, 2),
@@ -2360,7 +2365,7 @@ final class QuestControls {
         if sprintFx > 0.01 { speedStreaks(&v, sprintFx * fx, Float(g.clock)) }
         if g.onFire > 0 && g.menu == nil {
             let flicker = 0.75 + 0.25 * sinf(Float(g.clock) * 9)
-            ring(&v, 0.55 * flicker, V3(1, 0.45, 0.05), maxAlpha: 0.5)
+            ring(&v, 0.55 * flicker, V3(1, 0.45, 0.05), maxAlpha: QuestControls.oldFireFx ? 0.5 : 0.3)
             flames(&v, Float(g.clock), fx)
         }
     }
